@@ -38,4 +38,16 @@ export interface AccountQueryRepository {
 
   /** Real-time subscription to account roles. */
   subscribeToAccountRoles(accountId: string, onUpdate: (record: AccountRoleRecord | null) => void): Unsubscribe;
+
+  /**
+   * Real-time subscription to ALL accounts visible to a user:
+   * — organization accounts where ownerId === userId
+   * — organization accounts where memberIds contains userId
+   * Returns a merged Record<accountId, AccountEntity> suitable for populating
+   * the app-level account switcher.
+   */
+  subscribeToAccountsForUser(
+    userId: string,
+    onUpdate: (accounts: Record<string, AccountEntity>) => void,
+  ): Unsubscribe;
 }

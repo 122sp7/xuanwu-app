@@ -68,3 +68,12 @@ export async function getAccountPolicies(accountId: string): Promise<AccountPoli
 export async function getActiveAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
   return policyRepo.findActiveByAccountId(accountId);
 }
+
+// ─── Multi-Account (App-Level) ────────────────────────────────────────────────
+
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
+}

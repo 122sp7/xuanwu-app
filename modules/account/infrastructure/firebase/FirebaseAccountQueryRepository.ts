@@ -10,6 +10,7 @@ import {
   getDoc,
   collection,
   query,
+  where,
   orderBy,
   limit as fbLimit,
   onSnapshot,
@@ -132,5 +133,51 @@ export class FirebaseAccountQueryRepository implements AccountQueryRepository {
         grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
       });
     });
+  }
+
+  subscribeToAccountsForUser(
+    userId: string,
+    onUpdate: (accounts: Record<string, AccountEntity>) => void,
+  ): Unsubscribe {
+    const db = this.db;
+    let ownerAccounts: Record<string, AccountEntity> = {};
+    let memberAccounts: Record<string, AccountEntity> = {};
+
+    const emit = () => {
+      onUpdate({ ...ownerAccounts, ...memberAccounts });
+    };
+
+    const ownerQuery = query(
+      collection(db, "accounts"),
+      where("ownerId", "==", userId),
+      where("accountType", "==", "organization"),
+    );
+
+    const memberQuery = query(
+      collection(db, "accounts"),
+      where("memberIds", "array-contains", userId),
+      where("accountType", "==", "organization"),
+    );
+
+    const unsubOwner = onSnapshot(ownerQuery, (snap) => {
+      ownerAccounts = {};
+      snap.docs.forEach((d) => {
+        ownerAccounts[d.id] = toAccountEntity(d.id, d.data() as Record<string, unknown>);
+      });
+      emit();
+    });
+
+    const unsubMember = onSnapshot(memberQuery, (snap) => {
+      memberAccounts = {};
+      snap.docs.forEach((d) => {
+        memberAccounts[d.id] = toAccountEntity(d.id, d.data() as Record<string, unknown>);
+      });
+      emit();
+    });
+
+    return () => {
+      unsubOwner();
+      unsubMember();
+    };
   }
 }

@@ -70,4 +70,5 @@ export {
   subscribeToAccountRoles,
   getAccountPolicies,
   getActiveAccountPolicies,
+  subscribeToAccountsForUser,
 } from "./interfaces/queries/account.queries";
