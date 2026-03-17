@@ -24,6 +24,7 @@ You are the planning agent for the Xuanwu architecture migration.
 - Explicitly call out where code should live across `app/`, `modules/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/`.
 - Prefer plans that reduce duplicated logic and tighten layer separation.
 - Prioritize identity/account/organization verification before planning new module migrations.
+- Exclude VS8 from continuation planning unless the user explicitly requests VS8.
 - Ensure each plan is idempotent and can be safely rerun without duplicate paths or conflicting logic.
 
 ## Output format

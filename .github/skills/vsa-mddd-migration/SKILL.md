@@ -29,6 +29,7 @@ When asked to "continue next phase", apply this deterministic order:
 1. Finish any remaining identity/account/organization gaps.
 2. Finish workspace + shell context/UX gaps that block post-login continuity.
 3. Continue unfinished modules by user-facing impact (`task`, `notification`, `knowledge`, `retrieval`) before lower-frequency back-office areas.
+4. Exclude VS8 unless the user explicitly requests VS8 work.
 
 ## Required architecture scan checklist
 - Compare current state against expected MDDD target structure in:

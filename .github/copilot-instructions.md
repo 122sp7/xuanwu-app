@@ -48,6 +48,7 @@
   1. close remaining identity/account/organization gaps
   2. close workspace + shell context consistency gaps
   3. continue unfinished modules by user-facing impact (`task`, `notification`, `knowledge`, `retrieval`, then back-office modules)
+- Explicit exception: **exclude VS8** from this continuation flow unless the user explicitly asks to include VS8.
 - Update Serena memory after each significant module completion or architecture decision.
 - If docs, prompts, instructions, or agents are improved during migration, keep them aligned with the actual repository state.
 

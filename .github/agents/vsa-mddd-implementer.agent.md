@@ -32,7 +32,8 @@ You are the implementation agent for the Xuanwu architecture migration.
    - `shared/`
    - `ui/`
 2. Prioritize validation of identity/account/organization module completeness first.
-3. Verify each module keeps clear layer separation and reusable `ui/` + `shared/` usage.
+3. Exclude VS8 from continuation execution unless the user explicitly requests VS8.
+4. Verify each module keeps clear layer separation and reusable `ui/` + `shared/` usage.
 
 ## UI/UX consistency enforcement
 - Keep design tokens, spacing, typography, and control sizing consistent across shell and module surfaces.

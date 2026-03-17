@@ -16,5 +16,6 @@ Requirements:
   1) identity/account/organization closure
   2) workspace + shell context consistency
   3) remaining unfinished modules by user-facing impact
+- exclude VS8 unless the user explicitly asks for VS8
 - keep the change minimal, architecture-safe, and validation-backed
 - finish with lint/build validation and a screenshot if the UI changed
