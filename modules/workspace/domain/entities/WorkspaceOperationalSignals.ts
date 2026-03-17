@@ -93,7 +93,7 @@ function assignedPersonnelCount(workspace: WorkspaceEntity) {
   ].filter((value) => Boolean(value?.trim())).length;
 }
 
-function getDateLabel(value: string | Date | null | undefined) {
+function getDateLabel(value: string | number | Date | null | undefined) {
   if (!value) {
     return "待排定";
   }
@@ -110,7 +110,13 @@ function getDateLabel(value: string | Date | null | undefined) {
 }
 
 function sortByStatus<T extends { status: string }>(items: readonly T[], order: readonly string[]) {
-  return [...items].sort((left, right) => order.indexOf(left.status) - order.indexOf(right.status));
+  const orderIndex = new Map(order.map((status, index) => [status, index]));
+
+  return [...items].sort(
+    (left, right) =>
+      (orderIndex.get(left.status) ?? Number.MAX_SAFE_INTEGER) -
+      (orderIndex.get(right.status) ?? Number.MAX_SAFE_INTEGER),
+  );
 }
 
 export function getWorkspaceOperationalTasks(
@@ -481,7 +487,7 @@ export function getWorkspaceParserSummary(
   const nextActions: string[] = [];
 
   if (fileAssets.length === 0) {
-    blockedReasons.push("目前沒有任何可供解析的工作區資產。\n");
+    blockedReasons.push("目前沒有任何可供解析的工作區資產。");
   }
 
   if (!workspace.photoURL) {
