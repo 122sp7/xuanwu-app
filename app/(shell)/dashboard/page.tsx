@@ -58,6 +58,31 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Quick Access</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Workspace domain shortcuts are being completed. You can still access key areas below.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Link
+            href="/organization"
+            className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
+          >
+            Open Organizations
+          </Link>
+          <Link
+            href="/settings"
+            className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
+          >
+            Open Account Settings
+          </Link>
+          <div className="rounded-xl border border-dashed border-border/40 px-4 py-3 text-sm text-muted-foreground">
+            Workspace Tools (Coming soon)
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -6,6 +6,9 @@ import { useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { HeaderControls } from "./_components/header-controls";
 import { ShellGuard } from "./_components/shell-guard";
 
 const navItems = [
@@ -23,14 +26,23 @@ const routeTitles: Record<string, string> = {
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { state: authState, logout } = useAuth();
-  const { state: appState } = useApp();
+  const { state: appState, dispatch } = useApp();
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const pageTitle = routeTitles[pathname] ?? "Workspace";
-  const accountCount = Object.keys(appState.accounts ?? {}).length;
+  const organizationAccounts = Object.values(appState.accounts ?? {});
 
   function isActiveRoute(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
   }
 
   async function handleLogout() {
@@ -45,37 +57,18 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   return (
     <ShellGuard>
       <div className="flex min-h-screen bg-background">
-        <aside className="hidden w-64 border-r border-border/50 bg-card/30 p-5 md:block">
-          <div className="mb-6 space-y-1">
-            <p className="text-sm font-semibold tracking-tight">Xuanwu App</p>
-            <p className="text-xs text-muted-foreground">Authenticated Workspace</p>
-            <p className="pt-1 text-xs text-muted-foreground">
-              <span role="status" aria-live="polite">
-                {accountCount} Organization Account{accountCount === 1 ? "" : "s"}
-              </span>
-            </p>
-          </div>
-
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = isActiveRoute(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+        <DashboardSidebar
+          pathname={pathname}
+          navItems={navItems}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
 
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header className="border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
@@ -88,17 +81,11 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
               </div>
 
               <div className="ml-auto flex items-center gap-3">
-                <div className="text-right">
+                <div className="hidden text-right sm:block">
                   <p className="text-xs text-muted-foreground">Signed in as</p>
                   <p className="max-w-[220px] truncate text-sm font-medium">{authState.user?.email ?? "—"}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
-                >
-                  Sign Out
-                </button>
+                <HeaderControls />
               </div>
             </div>
 
