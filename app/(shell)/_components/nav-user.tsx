@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/ui/shadcn/ui/button";
+
 interface NavUserProps {
   name: string;
   email: string;
@@ -21,13 +23,15 @@ export function NavUser({ name, email, onSignOut }: NavUserProps) {
         </div>
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={onSignOut}
-        className="w-full rounded-lg border border-border/60 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
+        className="w-full"
       >
         Sign Out
-      </button>
+      </Button>
     </div>
   );
 }
