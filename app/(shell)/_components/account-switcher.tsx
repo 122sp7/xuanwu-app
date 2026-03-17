@@ -1,9 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import { Button } from "@/ui/shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/shadcn/ui/dialog";
 
 interface AccountSwitcherProps {
   personalAccount: AuthUser | null;
@@ -21,44 +31,74 @@ export function AccountSwitcher({
   onSelectOrganization,
 }: AccountSwitcherProps) {
   const router = useRouter();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Account Context
-      </p>
-      <select
-        aria-label="Switch account context"
-        value={activeAccountId ?? ""}
-        onChange={(event) => {
-          const nextId = event.target.value;
-          if (nextId === "__create_organization__") {
-            router.push("/organization");
-            return;
-          }
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Account Context
+        </p>
+        <select
+          aria-label="Switch account context"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
 
-          if (!nextId || nextId === personalAccount?.id) {
-            onSelectPersonal();
-            return;
-          }
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
 
-          const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-          if (nextAccount) {
-            onSelectOrganization(nextAccount);
-          }
-        }}
-        className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-      >
-        {personalAccount && (
-          <option value={personalAccount.id}>{personalAccount.name} (Personal)</option>
-        )}
-        {organizationAccounts.map((account) => (
-          <option key={account.id} value={account.id}>
-            {account.name} (Organization)
-          </option>
-        ))}
-        <option value="__create_organization__">+建立組織</option>
-      </select>
-    </div>
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name} (Personal)</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name} (Organization)
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+      </div>
+
+      <Dialog open={isCreateOrganizationOpen} onOpenChange={setIsCreateOrganizationOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription>要前往組織建立頁面嗎？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCreateOrganizationOpen(false);
+              }}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={() => {
+                setIsCreateOrganizationOpen(false);
+                router.push("/organization");
+              }}
+            >
+              前往建立
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
