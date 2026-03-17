@@ -16,7 +16,7 @@ const navItems = [
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/organization": "Organizations",
+  "/organization": "Organization",
   "/settings": "Account Settings",
 };
 
@@ -27,7 +27,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const pageTitle = routeTitles[pathname] ?? "Workspace";
-  const orgCount = Object.keys(appState.accounts).length;
+  const accountCount = Object.keys(appState.accounts ?? {}).length;
 
   function isActiveRoute(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -49,7 +49,11 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           <div className="mb-6 space-y-1">
             <p className="text-sm font-semibold tracking-tight">Xuanwu App</p>
             <p className="text-xs text-muted-foreground">Authenticated Workspace</p>
-            <p className="pt-1 text-xs text-muted-foreground">{orgCount} Organizations</p>
+            <p className="pt-1 text-xs text-muted-foreground">
+              <span role="status" aria-live="polite">
+                {accountCount} Organization Account{accountCount === 1 ? "" : "s"}
+              </span>
+            </p>
           </div>
 
           <nav className="space-y-1">
@@ -98,7 +102,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
               </div>
             </div>
 
-            <nav className="flex gap-2 overflow-auto pb-3 md:hidden">
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
               {navItems.map((item) => {
                 const isActive = isActiveRoute(item.href);
                 return (
