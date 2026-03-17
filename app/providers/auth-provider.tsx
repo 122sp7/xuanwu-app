@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let resolved = false;
-    const auth = getAuth(firebaseClientApp);
+    let unsubscribe: (() => void) | undefined;
 
     const timeoutId = window.setTimeout(() => {
       if (resolved) return;
@@ -70,31 +70,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }, AUTH_BOOTSTRAP_TIMEOUT_MS);
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    try {
+      const auth = getAuth(firebaseClientApp);
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        resolved = true;
+        window.clearTimeout(timeoutId);
+
+        if (firebaseUser) {
+          dispatch({
+            type: "SET_AUTH_STATE",
+            payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
+          });
+        } else {
+          dispatch({
+            type: "SET_AUTH_STATE",
+            payload: { user: null, status: "unauthenticated" },
+          });
+        }
+      });
+    } catch {
       resolved = true;
       window.clearTimeout(timeoutId);
-
-      if (firebaseUser) {
-        dispatch({
-          type: "SET_AUTH_STATE",
-          payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
-        });
-      } else {
-        dispatch({
-          type: "SET_AUTH_STATE",
-          payload: { user: null, status: "unauthenticated" },
-        });
-      }
-    });
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }
 
     return () => {
       window.clearTimeout(timeoutId);
-      unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
   const logout = async () => {
-    await signOut(getAuth(firebaseClientApp));
+    try {
+      await signOut(getAuth(firebaseClientApp));
+    } catch {
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }
   };
 
   return (
