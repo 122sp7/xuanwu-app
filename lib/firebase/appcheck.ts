@@ -36,7 +36,8 @@ export function initFirebaseAppCheck(): AppCheck | null {
 
   return initializeAppCheck(firebaseClientApp, {
     provider: new ReCaptchaEnterpriseProvider(
-      process.env.NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY ?? ""
+      process.env.NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY ??
+        "6LfSHGgsAAAAAAjTO77dmeQ7rZntLtaB6kOv4qPT"
     ),
     isTokenAutoRefreshEnabled: true,
   });
