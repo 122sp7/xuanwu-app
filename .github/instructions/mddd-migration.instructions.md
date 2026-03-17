@@ -1,0 +1,24 @@
+---
+name: Xuanwu MDDD Migration Rules
+description: Apply these rules when editing modules, shared code, or shell features during the VSA to MDDD migration.
+applyTo: "app/**/*,modules/**/*,shared/**/*,ui/**/*,infrastructure/**/*,interfaces/**/*,lib/**/*"
+---
+# Xuanwu MDDD migration rules
+
+- Start by loading `xuanwu-skill` and mapping the affected flow across the repository.
+- Prefer filesystem MCP and Serena MCP over ad-hoc single-file reading.
+- Preserve the target layering from `ARCHITECTURE.md`:
+  - UI only coordinates presentation and user interactions.
+  - Application owns workflows and use-cases.
+  - Domain stays framework-free.
+  - Infrastructure owns Firebase, APIs, persistence, and adapters.
+- Before moving or creating code, check whether the concern already belongs in:
+  - `shared/` for common types, validators, hooks, constants, and utilities
+  - `lib/` for generic abstractions/integrations
+  - `ui/` for reusable presentation components
+- Avoid VSA-style coupling where pages or components directly absorb business logic.
+- During migration, prefer augmenting an existing module over introducing duplicate paths.
+- When a meaningful module milestone is reached, update Serena memory with:
+  - completed scope
+  - reusable patterns
+  - remaining gaps or follow-up work
