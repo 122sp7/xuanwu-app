@@ -1,12 +1,12 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import Link from "next/link";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import { useApp } from "@/app/providers/app-provider";
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace";
+import { useWorkspaceHub } from "@/modules/workspace";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Button } from "@/ui/shadcn/ui/button";
 import {
@@ -26,19 +26,11 @@ import {
 } from "@/ui/shadcn/ui/dialog";
 import { Input } from "@/ui/shadcn/ui/input";
 
-type LoadState = "idle" | "loading" | "loaded" | "error";
-
 const lifecycleBadgeVariant: Record<WorkspaceEntity["lifecycleState"], "default" | "secondary" | "outline"> = {
   active: "default",
   preparatory: "secondary",
   stopped: "outline",
 };
-
-function sortWorkspaces(items: WorkspaceEntity[]) {
-  return [...items].sort((left, right) =>
-    left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
-  );
-}
 
 function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
   return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
@@ -52,113 +44,40 @@ export default function WorkspacePage() {
   const {
     state: { activeAccount, accountsHydrated, bootstrapPhase },
   } = useApp();
-  const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
-  const [loadState, setLoadState] = useState<LoadState>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspaces() {
-      if (!activeAccount?.id) {
-        setWorkspaces([]);
-        setLoadState("loaded");
-        setErrorMessage(null);
-        return;
-      }
-
-      setLoadState("loading");
-      setErrorMessage(null);
-
-      try {
-        const nextWorkspaces = await getWorkspacesForAccount(activeAccount.id);
-        if (cancelled) return;
-        setWorkspaces(sortWorkspaces(nextWorkspaces));
-        setLoadState("loaded");
-      } catch (error) {
-        if (cancelled) return;
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspacePage] Failed to load workspaces:", error);
-        }
-        setWorkspaces([]);
-        setLoadState("error");
-        setErrorMessage("Unable to load workspace records right now.");
-      }
-    }
-
-    void loadWorkspaces();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeAccount?.id]);
-
-  async function refreshWorkspaces(accountId: string) {
-    try {
-      const nextWorkspaces = await getWorkspacesForAccount(accountId);
-      setWorkspaces(sortWorkspaces(nextWorkspaces));
-      setLoadState("loaded");
-      setErrorMessage(null);
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspacePage] Failed to refresh workspaces:", error);
-      }
-      setLoadState("error");
-      setErrorMessage("工作區已建立，但清單更新失敗。請重新整理頁面以查看新的工作區。");
-    }
-  }
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId: activeAccount?.id,
+    accountType: getActiveAccountType(activeAccount),
+  });
 
   function resetCreateWorkspaceDialog() {
     setWorkspaceName("");
-    setWorkspaceError(null);
-    setIsCreatingWorkspace(false);
+    clearCreateError();
   }
 
   async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!activeAccount?.id) {
-      setWorkspaceError("帳號資訊已失效，請重新整理頁面後再建立工作區。");
-      return;
-    }
-
-    const nextWorkspaceName = workspaceName.trim();
-    if (!nextWorkspaceName) {
-      setWorkspaceError("請輸入工作區名稱。");
-      return;
-    }
-
-    setIsCreatingWorkspace(true);
-    setWorkspaceError(null);
-
-    const result = await createWorkspace({
-      name: nextWorkspaceName,
-      accountId: activeAccount.id,
-      accountType: getActiveAccountType(activeAccount),
-    });
+    const result = await createWorkspaceForAccount(workspaceName);
 
     if (!result.success) {
-      setWorkspaceError(result.error.message);
-      setIsCreatingWorkspace(false);
       return;
     }
 
-    await refreshWorkspaces(activeAccount.id);
     resetCreateWorkspaceDialog();
     setIsCreateWorkspaceOpen(false);
   }
-
-  const workspaceStats = useMemo(() => {
-    return {
-      total: workspaces.length,
-      active: workspaces.filter((workspace) => workspace.lifecycleState === "active").length,
-      preparatory: workspaces.filter((workspace) => workspace.lifecycleState === "preparatory").length,
-    };
-  }, [workspaces]);
 
   return (
     <div className="space-y-6">
@@ -305,8 +224,8 @@ export default function WorkspacePage() {
                 value={workspaceName}
                 onChange={(event) => {
                   setWorkspaceName(event.target.value);
-                  if (workspaceError) {
-                    setWorkspaceError(null);
+                  if (createError) {
+                    clearCreateError();
                   }
                 }}
                 placeholder="例如：北區營運中心"
@@ -314,7 +233,7 @@ export default function WorkspacePage() {
                 disabled={isCreatingWorkspace}
                 maxLength={80}
               />
-              {workspaceError && <p className="text-sm text-destructive">{workspaceError}</p>}
+              {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
 
             <DialogFooter>
