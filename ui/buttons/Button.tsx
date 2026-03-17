@@ -1,3 +1,5 @@
+import { clsx } from "clsx";
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md" | "lg";
@@ -8,7 +10,7 @@ export function Button({
   variant = "primary",
   size = "md",
   children,
-  className = "",
+  className,
   ...props
 }: ButtonProps) {
   const variantClasses = {
@@ -25,7 +27,12 @@ export function Button({
 
   return (
     <button
-      className={`rounded font-medium transition-colors ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={clsx(
+        "rounded font-medium transition-colors",
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
       {...props}
     >
       {children}

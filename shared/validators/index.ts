@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const idSchema = z.string().uuid();
 
+// Note: .default() fills missing fields during .parse(). Use .optional() instead
+// if you need strict validation without automatic default injection.
 export const paginationSchema = z.object({
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().max(100).default(20),
