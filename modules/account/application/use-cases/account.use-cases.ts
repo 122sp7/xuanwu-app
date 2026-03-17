@@ -105,15 +105,28 @@ export class DebitWalletUseCase {
 // ─── Assign Role ──────────────────────────────────────────────────────────────
 
 export class AssignAccountRoleUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
+  constructor(
+    private readonly accountRepo: AccountRepository,
+    private readonly tokenRefreshRepo?: import("@/modules/identity/domain/repositories/TokenRefreshRepository").TokenRefreshRepository,
+  ) {}
 
   async execute(
     accountId: string,
     role: OrganizationRole,
     grantedBy: string,
+    traceId?: string,
   ): Promise<CommandResult> {
     try {
       const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
+      // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
+      if (this.tokenRefreshRepo) {
+        await this.tokenRefreshRepo.emit({
+          accountId,
+          reason: "role:changed",
+          issuedAt: new Date().toISOString(),
+          ...(traceId ? { traceId } : {}),
+        });
+      }
       return commandSuccess(record.accountId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -127,11 +140,22 @@ export class AssignAccountRoleUseCase {
 // ─── Revoke Role ──────────────────────────────────────────────────────────────
 
 export class RevokeAccountRoleUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
+  constructor(
+    private readonly accountRepo: AccountRepository,
+    private readonly tokenRefreshRepo?: import("@/modules/identity/domain/repositories/TokenRefreshRepository").TokenRefreshRepository,
+  ) {}
 
   async execute(accountId: string): Promise<CommandResult> {
     try {
       await this.accountRepo.revokeRole(accountId);
+      // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
+      if (this.tokenRefreshRepo) {
+        await this.tokenRefreshRepo.emit({
+          accountId,
+          reason: "role:changed",
+          issuedAt: new Date().toISOString(),
+        });
+      }
       return commandSuccess(accountId, Date.now());
     } catch (err) {
       return commandFailureFrom(
