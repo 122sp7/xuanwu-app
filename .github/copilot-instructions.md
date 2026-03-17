@@ -44,6 +44,10 @@
 ## Workflow expectations
 - Plan first, then implement.
 - For complex migration tasks, create or update a plan via `.github/prompts` or `.github/agents` instead of jumping straight to edits.
+- If asked to "continue next phase", choose the highest-priority unfinished slice using this order:
+  1. close remaining identity/account/organization gaps
+  2. close workspace + shell context consistency gaps
+  3. continue unfinished modules by user-facing impact (`task`, `notification`, `knowledge`, `retrieval`, then back-office modules)
 - Update Serena memory after each significant module completion or architecture decision.
 - If docs, prompts, instructions, or agents are improved during migration, keep them aligned with the actual repository state.
 

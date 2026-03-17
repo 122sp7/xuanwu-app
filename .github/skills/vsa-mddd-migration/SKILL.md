@@ -24,6 +24,12 @@ Use this skill for:
 5. Maintain shell UI/UX consistency while migration proceeds.
 6. Validate identity/account/organization module completeness before other unfinished areas.
 
+## Next-phase continuation rule
+When asked to "continue next phase", apply this deterministic order:
+1. Finish any remaining identity/account/organization gaps.
+2. Finish workspace + shell context/UX gaps that block post-login continuity.
+3. Continue unfinished modules by user-facing impact (`task`, `notification`, `knowledge`, `retrieval`) before lower-frequency back-office areas.
+
 ## Required architecture scan checklist
 - Compare current state against expected MDDD target structure in:
   - `app/`

@@ -12,5 +12,9 @@ Requirements:
 - use next-devtools MCP when Next.js runtime behavior matters
 - use shadcn MCP before introducing UI primitives
 - use markitdown MCP when linked documents or product specs need to be normalized
+- when asked to "continue next phase", execute the next unfinished slice in this order:
+  1) identity/account/organization closure
+  2) workspace + shell context consistency
+  3) remaining unfinished modules by user-facing impact
 - keep the change minimal, architecture-safe, and validation-backed
 - finish with lint/build validation and a screenshot if the UI changed
