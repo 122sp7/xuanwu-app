@@ -49,6 +49,9 @@ export default function DashboardPage() {
             Quick Links
           </p>
           <div className="mt-2 flex flex-col gap-1 text-sm">
+            <Link href="/workspace" className="text-primary hover:underline">
+              Workspace Hub
+            </Link>
             <Link href="/settings" className="text-primary hover:underline">
               Account Settings
             </Link>
@@ -62,10 +65,16 @@ export default function DashboardPage() {
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
         <h2 className="text-base font-semibold">Quick Access</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Workspace domain shortcuts are being completed. You can still access key areas below.
+          Jump into the authenticated workspace shell and the account areas that shape its context.
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Link
+            href="/workspace"
+            className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
+          >
+            Open Workspace Hub
+          </Link>
           <Link
             href="/organization"
             className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
@@ -78,8 +87,8 @@ export default function DashboardPage() {
           >
             Open Account Settings
           </Link>
-          <div className="rounded-xl border border-dashed border-border/40 px-4 py-3 text-sm text-muted-foreground">
-            Workspace Tools (Coming soon)
+          <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+            Active account: {activeAccount?.name ?? "—"}
           </div>
         </div>
       </section>

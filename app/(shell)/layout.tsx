@@ -13,12 +13,14 @@ import { ShellGuard } from "./_components/shell-guard";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/workspace", label: "Workspace" },
   { href: "/settings", label: "Settings" },
 ];
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/organization": "Organization",
+  "/workspace": "Workspace Hub",
   "/settings": "Account Settings",
 };
 
