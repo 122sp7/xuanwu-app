@@ -3,7 +3,49 @@
  */
 
 import type { Timestamp } from "@/shared/types";
-import type { OrganizationRole, MemberReference, Team } from "@/modules/account/domain/entities/Account";
+
+// ─── Re-export shared types (avoid cross-module domain imports) ───────────────
+
+export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
+export type Presence = "active" | "away" | "offline";
+export type InviteState = "pending" | "accepted" | "expired";
+export type PolicyEffect = "allow" | "deny";
+
+export interface MemberReference {
+  id: string;
+  name: string;
+  email: string;
+  role: OrganizationRole;
+  presence: Presence;
+  isExternal?: boolean;
+  expiryDate?: Timestamp;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+  memberIds: string[];
+}
+
+export interface PartnerInvite {
+  id: string;
+  email: string;
+  teamId: string;
+  role: OrganizationRole;
+  inviteState: InviteState;
+  invitedAt: Timestamp;
+  protocol: string;
+}
+
+export interface ThemeConfig {
+  primary: string;
+  background: string;
+  accent: string;
+}
+
+// ─── Organization Aggregate ───────────────────────────────────────────────────
 
 export interface OrganizationEntity {
   id: string;
@@ -12,13 +54,53 @@ export interface OrganizationEntity {
   email?: string;
   photoURL?: string;
   description?: string;
+  theme?: ThemeConfig;
   members: MemberReference[];
   memberIds: string[];
   teams: Team[];
+  partnerInvites?: PartnerInvite[];
   createdAt: Timestamp;
 }
 
-// ─── Value Objects ────────────────────────────────────────────────────────────
+// ─── Org Policy ───────────────────────────────────────────────────────────────
+
+export interface OrgPolicyRule {
+  resource: string;
+  actions: string[];
+  effect: PolicyEffect;
+  conditions?: Record<string, string>;
+}
+
+export type OrgPolicyScope = "workspace" | "member" | "global";
+
+export interface OrgPolicy {
+  readonly id: string;
+  readonly orgId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly rules: OrgPolicyRule[];
+  readonly scope: OrgPolicyScope;
+  readonly isActive: boolean;
+  readonly createdAt: string; // ISO-8601
+  readonly updatedAt: string; // ISO-8601
+}
+
+// ─── Value Objects (Commands) ─────────────────────────────────────────────────
+
+export interface CreateOrganizationCommand {
+  readonly organizationName: string;
+  readonly ownerId: string;
+  readonly ownerName: string;
+  readonly ownerEmail: string;
+}
+
+export interface UpdateOrganizationSettingsCommand {
+  readonly organizationId: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly theme?: ThemeConfig | null;
+  readonly photoURL?: string;
+}
 
 export interface InviteMemberInput {
   organizationId: string;
@@ -41,4 +123,18 @@ export interface CreateTeamInput {
   type: "internal" | "external";
 }
 
-export type { OrganizationRole, MemberReference, Team };
+export interface CreateOrgPolicyInput {
+  orgId: string;
+  name: string;
+  description: string;
+  rules: OrgPolicyRule[];
+  scope: OrgPolicyScope;
+}
+
+export interface UpdateOrgPolicyInput {
+  name?: string;
+  description?: string;
+  rules?: OrgPolicyRule[];
+  scope?: OrgPolicyScope;
+  isActive?: boolean;
+}
