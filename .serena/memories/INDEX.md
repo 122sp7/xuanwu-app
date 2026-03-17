@@ -17,3 +17,9 @@ Maintenance rules:
 - Update this index when adding or removing memory files.
 - Prefer facts verified from the current repository.
 - Record gaps explicitly instead of guessing.
+
+Task-specific memories:
+- migration/task-slice-progress.md
+- migration/taxonomy-slice-progress.md
+- migration/workspace-shell-phase.md
+- migration/workspace-interface-hook.md
