@@ -1,4 +1,4 @@
-type FirebaseLikeError = {
+type StructuredError = {
   code?: string
   message?: string
 }
@@ -22,7 +22,7 @@ const IDENTITY_ERROR_MESSAGES: Record<string, string> = {
 export function toIdentityErrorMessage(error: unknown, fallback: string): string {
   const resolveFromMessage = (message: string) => {
     const normalizedMessage = message.trim()
-    const matchedCode = normalizedMessage.match(/auth\/[a-z-]+/i)?.[0]?.toLowerCase()
+    const matchedCode = normalizedMessage.match(/auth\/[a-z-]+/)?.[0]?.toLowerCase()
 
     if (matchedCode && matchedCode in IDENTITY_ERROR_MESSAGES) {
       return IDENTITY_ERROR_MESSAGES[matchedCode]
@@ -35,7 +35,7 @@ export function toIdentityErrorMessage(error: unknown, fallback: string): string
   }
 
   if (typeof error === "object" && error !== null) {
-    const { code, message } = error as FirebaseLikeError
+    const { code, message } = error as StructuredError
 
     if (code && code in IDENTITY_ERROR_MESSAGES) {
       return IDENTITY_ERROR_MESSAGES[code]
