@@ -8,6 +8,8 @@ type StructuredError = {
 }
 
 const IDENTITY_ERROR_MESSAGES: Record<string, string> = {
+  // Firebase/browser-thrown auth failures have surfaced both hyphenated and
+  // underscored credential codes in different environments, so we normalize both.
   "auth/network-request-failed": "We couldn’t reach the sign-in service. Check your connection and try again.",
   "auth/invalid-credential": "The email or password is incorrect.",
   "auth/invalid-login-credentials": "The email or password is incorrect.",
@@ -35,7 +37,7 @@ export function toIdentityErrorMessage(error: unknown, fallback: string): string
    */
   const resolveFromMessage = (message: string) => {
     const normalizedMessage = message.trim()
-    const matchedCode = normalizedMessage.match(/auth\/[a-z-_]+/)?.[0]?.toLowerCase()
+    const matchedCode = normalizedMessage.match(/auth\/[a-z][a-z0-9_-]*/)?.[0]?.toLowerCase()
 
     if (matchedCode && matchedCode in IDENTITY_ERROR_MESSAGES) {
       return IDENTITY_ERROR_MESSAGES[matchedCode]
