@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 
@@ -18,6 +20,8 @@ export function AccountSwitcher({
   onSelectPersonal,
   onSelectOrganization,
 }: AccountSwitcherProps) {
+  const router = useRouter();
+
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -28,6 +32,11 @@ export function AccountSwitcher({
         value={activeAccountId ?? ""}
         onChange={(event) => {
           const nextId = event.target.value;
+          if (nextId === "__create_organization__") {
+            router.push("/organization");
+            return;
+          }
+
           if (!nextId || nextId === personalAccount?.id) {
             onSelectPersonal();
             return;
@@ -48,6 +57,7 @@ export function AccountSwitcher({
             {account.name} (Organization)
           </option>
         ))}
+        <option value="__create_organization__">+建立組織</option>
       </select>
     </div>
   );
