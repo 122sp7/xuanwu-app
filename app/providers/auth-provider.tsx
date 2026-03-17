@@ -88,7 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         }
       });
-    } catch {
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[AuthProvider] Firebase auth initialization failed:", error);
+      }
       resolved = true;
       window.clearTimeout(timeoutId);
       dispatch({
@@ -106,7 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await signOut(getAuth(firebaseClientApp));
-    } catch {
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[AuthProvider] Firebase sign out failed:", error);
+      }
       dispatch({
         type: "SET_AUTH_STATE",
         payload: { user: null, status: "unauthenticated" },
