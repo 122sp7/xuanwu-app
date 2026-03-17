@@ -7,7 +7,7 @@
  * actually updates AuthProvider via onAuthStateChanged.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 
@@ -22,12 +22,6 @@ import {
 
 type Tab = "login" | "register";
 
-const identityRepo = new FirebaseIdentityRepository();
-const signInUseCase = new SignInUseCase(identityRepo);
-const signInAnonymouslyUseCase = new SignInAnonymouslyUseCase(identityRepo);
-const registerUseCase = new RegisterUseCase(identityRepo);
-const sendPasswordResetEmailUseCase = new SendPasswordResetEmailUseCase(identityRepo);
-
 export default function PublicPage() {
   const { state } = useAuth();
   const router = useRouter();
@@ -40,6 +34,17 @@ export default function PublicPage() {
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const { signInUseCase, signInAnonymouslyUseCase, registerUseCase, sendPasswordResetEmailUseCase } =
+    useMemo(() => {
+      const identityRepo = new FirebaseIdentityRepository();
+      return {
+        signInUseCase: new SignInUseCase(identityRepo),
+        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
+        registerUseCase: new RegisterUseCase(identityRepo),
+        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
+      };
+    }, []);
 
   useEffect(() => {
     if (state.status === "authenticated") {
