@@ -11,6 +11,7 @@ const IDENTITY_ERROR_MESSAGES: Record<string, string> = {
   "auth/network-request-failed": "We couldn’t reach the sign-in service. Check your connection and try again.",
   "auth/invalid-credential": "The email or password is incorrect.",
   "auth/invalid-login-credentials": "The email or password is incorrect.",
+  "auth/invalid_login_credentials": "The email or password is incorrect.",
   "auth/user-not-found": "The email or password is incorrect.",
   "auth/wrong-password": "The email or password is incorrect.",
   "auth/email-already-in-use": "This email is already registered. Try signing in instead.",
@@ -34,7 +35,7 @@ export function toIdentityErrorMessage(error: unknown, fallback: string): string
    */
   const resolveFromMessage = (message: string) => {
     const normalizedMessage = message.trim()
-    const matchedCode = normalizedMessage.match(/auth\/[a-z-]+/)?.[0]?.toLowerCase()
+    const matchedCode = normalizedMessage.match(/auth\/[a-z-_]+/)?.[0]?.toLowerCase()
 
     if (matchedCode && matchedCode in IDENTITY_ERROR_MESSAGES) {
       return IDENTITY_ERROR_MESSAGES[matchedCode]
