@@ -13,7 +13,6 @@ import { ShellGuard } from "./_components/shell-guard";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/organization", label: "Organizations" },
   { href: "/settings", label: "Settings" },
 ];
 
