@@ -177,7 +177,7 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     }
 
     return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName, "en"),
+      left.displayName.localeCompare(right.displayName),
     );
   }
 }

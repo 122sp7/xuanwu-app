@@ -18,11 +18,23 @@ import { getWorkspaceMembers } from "../queries/workspace-member.queries";
 function getMemberInitials(name: string) {
   const trimmed = name.trim();
   if (!trimmed) {
-    return "MB";
+    return "??";
   }
 
   const tokens = trimmed.split(/\s+/).slice(0, 2);
   return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number) {
+  return [
+    memberId,
+    channel.source,
+    channel.label,
+    channel.role ?? "",
+    channel.protocol ?? "",
+    channel.teamId ?? "",
+    String(index),
+  ].join("::");
 }
 
 const presenceLabelMap = {
@@ -170,7 +182,7 @@ export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
                   <div className="flex flex-wrap gap-2">
                     {member.accessChannels.map((channel, index) => (
                       <Badge
-                        key={`${member.id}-${channel.source}-${channel.teamId ?? "none"}-${channel.protocol ?? "none"}-${index}`}
+                        key={getAccessChannelKey(member.id, channel, index)}
                         variant="outline"
                       >
                         {sourceLabelMap[channel.source]} · {channel.label}
