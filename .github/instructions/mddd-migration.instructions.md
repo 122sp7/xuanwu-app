@@ -18,7 +18,11 @@ applyTo: "app/**/*,modules/**/*,shared/**/*,ui/**/*,infrastructure/**/*,interfac
   - `ui/` for reusable presentation components
 - Avoid VSA-style coupling where pages or components directly absorb business logic.
 - During migration, prefer augmenting an existing module over introducing duplicate paths.
+- Keep migration actions idempotent and safe to rerun without duplicate files, adapters, or UI flows.
+- Validate identity/account/organization module completeness first before moving to other unfinished scopes.
+- Enforce cross-module UI/UX consistency (tokens, spacing, typography, shadcn usage, feedback patterns).
 - When a meaningful module milestone is reached, update Serena memory with:
   - completed scope
   - reusable patterns
   - remaining gaps or follow-up work
+- Refresh Serena index notes when module boundaries or reusable UI patterns materially change.

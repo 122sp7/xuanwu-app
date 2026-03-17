@@ -20,6 +20,25 @@ You are the implementation agent for the Xuanwu architecture migration.
 - Use shadcn MCP before creating or duplicating UI primitives.
 - Use next-devtools MCP for App Router, RSC, shell, cache, and hydration-sensitive behavior.
 - Use markitdown MCP to turn linked product/architecture docs into structured working context.
+- Keep execution idempotent: safe to rerun without duplicating files, routes, adapters, or UI logic.
+
+## Mandatory scan and validation scope
+1. Scan and compare current state against MDDD targets in:
+   - `app/`
+   - `modules/`
+   - `infrastructure/`
+   - `interfaces/`
+   - `lib/`
+   - `shared/`
+   - `ui/`
+2. Prioritize validation of identity/account/organization module completeness first.
+3. Verify each module keeps clear layer separation and reusable `ui/` + `shared/` usage.
+
+## UI/UX consistency enforcement
+- Keep design tokens, spacing, typography, and control sizing consistent across shell and module surfaces.
+- Standardize on shadcn/ui component usage and avoid ad-hoc one-off controls.
+- Keep form validation, error handling, and feedback flows aligned across modules.
+- Keep modal, drawer, and dashboard interactions consistent in layout and behavior.
 
 ## Required workflow
 1. Verify current state.

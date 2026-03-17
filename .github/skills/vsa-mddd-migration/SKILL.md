@@ -22,6 +22,19 @@ Use this skill for:
 3. Move reusable logic toward `shared/`, `lib/`, and `ui/`.
 4. Keep `infrastructure/` and `interfaces/` as adapter layers, not feature dumping grounds.
 5. Maintain shell UI/UX consistency while migration proceeds.
+6. Validate identity/account/organization module completeness before other unfinished areas.
+
+## Required architecture scan checklist
+- Compare current state against expected MDDD target structure in:
+  - `app/`
+  - `modules/`
+  - `infrastructure/`
+  - `interfaces/`
+  - `lib/`
+  - `shared/`
+  - `ui/`
+- Continue only unfinished or partially implemented scopes.
+- Keep all changes idempotent and augment existing paths instead of duplicating implementations.
 
 ## MCP strategy
 - **filesystem MCP**: understand the project as a graph of folders and flows, not isolated files.
@@ -36,3 +49,4 @@ Use this skill for:
 - validation is run
 - UI changes include a screenshot
 - Serena memory is updated with new durable facts and remaining gaps
+- Serena index/memory updates capture completed modules, enforced UI/UX patterns, and remaining gaps
