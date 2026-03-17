@@ -46,6 +46,10 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
   }
 
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
   async function handleLogout() {
     setLogoutError(null);
     try {
@@ -66,6 +70,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           organizationAccounts={organizationAccounts}
           onSelectPersonal={handleSelectPersonal}
           onSelectOrganization={handleSelectOrganization}
+          onOrganizationCreated={handleOrganizationCreated}
           onSignOut={() => {
             void handleLogout();
           }}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { useApp } from "@/app/providers/app-provider";
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { getWorkspacesForAccount } from "@/modules/workspace";
+import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace";
 import { Badge } from "@/ui/shadcn/ui/badge";
+import { Button } from "@/ui/shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -14,6 +15,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/shadcn/ui/dialog";
+import { Input } from "@/ui/shadcn/ui/input";
 
 type LoadState = "idle" | "loading" | "loaded" | "error";
 
@@ -23,6 +33,12 @@ const lifecycleBadgeVariant: Record<WorkspaceEntity["lifecycleState"], "default"
   stopped: "outline",
 };
 
+function sortWorkspaces(items: WorkspaceEntity[]) {
+  return [...items].sort((left, right) =>
+    left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
+  );
+}
+
 export default function WorkspacePage() {
   const {
     state: { activeAccount },
@@ -30,6 +46,10 @@ export default function WorkspacePage() {
   const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,11 +68,7 @@ export default function WorkspacePage() {
       try {
         const nextWorkspaces = await getWorkspacesForAccount(activeAccount.id);
         if (cancelled) return;
-        setWorkspaces(
-          [...nextWorkspaces].sort((left, right) =>
-            left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
-          ),
-        );
+        setWorkspaces(sortWorkspaces(nextWorkspaces));
         setLoadState("loaded");
       } catch (error) {
         if (cancelled) return;
@@ -72,6 +88,55 @@ export default function WorkspacePage() {
     };
   }, [activeAccount?.id]);
 
+  async function refreshWorkspaces(accountId: string) {
+    const nextWorkspaces = await getWorkspacesForAccount(accountId);
+    setWorkspaces(sortWorkspaces(nextWorkspaces));
+    setLoadState("loaded");
+  }
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!activeAccount?.id) {
+      setWorkspaceError("Select an active account before creating a workspace.");
+      return;
+    }
+
+    const nextWorkspaceName = workspaceName.trim();
+    if (!nextWorkspaceName) {
+      setWorkspaceError("請輸入工作區名稱。");
+      return;
+    }
+
+    setIsCreatingWorkspace(true);
+    setWorkspaceError(null);
+
+    const result = await createWorkspace({
+      name: nextWorkspaceName,
+      accountId: activeAccount.id,
+      accountType:
+        "accountType" in activeAccount && activeAccount.accountType === "organization"
+          ? "organization"
+          : "user",
+    });
+
+    if (!result.success) {
+      setWorkspaceError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+
+    await refreshWorkspaces(activeAccount.id);
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+  }
+
   const workspaceStats = useMemo(() => {
     return {
       total: workspaces.length,
@@ -82,13 +147,19 @@ export default function WorkspacePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          Review the workspaces connected to{" "}
-          <span className="font-medium text-foreground">{activeAccount?.name ?? "the active account"}</span>
-          .
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">{activeAccount?.name ?? "the active account"}</span>
+            .
+          </p>
+        </div>
+
+        <Button onClick={() => setIsCreateWorkspaceOpen(true)} disabled={!activeAccount?.id}>
+          建立工作區
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -176,6 +247,65 @@ export default function WorkspacePage() {
           ))}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) {
+            resetCreateWorkspaceDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+            <DialogDescription id="create-workspace-description">
+              建立後會直接出現在目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="workspace-name"
+                value={workspaceName}
+                onChange={(event) => {
+                  setWorkspaceName(event.target.value);
+                  if (workspaceError) {
+                    setWorkspaceError(null);
+                  }
+                }}
+                placeholder="例如：北區營運中心"
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceError && <p className="text-sm text-destructive">{workspaceError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount?.id}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

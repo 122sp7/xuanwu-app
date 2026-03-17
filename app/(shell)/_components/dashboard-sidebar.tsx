@@ -21,6 +21,7 @@ interface DashboardSidebarProps {
   organizationAccounts: AccountEntity[];
   onSelectPersonal: () => void;
   onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated: (account: AccountEntity) => void;
   onSignOut: () => void;
 }
 
@@ -32,6 +33,7 @@ export function DashboardSidebar({
   organizationAccounts,
   onSelectPersonal,
   onSelectOrganization,
+  onOrganizationCreated,
   onSignOut,
 }: DashboardSidebarProps) {
   function isActiveRoute(href: string) {
@@ -51,6 +53,7 @@ export function DashboardSidebar({
         activeAccountId={activeAccount?.id ?? null}
         onSelectPersonal={onSelectPersonal}
         onSelectOrganization={onSelectOrganization}
+        onOrganizationCreated={onOrganizationCreated}
       />
 
       <nav className="mt-5 space-y-1">
