@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { useAuth } from "@/app/providers/auth-provider";
 import { ShellGuard } from "./_components/shell-guard";
@@ -15,6 +16,16 @@ const navItems = [
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { state: authState, logout } = useAuth();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("Sign out failed. Please retry.");
+    }
+  }
 
   return (
     <ShellGuard>
@@ -58,13 +69,17 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
               </div>
               <button
                 type="button"
-                onClick={() => void logout()}
+                onClick={() => void handleLogout()}
                 className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
               >
                 Sign Out
               </button>
             </div>
           </header>
+
+          {logoutError && (
+            <div className="px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
 
           <main className="flex-1 overflow-auto p-6">{children}</main>
 
