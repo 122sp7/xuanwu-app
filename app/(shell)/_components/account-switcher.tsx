@@ -57,7 +57,7 @@ export function AccountSwitcher({
             {account.name} (Organization)
           </option>
         ))}
-        <option value="__create_organization__">+ 建立組織</option>
+        <option value="__create_organization__">+ 建立組織 (Create Organization)</option>
       </select>
     </div>
   );
