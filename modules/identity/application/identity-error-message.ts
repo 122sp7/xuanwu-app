@@ -1,3 +1,7 @@
+/**
+ * Narrow error shape used by auth flows when SDK or browser-thrown errors expose
+ * only a code/message pair.
+ */
 type StructuredError = {
   code?: string
   message?: string
@@ -19,7 +23,15 @@ const IDENTITY_ERROR_MESSAGES: Record<string, string> = {
   "auth/missing-password": "Enter a password.",
 }
 
+/**
+ * Convert Firebase/browser auth failures into stable user-facing copy.
+ * Falls back to the supplied message when no mapped auth code can be found.
+ */
 export function toIdentityErrorMessage(error: unknown, fallback: string): string {
+  /**
+   * Extract Firebase auth codes from raw error messages and strip SDK-specific
+   * prefixes so the UI never renders noisy Firebase boilerplate.
+   */
   const resolveFromMessage = (message: string) => {
     const normalizedMessage = message.trim()
     const matchedCode = normalizedMessage.match(/auth\/[a-z-]+/)?.[0]?.toLowerCase()
