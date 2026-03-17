@@ -18,3 +18,4 @@ export {
   markNotificationRead,
   markAllNotificationsRead,
 } from "./interfaces/_actions/notification.actions";
+export { getNotificationsForRecipient } from "./interfaces/queries/notification.queries";

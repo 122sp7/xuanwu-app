@@ -19,3 +19,5 @@ export {
   advanceFinanceStage,
   recordPaymentReceived,
 } from "./interfaces/_actions/finance.actions";
+export { getFinanceByWorkspaceId } from "./interfaces/queries/finance.queries";
+export { WorkspaceFinanceTab } from "./interfaces/components/WorkspaceFinanceTab";

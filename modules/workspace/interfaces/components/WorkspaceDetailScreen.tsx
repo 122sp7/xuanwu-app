@@ -37,8 +37,11 @@ import {
 } from "@/ui/shadcn/ui/select";
 import { Separator } from "@/ui/shadcn/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/shadcn/ui/tabs";
+import { WorkspaceFinanceTab } from "@/modules/finance";
+import { WorkspaceAuditTab } from "@/modules/audit";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import { getWorkspaceById } from "../queries/workspace.queries";
 
@@ -595,12 +598,18 @@ export function WorkspaceDetailScreen({
            {workspaceTabItems
              .filter((tab) => tab !== "Overview")
              .map((tab) => (
-               <TabsContent key={tab} value={tab}>
-                 {tab === "Members" ? (
-                   <WorkspaceMembersTab workspace={workspace} />
-                 ) : (
-                   <Card className="border border-border/50">
-                     <CardHeader>
+                <TabsContent key={tab} value={tab}>
+                  {tab === "Members" ? (
+                    <WorkspaceMembersTab workspace={workspace} />
+                  ) : tab === "Finance" ? (
+                    <WorkspaceFinanceTab workspaceId={workspace.id} />
+                  ) : tab === "Daily" ? (
+                    <WorkspaceDailyTab workspace={workspace} />
+                  ) : tab === "Audit" ? (
+                    <WorkspaceAuditTab workspaceId={workspace.id} />
+                  ) : (
+                    <Card className="border border-border/50">
+                      <CardHeader>
                        <CardTitle>{tab}</CardTitle>
                        <CardDescription>
                          這個工作區模組功能尚未實施，正在 MDDD 遷移中。
