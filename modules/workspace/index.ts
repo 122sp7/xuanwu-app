@@ -36,5 +36,6 @@ export {
   grantIndividualWorkspaceAccess,
   createWorkspaceLocation,
 } from "./interfaces/_actions/workspace.actions";
+export { WorkspaceHubScreen } from "./interfaces/components/WorkspaceHubScreen";
 export { useWorkspaceHub } from "./interfaces/hooks/useWorkspaceHub";
 export { getWorkspacesForAccount } from "./interfaces/queries/workspace.queries";
