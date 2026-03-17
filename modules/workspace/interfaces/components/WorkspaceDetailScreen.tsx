@@ -39,6 +39,7 @@ import { Separator } from "@/ui/shadcn/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/shadcn/ui/tabs";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import { getWorkspaceById } from "../queries/workspace.queries";
 
 const lifecycleBadgeVariant: Record<
@@ -591,23 +592,27 @@ export function WorkspaceDetailScreen({
           </div>
           </TabsContent>
 
-          {workspaceTabItems
-            .filter((tab) => tab !== "Overview")
-            .map((tab) => (
-              <TabsContent key={tab} value={tab}>
-                <Card className="border border-border/50">
-                  <CardHeader>
-                    <CardTitle>{tab}</CardTitle>
-                    <CardDescription>
-                      這個工作區模組功能尚未實施，正在 MDDD 遷移中。
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    Planned scope: {tab} flow, interaction rules, and data integration.
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ))}
+           {workspaceTabItems
+             .filter((tab) => tab !== "Overview")
+             .map((tab) => (
+               <TabsContent key={tab} value={tab}>
+                 {tab === "Members" ? (
+                   <WorkspaceMembersTab workspace={workspace} />
+                 ) : (
+                   <Card className="border border-border/50">
+                     <CardHeader>
+                       <CardTitle>{tab}</CardTitle>
+                       <CardDescription>
+                         這個工作區模組功能尚未實施，正在 MDDD 遷移中。
+                       </CardDescription>
+                     </CardHeader>
+                     <CardContent className="text-sm text-muted-foreground">
+                       Planned scope: {tab} flow, interaction rules, and data integration.
+                     </CardContent>
+                   </Card>
+                 )}
+               </TabsContent>
+             ))}
         </Tabs>
       )}
 
