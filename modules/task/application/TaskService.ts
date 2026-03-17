@@ -1,6 +1,6 @@
 import type { CommandResult } from "@/shared/types";
 import type { TaskEntity } from "../domain/TaskEntity";
-import type { TaskRepository } from "../ports/TaskRepository";
+import type { TaskRepository } from "../domain/repositories/TaskRepository";
 
 export class TaskService {
   constructor(private readonly taskRepository: TaskRepository) {}
