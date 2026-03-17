@@ -37,8 +37,15 @@ import {
 } from "@/ui/shadcn/ui/select";
 import { Separator } from "@/ui/shadcn/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/shadcn/ui/tabs";
-import { WorkspaceFinanceTab } from "@/modules/finance";
+import { WorkspaceAcceptanceTab } from "@/modules/acceptance";
 import { WorkspaceAuditTab } from "@/modules/audit";
+import { WorkspaceFilesTab } from "@/modules/file";
+import { WorkspaceFinanceTab } from "@/modules/finance";
+import { WorkspaceIssueTab } from "@/modules/issue";
+import { WorkspaceDocumentParserTab } from "@/modules/parser";
+import { WorkspaceQATab } from "@/modules/qa";
+import { WorkspaceScheduleTab } from "@/modules/schedule";
+import { WorkspaceTaskTab } from "@/modules/task";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -247,10 +254,24 @@ export function WorkspaceDetailScreen({
     switch (tab) {
       case "Members":
         return <WorkspaceMembersTab workspace={workspace} />;
+      case "Tasks":
+        return <WorkspaceTaskTab workspace={workspace} />;
+      case "QA":
+        return <WorkspaceQATab workspace={workspace} />;
+      case "Acceptance":
+        return <WorkspaceAcceptanceTab workspace={workspace} />;
       case "Finance":
         return <WorkspaceFinanceTab workspaceId={workspace.id} />;
+      case "Issues":
+        return <WorkspaceIssueTab workspace={workspace} />;
       case "Daily":
         return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return <WorkspaceScheduleTab workspace={workspace} />;
+      case "Document Parser":
+        return <WorkspaceDocumentParserTab workspace={workspace} />;
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       default:
