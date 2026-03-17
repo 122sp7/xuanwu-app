@@ -32,6 +32,7 @@ export function getAdminApp(): admin.app.App {
         clientEmail: FIREBASE_CLIENT_EMAIL,
         privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       }),
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
   } else {
     // Running inside GCP — Application Default Credentials

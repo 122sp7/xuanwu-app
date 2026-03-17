@@ -14,11 +14,8 @@ import { getAdminApp } from "./app.js";
 
 export type { Database, Reference, DataSnapshot };
 
-export function getAdminDatabase(url?: string): Database {
-  return getDatabase(
-    getAdminApp(),
-    url ?? process.env.FIREBASE_DATABASE_URL
-  );
+export function getAdminDatabase(): Database {
+  return getDatabase(getAdminApp());
 }
 
 export const adminDatabaseApi = {
