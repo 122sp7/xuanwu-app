@@ -7,6 +7,7 @@
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
 import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
 import type { SignInCredentials, RegistrationInput } from "../../domain/entities/Identity";
+import { toIdentityErrorMessage } from "../identity-error-message";
 
 // ─── Sign In ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ export class SignInUseCase {
     } catch (err) {
       return commandFailureFrom(
         "SIGN_IN_FAILED",
-        err instanceof Error ? err.message : "Sign-in failed",
+        toIdentityErrorMessage(err, "Sign-in failed"),
       );
     }
   }
@@ -38,7 +39,7 @@ export class SignInAnonymouslyUseCase {
     } catch (err) {
       return commandFailureFrom(
         "SIGN_IN_ANONYMOUS_FAILED",
-        err instanceof Error ? err.message : "Anonymous sign-in failed",
+        toIdentityErrorMessage(err, "Anonymous sign-in failed"),
       );
     }
   }
@@ -57,7 +58,7 @@ export class RegisterUseCase {
     } catch (err) {
       return commandFailureFrom(
         "REGISTRATION_FAILED",
-        err instanceof Error ? err.message : "Registration failed",
+        toIdentityErrorMessage(err, "Registration failed"),
       );
     }
   }
@@ -75,7 +76,7 @@ export class SendPasswordResetEmailUseCase {
     } catch (err) {
       return commandFailureFrom(
         "PASSWORD_RESET_FAILED",
-        err instanceof Error ? err.message : "Password reset failed",
+        toIdentityErrorMessage(err, "Password reset failed"),
       );
     }
   }
@@ -95,7 +96,7 @@ export class SignOutUseCase {
     } catch (err) {
       return commandFailureFrom(
         "SIGN_OUT_FAILED",
-        err instanceof Error ? err.message : "Sign-out failed",
+        toIdentityErrorMessage(err, "Sign-out failed"),
       );
     }
   }
