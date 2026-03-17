@@ -25,6 +25,16 @@ interface DashboardSidebarProps {
   onSignOut: () => void;
 }
 
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
 export function DashboardSidebar({
   pathname,
   navItems,
@@ -40,10 +50,7 @@ export function DashboardSidebar({
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  const showAccountManagement =
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization";
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
 
   return (
     <aside className="hidden w-64 border-r border-border/50 bg-card/30 p-5 md:flex md:flex-col">
@@ -80,7 +87,7 @@ export function DashboardSidebar({
           );
         })}
 
-        {showAccountManagement ? (
+        {showAccountManagement && (
           <details className="group mt-2 rounded-lg border border-border/40 px-3 py-2">
             <summary
               aria-label="切換帳戶管理選單"
@@ -107,7 +114,7 @@ export function DashboardSidebar({
               ))}
             </div>
           </details>
-        ) : null}
+        )}
       </nav>
 
       <div className="mt-auto pt-6">
