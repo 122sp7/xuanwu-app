@@ -19,3 +19,29 @@ export const taskSchema = z.object({
 });
 
 export type TaskSchemaType = z.infer<typeof taskSchema>;
+
+// ─── Identity schemas ─────────────────────────────────────────────────────────
+
+export const signInSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+export const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(1).max(100),
+});
+
+export type SignInInput = z.infer<typeof signInSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+// ─── Workspace schemas ────────────────────────────────────────────────────────
+
+export const createWorkspaceSchema = z.object({
+  name: z.string().min(1).max(100),
+  accountId: z.string().min(1),
+  accountType: z.enum(["user", "organization"]),
+});
+
+export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
