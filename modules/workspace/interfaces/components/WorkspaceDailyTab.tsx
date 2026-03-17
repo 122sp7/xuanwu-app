@@ -89,7 +89,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
             ? notification.metadata.workspaceId
             : null;
 
-        return metadataWorkspaceId == null || metadataWorkspaceId === workspace.id;
+        return metadataWorkspaceId === null || metadataWorkspaceId === workspace.id;
       }),
     [notifications, workspace.id],
   );

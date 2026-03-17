@@ -150,6 +150,22 @@ interface WorkspaceDetailScreenProps {
   readonly accountsHydrated: boolean;
 }
 
+function renderWorkspacePlaceholderTab(tab: (typeof workspaceTabItems)[number]) {
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>{tab}</CardTitle>
+        <CardDescription>
+          這個工作區模組功能尚未實施，正在 MDDD 遷移中。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">
+        Planned scope: {tab} flow, interaction rules, and data integration.
+      </CardContent>
+    </Card>
+  );
+}
+
 export function WorkspaceDetailScreen({
   workspaceId,
   accountId,
@@ -222,6 +238,25 @@ export function WorkspaceDetailScreen({
       details,
     ].filter(Boolean);
   }, [workspace]);
+
+  function renderTabContent(tab: (typeof workspaceTabItems)[number]) {
+    if (!workspace) {
+      return null;
+    }
+
+    switch (tab) {
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Finance":
+        return <WorkspaceFinanceTab workspaceId={workspace.id} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      default:
+        return renderWorkspacePlaceholderTab(tab);
+    }
+  }
 
   async function handleSaveWorkspaceSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -595,33 +630,13 @@ export function WorkspaceDetailScreen({
           </div>
           </TabsContent>
 
-           {workspaceTabItems
-             .filter((tab) => tab !== "Overview")
-             .map((tab) => (
+            {workspaceTabItems
+              .filter((tab) => tab !== "Overview")
+              .map((tab) => (
                 <TabsContent key={tab} value={tab}>
-                  {tab === "Members" ? (
-                    <WorkspaceMembersTab workspace={workspace} />
-                  ) : tab === "Finance" ? (
-                    <WorkspaceFinanceTab workspaceId={workspace.id} />
-                  ) : tab === "Daily" ? (
-                    <WorkspaceDailyTab workspace={workspace} />
-                  ) : tab === "Audit" ? (
-                    <WorkspaceAuditTab workspaceId={workspace.id} />
-                  ) : (
-                    <Card className="border border-border/50">
-                      <CardHeader>
-                       <CardTitle>{tab}</CardTitle>
-                       <CardDescription>
-                         這個工作區模組功能尚未實施，正在 MDDD 遷移中。
-                       </CardDescription>
-                     </CardHeader>
-                     <CardContent className="text-sm text-muted-foreground">
-                       Planned scope: {tab} flow, interaction rules, and data integration.
-                     </CardContent>
-                   </Card>
-                 )}
-               </TabsContent>
-             ))}
+                  {renderTabContent(tab)}
+                </TabsContent>
+              ))}
         </Tabs>
       )}
 

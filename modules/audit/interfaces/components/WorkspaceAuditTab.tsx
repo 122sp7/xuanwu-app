@@ -14,6 +14,10 @@ import { Badge } from "@/ui/shadcn/ui/badge";
 import { getWorkspaceAuditLogs } from "../queries/audit.queries";
 
 function formatAuditDate(value: string) {
+  if (!value) {
+    return "—";
+  }
+
   try {
     return new Intl.DateTimeFormat("zh-TW", {
       year: "numeric",

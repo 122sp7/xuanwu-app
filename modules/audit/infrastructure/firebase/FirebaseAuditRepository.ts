@@ -10,23 +10,29 @@ import { firebaseClientApp } from "@/infrastructure/firebase/client";
 import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
 
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
 function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
   return {
     id,
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
     actorId: typeof data.actorId === "string" ? data.actorId : "system",
     action: typeof data.action === "string" ? data.action : "unknown",
     detail: typeof data.detail === "string" ? data.detail : "",
-    source:
-      data.source === "finance" ||
-      data.source === "notification" ||
-      data.source === "system"
-        ? (data.source as AuditLogSource)
-        : "workspace",
+    source,
     occurredAtISO:
       typeof data.occurredAtISO === "string"
         ? data.occurredAtISO
-        : new Date(0).toISOString(),
+        : "",
   };
 }
 
