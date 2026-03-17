@@ -182,9 +182,10 @@ export function WorkspaceHubScreen({
           )}
 
           {workspaces.map((workspace) => (
-            <div
+            <Link
               key={workspace.id}
-              className="rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40"
+              href={`/workspace/${workspace.id}`}
+              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2">
@@ -200,6 +201,7 @@ export function WorkspaceHubScreen({
                   <p className="text-xs text-muted-foreground">
                     Account scope: {workspace.accountType}
                   </p>
+                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
@@ -209,7 +211,7 @@ export function WorkspaceHubScreen({
                   <span>Grants: {workspace.grants.length}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </CardContent>
       </Card>

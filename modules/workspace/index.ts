@@ -37,5 +37,9 @@ export {
   createWorkspaceLocation,
 } from "./interfaces/_actions/workspace.actions";
 export { WorkspaceHubScreen } from "./interfaces/components/WorkspaceHubScreen";
+export { WorkspaceDetailScreen } from "./interfaces/components/WorkspaceDetailScreen";
 export { useWorkspaceHub } from "./interfaces/hooks/useWorkspaceHub";
-export { getWorkspacesForAccount } from "./interfaces/queries/workspace.queries";
+export {
+  getWorkspaceById,
+  getWorkspacesForAccount,
+} from "./interfaces/queries/workspace.queries";

@@ -11,3 +11,10 @@ export async function getWorkspacesForAccount(accountId: string): Promise<Worksp
   const workspaceRepo = new FirebaseWorkspaceRepository();
   return workspaceRepo.findAllByAccountId(normalizedAccountId);
 }
+
+export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) return null;
+  const workspaceRepo = new FirebaseWorkspaceRepository();
+  return workspaceRepo.findById(normalizedWorkspaceId);
+}
