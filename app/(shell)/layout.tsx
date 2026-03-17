@@ -69,7 +69,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
               </div>
               <button
                 type="button"
-                onClick={() => void handleLogout()}
+                onClick={handleLogout}
                 className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
               >
                 Sign Out
