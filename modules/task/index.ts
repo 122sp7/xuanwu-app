@@ -12,5 +12,3 @@ export {
 } from "./application/TaskService";
 
 export { TaskRepoImpl } from "./infrastructure/TaskRepoImpl";
-
-export { createTask, updateTaskStatus, deleteTask } from "./interfaces/_actions/task.actions";
