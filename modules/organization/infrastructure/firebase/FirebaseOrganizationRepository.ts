@@ -85,6 +85,45 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     return getFirestore(firebaseClientApp);
   }
 
+  private organizationAccountRef(organizationId: string) {
+    return doc(this.db, "accounts", organizationId);
+  }
+
+  private syncOrganizationAccount(
+    organizationId: string,
+    data: {
+      name?: string;
+      ownerId?: string;
+      email?: string;
+      photoURL?: string;
+      description?: string;
+      theme?: OrganizationEntity["theme"];
+      members?: MemberReference[];
+      memberIds?: string[];
+      teams?: Team[];
+      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
+    },
+  ) {
+    return setDoc(
+      this.organizationAccountRef(organizationId),
+      {
+        accountType: "organization",
+        name: data.name ?? "",
+        ownerId: data.ownerId ?? "",
+        email: data.email ?? null,
+        photoURL: data.photoURL ?? null,
+        description: data.description ?? null,
+        theme: data.theme ?? null,
+        members: data.members ?? [],
+        memberIds: data.memberIds ?? [],
+        teams: data.teams ?? [],
+        createdAt: data.createdAt ?? serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+
   // ─── Org Lifecycle ──────────────────────────────────────────────────────────
 
   async create(command: CreateOrganizationCommand): Promise<string> {
@@ -97,6 +136,14 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
       presence: "active",
     };
     await setDoc(orgRef, {
+      name: command.organizationName,
+      ownerId: command.ownerId,
+      members: [owner],
+      memberIds: [command.ownerId],
+      teams: [],
+      createdAt: serverTimestamp(),
+    });
+    await this.syncOrganizationAccount(orgRef.id, {
       name: command.organizationName,
       ownerId: command.ownerId,
       members: [owner],
@@ -122,6 +169,18 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
       teams: org.teams,
       updatedAt: serverTimestamp(),
     });
+    await this.syncOrganizationAccount(org.id, {
+      name: org.name,
+      ownerId: org.ownerId,
+      email: org.email,
+      photoURL: org.photoURL,
+      description: org.description,
+      theme: org.theme,
+      members: org.members,
+      memberIds: org.memberIds,
+      teams: org.teams,
+      createdAt: org.createdAt,
+    });
   }
 
   async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
@@ -131,10 +190,16 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     if (command.theme !== undefined) updates.theme = command.theme;
     if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
     await updateDoc(doc(this.db, "organizations", command.organizationId), updates);
+    await setDoc(
+      this.organizationAccountRef(command.organizationId),
+      updates,
+      { merge: true },
+    );
   }
 
   async delete(organizationId: string): Promise<void> {
     await deleteDoc(doc(this.db, "organizations", organizationId));
+    await deleteDoc(this.organizationAccountRef(organizationId));
   }
 
   // ─── Members ────────────────────────────────────────────────────────────────
@@ -173,6 +238,15 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
       memberIds: arrayUnion(memberId),
       updatedAt: serverTimestamp(),
     });
+    await setDoc(
+      this.organizationAccountRef(organizationId),
+      {
+        members: arrayUnion(member),
+        memberIds: arrayUnion(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
   }
 
   async removeMember(organizationId: string, memberId: string): Promise<void> {
@@ -187,6 +261,15 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
       memberIds: arrayRemove(memberId),
       updatedAt: serverTimestamp(),
     });
+    await setDoc(
+      this.organizationAccountRef(organizationId),
+      {
+        members,
+        memberIds: members.map((member) => member.id),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
   }
 
   async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
@@ -202,6 +285,14 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
       members,
       updatedAt: serverTimestamp(),
     });
+    await setDoc(
+      this.organizationAccountRef(input.organizationId),
+      {
+        members,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
   }
 
   async getMembers(organizationId: string): Promise<MemberReference[]> {
