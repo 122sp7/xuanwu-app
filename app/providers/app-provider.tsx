@@ -19,8 +19,10 @@ import {
 } from "react";
 
 import { subscribeToAccountsForUser } from "@/modules/account/interfaces/queries/account.queries";
+import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
+import type { AuthUser } from "./auth-context";
 import { useAuth } from "./auth-provider";
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -38,26 +40,30 @@ const initialState: AppState = {
 
 function resolveActiveAccount(
   state: AppState,
-  accounts: Record<string, import("@/modules/account/domain/entities/Account").AccountEntity>,
-  user: import("./auth-context").AuthUser,
+  accounts: Record<string, AccountEntity>,
+  user: AuthUser,
   preferredActiveAccountId?: string | null,
 ) {
   const validIds = new Set([user.id, ...Object.keys(accounts)]);
   const currentActiveId = state.activeAccount?.id;
-  const currentActive =
-    currentActiveId && validIds.has(currentActiveId)
-      ? currentActiveId === user.id
-        ? user
-        : accounts[currentActiveId] ?? state.activeAccount
-      : null;
+  let currentActive = null;
 
-  const preferredActive =
-    preferredActiveAccountId && validIds.has(preferredActiveAccountId)
-      ? preferredActiveAccountId === user.id
-        ? user
-        : accounts[preferredActiveAccountId] ?? null
-      : null;
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
+  }
 
+  let preferredActive = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === user.id
+        ? user
+        : accounts[preferredActiveAccountId] ?? null;
+  }
+
+  // During the initial seeded phase we only know about the personal account.
+  // Once the real organization snapshot arrives, prefer the last persisted
+  // account so re-login restores the user's previous working context instead of
+  // leaving them in the optimistic personal fallback.
   if (
     preferredActive &&
     (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
@@ -114,12 +120,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
+    const preferredActiveAccountId =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
 
     const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
-      const preferredActiveAccountId =
-        typeof window === "undefined"
-          ? null
-          : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
       dispatch({
         type: "SET_ACCOUNTS",
         payload: { accounts, user, preferredActiveAccountId },
@@ -132,13 +138,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
 
-    if (!user || !state.activeAccount?.id) {
+    if (!user || !activeAccountId) {
       window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
       return;
     }
 
-    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, state.activeAccount.id);
+    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
   }, [state.activeAccount?.id, user]);
 
   return (

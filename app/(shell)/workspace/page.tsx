@@ -181,7 +181,11 @@ export default function WorkspacePage() {
       </div>
 
       {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
           {bootstrapPhase === "seeded"
             ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
             : "正在載入帳號與工作區內容…"}
