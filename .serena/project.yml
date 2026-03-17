@@ -125,7 +125,7 @@ default_modes:
 
 # initial prompt for the project. It will always be given to the LLM upon activating the project
 # (contrary to the memories, which are loaded on demand).
-initial_prompt: ""
+initial_prompt: "Read .serena/memories/INDEX.md first, then load the referenced memory files in order. Treat ARCHITECTURE.md and package.json as the canonical sources for architecture and runnable commands in this workspace. Validate actual directories before assuming older src/ or docs-based structures exist."
 
 # time budget (seconds) per tool call for the retrieval of additional symbol information
 # such as docstrings or parameter information.
