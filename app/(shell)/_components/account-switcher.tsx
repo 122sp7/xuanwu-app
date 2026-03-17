@@ -74,10 +74,12 @@ export function AccountSwitcher({
       </div>
 
       <Dialog open={isCreateOrganizationOpen} onOpenChange={setIsCreateOrganizationOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby="create-organization-description">
           <DialogHeader>
             <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription>要前往組織建立頁面嗎？</DialogDescription>
+            <DialogDescription id="create-organization-description">
+              要前往組織建立頁面嗎？
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
