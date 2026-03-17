@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/ui/shadcn/ui/select";
 import { Separator } from "@/ui/shadcn/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/shadcn/ui/tabs";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { getWorkspaceById } from "../queries/workspace.queries";
@@ -48,6 +49,21 @@ const lifecycleBadgeVariant: Record<
   preparatory: "secondary",
   stopped: "outline",
 };
+
+const workspaceTabItems = [
+  "Overview",
+  "Members",
+  "Tasks",
+  "QA",
+  "Acceptance",
+  "Finance",
+  "Issues",
+  "Daily",
+  "Files",
+  "Schedule",
+  "Document Parser",
+  "Audit",
+] as const;
 
 function getWorkspaceInitials(name: string) {
   const tokens = name
@@ -326,7 +342,16 @@ export function WorkspaceDetailScreen({
       )}
 
       {workspace && !accountMismatch && (
-        <>
+        <Tabs defaultValue="Overview" className="space-y-4">
+          <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border border-border/50 bg-card/50 p-2">
+            {workspaceTabItems.map((tab) => (
+              <TabsTrigger key={tab} value={tab} className="whitespace-nowrap">
+                {tab}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="Overview" className="space-y-6">
           <Card className="border border-border/50">
             <CardContent className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex items-start gap-4">
@@ -564,7 +589,26 @@ export function WorkspaceDetailScreen({
               </CardContent>
             </Card>
           </div>
-        </>
+          </TabsContent>
+
+          {workspaceTabItems
+            .filter((tab) => tab !== "Overview")
+            .map((tab) => (
+              <TabsContent key={tab} value={tab}>
+                <Card className="border border-border/50">
+                  <CardHeader>
+                    <CardTitle>{tab}</CardTitle>
+                    <CardDescription>
+                      這個工作區模組功能尚未實施，正在 MDDD 遷移中。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    Planned scope: {tab} flow, interaction rules, and data integration.
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+        </Tabs>
       )}
 
       <Dialog
