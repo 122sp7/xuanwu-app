@@ -76,20 +76,28 @@ export function DashboardSidebar({
         })}
 
         <details className="group mt-2 rounded-lg border border-border/40 px-3 py-2">
-          <summary className="cursor-pointer list-none text-sm font-medium text-muted-foreground transition group-open:text-foreground">
+          <summary
+            aria-label="切換帳戶管理選單"
+            className="cursor-pointer list-none text-sm font-medium text-muted-foreground transition group-open:text-foreground"
+          >
             <span className="flex items-center justify-between">
               帳戶管理
-              <span className="text-xs text-muted-foreground">收合</span>
+              <span className="text-xs text-muted-foreground transition-transform group-open:rotate-180">
+                ˅
+              </span>
             </span>
           </summary>
           <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
             {["成員", "團隊", "權限", "排程", "每日", "日誌"].map((label) => (
-              <div
+              <button
                 key={label}
+                type="button"
+                disabled
+                title={`${label} 功能尚在遷移中，暫未開放`}
                 className="rounded-md px-2 py-1.5 text-sm text-muted-foreground"
               >
                 {label}
-              </div>
+              </button>
             ))}
           </div>
         </details>
