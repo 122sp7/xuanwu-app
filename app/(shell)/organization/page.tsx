@@ -10,12 +10,13 @@
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import { Button } from "@/ui/shadcn/ui/button";
 
 export default function OrganizationPage() {
   const { state: appState, dispatch } = useApp();
   const { state: authState } = useAuth();
   const { user } = authState;
-  const { accounts, activeAccount } = appState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
 
   const orgList = Object.values(accounts);
 
@@ -36,6 +37,14 @@ export default function OrganizationPage() {
         </p>
       </div>
 
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
+
       {/* Personal account */}
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
         <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
@@ -49,13 +58,14 @@ export default function OrganizationPage() {
               Active
             </span>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={handleSwitchToPersonal}
-              className="rounded-lg border border-border/50 px-3 py-1 text-xs font-semibold transition-colors hover:bg-muted"
             >
               Switch
-            </button>
+            </Button>
           )}
         </div>
       </section>
@@ -91,13 +101,14 @@ export default function OrganizationPage() {
                     Active
                   </span>
                 ) : (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleSwitch(org)}
-                    className="rounded-lg border border-border/50 px-3 py-1 text-xs font-semibold transition-colors hover:bg-muted"
                   >
                     Switch
-                  </button>
+                  </Button>
                 )}
               </li>
             ))}

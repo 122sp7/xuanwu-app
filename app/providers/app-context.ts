@@ -28,8 +28,16 @@ export interface AppState {
 
 export type AppAction =
   | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: AuthUser };
+    }
+  | {
       type: "SET_ACCOUNTS";
-      payload: { accounts: Record<string, AccountEntity>; user: AuthUser };
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: AuthUser;
+        preferredActiveAccountId?: string | null;
+      };
     }
   | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
   | { type: "RESET_STATE" };

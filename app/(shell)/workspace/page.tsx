@@ -50,7 +50,7 @@ function getActiveAccountType(activeAccount: ActiveAccount | null) {
 
 export default function WorkspacePage() {
   const {
-    state: { activeAccount },
+    state: { activeAccount, accountsHydrated, bootstrapPhase },
   } = useApp();
   const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("idle");
@@ -172,10 +172,21 @@ export default function WorkspacePage() {
           </p>
         </div>
 
-        <Button onClick={() => setIsCreateWorkspaceOpen(true)} disabled={!activeAccount?.id}>
-          建立工作區
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !activeAccount?.id}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
         </Button>
       </div>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border border-border/50">

@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
+import { useApp } from "@/app/providers/app-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { createOrganization } from "@/modules/organization";
 import { Button } from "@/ui/shadcn/ui/button";
@@ -35,6 +36,9 @@ export function AccountSwitcher({
   onOrganizationCreated,
 }: AccountSwitcherProps) {
   const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
   const [organizationName, setOrganizationName] = useState("");
   const [organizationError, setOrganizationError] = useState<string | null>(null);
@@ -126,6 +130,11 @@ export function AccountSwitcher({
           ))}
           <option value="__create_organization__">+建立組織</option>
         </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
+          </p>
+        )}
       </div>
 
       <Dialog

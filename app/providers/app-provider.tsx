@@ -25,6 +25,8 @@ import { useAuth } from "./auth-provider";
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
+const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
+
 const initialState: AppState = {
   accounts: {},
   accountsHydrated: false,
@@ -34,22 +36,56 @@ const initialState: AppState = {
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
+function resolveActiveAccount(
+  state: AppState,
+  accounts: Record<string, import("@/modules/account/domain/entities/Account").AccountEntity>,
+  user: import("./auth-context").AuthUser,
+  preferredActiveAccountId?: string | null,
+) {
+  const validIds = new Set([user.id, ...Object.keys(accounts)]);
+  const currentActiveId = state.activeAccount?.id;
+  const currentActive =
+    currentActiveId && validIds.has(currentActiveId)
+      ? currentActiveId === user.id
+        ? user
+        : accounts[currentActiveId] ?? state.activeAccount
+      : null;
+
+  const preferredActive =
+    preferredActiveAccountId && validIds.has(preferredActiveAccountId)
+      ? preferredActiveAccountId === user.id
+        ? user
+        : accounts[preferredActiveAccountId] ?? null
+      : null;
+
+  if (
+    preferredActive &&
+    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
+  ) {
+    return preferredActive;
+  }
+
+  return currentActive ?? user;
+}
+
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "SEED_ACTIVE_ACCOUNT":
+      return {
+        ...state,
+        accounts: {},
+        accountsHydrated: false,
+        bootstrapPhase: "seeded",
+        activeAccount: action.payload.user,
+      };
     case "SET_ACCOUNTS": {
-      const { accounts, user } = action.payload;
-      // Keep existing active account if it's still valid, otherwise fall back to user.
-      const validIds = new Set([user.id, ...Object.keys(accounts)]);
-      const active =
-        state.activeAccount && validIds.has(state.activeAccount.id)
-          ? state.activeAccount
-          : user;
+      const { accounts, user, preferredActiveAccountId } = action.payload;
       return {
         ...state,
         accounts,
         accountsHydrated: true,
         bootstrapPhase: "hydrated",
-        activeAccount: active,
+        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
       };
     }
     case "SET_ACTIVE_ACCOUNT":
@@ -77,20 +113,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Optimistically seed the personal account so the UI is immediately responsive.
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    dispatch({
-      type: "SET_ACCOUNTS",
-      payload: { accounts: {}, user },
-    });
+    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
 
     const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
-      dispatch({ type: "SET_ACCOUNTS", payload: { accounts, user } });
+      const preferredActiveAccountId =
+        typeof window === "undefined"
+          ? null
+          : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+      dispatch({
+        type: "SET_ACCOUNTS",
+        payload: { accounts, user, preferredActiveAccountId },
+      });
     });
 
     return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!user || !state.activeAccount?.id) {
+      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, state.activeAccount.id);
+  }, [state.activeAccount?.id, user]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
