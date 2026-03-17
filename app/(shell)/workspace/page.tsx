@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import type { ActiveAccount } from "@/app/providers/app-context";
 import { useApp } from "@/app/providers/app-provider";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace";
@@ -37,6 +38,14 @@ function sortWorkspaces(items: WorkspaceEntity[]) {
   return [...items].sort((left, right) =>
     left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
   );
+}
+
+function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
+  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
+}
+
+function getActiveAccountType(activeAccount: ActiveAccount | null) {
+  return isOrganizationAccount(activeAccount) ? "organization" : "user";
 }
 
 export default function WorkspacePage() {
@@ -89,9 +98,18 @@ export default function WorkspacePage() {
   }, [activeAccount?.id]);
 
   async function refreshWorkspaces(accountId: string) {
-    const nextWorkspaces = await getWorkspacesForAccount(accountId);
-    setWorkspaces(sortWorkspaces(nextWorkspaces));
-    setLoadState("loaded");
+    try {
+      const nextWorkspaces = await getWorkspacesForAccount(accountId);
+      setWorkspaces(sortWorkspaces(nextWorkspaces));
+      setLoadState("loaded");
+      setErrorMessage(null);
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspacePage] Failed to refresh workspaces:", error);
+      }
+      setLoadState("error");
+      setErrorMessage("工作區已建立，但清單更新失敗。請重新整理頁面以查看新的工作區。");
+    }
   }
 
   function resetCreateWorkspaceDialog() {
@@ -104,7 +122,7 @@ export default function WorkspacePage() {
     event.preventDefault();
 
     if (!activeAccount?.id) {
-      setWorkspaceError("Select an active account before creating a workspace.");
+      setWorkspaceError("帳號資訊已失效，請重新整理頁面後再建立工作區。");
       return;
     }
 
@@ -120,10 +138,7 @@ export default function WorkspacePage() {
     const result = await createWorkspace({
       name: nextWorkspaceName,
       accountId: activeAccount.id,
-      accountType:
-        "accountType" in activeAccount && activeAccount.accountType === "organization"
-          ? "organization"
-          : "user",
+      accountType: getActiveAccountType(activeAccount),
     });
 
     if (!result.success) {

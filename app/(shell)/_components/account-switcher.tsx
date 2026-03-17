@@ -50,7 +50,7 @@ export function AccountSwitcher({
     event.preventDefault();
 
     if (!personalAccount) {
-      setOrganizationError("Please sign in again before creating an organization.");
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
       return;
     }
 
@@ -81,7 +81,6 @@ export function AccountSwitcher({
       name: nextOrganizationName,
       accountType: "organization",
       ownerId: personalAccount.id,
-      email: personalAccount.email,
     });
 
     resetCreateOrganizationDialog();
