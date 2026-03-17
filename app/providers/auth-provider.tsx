@@ -9,9 +9,12 @@
  */
 
 import { useReducer, useContext, useEffect, type ReactNode } from "react";
-import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
-
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import {
+  getFirebaseAuth,
+  onFirebaseAuthStateChanged,
+  signOutFirebase,
+  type User,
+} from "@/lib/firebase";
 import {
   AuthContext,
   type AuthAction,
@@ -71,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, AUTH_BOOTSTRAP_TIMEOUT_MS);
 
     try {
-      const auth = getAuth(firebaseClientApp);
-      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const auth = getFirebaseAuth();
+      unsubscribe = onFirebaseAuthStateChanged(auth, (firebaseUser) => {
         resolved = true;
         window.clearTimeout(timeoutId);
 
@@ -108,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await signOut(getAuth(firebaseClientApp));
+      await signOutFirebase(getFirebaseAuth());
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[AuthProvider] Firebase sign out failed:", error);

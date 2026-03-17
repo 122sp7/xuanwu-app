@@ -15,8 +15,7 @@
  */
 
 import { useEffect } from "react";
-import { getAuth } from "firebase/auth";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
 
 const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
@@ -31,7 +30,7 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
     if (!/^[\w-]+$/.test(accountId)) return;
 
     const unsubscribe = tokenRefreshRepo.subscribe(accountId, () => {
-      const auth = getAuth(firebaseClientApp);
+      const auth = getFirebaseAuth();
       const currentUser = auth.currentUser;
       if (!currentUser) return;
       // [S6] Force-refresh the ID token so subsequent requests carry updated Custom Claims.
