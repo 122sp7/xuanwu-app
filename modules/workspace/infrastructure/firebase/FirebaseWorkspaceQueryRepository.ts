@@ -47,6 +47,7 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     }
 
     const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
 
     const mergeMember = (
       memberId: string,
@@ -54,14 +55,19 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
       orgMember?: MemberReference,
     ) => {
       const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const hasSameChannel = current.accessChannels.some(
-        (entry) =>
-          entry.source === channel.source &&
-          entry.label === channel.label &&
-          entry.role === channel.role &&
-          entry.protocol === channel.protocol &&
-          entry.teamId === channel.teamId,
-      );
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
 
       members.set(memberId, {
         id: memberId,

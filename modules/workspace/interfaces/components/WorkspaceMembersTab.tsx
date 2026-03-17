@@ -127,12 +127,14 @@ export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
         )}
 
         {loadState === "error" && (
-          <p className="text-sm text-destructive">無法載入成員資料，請稍後再試。</p>
+          <p className="text-sm text-destructive">
+            無法載入成員資料，請重新整理頁面或稍後再試。
+          </p>
         )}
 
         {loadState === "loaded" && members.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            目前尚未整理出任何工作區成員或授權來源。
+            目前尚未整理出任何工作區成員或授權來源，之後可在這裡持續擴充成員維護流程。
           </p>
         )}
 
@@ -168,7 +170,7 @@ export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
                   <div className="flex flex-wrap gap-2">
                     {member.accessChannels.map((channel, index) => (
                       <Badge
-                        key={`${member.id}-${channel.source}-${channel.label}-${channel.role ?? "none"}-${index}`}
+                        key={`${member.id}-${channel.source}-${channel.teamId ?? "none"}-${channel.protocol ?? "none"}-${index}`}
                         variant="outline"
                       >
                         {sourceLabelMap[channel.source]} · {channel.label}
