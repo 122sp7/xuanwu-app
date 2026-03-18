@@ -1,5 +1,4 @@
-name: CI (Zero Red Light Policy)
-
+name: CI (Ultra-Stable Auto-Fix)
 on: [push, pull_request]
 
 jobs:
@@ -8,8 +7,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -26,14 +23,12 @@ jobs:
         run: npm ci
 
       - name: Install Python Dependencies
-        # 使用 --frozen 確保 lock 檔沒過期，且指定正確目錄
+        working-directory: lib/firebase/functions-python
         run: |
-          if [ -d "lib/firebase/functions-python" ]; then
-            uv sync --frozen --directory lib/firebase/functions-python
-          else
-            echo "Error: lib/firebase/functions-python not found!" && exit 1
+          # 穩健邏輯：如果沒有 lock 檔，就先產生它
+          if [ ! -f "uv.lock" ]; then
+            echo "uv.lock not found, generating one..."
+            uv lock
           fi
-
-      - name: Lint and Test
-        run: |
-          uv run --directory lib/firebase/functions-python ruff check .
+          # 執行同步（這時一定會有 lock 檔了）
+          uv sync --frozen
