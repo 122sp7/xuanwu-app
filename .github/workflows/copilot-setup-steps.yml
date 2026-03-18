@@ -51,4 +51,4 @@ jobs:
       - name: Install uv (required by Serena, markitdown, and agent-memory MCP servers)
         uses: astral-sh/setup-uv@v5.3.0
         with:
-          enable-cache: true
+          enable-cache: false
