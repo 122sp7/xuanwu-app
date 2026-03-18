@@ -38,7 +38,10 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
         setLoadState("loaded");
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceFilesTab] Failed to load file metadata:", error);
+          console.warn(
+            "[WorkspaceFilesTab] Failed to load file metadata:",
+            error instanceof Error ? error.message : "unknown error",
+          );
         }
 
         if (!cancelled) {

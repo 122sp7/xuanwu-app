@@ -18,6 +18,26 @@ import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repos
 const FILE_COLLECTION = "workspaceFiles";
 const VERSION_SUBCOLLECTION = "versions";
 
+interface FirestoreFileDocument {
+  readonly workspaceId?: string;
+  readonly organizationId?: string;
+  readonly accountId?: string;
+  readonly name?: string;
+  readonly mimeType?: string;
+  readonly sizeBytes?: number;
+  readonly classification?: File["classification"];
+  readonly tags?: readonly string[];
+  readonly currentVersionId?: string;
+  readonly retentionPolicyId?: string;
+  readonly status?: File["status"];
+  readonly source?: string;
+  readonly detail?: string;
+  readonly href?: string;
+  readonly createdAtISO?: string;
+  readonly updatedAtISO?: string;
+  readonly deletedAtISO?: string;
+}
+
 function isFileStatus(value: unknown): value is File["status"] {
   return value === "active" || value === "archived" || value === "deleted";
 }
@@ -34,7 +54,7 @@ function toStringArray(value: unknown): readonly string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-function toFileEntity(fileId: string, data: Record<string, unknown>): File {
+function toFileEntity(fileId: string, data: FirestoreFileDocument): File {
   return {
     id: fileId,
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
@@ -76,22 +96,26 @@ export class FirebaseFileRepository implements FileRepository {
       return null;
     }
 
-    return toFileEntity(snapshot.id, snapshot.data() as Record<string, unknown>);
+    return toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument);
   }
 
   async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
     const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
     if (!workspaceId) {
       return [];
     }
 
     const snapshots = await getDocs(
-      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
+      query(
+        this.collectionRef,
+        where("workspaceId", "==", workspaceId),
+        where("organizationId", "==", organizationId),
+      ),
     );
 
     return snapshots.docs
-      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as Record<string, unknown>))
-      .filter((file) => file.organizationId === scope.organizationId.trim())
+      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument))
       .sort((left, right) => right.updatedAtISO.localeCompare(left.updatedAtISO));
   }
 

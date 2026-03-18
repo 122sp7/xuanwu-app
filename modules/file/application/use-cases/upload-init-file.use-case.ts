@@ -1,3 +1,5 @@
+import { randomBytes, randomUUID } from "node:crypto";
+
 import type { File } from "../../domain/entities/File";
 import type { FileVersion } from "../../domain/entities/FileVersion";
 import type { FileRepository } from "../../domain/repositories/FileRepository";
@@ -73,8 +75,8 @@ export class UploadInitFileUseCase {
     }
 
     const createdAtISO = new Date().toISOString();
-    const fileId = `file-${crypto.randomUUID()}`;
-    const versionId = `file-version-${crypto.randomUUID()}`;
+    const fileId = `file-${randomUUID()}`;
+    const versionId = `file-version-${randomUUID()}`;
     const uploadPath = buildUploadPath(workspaceId, fileId, fileName);
 
     const file: File = {
@@ -112,7 +114,7 @@ export class UploadInitFileUseCase {
         fileId,
         versionId,
         uploadPath,
-        uploadToken: `upload-token-${crypto.randomUUID()}`,
+        uploadToken: randomBytes(32).toString("base64url"),
         expiresAtISO: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       },
     };

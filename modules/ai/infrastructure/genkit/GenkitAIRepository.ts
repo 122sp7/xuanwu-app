@@ -27,7 +27,8 @@ export class GenkitAIRepository implements AIRepository {
         ok: false,
         error: {
           code: "AI_GENERATE_FAILED",
-          message: error instanceof Error ? error.message : "Unexpected AI generation error.",
+          message:
+            error instanceof Error ? error.message : `Unexpected AI generation error: ${String(error)}`,
         },
       };
     }
