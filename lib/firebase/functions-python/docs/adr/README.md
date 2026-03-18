@@ -146,6 +146,8 @@ ADR 必須使用以下遷移邏輯：
 | [ADR-003](./ADR-003-dependency-selection-policy.md) | 依賴套件選型規則 | 說明要保留、避免與延後引入的依賴 |
 | [ADR-004](./ADR-004-structure-and-interaction-design.md) | 結構與交互設計 | 定義目錄、層次、資料流、觸發方式與交互模型 |
 | [ADR-005](./ADR-005-migration-from-typescript-functions.md) | 從 `lib/firebase/functions` 遷移 | 說明共存、替換與下線策略 |
+| [ADR-006](./ADR-006-enterprise-rag-end-to-end-pipeline.md) | 企業級 RAG 端到端流程 | 定義 ingestion/query/enterprise retrieval 強化 與 runtime 分工 |
+| [ADR-007](./ADR-007-firestore-rag-data-model-and-indexing.md) | Firestore 資料模型與索引 | 定義 documents/chunks/queryCache/queryFeedback 與 vector index 規範 |
 
 ---
 

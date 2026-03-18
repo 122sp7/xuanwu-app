@@ -125,6 +125,8 @@
 - `firebase.json` 已移除 `default` Node codebase，只保留 `functions-python`。
 - `lib/firebase/functions` 已正式刪除，Firebase worker 能力統一由 Python runtime 承接。
 - Next.js 仍保留 user-facing upload / query / streaming responsibilities，不因這次收斂而改變。
+- 這次淘汰不影響前端互動鏈路，因為被移除的 `lib/firebase/functions` 本來就不承接 browser-facing interaction；
+  user-facing orchestration 一直都在 Next.js 邊界內。
 
 ## Operational Notes
 
