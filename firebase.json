@@ -41,7 +41,7 @@
         "*.local"
       ],
       "predeploy": [
-        "python3 -m compileall -q \"$RESOURCE_DIR\""
+        "python -m compileall -q \"$RESOURCE_DIR\""
       ],
       "source": "lib/firebase/functions-python"
     }

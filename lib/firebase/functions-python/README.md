@@ -24,5 +24,5 @@ pip install -r requirements-dev.txt
 ## Local sanity check
 
 ```bash
-python3 -m compileall -q .
+python -m compileall -q .
 ```
