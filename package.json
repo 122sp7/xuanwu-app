@@ -10,6 +10,9 @@
     "repomix:skill": "repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-skill --force",
     "repomix:remote": "repomix --skill-generate casibase-skill --skill-output .github/skills/casibase-skill --remote casibase/casibase --force"
   },
+  "engines": {
+    "node": "24.3.1"
+  },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
