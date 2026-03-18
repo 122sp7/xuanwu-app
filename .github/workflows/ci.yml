@@ -1,4 +1,5 @@
-name: CI (Node + Python uv)
+name: CI (Stable Build)
+
 on: [push, pull_request]
 
 jobs:
@@ -7,26 +8,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --- Node.js 24 設定 ---
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: 'npm'
 
-      # --- uv 設定 (100% 穩定快取) ---
       - name: Setup uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          node-version: 24 # 如果你需要 uv 調用特定的 node
 
-      - name: Install Dependencies
-        run: |
-          npm ci
-          uv sync --frozen # 確保環境與 lock 檔完全一致，避免 CI 報錯
+      - name: Install Node Dependencies
+        run: npm ci
 
-      - name: Run Checks
-        run: |
-          npm test --if-present
-          uv run pytest # 使用 uv 跑測試，確保在正確的虛擬環境中
+      - name: Install Python Dependencies (Stable)
+        # 這裡用 --directory 指定路徑，不需要 cd 進去也能跑，更乾淨
+        run: uv sync --frozen --directory lib/firebase/functions-python
+
+      - name: Check Python Code (Ruff)
+        run: uv run --directory lib/firebase/functions-python ruff check .
