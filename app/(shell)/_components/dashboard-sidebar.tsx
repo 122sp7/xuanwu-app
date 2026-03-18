@@ -13,6 +13,15 @@ interface NavItem {
   label: string;
 }
 
+const accountManagementItems = [
+  { label: "成員", href: "/organization?section=members" },
+  { label: "團隊", href: "/organization?section=teams" },
+  { label: "權限", href: "/organization?section=permissions" },
+  { label: "排程", href: "/organization?section=schedule" },
+  { label: "每日", href: "/organization?section=daily" },
+  { label: "日誌", href: "/organization?section=logs" },
+] as const;
+
 interface DashboardSidebarProps {
   pathname: string;
   navItems: NavItem[];
@@ -101,16 +110,14 @@ export function DashboardSidebar({
               </span>
             </summary>
             <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
-              {["成員", "團隊", "權限", "排程", "每日", "日誌"].map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  disabled
-                  title={`${label} 功能尚在遷移中，暫未開放`}
-                  className="rounded-md px-2 py-1.5 text-sm text-muted-foreground"
+              {accountManagementItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="block rounded-md px-2 py-1.5 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
                 >
-                  {label}
-                </button>
+                  {item.label}
+                </Link>
               ))}
             </div>
           </details>
