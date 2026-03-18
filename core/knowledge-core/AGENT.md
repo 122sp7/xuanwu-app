@@ -1,3 +1,13 @@
+# Knowledge-Core Agent Rules
+- **Architecture**: Domain-Driven Design (DDD).
+- **Dependency Flow**: Interfaces -> Application -> Domain <- Infrastructure.
+- **Tech Stack**: Upstash Vector (Retrieval), Upstash Redis (Analytics/Cache).
+- **Core Entities**: `Knowledge` is the root aggregate.
+- **Rules**: 
+  1. Domain models must NOT import from Infrastructure.
+  2. Use Value Objects for complex attributes (e.g., Taxonomy).
+  3. All external I/O must go through Repository interfaces.
+  
 # Knowledge Core — Agent Contract
 
 ## Role
