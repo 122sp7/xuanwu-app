@@ -21,3 +21,5 @@ import { getAdminApp } from "./firebase/index.js";
 getAdminApp();
 
 setGlobalOptions({ maxInstances: 10 });
+
+export { processDocumentWithAi } from "./document-ai/index.js";
