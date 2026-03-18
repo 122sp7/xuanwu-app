@@ -8,13 +8,15 @@
     "vscode": {
       "extensions": [
         "GitHub.copilot",
-        "GitHub.copilot-chat",
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
+        "GitHub.copilot-chat"
       ]
     }
   },
-  // 容器建立後自動安裝 npm 套件
+  // --- 新增：將 node_modules 掛載到獨立的 Volume ---
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+  ],
+  // 這樣即使 Rebuild 容器，npm install 也會飛快完成
   "postCreateCommand": "npm install",
   "remoteUser": "node"
 }
