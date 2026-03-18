@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { getWorkspaceFiles } from "../queries/file.queries";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
@@ -18,7 +19,42 @@ interface WorkspaceFilesTabProps {
 }
 
 export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const assets = useMemo(() => getWorkspaceFiles(workspace), [workspace]);
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFiles() {
+      setLoadState("loading");
+
+      try {
+        const nextAssets = await getWorkspaceFiles(workspace);
+        if (cancelled) {
+          return;
+        }
+
+        setAssets(nextAssets);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceFilesTab] Failed to load file metadata:", error);
+        }
+
+        if (!cancelled) {
+          setAssets([]);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace]);
+
   const availableCount = useMemo(
     () => assets.filter((asset) => asset.status === "active").length,
     [assets],
@@ -33,6 +69,16 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入已持久化的檔案資料，請稍後再試。
+          </p>
+        )}
+
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Registered assets</p>
@@ -49,6 +95,12 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
         </div>
 
         <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
+            </div>
+          )}
+
           {assets.map((asset) => (
             <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

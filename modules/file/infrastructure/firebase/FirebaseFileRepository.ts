@@ -1,0 +1,135 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@/infrastructure/firebase/client";
+
+import type { File } from "../../domain/entities/File";
+import type { FileVersion } from "../../domain/entities/FileVersion";
+import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
+
+const FILE_COLLECTION = "workspaceFiles";
+const VERSION_SUBCOLLECTION = "versions";
+
+function isFileStatus(value: unknown): value is File["status"] {
+  return value === "active" || value === "archived" || value === "deleted";
+}
+
+function isFileClassification(value: unknown): value is File["classification"] {
+  return value === "image" || value === "manifest" || value === "record" || value === "other";
+}
+
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function toFileEntity(fileId: string, data: Record<string, unknown>): File {
+  return {
+    id: fileId,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    classification: isFileClassification(data.classification) ? data.classification : "other",
+    tags: toStringArray(data.tags),
+    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
+    retentionPolicyId:
+      typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
+    status: isFileStatus(data.status) ? data.status : "active",
+    source: typeof data.source === "string" ? data.source : undefined,
+    detail: typeof data.detail === "string" ? data.detail : undefined,
+    href: typeof data.href === "string" ? data.href : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
+  };
+}
+
+export class FirebaseFileRepository implements FileRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  private get collectionRef() {
+    return collection(this.db, FILE_COLLECTION);
+  }
+
+  async findById(fileId: string): Promise<File | null> {
+    const normalizedFileId = fileId.trim();
+    if (!normalizedFileId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedFileId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return toFileEntity(snapshot.id, snapshot.data() as Record<string, unknown>);
+  }
+
+  async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
+    const workspaceId = scope.workspaceId.trim();
+    if (!workspaceId) {
+      return [];
+    }
+
+    const snapshots = await getDocs(
+      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
+    );
+
+    return snapshots.docs
+      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as Record<string, unknown>))
+      .filter((file) => file.organizationId === scope.organizationId.trim())
+      .sort((left, right) => right.updatedAtISO.localeCompare(left.updatedAtISO));
+  }
+
+  async save(file: File, versions: readonly FileVersion[] = []): Promise<void> {
+    const batch = writeBatch(this.db);
+    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
+
+    batch.set(fileRef, {
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      accountId: file.accountId,
+      name: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      classification: file.classification,
+      tags: [...file.tags],
+      currentVersionId: file.currentVersionId,
+      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
+      status: file.status,
+      ...(file.source ? { source: file.source } : {}),
+      ...(file.detail ? { detail: file.detail } : {}),
+      ...(file.href ? { href: file.href } : {}),
+      createdAtISO: file.createdAtISO,
+      updatedAtISO: file.updatedAtISO,
+      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
+    });
+
+    versions.forEach((version) => {
+      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
+        fileId: version.fileId,
+        versionNumber: version.versionNumber,
+        status: version.status,
+        storagePath: version.storagePath,
+        ...(version.checksum ? { checksum: version.checksum } : {}),
+        createdAtISO: version.createdAtISO,
+      });
+    });
+
+    await batch.commit();
+  }
+}

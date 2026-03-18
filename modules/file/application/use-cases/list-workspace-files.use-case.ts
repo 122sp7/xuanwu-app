@@ -7,7 +7,7 @@ const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context
 export class ListWorkspaceFilesUseCase {
   constructor(private readonly fileRepository: FileRepository) {}
 
-  execute(scope: ListWorkspaceFilesScope): WorkspaceFileListItemDto[] {
+  async execute(scope: ListWorkspaceFilesScope): Promise<WorkspaceFileListItemDto[]> {
     const workspaceId = scope.workspaceId.trim();
     const organizationId = scope.organizationId.trim();
     const actorAccountId = scope.actorAccountId.trim();
@@ -16,11 +16,13 @@ export class ListWorkspaceFilesUseCase {
       return [];
     }
 
-    return this.fileRepository.listByWorkspace({
+    const files = await this.fileRepository.listByWorkspace({
       workspaceId,
       organizationId,
       actorAccountId,
-    }).map((file) => ({
+    });
+
+    return files.map((file) => ({
       id: file.id,
       workspaceId: file.workspaceId,
       organizationId: file.organizationId,

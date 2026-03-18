@@ -3,15 +3,10 @@ import type { WorkspaceEntity } from "@/modules/workspace";
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
-import { LegacyWorkspaceFileAssetBridge } from "../../infrastructure/legacy/LegacyWorkspaceFileAssetBridge";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
 
-function createListWorkspaceFilesUseCase(workspace: WorkspaceEntity) {
-  const fileRepository = new LegacyWorkspaceFileAssetBridge(workspace);
-  return new ListWorkspaceFilesUseCase(fileRepository);
-}
-
-export function getWorkspaceFiles(workspace: WorkspaceEntity): WorkspaceFileListItemDto[] {
-  const listWorkspaceFilesUseCase = createListWorkspaceFilesUseCase(workspace);
+export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
+  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
   const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
 
   return listWorkspaceFilesUseCase.execute({

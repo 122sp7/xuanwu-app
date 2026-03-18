@@ -8,8 +8,7 @@ export interface ListWorkspaceFilesScope {
 }
 
 export interface FileRepository {
-  findById(fileId: string): File | null;
-  listByWorkspace(scope: ListWorkspaceFilesScope): File[];
-  save(file: File, versions?: readonly FileVersion[]): void;
+  findById(fileId: string): Promise<File | null>;
+  listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]>;
+  save(file: File, versions?: readonly FileVersion[]): Promise<void>;
 }
-

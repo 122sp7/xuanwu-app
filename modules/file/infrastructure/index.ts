@@ -1,2 +1,1 @@
-export * from "./legacy/LegacyWorkspaceFileAssetBridge";
-
+export * from "./firebase/FirebaseFileRepository";

@@ -41,7 +41,7 @@ function inferMimeType(asset: WorkspaceFileAsset): string {
 export class LegacyWorkspaceFileAssetBridge implements FileRepository {
   constructor(private readonly workspace: WorkspaceEntity) {}
 
-  findById(fileId: string): File | null {
+  async findById(fileId: string): Promise<File | null> {
     const normalizedFileId = fileId.trim();
     if (!normalizedFileId) {
       return null;
@@ -50,7 +50,7 @@ export class LegacyWorkspaceFileAssetBridge implements FileRepository {
     return this.materializeFiles().find((file) => file.id === normalizedFileId) ?? null;
   }
 
-  listByWorkspace(scope: ListWorkspaceFilesScope): File[] {
+  async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
     if (scope.workspaceId.trim() !== this.workspace.id) {
       return [];
     }
@@ -58,7 +58,7 @@ export class LegacyWorkspaceFileAssetBridge implements FileRepository {
     return this.materializeFiles();
   }
 
-  save(file: File, versions: readonly FileVersion[] = []): void {
+  async save(file: File, versions: readonly FileVersion[] = []): Promise<void> {
     void file;
     void versions;
     throw new Error("LegacyWorkspaceFileAssetBridge is read-only and does not persist file changes.");
