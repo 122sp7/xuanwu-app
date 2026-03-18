@@ -29,16 +29,6 @@
     {
       "codebase": "functions-python",
       "runtime": "python311",
-<<<<<<< HEAD
-      "source": "lib/firebase/functions-python",
-      "ignore": [
-        "venv",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "__pycache__"
-      ]
-=======
       "ignore": [
         "venv",
         ".venv",
@@ -54,7 +44,6 @@
         "python3 -m compileall -q \"$RESOURCE_DIR\""
       ],
       "source": "lib/firebase/functions-python"
->>>>>>> 932c33f8aa66f69587dfc78b0f362b1afd379ba7
     }
   ],
   "apphosting": {
