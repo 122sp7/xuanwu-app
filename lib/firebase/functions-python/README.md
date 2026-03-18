@@ -7,6 +7,11 @@ Its role is to be the **Firebase worker / ingestion runtime** for document proce
 taxonomy, chunking, embedding, and other heavy background responsibilities that should not live in
 the Next.js request/response path.
 
+Canonical ADR governance and migration decisions now live in
+`lib/firebase/functions-python/docs/adr/README.md` and the ADR files in that directory. Treat those
+documents as the source of truth for runtime boundaries, dependency policy, structure, and
+replacement planning for `lib/firebase/functions`.
+
 ---
 
 ## ADR · Architecture Decision Record

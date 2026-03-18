@@ -5,6 +5,8 @@
   processing.
 - Treat **Next.js** as the user-facing application edge.
 - Treat **functions-python** as the background worker / internal callable / trigger execution layer.
+- Read `docs/adr/README.md` plus accepted ADRs before changing runtime boundaries, dependencies,
+  structure, or migration strategy.
 
 ## Dependency Direction
 - `interfaces -> application -> domain <- infrastructure`
