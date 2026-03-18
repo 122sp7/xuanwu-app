@@ -25,15 +25,15 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Personal Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your profile and account preferences.
+          Manage your personal profile and session preferences. Organization governance lives in the Organization context.
         </p>
       </div>
 
       {/* Profile Card */}
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Profile</h2>
+        <h2 className="mb-4 text-base font-semibold">Personal Profile</h2>
         <dl className="space-y-3 text-sm">
           <div className="flex items-center justify-between">
             <dt className="text-muted-foreground">Name</dt>

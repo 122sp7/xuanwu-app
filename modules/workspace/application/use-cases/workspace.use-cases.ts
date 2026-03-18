@@ -84,7 +84,10 @@ export class UpdateWorkspaceSettingsUseCase {
 
   async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
     try {
-      const workspace = await this.workspaceRepo.findById(command.workspaceId);
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
       if (!workspace) {
         return commandFailureFrom(
           "WORKSPACE_NOT_FOUND",

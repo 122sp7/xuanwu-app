@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace";
@@ -50,7 +51,7 @@ import { WorkspaceTaskTab } from "@/modules/task";
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { getWorkspaceById } from "../queries/workspace.queries";
+import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 
 const lifecycleBadgeVariant: Record<
   WorkspaceEntity["lifecycleState"],
@@ -178,6 +179,7 @@ export function WorkspaceDetailScreen({
   accountId,
   accountsHydrated,
 }: WorkspaceDetailScreenProps) {
+  const router = useRouter();
   const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
@@ -194,10 +196,20 @@ export function WorkspaceDetailScreen({
         return;
       }
 
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
+
       setLoadState("loading");
       try {
-        const detail = await getWorkspaceById(workspaceId);
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
         if (cancelled) return;
+        if (!detail) {
+          router.replace("/workspace?context=unavailable");
+          return;
+        }
         setWorkspace(detail);
         setLoadState("loaded");
       } catch (error) {
@@ -216,9 +228,7 @@ export function WorkspaceDetailScreen({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId]);
-
-  const accountMismatch = workspace && accountId && workspace.accountId !== accountId;
+  }, [accountId, accountsHydrated, router, workspaceId]);
   const personnelEntries = useMemo(() => {
     if (!workspace?.personnel) {
       return [];
@@ -286,6 +296,11 @@ export function WorkspaceDetailScreen({
       return;
     }
 
+    if (!accountId) {
+      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
+      return;
+    }
+
     const nextWorkspaceName = settingsDraft.name.trim();
     if (!nextWorkspaceName) {
       setSaveError("請輸入工作區名稱。");
@@ -311,6 +326,7 @@ export function WorkspaceDetailScreen({
 
     const result = await updateWorkspaceSettings({
       workspaceId: workspace.id,
+      accountId,
       name: nextWorkspaceName,
       visibility: settingsDraft.visibility,
       lifecycleState: settingsDraft.lifecycleState,
@@ -342,7 +358,11 @@ export function WorkspaceDetailScreen({
     }
 
     try {
-      const detail = await getWorkspaceById(workspace.id);
+      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
+      if (!detail) {
+        router.replace("/workspace?context=unavailable");
+        return;
+      }
       setWorkspace(detail);
       setLoadState("loaded");
       setSettingsDraft(detail ? createSettingsDraft(detail) : null);
@@ -393,15 +413,7 @@ export function WorkspaceDetailScreen({
         </Card>
       )}
 
-      {accountMismatch && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            此工作區不在目前帳號範圍內。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && !accountMismatch && (
+      {workspace && (
         <Tabs defaultValue="Overview" className="space-y-4">
           <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border border-border/50 bg-card/50 p-2">
             {workspaceTabItems.map((tab) => (

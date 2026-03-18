@@ -76,6 +76,7 @@ export interface CreateWorkspaceCommand {
 
 export interface UpdateWorkspaceSettingsCommand {
   readonly workspaceId: string;
+  readonly accountId: string;
   readonly name?: string;
   readonly visibility?: WorkspaceVisibility;
   readonly lifecycleState?: WorkspaceLifecycleState;

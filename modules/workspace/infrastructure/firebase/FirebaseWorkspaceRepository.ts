@@ -15,6 +15,7 @@ import {
   collection,
   query,
   where,
+  documentId,
   arrayUnion,
   arrayRemove,
   serverTimestamp,
@@ -74,6 +75,18 @@ export class FirebaseWorkspaceRepository implements WorkspaceRepository {
   async findById(id: string): Promise<WorkspaceEntity | null> {
     const snap = await getDoc(doc(this.db, "workspaces", id));
     if (!snap.exists()) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", accountId),
+      where(documentId(), "==", workspaceId),
+    );
+    const snaps = await getDocs(q);
+    const snap = snaps.docs[0];
+    if (!snap) return null;
     return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
   }
 

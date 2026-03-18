@@ -12,6 +12,7 @@ import type {
 
 export interface WorkspaceRepository {
   findById(id: string): Promise<WorkspaceEntity | null>;
+  findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>;
   findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>;
   save(workspace: WorkspaceEntity): Promise<string>;
   updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;

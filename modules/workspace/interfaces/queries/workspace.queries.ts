@@ -18,3 +18,14 @@ export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEn
   const workspaceRepo = new FirebaseWorkspaceRepository();
   return workspaceRepo.findById(normalizedWorkspaceId);
 }
+
+export async function getWorkspaceByIdForAccount(
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalizedAccountId = accountId.trim();
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedAccountId || !normalizedWorkspaceId) return null;
+  const workspaceRepo = new FirebaseWorkspaceRepository();
+  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+}

@@ -51,6 +51,7 @@ export { WorkspaceMembersTab } from "./interfaces/components/WorkspaceMembersTab
 export { useWorkspaceHub } from "./interfaces/hooks/useWorkspaceHub";
 export {
   getWorkspaceById,
+  getWorkspaceByIdForAccount,
   getWorkspacesForAccount,
 } from "./interfaces/queries/workspace.queries";
 export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";
