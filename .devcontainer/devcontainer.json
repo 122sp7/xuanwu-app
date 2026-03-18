@@ -1,5 +1,5 @@
 {
-  "name": "Xuanwu App (Auto-Stable)",
+  "name": "Xuanwu App (Auto-Heal)",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -10,11 +10,6 @@
       "extensions": ["GitHub.copilot", "ms-python.python", "charliermarsh.ruff"]
     }
   },
-  "mounts": [
-    "source=${localWorkspaceFolderBasename}-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
-    "source=${localWorkspaceFolderBasename}-uv-cache,target=/home/node/.cache/uv,type=volume"
-  ],
-  // 自動判斷並補齊環境
-  "postCreateCommand": "npm install && cd lib/firebase/functions-python && ( [ -f uv.lock ] || uv lock ) && uv sync",
+  "postCreateCommand": "npm install && cd lib/firebase/functions-python && (grep -q \"\\[project\\]\" pyproject.toml || uv init --lib --name xuanwu-functions --no-workspace .) && uv sync",
   "remoteUser": "node"
 }
