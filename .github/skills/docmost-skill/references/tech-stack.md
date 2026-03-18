@@ -1,0 +1,86 @@
+# Tech Stack
+
+## Languages
+
+- Node.js
+
+## Package Manager
+
+- pnpm
+
+## Dependencies
+
+- @braintree/sanitize-url (^7.1.0)
+- @casl/ability (6.8.0)
+- @docmost/editor-ext (workspace:*)
+- @floating-ui/dom (^1.7.3)
+- @hocuspocus/provider (3.4.4)
+- @hocuspocus/server (3.4.4)
+- @hocuspocus/transformer (3.4.4)
+- @joplin/turndown (^4.0.74)
+- @joplin/turndown-plugin-gfm (^1.0.56)
+- @sindresorhus/slugify (1.1.0)
+- @tiptap/core (3.17.1)
+- @tiptap/extension-code-block (3.17.1)
+- @tiptap/extension-collaboration (3.17.1)
+- @tiptap/extension-collaboration-caret (3.17.1)
+- @tiptap/extension-color (3.17.1)
+- @tiptap/extension-document (3.17.1)
+- @tiptap/extension-heading (3.17.1)
+- @tiptap/extension-highlight (3.17.1)
+- @tiptap/extension-history (3.17.1)
+- @tiptap/extension-image (3.17.1)
+- @tiptap/extension-link (3.17.1)
+- @tiptap/extension-list (3.17.1)
+- @tiptap/extension-placeholder (3.17.1)
+- @tiptap/extension-subscript (3.17.1)
+- @tiptap/extension-superscript (3.17.1)
+- @tiptap/extension-table (3.17.1)
+- @tiptap/extension-text (3.17.1)
+- @tiptap/extension-text-align (3.17.1)
+- @tiptap/extension-text-style (3.17.1)
+- @tiptap/extension-typography (3.17.1)
+- @tiptap/extension-unique-id (^3.17.1)
+- @tiptap/extension-youtube (3.17.1)
+- @tiptap/html (3.17.1)
+- @tiptap/pm (3.17.1)
+- @tiptap/react (3.17.1)
+- @tiptap/starter-kit (3.17.1)
+- @tiptap/suggestion (3.17.1)
+- @tiptap/y-tiptap (^3.0.2)
+- @types/qrcode (^1.5.5)
+- bytes (^3.1.2)
+- cross-env (^7.0.3)
+- date-fns (^4.1.0)
+- diff (8.0.3)
+- dompurify (^3.3.3)
+- fractional-indexing-jittered (^1.0.0)
+- highlight.js (^11.11.1)
+- image-dimensions (^2.5.0)
+- ioredis (^5.4.1)
+- jszip (^3.10.1)
+- linkifyjs (^4.3.2)
+- marked (13.0.3)
+- ms (3.0.0-canary.1)
+- qrcode (^1.5.4)
+- rfc6902 (5.1.2)
+- uuid (^11.1.0)
+- y-indexeddb (^9.0.12)
+- y-prosemirror (1.3.7)
+- yjs (^13.6.29)
+
+## Dev Dependencies
+
+- @nx/js (22.5.3)
+- @types/bytes (^3.1.5)
+- @types/turndown (^5.0.6)
+- @types/uuid (^10.0.0)
+- concurrently (^9.1.2)
+- nx (22.5.3)
+- tsx (^4.19.3)
+
+## Configuration Files
+
+- .gitignore
+- Dockerfile
+- package.json

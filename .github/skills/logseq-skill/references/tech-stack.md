@@ -1,0 +1,149 @@
+# Tech Stack
+
+## Languages
+
+- Node.js
+
+## Frameworks
+
+- React
+- TypeScript
+
+## Package Manager
+
+- yarn
+
+## Dependencies
+
+- @aparajita/capacitor-secure-storage (^7.1.6)
+- @capacitor-community/safe-area (7.0.0-alpha.1)
+- @capacitor/action-sheet (7.0.1)
+- @capacitor/android (7.2.0)
+- @capacitor/app (7.0.1)
+- @capacitor/camera (7.0.1)
+- @capacitor/clipboard (^7.0.2)
+- @capacitor/core (7.2.0)
+- @capacitor/device (^7.0.2)
+- @capacitor/dialog (^7.0.2)
+- @capacitor/filesystem (7.0.1)
+- @capacitor/haptics (7.0.1)
+- @capacitor/ios (7.2.0)
+- @capacitor/keyboard (7.0.1)
+- @capacitor/network (^7.0.1)
+- @capacitor/share (7.0.1)
+- @capacitor/splash-screen (7.0.1)
+- @capacitor/status-bar (7.0.1)
+- @capgo/capacitor-navigation-bar (^7.1.32)
+- @dnd-kit/core (^6.0.8)
+- @dnd-kit/sortable (^7.0.2)
+- @emoji-mart/data (^1.1.2)
+- @emoji-mart/react (^1.1.1)
+- @glidejs/glide (^3.6.0)
+- @highlightjs/cdn-assets (10.4.1)
+- @huggingface/transformers (^3.6.3)
+- @isomorphic-git/lightning-fs (^4.6.0)
+- @js-joda/core (3.2.0)
+- @js-joda/locale_en-us (3.1.1)
+- @js-joda/timezone (2.5.0)
+- @logseq/react-tweet-embed (1.3.1-1)
+- @logseq/simple-wave-record (^0.0.3)
+- @radix-ui/colors (^0.1.8)
+- @sentry/react (^8.53.0)
+- @sqlite.org/sqlite-wasm (^3.50.3-build1)
+- @tabler/icons-react (^2.47.0)
+- @tabler/icons-webfont (^2.47.0)
+- @tippyjs/react (4.2.5)
+- bignumber.js (^9.0.2)
+- chokidar (3.5.1)
+- chrono-node (2.2.4)
+- codemirror (5.65.18)
+- comlink (^4.4.1)
+- d3-force (3.0.0)
+- dompurify (^3.3.3)
+- emoji-mart (^5.5.2)
+- fs (0.0.1-security)
+- fs-extra (^11.3.0)
+- fuse.js (6.4.6)
+- grapheme-splitter (1.0.4)
+- graphology (0.20.0)
+- hnswlib-wasm (^0.8.2)
+- html2canvas (^1.4.1)
+- ignore (5.1.8)
+- inter-ui (^3.19.3)
+- interactjs (^1.10.17)
+- jszip (3.8.0)
+- katex (^0.16.10)
+- marked (^5.1.2)
+- mldoc (^1.5.9)
+- path (0.12.7)
+- path-complete-extname (1.0.0)
+- pdfjs-dist (4.2.67)
+- photoswipe (^5.3.7)
+- pixi-graph-fork (0.2.0)
+- pixi.js (6.2.0)
+- posthog-js (1.10.2)
+- prop-types (^15.7.2)
+- react (18.3.1)
+- react-dom (18.3.1)
+- react-intersection-observer (^9.3.5)
+- react-textarea-autosize (8.3.3)
+- react-transition-group (4.3.0)
+- react-virtuoso (4.12.5)
+- remove-accents (0.4.2)
+- sanitize-filename (1.6.3)
+- send-intent (^7.0.0)
+- shepherd.js (^9.1.0)
+- tailwind-capitalize-first-letter (^1.0.4)
+- url (^0.11.0)
+- util (^0.12.5)
+- yargs-parser (20.2.4)
+
+## Dev Dependencies
+
+- @axe-core/playwright (=4.4.4)
+- @capacitor/assets (^3.0.5)
+- @capacitor/cli (7.2.0)
+- @jcesarmobile/ssl-skip (^0.4.0)
+- @playwright/test (=1.51.0)
+- @tailwindcss/aspect-ratio (0.4.2)
+- @tailwindcss/forms (0.5.3)
+- @tailwindcss/typography (0.5.7)
+- @types/gulp (^4.0.7)
+- autoprefixer (^10.4.13)
+- better-sqlite3 (^12.6.2)
+- cross-env (^7.0.3)
+- cssnano (^5.1.13)
+- glob (9.0.0)
+- gulp (^4.0.2)
+- gulp-postcss (^10.0.0)
+- gulp-replace (^1.1.4)
+- npm-run-all2 (^8.0.4)
+- playwright (=1.51.0)
+- postcss (^8.4.47)
+- postcss-cli (10.0.0)
+- postcss-functions (^4.0.2)
+- postcss-import (15.0.0)
+- postcss-import-ext-glob (2.0.1)
+- postcss-nested (6.0.0)
+- process (^0.11.10)
+- semver (7.5.2)
+- shadow-cljs (2.28.23)
+- source-map-loader (^5.0.0)
+- stylelint (^13.8.0)
+- stylelint-config-standard (^20.0.0)
+- tailwindcss (3.3.5)
+- tailwindcss-animate (^1.0.7)
+- typescript (^4.4.3)
+- webpack (^5.98.0)
+- webpack-cli (^6.0.1)
+- ws (^8.19.0)
+
+## Configuration Files
+
+- .gitattributes
+- .gitignore
+- .prettierrc.js
+- .stylelintrc.json
+- Dockerfile
+- package.json
+- webpack.config.js
