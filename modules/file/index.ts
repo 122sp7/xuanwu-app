@@ -1,1 +1,4 @@
-export { WorkspaceFilesTab } from "./interfaces/components/WorkspaceFilesTab";
+export * from "./domain";
+export * from "./application";
+export * from "./infrastructure";
+export * from "./interfaces";

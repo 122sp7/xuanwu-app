@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { getWorkspaceFileAssets } from "@/modules/workspace/domain/entities/WorkspaceOperationalSignals";
+import { getWorkspaceFiles } from "../queries/file.queries";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
   Card,
@@ -18,9 +18,9 @@ interface WorkspaceFilesTabProps {
 }
 
 export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const assets = useMemo(() => getWorkspaceFileAssets(workspace), [workspace]);
+  const assets = useMemo(() => getWorkspaceFiles(workspace), [workspace]);
   const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "available").length,
+    () => assets.filter((asset) => asset.status === "active").length,
     [assets],
   );
 
@@ -55,7 +55,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                    <Badge variant={asset.status === "available" ? "secondary" : "outline"}>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
                       {asset.status}
                     </Badge>
                     <Badge variant="outline">{asset.kind}</Badge>
