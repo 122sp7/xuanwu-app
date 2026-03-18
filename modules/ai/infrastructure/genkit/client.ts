@@ -11,10 +11,14 @@ export type GenkitClientOptions = {
   model?: string;
 };
 
+export function getConfiguredGenkitModel(model?: string) {
+  return model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL;
+}
+
 export function createGenkitClient(options?: GenkitClientOptions) {
   return genkit({
     plugins: [googleAI()],
-    model: options?.model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL,
+    model: getConfiguredGenkitModel(options?.model),
   });
 }
 

@@ -5,5 +5,7 @@
 export {
   aiClient,
   createGenkitClient,
+  getConfiguredGenkitModel,
   type GenkitClientOptions,
 } from "./client";
+export { GenkitAIRepository } from "./GenkitAIRepository";
