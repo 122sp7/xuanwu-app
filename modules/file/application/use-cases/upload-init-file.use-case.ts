@@ -5,9 +5,11 @@ import type {
   UploadInitFileInputDto,
   UploadInitFileOutputDto,
 } from "../dto/file.dto";
-import type { FileCommandResult } from "../../interfaces/contracts/file-command-result";
+import type { FileCommandErrorCode } from "../../interfaces/contracts/file-command-result";
 
-type UploadInitFileUseCaseResult = Omit<FileCommandResult<UploadInitFileOutputDto>, "commandId">;
+type UploadInitFileUseCaseResult =
+  | { ok: true; data: UploadInitFileOutputDto }
+  | { ok: false; error: { code: FileCommandErrorCode; message: string } };
 
 function inferClassification(mimeType: string): File["classification"] {
   if (mimeType.startsWith("image/")) {

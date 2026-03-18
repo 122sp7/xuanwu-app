@@ -1,3 +1,11 @@
+export type FileCommandErrorCode =
+  | "FILE_WORKSPACE_REQUIRED"
+  | "FILE_ORGANIZATION_REQUIRED"
+  | "FILE_ACTOR_REQUIRED"
+  | "FILE_NAME_REQUIRED"
+  | "FILE_INVALID_SIZE"
+  | "FILE_UPLOAD_INIT_NOT_IMPLEMENTED";
+
 export type FileCommandResult<TData> =
   | {
       ok: true;
@@ -7,15 +15,8 @@ export type FileCommandResult<TData> =
   | {
       ok: false;
       error: {
-        code:
-          | "FILE_WORKSPACE_REQUIRED"
-          | "FILE_ORGANIZATION_REQUIRED"
-          | "FILE_ACTOR_REQUIRED"
-          | "FILE_NAME_REQUIRED"
-          | "FILE_INVALID_SIZE"
-          | "FILE_UPLOAD_INIT_NOT_IMPLEMENTED";
+        code: FileCommandErrorCode;
         message: string;
       };
       commandId: string;
     };
-
