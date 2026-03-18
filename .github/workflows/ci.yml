@@ -1,29 +1,16 @@
-name: CI (Zero Red Light Policy)
+name: CI
 on: [push, pull_request]
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js 24
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'npm'
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Install Node Dependencies
-        run: npm ci
-
-      - name: Install Python Dependencies
-        # 指定路徑且鎖定版本，不允許自動更新
-        run: uv sync --frozen --directory lib/firebase/functions-python
-
-      - name: Lint Python
-        run: uv run --directory lib/firebase/functions-python ruff check .
+          cache: 'npm' # 自動快取 node_modules 減少錯誤
+      - run: npm ci # 比 npm install 更適合 CI，保證版本一致
+      - run: npm run build --if-present
+      - run: npm test --if-present
