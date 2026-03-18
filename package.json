@@ -7,6 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "deploy:functions:python": "firebase deploy --only functions:functions-python",
+    "deploy:functions:node": "firebase deploy --only functions:default",
+    "deploy:functions:all": "firebase deploy --only functions",
+    "deploy:firebase": "firebase deploy",
     "repomix:skill": "repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-skill --force",
     "repomix:remote": "repomix --skill-generate casibase-skill --skill-output .github/skills/casibase-skill --remote casibase/casibase --force"
   },
