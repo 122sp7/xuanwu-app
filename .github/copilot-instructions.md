@@ -10,6 +10,13 @@
 - Treat `xuanwu-skill` as the fast index for project structure, module placement, and existing patterns.
 - Prefer project context over single-file edits: understand the affected flow across `app/`, `modules/`, `shared/`, `ui/`, `infrastructure/`, and `interfaces/` before changing code.
 
+## Copilot customization structure
+- Keep always-on guidance in `.github/copilot-instructions.md`.
+- Keep path-scoped guidance in `.github/instructions/*.instructions.md` with explicit `applyTo` globs.
+- Keep reusable workflows in `.github/prompts/*.prompt.md` and `.github/agents/*.agent.md`.
+- Keep hook automation in `.github/hooks/*.json` only after lifecycle ownership and rollback are defined.
+- Keep on-demand reference packages in `.github/skills/*/SKILL.md`.
+
 ## Tool priority
 1. **filesystem MCP** first for repo-wide structure, trees, multi-file reads, and safe path-aware exploration.
    - Goal: help the model understand the project as a system, not as isolated files.

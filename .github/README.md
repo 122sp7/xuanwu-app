@@ -29,8 +29,10 @@ This document aligns Xuanwu's `.github/` layout with official VS Code Copilot cu
 - ✅ Repository instruction
   - `.github/copilot-instructions.md`
 - ✅ File instructions
+  - `.github/instructions/copilot-config.instructions.md`
   - `.github/instructions/mddd-migration.instructions.md`
   - `.github/instructions/nextjs-ui.instructions.md`
+  - `.github/instructions/typescript.instructions.md`
 - ✅ Prompt files
   - `.github/prompts/*.prompt.md`
 - ✅ Custom agents
@@ -40,7 +42,14 @@ This document aligns Xuanwu's `.github/` layout with official VS Code Copilot cu
 - ✅ Hooks scaffold
   - `.github/hooks/README.md` (hook JSON files reserved for approved lifecycle automation)
 
-## 4) Recommended conventions for future additions
+## 4) Documentation references checked
+
+- VS Code custom instructions: `https://code.visualstudio.com/docs/copilot/customization/custom-instructions`
+- VS Code prompt files: `https://code.visualstudio.com/docs/copilot/customization/prompt-files`
+- VS Code custom agents: `https://code.visualstudio.com/docs/copilot/customization/custom-agents`
+- GitHub repository instructions: `https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions?tool=vscode`
+
+## 5) Recommended conventions for future additions
 
 - Keep filenames strictly aligned with official suffix rules (`.instructions.md`, `.prompt.md`, `.agent.md`).
 - Prefer extending existing instructions/prompts/agents before introducing near-duplicate files.
