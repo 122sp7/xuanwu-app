@@ -8,7 +8,7 @@
  */
 
 import { useMemo, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -62,6 +62,15 @@ function resolveOrganizationSection(value: string | null): OrganizationSection {
   }
 
   return "members";
+}
+
+function buildOrganizationSectionHref(
+  searchParams: ReadonlyURLSearchParams,
+  section: OrganizationSection,
+): string {
+  const nextSearchParams = new URLSearchParams(searchParams.toString());
+  nextSearchParams.set("section", section);
+  return `/organization?${nextSearchParams.toString()}`;
 }
 
 function isOrganizationAccount(
@@ -183,16 +192,16 @@ export default function OrganizationPage() {
 
   useEffect(() => {
     if (currentSection === "logs") {
-      router.replace("/organization?section=audit", { scroll: false });
+      router.replace(buildOrganizationSectionHref(searchParams, "audit"), { scroll: false });
     }
-  }, [currentSection, router]);
+  }, [currentSection, router, searchParams]);
 
   function handleSectionChange(section: string) {
     if (!isOrganizationSection(section)) {
       return;
     }
 
-    router.replace(`/organization?section=${section}`, { scroll: false });
+    router.replace(buildOrganizationSectionHref(searchParams, section), { scroll: false });
   }
 
   function handleSwitch(account: AccountEntity) {
