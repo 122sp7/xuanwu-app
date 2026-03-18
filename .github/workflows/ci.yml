@@ -1,4 +1,4 @@
-name: CI (Ultra-Stable Auto-Fix)
+name: CI (Ultra-Stable Final)
 on: [push, pull_request]
 
 jobs:
@@ -22,13 +22,17 @@ jobs:
       - name: Install Node Dependencies
         run: npm ci
 
-      - name: Install Python Dependencies
+      - name: Setup & Install Python
         working-directory: lib/firebase/functions-python
         run: |
-          # 穩健邏輯：如果沒有 lock 檔，就先產生它
-          if [ ! -f "uv.lock" ]; then
-            echo "uv.lock not found, generating one..."
-            uv lock
+          # 1. 如果找不到專案定義，強制初始化一個標準格式
+          if ! grep -q "\[project\]" pyproject.toml 2>/dev/null; then
+            echo "Standard [project] table not found. Initializing..."
+            uv init --lib --name xuanwu-functions --no-workspace .
           fi
-          # 執行同步（這時一定會有 lock 檔了）
-          uv sync --frozen
+          
+          # 2. 產生 lock 檔
+          uv lock
+          
+          # 3. 執行安裝 (拿掉 --frozen 以確保第一次自動產生時能成功)
+          uv sync
