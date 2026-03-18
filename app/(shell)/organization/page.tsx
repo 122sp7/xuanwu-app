@@ -42,46 +42,31 @@ const organizationSections = [
   { value: "audit", label: "稽核" },
 ] as const;
 const MAX_DISPLAYED_AUDIT_LOGS = 50;
-const LEGACY_SECTION_ALIASES = {
-  logs: "audit",
-} as const;
 type OrganizationSection = (typeof organizationSections)[number]["value"];
-const ORGANIZATION_SECTION_VALUES = new Set<OrganizationSection>(
-  organizationSections.map((section) => section.value),
-);
 
-function normalizeSectionValue(value: string | null): string | null {
+function isOrganizationSection(value: string): value is OrganizationSection {
+  return organizationSections.some((section) => section.value === value);
+}
+
+function getCanonicalOrganizationSection(value: string | null): OrganizationSection | null {
   if (value == null) {
     return null;
   }
 
   const normalizedValue = value.trim().toLowerCase();
-  return normalizedValue.length > 0 ? normalizedValue : null;
-}
-
-function resolveCanonicalOrganizationSection(value: string | null): OrganizationSection | null {
-  const normalizedValue = normalizeSectionValue(value);
-  if (normalizedValue == null) {
+  if (!normalizedValue) {
     return null;
   }
 
-  if (Object.hasOwn(LEGACY_SECTION_ALIASES, normalizedValue)) {
-    return LEGACY_SECTION_ALIASES[normalizedValue as keyof typeof LEGACY_SECTION_ALIASES];
+  if (normalizedValue === "logs") {
+    return "audit";
   }
 
-  if (ORGANIZATION_SECTION_VALUES.has(normalizedValue as OrganizationSection)) {
-    return normalizedValue as OrganizationSection;
-  }
-
-  return null;
-}
-
-function isOrganizationSection(value: string | null): value is OrganizationSection {
-  return value != null && ORGANIZATION_SECTION_VALUES.has(value as OrganizationSection);
+  return isOrganizationSection(normalizedValue) ? normalizedValue : null;
 }
 
 function resolveOrganizationSection(value: string | null): OrganizationSection {
-  return resolveCanonicalOrganizationSection(value) ?? "members";
+  return getCanonicalOrganizationSection(value) ?? "members";
 }
 
 function buildOrganizationSectionHref(
@@ -211,7 +196,7 @@ export default function OrganizationPage() {
   );
 
   useEffect(() => {
-    const canonicalSection = resolveCanonicalOrganizationSection(currentSection);
+    const canonicalSection = getCanonicalOrganizationSection(currentSection);
     if (canonicalSection != null && currentSection !== canonicalSection) {
       router.replace(buildOrganizationSectionHref(searchParams, canonicalSection), { scroll: false });
     }
