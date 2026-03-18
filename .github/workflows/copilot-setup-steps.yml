@@ -11,7 +11,7 @@ on:
 
 jobs:
   copilot-setup-steps:
-    runs-on: ubuntu-22.04  # 固定 Ubuntu 版本，避免 ubuntu-latest 更新破壞
+    runs-on: ubuntu-22.04
 
     permissions:
       contents: read
@@ -23,13 +23,20 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6.1.0
         with:
-          node-version: "24.3.1"  # 指定 Node 24 穩定版
+          node-version: "24.3.1"
           cache: "npm"
 
       - name: Install Node.js dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json found, running npm ci"
+            npm ci
+          else
+            echo "package-lock.json not found, running npm install"
+            npm install
+          fi
 
       - name: Install uv (required by Serena, markitdown, and agent-memory MCP servers)
-        uses: astral-sh/setup-uv@v5.3.0  # 鎖定次版本
+        uses: astral-sh/setup-uv@v5.3.0
         with:
           enable-cache: true
