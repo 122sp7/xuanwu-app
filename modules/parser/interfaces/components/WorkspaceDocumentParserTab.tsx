@@ -3,10 +3,7 @@
 import { useMemo } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
-import {
-  getWorkspaceFileAssets,
-  getWorkspaceParserSummary,
-} from "@/modules/workspace/domain/entities/WorkspaceOperationalSignals";
+import { getWorkspaceParserSignalSummary } from "../queries/parser.queries";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
   Card,
@@ -21,11 +18,7 @@ interface WorkspaceDocumentParserTabProps {
 }
 
 export function WorkspaceDocumentParserTab({ workspace }: WorkspaceDocumentParserTabProps) {
-  const assets = useMemo(() => getWorkspaceFileAssets(workspace), [workspace]);
-  const parserSummary = useMemo(
-    () => getWorkspaceParserSummary(workspace, assets),
-    [assets, workspace],
-  );
+  const parserSummary = useMemo(() => getWorkspaceParserSignalSummary(workspace), [workspace]);
 
   return (
     <Card className="border border-border/50">

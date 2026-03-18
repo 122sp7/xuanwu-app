@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FinanceAggregateEntity } from "@/modules/finance";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { getFinanceByWorkspaceId } from "@/modules/finance/interfaces/queries/finance.queries";
-import { getWorkspaceScheduleItems } from "@/modules/workspace/domain/entities/WorkspaceOperationalSignals";
+import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
   Card,
@@ -64,7 +64,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
 
   const items = useMemo(
     () =>
-      getWorkspaceScheduleItems(
+      getWorkspaceSchedule(
         workspace,
         finance
           ? {
