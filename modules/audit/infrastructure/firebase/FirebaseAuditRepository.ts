@@ -65,13 +65,15 @@ export class FirebaseAuditRepository implements AuditRepository {
       chunks.push(workspaceIds.slice(index, index + 10));
     }
 
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
     const snapshots = await Promise.all(
       chunks.map((chunk) =>
         getDocs(
           query(
             collection(this.db, "auditLogs"),
             where("workspaceId", "in", chunk),
-            limit(maxCount),
+            limit(perChunkLimit),
           ),
         ),
       ),

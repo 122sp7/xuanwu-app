@@ -7,6 +7,8 @@ import type {
 } from "../../domain/entities/DailyDigest";
 import type { DailyDigestRepository } from "../../domain/repositories/DailyDigestRepository";
 
+const DEFAULT_DIGEST_SCAN_LIMIT = 300;
+
 function isSameLocalDay(timestamp: number) {
   const today = new Date();
   const target = new Date(timestamp);
@@ -51,11 +53,15 @@ function summarize(items: DailyDigestItem[]) {
 }
 
 export class DefaultDailyDigestRepository implements DailyDigestRepository {
+  constructor(private readonly digestScanLimit = DEFAULT_DIGEST_SCAN_LIMIT) {}
   async getWorkspaceDigest(
     workspaceId: string,
     accountId: string,
   ): Promise<WorkspaceDailyDigestEntity> {
-    const notifications = await getNotificationsForRecipient(accountId, 100);
+    const notifications = await getNotificationsForRecipient(
+      accountId,
+      this.digestScanLimit,
+    );
     const items = notifications
       .map(toDigestItem)
       .filter((item) => {
@@ -79,7 +85,10 @@ export class DefaultDailyDigestRepository implements DailyDigestRepository {
     workspaceIds: string[],
   ): Promise<OrganizationDailyDigestEntity> {
     const workspaceIdSet = new Set(workspaceIds);
-    const notifications = await getNotificationsForRecipient(organizationId, 100);
+    const notifications = await getNotificationsForRecipient(
+      organizationId,
+      this.digestScanLimit,
+    );
     const items = notifications
       .map(toDigestItem)
       .filter((item) => {
@@ -87,7 +96,7 @@ export class DefaultDailyDigestRepository implements DailyDigestRepository {
           return false;
         }
 
-        if (item.workspaceId == null) {
+        if (item.workspaceId === null) {
           return true;
         }
 
