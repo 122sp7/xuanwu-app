@@ -39,14 +39,29 @@ const organizationSections = [
   { value: "permissions", label: "權限" },
   { value: "schedule", label: "排程" },
   { value: "daily", label: "每日" },
-  { value: "logs", label: "日誌" },
+  { value: "audit", label: "稽核" },
 ] as const;
 const MAX_DISPLAYED_AUDIT_LOGS = 50;
+const LEGACY_SECTION_ALIASES = {
+  logs: "audit",
+} as const;
 
 type OrganizationSection = (typeof organizationSections)[number]["value"];
 
 function isOrganizationSection(value: string | null): value is OrganizationSection {
   return organizationSections.some((section) => section.value === value);
+}
+
+function resolveOrganizationSection(value: string | null): OrganizationSection {
+  if (isOrganizationSection(value)) {
+    return value;
+  }
+
+  if (value != null && value in LEGACY_SECTION_ALIASES) {
+    return LEGACY_SECTION_ALIASES[value as keyof typeof LEGACY_SECTION_ALIASES];
+  }
+
+  return "members";
 }
 
 function isOrganizationAccount(
@@ -88,9 +103,7 @@ export default function OrganizationPage() {
   const orgList = Object.values(accounts);
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
   const currentSection = searchParams.get("section");
-  const activeSection: OrganizationSection = isOrganizationSection(currentSection)
-    ? currentSection
-    : "members";
+  const activeSection = resolveOrganizationSection(currentSection);
 
   const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
   const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
@@ -167,6 +180,12 @@ export default function OrganizationPage() {
     () => new Map(workspaceSummaries.map((workspace) => [workspace.id, workspace.name])),
     [workspaceSummaries],
   );
+
+  useEffect(() => {
+    if (currentSection === "logs") {
+      router.replace("/organization?section=audit", { scroll: false });
+    }
+  }, [currentSection, router]);
 
   function handleSectionChange(section: string) {
     if (!isOrganizationSection(section)) {
@@ -445,10 +464,10 @@ export default function OrganizationPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="logs" className="mt-4">
+            <TabsContent value="audit" className="mt-4">
               <Card className="border-border/50">
                 <CardHeader>
-                  <CardTitle>Logs</CardTitle>
+                  <CardTitle>Audit</CardTitle>
                   <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
