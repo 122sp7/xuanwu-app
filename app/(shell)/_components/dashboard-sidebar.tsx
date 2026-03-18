@@ -19,7 +19,7 @@ const accountManagementItems = [
   { label: "權限", href: "/organization?section=permissions" },
   { label: "排程", href: "/organization?section=schedule" },
   { label: "每日", href: "/organization?section=daily" },
-  { label: "日誌", href: "/organization?section=logs" },
+  { label: "稽核", href: "/organization?section=audit" },
 ] as const;
 
 interface DashboardSidebarProps {
