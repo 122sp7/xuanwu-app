@@ -1,11 +1,15 @@
 version: "1"
 setup:
-  - name: Install Dependencies
-    description: Installing npm packages for the project
-    run: npm install
-  - name: Environment Check
-    description: Verify Node.js version
-    run: node -v
-  - name: Build
-    description: Initial build to index symbols
-    run: npm run build --if-present
+  - name: Environment Initialization
+    description: Setup Node 24 and uv for Firebase Functions
+    steps:
+      - name: Node.js Dependencies
+        run: npm install
+      - name: Python Dependencies
+        # 強制指定路徑，防止 Agent 找不到 pyproject.toml
+        run: uv sync --directory lib/firebase/functions-python
+  - name: Verification
+    steps:
+      - run: node -v
+      - run: uv --version
+      - run: ls lib/firebase/functions-python/uv.lock
