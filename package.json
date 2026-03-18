@@ -20,7 +20,7 @@
     "repomix:remote": "repomix --skill-generate casibase-skill --skill-output .github/skills/casibase-skill --remote casibase/casibase --force"
   },
   "engines": {
-    "node": "20.20.1"
+    "node": "24"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
