@@ -1,35 +1,35 @@
-name: Copilot Setup Steps (Stable)
+name: Copilot Setup Steps (Stable Node 24)
 
 on:
   workflow_dispatch:
 
 jobs:
-  setup:
+  copilot-setup:
     runs-on: ubuntu-22.04
 
     permissions:
       contents: read
 
     env:
-      # ✅ 避免 rate limit
+      # 避免 GitHub API rate limit
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # ✅ npm 降低噪音與請求
+      # npm 降低網路請求與 audit
       NPM_CONFIG_FUND: "false"
       NPM_CONFIG_AUDIT: "false"
 
     steps:
-      # ✅ 1. Checkout（穩定版本）
+      # 1️⃣ Checkout repository
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      # ✅ 2. Node（LTS + cache）
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # 2️⃣ Node.js 24.x setup
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
         with:
-          node-version: "24"
+          node-version: "24.x"
           cache: "npm"
 
-      # ✅ 3. 安裝 Node（關鍵：用 npm ci）
+      # 3️⃣ Install Node.js dependencies (穩健用 npm ci 或 fallback npm install)
       - name: Install Node dependencies
         run: |
           if [ -f package-lock.json ]; then
@@ -38,32 +38,43 @@ jobs:
             npm install --prefer-offline --no-audit --progress=false
           fi
 
-      # ✅ 4. Python（cache + 穩定）
+      # 4️⃣ Python setup
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: |
+            lib/firebase/functions-python/requirements.txt
+            lib/firebase/functions-python/requirements-dev.txt
 
-      # ✅ 5. Python dependencies（避免爆網路）
-      - name: Install Python deps
+      # 5️⃣ Install Python dependencies
+      - name: Install Python dependencies
+        working-directory: lib/firebase/functions-python
         run: |
-          cd lib/firebase/functions-python
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      # ✅ 6. uv（避免 cache 問題）
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      # 6️⃣ MCP servers dependencies (uv for Serena, markitdown, agent-memory)
+      - name: Install uv (MCP servers)
+        uses: astral-sh/setup-uv@v5.3.0
         with:
           enable-cache: false
 
-      # ✅ 7. 預先 warm cache（降低 Copilot 之後請求）
-      - name: Preload common tools
+      # 7️⃣ Preload common tools (Lint / TypeScript)
+      - name: Preload Node tools
         run: |
           npx --yes typescript --version || true
           npx --yes eslint --version || true
 
-      # ✅ 8. Done marker（讓你 debug）
-      - name: Done
-        run: echo "Setup completed successfully"
+      # 8️⃣ Verify Node and Python
+      - name: Verify setup
+        run: |
+          node -v
+          npm -v
+          python --version
+          pip --version
+
+      # 9️⃣ Done marker
+      - name: Setup complete
+        run: echo "✅ Copilot environment is ready!"
