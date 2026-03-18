@@ -1,0 +1,10 @@
+# Required platform dependencies for long-term functions-python development.
+# Some libraries are for upcoming parser/vector/AI flows and are intentionally pre-pinned.
+firebase-functions>=0.4.2,<1.0.0
+firebase-admin>=6.5.0,<7.0.0
+google-cloud-documentai>=2.30.0,<3.0.0
+google-cloud-documentai-toolbox>=0.14.0,<1.0.0
+google-cloud-aiplatform>=1.71.0,<2.0.0
+langchain-text-splitters>=0.3.0,<1.0.0
+google-cloud-storage>=2.18.0,<3.0.0
+google-cloud-firestore>=2.19.0,<3.0.0
