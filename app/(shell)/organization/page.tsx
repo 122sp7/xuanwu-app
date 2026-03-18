@@ -40,6 +40,7 @@ const organizationSections = [
   { value: "daily", label: "每日" },
   { value: "logs", label: "日誌" },
 ] as const;
+const MAX_DISPLAYED_AUDIT_LOGS = 50;
 
 type OrganizationSection = (typeof organizationSections)[number]["value"];
 
@@ -68,7 +69,7 @@ function isSameLocalDay(timestamp: number) {
   );
 }
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string | Date) {
   if (!value) {
     return "—";
   }
@@ -80,9 +81,9 @@ function formatDateTime(value: string) {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Date(value));
+    }).format(value instanceof Date ? value : new Date(value));
   } catch {
-    return value;
+    return value instanceof Date ? value.toISOString() : value;
   }
 }
 
@@ -114,10 +115,10 @@ export default function OrganizationPage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
-    const organizationId = activeOrganizationId ?? "";
-    if (!organizationId) {
+    if (!activeOrganizationId) {
       return;
     }
+    const organizationId = activeOrganizationId;
 
     let cancelled = false;
 
@@ -195,6 +196,10 @@ export default function OrganizationPage() {
         return workspaceSummaries.some((workspace) => workspace.id === metadataWorkspaceId);
       }),
     [dailyNotifications, workspaceSummaries],
+  );
+  const workspaceNameById = useMemo(
+    () => new Map(workspaceSummaries.map((workspace) => [workspace.id, workspace.name])),
+    [workspaceSummaries],
   );
 
   function handleSectionChange(section: string) {
@@ -437,7 +442,7 @@ export default function OrganizationPage() {
                           <Badge variant="secondary">{workspace.visibility}</Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Created: {formatDateTime(workspace.createdAt?.toDate().toISOString() ?? "")}
+                          Created: {formatDateTime(workspace.createdAt?.toDate() ?? "")}
                         </p>
                       </div>
                     ))
@@ -484,7 +489,7 @@ export default function OrganizationPage() {
                   {auditLogs.length === 0 ? (
                     <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
                   ) : (
-                    auditLogs.slice(0, 50).map((log) => (
+                    auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
                       <div
                         key={log.id}
                         className="rounded-lg border border-border/40 px-3 py-2"
@@ -492,7 +497,9 @@ export default function OrganizationPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium">{log.action}</p>
                           <Badge variant="outline">{log.source}</Badge>
-                          <Badge variant="secondary">{log.workspaceId}</Badge>
+                          <Badge variant="secondary">
+                            {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
+                          </Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
