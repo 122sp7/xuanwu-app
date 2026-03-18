@@ -25,6 +25,18 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ],
       "source": "lib/firebase/functions"
+    },
+    {
+      "codebase": "functions-python",
+      "runtime": "python311",
+      "source": "lib/firebase/functions-python",
+      "ignore": [
+        "venv",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "__pycache__"
+      ]
     }
   ],
   "apphosting": {
