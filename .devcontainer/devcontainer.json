@@ -1,32 +1,20 @@
 {
-  "name": "Xuanwu App (Node 24 + uv)",
+  "name": "Xuanwu App (Auto-Stable)",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/astral-sh/uv/install:1": {
-      "version": "latest"
-    }
+    "ghcr.io/astral-sh/uv/install:1": {}
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "GitHub.copilot",
-        "GitHub.copilot-chat",
-        "ms-python.python",
-        "charliermarsh.ruff"
-      ],
-      "settings": {
-        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/lib/firebase/functions-python/.venv/bin/python",
-        "python.terminal.activateEnvInCurrentTerminal": true
-      }
+      "extensions": ["GitHub.copilot", "ms-python.python", "charliermarsh.ruff"]
     }
   },
   "mounts": [
-    // 持久化 node_modules 與 uv 快取，防止重新建置時遺失
     "source=${localWorkspaceFolderBasename}-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-uv-cache,target=/home/node/.cache/uv,type=volume"
   ],
-  // 啟動後自動安裝，並精確指向 Python 目錄
-  "postCreateCommand": "npm install && cd lib/firebase/functions-python && uv sync",
+  // 自動判斷並補齊環境
+  "postCreateCommand": "npm install && cd lib/firebase/functions-python && ( [ -f uv.lock ] || uv lock ) && uv sync",
   "remoteUser": "node"
 }
