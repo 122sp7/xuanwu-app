@@ -1,80 +1,11 @@
-name: Copilot Setup Steps (Official Style)
-
-on:
-  workflow_dispatch:
-
-jobs:
-  copilot-setup:
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: read
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      NPM_CONFIG_FUND: "false"
-      NPM_CONFIG_AUDIT: "false"
-
-    steps:
-      # 1️⃣ Checkout code (官方推薦)
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      # 2️⃣ Install Git (確保可用)
-      - name: Install Git
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git
-          git --version
-
-      # 3️⃣ Setup Node.js 24
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24.x"
-          cache: "npm"
-
-      # 4️⃣ Install Node dependencies
-      - name: Install Node Dependencies
-        run: |
-          cd $GITHUB_WORKSPACE
-          if [ -f package-lock.json ]; then
-            npm ci --prefer-offline --no-audit --progress=false
-          else
-            npm install --prefer-offline --no-audit --progress=false
-          fi
-
-      # 5️⃣ Setup Python 3.11
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: |
-            lib/firebase/functions-python/requirements.txt
-            lib/firebase/functions-python/requirements-dev.txt
-
-      # 6️⃣ Install Python dependencies
-      - name: Install Python Dependencies
-        working-directory: $GITHUB_WORKSPACE/lib/firebase/functions-python
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-
-      # 7️⃣ Install Global Node Tools
-      - name: Install Global Node Tools
-        run: |
-          npm install -g typescript eslint
-          npx typescript --version
-          npx eslint --version
-
-      # 8️⃣ Verify Environment
-      - name: Verify Setup
-        run: |
-          echo "Node.js: $(node -v)"
-          echo "npm: $(npm -v)"
-          echo "Python: $(python --version)"
-          echo "pip: $(pip --version)"
-          echo "Git: $(git --version)"
-
-      # 9️⃣ Done
-      - name: Setup Complete
-        run: echo "✅ Copilot environment is ready!"
+version: "1"
+setup:
+  - name: Install Dependencies
+    description: Installing npm packages for the project
+    run: npm install
+  - name: Environment Check
+    description: Verify Node.js version
+    run: node -v
+  - name: Build
+    description: Initial build to index symbols
+    run: npm run build --if-present
