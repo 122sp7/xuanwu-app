@@ -1,24 +1,31 @@
 {
-  "name": "Xuanwu App - Node 24 & uv",
+  "name": "Xuanwu App (Node 24 + uv)",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/astral-sh/uv/install:1": {}
+    "ghcr.io/astral-sh/uv/install:1": {
+      "version": "latest"
+    }
   },
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
         "charliermarsh.ruff",
-        "GitHub.copilot"
-      ]
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/lib/firebase/functions-python/.venv/bin/python",
+        "python.terminal.activateEnvInCurrentTerminal": true
+      }
     }
   },
   "mounts": [
     "source=${localWorkspaceFolderBasename}-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-uv-cache,target=/home/node/.cache/uv,type=volume"
   ],
-  // 關鍵點：用 && 串接指令，並正確導向 Python 目錄
   "postCreateCommand": "npm install && cd lib/firebase/functions-python && uv sync",
   "remoteUser": "node"
 }
