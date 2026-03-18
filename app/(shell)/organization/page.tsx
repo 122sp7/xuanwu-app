@@ -45,23 +45,43 @@ const MAX_DISPLAYED_AUDIT_LOGS = 50;
 const LEGACY_SECTION_ALIASES = {
   logs: "audit",
 } as const;
-
 type OrganizationSection = (typeof organizationSections)[number]["value"];
+const ORGANIZATION_SECTION_VALUES = new Set<OrganizationSection>(
+  organizationSections.map((section) => section.value),
+);
+
+function normalizeSectionValue(value: string | null): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return normalizedValue.length > 0 ? normalizedValue : null;
+}
+
+function resolveCanonicalOrganizationSection(value: string | null): OrganizationSection | null {
+  const normalizedValue = normalizeSectionValue(value);
+  if (normalizedValue == null) {
+    return null;
+  }
+
+  if (Object.hasOwn(LEGACY_SECTION_ALIASES, normalizedValue)) {
+    return LEGACY_SECTION_ALIASES[normalizedValue as keyof typeof LEGACY_SECTION_ALIASES];
+  }
+
+  if (ORGANIZATION_SECTION_VALUES.has(normalizedValue as OrganizationSection)) {
+    return normalizedValue as OrganizationSection;
+  }
+
+  return null;
+}
 
 function isOrganizationSection(value: string | null): value is OrganizationSection {
-  return organizationSections.some((section) => section.value === value);
+  return value != null && ORGANIZATION_SECTION_VALUES.has(value as OrganizationSection);
 }
 
 function resolveOrganizationSection(value: string | null): OrganizationSection {
-  if (isOrganizationSection(value)) {
-    return value;
-  }
-
-  if (value != null && value in LEGACY_SECTION_ALIASES) {
-    return LEGACY_SECTION_ALIASES[value as keyof typeof LEGACY_SECTION_ALIASES];
-  }
-
-  return "members";
+  return resolveCanonicalOrganizationSection(value) ?? "members";
 }
 
 function buildOrganizationSectionHref(
@@ -191,8 +211,9 @@ export default function OrganizationPage() {
   );
 
   useEffect(() => {
-    if (currentSection === "logs") {
-      router.replace(buildOrganizationSectionHref(searchParams, "audit"), { scroll: false });
+    const canonicalSection = resolveCanonicalOrganizationSection(currentSection);
+    if (canonicalSection != null && currentSection !== canonicalSection) {
+      router.replace(buildOrganizationSectionHref(searchParams, canonicalSection), { scroll: false });
     }
   }, [currentSection, router, searchParams]);
 
