@@ -1,15 +1,10 @@
 version: "1"
 setup:
-  - name: Environment Initialization
-    description: Setup Node 24 and uv for Firebase Functions
+  - name: Auto Environment Setup
+    description: Ensure both Node and Python environments are locked and synced
     steps:
-      - name: Node.js Dependencies
-        run: npm install
-      - name: Python Dependencies
-        # 強制指定路徑，防止 Agent 找不到 pyproject.toml
-        run: uv sync --directory lib/firebase/functions-python
-  - name: Verification
-    steps:
-      - run: node -v
-      - run: uv --version
-      - run: ls lib/firebase/functions-python/uv.lock
+      - run: npm install
+      - run: |
+          cd lib/firebase/functions-python
+          if [ ! -f uv.lock ]; then uv lock; fi
+          uv sync
