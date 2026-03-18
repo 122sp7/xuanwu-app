@@ -5,6 +5,8 @@
   processing.
 - Treat **Next.js** as the user-facing application edge.
 - Treat **functions-python** as the background worker / internal callable / trigger execution layer.
+- Treat it as the repository's only Firebase Functions runtime after the retirement of
+  `lib/firebase/functions`.
 - Read `docs/adr/README.md` plus accepted ADRs before changing runtime boundaries, dependencies,
   structure, or migration strategy.
 
@@ -68,19 +70,18 @@
 - Do not add chat streaming endpoints here.
 - Do not move auth/session logic into this codebase.
 - Do not bypass `application` from `interfaces`.
-- Do not put SDK-specific payloads into `domain`.
-- Prefer idempotent worker design because triggers and retries are expected.
+- Do not put SDK-specific code into `domain`.
+- Do not reintroduce `lib/firebase/functions` as a second Firebase runtime.
 
-## Current Implemented Slice
-- `process_document_with_ai` callable
-- Document AI settings loading
-- Google Document AI processor adapter
-- Firebase audit log repository
-- MDDD scaffolding for future ingestion expansion
+## Current Runtime Slice
+- `main.py` holds the Firebase entrypoints.
+- `app/document_ai` is the first vertical slice.
+- The current implementation should be treated as a **foundation** for worker-side document
+  processing, not as the full platform.
 
-## Preferred Next Extensions
-1. Storage-triggered ingestion entrypoint
-2. parser/cleaning adapters
-3. chunk persistence + embedding persistence
-4. reprocess/backfill worker APIs
-5. ingestion status/audit observability
+## Validation
+- Preferred local validation:
+  - `python -m compileall -q .`
+- Repository-level validation remains at project root:
+  - `npm run lint`
+  - `npm run build`

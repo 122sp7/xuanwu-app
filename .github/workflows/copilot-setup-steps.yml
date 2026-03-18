@@ -33,12 +33,6 @@ jobs:
           rm -rf node_modules package-lock.json
           npm install
 
-      - name: Install Firebase Functions dependencies
-        working-directory: lib/firebase/functions
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

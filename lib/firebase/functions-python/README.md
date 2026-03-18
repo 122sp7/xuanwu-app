@@ -1,6 +1,8 @@
 # Firebase Functions (Python)
 
 This codebase is configured as `functions-python` in `firebase.json` with runtime `python311`.
+It is now the only Firebase Functions codebase in this repository after retiring
+`lib/firebase/functions`.
 
 Its role is **not** to become a second full application server.  
 Its role is to be the **Firebase worker / ingestion runtime** for document processing, parsing,
@@ -10,7 +12,7 @@ the Next.js request/response path.
 Canonical ADR governance and migration decisions now live in
 `lib/firebase/functions-python/docs/adr/README.md` and the ADR files in that directory. Treat those
 documents as the source of truth for runtime boundaries, dependency policy, structure, and
-replacement planning for `lib/firebase/functions`.
+replacement planning for the retired `lib/firebase/functions` codebase.
 
 ---
 
@@ -129,7 +131,7 @@ The query pipeline belongs in Next.js:
 - Background workers should remain idempotent and safe to retry.
 
 **Consequence**
-- The existing `process_document_with_ai` callable is acceptable as a scaffold/manual entrypoint.
+- The existing manual callable entrypoint is acceptable as a scaffold/internal entrypoint.
 - The long-term ingestion path should prefer Storage / Firestore driven background execution.
 
 ### ADR-006 · MDDD boundaries remain strict inside functions-python
@@ -285,7 +287,7 @@ These are worker/admin/internal surfaces:
 
 - Firebase Storage trigger for new raw files
 - Firestore-triggered reprocess pipelines
-- manual callable for internal `process_document_with_ai`
+- internal callable entrypoints for processing / reindex / maintenance
 - admin HTTP/callable reindex/backfill endpoints
 - scheduled maintenance tasks for ingestion/index health
 

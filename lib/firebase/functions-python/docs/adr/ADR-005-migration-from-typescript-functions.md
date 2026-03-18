@@ -5,12 +5,12 @@
 
 ## 背景 (Context)
 
-目前倉庫中：
+在遷移開始時，倉庫中曾同時存在：
 
 - `lib/firebase/functions` 是既有的 TypeScript Firebase Functions codebase
 - `lib/firebase/functions-python` 是新的 Python codebase
 
-兩者目前都存在於 `firebase.json`，代表現況是**雙 codebase 共存**。
+兩者同時存在於 `firebase.json`，代表遷移起點是**雙 codebase 共存**。
 
 若沒有 migration ADR，常見風險包括：
 
@@ -58,12 +58,12 @@
 #### Phase 0 — 共存基線
 
 - 保持 `firebase.json` 內兩個 codebase 併存
-- 不移除既有 `processDocumentWithAi`
+- 不移除既有 document-ai function
 - 建立 ADR 與 runtime 邊界規則
 
 #### Phase 1 — Scaffold parity
 
-- 讓 Python 版 `process_document_with_ai` 與 Node 版具備足夠對齊能力
+- 讓 Python 版 callable 與 Node 版具備足夠對齊能力
 - 建立一致的 request / response / audit 行為
 
 #### Phase 2 — New worker features only in Python
@@ -83,19 +83,9 @@
 
 #### Phase 5 — Decommission
 
-- 從 `lib/firebase/functions/src/index.ts` 移除對應 export
-- 移除不再使用的 TypeScript document-ai module
-- 最後再調整 `firebase.json`
-
-### 目前對應關係
-
-| TypeScript Functions | Python Functions | 說明 |
-| --- | --- | --- |
-| `src/index.ts` | `main.py` | runtime entrypoint |
-| `document-ai/interfaces/callable/processDocumentWithAi.ts` | `app/document_ai/interfaces/callables/process_document_with_ai.py` | callable adapter |
-| `document-ai/application/use-cases/*` | `app/document_ai/application/use_cases/*` | use case orchestration |
-| `document-ai/infrastructure/documentai/*` | `app/document_ai/infrastructure/google/*` | Document AI adapter |
-| `document-ai/infrastructure/firebase/*` | `app/document_ai/infrastructure/firebase/*` | audit/persistence adapter |
+- 從 `firebase.json` 移除 Node codebase
+- 移除 `lib/firebase/functions`
+- 同步更新 README / AGENTS / ADR，避免後續設計仍以雙 runtime 為前提
 
 ## Alternatives Considered
 
@@ -105,7 +95,7 @@
 
 原因：
 
-- 現況仍有正式 codebase 宣告
+- 在遷移起點仍有正式 codebase 宣告
 - 直接刪除風險過高，且沒有回滾空間
 
 ### 方案 B：永久雙寫、雙維護
@@ -130,7 +120,13 @@
 1. 短期內需要維護雙 runtime。
 2. migration 期間需要更清楚的觀測與文件同步。
 
+## Migration Outcome
+
+- `firebase.json` 已移除 `default` Node codebase，只保留 `functions-python`。
+- `lib/firebase/functions` 已正式刪除，Firebase worker 能力統一由 Python runtime 承接。
+- Next.js 仍保留 user-facing upload / query / streaming responsibilities，不因這次收斂而改變。
+
 ## Operational Notes
 
-- 在 Phase 4 完成前，不應修改 `firebase.json` 移除 `default` codebase。
-- 在正式下線前，README / AGENTS / ADR 必須同步更新，避免 Copilot 仍以舊架構做設計判斷。
+- 正式下線已完成，不應重新引入 `lib/firebase/functions` 作為第二套 runtime。
+- 若未來要新增 Firebase worker 能力，請直接在 `functions-python` 內擴充。

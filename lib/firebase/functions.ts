@@ -1,6 +1,6 @@
 /**
- * @module lib/firebase/functions
- * Firebase Cloud Functions callable wrapper.
+ * @module lib/firebase/functions-client
+ * Firebase callable client wrapper.
  */
 
 import {
