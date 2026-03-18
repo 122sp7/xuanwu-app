@@ -1,9 +1,8 @@
-name: CI (Stable Build)
-
+name: CI (Zero Red Light Policy)
 on: [push, pull_request]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,9 +21,9 @@ jobs:
       - name: Install Node Dependencies
         run: npm ci
 
-      - name: Install Python Dependencies (Stable)
-        # 這裡用 --directory 指定路徑，不需要 cd 進去也能跑，更乾淨
+      - name: Install Python Dependencies
+        # 指定路徑且鎖定版本，不允許自動更新
         run: uv sync --frozen --directory lib/firebase/functions-python
 
-      - name: Check Python Code (Ruff)
+      - name: Lint Python
         run: uv run --directory lib/firebase/functions-python ruff check .
