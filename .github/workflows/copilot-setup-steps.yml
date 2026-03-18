@@ -67,7 +67,20 @@ jobs:
           npx --yes typescript --version || true
           npx --yes eslint --version || true
 
-      # 8️⃣ Verify Node and Python
+      # 8️⃣ MCP servers warm-up (預熱，不重裝)
+      - name: Warm up MCP servers
+        run: |
+          npx @modelcontextprotocol/server-filesystem --version || true
+          npx @modelcontextprotocol/server-git --version || true
+          npx @modelcontextprotocol/server-memory --version || true
+          npx repomix --version || true
+          npx firebase-tools --version || true
+          npx next-devtools-mcp --version || true
+          npx shadcn --version || true
+          uvx markitdown-mcp --version || true
+          uvx serena --from git+https://github.com/oraios/serena serena start-mcp-server --version || true
+
+      # 9️⃣ Verify Node and Python
       - name: Verify setup
         run: |
           node -v
@@ -75,6 +88,6 @@ jobs:
           python --version
           pip --version
 
-      # 9️⃣ Done marker
+      # 🔟 Done marker
       - name: Setup complete
         run: echo "✅ Copilot environment is ready!"
