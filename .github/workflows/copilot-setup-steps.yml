@@ -27,14 +27,17 @@ jobs:
           cache: "npm"
 
       - name: Install Node.js dependencies
+        working-directory: .
         run: |
-          if [ -f package-lock.json ]; then
-            echo "package-lock.json found, running npm ci"
-            npm ci
-          else
-            echo "package-lock.json not found, running npm install"
-            npm install
-          fi
+          # 根治方案：先刪除 node_modules 與 lock file，保證乾淨安裝
+          rm -rf node_modules package-lock.json
+          npm install
+
+      - name: Install Firebase Functions dependencies
+        working-directory: lib/firebase/functions
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Install uv (required by Serena, markitdown, and agent-memory MCP servers)
         uses: astral-sh/setup-uv@v5.3.0
