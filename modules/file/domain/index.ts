@@ -7,4 +7,4 @@ export * from "./repositories/FileRepository";
 export * from "./ports/ActorContextPort";
 export * from "./ports/WorkspaceGrantPort";
 export * from "./ports/OrganizationPolicyPort";
-
+export * from "./services/resolve-file-organization-id";

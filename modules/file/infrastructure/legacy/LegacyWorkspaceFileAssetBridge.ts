@@ -4,6 +4,7 @@ import {
   type WorkspaceFileAsset,
 } from "@/modules/workspace/domain/entities/WorkspaceOperationalSignals";
 
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import type { File } from "../../domain/entities/File";
 import type { FileVersion } from "../../domain/entities/FileVersion";
 import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
@@ -38,8 +39,6 @@ function inferMimeType(asset: WorkspaceFileAsset): string {
 }
 
 export class LegacyWorkspaceFileAssetBridge implements FileRepository {
-  private readonly versionMap = new Map<string, FileVersion[]>();
-
   constructor(private readonly workspace: WorkspaceEntity) {}
 
   findById(fileId: string): File | null {
@@ -60,11 +59,9 @@ export class LegacyWorkspaceFileAssetBridge implements FileRepository {
   }
 
   save(file: File, versions: readonly FileVersion[] = []): void {
-    if (versions.length === 0) {
-      return;
-    }
-
-    this.versionMap.set(file.id, [...versions]);
+    void file;
+    void versions;
+    throw new Error("LegacyWorkspaceFileAssetBridge is read-only and does not persist file changes.");
   }
 
   private materializeFiles(): File[] {
@@ -84,12 +81,10 @@ export class LegacyWorkspaceFileAssetBridge implements FileRepository {
         createdAtISO,
       };
 
-      this.versionMap.set(fileId, [currentVersion]);
-
       return {
         id: fileId,
         workspaceId: this.workspace.id,
-        organizationId: this.workspace.accountType === "organization" ? this.workspace.accountId : "personal",
+        organizationId: resolveFileOrganizationId(this.workspace.accountType, this.workspace.accountId),
         accountId: this.workspace.accountId,
         name: asset.name,
         mimeType: inferMimeType(asset),
@@ -107,4 +102,3 @@ export class LegacyWorkspaceFileAssetBridge implements FileRepository {
     });
   }
 }
-

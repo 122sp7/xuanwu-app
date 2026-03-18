@@ -12,7 +12,7 @@ function createCommandId(idempotencyKey?: string) {
     return normalized;
   }
 
-  return `file-upload-init-${Date.now()}`;
+  return `file-upload-init-${crypto.randomUUID()}`;
 }
 
 export async function uploadInitFile(
@@ -69,4 +69,3 @@ export async function uploadInitFile(
     commandId,
   };
 }
-

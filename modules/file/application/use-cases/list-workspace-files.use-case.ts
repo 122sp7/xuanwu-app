@@ -1,6 +1,9 @@
 import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
 import type { WorkspaceFileListItemDto } from "../dto/file.dto";
 
+const DEFAULT_FILE_SOURCE = "file-module";
+const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
+
 export class ListWorkspaceFilesUseCase {
   constructor(private readonly fileRepository: FileRepository) {}
 
@@ -24,8 +27,8 @@ export class ListWorkspaceFilesUseCase {
       name: file.name,
       status: file.status,
       kind: file.classification,
-      source: file.source ?? "file-module",
-      detail: file.detail ?? "File metadata mapped from current workspace context.",
+      source: file.source ?? DEFAULT_FILE_SOURCE,
+      detail: file.detail ?? DEFAULT_FILE_DETAIL,
       href: file.href,
     }));
   }

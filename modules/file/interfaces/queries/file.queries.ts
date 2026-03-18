@@ -1,5 +1,6 @@
 import type { WorkspaceEntity } from "@/modules/workspace";
 
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
 import { LegacyWorkspaceFileAssetBridge } from "../../infrastructure/legacy/LegacyWorkspaceFileAssetBridge";
@@ -11,8 +12,7 @@ function createListWorkspaceFilesUseCase(workspace: WorkspaceEntity) {
 
 export function getWorkspaceFiles(workspace: WorkspaceEntity): WorkspaceFileListItemDto[] {
   const listWorkspaceFilesUseCase = createListWorkspaceFilesUseCase(workspace);
-  const organizationId =
-    workspace.accountType === "organization" ? workspace.accountId : `personal:${workspace.accountId}`;
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
 
   return listWorkspaceFilesUseCase.execute({
     workspaceId: workspace.id,
@@ -20,4 +20,3 @@ export function getWorkspaceFiles(workspace: WorkspaceEntity): WorkspaceFileList
     actorAccountId: workspace.accountId,
   });
 }
-
