@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "repomix:skill": "repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-skill --force"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
