@@ -6,108 +6,57 @@ on:
 jobs:
   copilot-setup:
     runs-on: ubuntu-22.04
-
     permissions:
       contents: read
-
     env:
-      # 避免 GitHub API rate limit
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # npm 降低網路請求與 audit
       NPM_CONFIG_FUND: "false"
       NPM_CONFIG_AUDIT: "false"
 
     steps:
-      # 1️⃣ Ensure git is installed
-      - name: Ensure git
+      # 1️⃣ Install system Git & Checkout
+      - name: Git & Checkout
         run: |
-          if ! command -v git &> /dev/null; then
-            echo "Git not found, installing..."
-            sudo apt-get update && sudo apt-get install -y git
-          else
-            echo "Git already installed"
-            git --version
-          fi
+          sudo apt-get update
+          sudo apt-get install -y git
+          git --version
+          git config --global --add safe.directory $GITHUB_WORKSPACE
 
-      # 2️⃣ Checkout repository
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v6
 
-      # 3️⃣ Node.js 24.x setup
+      # 2️⃣ Setup Node.js 24.x (actions/setup-node + cache)
       - name: Setup Node.js 24
         uses: actions/setup-node@v6
         with:
           node-version: "24.x"
           cache: "npm"
 
-      # 4️⃣ Install Node.js dependencies
-      - name: Install Node dependencies
+      # 3️⃣ Install Node & Python dependencies + global tools + MCP warm-up
+      - name: Full Environment Setup
         run: |
+          # Node dependencies
           if [ -f package-lock.json ]; then
             npm ci --prefer-offline --no-audit --progress=false
           else
             npm install --prefer-offline --no-audit --progress=false
           fi
 
-      # 5️⃣ Python setup
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: |
-            lib/firebase/functions-python/requirements.txt
-            lib/firebase/functions-python/requirements-dev.txt
+          # Python setup
+          sudo apt-get install -y python3.11 python3.11-venv python3-pip
+          python3 --version
+          pip3 install --upgrade pip
+          pip3 install -r lib/firebase/functions-python/requirements-dev.txt
 
-      # 6️⃣ Install Python dependencies
-      - name: Install Python dependencies
-        working-directory: lib/firebase/functions-python
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          # Node global tools
+          npm install -g typescript eslint
+          npx typescript --version
+          npx eslint --version
 
-      # 7️⃣ MCP servers dependencies (uv runtime)
-      - name: Install uv (MCP servers)
-        uses: astral-sh/setup-uv@v5.3.0
-        with:
-          enable-cache: false
-
-      # 8️⃣ Preload common Node tools (TypeScript / ESLint)
-      - name: Preload Node tools
-        run: |
-          if ! npx --yes typescript --version &> /dev/null; then
-            npm install -g typescript
-          else
-            npx typescript --version
-          fi
-
-          if ! npx --yes eslint --version &> /dev/null; then
-            npm install -g eslint
-          else
-            npx eslint --version
-          fi
-
-      # 9️⃣ MCP servers warm-up (預熱，不重裝)
-      - name: Warm up MCP servers
-        run: |
-          if ! npx @modelcontextprotocol/server-filesystem --version &> /dev/null; then
-            echo "server-filesystem not found, skipping install (agent will handle it)"
-          else
-            npx @modelcontextprotocol/server-filesystem --version
-          fi
-
-          if ! npx @modelcontextprotocol/server-git --version &> /dev/null; then
-            echo "server-git not found, skipping install (agent will handle it)"
-          else
-            npx @modelcontextprotocol/server-git --version
-          fi
-
-          if ! npx @modelcontextprotocol/server-memory --version &> /dev/null; then
-            echo "server-memory not found, skipping install (agent will handle it)"
-          else
-            npx @modelcontextprotocol/server-memory --version
-          fi
-
+          # MCP servers warm-up
+          npx @modelcontextprotocol/server-filesystem --version || true
+          npx @modelcontextprotocol/server-git --version || true
+          npx @modelcontextprotocol/server-memory --version || true
           npx repomix --version || true
           npx firebase-tools --version || true
           npx next-devtools-mcp --version || true
@@ -115,15 +64,13 @@ jobs:
           uvx markitdown-mcp --version || true
           uvx serena --from git+https://github.com/oraios/serena serena start-mcp-server --version || true
 
-      # 🔟 Verify Node, Python, Git
-      - name: Verify setup
-        run: |
+          # Verify environment
+          git --version
           node -v
           npm -v
-          python --version
-          pip --version
-          git --version
+          python3 --version
+          pip3 --version
 
-      # ⓫ Done marker
-      - name: Setup complete
+      # 4️⃣ Done
+      - name: Setup Complete
         run: echo "✅ Copilot environment is ready!"
