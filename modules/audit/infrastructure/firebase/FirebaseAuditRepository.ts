@@ -2,6 +2,7 @@ import {
   collection,
   getDocs,
   getFirestore,
+  limit,
   query,
   where,
 } from "firebase/firestore";
@@ -49,5 +50,37 @@ export class FirebaseAuditRepository implements AuditRepository {
     return snaps.docs
       .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
       .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const snapshots = await Promise.all(
+      chunks.map((chunk) =>
+        getDocs(
+          query(
+            collection(this.db, "auditLogs"),
+            where("workspaceId", "in", chunk),
+            limit(maxCount),
+          ),
+        ),
+      ),
+    );
+
+    return snapshots
+      .flatMap((snapshot) => snapshot.docs)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
   }
 }

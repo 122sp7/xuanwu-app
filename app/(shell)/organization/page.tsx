@@ -13,8 +13,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
-import { getWorkspaceAuditLogs } from "@/modules/audit";
-import { getNotificationsForRecipient } from "@/modules/notification";
+import { getOrganizationAuditLogs } from "@/modules/audit";
+import type { OrganizationDailyDigestEntity } from "@/modules/daily";
+import { getOrganizationDailyDigest } from "@/modules/daily";
 import {
   getOrgPolicies,
   getOrganizationMembers,
@@ -58,17 +59,6 @@ function isOrganizationAccount(
   );
 }
 
-function isSameLocalDay(timestamp: number) {
-  const today = new Date();
-  const target = new Date(timestamp);
-
-  return (
-    today.getFullYear() === target.getFullYear() &&
-    today.getMonth() === target.getMonth() &&
-    today.getDate() === target.getDate()
-  );
-}
-
 function formatDateTime(value: string | Date) {
   if (!value) {
     return "—";
@@ -108,10 +98,9 @@ export default function OrganizationPage() {
   const [workspaceSummaries, setWorkspaceSummaries] = useState<
     Awaited<ReturnType<typeof getWorkspacesForAccount>>
   >([]);
-  const [dailyNotifications, setDailyNotifications] = useState<
-    Awaited<ReturnType<typeof getNotificationsForRecipient>>
-  >([]);
-  const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof getWorkspaceAuditLogs>>>([]);
+  const [organizationDailyDigest, setOrganizationDailyDigest] =
+    useState<OrganizationDailyDigestEntity | null>(null);
+  const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof getOrganizationAuditLogs>>>([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
@@ -125,18 +114,18 @@ export default function OrganizationPage() {
     async function loadOrganizationGovernance() {
       setLoadState("loading");
       try {
-        const [nextMembers, nextTeams, nextPolicies, nextWorkspaces, nextNotifications] =
-          await Promise.all([
-            getOrganizationMembers(organizationId),
-            getOrganizationTeams(organizationId),
-            getOrgPolicies(organizationId),
-            getWorkspacesForAccount(organizationId),
-            getNotificationsForRecipient(organizationId, 100),
-          ]);
+        const [nextMembers, nextTeams, nextPolicies, nextWorkspaces] = await Promise.all([
+          getOrganizationMembers(organizationId),
+          getOrganizationTeams(organizationId),
+          getOrgPolicies(organizationId),
+          getWorkspacesForAccount(organizationId),
+        ]);
 
-        const workspaceLogs = await Promise.all(
-          nextWorkspaces.map((workspace) => getWorkspaceAuditLogs(workspace.id)),
-        );
+        const workspaceIds = nextWorkspaces.map((workspace) => workspace.id);
+        const [nextDailyDigest, nextAuditLogs] = await Promise.all([
+          getOrganizationDailyDigest(organizationId, workspaceIds),
+          getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS),
+        ]);
 
         if (cancelled) {
           return;
@@ -146,12 +135,8 @@ export default function OrganizationPage() {
         setTeams(nextTeams);
         setPolicies(nextPolicies);
         setWorkspaceSummaries(nextWorkspaces);
-        setDailyNotifications(nextNotifications);
-        setAuditLogs(
-          workspaceLogs
-            .flat()
-            .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO)),
-        );
+        setOrganizationDailyDigest(nextDailyDigest);
+        setAuditLogs(nextAuditLogs);
         setLoadState("loaded");
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
@@ -163,7 +148,7 @@ export default function OrganizationPage() {
           setTeams([]);
           setPolicies([]);
           setWorkspaceSummaries([]);
-          setDailyNotifications([]);
+          setOrganizationDailyDigest(null);
           setAuditLogs([]);
           setLoadState("error");
         }
@@ -177,26 +162,7 @@ export default function OrganizationPage() {
     };
   }, [activeOrganizationId]);
 
-  const todayFeed = useMemo(
-    () =>
-      dailyNotifications.filter((notification) => {
-        if (!isSameLocalDay(notification.timestamp)) {
-          return false;
-        }
-
-        const metadataWorkspaceId =
-          typeof notification.metadata?.workspaceId === "string"
-            ? notification.metadata.workspaceId
-            : null;
-
-        if (!metadataWorkspaceId) {
-          return true;
-        }
-
-        return workspaceSummaries.some((workspace) => workspace.id === metadataWorkspaceId);
-      }),
-    [dailyNotifications, workspaceSummaries],
-  );
+  const todayFeed = useMemo(() => organizationDailyDigest?.items ?? [], [organizationDailyDigest]);
   const workspaceNameById = useMemo(
     () => new Map(workspaceSummaries.map((workspace) => [workspace.id, workspace.name])),
     [workspaceSummaries],

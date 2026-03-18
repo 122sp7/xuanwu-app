@@ -8,3 +8,11 @@ export class ListWorkspaceAuditLogsUseCase {
     return this.auditRepo.findByWorkspaceId(workspaceId);
   }
 }
+
+export class ListOrganizationAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
+  }
+}

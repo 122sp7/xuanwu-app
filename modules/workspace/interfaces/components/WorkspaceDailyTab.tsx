@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { NotificationEntity } from "@/modules/notification";
+import type { WorkspaceDailyDigestEntity } from "@/modules/daily";
+import { getWorkspaceDailyDigest } from "@/modules/daily";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import {
   Card,
@@ -12,18 +13,6 @@ import {
   CardTitle,
 } from "@/ui/shadcn/ui/card";
 import { Badge } from "@/ui/shadcn/ui/badge";
-import { getNotificationsForRecipient } from "@/modules/notification/interfaces/queries/notification.queries";
-
-function isSameLocalDay(timestamp: number) {
-  const today = new Date();
-  const target = new Date(timestamp);
-
-  return (
-    today.getFullYear() === target.getFullYear() &&
-    today.getMonth() === target.getMonth() &&
-    today.getDate() === target.getDate()
-  );
-}
 
 function formatNotificationTime(timestamp: number) {
   try {
@@ -41,7 +30,7 @@ interface WorkspaceDailyTabProps {
 }
 
 export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+  const [digest, setDigest] = useState<WorkspaceDailyDigestEntity | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
@@ -51,12 +40,12 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       setLoadState("loading");
 
       try {
-        const nextNotifications = await getNotificationsForRecipient(workspace.accountId, 100);
+        const nextDigest = await getWorkspaceDailyDigest(workspace.id, workspace.accountId);
         if (cancelled) {
           return;
         }
 
-        setNotifications(nextNotifications);
+        setDigest(nextDigest);
         setLoadState("loaded");
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
@@ -64,7 +53,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
         }
 
         if (!cancelled) {
-          setNotifications([]);
+          setDigest(null);
           setLoadState("error");
         }
       }
@@ -75,29 +64,11 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [workspace.accountId]);
+  }, [workspace.accountId, workspace.id]);
 
-  const dailyNotifications = useMemo(
-    () =>
-      notifications.filter((notification) => {
-        if (!isSameLocalDay(notification.timestamp)) {
-          return false;
-        }
+  const dailyNotifications = useMemo(() => digest?.items ?? [], [digest]);
 
-        const metadataWorkspaceId =
-          typeof notification.metadata?.workspaceId === "string"
-            ? notification.metadata.workspaceId
-            : null;
-
-        return metadataWorkspaceId === null || metadataWorkspaceId === workspace.id;
-      }),
-    [notifications, workspace.id],
-  );
-
-  const unreadCount = useMemo(
-    () => dailyNotifications.filter((notification) => !notification.read).length,
-    [dailyNotifications],
-  );
+  const unreadCount = useMemo(() => digest?.summary.unread ?? 0, [digest]);
 
   return (
     <Card className="border border-border/50">
@@ -111,7 +82,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Today items</p>
-            <p className="mt-1 text-xl font-semibold">{dailyNotifications.length}</p>
+            <p className="mt-1 text-xl font-semibold">{digest?.summary.total ?? 0}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Unread</p>
