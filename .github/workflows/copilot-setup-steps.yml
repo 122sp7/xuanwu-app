@@ -18,18 +18,29 @@ jobs:
       NPM_CONFIG_AUDIT: "false"
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Ensure git is installed
+      - name: Ensure git
+        run: |
+          if ! command -v git &> /dev/null; then
+            echo "Git not found, installing..."
+            sudo apt-get update && sudo apt-get install -y git
+          else
+            echo "Git already installed"
+            git --version
+          fi
+
+      # 2️⃣ Checkout repository
       - name: Checkout
         uses: actions/checkout@v6
 
-      # 2️⃣ Node.js 24.x setup
+      # 3️⃣ Node.js 24.x setup
       - name: Setup Node.js 24
         uses: actions/setup-node@v6
         with:
           node-version: "24.x"
           cache: "npm"
 
-      # 3️⃣ Install Node.js dependencies (穩健用 npm ci 或 fallback npm install)
+      # 4️⃣ Install Node.js dependencies
       - name: Install Node dependencies
         run: |
           if [ -f package-lock.json ]; then
@@ -38,7 +49,7 @@ jobs:
             npm install --prefer-offline --no-audit --progress=false
           fi
 
-      # 4️⃣ Python setup
+      # 5️⃣ Python setup
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -48,31 +59,55 @@ jobs:
             lib/firebase/functions-python/requirements.txt
             lib/firebase/functions-python/requirements-dev.txt
 
-      # 5️⃣ Install Python dependencies
+      # 6️⃣ Install Python dependencies
       - name: Install Python dependencies
         working-directory: lib/firebase/functions-python
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      # 6️⃣ MCP servers dependencies (uv for Serena, markitdown, agent-memory)
+      # 7️⃣ MCP servers dependencies (uv runtime)
       - name: Install uv (MCP servers)
         uses: astral-sh/setup-uv@v5.3.0
         with:
           enable-cache: false
 
-      # 7️⃣ Preload common tools (Lint / TypeScript)
+      # 8️⃣ Preload common Node tools (TypeScript / ESLint)
       - name: Preload Node tools
         run: |
-          npx --yes typescript --version || true
-          npx --yes eslint --version || true
+          if ! npx --yes typescript --version &> /dev/null; then
+            npm install -g typescript
+          else
+            npx typescript --version
+          fi
 
-      # 8️⃣ MCP servers warm-up (預熱，不重裝)
+          if ! npx --yes eslint --version &> /dev/null; then
+            npm install -g eslint
+          else
+            npx eslint --version
+          fi
+
+      # 9️⃣ MCP servers warm-up (預熱，不重裝)
       - name: Warm up MCP servers
         run: |
-          npx @modelcontextprotocol/server-filesystem --version || true
-          npx @modelcontextprotocol/server-git --version || true
-          npx @modelcontextprotocol/server-memory --version || true
+          if ! npx @modelcontextprotocol/server-filesystem --version &> /dev/null; then
+            echo "server-filesystem not found, skipping install (agent will handle it)"
+          else
+            npx @modelcontextprotocol/server-filesystem --version
+          fi
+
+          if ! npx @modelcontextprotocol/server-git --version &> /dev/null; then
+            echo "server-git not found, skipping install (agent will handle it)"
+          else
+            npx @modelcontextprotocol/server-git --version
+          fi
+
+          if ! npx @modelcontextprotocol/server-memory --version &> /dev/null; then
+            echo "server-memory not found, skipping install (agent will handle it)"
+          else
+            npx @modelcontextprotocol/server-memory --version
+          fi
+
           npx repomix --version || true
           npx firebase-tools --version || true
           npx next-devtools-mcp --version || true
@@ -80,14 +115,15 @@ jobs:
           uvx markitdown-mcp --version || true
           uvx serena --from git+https://github.com/oraios/serena serena start-mcp-server --version || true
 
-      # 9️⃣ Verify Node and Python
+      # 🔟 Verify Node, Python, Git
       - name: Verify setup
         run: |
           node -v
           npm -v
           python --version
           pip --version
+          git --version
 
-      # 🔟 Done marker
+      # ⓫ Done marker
       - name: Setup complete
         run: echo "✅ Copilot environment is ready!"
