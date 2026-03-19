@@ -93,7 +93,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "tenantId",
+          "fieldPath": "organizationId",
           "order": "ASCENDING"
         },
         {
@@ -111,15 +111,54 @@
       ]
     },
     {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "chunks",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "tenantId",
+          "fieldPath": "organizationId",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
           "order": "ASCENDING"
         },
         {

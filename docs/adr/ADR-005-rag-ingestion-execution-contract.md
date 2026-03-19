@@ -16,7 +16,7 @@ Accepted
 固定 ingestion 的執行契約如下：
 
 1. canonical trigger: `documents.status=uploaded`。
-2. worker 僅處理 tenant-scoped、workspace-scoped 文件。
+2. worker 僅處理 organization-scoped、workspace-scoped 文件。
 3. 固定步驟順序為 parsing -> cleaning -> taxonomy -> chunking -> embedding -> chunks write -> ready。
 4. 任一步驟失敗都必須寫入 `failed` 狀態與錯誤分類。
 5. idempotency 由 `documentId + checksum + chunkIndex` 保證。
@@ -82,12 +82,12 @@ ready    -> processing (reprocess)
 worker 在每個步驟至少要維持下列欄位一致：
 
 - `documents.id`
-- `documents.tenantId`
+- `documents.organizationId`
 - `documents.workspaceId`
 - `documents.status`
 - `documents.checksum`
 - `chunks.docId`
-- `chunks.tenantId`
+- `chunks.organizationId`
 - `chunks.workspaceId`
 - `chunks.chunkIndex`
 

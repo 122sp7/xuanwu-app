@@ -45,12 +45,12 @@ class SpyRepository:
     def save_ready(
         self,
         document_id: str,
-        tenant_id: str,
+        organization_id: str,
         workspace_id: str,
         taxonomy: str,
         chunks: list[RagChunk],
     ) -> None:
-        self.ready_payloads.append((document_id, tenant_id, workspace_id, taxonomy, chunks))
+        self.ready_payloads.append((document_id, organization_id, workspace_id, taxonomy, chunks))
 
     def mark_failed(self, document_id: str, error_code: str, error_message: str) -> None:
         self.failed_payloads.append((document_id, error_code, error_message))
@@ -69,12 +69,12 @@ def test_process_uploaded_document_marks_ready_with_chunks() -> None:
     result = use_case.execute(
         ProcessUploadedDocumentCommand(
             document_id="doc-1",
-            tenant_id="tenant-1",
+            organization_id="org-1",
             workspace_id="workspace-1",
             title="Invoice",
             source_file_name="invoice.pdf",
             mime_type="application/pdf",
-            storage_path="workspaces/workspace-1/files/doc-1/invoice.pdf",
+            storage_path="organizations/org-1/workspaces/workspace-1/files/doc-1/invoice.pdf",
             raw_text="Invoice payment terms and policy summary",
         )
     )
@@ -86,9 +86,9 @@ def test_process_uploaded_document_marks_ready_with_chunks() -> None:
     assert repository.failed_payloads == []
     assert len(repository.ready_payloads) == 1
 
-    document_id, tenant_id, workspace_id, taxonomy, chunks = repository.ready_payloads[0]
+    document_id, organization_id, workspace_id, taxonomy, chunks = repository.ready_payloads[0]
     assert document_id == "doc-1"
-    assert tenant_id == "tenant-1"
+    assert organization_id == "org-1"
     assert workspace_id == "workspace-1"
     assert taxonomy == "finance"
     assert [chunk.chunk_id for chunk in chunks] == ["doc-1_0", "doc-1_1"]
@@ -112,12 +112,12 @@ def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
         use_case.execute(
             ProcessUploadedDocumentCommand(
                 document_id="doc-2",
-                tenant_id="tenant-1",
+                organization_id="org-1",
                 workspace_id="workspace-1",
                 title="Contract",
                 source_file_name="contract.pdf",
                 mime_type="application/pdf",
-                storage_path="workspaces/workspace-1/files/doc-2/contract.pdf",
+                storage_path="organizations/org-1/workspaces/workspace-1/files/doc-2/contract.pdf",
                 raw_text="contract body",
             )
         )

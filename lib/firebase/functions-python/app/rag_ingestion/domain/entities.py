@@ -34,7 +34,7 @@ class RagChunk:
 @dataclass(frozen=True)
 class ProcessUploadedDocumentCommand:
     document_id: str
-    tenant_id: str
+    organization_id: str
     workspace_id: str
     title: str
     source_file_name: str

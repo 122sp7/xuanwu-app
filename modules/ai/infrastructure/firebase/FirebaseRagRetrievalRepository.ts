@@ -9,7 +9,7 @@ import type {
 } from "../../domain/repositories/RagRetrievalRepository";
 
 interface FirestoreRagDocument {
-  readonly tenantId?: string;
+  readonly organizationId?: string;
   readonly workspaceId?: string;
   readonly status?: string;
   readonly taxonomy?: string;
@@ -23,7 +23,7 @@ const CHUNK_OVER_FETCH_MULTIPLIER = 10;
 const MIN_CHUNK_LIMIT = 50;
 
 interface FirestoreRagChunk {
-  readonly tenantId?: string;
+  readonly organizationId?: string;
   readonly workspaceId?: string;
   readonly docId?: string;
   readonly text?: string;
@@ -34,6 +34,7 @@ interface FirestoreRagChunk {
 
 // Keep ASCII letters/digits plus the basic CJK Unified Ideographs block together so the
 // deterministic scaffold can score both English and Chinese queries before vector search lands.
+// This intentionally stops at the basic block and does not yet cover the wider CJK extensions.
 function tokenize(value: string): readonly string[] {
   return value
     .toLowerCase()
@@ -62,9 +63,9 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
   async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
     const documentsQuery = query(
       collection(this.db, "documents"),
-      where("tenantId", "==", input.tenantId),
-      where("workspaceId", "==", input.workspaceId),
+      where("organizationId", "==", input.organizationId),
       where("status", "==", "ready"),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
       limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
     );
@@ -85,8 +86,8 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
 
     const chunkQuery = query(
       collection(this.db, "chunks"),
-      where("tenantId", "==", input.tenantId),
-      where("workspaceId", "==", input.workspaceId),
+      where("organizationId", "==", input.organizationId),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
       limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
     );
@@ -107,20 +108,21 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
           taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
           text,
           score: scoreChunk(queryTokens, text),
-          tenantId: typeof data.tenantId === "string" ? data.tenantId : "",
-          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+          organizationId:
+            typeof data.organizationId === "string" ? data.organizationId : undefined,
+          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
         };
       })
       .filter(
         (chunk) =>
           chunk.docId &&
           readyDocumentIds.has(chunk.docId) &&
-          chunk.tenantId === input.tenantId &&
-          chunk.workspaceId === input.workspaceId &&
+          chunk.organizationId === input.organizationId &&
+          (!input.workspaceId || chunk.workspaceId === input.workspaceId) &&
           chunk.score > 0,
       )
       .sort((left, right) => right.score - left.score)
       .slice(0, input.topK)
-      .map(({ tenantId: _tenantId, workspaceId: _workspaceId, ...chunk }) => chunk);
+      .map(({ organizationId: _organizationId, workspaceId: _workspaceId, ...chunk }) => chunk);
   }
 }

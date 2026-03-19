@@ -65,7 +65,7 @@ Accepted
 建議 canonical path：
 
 ```text
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
 ```
 
 例如：
@@ -76,7 +76,7 @@ tenants/tnt_123/workspaces/ws_456/documents/doc_789/raw/source.pdf
 
 設計原則：
 
-1. `tenantId` 與 `workspaceId` 必須進入 path。
+1. `organizationId` 與 `workspaceId` 必須進入 path。
 2. `documentId` 是該文件的 Storage root。
 3. raw file 固定採 `source{ext}`。
 4. bucket 內不得平鋪所有 document。
@@ -86,15 +86,15 @@ tenants/tnt_123/workspaces/ws_456/documents/doc_789/raw/source.pdf
 衍生檔建議路徑：
 
 ```text
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/derived/normalized.md
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/derived/layout.json
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/derived/preview.txt
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/normalized.md
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/layout.json
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/preview.txt
 ```
 
 若需版本化：
 
 ```text
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/versions/{version}/raw/source{ext}
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/versions/{version}/raw/source{ext}
 ```
 
 ### 4. Upload ownership

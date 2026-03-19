@@ -28,31 +28,21 @@ export class AnswerRagQueryUseCase {
   ) {}
 
   async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-    const tenantId = input.tenantId.trim();
-    const workspaceId = input.workspaceId.trim();
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId?.trim() || undefined;
     const userQuery = input.userQuery.trim();
     const taxonomy = input.taxonomy?.trim() || undefined;
     const topK = normalizeTopK(input.topK);
     const traceId = `rag-trace-${randomUUID()}`;
+    const scope = workspaceId ? "workspace" : "organization";
 
-    if (!tenantId) {
+    if (!organizationId) {
       return {
         ok: false,
         error: {
           code: "QUERY_FILTER_SCOPE_MISSING",
-          message: "Tenant is required for RAG queries.",
-          context: { traceId, scope: "tenantId" },
-        },
-      };
-    }
-
-    if (!workspaceId) {
-      return {
-        ok: false,
-        error: {
-          code: "QUERY_FILTER_SCOPE_MISSING",
-          message: "Workspace is required for RAG queries.",
-          context: { traceId, scope: "workspaceId" },
+          message: "Organization is required for RAG queries.",
+          context: { traceId, scope: "organizationId" },
         },
       };
     }
@@ -69,8 +59,8 @@ export class AnswerRagQueryUseCase {
     }
 
     const chunks = await this.ragRetrievalRepository.retrieve({
-      tenantId,
-      workspaceId,
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
       normalizedQuery: userQuery.toLowerCase(),
       taxonomy,
       topK,
@@ -81,16 +71,17 @@ export class AnswerRagQueryUseCase {
         ok: false,
         error: {
           code: "NO_RELEVANT_CHUNKS",
-          message: "No ready chunks matched the current tenant/workspace scope.",
-          context: { traceId, tenantId, workspaceId, taxonomy, topK },
+          message:
+            "No ready chunks matched the current organization/workspace scope. Verify ingestion completed and documents are marked ready before querying.",
+          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
         },
       };
     }
 
     const generation = await this.ragGenerationRepository.generate({
       traceId,
-      tenantId,
-      workspaceId,
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
       userQuery,
       chunks,
       model: input.model,
@@ -102,6 +93,7 @@ export class AnswerRagQueryUseCase {
 
     const retrievalSummary: RagRetrievalSummary = {
       mode: "skeleton-metadata-filter",
+      scope,
       retrievedChunkCount: chunks.length,
       topK,
       ...(taxonomy ? { taxonomy } : {}),

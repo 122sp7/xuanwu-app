@@ -16,7 +16,7 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
     const documentRef = doc(this.db, DOCUMENT_COLLECTION, record.id);
 
     await setDoc(documentRef, {
-      tenantId: record.tenantId,
+      organizationId: record.organizationId,
       workspaceId: record.workspaceId,
       title: record.title,
       sourceFileName: record.sourceFileName,

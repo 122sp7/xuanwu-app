@@ -3,7 +3,7 @@ from app.rag_ingestion.domain.ports import RagEmbedderPort
 
 
 class DeterministicRagEmbedder(RagEmbedderPort):
-    """Temporary scaffold embedder producing 4-D vectors.
+    """Temporary scaffold embedder producing 4-dimensional vectors (dimension=4).
 
     Keep this implementation aligned with the `chunks.embedding` vector dimension declared in
     `firestore.indexes.json` until a production embedding model replaces the deterministic scaffold.

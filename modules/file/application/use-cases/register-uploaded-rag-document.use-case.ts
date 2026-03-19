@@ -12,7 +12,7 @@ type RegisterUploadedRagDocumentUseCaseResult =
       ok: false;
       error: {
         code:
-          | "RAG_TENANT_REQUIRED"
+          | "RAG_ORGANIZATION_REQUIRED"
           | "RAG_WORKSPACE_REQUIRED"
           | "RAG_TITLE_REQUIRED"
           | "RAG_FILE_NAME_REQUIRED"
@@ -28,17 +28,17 @@ export class RegisterUploadedRagDocumentUseCase {
   async execute(
     input: RegisterUploadedRagDocumentInputDto,
   ): Promise<RegisterUploadedRagDocumentUseCaseResult> {
-    const tenantId = input.tenantId.trim();
+    const organizationId = input.organizationId.trim();
     const workspaceId = input.workspaceId.trim();
     const title = input.title.trim();
     const sourceFileName = input.sourceFileName.trim();
     const mimeType = input.mimeType.trim();
     const storagePath = input.storagePath.trim();
 
-    if (!tenantId) {
+    if (!organizationId) {
       return {
         ok: false,
-        error: { code: "RAG_TENANT_REQUIRED", message: "Tenant is required." },
+        error: { code: "RAG_ORGANIZATION_REQUIRED", message: "Organization is required." },
       };
     }
 
@@ -82,7 +82,7 @@ export class RegisterUploadedRagDocumentUseCase {
 
     await this.ragDocumentRepository.saveUploaded({
       id: documentId,
-      tenantId,
+      organizationId,
       workspaceId,
       title,
       sourceFileName,

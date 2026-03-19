@@ -4,8 +4,8 @@ import type { RagCitation, RagRetrievedChunk } from "../entities/RagQuery";
 
 export interface GenerateRagAnswerInput {
   readonly traceId: string;
-  readonly tenantId: string;
-  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
   readonly userQuery: string;
   readonly chunks: readonly RagRetrievedChunk[];
   readonly model?: string;

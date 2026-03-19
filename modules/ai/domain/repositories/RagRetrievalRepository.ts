@@ -1,8 +1,8 @@
 import type { RagRetrievedChunk } from "../entities/RagQuery";
 
 export interface RetrieveRagChunksInput {
-  readonly tenantId: string;
-  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
   readonly normalizedQuery: string;
   readonly taxonomy?: string;
   readonly topK: number;

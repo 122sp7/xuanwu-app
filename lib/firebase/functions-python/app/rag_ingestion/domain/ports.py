@@ -25,7 +25,7 @@ class RagDocumentRepositoryPort(Protocol):
     def save_ready(
         self,
         document_id: str,
-        tenant_id: str,
+        organization_id: str,
         workspace_id: str,
         taxonomy: str,
         chunks: list[RagChunk],

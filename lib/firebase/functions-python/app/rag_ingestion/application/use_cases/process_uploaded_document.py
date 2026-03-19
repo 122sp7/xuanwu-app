@@ -63,7 +63,7 @@ class ProcessUploadedDocumentUseCase:
 
             self._document_repository.save_ready(
                 command.document_id,
-                command.tenant_id,
+                command.organization_id,
                 command.workspace_id,
                 taxonomy,
                 chunks,

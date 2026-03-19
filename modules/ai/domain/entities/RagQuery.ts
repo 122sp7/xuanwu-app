@@ -19,6 +19,7 @@ export interface RagCitation {
 
 export interface RagRetrievalSummary {
   readonly mode: "skeleton-metadata-filter";
+  readonly scope: "organization" | "workspace";
   readonly retrievedChunkCount: number;
   readonly topK: number;
   readonly taxonomy?: string;
@@ -31,8 +32,8 @@ export interface RagStreamEvent {
 }
 
 export interface AnswerRagQueryInput {
-  readonly tenantId: string;
-  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
   readonly userQuery: string;
   readonly taxonomy?: string;
   readonly topK?: number;

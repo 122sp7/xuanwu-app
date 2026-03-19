@@ -1,5 +1,5 @@
 export interface RegisterUploadedRagDocumentInputDto {
-  readonly tenantId: string;
+  readonly organizationId: string;
   readonly workspaceId: string;
   readonly title: string;
   readonly sourceFileName: string;
@@ -25,7 +25,7 @@ export type RegisterUploadedRagDocumentResult =
       ok: false;
       error: {
         code:
-          | "RAG_TENANT_REQUIRED"
+          | "RAG_ORGANIZATION_REQUIRED"
           | "RAG_WORKSPACE_REQUIRED"
           | "RAG_TITLE_REQUIRED"
           | "RAG_FILE_NAME_REQUIRED"

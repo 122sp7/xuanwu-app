@@ -9,7 +9,7 @@ RAG 系統的 upload 與 ingestion 決定資料怎麼進來，但真正的 produ
 
 1. query orchestration 漂到 worker runtime。
 2. vector search、rerank、cache、feedback 混在一起實作，無法演進。
-3. retrieval filter 忽略 tenant / workspace 邊界。
+3. retrieval filter 忽略 organization / workspace 邊界。
 4. optional enhancements 反向污染 canonical chunk schema。
 
 ## 決策 (Decision)
@@ -19,7 +19,7 @@ RAG 系統的 upload 與 ingestion 決定資料怎麼進來，但真正的 produ
 1. Query entrypoint 在 Next.js。
 2. Genkit 負責 query preprocess、prompt assembly、LLM generation、tool calling。
 3. Vector search 對 `chunks.embedding` 執行。
-4. retrieval filter 必須至少包含 `tenantId`、`workspaceId`，必要時再加 `taxonomy`。
+4. retrieval filter 必須至少包含 `organizationId`，必要時再加 `workspaceId` 與 `taxonomy`。
 5. Hybrid search、rerank、cache、feedback 作為 query-time enhancement，不能改變 canonical ownership。
 
 ## 設計細節 (Design)
@@ -51,7 +51,7 @@ RAG 系統的 upload 與 ingestion 決定資料怎麼進來，但真正的 produ
 1. 接收 user query
 2. 建立 query embedding
 3. 對 `chunks.embedding` 執行 vector search
-4. 套用 `tenantId` / `workspaceId` / `taxonomy` filter
+4. 套用 `organizationId` / `workspaceId` / `taxonomy` filter
 5. 取得 top-k chunks
 6. 組 context、citation、tool inputs
 7. 交給 Genkit / LLM 生成答案
@@ -106,7 +106,7 @@ RAG 系統的 upload 與 ingestion 決定資料怎麼進來，但真正的 produ
 規則：
 
 - query cache 與 UX 耦合，優先由 Next.js 管理
-- cache key 至少包含 `tenantId`, `workspaceId`, `queryHash`
+- cache key 至少包含 `organizationId`, `workspaceId`, `queryHash`
 - 不得使用全域 query hash 空間
 
 ### 6. Feedback loop
@@ -127,17 +127,17 @@ RAG 系統的 upload 與 ingestion 決定資料怎麼進來，但真正的 produ
 
 ### 7. Tenancy and security
 
-所有 retrieval、cache、feedback 都必須 tenant-scoped。
+所有 retrieval、cache、feedback 都必須 organization-scoped。
 
 最小隔離鍵：
 
-- `tenantId`
+- `organizationId`
 - `workspaceId`
 
 禁止事項：
 
-- query-time 省略 tenant / workspace filter
-- 將 cache 做成跨 tenant 全域空間
+- query-time 省略 organization / workspace filter
+- 將 cache 做成跨 organization 全域空間
 - worker 直接承接 product-facing query request
 
 ## Alternatives Considered
