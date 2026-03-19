@@ -1,12 +1,15 @@
-// SuperJSON wrapper
-// Install: npm install superjson
+/**
+ * @module lib/superjson
+ * Thin wrapper for superjson serialization.
+ *
+ * superjson extends JSON to support more types: Date, Map, Set, BigInt,
+ * Infinity, -0, undefined, NaN, and custom serialization hooks.
+ *
+ * Usage:
+ *   import { stringify, parse } from "@/lib/superjson";
+ *   const json = stringify(data);
+ *   const result = parse<MyType>(json);
+ */
 
-// export { default as superjson } from "superjson";
-
-export function serialize(data: unknown): string {
-  return JSON.stringify(data);
-}
-
-export function deserialize<T>(data: string): T {
-  return JSON.parse(data) as T;
-}
+export { stringify, parse } from "superjson";
+export type { SuperJSONValue } from "superjson";
