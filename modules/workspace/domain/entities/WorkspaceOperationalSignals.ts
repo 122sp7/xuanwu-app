@@ -38,23 +38,6 @@ export interface WorkspaceIssueSignal {
   readonly source: "configuration" | "notification" | "capability";
 }
 
-export interface WorkspaceFileAsset {
-  readonly id: string;
-  readonly name: string;
-  readonly kind: "image" | "manifest" | "record";
-  readonly status: "available" | "derived";
-  readonly source: string;
-  readonly detail: string;
-  readonly href?: string;
-}
-
-export interface WorkspaceParserSummary {
-  readonly supportedSources: number;
-  readonly readyAssetCount: number;
-  readonly blockedReasons: string[];
-  readonly nextActions: string[];
-}
-
 function hasAddress(workspace: WorkspaceEntity) {
   return Boolean(
     workspace.address?.street?.trim() &&
@@ -290,64 +273,4 @@ export function getWorkspaceIssueSignals(
     });
 
   return sortByStatus(issues, ["open", "monitoring", "resolved"]);
-}
-
-export function getWorkspaceFileAssets(workspace: WorkspaceEntity): WorkspaceFileAsset[] {
-  const assets: WorkspaceFileAsset[] = [];
-
-  if (workspace.photoURL) {
-    assets.push({
-      id: "workspace-avatar",
-      name: "workspace-avatar",
-      kind: "image",
-      status: "available",
-      source: "workspace photoURL",
-      detail: "目前已註冊的工作區視覺資產。",
-      href: workspace.photoURL,
-    });
-  }
-
-  assets.push({
-    id: "workspace-profile-manifest",
-    name: "workspace-profile.json",
-    kind: "manifest",
-    status: "derived",
-    source: "workspace metadata",
-    detail: `可從目前工作區設定導出名稱、可見性與 lifecycle 狀態。`,
-  });
-
-  if (workspace.capabilities.length > 0) {
-    assets.push({
-      id: "workspace-capabilities-manifest",
-      name: "capabilities.json",
-      kind: "manifest",
-      status: "derived",
-      source: "capability bindings",
-      detail: `可導出 ${workspace.capabilities.length} 個 capability 綁定。`,
-    });
-  }
-
-  if (workspace.grants.length > 0 || workspace.teamIds.length > 0) {
-    assets.push({
-      id: "workspace-access-policy",
-      name: "access-policy.json",
-      kind: "record",
-      status: "derived",
-      source: "workspace grants",
-      detail: `可整理 ${workspace.grants.length} 筆 grant 與 ${workspace.teamIds.length} 個 team access。`,
-    });
-  }
-
-  if ((workspace.locations?.length ?? 0) > 0) {
-    assets.push({
-      id: "workspace-locations-record",
-      name: "locations.json",
-      kind: "record",
-      status: "derived",
-      source: "workspace locations",
-      detail: `可整理 ${(workspace.locations?.length ?? 0)} 個 location 進入檔案流程。`,
-    });
-  }
-
-  return assets;
 }
