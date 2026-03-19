@@ -6,11 +6,19 @@ import type {
 import { SCHEDULE_SKILL_PROFICIENCY_LEVELS } from "../../domain/entities/ScheduleRequest";
 import type { ScheduleRequestRepository } from "../../domain/repositories/ScheduleRequestRepository";
 
+type SkillRequirementValidationResult =
+  | { readonly success: true; readonly value: SkillRequirement[] }
+  | { readonly success: false; readonly code: string; readonly message: string };
+
 function normalizeSkillRequirements(
   requiredSkills: readonly SkillRequirement[],
-): SkillRequirement[] | null {
+): SkillRequirementValidationResult {
   if (requiredSkills.length === 0) {
-    return null;
+    return {
+      success: false,
+      code: "SCHEDULE_REQUIRED_SKILLS_REQUIRED",
+      message: "At least one required skill is required.",
+    };
   }
 
   const normalizedRequirements: SkillRequirement[] = [];
@@ -19,21 +27,37 @@ function normalizeSkillRequirements(
   for (const requirement of requiredSkills) {
     const skillId = requirement.skillId.trim();
     if (!skillId) {
-      return null;
+      return {
+        success: false,
+        code: "SCHEDULE_REQUIRED_SKILL_ID_REQUIRED",
+        message: "Each required skill must include a skill identifier.",
+      };
     }
 
     if (seenSkillIds.has(skillId)) {
-      return null;
+      return {
+        success: false,
+        code: "SCHEDULE_REQUIRED_SKILL_DUPLICATE",
+        message: `Duplicate required skill identifier: ${skillId}`,
+      };
     }
 
     seenSkillIds.add(skillId);
 
     if (!SCHEDULE_SKILL_PROFICIENCY_LEVELS.includes(requirement.minProficiency)) {
-      return null;
+      return {
+        success: false,
+        code: "SCHEDULE_REQUIRED_SKILL_PROFICIENCY_INVALID",
+        message: `Unsupported skill proficiency: ${String(requirement.minProficiency)}`,
+      };
     }
 
     if (!Number.isInteger(requirement.requiredHeadcount) || requirement.requiredHeadcount <= 0) {
-      return null;
+      return {
+        success: false,
+        code: "SCHEDULE_REQUIRED_SKILL_HEADCOUNT_INVALID",
+        message: `Required headcount must be a positive integer for skill ${skillId}.`,
+      };
     }
 
     normalizedRequirements.push({
@@ -43,7 +67,7 @@ function normalizeSkillRequirements(
     });
   }
 
-  return normalizedRequirements;
+  return { success: true, value: normalizedRequirements };
 }
 
 export class SubmitScheduleRequestUseCase {
@@ -69,11 +93,8 @@ export class SubmitScheduleRequestUseCase {
     }
 
     const requiredSkills = normalizeSkillRequirements(input.requiredSkills);
-    if (!requiredSkills) {
-      return commandFailureFrom(
-        "SCHEDULE_REQUIRED_SKILLS_INVALID",
-        "Required skills must contain unique skill identifiers, supported proficiency levels, and positive headcount values.",
-      );
+    if (!requiredSkills.success) {
+      return commandFailureFrom(requiredSkills.code, requiredSkills.message);
     }
 
     if (proposedStartAtISO && Number.isNaN(Date.parse(proposedStartAtISO))) {
@@ -87,21 +108,12 @@ export class SubmitScheduleRequestUseCase {
       const scheduleRequest = await this.scheduleRequestRepository.submit({
         workspaceId,
         organizationId,
-        requiredSkills,
+        requiredSkills: requiredSkills.value,
         proposedStartAtISO,
         notes,
         actorAccountId,
       });
-
-      const scheduleRequestVersion = Date.parse(scheduleRequest.updatedAtISO);
-      if (Number.isNaN(scheduleRequestVersion)) {
-        return commandFailureFrom(
-          "SCHEDULE_REQUEST_UPDATED_AT_INVALID",
-          `Schedule request ${scheduleRequest.id} has invalid timestamp: ${scheduleRequest.updatedAtISO}`,
-        );
-      }
-
-      return commandSuccess(scheduleRequest.id, scheduleRequestVersion);
+      return commandSuccess(scheduleRequest.id, Date.now());
     } catch (error) {
       return commandFailureFrom(
         "SCHEDULE_REQUEST_SUBMIT_FAILED",

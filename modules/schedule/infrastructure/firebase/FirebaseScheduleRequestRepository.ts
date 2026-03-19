@@ -1,4 +1,4 @@
-import { doc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getFirestore, setDoc } from "firebase/firestore";
 
 import { firebaseClientApp } from "@/infrastructure/firebase/client";
 import {
@@ -110,7 +110,7 @@ export class FirebaseScheduleRequestRepository implements ScheduleRequestReposit
   }
 
   async submit(input: SubmitScheduleRequestInput): Promise<ScheduleRequest> {
-    const requestId = crypto.randomUUID();
+    const requestId = doc(collection(this.db, "scheduleRequests")).id;
     const nowISO = new Date().toISOString();
     const scheduleRequestRef = doc(this.db, "scheduleRequests", requestId);
 
@@ -129,9 +129,6 @@ export class FirebaseScheduleRequestRepository implements ScheduleRequestReposit
       submittedAtISO: nowISO,
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
-      submittedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     } satisfies Record<string, unknown>;
 
     await setDoc(scheduleRequestRef, documentData);
