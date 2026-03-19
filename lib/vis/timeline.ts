@@ -10,7 +10,11 @@
  *   const timeline = new Timeline(container, items, options);
  */
 
-export { Timeline } from "vis-timeline/esnext";
-export * from "vis-timeline/esnext/types";
+export { Timeline, Graph2d } from "vis-timeline";
+export * from "vis-timeline";
 
-export type TimelineOptions = InstanceType<typeof Timeline> extends { setOptions(opts: infer T): void } ? T : never;
+type TimelineClass = typeof import("vis-timeline").Timeline;
+type Graph2dClass = typeof import("vis-timeline").Graph2d;
+
+export type TimelineOptions = InstanceType<TimelineClass> extends { setOptions(opts: infer T): void } ? T : never;
+export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opts: infer T): void } ? T : never;

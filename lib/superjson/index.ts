@@ -12,4 +12,5 @@
  */
 
 export { stringify, parse } from "superjson";
+export { serialize, deserialize, registerClass, registerCustom, registerSymbol, allowErrorProps } from "superjson";
 export type { SuperJSONValue } from "superjson";

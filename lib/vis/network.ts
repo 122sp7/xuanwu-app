@@ -10,7 +10,26 @@
  *   const network = new Network(container, data, options);
  */
 
-export { Network } from "vis-network/esnext";
-export * from "vis-network/esnext/types";
+import * as VisNetworkNamespace from "vis-network";
 
-export type NetworkOptions = InstanceType<typeof Network> extends { setOptions(opts: infer T): void } ? T : never;
+export { Network } from "vis-network";
+export * from "vis-network";
+
+const visNetworkRuntime = VisNetworkNamespace as unknown as {
+  NetworkImages?: unknown;
+  networkDOTParser?: unknown;
+  parseDOTNetwork?: unknown;
+  parseGephiNetwork?: unknown;
+  networkGephiParser?: unknown;
+  networkOptions?: unknown;
+};
+
+export const NetworkImages = visNetworkRuntime.NetworkImages;
+export const networkDOTParser = visNetworkRuntime.networkDOTParser;
+export const parseDOTNetwork = visNetworkRuntime.parseDOTNetwork;
+export const parseGephiNetwork = visNetworkRuntime.parseGephiNetwork;
+export const networkGephiParser = visNetworkRuntime.networkGephiParser;
+export const networkOptions = visNetworkRuntime.networkOptions;
+
+type NetworkClass = typeof import("vis-network").Network;
+export type NetworkOptions = InstanceType<NetworkClass> extends { setOptions(opts: infer T): void } ? T : never;

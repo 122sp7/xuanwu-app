@@ -12,8 +12,19 @@
 
 export { DataSet, DataView } from "vis-data/esnext";
 export type {
-  DataItem,
   DataSetOptions,
   DataViewOptions,
-  IdType,
+  DataInterface,
+  DataInterfaceGetOptions,
+  DataInterfaceGetOptionsArray,
+  DataInterfaceGetOptionsObject,
+  DataInterfaceOrder,
+} from "vis-data/esnext";
+
+export {
+  DataStream,
+  Queue,
+  createNewDataPipeFrom,
+  isDataSetLike,
+  isDataViewLike,
 } from "vis-data/esnext";
