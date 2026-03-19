@@ -21,10 +21,9 @@ function appendEventType(
   eventTypes: readonly string[],
   eventType: string,
 ): readonly string[] {
-  if (eventTypes.includes(eventType)) {
-    return eventTypes;
-  }
-  return [...eventTypes, eventType];
+  const eventTypeSet = new Set(eventTypes);
+  eventTypeSet.add(eventType);
+  return [...eventTypeSet];
 }
 
 function applyEvent(

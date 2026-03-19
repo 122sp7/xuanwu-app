@@ -1,16 +1,18 @@
 import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import { FirebaseMdddProjectionRepository } from "../../infrastructure/firebase/FirebaseMdddProjectionRepository";
 
+function createProjectionRepository() {
+  return new FirebaseMdddProjectionRepository();
+}
+
 export async function getScheduleMdddFlowProjection(
   requestId: string,
 ): Promise<ScheduleMdddFlowProjection | null> {
-  const projectionRepository = new FirebaseMdddProjectionRepository();
-  return projectionRepository.findByRequestId(requestId);
+  return createProjectionRepository().findByRequestId(requestId);
 }
 
 export async function listWorkspaceScheduleMdddFlowProjections(
   workspaceId: string,
 ): Promise<readonly ScheduleMdddFlowProjection[]> {
-  const projectionRepository = new FirebaseMdddProjectionRepository();
-  return projectionRepository.listByWorkspaceId(workspaceId);
+  return createProjectionRepository().listByWorkspaceId(workspaceId);
 }

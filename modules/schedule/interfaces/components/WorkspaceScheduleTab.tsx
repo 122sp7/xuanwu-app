@@ -389,7 +389,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleRejectAssignment(projection.assignmentId)}
+                      onClick={() => void handleRejectAssignment(projection.assignmentId!)}
                     >
                       Reject Assignment
                     </Button>
@@ -404,7 +404,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        onClick={() => void handleCancelSchedule(projection.scheduleId)}
+                        onClick={() => void handleCancelSchedule(projection.scheduleId!)}
                       >
                         Cancel Schedule
                       </Button>
