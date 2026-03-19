@@ -31,6 +31,8 @@
    - Use browser screenshots only after verifying runtime state.
 5. **shadcn/ui MCP** before inventing or duplicating UI primitives.
    - Reuse or extend `ui/` and shadcn components instead of creating one-off variants.
+6. **Serena MCP** for symbol-aware retrieval/editing when available in the current coding-agent environment.
+   - For GitHub-hosted browser coding-agent sessions, keep repository settings MCP config aligned with `.github/copilot/serena-coding-agent-mcp.json`.
 
 ## Architecture and migration rules
 - Prioritize migration work that clarifies or strengthens:

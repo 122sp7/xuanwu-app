@@ -12,6 +12,7 @@ This document records the active and scaffolded VS Code Copilot customization la
 | Custom agents | `.github/agents/*.agent.md` | agent picker, handoff, or subagent |
 | Hooks | `.github/hooks/*.json` | agent lifecycle event |
 | Skills | `.github/skills/<name>/SKILL.md` | on-demand or automatic load |
+| Browser coding-agent MCP templates | `.github/copilot/*` | manual copy into GitHub repository settings |
 | GitHub issue forms | `.github/ISSUE_TEMPLATE/*.yml` | new issue chooser |
 | GitHub workflows | `.github/workflows/*.yml` | GitHub Actions |
 
@@ -84,6 +85,10 @@ The visible agent set is intentionally small:
 - `.github/skills/billing-lifecycle/SKILL.md`
 - `.github/skills/multitenancy/SKILL.md`
 
+### Browser coding-agent MCP templates
+- `.github/copilot/serena-coding-agent-mcp.json`
+- `.github/copilot/serena-browser-setup.md`
+
 ### Hooks
 - `.github/hooks/README.md`
 - `.github/hooks/guardrails.json`
@@ -113,7 +118,8 @@ The active hook set is intentionally minimal. This repository enables one guardr
 
 - `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
-- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
+- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, `shadcn`, and `serena`.
+- Browser coding-agent MCP is configured in repository settings on GitHub.com. Files in `.github/copilot/` are source-of-truth templates and runbooks for that settings payload.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.
 - Plugin packaging and agentic workflow markdown files are not added yet. For this repository, workspace-level instructions, agents, skills, and a single safety hook currently provide higher value than introducing another distribution layer or `gh aw` compilation flow.
 
