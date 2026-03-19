@@ -24,7 +24,7 @@
 
 ### 2.1 檔案版本集合 (`files`)
 
-**Collection Path**：`/knowledge_base/{org_id}/files/{file_id}`
+**Collection Path**：`/knowledge_base/{organizationId}/files/{file_id}`
 
 | 欄位名 | 類型 | 必填 | 說明 | 範例值 |
 |--------|------|------|------|--------|
@@ -75,7 +75,7 @@ uploading → parsing → chunking → embedding → indexed
 
 ### 2.2 向量切塊集合 (`chunks`)
 
-**Collection Path**：`/knowledge_base/{org_id}/chunks/{chunk_id}`
+**Collection Path**：`/knowledge_base/{organizationId}/chunks/{chunk_id}`
 
 > 此集合亦可儲存於 Firestore Vector Search 或外部向量資料庫（如 Pinecone），但元數據欄位定義須一致。
 
@@ -243,7 +243,7 @@ service cloud.firestore {
     }
 
     // ── 知識庫文件集合 ─────────────────────────────────────
-    match /knowledge_base/{orgId}/files/{fileId} {
+    match /knowledge_base/{organizationId}/files/{fileId} {
       // 讀取：已認證 + 有存取權限
       allow read: if isAuthenticated() && canAccessDocument(resource.data);
 
@@ -261,7 +261,7 @@ service cloud.firestore {
     }
 
     // ── 向量切塊集合 ───────────────────────────────────────
-    match /knowledge_base/{orgId}/chunks/{chunkId} {
+    match /knowledge_base/{organizationId}/chunks/{chunkId} {
       // 讀取：透過後端 Service Account，前端不直接存取 chunks
       allow read: if false;   // 所有讀取由後端 Admin SDK 處理
 
