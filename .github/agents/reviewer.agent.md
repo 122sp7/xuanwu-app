@@ -1,6 +1,7 @@
 ---
 name: reviewer
 description: Review Xuanwu changes with emphasis on regressions, security, ownership, and missing verification.
+model: 'Claude Sonnet 4.5'
 argument-hint: Point to the files, diff, or feature area that should be reviewed.
 tools: ["read", "search", "fetch"]
 target: vscode

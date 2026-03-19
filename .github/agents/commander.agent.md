@@ -1,6 +1,7 @@
 ---
 name: commander
 description: Route Xuanwu tasks to the right planning, implementation, review, or specialist agent before work starts.
+model: 'Claude Sonnet 4.5'
 argument-hint: Describe the task, affected area, and whether you want a plan, implementation, or review.
 tools: ["read", "search", "fetch", "agent"]
 agents:
@@ -41,5 +42,6 @@ handoffs:
    - billing lifecycle or money movement review -> `billing-auditor`
    - Firestore, rules, or tenant-isolation review -> `firestore-guard`
    - RAG ingestion, retrieval, or contract design -> `rag-architect`
-6. Keep routing explicit: state the selected agent, why it fits, and any prerequisite skills or docs that should be loaded.
-7. If the request is simple enough to answer directly without a specialist, answer directly and avoid unnecessary delegation.
+6. Treat the `agents` allowlist as the explicit routing contract. Keep hidden specialists protected from general model invocation and only dispatch to them when the request clearly matches their scope.
+7. Keep routing explicit: state the selected agent, why it fits, and any prerequisite skills or docs that should be loaded.
+8. If the request is simple enough to answer directly without a specialist, answer directly and avoid unnecessary delegation.

@@ -47,6 +47,7 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/instructions/state-machine.instructions.md`
 - `.github/instructions/billing.instructions.md`
 - `.github/instructions/cloud-functions.instructions.md`
+- `.github/instructions/skill-usage.instructions.md`
 
 ### Prompt files
 - `.github/prompts/implement-vsa-mddd.prompt.md`
@@ -80,7 +81,8 @@ The agent workflow is now commander-first:
 - `commander` is the recommended entrypoint. It loads repo context, routes work to the right agent, and keeps users from having to choose the best specialist up front.
 - `planner`, `implementer`, and `reviewer` remain the visible general-purpose workflow for direct access when the route is already obvious.
 - `vsa-mddd-planner` and `vsa-mddd-implementer` remain visible for architecture migration work and explicit handoff-based flows.
-- `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`) so they can still be routed by `commander` without crowding the picker.
+- `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`, `disable-model-invocation: true`) so they can still be routed by `commander` without crowding the picker or being selected accidentally.
+- All custom agents now pin `model: 'Claude Sonnet 4.5'` for more consistent VS Code behavior across planning, implementation, and review flows.
 
 ### Skills
 - `.github/skills/awesome-rag-skill/SKILL.md`
@@ -131,6 +133,7 @@ The active hook set is intentionally minimal. This repository enables one guardr
 - `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
 - `commander.agent.md` is the repo entrypoint for agent routing. It relies on VS Code custom-agent `agents` + `agent` tool support to dispatch planner / implementer / reviewer / specialist work.
+- `.github/instructions/skill-usage.instructions.md` documents when to use explicit `Use skill: ...` references so agent bodies, prompts, and README guidance stay consistent.
 - Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, `shadcn`, and `serena`.
 - Browser coding-agent MCP is configured in repository settings on GitHub.com. Files in `.github/copilot/` are source-of-truth templates and runbooks for that settings payload.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.

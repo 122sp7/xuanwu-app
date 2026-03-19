@@ -1,9 +1,11 @@
 ---
 name: billing-auditor
 description: Analyze billing changes for money movement, auditability, and lifecycle correctness.
+model: 'Claude Sonnet 4.5'
 argument-hint: Point to the billing files, diff, or lifecycle you want audited.
 tools: ["read", "search", "fetch"]
 user-invocable: false
+disable-model-invocation: true
 target: vscode
 ---
 # Billing Auditor

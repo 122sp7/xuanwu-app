@@ -1,6 +1,7 @@
 ---
 name: planner
 description: Analyze Xuanwu changes before implementation and return a minimal, reviewable execution plan.
+model: 'Claude Sonnet 4.5'
 argument-hint: Describe the feature, bug, or module slice that needs a plan.
 tools: ["read", "search", "fetch"]
 target: vscode

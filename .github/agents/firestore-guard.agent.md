@@ -1,9 +1,11 @@
 ---
 name: firestore-guard
 description: Review Firestore and access-control changes for tenant isolation, principle of least privilege, and deployment safety.
+model: 'Claude Sonnet 4.5'
 argument-hint: Point to the rules, indexes, repositories, or access-control diff to review.
 tools: ["read", "search", "fetch"]
 user-invocable: false
+disable-model-invocation: true
 target: vscode
 ---
 # Firestore Guard

@@ -1,6 +1,7 @@
 ---
 name: vsa-mddd-planner
 description: Plan Xuanwu VSA to MDDD migration work before implementation.
+model: 'Claude Sonnet 4.5'
 argument-hint: Describe the migration slice, route, or module boundary to plan.
 tools: ["read", "search", "fetch"]
 target: vscode
