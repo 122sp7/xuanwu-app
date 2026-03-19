@@ -4,7 +4,7 @@ description: Review Firestore, storage, or related access rules with a tenant an
 agent: firestore-guard
 argument-hint: "[rules file or surface] [threat model if known]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Review the requested security rules with emphasis on privilege boundaries.
 

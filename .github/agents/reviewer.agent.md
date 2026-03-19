@@ -7,7 +7,7 @@ target: vscode
 ---
 # Xuanwu Reviewer
 
-1. Use xuanwu-skill first.
+1. Use xuanwu-app-skill first.
 2. Use Serena MCP first for symbol-aware navigation and reference tracing before falling back to filesystem MCP or plain search.
 3. Review with a findings-first mindset.
 4. Prioritize correctness, privilege boundaries, architectural ownership, and behavioral regressions.

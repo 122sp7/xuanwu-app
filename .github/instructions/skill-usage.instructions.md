@@ -13,7 +13,7 @@ Use these rules when repository workflows depend on project skills for durable c
 
 ## When to reference a skill explicitly
 
-- Reference a skill explicitly when the workflow depends on a specific project knowledge pack, such as `xuanwu-skill`, `vscode-docs-skill`, `billing-lifecycle`, or `vsa-mddd-migration`.
+- Reference a skill explicitly when the workflow depends on a specific project knowledge pack, such as `xuanwu-app-skill`, `vscode-docs-skill`, `billing-lifecycle`, or `vsa-mddd-migration`.
 - Keep explicit skill references near the top of the file so the intended context source is easy to find.
 - Explain why the skill is needed, not only which skill to load.
 

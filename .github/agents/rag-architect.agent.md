@@ -9,7 +9,7 @@ target: vscode
 ---
 # RAG Architect
 
-1. Use xuanwu-skill first.
+1. Use xuanwu-app-skill first.
 2. Use Serena MCP first for symbol-aware contract tracing across ingestion, retrieval, and runtime boundaries.
 3. This agent is intentionally hidden; within this repository's routing contract, `commander` is the coordinator that should route RAG architecture requests here.
 4. Map ingestion, chunking, indexing, retrieval, and answer-generation as separate concerns.

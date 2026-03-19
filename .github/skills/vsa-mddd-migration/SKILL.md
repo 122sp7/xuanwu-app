@@ -12,7 +12,7 @@ Use this skill for:
 - aligning UI work with reusable shell and shadcn patterns
 
 ## Mandatory startup sequence
-1. Invoke **Use skill: xuanwu-skill** immediately.
+1. Invoke **Use skill: xuanwu-app-skill** immediately.
 2. Use filesystem MCP to map the relevant folders before opening individual files.
 3. Use repomix MCP for project-wide references and memory MCP for verified migration notes.
 

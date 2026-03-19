@@ -4,7 +4,7 @@ description: Create a work-breakdown task scaffold with scope, dependencies, and
 agent: planner
 argument-hint: "[task goal] [owning module/team]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Create a WBS task scaffold that is implementation-ready.
 

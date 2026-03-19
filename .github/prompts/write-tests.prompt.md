@@ -4,7 +4,7 @@ description: Design or scaffold tests with explicit scope, risks, and verificati
 agent: reviewer
 argument-hint: "[target file or workflow] [test level]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Produce a test plan or scaffold for the requested target.
 

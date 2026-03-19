@@ -14,7 +14,7 @@ Skill 是一個可重用的能力封裝，用來把：
 
 在 Xuanwu 中，Skill 的主要用途是：
 
-- 提供穩定的專案知識包，例如 `xuanwu-skill`
+- 提供穩定的專案知識包，例如 `xuanwu-app-skill`
 - 提供外部參考知識包，例如 `vscode-docs-skill`
 - 提供可重複使用的專案工作流，例如 `billing-lifecycle`、`rag-pipeline`
 
@@ -114,7 +114,7 @@ agents:
 - 長流程拆分文件
 - 不適合直接塞進 `SKILL.md` 的知識摘要
 
-例如 `xuanwu-skill` 與 `vscode-docs-skill` 使用 `references/` 放置 repomix 產物。
+例如 `xuanwu-app-skill` 與 `vscode-docs-skill` 使用 `references/` 放置 repomix 產物。
 
 ### templates/
 
@@ -140,7 +140,7 @@ agents:
 Skill 可能透過兩種方式被使用：
 
 1. **自動匹配**：模型根據 `description` 判斷是否需要
-2. **顯式指定**：例如在 repo workflow 中寫出 `Use skill: xuanwu-skill`
+2. **顯式指定**：例如在 repo workflow 中寫出 `Use skill: xuanwu-app-skill`
 
 因此 `description` 必須：
 

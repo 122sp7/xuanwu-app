@@ -4,7 +4,7 @@ agent: vsa-mddd-implementer
 description: Implement a focused VSA to MDDD migration step with MCP-first execution.
 argument-hint: "[approved plan or migration task]"
 ---
-Use **xuanwu-skill** first, then implement the approved migration step.
+Use **xuanwu-app-skill** first, then implement the approved migration step.
 
 Requirements:
 - use filesystem MCP to understand the project-wide impact before editing

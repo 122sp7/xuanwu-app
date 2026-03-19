@@ -4,7 +4,7 @@ description: Plan a Genkit flow scaffold with explicit boundaries, inputs, outpu
 agent: rag-architect
 argument-hint: "[flow purpose] [input/output expectations]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Design a Genkit flow scaffold for the requested capability.
 

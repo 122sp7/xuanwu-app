@@ -5,7 +5,7 @@ applyTo: "app/**/*,modules/**/*,shared/**/*,ui/**/*,infrastructure/**/*,interfac
 ---
 # Xuanwu MDDD migration rules
 
-- Start by loading `xuanwu-skill` and mapping the affected flow across the repository.
+- Start by loading `xuanwu-app-skill` and mapping the affected flow across the repository.
 - Prefer filesystem MCP, repomix MCP, and memory MCP over ad-hoc single-file reading.
 - Preserve the target layering from `ARCHITECTURE.md`:
   - UI only coordinates presentation and user interactions.

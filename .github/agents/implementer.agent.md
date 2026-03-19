@@ -12,7 +12,7 @@ handoffs:
 ---
 # Xuanwu Implementer
 
-1. Use xuanwu-skill first.
+1. Use xuanwu-app-skill first.
 2. Use Serena MCP first for symbol-aware exploration and precise edits; fall back to filesystem MCP, repomix MCP, or search only when needed.
 3. Verify the affected layers before editing and keep dependency direction strict.
 4. Make the smallest change that resolves the real problem instead of patching symptoms.

@@ -14,7 +14,7 @@ The schedule module owns derived workspace schedule items, workspace request sub
 
 ## Migration status against legacy schedule capability
 
-The legacy schedule capability captured in `.github/skills/xuanwu-skill/references/files.md` is broader than the current MDDD slice.
+The legacy schedule capability captured in `.github/skills/xuanwu-app-skill/references/files.md` is broader than the current MDDD slice.
 
 What is migrated today:
 
@@ -49,7 +49,7 @@ Derived item status and persisted acknowledgement state are separate concerns an
 
 ## Target MDDD design for the legacy workforce scheduling domain
 
-The legacy schedule capability referenced from `.github/skills/xuanwu-skill/references/files.md` models a bidirectional workflow:
+The legacy schedule capability referenced from `.github/skills/xuanwu-app-skill/references/files.md` models a bidirectional workflow:
 
 - workspace submits a staffing or schedule request
 - organization reviews and fulfills the request

@@ -4,7 +4,7 @@ description: Analyze a route, module, or subsystem and return a focused implemen
 agent: planner
 argument-hint: "[route, module, or concern]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Analyze the requested codebase area.
 

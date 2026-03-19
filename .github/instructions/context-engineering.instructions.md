@@ -12,7 +12,7 @@ applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,li
 
 ## Project Context Signals
 
-- Start with `Use skill: xuanwu-skill` before exploring implementation details.
+- Start with `Use skill: xuanwu-app-skill` before exploring implementation details.
 - For `.github/*`, Copilot, agent, prompt, instruction, or skill work, also load `vscode-docs-skill` before editing.
 - Use `ARCHITECTURE.md` as the architectural source of truth and verify actual folders before assuming the migration is complete.
 - Map affected work across `app/`, `modules/`, `core/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/` before editing.

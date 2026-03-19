@@ -79,6 +79,28 @@ jobs:
           uvx --from git+https://github.com/oraios/serena serena start-mcp-server --help
           echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn, serena"
 
+      - name: Validate Serena MCP template
+        run: |
+          node <<'EOF'
+          const fs = require("node:fs");
+          const config = JSON.parse(fs.readFileSync(".github/copilot/serena-coding-agent-mcp.json", "utf8"));
+          const tools = new Set(config?.mcpServers?.serena?.tools ?? []);
+          const required = [
+            "activate_project",
+            "find_symbol",
+            "find_referencing_symbols",
+            "get_symbols_overview",
+            "list_memories",
+            "read_memory",
+            "write_memory",
+            "prepare_for_new_conversation",
+          ];
+          const missing = required.filter((tool) => !tools.has(tool));
+          if (missing.length > 0) {
+            throw new Error(`Missing Serena MCP tools: ${missing.join(", ")}`);
+          }
+          EOF
+
       - name: Validate Copilot customization baseline
         run: |
           test -f .github/copilot-instructions.md
@@ -91,4 +113,7 @@ jobs:
           test -f .github/README.md
           test -f .github/copilot/serena-coding-agent-mcp.json
           test -f .github/copilot/serena-browser-setup.md
+          test -f .serena/project.yml
+          test -d .serena/memories
+          test -f .serena/memories/INDEX.md
           echo "Customization inventory check passed."

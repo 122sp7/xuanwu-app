@@ -6,8 +6,8 @@
 - Keep dependency direction strict: `UI -> Application -> Domain <- Infrastructure`.
 
 ## Always-on working mode
-- **Always start by using `Use skill: xuanwu-skill`** before exploring implementation details.
-- Treat `xuanwu-skill` as the fast index for project structure, module placement, and existing patterns.
+- **Always start by using `Use skill: xuanwu-app-skill`** before exploring implementation details.
+- Treat `xuanwu-app-skill` as the fast index for project structure, module placement, and existing patterns.
 - Prefer project context over single-file edits: understand the affected flow across `app/`, `modules/`, `shared/`, `ui/`, `infrastructure/`, and `interfaces/` before changing code.
 
 ## Copilot customization structure
@@ -21,6 +21,10 @@
 ## Tool priority
 1. **Serena MCP** first for symbol-aware retrieval, references, structure navigation, and precise edits.
    - Use Serena as the default path for understanding and changing code so indexing and repository memory improve over time.
+   - After loading `xuanwu-app-skill`, activate the Serena project for this workspace and follow `.serena/project.yml`.
+   - Use Serena's LSP-backed tools for jump-to-definition, find-references, and symbol navigation before falling back to plain text search.
+   - Treat `.serena/memories/INDEX.md` as the persistent bootstrap for local-context recovery, conversation handoff, and architecture continuity.
+   - Let Serena classify the request first, then decide which additional skill, agent, or prompt file should be loaded for the task.
    - For GitHub-hosted browser coding-agent sessions, keep repository settings MCP config aligned with `.github/copilot/serena-coding-agent-mcp.json`.
 2. **filesystem MCP** for repo-wide structure, trees, multi-file reads, and safe path-aware exploration.
    - Use it when Serena is unavailable or when path-oriented structure inspection is faster than symbol lookup.
@@ -29,10 +33,13 @@
 4. **memory MCP** for durable architecture, migration, and UI pattern notes.
    - Persist verified architecture, module progress, UI patterns, and migration decisions after meaningful steps.
    - When major structure changes land, refresh the project index/skill references used by the team.
-5. **Next DevTools MCP** for real Next.js behavior.
+5. **Client-local memory layers** such as Server-Memory when available in the current client.
+   - Use them only for user-specific workflow preferences, review habits, and environment reminders.
+   - Do not treat client-local memory as the source of truth for repository structure, symbol definitions, or code facts; keep those in Serena / `.serena`.
+6. **Next DevTools MCP** for real Next.js behavior.
    - Prefer runtime inspection over guesswork for App Router, RSC, hydration, routing, cache, and shell behavior.
    - Use browser screenshots only after verifying runtime state.
-6. **shadcn/ui MCP** before inventing or duplicating UI primitives.
+7. **shadcn/ui MCP** before inventing or duplicating UI primitives.
    - Reuse or extend `ui/` and shadcn components instead of creating one-off variants.
 
 ## Architecture and migration rules
@@ -55,6 +62,9 @@
 ## Workflow expectations
 - Plan first, then implement.
 - For `.github/*`, agent, prompt, instruction, skill, or Copilot workflow changes, load `vscode-docs-skill` before editing.
+- For browser coding-agent sessions, use Serena as the project orchestrator: activate the project, read the ordered `.serena/memories`, inspect symbols/references, then choose the next skill, agent, or prompt.
+- If the current client also exposes Server-Memory or another local memory layer, use Serena for project facts first, then cross-check the solution against the stored user preferences from that client-local memory.
+- After large or architecture-significant changes in clients that support both layers, ask whether Serena memory and the client-local memory rules should both be updated.
 - For complex migration tasks, create or update a plan via `.github/prompts` or `.github/agents` instead of jumping straight to edits.
 - If asked to "continue next phase", choose the highest-priority unfinished slice using this order:
   1. close remaining identity/account/organization gaps
@@ -72,5 +82,5 @@
 
 ## References
 - [MDDD architecture guide](../ARCHITECTURE.md)
-- [Xuanwu reference skill](./skills/xuanwu-skill/SKILL.md)
+- [Xuanwu reference skill](./skills/xuanwu-app-skill/SKILL.md)
 - [VSA -> MDDD migration skill](./skills/vsa-mddd-migration/SKILL.md)

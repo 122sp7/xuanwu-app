@@ -4,7 +4,7 @@ agent: vsa-mddd-planner
 description: Analyze current code and produce a minimal VSA to MDDD migration plan.
 argument-hint: "[feature, route, or module to migrate]"
 ---
-Use **xuanwu-skill** first.
+Use **xuanwu-app-skill** first.
 
 Analyze the requested area as part of the Xuanwu **VSA -> MDDD** migration:
 - map the current implementation across `app/`, `modules/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/`
