@@ -18,15 +18,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: npm
 
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci --prefer-offline --no-audit --progress=false
-          else
-            npm install --prefer-offline --no-audit --progress=false
-          fi
+        run: npm install --prefer-offline --no-audit --progress=false --package-lock=false
 
       - name: Lint
         run: npm run lint
