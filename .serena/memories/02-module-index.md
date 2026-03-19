@@ -1,54 +1,70 @@
 # Module Index
 
-## Feature modules under modules/ (verified 2026-03-19 on branch copilot/redesign-scheduling-task-system)
+**Verified:** 2026-03-19 — 17 modules confirmed under `modules/`
 
-- acceptance
-- account
-- ai
-- audit
-- billing
-- daily
-- file
-- finance
-- identity
-- issue
-- notification
-- organization
-- parser
-- qa
-- schedule
-- task
-- workspace
+## Full Module List
 
-## Cross-cutting core modules under core/ (each follows full MDDD: domain/application/infrastructure/interfaces + index.ts)
+| Module | ports/ | AGENT.md | README.md | Notes |
+|--------|--------|----------|-----------|-------|
+| acceptance | ✗ | ✗ | ✓ | |
+| account | ✓ | ✗ | ✗ | |
+| ai | ✓ | ✓ | ✓ | Genkit flows |
+| audit | ✓ | ✓ | ✗ | |
+| billing | ✓ | ✓ | ✓ | See billing-lifecycle skill |
+| daily | ✗ | ✗ | ✗ | |
+| file | ✗ | ✗ | ✓ | |
+| finance | ✓ | ✗ | ✗ | |
+| identity | ✓ | ✗ | ✗ | |
+| issue | ✗ | ✗ | ✗ | |
+| notification | ✓ | ✗ | ✗ | |
+| organization | ✓ | ✗ | ✗ | |
+| parser | ✗ | ✗ | ✓ | |
+| qa | ✗ | ✗ | ✗ | |
+| schedule | ✗ | ✗ | ✓ | MDDD full implementation — see migration/schedule-mddd-progress |
+| task | ✗ | ✗ | ✗ | |
+| workspace | ✓ | ✗ | ✗ | |
 
-- event-core
-- knowledge-core
-- namespace-core
+## Standard MDDD Directory Pattern
 
-## Modules in ARCHITECTURE.md "Fully Complete" list
+Each module may contain:
+```
+modules/<name>/
+├── domain/          entities, value-objects, domain-services, ports, events, errors
+├── application/     use-cases, services
+├── infrastructure/  firebase, adapters
+├── interfaces/      components, hooks, queries, _actions
+└── ports/           (if present) external port contracts
+```
 
-- identity
-- account
-- workspace
-- finance
-- organization
-- notification
-- task
+## Key Module Notes
 
-## Modules with confirmed MDDD scaffolding (application/domain/infrastructure/interfaces + ports/)
+### schedule (active MDDD implementation)
+- Full MDDD domain under `domain/mddd/`
+- 4 use-cases (run, cancel, reject-assignment, reject-request)
+- 6 Firebase MDDD adapters (all implemented)
+- Has Projection value-object + ProjectionQueryRepository port
+- `domain/mddd/errors.ts` with `SCHEDULE_MDDD_ERROR_CODES`
+- See `docs/reference/development-contracts/schedule-contract.md`
 
-- account, ai, billing, identity, organization, workspace
+### ai
+- Genkit-based flows, Genkit 1.30.1
+- `ports/` contains domain port contracts
 
-## Module investigation checklist
+### workspace
+- `interfaces/` has: WorkspaceDailyTab, WorkspaceDetailScreen, WorkspaceHubScreen, WorkspaceMembersTab + hooks + queries
+- Shell routes: `app/(shell)/workspace/` + `app/(shell)/workspace/[workspaceId]/`
 
-- Read the module index.ts first.
-- Confirm domain/application/infrastructure/interfaces folders exist.
-- Verify whether Firebase repositories are real implementations or placeholders.
-- Check whether actions and hooks are thin adapters or contain business logic.
+### billing
+- Follows billing-lifecycle domain pattern
+- `ports/` present
 
-## Previously recorded but NOT present in this workspace snapshot
+### knowledge / retrieval / taxonomy
+- **These modules do NOT exist** — do not assume; use core/knowledge-core instead
 
-- knowledge (lives in core/knowledge-core, not a standalone module/)
-- retrieval (not present as standalone module in this branch)
-- taxonomy (not present in this branch)
+## core/ Modules (separate from modules/)
+
+| Core | Status | Notes |
+|------|--------|-------|
+| event-core | Complete | MDDD — DomainEvent, IEventStore, IEventBus, PublishDomainEvent use-case |
+| knowledge-core | Complete | MDDD — Knowledge entity, 6 VOs, Upstash Redis + Vector infra adapters |
+| namespace-core | Scaffolded only | All subdirs are .gitkeep placeholders |

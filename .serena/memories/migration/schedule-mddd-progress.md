@@ -1,75 +1,103 @@
-# Schedule MDDD Progress
+# Schedule MDDD Migration Progress
 
-Branch: copilot/redesign-scheduling-task-system
-Date: 2026-03-19
+**Branch:** `copilot/redesign-scheduling-task-system`  
+**PR #9:** docs(schedule): define full MDDD contract for bidirectional request→fulfillment workflow  
+**Last verified:** 2026-03-19
 
-## Summary
+## Overall Status: Domain + Infrastructure COMPLETE; UI integration pending
 
-This branch introduces a full MDDD domain sub-package at modules/schedule/domain/mddd/ modelling the legacy workforce scheduling domain as explicit aggregates. The PR #9 defines the full bidirectional request→fulfillment workflow contract.
+## Domain Layer — `modules/schedule/domain/mddd/`
 
-## Domain MDDD sub-package (modules/schedule/domain/mddd/)
+### Entities (6)
+- `Assignment.ts` — ScheduleMdddAssignment
+- `Match.ts` — ScheduleMdddMatch
+- `References.ts` — cross-entity reference aggregation
+- `Request.ts` — ScheduleMdddRequest
+- `Schedule.ts` — ScheduleMddd (aggregate root)
+- `Task.ts` — ScheduleMdddTask
 
-### Entities
-- Request — workspace-originated staffing/schedule request; status transitions via REQUEST_STATUS_TRANSITIONS; factory: createRequest
-- Schedule — time allocation aggregate; status transitions via SCHEDULE_STATUS_TRANSITIONS; factory: createSchedule
-- Task — assignable unit derived from a Request; status transitions via TASK_STATUS_TRANSITIONS; factory: createTask
-- Assignment — organization-owned fulfillment lifecycle; status transitions via ASSIGNMENT_STATUS_TRANSITIONS; factory: createAssignment
-- Match — task-skill/capability evaluation result; factory: createMatch
-- References — cross-aggregate ID reference value object
+### Value Objects (4)
+- `WorkflowStatuses.ts`
+- `Requirements.ts`
+- `Scheduling.ts`
+- `Projection.ts` — `ScheduleMdddFlowProjection` interface (read-model)
 
-### Value objects
-- WorkflowStatuses — canonical status sets: REQUEST_STATUSES, SCHEDULE_STATUSES, TASK_STATUSES, ASSIGNMENT_STATUSES; typed variables: RequestStatus, ScheduleStatus, TaskStatus, AssignmentStatus
-- Requirements — skill/capability requirements model
-- Scheduling — time window and scheduling constraint model
+### Repository Ports (9)
+- `AssignmentRepository.ts`
+- `MatchRepository.ts`
+- `MemberAvailabilityRepository.ts`
+- `OrganizationStructureRepository.ts`
+- `ProjectionRepository.ts` — write-side projection
+- `ProjectionQueryRepository.ts` — `ScheduleMdddProjectionQueryRepository` read-side
+- `RequestRepository.ts`
+- `ScheduleRepository.ts`
+- `TaskRepository.ts`
 
-### Domain services
-- matching-engine.ts — computeScore, matchTaskCandidates, satisfiesHardConstraints, includesAllRequiredSkills, includesAllRequiredCapabilities, hasSufficientSkillLevel; constants: MATCHING_SCORE_WEIGHTS, SKILL_LEVEL_RANK
-- scheduling-engine.ts — canAllocateSchedule, detectScheduleConflicts, isSlotWithinAvailability, overlaps, resolveConcurrencyLimit, resolveLoadLimit; constant: ACTIVE_SCHEDULE_STATUSES
-
-### Repository ports (interfaces only)
-- RequestRepository, ScheduleRepository, TaskRepository, AssignmentRepository, MatchRepository, MemberAvailabilityRepository, OrganizationStructureRepository, ProjectionRepository
+### Domain Services (2)
+- `matching-engine.ts`
+- `scheduling-engine.ts`
 
 ### Events
-- ScheduleDomainEvents — domain event type definitions
+- `ScheduleDomainEvents.ts`
+
+### Errors
+- `errors.ts` — `SCHEDULE_MDDD_ERROR_CODES` enum, `ScheduleMdddDomainError` class
 
 ### Utils
-- create-id.ts — deterministic ID generator for aggregates
+- `create-id.ts`
 
-## Application layer (modules/schedule/application/use-cases/mddd/)
+## Application Layer — `modules/schedule/application/use-cases/mddd/`
 
-- RunScheduleMdddFlowUseCase — orchestrates the full matching + scheduling + assignment creation flow
-  - Input: RunScheduleMdddFlowInput
-  - Output: RunScheduleMdddFlowResult (CommandResult-aligned)
-  - Constants: ASSIGNMENT_REJECTION_REASON_UNSPECIFIED, DEFAULT_ASSIGNMENT_LOAD_WEIGHT, REVIEW_REJECTION_REASON_UNSPECIFIED
+| Use Case File | Class | Status |
+|---------------|-------|--------|
+| `run-schedule-mddd-flow.use-case.ts` | `RunScheduleMdddFlowUseCase` | ✅ |
+| `cancel-schedule.use-case.ts` | `CancelScheduleUseCase` | ✅ |
+| `reject-schedule-assignment.use-case.ts` | `RejectScheduleAssignmentUseCase` | ✅ |
+| `reject-schedule-request.use-case.ts` | `RejectScheduleRequestUseCase` | ✅ |
 
-## Interface layer (modules/schedule/interfaces/)
+## Infrastructure Layer — `modules/schedule/infrastructure/firebase/`
 
-- _actions/schedule-mddd.actions.ts — Next.js "use server" thin wrapper around RunScheduleMdddFlowUseCase
-- _actions/schedule-request.actions.ts — request submission actions
-- _actions/schedule.actions.ts — legacy schedule actions (acknowledge, list)
-- queries/schedule.queries.ts — query wrappers
-- components/WorkspaceScheduleTab.tsx — shell component
+### MDDD Adapters (all implemented ✅)
+- `FirebaseMdddAssignmentRepository.ts`
+- `FirebaseMdddMatchRepository.ts`
+- `FirebaseMdddProjectionRepository.ts` — exports `appendEventType`, `applyEvent`
+- `FirebaseMdddRequestRepository.ts`
+- `FirebaseMdddScheduleRepository.ts`
+- `FirebaseMdddTaskRepository.ts`
 
-## Infrastructure layer (modules/schedule/infrastructure/)
+### Legacy Adapters (kept for backwards compatibility)
+- `FirebaseScheduleAcknowledgementRepository.ts`
+- `FirebaseScheduleRequestRepository.ts`
+- `FirebaseWorkspaceScheduleRepository.ts`
 
-- firebase/FirebaseScheduleRequestRepository.ts — Firestore adapter for Request
-- firebase/FirebaseWorkspaceScheduleRepository.ts — Firestore adapter for derived workspace schedule items
-- firebase/FirebaseScheduleAcknowledgementRepository.ts — Firestore adapter for acknowledgement
-- firebase/converters/schedule-request.converter.ts — Firestore ↔ domain converter
-- default/DefaultWorkspaceScheduleRepository.ts — fallback/default adapter
+> ⚠️ Previous memory stated "Firebase adapters not yet implemented" — INCORRECT.  
+> All 6 `FirebaseMddd*Repository` adapters are COMPLETE.
 
-## Legacy slices still in modules/schedule/domain/ (non-mddd)
+## Interface Layer — `modules/schedule/interfaces/`
 
-- entities/ScheduleItem.ts, ScheduleRequest.ts, ScheduleAcknowledgement.ts — original migrated slice for workspace readiness / request submission / acknowledgement; these remain active and should not be removed before the MDDD aggregates have full Firebase adapters.
+### Server Actions — `_actions/schedule-mddd.actions.ts`
+- `runScheduleMdddFlow`
+- `cancelSchedule`
+- `rejectScheduleAssignment`
+- `rejectScheduleRequest`
+- `createRunFlowUseCase` (factory helper)
 
-## What is NOT yet implemented
+### Queries — `queries/schedule-mddd.queries.ts`
+- `getScheduleMdddFlowProjection` — fetch single projection
+- `listWorkspaceScheduleMdddFlowProjections` — list projections for workspace
+- `projectionRepository` — shared repo instance
 
-- Firebase adapters for the new MDDD aggregates (task, assignment, match, schedule) — MDDD flow currently runs in-memory
-- Persistent projection repository for schedule_items
-- Domain event routing to notification module
-- Organization-owned HR governance UI
-- Full request lifecycle: draft, cancel, close
+## Development Contract
 
-## Key rule from README
+See `docs/reference/development-contracts/schedule-contract.md` — defines:
+- Bidirectional request→fulfillment workflow
+- All domain event contracts
+- Acceptance criteria and delivery gates
 
-Derived item status and persisted acknowledgement state are separate concerns and must not be merged into one mutable document shape.
+## Next Steps (Priority Order)
+
+1. **UI components** — Build schedule MDDD flow screens (WorkspaceScheduleTab, FlowCard, etc.)
+2. **Schedule state machine** — XState machine wiring for workflow transitions
+3. **Integration tests** — End-to-end flow tests for run→cancel/reject paths
+4. **Legacy migration** — Retire legacy Firebase adapters once MDDD flow is validated
+5. **Firestore indexes** — Confirm `firestore.indexes.json` covers projection queries
