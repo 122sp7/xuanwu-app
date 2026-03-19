@@ -7,7 +7,7 @@ description: Implementation contract for the current knowledge read-side surface
 
 ## Scope
 
-This contract defines the current knowledge boundary as a read-side summary surfaced in the workspace UI. It also records the ownership rules that future ingestion, chunk, retrieval, and governance work must preserve while the broader knowledge architecture in `docs/architecture/knowledge.md` remains the target design.
+This contract defines the current knowledge boundary as a read-side summary surfaced in the workspace UI, and aligns the MVP write-side boundary with `docs/architecture/knowledge.md`.
 
 ## Current owner and dependencies
 
@@ -55,9 +55,11 @@ The current knowledge summary may derive state from these inputs only:
 
 The current query path must not directly read storage blobs, chunk collections, vector indexes, or retrieval logs.
 
-## Future write-side boundary
+## MVP write-side boundary (architecture-aligned)
 
-When ingestion and retrieval are introduced, they should become knowledge-owned records rather than being written into workspace or file projections.
+The current implementation-aligned MVP follows the architecture spec: file upload registration and ingestion lifecycle are recorded in knowledge-base documents and chunks, while the workspace Knowledge tab remains a read-side posture surface.
+
+The long-term target remains a knowledge-owned aggregate, but this contract uses the current MVP write-side lifecycle and vocabulary to stay consistent with the shipped architecture.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -65,7 +67,7 @@ When ingestion and retrieval are introduced, they should become knowledge-owned 
 | `workspaceId` | `string` | yes | Workspace boundary |
 | `sourceFileId` | `string` | yes | File module reference |
 | `sourceVersionId` | `string` | no | File-version correlation |
-| `status` | `queued \| processing \| ready \| failed \| archived` | yes | Knowledge document lifecycle |
+| `status` | `uploaded \| processing \| ready \| failed \| archived` | yes | Knowledge document lifecycle |
 | `chunkCount` | `number` | no | Terminal write-back metric |
 | `retrievalPolicyId` | `string` | no | Future retrieval or governance linkage |
 | `triggeredByAccountId` | `string` | yes | Audit actor |
@@ -78,12 +80,13 @@ When ingestion and retrieval are introduced, they should become knowledge-owned 
 | --- | --- | --- | --- |
 | `needs-input` | derived knowledge summary | `staged` | No ready assets yet |
 | `staged` | derived knowledge summary | `ready`, `needs-input` | Visible UI is online, but some blocking inputs remain |
-| `ready` | derived knowledge summary or future knowledge orchestration | `processing`, `staged` | Read-side summary may show ready before write-side exists |
-| `processing` | future knowledge worker | `ready`, `failed`, `archived` | Knowledge-owned write-side state |
-| `failed` | future knowledge worker | `processing`, `staged` | Retry path must keep audit history |
+| `ready` | derived knowledge summary | `staged` | Read-side summary posture; not a write-side owner state transition |
+| `uploaded` | ingestion trigger | `processing` | Write-side document registered and queued for processing |
+| `processing` | ingestion worker | `ready`, `failed`, `archived` | Write-side lifecycle state |
+| `failed` | ingestion worker | `processing` | Retry path must keep audit history |
 | `archived` | governance flow | terminal until an explicit restore flow exists | Not owned by workspace UI |
 
-`needs-input`, `staged`, and `ready` are summary states. `processing`, `failed`, and `archived` belong to a future knowledge-owned aggregate and must not be backfilled into workspace or parser summaries.
+`needs-input`, `staged`, and `ready` are summary states. `uploaded`, `processing`, `failed`, and `archived` are write-side lifecycle states and must not be backfilled into workspace or parser summaries.
 
 ## Invariants
 
