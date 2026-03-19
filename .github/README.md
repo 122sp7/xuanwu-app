@@ -30,8 +30,8 @@ This document records the active Copilot customization layout in this repository
 | Need | Preferred tool |
 | --- | --- |
 | Symbols, references, precise edits | Serena MCP |
-| Repository tree, path-aware exploration | filesystem MCP |
-| Repo-wide reference pack or index | repomix MCP |
+| Repository tree, path-aware exploration | filesystem MCP when Serena is unavailable or path-level structure is faster |
+| Repo-wide reference pack or index | repomix MCP when Serena and filesystem do not provide enough cross-cutting context |
 | Long-lived architecture or workflow facts | memory MCP |
 | Next.js runtime behavior | next-devtools MCP |
 | UI primitives and examples | shadcn MCP |
