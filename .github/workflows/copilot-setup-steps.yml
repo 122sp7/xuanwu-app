@@ -1,10 +1,7 @@
 version: "1"
 setup:
-  - name: Auto Environment Setup
-    description: Ensure both Node and Python environments are locked and synced
+  - name: Global Environment Setup
+    description: Install Node 24 and Python uv
     steps:
       - run: npm install
-      - run: |
-          cd lib/firebase/functions-python
-          if [ ! -f uv.lock ]; then uv lock; fi
-          uv sync
+      - run: uv sync --directory lib/firebase/functions-python
