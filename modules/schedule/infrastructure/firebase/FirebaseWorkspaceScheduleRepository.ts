@@ -16,16 +16,16 @@ import {
 } from "../../domain/services/derive-schedule-items";
 
 function toScheduleFinanceSnapshot(
-  finance: Awaited<ReturnType<FirebaseFinanceRepository["findByWorkspaceId"]>>,
+  financeEntity: Awaited<ReturnType<FirebaseFinanceRepository["findByWorkspaceId"]>>,
 ): WorkspaceFinanceScheduleSnapshot | null {
-  if (!finance) {
+  if (!financeEntity) {
     return null;
   }
 
   return {
-    stage: finance.stage,
-    paymentTermStartAtISO: finance.paymentTermStartAtISO,
-    paymentReceivedAtISO: finance.paymentReceivedAtISO,
+    stage: financeEntity.stage,
+    paymentTermStartAtISO: financeEntity.paymentTermStartAtISO,
+    paymentReceivedAtISO: financeEntity.paymentReceivedAtISO,
   };
 }
 
