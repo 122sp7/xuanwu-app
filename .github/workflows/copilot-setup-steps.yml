@@ -76,15 +76,19 @@ jobs:
           npx -v
           python --version
           uv --version
-          echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn"
+          uvx --from git+https://github.com/oraios/serena serena start-mcp-server --help
+          echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn, serena"
 
       - name: Validate Copilot customization baseline
         run: |
           test -f .github/copilot-instructions.md
+          test -d .github/copilot
           test -d .github/instructions
           test -d .github/agents
           test -d .github/prompts
           test -d .github/skills
           test -f .github/hooks/guardrails.json
           test -f .github/README.md
+          test -f .github/copilot/serena-coding-agent-mcp.json
+          test -f .github/copilot/serena-browser-setup.md
           echo "Customization inventory check passed."
