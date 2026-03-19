@@ -14,6 +14,7 @@
 - Keep always-on guidance in `.github/copilot-instructions.md`.
 - Keep path-scoped guidance in `.github/instructions/*.instructions.md` with explicit `applyTo` globs.
 - Keep reusable workflows in `.github/prompts/*.prompt.md` and `.github/agents/*.agent.md`.
+- Keep GitHub Copilot coding-agent environment bootstrap in `.github/workflows/copilot-setup-steps.yml` with a single job named exactly `copilot-setup-steps`.
 - Keep hook automation in `.github/hooks/*.json` only after lifecycle ownership and rollback are defined.
 - Keep on-demand reference packages in `.github/skills/*/SKILL.md`.
 
