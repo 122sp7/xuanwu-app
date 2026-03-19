@@ -45,6 +45,42 @@ The shipped visible surface is the workspace detail page Knowledge tab:
 - shell mount: `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
 - purpose: make the contract visible and testable before knowledge write-side work lands
 
+## UI/UX delivery contract (workspace knowledge tab)
+
+This contract defines the minimum UI/UX behavior required for delivery so the knowledge surface is testable, user-visible, and architecture-safe.
+
+### Surface and navigation
+
+- The user can reach `Knowledge` from the workspace detail tabs in `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`.
+- The tab renders `WorkspaceKnowledgeTab` from `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`.
+
+### Required UI states
+
+| UI state | Trigger | Required behavior |
+| --- | --- | --- |
+| `loading` | Knowledge summary query in-flight | Show loading hint and avoid stale error text |
+| `loaded` | Summary query succeeds | Show counts, posture badge, blocked reasons, and next actions |
+| `error` | Summary query fails | Show fallback message and keep contract-visible defaults (`visibleSurface`, `contractStatus`) |
+
+### Required visible fields
+
+The tab must visibly render at least:
+
+- `registeredAssetCount`
+- `readyAssetCount`
+- `supportedSourceCount`
+- `status` badge (`needs-input | staged | ready`)
+- `visibleSurface` and `contractStatus` badges
+- blocked reasons list (or explicit empty-state text)
+- recommended next actions list
+
+### UX acceptance criteria
+
+1. A workspace user can open the Knowledge tab and see a non-empty contract surface even when data loading fails.
+2. The tab clearly distinguishes derived summary posture (`needs-input | staged | ready`) from write-side lifecycle states.
+3. The tab does not expose ingestion internals as if they were owned by workspace UI state.
+4. The tab content maps directly to this contract and `docs/architecture/knowledge.md` without conflicting terminology.
+
 ## Input contract
 
 The current knowledge summary may derive state from these inputs only:

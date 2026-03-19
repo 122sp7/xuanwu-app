@@ -2,7 +2,7 @@
 
 **Bootstrap instructions:** Read this file first, then load the numbered memories in order. Only load migration/* and ui/* memories when working in those areas.
 
-**Last updated:** 2026-03-19 | Branch: `copilot/redesign-scheduling-task-system`
+**Last updated:** 2026-03-20 | Branch: `main`
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Memory | Description |
 |--------|-------------|
-| `06-docs-and-contracts` | **docs/ structure**: 11 RAG ADRs, 6 delivery contracts, architecture docs, design diagrams, Python ADRs |
+| `06-docs-and-contracts` | **docs/ structure**: 11 RAG ADRs, 7 delivery contracts, architecture docs, design diagrams, Python ADRs |
 | `07-python-functions` | Python Firebase Functions: rag_ingestion + document_ai bounded contexts, deploy pattern |
 
 ---
@@ -56,5 +56,5 @@
 - **Delivery contracts**: always read `docs/reference/development-contracts/<module>-contract.md` before implementing
 - **Python functions**: `lib/firebase/functions-python/` — deploy with `npm run deploy:functions:python`
 - **namespace-core**: scaffolded only (all .gitkeep) — do not assume it has working code
-- **knowledge/retrieval/taxonomy** top-level modules: do NOT exist — use `core/knowledge-core` instead
+- **knowledge module**: top-level `modules/knowledge` exists and owns workspace Knowledge tab read-side surface
 - **Validate with**: `npm run lint` or `npm run build` (no `typecheck` or `check` script on this branch)
