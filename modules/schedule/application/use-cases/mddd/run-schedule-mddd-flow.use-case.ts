@@ -16,6 +16,30 @@ import {
   type Task,
 } from "../../../domain/mddd";
 
+// In this first runtime slice, one assignment consumes one abstract capacity unit.
+const DEFAULT_ASSIGNMENT_LOAD_WEIGHT = 1;
+
+function createId(prefix: string): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${prefix}_${Date.now()}_${random}`;
+}
+
+export type RunScheduleMdddFlowResult =
+  | {
+      readonly success: true;
+      readonly command: CommandResult;
+      readonly data: RunScheduleMdddFlowOutput;
+    }
+  | {
+      readonly success: false;
+      readonly command: CommandResult;
+      readonly reason: string;
+    };
+
 export interface RunScheduleMdddFlowInput {
   readonly workspaceId: string;
   readonly organization: Organization;
@@ -39,13 +63,12 @@ export interface RunScheduleMdddFlowOutput {
 }
 
 export class RunScheduleMdddFlowUseCase {
-  execute(input: RunScheduleMdddFlowInput):
-    | { readonly command: CommandResult; readonly data: RunScheduleMdddFlowOutput }
-    | { readonly command: CommandResult; readonly reason: string } {
+  execute(input: RunScheduleMdddFlowInput): RunScheduleMdddFlowResult {
     const nowISO = new Date().toISOString();
 
     if (!input.workspaceId.trim()) {
       return {
+        success: false,
         command: commandFailureFrom("SCHEDULE_WORKSPACE_REQUIRED", "Workspace is required."),
         reason: "invalid_workspace",
       };
@@ -53,6 +76,7 @@ export class RunScheduleMdddFlowUseCase {
 
     if (input.requiredSkills.length === 0 || input.requiredHeadcount <= 0) {
       return {
+        success: false,
         command: commandFailureFrom(
           "SCHEDULE_REQUIREMENTS_INVALID",
           "Schedule request requires positive headcount and at least one skill requirement.",
@@ -62,7 +86,7 @@ export class RunScheduleMdddFlowUseCase {
     }
 
     const request = createRequest({
-      requestId: `req_${Date.now()}`,
+      requestId: createId("req"),
       workspaceId: input.workspaceId,
       organizationId: input.organization.organizationId,
       requiredSkills: input.requiredSkills,
@@ -74,7 +98,7 @@ export class RunScheduleMdddFlowUseCase {
     });
 
     const task = createTask({
-      taskId: `task_${Date.now()}`,
+      taskId: createId("task"),
       requestId: request.requestId,
       organizationId: request.organizationId,
       requiredSkills: request.requiredSkills,
@@ -93,6 +117,7 @@ export class RunScheduleMdddFlowUseCase {
 
     if (!matching.bestMatch) {
       return {
+        success: false,
         command: commandFailureFrom(
           "SCHEDULE_MATCH_NOT_FOUND",
           "No eligible member found for required skills/capabilities and constraints.",
@@ -107,6 +132,7 @@ export class RunScheduleMdddFlowUseCase {
 
     if (!selectedCandidate) {
       return {
+        success: false,
         command: commandFailureFrom(
           "SCHEDULE_MATCH_CANDIDATE_NOT_FOUND",
           "Selected match candidate is missing from candidate pool.",
@@ -121,11 +147,12 @@ export class RunScheduleMdddFlowUseCase {
       schedules: input.existingSchedules ?? [],
       assigneeAccountUserId: selectedCandidate.accountUserId,
       existingLoadUnits: selectedCandidate.currentLoadUnits,
-      nextLoadUnits: 1,
+      nextLoadUnits: DEFAULT_ASSIGNMENT_LOAD_WEIGHT,
     });
 
     if (!allocation.allowed) {
       return {
+        success: false,
         command: commandFailureFrom(
           "SCHEDULE_ALLOCATION_REJECTED",
           `Scheduling rejected: ${allocation.reason ?? "unknown"}`,
@@ -135,7 +162,7 @@ export class RunScheduleMdddFlowUseCase {
     }
 
     const assignment = createAssignment({
-      assignmentId: `assignment_${Date.now()}`,
+      assignmentId: createId("assignment"),
       requestId: request.requestId,
       taskId: task.taskId,
       organizationId: request.organizationId,
@@ -145,12 +172,12 @@ export class RunScheduleMdddFlowUseCase {
     });
 
     const schedule = createSchedule({
-      scheduleId: `schedule_${Date.now()}`,
+      scheduleId: createId("schedule"),
       assignmentId: assignment.assignmentId,
       taskId: task.taskId,
       assigneeAccountUserId: selectedCandidate.accountUserId,
       calendarSlot: input.scheduleSlot,
-      loadUnits: 1,
+      loadUnits: DEFAULT_ASSIGNMENT_LOAD_WEIGHT,
       nowISO,
     });
 
@@ -176,15 +203,10 @@ export class RunScheduleMdddFlowUseCase {
         assigneeAccountUserId: assignment.assigneeAccountUserId,
         occurredAtISO: nowISO,
       },
-      {
-        type: "TaskCompleted",
-        taskId: task.taskId,
-        scheduleId: schedule.scheduleId,
-        occurredAtISO: nowISO,
-      },
     ];
 
     return {
+      success: true,
       command: commandSuccess(schedule.scheduleId, Date.now()),
       data: {
         request,

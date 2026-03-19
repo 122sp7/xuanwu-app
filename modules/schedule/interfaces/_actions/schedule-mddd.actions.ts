@@ -1,27 +1,21 @@
 "use server";
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom } from "@/shared/types";
 import {
   RunScheduleMdddFlowUseCase,
   type RunScheduleMdddFlowInput,
-  type RunScheduleMdddFlowOutput,
+  type RunScheduleMdddFlowResult,
 } from "../../application/use-cases/mddd/run-schedule-mddd-flow.use-case";
-
-const runScheduleMdddFlowUseCase = new RunScheduleMdddFlowUseCase();
-
-export interface RunScheduleMdddFlowResult {
-  readonly command: CommandResult;
-  readonly data?: RunScheduleMdddFlowOutput;
-  readonly reason?: string;
-}
 
 export async function runScheduleMdddFlow(
   input: RunScheduleMdddFlowInput,
 ): Promise<RunScheduleMdddFlowResult> {
   try {
-    return runScheduleMdddFlowUseCase.execute(input);
+    const useCase = new RunScheduleMdddFlowUseCase();
+    return useCase.execute(input);
   } catch (error) {
     return {
+      success: false,
       command: commandFailureFrom(
         "SCHEDULE_MDDD_FLOW_FAILED",
         error instanceof Error ? error.message : "Unexpected schedule MDDD flow error",

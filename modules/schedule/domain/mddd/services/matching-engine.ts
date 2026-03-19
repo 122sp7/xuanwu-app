@@ -9,6 +9,15 @@ const SKILL_LEVEL_RANK: Record<SkillLevel, number> = {
   senior: 3,
 };
 
+// Current scoring policy prioritizes skill coverage first (0.6) because missing core skills
+// is the most expensive scheduling failure, then capability coverage (0.4) for compliance fit,
+// and applies a small per-load penalty (0.1) to reduce overload risk without dominating fit.
+const MATCHING_SCORE_WEIGHTS = {
+  skillCoverage: 0.6,
+  capabilityCoverage: 0.4,
+  loadPenaltyPerUnit: 0.1,
+} as const;
+
 function isSkillLevel(value: string): value is SkillLevel {
   return (SKILL_LEVELS as readonly string[]).includes(value);
 }
@@ -56,13 +65,29 @@ function computeScore(task: Task, user: AccountUser): number {
   const capabilityCoverage =
     task.requiredCapabilities.length === 0 ? 1 : matchedCapabilities / task.requiredCapabilities.length;
 
-  const loadPenalty = Math.max(user.currentLoadUnits, 0) * 0.1;
-  return Number((skillCoverage * 0.6 + capabilityCoverage * 0.4 - loadPenalty).toFixed(4));
+  const loadPenalty =
+    Math.max(user.currentLoadUnits, 0) * MATCHING_SCORE_WEIGHTS.loadPenaltyPerUnit;
+  return Number(
+    (
+      skillCoverage * MATCHING_SCORE_WEIGHTS.skillCoverage +
+      capabilityCoverage * MATCHING_SCORE_WEIGHTS.capabilityCoverage -
+      loadPenalty
+    ).toFixed(4),
+  );
 }
 
 export interface MatchingResult {
   readonly matches: readonly Match[];
   readonly bestMatch: Match | null;
+}
+
+function createMatchId(taskId: string): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `match_${taskId}_${crypto.randomUUID()}`;
+  }
+
+  const random = Math.random().toString(36).slice(2, 10);
+  return `match_${taskId}_${Date.now()}_${random}`;
 }
 
 export function matchTaskCandidates(
@@ -75,7 +100,7 @@ export function matchTaskCandidates(
 ): MatchingResult {
   const { task, candidates, organization, nowISO } = params;
 
-  const matches = candidates.map((candidate, index) => {
+  const matches = candidates.map((candidate) => {
     const skillPass = includesAllRequiredSkills(task, candidate);
     const capabilityPass = includesAllRequiredCapabilities(task, candidate);
     const loadPass = candidate.currentLoadUnits < organization.maxLoadPerMember;
@@ -86,7 +111,7 @@ export function matchTaskCandidates(
     if (!capabilityPass) violations.push("missing_required_capabilities");
     if (!loadPass) violations.push("member_overloaded");
 
-    return createMatch(`${task.taskId}__match__${index + 1}`, task.taskId, nowISO, {
+    return createMatch(createMatchId(task.taskId), task.taskId, nowISO, {
       accountUserId: candidate.accountUserId,
       score: computeScore(task, candidate),
       eligible: constraintPass,

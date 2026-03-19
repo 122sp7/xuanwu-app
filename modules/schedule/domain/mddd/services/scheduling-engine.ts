@@ -1,6 +1,8 @@
 import type { Schedule } from "../entities/Schedule";
 import type { Availability, CalendarSlot } from "../value-objects/Scheduling";
 
+const ACTIVE_SCHEDULE_STATUSES = ["planned", "reserved", "active"] as const;
+
 function overlaps(a: CalendarSlot, b: CalendarSlot): boolean {
   const aStart = Date.parse(a.startAtISO);
   const aEnd = Date.parse(a.endAtISO);
@@ -43,7 +45,7 @@ export function detectScheduleConflicts(
   return schedules.filter(
     (schedule) =>
       schedule.assigneeAccountUserId === assigneeAccountUserId &&
-      ["planned", "reserved", "active"].includes(schedule.status) &&
+      ACTIVE_SCHEDULE_STATUSES.includes(schedule.status) &&
       overlaps(slot, schedule.calendarSlot),
   );
 }
