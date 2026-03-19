@@ -132,6 +132,19 @@ function applyEvent(
         eventTypes: appendEventType(base.eventTypes, event.type),
         updatedAtISO: event.occurredAtISO,
       };
+    case "ScheduleCancelled":
+      return {
+        ...base,
+        taskId: event.taskId,
+        assignmentId: event.assignmentId,
+        scheduleId: event.scheduleId,
+        taskStatus: "cancelled",
+        assignmentStatus: "cancelled",
+        scheduleStatus: "cancelled",
+        lastReason: event.reason,
+        eventTypes: appendEventType(base.eventTypes, event.type),
+        updatedAtISO: event.occurredAtISO,
+      };
     default:
       return {
         ...base,

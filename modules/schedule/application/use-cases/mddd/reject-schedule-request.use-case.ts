@@ -53,7 +53,7 @@ export class RejectScheduleRequestUseCase {
       };
     }
 
-    if (!["submitted", "under-review", "accepted"].includes(request.status)) {
+    if (!["submitted", "under-review"].includes(request.status)) {
       return {
         command: commandFailure(
           createScheduleMdddDomainError(

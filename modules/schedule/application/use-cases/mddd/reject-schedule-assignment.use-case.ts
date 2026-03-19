@@ -102,6 +102,7 @@ export class RejectScheduleAssignmentUseCase {
 
     events.push({
       type: "AssignmentRejected",
+      requestId: rejectedAssignment.requestId,
       assignmentId: rejectedAssignment.assignmentId,
       taskId: rejectedAssignment.taskId,
       assigneeAccountUserId: rejectedAssignment.assigneeAccountUserId,
