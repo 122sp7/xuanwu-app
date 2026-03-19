@@ -17,6 +17,10 @@ import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects
 
 const COLLECTION_NAME = "scheduleMdddFlowProjections";
 
+function assertUnreachableEvent(event: never): never {
+  throw new Error(`Unhandled schedule domain event: ${JSON.stringify(event)}`);
+}
+
 function appendEventType(
   eventTypes: readonly string[],
   eventType: string,
@@ -145,11 +149,7 @@ function applyEvent(
         updatedAtISO: event.occurredAtISO,
       };
     default:
-      return {
-        ...base,
-        eventTypes: appendEventType(base.eventTypes, event.type),
-        updatedAtISO: event.occurredAtISO,
-      };
+      return assertUnreachableEvent(event);
   }
 }
 
