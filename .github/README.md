@@ -82,6 +82,7 @@ The agent workflow is now commander-first:
 - `planner`, `implementer`, and `reviewer` remain the visible general-purpose workflow for direct access when the route is already obvious.
 - `vsa-mddd-planner` and `vsa-mddd-implementer` remain visible for architecture migration work and explicit handoff-based flows.
 - `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`, `disable-model-invocation: true`) so they can still be routed by `commander` without crowding the picker or being selected accidentally.
+- `disable-model-invocation: true` blocks those specialists from general subagent selection. `commander` can still dispatch them because it explicitly allowlists them in its `agents:` frontmatter.
 - All custom agents now pin `model: 'Claude Sonnet 4.5'` for more consistent VS Code behavior across planning, implementation, and review flows.
 
 ### Skills

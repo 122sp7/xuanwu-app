@@ -63,7 +63,8 @@ license: Complete terms in LICENSE.txt
 - `user-invocable: false`
   - 隱藏於 `/` 選單，但仍可被模型在相關任務中自動載入
 - `disable-model-invocation: true`
-  - 禁止自動載入，只允許手動使用
+  - 禁止模型根據相關性自動載入或作為一般子技能自動挑選
+  - 若仍需保留人工入口，請不要同時把 `user-invocable` 設為 `false`
 
 ## 4. 建議章節
 

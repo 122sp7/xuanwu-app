@@ -1,6 +1,10 @@
 ---
 description: 'Guidelines for explicit skill usage in Copilot agents, prompts, and skill-aware repository workflows'
-applyTo: '.github/agents/*.agent.md,.github/prompts/*.prompt.md,.github/README.md,.github/skills/README.md'
+applyTo:
+  - '.github/agents/*.agent.md'
+  - '.github/prompts/*.prompt.md'
+  - '.github/README.md'
+  - '.github/skills/README.md'
 ---
 
 # Skill Usage Guidelines
