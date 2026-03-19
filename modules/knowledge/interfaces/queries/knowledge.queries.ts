@@ -2,6 +2,7 @@ import { getWorkspaceFiles } from "@/modules/file";
 import {
   DefaultWorkspaceParserRepository,
   GetWorkspaceParserSummaryUseCase,
+  type WorkspaceParserSummary,
 } from "@/modules/parser";
 import type { WorkspaceEntity } from "@/modules/workspace";
 
@@ -13,7 +14,7 @@ export async function getWorkspaceKnowledgeSummary(
   workspace: WorkspaceEntity,
 ): Promise<WorkspaceKnowledgeSummary> {
   const files = await getWorkspaceFiles(workspace);
-  const parserSummary = new GetWorkspaceParserSummaryUseCase(
+  const parserSummary: WorkspaceParserSummary = new GetWorkspaceParserSummaryUseCase(
     new DefaultWorkspaceParserRepository(workspace, files),
   ).execute({
     workspaceId: workspace.id,

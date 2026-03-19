@@ -19,8 +19,16 @@ export function deriveKnowledgeSummary(
   workspace: KnowledgeWorkspaceSnapshot,
   copy: KnowledgeSummaryCopy,
 ): WorkspaceKnowledgeSummary {
-  const blockedReasons = [...workspace.parserBlockedReasons];
-  const nextActions = [...workspace.parserNextActions];
+  const blockedReasons: string[] = [];
+  const nextActionSet = new Set<string>();
+
+  for (const reason of workspace.parserBlockedReasons) {
+    blockedReasons.push(reason);
+  }
+
+  for (const action of workspace.parserNextActions) {
+    nextActionSet.add(action);
+  }
 
   if (workspace.registeredAssetCount === 0) {
     blockedReasons.unshift(copy.noAssetsBlockedReason);
@@ -34,15 +42,15 @@ export function deriveKnowledgeSummary(
         : "ready";
 
   if (status === "staged") {
-    nextActions.push(copy.stagedAction);
+    nextActionSet.add(copy.stagedAction);
   }
 
   if (status === "ready") {
-    nextActions.push(copy.readyAction);
+    nextActionSet.add(copy.readyAction);
   }
 
-  if (nextActions.length === 0) {
-    nextActions.push(copy.defaultAction);
+  if (nextActionSet.size === 0) {
+    nextActionSet.add(copy.defaultAction);
   }
 
   return {
@@ -51,7 +59,7 @@ export function deriveKnowledgeSummary(
     supportedSourceCount: workspace.supportedSourceCount,
     status,
     blockedReasons,
-    nextActions: Array.from(new Set(nextActions)),
+    nextActions: Array.from(nextActionSet),
     visibleSurface: "workspace-tab-live",
     contractStatus: "contract-live",
   };

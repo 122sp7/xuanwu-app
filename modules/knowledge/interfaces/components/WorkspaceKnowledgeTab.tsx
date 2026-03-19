@@ -54,9 +54,7 @@ export function WorkspaceKnowledgeTab({ workspace }: WorkspaceKnowledgeTabProps)
         setSummary(nextSummary);
         setLoadState("loaded");
       } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceKnowledgeTab] Failed to load knowledge summary:", error);
-        }
+        console.warn("[WorkspaceKnowledgeTab] Failed to load knowledge summary:", error);
 
         if (!cancelled) {
           setSummary(EMPTY_SUMMARY);

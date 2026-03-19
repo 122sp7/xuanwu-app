@@ -7,7 +7,7 @@ description: Implementation contract for the current knowledge read-side surface
 
 ## Scope
 
-This contract defines the current knowledge boundary as a read-side summary surfaced in the workspace UI. It also records the ownership rules that future ingestion, chunk, retrieval, and governance work must preserve while the broader knowledge architecture in `/home/runner/work/xuanwu-app/xuanwu-app/docs/architecture/knowledge.md` remains the target design.
+This contract defines the current knowledge boundary as a read-side summary surfaced in the workspace UI. It also records the ownership rules that future ingestion, chunk, retrieval, and governance work must preserve while the broader knowledge architecture in `docs/architecture/knowledge.md` remains the target design.
 
 ## Current owner and dependencies
 
@@ -41,8 +41,8 @@ This contract defines the current knowledge boundary as a read-side summary surf
 
 The shipped visible surface is the workspace detail page Knowledge tab:
 
-- component: `/home/runner/work/xuanwu-app/xuanwu-app/modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
-- shell mount: `/home/runner/work/xuanwu-app/xuanwu-app/modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
+- component: `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
+- shell mount: `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
 - purpose: make the contract visible and testable before knowledge write-side work lands
 
 ## Input contract
@@ -97,6 +97,6 @@ When ingestion and retrieval are introduced, they should become knowledge-owned 
 Before expanding beyond the current read-side slice, the team should define:
 
 - the canonical knowledge document aggregate and storage boundary,
-- how knowledge write-side status maps to the architecture spec fields in `/home/runner/work/xuanwu-app/xuanwu-app/docs/architecture/knowledge.md`,
+- how knowledge write-side status maps to the architecture spec fields in `docs/architecture/knowledge.md`,
 - how retrieval governance and archive flows are audited,
 - and which runtime owns chunk persistence plus vector indexing.

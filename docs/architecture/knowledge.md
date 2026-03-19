@@ -17,9 +17,9 @@ description: Target metadata, versioning, and retrieval architecture for the ent
 
 目前已先上線一個可見的 Knowledge UI 與對應契約，作為後續知識庫實作的入口：
 
-- **可見 UI**：`/home/runner/work/xuanwu-app/xuanwu-app/modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
-- **掛載位置**：`/home/runner/work/xuanwu-app/xuanwu-app/modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
-- **開發契約**：`/home/runner/work/xuanwu-app/xuanwu-app/docs/reference/development-contracts/knowledge-contract.md`
+- **可見 UI**：`modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
+- **掛載位置**：`modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
+- **開發契約**：`docs/reference/development-contracts/knowledge-contract.md`
 
 此頁仍是**目標架構規範**；目前產品已上線的是 read-side Summary + Workspace Tab，可用來驗證 file / parser / knowledge 的責任分界。
 
