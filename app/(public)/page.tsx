@@ -75,7 +75,7 @@ export default function PublicPage() {
             name: "Demo User",
             email: DEV_DEMO_ACCOUNT_EMAIL,
           });
-          router.replace("/dashboard");
+          window.location.assign("/dashboard");
           return;
         }
         setError(result.error.message);
