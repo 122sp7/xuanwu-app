@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { FinanceAggregateEntity } from "@/modules/finance";
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { getFinanceByWorkspaceId } from "@/modules/finance/interfaces/queries/finance.queries";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
+import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
   Card,
@@ -26,22 +25,22 @@ const statusVariantMap = {
 } as const;
 
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
-  const [finance, setFinance] = useState<FinanceAggregateEntity | null>(null);
+  const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadFinance() {
+    async function loadSchedule() {
       setLoadState("loading");
 
       try {
-        const nextFinance = await getFinanceByWorkspaceId(workspace.id);
+        const nextItems = await getWorkspaceSchedule(workspace.id);
         if (cancelled) {
           return;
         }
 
-        setFinance(nextFinance);
+        setItems(nextItems);
         setLoadState("loaded");
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
@@ -49,33 +48,18 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         }
 
         if (!cancelled) {
-          setFinance(null);
+          setItems([]);
           setLoadState("error");
         }
       }
     }
 
-    void loadFinance();
+    void loadSchedule();
 
     return () => {
       cancelled = true;
     };
   }, [workspace.id]);
-
-  const items = useMemo(
-    () =>
-      getWorkspaceSchedule(
-        workspace,
-        finance
-          ? {
-              stage: finance.stage,
-              paymentTermStartAtISO: finance.paymentTermStartAtISO,
-              paymentReceivedAtISO: finance.paymentReceivedAtISO,
-            }
-          : null,
-      ),
-    [finance, workspace],
-  );
 
   return (
     <Card className="border border-border/50">
@@ -91,9 +75,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         )}
 
         {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入 finance 節點，以下先顯示工作區基礎 schedule。
-          </p>
+          <p className="text-sm text-destructive">無法載入 schedule 資料，請稍後再試。</p>
         )}
 
         <div className="space-y-3">

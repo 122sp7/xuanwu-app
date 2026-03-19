@@ -18,11 +18,13 @@ This contract defines how the schedule module combines a derived read model with
 | Workspace scope | `modules/workspace` |
 | Item acknowledgement persistence | `modules/schedule` Firebase adapter |
 
+The schedule query boundary resolves workspace and finance context inside the schedule module. Callers provide `workspaceId` and do not assemble snapshot dependencies themselves.
+
 ## Current read contract
 
 ### Entry point
 
-`getWorkspaceSchedule(workspace, finance)` returns a derived list of `WorkspaceScheduleItem` values.
+`getWorkspaceSchedule(workspaceId)` returns a derived list of `WorkspaceScheduleItem` values.
 
 ### Output shape
 

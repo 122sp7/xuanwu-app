@@ -8,6 +8,7 @@ The schedule module owns derived workspace schedule items and schedule-specific 
 
 - derived read model for workspace schedule items
 - persisted acknowledgement write-side for individual items
+- schedule queries resolve workspace and finance context inside the module from `workspaceId`
 - no broader dismiss, snooze, or reschedule workflow yet
 
 ## Source of truth
