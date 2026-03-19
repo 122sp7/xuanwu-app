@@ -1,4 +1,12 @@
-export const REQUEST_STATUSES = ["draft", "submitted", "under-review", "cancelled", "closed"] as const;
+export const REQUEST_STATUSES = [
+  "draft",
+  "submitted",
+  "under-review",
+  "accepted",
+  "rejected",
+  "cancelled",
+  "closed",
+] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export const TASK_STATUSES = [

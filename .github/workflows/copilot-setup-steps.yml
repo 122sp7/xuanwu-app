@@ -77,19 +77,25 @@ jobs:
           python --version
           uv --version
           uvx --from git+https://github.com/oraios/serena serena start-mcp-server --help
-          echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn, serena"
+          npx -y @modelcontextprotocol/server-sequential-thinking --help
+          echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn, serena, sequential-thinking"
 
       - name: Validate Serena MCP template
         run: |
           node <<'EOF'
           const fs = require("node:fs");
           const config = JSON.parse(fs.readFileSync(".github/copilot/serena-coding-agent-mcp.json", "utf8"));
+          if (!config?.mcpServers?.["sequential-thinking"]) {
+            throw new Error("Missing sequential-thinking MCP server configuration.");
+          }
           const tools = new Set(config?.mcpServers?.serena?.tools ?? []);
           const required = [
             "activate_project",
             "find_symbol",
             "find_referencing_symbols",
+            "find_referencing_code_snippets",
             "get_symbols_overview",
+            "search_for_pattern",
             "list_memories",
             "read_memory",
             "write_memory",

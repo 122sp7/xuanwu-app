@@ -16,7 +16,8 @@ applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,li
 - For `.github/*`, Copilot, agent, prompt, instruction, or skill work, also load `vscode-docs-skill` before editing.
 - Use `ARCHITECTURE.md` as the architectural source of truth and verify actual folders before assuming the migration is complete.
 - Map affected work across `app/`, `modules/`, `core/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/` before editing.
-- Prefer Serena MCP for symbol-aware discovery and precise edits, then use filesystem MCP for structure discovery, repomix MCP for cross-cutting reference lookups, and memory MCP for durable verified facts.
+- Prefer Serena MCP for symbol-aware discovery and precise edits, then use Sequential Thinking to expand the strategy after evidence is collected, then use filesystem MCP for structure discovery, repomix MCP for cross-cutting reference lookups, and memory MCP for durable verified facts.
+- For routing or planning work, package Serena findings as concrete evidence: likely paths, symbols, references, snippets, and architecture constraints.
 
 ## Structure For Better AI Context
 
@@ -45,6 +46,7 @@ applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,li
 - Ask for one migration slice at a time and verify it before expanding scope.
 - If the task spans multiple layers, define the sequence first: contract changes, adapter updates, UI wiring, then validation.
 - For architectural work, prefer plan-first prompts or custom agents before editing broad areas.
+- For ambiguous tasks, let Serena read the code first, then use Sequential Thinking to choose the next prompt, agent, or implementation slice.
 - After meaningful structure changes, refresh relevant `.github` instructions, prompts, or skill references so future sessions inherit the new context.
 
 ## When Copilot Struggles

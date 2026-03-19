@@ -4,8 +4,11 @@ import {
   type Availability,
   type CalendarSlot,
 } from "../value-objects/Scheduling";
+import { SCHEDULE_STATUSES } from "../value-objects/WorkflowStatuses";
 
-const ACTIVE_SCHEDULE_STATUSES = ["planned", "reserved", "active"] as const;
+const ACTIVE_SCHEDULE_STATUSES = SCHEDULE_STATUSES.filter((status) =>
+  ["planned", "reserved", "active"].includes(status),
+);
 
 function overlaps(a: CalendarSlot, b: CalendarSlot): boolean {
   const aStart = Date.parse(a.startAtISO);
@@ -14,6 +17,18 @@ function overlaps(a: CalendarSlot, b: CalendarSlot): boolean {
   const bEnd = Date.parse(b.endAtISO);
 
   return aStart < bEnd && bStart < aEnd;
+}
+
+function resolveConcurrencyLimit(availability: Availability, maxConcurrentAssignments: number): number {
+  const availabilityLimit = Math.max(availability.maxConcurrentAssignments, 0);
+  const organizationLimit = Math.max(maxConcurrentAssignments, 0);
+  return Math.min(availabilityLimit, organizationLimit);
+}
+
+function resolveLoadLimit(availability: Availability, organizationMaxLoadPerMember: number): number {
+  const availabilityLimit = Math.max(availability.maxLoadPerPeriod, 0);
+  const organizationLimit = Math.max(organizationMaxLoadPerMember, 0);
+  return Math.min(availabilityLimit, organizationLimit);
 }
 
 export function isSlotWithinAvailability(slot: CalendarSlot, availability: Availability): boolean {
@@ -63,9 +78,20 @@ export function canAllocateSchedule(
     readonly assigneeAccountUserId: string;
     readonly existingLoadUnits: number;
     readonly nextLoadUnits: number;
+    readonly maxConcurrentAssignments: number;
+    readonly maxLoadPerMember: number;
   },
 ): { readonly allowed: boolean; readonly reason?: string } {
-  const { slot, availability, schedules, assigneeAccountUserId, existingLoadUnits, nextLoadUnits } = params;
+  const {
+    slot,
+    availability,
+    schedules,
+    assigneeAccountUserId,
+    existingLoadUnits,
+    nextLoadUnits,
+    maxConcurrentAssignments,
+    maxLoadPerMember,
+  } = params;
 
   if (!isSlotWithinAvailability(slot, availability)) {
     return { allowed: false, reason: "outside_availability" };
@@ -76,7 +102,18 @@ export function canAllocateSchedule(
     return { allowed: false, reason: "schedule_conflict" };
   }
 
-  if (existingLoadUnits + nextLoadUnits > availability.maxLoadPerPeriod) {
+  const activeSchedulesCount = schedules.filter(
+    (schedule) =>
+      schedule.assigneeAccountUserId === assigneeAccountUserId &&
+      ACTIVE_SCHEDULE_STATUSES.includes(schedule.status),
+  ).length;
+  const concurrencyLimit = resolveConcurrencyLimit(availability, maxConcurrentAssignments);
+  if (activeSchedulesCount >= concurrencyLimit) {
+    return { allowed: false, reason: "concurrency_over_capacity" };
+  }
+
+  const loadLimit = resolveLoadLimit(availability, maxLoadPerMember);
+  if (existingLoadUnits + nextLoadUnits > loadLimit) {
     return { allowed: false, reason: "load_over_capacity" };
   }
 

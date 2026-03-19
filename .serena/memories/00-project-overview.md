@@ -1,23 +1,58 @@
 # Project Overview
 
-Project name: xuanwu-app
-Stack: Next.js 16, React 19, TypeScript 5, Firebase client SDK, Tailwind CSS 4, Zod, Zustand, XState, Upstash.
+**Project name:** xuanwu-app  
+**Verified:** 2026-03-19 on branch `copilot/redesign-scheduling-task-system`
 
-Current top-level slices:
-- app: Next App Router layouts, route groups, providers.
-- modules: business features organized by bounded context.
-- infrastructure: shared external adapters for axios, firebase, upstash.
-- shared: cross-cutting pure types, validators, hooks, constants, utils.
-- ui: reusable UI building blocks and shadcn-based primitives.
-- lib: utility integrations for dragdrop, superjson, upstash, vis, xstate.
+## Stack (exact versions from package.json)
 
-Current package scripts:
-- npm run dev
-- npm run build
-- npm run start
-- npm run lint
+- Next.js 16.1.7 (App Router)
+- React 19.2.3
+- TypeScript 5
+- Firebase 12 (client SDK)
+- Tailwind CSS 4
+- Zod 4.3.6
+- Zustand 5.0.12
+- XState 5.28.0 + @xstate/react 6.1.0
+- Genkit 1.30.1 + @genkit-ai/google-genai 1.30.1
+- Upstash: box 0.1.24, qstash 2.9.1, redis 1.37.0, vector 1.2.3, workflow 1.1.1
+- TanStack: Query 5, Table 8, Form 1, Virtual 3
+- Vis: network 10, timeline 8, graph3d 7, vis-data 8
+- date-fns 4, Axios 1.13.6, uuid 13, superjson 2, sonner 2, recharts 2, cmdk 1
+- Drag-and-drop: @atlaskit/pragmatic-drag-and-drop stack
+- Node engine: 24
 
-Important repository reality:
-- This branch uses top-level app/modules/shared/ui directories.
-- Older skill references mention src/ and docs/architecture; those paths are not present in this workspace snapshot.
-- Do not assume test, typecheck, or check scripts exist unless package.json is updated.
+## Top-level directory slices (all verified to exist)
+
+| Path | Role |
+|------|------|
+| `app/` | Next.js App Router: layouts, route groups, providers |
+| `core/` | Cross-cutting bounded-context cores (event-core, knowledge-core, namespace-core) |
+| `modules/` | 17 feature modules — see 02-module-index |
+| `infrastructure/` | Shared adapters: axios, firebase, upstash |
+| `interfaces/` | graphql/, rest/ entrypoints |
+| `shared/` | Pure cross-cutting: types, validators, hooks, constants, utils |
+| `ui/` | Reusable UI: shadcn/, vis/ |
+| `lib/` | Utility integrations: date-fns, dragdrop, firebase, react-markdown, remark-gfm, superjson, tanstack, upstash, uuid, vis, xstate, zod, zustand + utils.ts |
+| `docs/` | Architecture decisions, designs, contracts (see 06-docs-index) |
+| `assets/`, `public/` | Static assets |
+
+## npm scripts (verified from package.json)
+
+- `npm run dev` — Next.js dev server (Turbopack implied by Next 16)
+- `npm run build` — production build
+- `npm run start` — start production build
+- `npm run lint` — ESLint
+- `deploy:firestore:indexes|rules`, `deploy:storage:rules`, `deploy:rules`, `deploy:apphosting`, `deploy:functions`, `deploy:functions:python`, `deploy:functions:all`, `deploy:firebase`
+- `repomix:skill`, `repomix:remote`, `repomix:remote:vscode-docs`
+
+## Validation guidance
+
+- No `typecheck`, `test`, or `check` script in package.json on this branch.
+- Run `npm run lint` or `npm run build` to validate changes.
+
+## Python Cloud Functions
+
+- Location: `lib/firebase/functions-python/`
+- Runtime: Python with Firebase Functions v2
+- Domains: `rag_ingestion` (full MDDD), `document_ai` (full MDDD)
+- Deploy: `npm run deploy:functions:python`
