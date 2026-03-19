@@ -49,6 +49,7 @@ export interface RunScheduleMdddFlowInput {
   readonly candidates: readonly AccountUser[];
   readonly scheduleSlot: CalendarSlot;
   readonly existingSchedules?: readonly Schedule[];
+  readonly useScaffoldingFastClose?: boolean;
 }
 
 export interface RunScheduleMdddFlowOutput {
@@ -62,6 +63,7 @@ export interface RunScheduleMdddFlowOutput {
 export class RunScheduleMdddFlowUseCase {
   execute(input: RunScheduleMdddFlowInput): RunScheduleMdddFlowResult {
     const nowISO = new Date().toISOString();
+    const useScaffoldingFastClose = input.useScaffoldingFastClose ?? true;
 
     if (!input.workspaceId.trim()) {
       return {
@@ -106,11 +108,11 @@ export class RunScheduleMdddFlowUseCase {
     });
 
     // TODO(schedule-mddd): remove fast-close scaffolding when full review/approval flow is implemented.
-    // First executable slice: transition into under-review, then close immediately so
-    // downstream Task/Assignment/Schedule orchestration can be validated end-to-end.
-    // This is intentional scaffolding for initial runtime verification, not final policy.
+    // First executable slice can run with temporary fast-close scaffolding for end-to-end verification.
     const requestUnderReview = transitionRequestStatus(createdRequest, "under-review", nowISO);
-    const request = transitionRequestStatus(requestUnderReview, "closed", nowISO);
+    const request = useScaffoldingFastClose
+      ? transitionRequestStatus(requestUnderReview, "closed", nowISO)
+      : requestUnderReview;
 
     const createdTask = createTask({
       taskId: createMdddId("task"),
@@ -205,8 +207,9 @@ export class RunScheduleMdddFlowUseCase {
 
     const scheduleReserved = transitionScheduleStatus(plannedSchedule, "reserved", nowISO);
     const nowAt = Date.parse(nowISO);
-    const slotStartAt = Date.parse(input.scheduleSlot.startAtISO);
-    const slotEndAt = Date.parse(input.scheduleSlot.endAtISO);
+    const { startAtISO, endAtISO } = input.scheduleSlot;
+    const slotStartAt = Date.parse(startAtISO);
+    const slotEndAt = Date.parse(endAtISO);
 
     const shouldActivateNow = nowAt >= slotStartAt;
     const scheduleActive = shouldActivateNow

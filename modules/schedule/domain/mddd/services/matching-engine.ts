@@ -9,6 +9,7 @@ const SKILL_LEVEL_RANK: Record<SkillLevel, number> = {
   mid: 2,
   senior: 3,
 };
+const SKILL_LEVEL_SET = new Set<string>(SKILL_LEVELS);
 
 // Current scoring policy prioritizes skill coverage first (0.6) because missing core skills
 // is the most expensive scheduling failure, then capability coverage (0.4) for compliance fit.
@@ -26,7 +27,7 @@ const MATCHING_SCORE_WEIGHTS = {
 } as const;
 
 function isSkillLevel(value: string): value is SkillLevel {
-  return (SKILL_LEVELS as readonly string[]).includes(value);
+  return SKILL_LEVEL_SET.has(value);
 }
 
 function hasSufficientSkillLevel(level: SkillLevel, requiredLevel: SkillLevel): boolean {
@@ -74,13 +75,11 @@ function computeScore(task: Task, user: AccountUser): number {
 
   const loadPenalty =
     Math.max(user.currentLoadUnits, 0) * MATCHING_SCORE_WEIGHTS.loadPenaltyPerUnit;
-  return Number(
-    (
-      skillCoverage * MATCHING_SCORE_WEIGHTS.skillCoverage +
-      capabilityCoverage * MATCHING_SCORE_WEIGHTS.capabilityCoverage -
-      loadPenalty
-    ).toFixed(4),
-  );
+  const score =
+    skillCoverage * MATCHING_SCORE_WEIGHTS.skillCoverage +
+    capabilityCoverage * MATCHING_SCORE_WEIGHTS.capabilityCoverage -
+    loadPenalty;
+  return Math.round(score * 10_000) / 10_000;
 }
 
 export interface MatchingResult {
