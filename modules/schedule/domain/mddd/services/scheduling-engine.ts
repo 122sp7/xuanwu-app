@@ -25,9 +25,9 @@ function resolveConcurrencyLimit(availability: Availability, maxConcurrentAssign
   return Math.min(availabilityLimit, organizationLimit);
 }
 
-function resolveLoadLimit(availability: Availability, maxLoadPerMember: number): number {
+function resolveLoadLimit(availability: Availability, organizationMaxLoadPerMember: number): number {
   const availabilityLimit = Math.max(availability.maxLoadPerPeriod, 0);
-  const organizationLimit = Math.max(maxLoadPerMember, 0);
+  const organizationLimit = Math.max(organizationMaxLoadPerMember, 0);
   return Math.min(availabilityLimit, organizationLimit);
 }
 
