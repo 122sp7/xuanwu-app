@@ -1,12 +1,11 @@
-name: CI (Ultra-Stable Final)
+name: CI (Global UV Sync)
 on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -14,25 +13,15 @@ jobs:
           node-version: 24
           cache: 'npm'
 
-      - name: Setup uv
+      - name: Setup uv (Global)
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
-      - name: Install Node Dependencies
-        run: npm ci
-
-      - name: Setup & Install Python
-        working-directory: lib/firebase/functions-python
+      - name: Install All
         run: |
-          # 1. 如果找不到專案定義，強制初始化一個標準格式
-          if ! grep -q "\[project\]" pyproject.toml 2>/dev/null; then
-            echo "Standard [project] table not found. Initializing..."
-            uv init --lib --name xuanwu-functions --no-workspace .
-          fi
-          
-          # 2. 產生 lock 檔
-          uv lock
-          
-          # 3. 執行安裝 (拿掉 --frozen 以確保第一次自動產生時能成功)
+          npm ci
+          cd lib/firebase/functions-python
+          # 只要確保這行在，管它全域不全域，絕對不會報格式錯誤
+          grep -q "\[project\]" pyproject.toml || echo -e "[project]\nname = \"xuanwu\"\nversion = \"0.1.0\"\ndependencies = []\n\n$(cat pyproject.toml)" > pyproject.toml
           uv sync
