@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose a new capability with user value, scope, and constraints.
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: input
+    id: outcome
+    attributes:
+      label: Desired outcome
+      placeholder: What should users be able to do?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed scope
+      placeholder: modules, routes, data sources, integrations
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and non-goals

@@ -1,0 +1,70 @@
+# Module Index
+
+**Verified:** 2026-03-19 — 17 modules confirmed under `modules/`
+
+## Full Module List
+
+| Module | ports/ | AGENT.md | README.md | Notes |
+|--------|--------|----------|-----------|-------|
+| acceptance | ✗ | ✗ | ✓ | |
+| account | ✓ | ✗ | ✗ | |
+| ai | ✓ | ✓ | ✓ | Genkit flows |
+| audit | ✓ | ✓ | ✗ | |
+| billing | ✓ | ✓ | ✓ | See billing-lifecycle skill |
+| daily | ✗ | ✗ | ✗ | |
+| file | ✗ | ✗ | ✓ | |
+| finance | ✓ | ✗ | ✗ | |
+| identity | ✓ | ✗ | ✗ | |
+| issue | ✗ | ✗ | ✗ | |
+| notification | ✓ | ✗ | ✗ | |
+| organization | ✓ | ✗ | ✗ | |
+| parser | ✗ | ✗ | ✓ | |
+| qa | ✗ | ✗ | ✗ | |
+| schedule | ✗ | ✗ | ✓ | MDDD full implementation — see migration/schedule-mddd-progress |
+| task | ✗ | ✗ | ✗ | |
+| workspace | ✓ | ✗ | ✗ | |
+
+## Standard MDDD Directory Pattern
+
+Each module may contain:
+```
+modules/<name>/
+├── domain/          entities, value-objects, domain-services, ports, events, errors
+├── application/     use-cases, services
+├── infrastructure/  firebase, adapters
+├── interfaces/      components, hooks, queries, _actions
+└── ports/           (if present) external port contracts
+```
+
+## Key Module Notes
+
+### schedule (active MDDD implementation)
+- Full MDDD domain under `domain/mddd/`
+- 4 use-cases (run, cancel, reject-assignment, reject-request)
+- 6 Firebase MDDD adapters (all implemented)
+- Has Projection value-object + ProjectionQueryRepository port
+- `domain/mddd/errors.ts` with `SCHEDULE_MDDD_ERROR_CODES`
+- See `docs/reference/development-contracts/schedule-contract.md`
+
+### ai
+- Genkit-based flows, Genkit 1.30.1
+- `ports/` contains domain port contracts
+
+### workspace
+- `interfaces/` has: WorkspaceDailyTab, WorkspaceDetailScreen, WorkspaceHubScreen, WorkspaceMembersTab + hooks + queries
+- Shell routes: `app/(shell)/workspace/` + `app/(shell)/workspace/[workspaceId]/`
+
+### billing
+- Follows billing-lifecycle domain pattern
+- `ports/` present
+
+### knowledge / retrieval / taxonomy
+- **These modules do NOT exist** — do not assume; use core/knowledge-core instead
+
+## core/ Modules (separate from modules/)
+
+| Core | Status | Notes |
+|------|--------|-------|
+| event-core | Complete | MDDD — DomainEvent, IEventStore, IEventBus, PublishDomainEvent use-case |
+| knowledge-core | Complete | MDDD — Knowledge entity, 6 VOs, Upstash Redis + Vector infra adapters |
+| namespace-core | Scaffolded only | All subdirs are .gitkeep placeholders |

@@ -1,0 +1,50 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "serena": {
+      "type": "local",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide",
+        "--project",
+        "."
+      ],
+      "tools": [
+        "activate_project",
+        "check_onboarding_performed",
+        "onboarding",
+        "get_current_config",
+        "initial_instructions",
+        "find_symbol",
+        "find_referencing_symbols",
+        "find_referencing_code_snippets",
+        "get_symbols_overview",
+        "search_for_pattern",
+        "read_file",
+        "list_dir",
+        "replace_symbol_body",
+        "insert_after_symbol",
+        "insert_before_symbol",
+        "replace_lines",
+        "insert_at_line",
+        "list_memories",
+        "read_memory",
+        "write_memory",
+        "prepare_for_new_conversation",
+        "summarize_changes",
+        "restart_language_server"
+      ]
+    }
+  }
+}
