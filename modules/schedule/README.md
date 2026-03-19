@@ -13,7 +13,7 @@ The schedule module owns derived workspace schedule items and schedule-specific 
 
 ## Migration status against legacy schedule capability
 
-The legacy schedule capability captured in `/home/runner/work/xuanwu-app/xuanwu-app/.github/skills/xuanwu-skill/references/files.md` is broader than the current MDDD slice.
+The legacy schedule capability captured in `.github/skills/xuanwu-skill/references/files.md` is broader than the current MDDD slice.
 
 What is migrated today:
 
