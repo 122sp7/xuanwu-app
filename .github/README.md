@@ -19,6 +19,7 @@ GitHub Copilot coding agent setup steps are configured separately from the six V
 
 - Workflow path: `.github/workflows/copilot-setup-steps.yml`
 - Required job name: `copilot-setup-steps`
+- Supported job keys for this special workflow: `steps`, `permissions`, `runs-on`, `services`, `snapshot`, and `timeout-minutes`
 - Purpose in this repo: preinstall root Node dependencies, Python worker dependencies, and `uv` before the coding agent starts
 
 ## 3) MCP toolchain reference for this repo
@@ -89,5 +90,6 @@ GitHub Copilot coding agent setup steps are configured separately from the six V
 - Keep skills in dedicated folders and make each `SKILL.md` `name` match its parent directory name.
 - Add `.github/hooks/*.json` only after lifecycle event, ownership, and rollback behavior are defined, and remember hooks are currently a VS Code Copilot **Preview** feature.
 - Keep `.github/workflows/copilot-setup-steps.yml` limited to a single `copilot-setup-steps` job so GitHub Copilot coding agent can recognize it.
+- Keep the special `copilot-setup-steps` job limited to the workflow settings GitHub Copilot supports, and move any extra environment configuration into individual steps.
 - Document the difference between active config and reserved paths so readers do not mistake scaffolding for enabled automation.
 - Update this map whenever customization files are added, renamed, or removed.
