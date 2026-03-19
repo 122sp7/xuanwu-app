@@ -1,11 +1,13 @@
 import type { File } from "../../domain/entities/File";
 import type { FileRepository } from "../../domain/repositories/FileRepository";
 import { completeUploadFile } from "../../domain/services/complete-upload-file";
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import type { FileCommandErrorCode } from "../../interfaces/contracts/file-command-result";
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
 } from "../dto/file.dto";
+import { RegisterUploadedRagDocumentUseCase } from "./register-uploaded-rag-document.use-case";
 
 type UploadCompleteFileUseCaseResult =
   | { ok: true; data: UploadCompleteFileOutputDto }
@@ -27,7 +29,10 @@ function isFileScopeMatch(input: {
 }
 
 export class UploadCompleteFileUseCase {
-  constructor(private readonly fileRepository: FileRepository) {}
+  constructor(
+    private readonly fileRepository: FileRepository,
+    private readonly ragDocumentRepository: RagDocumentRepository,
+  ) {}
 
   async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteFileUseCaseResult> {
     const workspaceId = input.workspaceId.trim();
@@ -79,6 +84,14 @@ export class UploadCompleteFileUseCase {
       };
     }
 
+    const version = await this.fileRepository.findVersion(fileId, versionId);
+    if (!version) {
+      return {
+        ok: false,
+        error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." },
+      };
+    }
+
     if (
       !isFileScopeMatch({
         file,
@@ -107,6 +120,16 @@ export class UploadCompleteFileUseCase {
       };
     }
 
+    if (file.source === "file-upload-complete") {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_STATUS_CONFLICT",
+          message: "File upload completion has already been finalized for this version.",
+        },
+      };
+    }
+
     const nextFile = completeUploadFile({
       file,
       completedAtISO: new Date().toISOString(),
@@ -114,12 +137,36 @@ export class UploadCompleteFileUseCase {
 
     await this.fileRepository.save(nextFile);
 
+    const registerUploadedRagDocumentUseCase = new RegisterUploadedRagDocumentUseCase(
+      this.ragDocumentRepository,
+    );
+    const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
+      organizationId,
+      workspaceId,
+      title: file.name,
+      sourceFileName: file.name,
+      mimeType: file.mimeType,
+      storagePath: version.storagePath,
+      checksum: version.checksum,
+    });
+    if (!ragDocumentResult.ok) {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_RAG_REGISTRATION_FAILED",
+          message: ragDocumentResult.error.message,
+        },
+      };
+    }
+
     return {
       ok: true,
       data: {
         fileId: nextFile.id,
         versionId: nextFile.currentVersionId,
         status: "active",
+        ragDocumentId: ragDocumentResult.data.documentId,
+        ragDocumentStatus: ragDocumentResult.data.status,
       },
     };
   }

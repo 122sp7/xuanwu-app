@@ -42,4 +42,6 @@ export interface UploadCompleteFileOutputDto {
   readonly fileId: string;
   readonly versionId: string;
   readonly status: "active";
+  readonly ragDocumentId: string;
+  readonly ragDocumentStatus: "uploaded";
 }

@@ -16,6 +16,9 @@ from app.rag_ingestion.infrastructure.default.taxonomy_classifier import (
 from app.rag_ingestion.infrastructure.firebase.document_repository import (
     FirebaseRagDocumentRepository,
 )
+from app.rag_ingestion.infrastructure.firebase.storage_reader import (
+    FirebaseStorageTextReader,
+)
 
 
 def _required_string(data: dict[str, Any], key: str) -> str:
@@ -41,26 +44,30 @@ def _optional_string(data: dict[str, Any], key: str) -> str | None:
     return normalized or None
 
 
-def handle_process_uploaded_rag_document(req: https_fn.CallableRequest):
-    ensure_firebase_app()
-
-    if req.data is None:
-        data: dict[str, Any] = {}
-    elif isinstance(req.data, dict):
-        data = req.data
-    else:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            message="Request payload must be an object.",
-        )
-
-    use_case = ProcessUploadedDocumentUseCase(
+def _build_use_case() -> ProcessUploadedDocumentUseCase:
+    return ProcessUploadedDocumentUseCase(
         parser=PassthroughRagParser(),
         chunker=SimpleParagraphChunker(),
         taxonomy_classifier=SimpleRagTaxonomyClassifier(),
         embedder=DeterministicRagEmbedder(),
         document_repository=FirebaseRagDocumentRepository(),
     )
+
+
+def _resolve_raw_text(data: dict[str, Any]) -> str:
+    raw_text = _optional_string(data, "rawText")
+    if raw_text is not None:
+        return raw_text
+
+    storage_reader = FirebaseStorageTextReader()
+    storage_path = _required_string(data, "storagePath")
+    return storage_reader.read_text(storage_path)
+
+
+def process_uploaded_rag_document_data(data: dict[str, Any]) -> dict[str, Any]:
+    ensure_firebase_app()
+
+    use_case = _build_use_case()
 
     result = use_case.execute(
         ProcessUploadedDocumentCommand(
@@ -71,7 +78,7 @@ def handle_process_uploaded_rag_document(req: https_fn.CallableRequest):
             source_file_name=_required_string(data, "sourceFileName"),
             mime_type=_required_string(data, "mimeType"),
             storage_path=_required_string(data, "storagePath"),
-            raw_text=_required_string(data, "rawText"),
+            raw_text=_resolve_raw_text(data),
             checksum=_optional_string(data, "checksum"),
             taxonomy_hint=_optional_string(data, "taxonomyHint"),
         )
@@ -83,3 +90,17 @@ def handle_process_uploaded_rag_document(req: https_fn.CallableRequest):
         "taxonomy": result.taxonomy,
         "chunkCount": result.chunk_count,
     }
+
+
+def handle_process_uploaded_rag_document(req: https_fn.CallableRequest):
+    if req.data is None:
+        data: dict[str, Any] = {}
+    elif isinstance(req.data, dict):
+        data = req.data
+    else:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message="Request payload must be an object.",
+        )
+
+    return process_uploaded_rag_document_data(data)

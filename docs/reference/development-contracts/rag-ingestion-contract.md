@@ -58,11 +58,11 @@ This contract is the authoritative implementation reference for the upload-to-wo
 
 ### Target boundary
 
-The target boundary is a Firestore-driven ingestion flow that begins when a document is registered with `status=uploaded`. The worker must resolve the document metadata, validate tenancy fields, transition the document to `processing`, and then persist chunks plus the final lifecycle result.
+The primary boundary is now a Firestore-driven ingestion flow that begins when a document is registered with `status=uploaded` under `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`. The worker resolves the document metadata, reads the source artifact from Cloud Storage, transitions the document to `processing`, and then persists chunks plus the final lifecycle result.
 
 ### Compatibility boundary
 
-The current Python entrypoint is still an HTTPS callable that accepts `rawText`. That path is a compatibility bridge, not the long-term contract. New work should treat the callable path as transitional and avoid introducing more browser-facing ingestion fields there than are strictly required for compatibility.
+The Python HTTPS callable remains available as a secondary internal/admin bridge. It may still accept `rawText` for explicit reprocess/testing flows, but when `rawText` is omitted it should resolve the source text from the document `storagePath` instead of inventing a second browser-facing ingestion contract.
 
 ## Worker command fields
 
@@ -72,9 +72,9 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 | `organizationId` | `string` | yes | Reject if missing |
 | `workspaceId` | `string` | yes | Reject if missing |
 | `title` | `string` | yes | Prompt and audit context |
-| `sourceFileName` | `string` | yes | Required by current Python command |
-| `mimeType` | `string` | yes | Required by current Python command |
-| `storagePath` | `string` | yes | Storage lookup target |
+| `sourceFileName` | `string` | yes | File name carried into worker audit context |
+| `mimeType` | `string` | yes | Parser routing hint |
+| `storagePath` | `string` | yes | Cloud Storage object path for worker download |
 | `checksum` | `string` | no | Idempotency guard |
 | `taxonomyHint` | `string` | no | Optional pre-classification hint |
 
