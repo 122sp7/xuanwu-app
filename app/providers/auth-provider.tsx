@@ -21,6 +21,11 @@ import {
   type AuthState,
   type AuthUser,
 } from "./auth-context";
+import {
+  clearDevDemoSession,
+  isLocalDevDemoAllowed,
+  readDevDemoSession,
+} from "./dev-demo-auth";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -85,9 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
           });
         } else {
+          const demoUser = readDevDemoSession();
           dispatch({
             type: "SET_AUTH_STATE",
-            payload: { user: null, status: "unauthenticated" },
+            payload: demoUser
+              ? { user: demoUser, status: "authenticated" }
+              : { user: null, status: "unauthenticated" },
           });
         }
       });
@@ -97,9 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       resolved = true;
       window.clearTimeout(timeoutId);
+      const demoUser = readDevDemoSession();
       dispatch({
         type: "SET_AUTH_STATE",
-        payload: { user: null, status: "unauthenticated" },
+        payload: demoUser
+          ? { user: demoUser, status: "authenticated" }
+          : { user: null, status: "unauthenticated" },
       });
     }
 
@@ -110,6 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
+    if (isLocalDevDemoAllowed()) {
+      clearDevDemoSession();
+    }
+
     try {
       await signOutFirebase(getFirebaseAuth());
     } catch (error) {

@@ -19,6 +19,12 @@ import {
   RegisterUseCase,
   SendPasswordResetEmailUseCase,
 } from "@/modules/identity/application/use-cases/identity.use-cases";
+import {
+  DEV_DEMO_ACCOUNT_EMAIL,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
 
 type Tab = "login" | "register";
 
@@ -63,6 +69,15 @@ export default function PublicPage() {
           : await registerUseCase.execute({ email, password, name });
 
       if (!result.success) {
+        if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+          writeDevDemoSession({
+            id: "dev-demo-user",
+            name: "Demo User",
+            email: DEV_DEMO_ACCOUNT_EMAIL,
+          });
+          router.replace("/dashboard");
+          return;
+        }
         setError(result.error.message);
       }
     } finally {
