@@ -23,7 +23,7 @@ import {
   getOrganizationTeams,
 } from "@/modules/organization";
 import { getWorkspacesForAccount } from "@/modules/workspace";
-import { getWorkspaceKnowledgeSummary } from "@/modules/knowledge";
+import { OrganizationKnowledgeTab } from "@/modules/knowledge";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Button } from "@/ui/shadcn/ui/button";
 import {
@@ -132,16 +132,6 @@ export default function OrganizationPage() {
   const [organizationDailyDigest, setOrganizationDailyDigest] =
     useState<OrganizationDailyDigestEntity | null>(null);
   const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof getOrganizationAuditLogs>>>([]);
-  const [knowledgeSummariesByWorkspaceId, setKnowledgeSummariesByWorkspaceId] = useState<
-    Record<
-      string,
-      {
-        readonly registeredAssetCount: number;
-        readonly readyAssetCount: number;
-        readonly status: "needs-input" | "staged" | "ready";
-      }
-    >
-  >({});
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
@@ -167,22 +157,6 @@ export default function OrganizationPage() {
           getOrganizationDailyDigest(organizationId, workspaceIds),
           getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS),
         ]);
-        const nextKnowledgeSummaries = await Promise.all(
-          nextWorkspaces.map(async (workspace) => ({
-            workspaceId: workspace.id,
-            summary: await getWorkspaceKnowledgeSummary(workspace),
-          })),
-        );
-        const nextKnowledgeSummariesByWorkspaceId = Object.fromEntries(
-          nextKnowledgeSummaries.map((entry) => [
-            entry.workspaceId,
-            {
-              registeredAssetCount: entry.summary.registeredAssetCount,
-              readyAssetCount: entry.summary.readyAssetCount,
-              status: entry.summary.status,
-            },
-          ]),
-        );
 
         if (cancelled) {
           return;
@@ -194,7 +168,6 @@ export default function OrganizationPage() {
         setWorkspaceSummaries(nextWorkspaces);
         setOrganizationDailyDigest(nextDailyDigest);
         setAuditLogs(nextAuditLogs);
-        setKnowledgeSummariesByWorkspaceId(nextKnowledgeSummariesByWorkspaceId);
         setLoadState("loaded");
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
@@ -208,7 +181,6 @@ export default function OrganizationPage() {
           setWorkspaceSummaries([]);
           setOrganizationDailyDigest(null);
           setAuditLogs([]);
-          setKnowledgeSummariesByWorkspaceId({});
           setLoadState("error");
         }
       }
@@ -508,73 +480,7 @@ export default function OrganizationPage() {
             </TabsContent>
 
             <TabsContent value="knowledge" className="mt-4">
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle>Knowledge</CardTitle>
-                  <CardDescription>
-                    組織下各工作區知識狀態總覽，檢視檔案註冊與 ready 比例。點擊工作區名稱可前往詳細頁。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {loadState === "loading" && (
-                    <p className="text-sm text-muted-foreground">Loading knowledge summaries…</p>
-                  )}
-                  {loadState === "error" && (
-                    <p className="text-sm text-destructive">無法載入知識摘要資料，請稍後再試。</p>
-                  )}
-                  {loadState === "loaded" && workspaceSummaries.length === 0 && (
-                    <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區知識資料。</p>
-                  )}
-                  {loadState === "loaded" &&
-                    workspaceSummaries.map((workspace) => {
-                      const summary = knowledgeSummariesByWorkspaceId[workspace.id];
-                      const status = summary?.status ?? "needs-input";
-                      const registeredCount = Math.max(0, summary?.registeredAssetCount ?? 0);
-                      const readyCount = Math.max(0, summary?.readyAssetCount ?? 0);
-                      const readyRatio =
-                        registeredCount > 0
-                          ? Math.max(0, Math.min(100, Math.round((readyCount / registeredCount) * 100)))
-                          : 0;
-                      return (
-                        <div
-                          key={workspace.id}
-                          className="rounded-lg border border-border/40 px-3 py-3"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Button
-                                asChild
-                                variant="link"
-                                className="h-auto p-0 text-sm font-medium"
-                              >
-                                <Link href={`/workspace/${workspace.id}?tab=Knowledge`}>
-                                  {workspace.name}
-                                </Link>
-                              </Button>
-                              <Badge
-                                variant={status === "ready" ? "default" : status === "staged" ? "secondary" : "outline"}
-                              >
-                                {status}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              <span>registered: {registeredCount}</span>
-                              <span>ready: {readyCount}</span>
-                              {registeredCount > 0 && (
-                                <Badge variant="outline" className="text-xs">
-                                  {readyRatio}% ready
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {workspace.id}
-                          </p>
-                        </div>
-                      );
-                    })}
-                </CardContent>
-              </Card>
+              <OrganizationKnowledgeTab workspaces={workspaceSummaries} />
             </TabsContent>
 
             <TabsContent value="schedule" className="mt-4">
