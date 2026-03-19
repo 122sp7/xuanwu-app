@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
+import { cn } from "@/lib/utils";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
 import { runScheduleMdddFlow } from "../_actions/schedule-mddd.actions";
@@ -33,10 +34,7 @@ const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   requiredSkillLevel: "junior" as const,
   candidateSkillLevel: "senior" as const,
   requiredHeadcount: 1,
-  timezone:
-    typeof Intl !== "undefined"
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei"
-      : "Asia/Taipei",
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
 } as const;
 
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
@@ -173,6 +171,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         if (process.env.NODE_ENV !== "production") {
           console.warn("[WorkspaceScheduleTab] Flow succeeded but schedule reload failed:", error);
         }
+        setRunState("error");
         setRunMessage("流程已完成，但重新載入清單失敗，請手動刷新頁面。");
       }
     } catch (error) {
@@ -216,9 +215,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           </div>
 
           {runMessage && (
-            <p
-              className={`mt-3 text-sm ${runState === "error" ? "text-destructive" : "text-emerald-600"}`}
-            >
+            <p className={cn("mt-3 text-sm", runState === "error" ? "text-destructive" : "text-emerald-600")}>
               {runMessage}
             </p>
           )}
