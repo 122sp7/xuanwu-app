@@ -6,7 +6,8 @@ import type {
 import { aiClient, getConfiguredGenkitModel } from "./client";
 
 function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
-  return `[doc:${input.docId} chunk:${input.chunkIndex}${typeof input.page === "number" ? ` page:${input.page}` : ""} taxonomy:${input.taxonomy}]\n${input.text}`;
+  const pageLabel = typeof input.page === "number" ? ` page:${input.page}` : "";
+  return `[doc:${input.docId} chunk:${input.chunkIndex}${pageLabel} taxonomy:${input.taxonomy}]\n${input.text}`;
 }
 
 function buildPrompt(input: GenerateRagAnswerInput) {

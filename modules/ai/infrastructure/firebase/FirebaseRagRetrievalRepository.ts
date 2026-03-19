@@ -32,8 +32,8 @@ interface FirestoreRagChunk {
   readonly chunkIndex?: number;
 }
 
-// Keep basic Latin and CJK ranges together so the deterministic scaffold can score both
-// English and Chinese queries before a real embedding/vector-search pipeline replaces it.
+// Keep ASCII letters/digits plus the basic CJK Unified Ideographs block together so the
+// deterministic scaffold can score both English and Chinese queries before vector search lands.
 function tokenize(value: string): readonly string[] {
   return value
     .toLowerCase()

@@ -9,16 +9,15 @@ class DeterministicRagEmbedder(RagEmbedderPort):
     `firestore.indexes.json` until a production embedding model replaces the deterministic scaffold.
     """
     def embed(self, chunks: list[RagChunkDraft]) -> list[tuple[float, ...]]:
-        vectors: list[tuple[float, ...]] = []
-        for chunk in chunks:
-            token_count = max(len(chunk.text.split()), 1)
-            character_count = max(len(chunk.text), 1)
-            vectors.append(
-                (
-                    float(token_count),
-                    float(character_count),
-                    float(chunk.chunk_index + 1),
-                    round(token_count / character_count, 6),
-                )
+        return [
+            (
+                float(token_count),
+                float(character_count),
+                float(chunk.chunk_index + 1),
+                round(token_count / character_count, 6),
             )
-        return vectors
+            for chunk in chunks
+            for token_count, character_count in [
+                (max(len(chunk.text.split()), 1), max(len(chunk.text), 1))
+            ]
+        ]

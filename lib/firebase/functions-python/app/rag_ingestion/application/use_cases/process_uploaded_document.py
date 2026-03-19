@@ -39,6 +39,8 @@ class ProcessUploadedDocumentUseCase:
             )
             chunk_drafts = self._chunker.chunk(normalized_text)
             embeddings = self._embedder.embed(chunk_drafts)
+            # Adapters may change independently, so guard the orchestration contract here before
+            # the zip-based chunk assembly can mask a count mismatch from the embedder boundary.
             if len(chunk_drafts) != len(embeddings):
                 raise ValueError(
                     f"Embedder returned {len(embeddings)} embeddings for "
