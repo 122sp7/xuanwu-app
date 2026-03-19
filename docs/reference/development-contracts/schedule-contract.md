@@ -127,6 +127,20 @@ The following legacy responsibilities are still outside this contract and should
 - persistent organization or account `schedule_items` aggregates and projections
 - schedule events and notification routing such as `organization:schedule:assigned`, `organization:schedule:assignmentCancelled`, and `organization:schedule:completed`
 
+## Target legacy redesign reference
+
+The full target MDDD redesign for the legacy workforce scheduling domain is maintained in:
+
+- `/home/runner/work/xuanwu-app/xuanwu-app/modules/schedule/README.md`
+
+That target reference currently defines:
+
+- the canonical demand-to-fulfillment flow: `Request -> Task -> Match -> Assignment -> Schedule`
+- supporting models including `AccountUser`, `Organization`, `Team`, `Capability`, `Skill`, `Availability`, `CalendarSlot`, `Constraint`, and `Preference`
+- target aggregates, boundaries, invariants, workflow states, matching pipeline, scheduling rules, and event ownership
+
+Until those slices are implemented, this development contract remains intentionally limited to the current workspace-derived read model, workspace request submission, and acknowledgement persistence boundaries.
+
 ## Acceptance gates
 
 New schedule features should begin only when:

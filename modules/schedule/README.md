@@ -228,17 +228,57 @@ The current `modules/schedule` implementation only covers derived readiness item
   - scheduling constraint model that declares whether an `AccountUser` can take a scheduled time allocation
   - used after candidate matching and before schedule confirmation to prevent overlaps and infeasible assignments
 
+##### `CalendarSlot`
+
+- role in schedule domain:
+  - concrete reserved time allocation for one scheduled assignment
+  - provides the canonical overlap-check input for conflict detection and calendar projection
+
+##### `Constraint`
+
+- role in schedule domain:
+  - hard rule that must be satisfied before assignment or scheduling can proceed
+  - examples include mandatory capability coverage, location requirement, no-overlap policy, max load, or team restriction
+
+##### `Preference`
+
+- role in schedule domain:
+  - soft rule used for ranking and tie-breaking rather than hard rejection
+  - examples include preferred team, preferred member continuity, preferred start window, or workload balancing preference
+
+#### Structured entity map
+
+| Entity | Purpose | Core fields | Notes |
+| --- | --- | --- | --- |
+| `Request` | workspace demand root | `requestId`, `workspaceId`, `organizationId`, `requestedWindow`, `requiredSkills`, `requiredCapabilities`, `constraints`, `preferences`, `status` | source of truth for submitted demand |
+| `Task` | assignable work unit derived from a request | `taskId`, `requestId`, `teamId?`, `requiredHeadcount`, `targetWindow`, `requiredSkills`, `requiredCapabilities`, `constraints`, `preferences`, `status` | may be one of many tasks from one request |
+| `Match` | candidate evaluation result for one task | `matchId`, `taskId`, `candidateAccountUserId`, `eligibility`, `score`, `gaps`, `constraintViolations` | result model produced by matching policies |
+| `Assignment` | organization staffing decision | `assignmentId`, `taskId`, `requestId`, `organizationId`, `teamId?`, `assigneeAccountUserId`, `selectedMatchId`, `status` | decision boundary between candidate ranking and actual staffing |
+| `Schedule` | concrete time allocation after assignment | `scheduleId`, `assignmentId`, `calendarSlot`, `loadUnits`, `status` | owns active/planned time placement and execution lifecycle |
+| `AccountUser` | candidate / assignee reference | `accountUserId`, `skillInventory`, `capabilityInventory`, `teamMemberships`, `availabilityProfile` | used by matching and scheduling policies |
+| `Organization` | fulfillment owner | `organizationId`, `staffingPolicies`, `scheduleGovernanceRules` | controls fulfillment authority and SSOT projections |
+| `Team` | operational staffing subgroup | `teamId`, `organizationId`, `capabilityCoverage`, `capacityPolicy` | narrows candidate pools and local constraints |
+| `Skill` | competency reference | `skillCode`, `level`, `quantity` | often appears inside requirement and inventory value objects |
+| `Capability` | non-skill qualification reference | `capabilityCode`, `scope`, `qualificationLevel?` | covers authorization, equipment, certification, language, etc. |
+| `Availability` | assignee scheduling availability model | `availabilityId`, `accountUserId`, `windows`, `maxConcurrentAssignments`, `maxLoadPerPeriod` | checked before schedule confirmation |
+| `CalendarSlot` | reserved time block | `startAt`, `endAt`, `timezone`, `slotType` | used to detect overlap and calendar conflicts |
+| `Constraint` | hard validation rule | `constraintType`, `value`, `scope` | failing constraint blocks assignment or scheduling |
+| `Preference` | soft optimization rule | `preferenceType`, `weight`, `value` | influences ranking but does not block fulfillment |
+
 #### Value objects
 
 - `SkillRequirement`
 - `CapabilityRequirement`
 - `TimeWindow`
 - `AvailabilityWindow`
+- `CalendarSlot`
+- `Constraint`
+- `Preference`
 - `AssignmentDecision`
 - `MatchResult`
 - `MatchCandidate`
 - `MatchGap`
-- `ScheduleRequestStatus`
+- `RequestStatus`
 - `TaskStatus`
 - `AssignmentStatus`
 - `ScheduleStatus`
@@ -257,6 +297,109 @@ The current `modules/schedule` implementation only covers derived readiness item
 - `CompleteAssignment`
 - `DeriveWorkspaceScheduleItems`
   - remains separate because it belongs to the current workspace readiness slice, not the legacy workforce fulfillment workflow
+
+### Aggregates definition
+
+#### `RequestAggregate`
+
+- aggregate root: `Request`
+- contains:
+  - demand snapshot
+  - request-level constraints and preferences
+- boundary:
+  - workspace-owned lifecycle from draft/submission through cancellation/closure
+- invariants:
+  - belongs to one workspace and one target organization
+  - requirement snapshot is immutable after submission
+  - cannot decompose into fulfillment work before reaching `submitted`
+
+#### `TaskAggregate`
+
+- aggregate root: `Task`
+- contains:
+  - one operational work unit
+  - task-level requirements, constraints, preferences, and headcount
+- boundary:
+  - assignable unit of work derived from one request
+- invariants:
+  - belongs to exactly one request
+  - preserves required headcount and target time window
+  - cannot transition to completion before assignment and schedule execution exist
+
+#### `AssignmentAggregate`
+
+- aggregate root: `Assignment`
+- contains:
+  - staffing decision metadata
+  - selected match reference
+- boundary:
+  - organization-owned acceptance / rejection / cancellation lifecycle
+- invariants:
+  - belongs to exactly one task
+  - references the originating request
+  - accepted assignment must reference an eligible assignee or an explicit override reason
+
+#### `ScheduleAggregate`
+
+- aggregate root: `Schedule`
+- contains:
+  - `CalendarSlot`
+  - assigned load allocation
+  - execution timestamps
+- boundary:
+  - actual time reservation, activation, completion, cancellation, and conflict handling
+- invariants:
+  - belongs to exactly one assignment
+  - active or reserved slots for the same assignee must not overlap
+  - load must remain within assignee and policy thresholds
+
+#### `ScheduleProjectionAggregate`
+
+- aggregate root:
+  - projection document such as organization/account `schedule_items`
+- boundary:
+  - query-side read model only
+- invariants:
+  - never becomes the place where demand, matching, or assignment decisions are authored
+  - reflects events emitted from request / assignment / scheduling lifecycles
+
+### Workflow states
+
+#### `RequestStatus`
+
+- `draft`
+- `submitted`
+- `under-review`
+- `cancelled`
+- `closed`
+
+#### `TaskStatus`
+
+- `open`
+- `matching`
+- `assignable`
+- `assigned`
+- `scheduled`
+- `completed`
+- `cancelled`
+
+#### `AssignmentStatus`
+
+- `pending-review`
+- `proposed`
+- `accepted`
+- `rejected`
+- `cancelled`
+- `completed`
+
+#### `ScheduleStatus`
+
+- `planned`
+- `reserved`
+- `active`
+- `completed`
+- `cancelled`
+- `conflicted`
 
 ### Matching mechanism
 
@@ -289,6 +432,31 @@ Task matching should be treated as a domain policy, not a UI-only helper.
 - `resolveAvailabilityConflicts(task, candidateSet, availabilityWindows)`
 - `isAssignmentAllowed(task, candidateSet, matchResult)`
 
+#### Matching pipeline
+
+1. **Filter**
+   - exclude candidates missing mandatory `Skill` or `Capability` requirements
+   - exclude candidates blocked by team, organization, location, or policy constraints
+   - exclude candidates whose current `Availability` cannot support the target window
+2. **Score**
+   - compute weighted coverage for skill fit, capability fit, availability fit, continuity, and preference satisfaction
+   - apply penalties for high current load, partial coverage, or expensive schedule adjustments
+3. **Constrain**
+   - reject candidate sets that still violate headcount, overlap, mandatory qualification, or max-load rules
+4. **Rank**
+   - return ordered `Match` results with reasons, gaps, and rejection explanations
+
+#### Suggested scoring dimensions
+
+| Dimension | Purpose |
+| --- | --- |
+| `skillScore` | measures skill requirement coverage and proficiency fit |
+| `capabilityScore` | measures non-skill qualification coverage |
+| `availabilityScore` | rewards direct availability fit without rescheduling |
+| `continuityScore` | rewards same-team or same-member continuity when desired |
+| `loadPenalty` | penalizes candidates already near maximum capacity |
+| `constraintPenalty` | penalizes candidates that require policy exceptions or extra movement |
+
 #### Refactored domain type map
 
 | Type | Kind | Responsibility |
@@ -304,6 +472,72 @@ Task matching should be treated as a domain policy, not a UI-only helper.
 | `Skill` | value object / catalog reference | competency used for matching |
 | `Capability` | value object / catalog reference | non-skill qualification used for assignment constraints |
 | `Availability` | value object / supporting model | time constraint source used before schedule confirmation |
+| `CalendarSlot` | value object | canonical scheduled interval for conflict detection and projection |
+| `Constraint` | value object / policy input | hard rule that blocks fulfillment when violated |
+| `Preference` | value object / policy input | soft rule that influences ranking and schedule choice |
+
+### Scheduling logic
+
+Scheduling should remain separate from candidate ranking and assignment confirmation.
+
+#### Responsibilities
+
+- reserve a `CalendarSlot` for an accepted assignment
+- prevent slot overlap for the chosen `AccountUser`
+- prevent workload overload based on organization and assignee rules
+- surface schedule conflicts as explicit outcomes instead of hidden UI rejections
+- support cancellation, reschedule, activation, and completion as explicit transitions
+
+#### Scheduling rules
+
+1. an assignment cannot be scheduled until it is accepted
+2. a `CalendarSlot` must fit an eligible assignee `Availability` window
+3. the assignee cannot exceed max concurrent assignments or configured load limits
+4. conflicting reservations must produce a conflict result instead of silently overwriting another schedule
+5. reschedule should preserve the original assignment identity and emit explicit schedule events
+
+#### Scheduling service surface
+
+- `checkAvailability(assignee, calendarSlot, policy)`
+- `detectScheduleConflict(assignee, calendarSlot, existingSchedules)`
+- `allocateCalendarSlot(assignment, calendarSlot)`
+- `rescheduleAssignment(assignment, nextCalendarSlot)`
+- `completeScheduledTask(schedule)`
+
+### Events
+
+The legacy target flow should be event-driven so that projections, notifications, and downstream policy handlers remain decoupled from command handlers.
+
+#### Required domain events
+
+- `RequestCreated`
+- `TaskMatched`
+- `AssignmentAccepted`
+- `TaskCompleted`
+
+#### Recommended event stream
+
+- `RequestSubmitted`
+- `RequestCancelled`
+- `TaskCreated`
+- `TaskMatched`
+- `AssignmentProposed`
+- `AssignmentAccepted`
+- `AssignmentRejected`
+- `AssignmentCancelled`
+- `SchedulePlanned`
+- `ScheduleConflictDetected`
+- `ScheduleCompleted`
+
+#### Event ownership
+
+| Event | Emitted by | Purpose |
+| --- | --- | --- |
+| `RequestCreated` / `RequestSubmitted` | `RequestAggregate` | start fulfillment workflow and request decomposition |
+| `TaskMatched` | matching application flow | persist candidate ranking and open assignment review |
+| `AssignmentAccepted` | `AssignmentAggregate` | confirm organization staffing decision |
+| `SchedulePlanned` / `ScheduleConflictDetected` | scheduling application flow | drive calendar and projection updates |
+| `TaskCompleted` | `ScheduleAggregate` or completion flow | close fulfillment and publish downstream completion state |
 
 ### Flow diagram
 
@@ -370,6 +604,9 @@ modules/schedule/
       MatchResult.ts
       MatchCandidate.ts
       MatchGap.ts
+      CalendarSlot.ts
+      Constraint.ts
+      Preference.ts
       RequestStatus.ts
       TaskStatus.ts
       AssignmentStatus.ts
@@ -385,14 +622,19 @@ modules/schedule/
       CompleteAssignment.ts
       DeriveWorkspaceScheduleItems.ts
     events/
-      ScheduleRequestSubmitted.ts
-      ScheduleAssigned.ts
-      ScheduleAssignRejected.ts
-      ScheduleProposalCancelled.ts
-      ScheduleCompleted.ts
+      RequestCreated.ts
+      RequestSubmitted.ts
+      TaskCreated.ts
+      TaskMatched.ts
+      AssignmentAccepted.ts
+      AssignmentRejected.ts
+      SchedulePlanned.ts
+      ScheduleConflictDetected.ts
+      TaskCompleted.ts
     ports/
       RequestRepository.ts
       TaskRepository.ts
+      MatchRepository.ts
       AssignmentRepository.ts
       ScheduleRepository.ts
       ScheduleAcknowledgementRepository.ts
