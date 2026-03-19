@@ -389,7 +389,13 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleRejectAssignment(projection.assignmentId!)}
+                      onClick={() => {
+                        const assignmentId = projection.assignmentId;
+                        if (!assignmentId) {
+                          return;
+                        }
+                        void handleRejectAssignment(assignmentId);
+                      }}
                     >
                       Reject Assignment
                     </Button>
@@ -404,7 +410,13 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        onClick={() => void handleCancelSchedule(projection.scheduleId!)}
+                        onClick={() => {
+                          const scheduleId = projection.scheduleId;
+                          if (!scheduleId) {
+                            return;
+                          }
+                          void handleCancelSchedule(scheduleId);
+                        }}
                       >
                         Cancel Schedule
                       </Button>
