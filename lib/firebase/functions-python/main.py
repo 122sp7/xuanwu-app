@@ -25,10 +25,15 @@ def process_uploaded_rag_document(req: https_fn.CallableRequest):
 def process_uploaded_rag_document_on_create(event: firestore_fn.Event[firestore_fn.DocumentSnapshot]):
     snapshot = event.data
     if snapshot is None:
+        print("[process_uploaded_rag_document_on_create] skipped: missing snapshot")
         return None
 
     data = snapshot.to_dict() or {}
     if data.get("status") != "uploaded":
+        print(
+            "[process_uploaded_rag_document_on_create] skipped: "
+            f"status={data.get('status')!r} documentId={event.params['documentId']}"
+        )
         return None
 
     return process_uploaded_rag_document_data(

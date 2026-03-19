@@ -28,6 +28,10 @@ function isFileScopeMatch(input: {
   );
 }
 
+function shouldSkipFileCompletion(file: File): boolean {
+  return file.source === "file-upload-complete";
+}
+
 export class UploadCompleteFileUseCase {
   constructor(
     private readonly fileRepository: FileRepository,
@@ -127,14 +131,14 @@ export class UploadCompleteFileUseCase {
     });
 
     const nextFile =
-      file.source === "file-upload-complete"
+      shouldSkipFileCompletion(file)
         ? file
         : completeUploadFile({
             file,
             completedAtISO: new Date().toISOString(),
           });
 
-    if (file.source !== "file-upload-complete") {
+    if (!shouldSkipFileCompletion(file)) {
       await this.fileRepository.save(nextFile);
     }
 
@@ -173,7 +177,7 @@ export class UploadCompleteFileUseCase {
             },
           };
 
-    if (!("data" in ragDocument)) {
+    if (ragDocument.ok === false) {
       return {
         ok: false,
         error: {

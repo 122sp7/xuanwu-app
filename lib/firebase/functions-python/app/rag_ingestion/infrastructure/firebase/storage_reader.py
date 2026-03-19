@@ -26,9 +26,16 @@ class FirebaseStorageTextReader:
 
     def read_text(self, storage_path: str) -> str:
         normalized_storage_path = storage_path.lstrip("/")
-        raw_bytes = (
-            self._client.bucket(self._bucket_name)
-            .blob(normalized_storage_path)
-            .download_as_bytes()
-        )
+        try:
+            raw_bytes = (
+                self._client.bucket(self._bucket_name)
+                .blob(normalized_storage_path)
+                .download_as_bytes()
+            )
+        except Exception as error:
+            raise RuntimeError(
+                "Failed to read uploaded source text from "
+                f"{self._bucket_name}/{normalized_storage_path}"
+            ) from error
+
         return raw_bytes.decode("utf-8", errors="replace").strip()
