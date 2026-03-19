@@ -22,6 +22,7 @@ import {
   getOrganizationTeams,
 } from "@/modules/organization";
 import { getWorkspacesForAccount } from "@/modules/workspace";
+import { getWorkspaceKnowledgeSummary } from "@/modules/knowledge";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Button } from "@/ui/shadcn/ui/button";
 import {
@@ -37,6 +38,7 @@ const organizationSections = [
   { value: "members", label: "成員" },
   { value: "teams", label: "團隊" },
   { value: "permissions", label: "權限" },
+  { value: "knowledge", label: "知識" },
   { value: "schedule", label: "排程" },
   { value: "daily", label: "每日" },
   { value: "audit", label: "稽核" },
@@ -128,6 +130,16 @@ export default function OrganizationPage() {
   const [organizationDailyDigest, setOrganizationDailyDigest] =
     useState<OrganizationDailyDigestEntity | null>(null);
   const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof getOrganizationAuditLogs>>>([]);
+  const [knowledgeSummariesByWorkspaceId, setKnowledgeSummariesByWorkspaceId] = useState<
+    Record<
+      string,
+      {
+        readonly registeredAssetCount: number;
+        readonly readyAssetCount: number;
+        readonly status: "needs-input" | "staged" | "ready";
+      }
+    >
+  >({});
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
@@ -153,6 +165,22 @@ export default function OrganizationPage() {
           getOrganizationDailyDigest(organizationId, workspaceIds),
           getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS),
         ]);
+        const nextKnowledgeSummaries = await Promise.all(
+          nextWorkspaces.map(async (workspace) => ({
+            workspaceId: workspace.id,
+            summary: await getWorkspaceKnowledgeSummary(workspace),
+          })),
+        );
+        const nextKnowledgeSummariesByWorkspaceId = Object.fromEntries(
+          nextKnowledgeSummaries.map((entry) => [
+            entry.workspaceId,
+            {
+              registeredAssetCount: entry.summary.registeredAssetCount,
+              readyAssetCount: entry.summary.readyAssetCount,
+              status: entry.summary.status,
+            },
+          ]),
+        );
 
         if (cancelled) {
           return;
@@ -164,6 +192,7 @@ export default function OrganizationPage() {
         setWorkspaceSummaries(nextWorkspaces);
         setOrganizationDailyDigest(nextDailyDigest);
         setAuditLogs(nextAuditLogs);
+        setKnowledgeSummariesByWorkspaceId(nextKnowledgeSummariesByWorkspaceId);
         setLoadState("loaded");
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
@@ -177,6 +206,7 @@ export default function OrganizationPage() {
           setWorkspaceSummaries([]);
           setOrganizationDailyDigest(null);
           setAuditLogs([]);
+          setKnowledgeSummariesByWorkspaceId({});
           setLoadState("error");
         }
       }
@@ -414,6 +444,43 @@ export default function OrganizationPage() {
                         </p>
                       </div>
                     ))
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="knowledge" className="mt-4">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle>Knowledge</CardTitle>
+                  <CardDescription>
+                    組織下各工作區知識狀態總覽，檢視檔案註冊與 ready 比例。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {workspaceSummaries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區知識資料。</p>
+                  ) : (
+                    workspaceSummaries.map((workspace) => {
+                      const summary = knowledgeSummariesByWorkspaceId[workspace.id];
+                      const status = summary?.status ?? "needs-input";
+                      return (
+                        <div
+                          key={workspace.id}
+                          className="rounded-lg border border-border/40 px-3 py-2"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium">{workspace.name}</p>
+                            <Badge variant={status === "ready" ? "secondary" : "outline"}>{status}</Badge>
+                            <Badge variant="outline">registered:{summary?.registeredAssetCount ?? 0}</Badge>
+                            <Badge variant="outline">ready:{summary?.readyAssetCount ?? 0}</Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Workspace: {workspace.id}
+                          </p>
+                        </div>
+                      );
+                    })
                   )}
                 </CardContent>
               </Card>
