@@ -16,7 +16,25 @@
  */
 
 export * from "./data";
-export * from "./network";
+export { Network } from "./network";
+export {
+  NetworkImages,
+  networkDOTParser,
+  parseDOTNetwork,
+  parseGephiNetwork,
+  networkGephiParser,
+  networkOptions,
+} from "./network";
+export type { NetworkOptions } from "./network";
 export { Timeline, Graph2d } from "./timeline";
 export type { TimelineOptions, Graph2dOptions } from "./timeline";
-export * from "./graph3d";
+export {
+  Graph3d,
+  Graph3dCamera,
+  Graph3dFilter,
+  Graph3dPoint2d,
+  Graph3dPoint3d,
+  Graph3dSlider,
+  Graph3dStepNumber,
+} from "./graph3d";
+export type { Graph3dOptions } from "./graph3d";
