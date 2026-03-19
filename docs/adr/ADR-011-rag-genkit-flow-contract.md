@@ -41,7 +41,7 @@ query input
 ```text
 GenkitQueryInput
 - traceId
-- tenantId
+- organizationId
 - workspaceId
 - userQuery
 - queryEmbeddingRef
@@ -51,7 +51,7 @@ GenkitQueryInput
 
 規則：
 
-1. tenant/workspace 必填。
+1. organizationId 必填；workspaceId 依查詢範圍決定是否帶入。
 2. retrievalOptions 必須明確 topK 與 taxonomy filter。
 3. modelOptions 必須可追蹤模型版本。
 

@@ -65,7 +65,7 @@ def handle_process_uploaded_rag_document(req: https_fn.CallableRequest):
     result = use_case.execute(
         ProcessUploadedDocumentCommand(
             document_id=_required_string(data, "documentId"),
-            tenant_id=_required_string(data, "tenantId"),
+            organization_id=_required_string(data, "organizationId"),
             workspace_id=_required_string(data, "workspaceId"),
             title=_required_string(data, "title"),
             source_file_name=_required_string(data, "sourceFileName"),

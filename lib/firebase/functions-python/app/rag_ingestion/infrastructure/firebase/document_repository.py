@@ -23,7 +23,7 @@ class FirebaseRagDocumentRepository(RagDocumentRepositoryPort):
     def save_ready(
         self,
         document_id: str,
-        tenant_id: str,
+        organization_id: str,
         workspace_id: str,
         taxonomy: str,
         chunks: list[RagChunk],
@@ -37,7 +37,7 @@ class FirebaseRagDocumentRepository(RagDocumentRepositoryPort):
                 chunks_collection.document(chunk.chunk_id),
                 {
                     "docId": chunk.doc_id,
-                    "tenantId": tenant_id,
+                    "organizationId": organization_id,
                     "workspaceId": workspace_id,
                     "chunkIndex": chunk.chunk_index,
                     "text": chunk.text,

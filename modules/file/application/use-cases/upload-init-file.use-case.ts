@@ -25,9 +25,14 @@ function inferClassification(mimeType: string): File["classification"] {
   return "other";
 }
 
-function buildUploadPath(workspaceId: string, fileId: string, fileName: string) {
+function buildUploadPath(
+  organizationId: string,
+  workspaceId: string,
+  fileId: string,
+  fileName: string,
+) {
   const encodedName = encodeURIComponent(fileName.replace(/\s+/g, "-"));
-  return `workspaces/${workspaceId}/files/${fileId}/${encodedName}`;
+  return `organizations/${organizationId}/workspaces/${workspaceId}/files/${fileId}/${encodedName}`;
 }
 
 export class UploadInitFileUseCase {
@@ -77,7 +82,7 @@ export class UploadInitFileUseCase {
     const createdAtISO = new Date().toISOString();
     const fileId = `file-${randomUUID()}`;
     const versionId = `file-version-${randomUUID()}`;
-    const uploadPath = buildUploadPath(workspaceId, fileId, fileName);
+    const uploadPath = buildUploadPath(organizationId, workspaceId, fileId, fileName);
 
     const file: File = {
       id: fileId,

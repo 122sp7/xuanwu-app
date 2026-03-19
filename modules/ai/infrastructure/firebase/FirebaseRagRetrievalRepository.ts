@@ -9,21 +9,23 @@ import type {
 } from "../../domain/repositories/RagRetrievalRepository";
 
 interface FirestoreRagDocument {
-  readonly tenantId?: string;
+  readonly organizationId?: string;
   readonly workspaceId?: string;
   readonly status?: string;
   readonly taxonomy?: string;
 }
 
-// Over-fetch ready documents so the skeleton retriever can survive tenant/workspace filtering
-// and still leave enough candidates for scoring before generation.
+// Over-fetch ready documents so the skeleton retriever can survive organization/workspace
+// filtering and still leave enough candidates for chunk scoring before generation.
 const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
 const MIN_DOCUMENT_LIMIT = 20;
+// Pull a wider chunk candidate set because taxonomy and score filtering can drop many results
+// before the final top-k prompt window is assembled.
 const CHUNK_OVER_FETCH_MULTIPLIER = 10;
 const MIN_CHUNK_LIMIT = 50;
 
 interface FirestoreRagChunk {
-  readonly tenantId?: string;
+  readonly organizationId?: string;
   readonly workspaceId?: string;
   readonly docId?: string;
   readonly text?: string;
@@ -32,9 +34,10 @@ interface FirestoreRagChunk {
   readonly chunkIndex?: number;
 }
 
-// Keep ASCII letters/digits plus the basic CJK Unified Ideographs block together so the
-// deterministic scaffold can score both English and Chinese queries before vector search lands.
 function tokenize(value: string): readonly string[] {
+  // The regex keeps ASCII letters/digits plus the basic CJK Unified Ideographs block
+  // (`\u4e00-\u9fff`), which covers common Chinese characters but excludes the wider CJK
+  // extensions, supplementary ideographs, and compatibility ideographs.
   return value
     .toLowerCase()
     .split(/[^a-z0-9\u4e00-\u9fff]+/u)
@@ -62,9 +65,9 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
   async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
     const documentsQuery = query(
       collection(this.db, "documents"),
-      where("tenantId", "==", input.tenantId),
-      where("workspaceId", "==", input.workspaceId),
+      where("organizationId", "==", input.organizationId),
       where("status", "==", "ready"),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
       limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
     );
@@ -85,8 +88,8 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
 
     const chunkQuery = query(
       collection(this.db, "chunks"),
-      where("tenantId", "==", input.tenantId),
-      where("workspaceId", "==", input.workspaceId),
+      where("organizationId", "==", input.organizationId),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
       limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
     );
@@ -107,20 +110,17 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
           taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
           text,
           score: scoreChunk(queryTokens, text),
-          tenantId: typeof data.tenantId === "string" ? data.tenantId : "",
-          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+          organizationId:
+            typeof data.organizationId === "string" ? data.organizationId : undefined,
+          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
         };
       })
       .filter(
         (chunk) =>
-          chunk.docId &&
-          readyDocumentIds.has(chunk.docId) &&
-          chunk.tenantId === input.tenantId &&
-          chunk.workspaceId === input.workspaceId &&
-          chunk.score > 0,
+          chunk.docId && readyDocumentIds.has(chunk.docId) && chunk.score > 0,
       )
       .sort((left, right) => right.score - left.score)
       .slice(0, input.topK)
-      .map(({ tenantId: _tenantId, workspaceId: _workspaceId, ...chunk }) => chunk);
+      .map(({ organizationId: _organizationId, workspaceId: _workspaceId, ...chunk }) => chunk);
   }
 }

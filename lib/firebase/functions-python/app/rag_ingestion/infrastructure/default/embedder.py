@@ -1,12 +1,16 @@
 from app.rag_ingestion.domain.entities import RagChunkDraft
 from app.rag_ingestion.domain.ports import RagEmbedderPort
 
+SCAFFOLD_EMBEDDING_DIMENSION = 4
+
 
 class DeterministicRagEmbedder(RagEmbedderPort):
-    """Temporary scaffold embedder producing 4-D vectors.
+    """Temporary scaffold embedder producing 4-dimensional vectors (dimension=4).
 
     Keep this implementation aligned with the `chunks.embedding` vector dimension declared in
     `firestore.indexes.json` until a production embedding model replaces the deterministic scaffold.
+    `SCAFFOLD_EMBEDDING_DIMENSION` exists so the temporary index-alignment constraint stays visible
+    in the worker scaffold while the implementation still returns a fixed 4-value tuple.
     """
     def embed(self, chunks: list[RagChunkDraft]) -> list[tuple[float, ...]]:
         return [

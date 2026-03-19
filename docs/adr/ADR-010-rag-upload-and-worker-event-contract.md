@@ -30,7 +30,7 @@ Upload 與 ingestion 若只靠文字描述，容易在 Next.js 與 worker 之間
 
 ```text
 UploadRequest
-- tenantId: string
+- organizationId: string
 - workspaceId: string
 - uploaderId: string
 - originalFilename: string
@@ -41,7 +41,7 @@ UploadRequest
 
 規則：
 
-1. `tenantId` 與 `workspaceId` 必填。
+1. `organizationId` 與 `workspaceId` 必填。
 2. checksum 必須在 metadata 建立前可用。
 3. `documentId` 由伺服器端生成，不接受前端指定。
 
@@ -50,7 +50,7 @@ UploadRequest
 ```text
 DocumentMetadata
 - id: documentId
-- tenantId
+- organizationId
 - workspaceId
 - originalFilename
 - title
@@ -74,7 +74,7 @@ Primary event source: Firestore document create/update to `status=uploaded`
 ```text
 WorkerTriggerEvent
 - documentId
-- tenantId
+- organizationId
 - workspaceId
 - storagePath
 - checksum

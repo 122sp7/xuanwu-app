@@ -2,7 +2,7 @@ export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed";
 
 export interface RagDocumentRecord {
   readonly id: string;
-  readonly tenantId: string;
+  readonly organizationId: string;
   readonly workspaceId: string;
   readonly title: string;
   readonly sourceFileName: string;
