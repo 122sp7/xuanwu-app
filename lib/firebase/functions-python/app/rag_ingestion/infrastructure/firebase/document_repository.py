@@ -63,13 +63,17 @@ class FirebaseRagDocumentRepository(RagDocumentRepositoryPort):
                 },
             )
 
+        now = datetime.now(timezone.utc)
         batch.set(
             document_ref,
             {
                 "status": "ready",
                 "taxonomy": taxonomy,
-                "readyAt": datetime.now(timezone.utc),
-                "updatedAt": datetime.now(timezone.utc),
+                "chunkCount": len(chunks),
+                "indexedAtISO": now.isoformat(),
+                "readyAt": now,
+                "updatedAt": now,
+                "updatedAtISO": now.isoformat(),
             },
             merge=True,
         )

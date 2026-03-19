@@ -21,23 +21,34 @@ def _resolve_storage_bucket() -> str:
     raise ValueError("Missing Firebase Storage bucket configuration.")
 
 
-class FirebaseStorageTextReader:
+class FirebaseStorageReader:
+    """Read raw bytes or decoded text from Firebase Storage blobs."""
+
     def __init__(self, bucket_name: str | None = None) -> None:
         self._bucket_name = (bucket_name or _resolve_storage_bucket()).removeprefix("gs://")
         self._client = storage.Client()
 
-    def read_text(self, storage_path: str) -> str:
-        normalized_storage_path = storage_path.lstrip("/")
+    def _download(self, storage_path: str) -> bytes:
+        normalized = storage_path.lstrip("/")
         try:
-            raw_bytes = (
+            return (
                 self._client.bucket(self._bucket_name)
-                .blob(normalized_storage_path)
+                .blob(normalized)
                 .download_as_bytes()
             )
         except Exception as error:
             raise RuntimeError(
-                "Failed to read uploaded source text from "
-                f"{self._bucket_name}/{normalized_storage_path}"
+                f"Failed to read {self._bucket_name}/{normalized} from Firebase Storage"
             ) from error
 
-        return raw_bytes.decode("utf-8", errors="replace").strip()
+    def read_bytes(self, storage_path: str) -> bytes:
+        """Download the blob as raw bytes (suitable for binary formats like PDF)."""
+        return self._download(storage_path)
+
+    def read_text(self, storage_path: str) -> str:
+        """Download the blob and decode as UTF-8 text (suitable for plain-text uploads)."""
+        return self._download(storage_path).decode("utf-8", errors="replace").strip()
+
+
+# Backward-compatible alias for existing callsites that instantiate FirebaseStorageTextReader.
+FirebaseStorageTextReader = FirebaseStorageReader

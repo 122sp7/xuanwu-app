@@ -51,12 +51,14 @@
 
 ## Key Facts (quick reference)
 
-- **Active branch / PR**: `copilot/update-knowledge-development-docs` — Knowledge MVP write-side completion
+- **Active branch / PR**: `copilot/update-knowledge-development-docs` — Document AI OCR Extractor + Classifier integrated into rag_ingestion pipeline
 - **Schedule MDDD**: Domain + Infrastructure COMPLETE; UI integration is the next milestone
 - **Delivery contracts**: always read `docs/reference/development-contracts/<module>-contract.md` before implementing
 - **Python functions**: `lib/firebase/functions-python/` — deploy with `npm run deploy:functions:python`
 - **namespace-core**: scaffolded only (all .gitkeep) — do not assume it has working code
 - **knowledge module**: `modules/knowledge` EXISTS and is LIVE — owns workspace Knowledge tab + RAG documents list (WorkspaceKnowledgeTab)
-- **file module**: `RagDocumentRecord` now has complete metadata fields (accountId, sizeBytes, versionGroupId, versionNumber, isLatest, language, accessControl, category, department, tags, statusMessage, chunkCount, indexedAtISO, expiresAtISO). Firestore path: `/knowledge_base/{orgId}/workspaces/{wsId}/documents/{docId}`. `getWorkspaceRagDocuments(workspace)` is now exported.
+- **file module**: `RagDocumentRecord` has complete metadata fields. `getWorkspaceRagDocuments(workspace)` is now exported.
 - **Organization knowledge tab**: lists all workspaces with status + ready ratio + clickable links to workspace Knowledge tab
-- **Validate with**: `npm run lint` or `npm run build` (no `typecheck` or `check` script on this branch)
+- **Document AI**: OCR Extractor (`1516a32299c1709e`) extracts text from binary files; OCR Classifier (`17f1013111dec644`) classifies document type. Both in `asia-southeast1`. Activated when `DOCUMENTAI_PROJECT_ID` env var is set.
+- **rag_ingestion pipeline**: now uses `DocumentAiRagParser` (binary read + OCR) and `DocumentAiTaxonomyClassifier` when Document AI is enabled; falls back to passthrough. `ProcessedTextWriter` saves extracted text to Storage + patches Firestore `indexedAtISO`/`chunkCount`.
+- **Validate with**: `npm run lint` or `npm run build` (no `typecheck` or `check` script on this branch); Python: `pytest tests/` in `lib/firebase/functions-python/`
