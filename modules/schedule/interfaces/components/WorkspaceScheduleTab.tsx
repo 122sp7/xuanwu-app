@@ -44,7 +44,7 @@ const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
 } as const;
 
-function withExistingId(id: string | null, handler: (value: string) => Promise<void>) {
+function invokeHandlerIfIdExists(id: string | null, handler: (value: string) => Promise<void>) {
   if (!id) {
     return;
   }
@@ -397,7 +397,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => withExistingId(projection.assignmentId, handleRejectAssignment)}
+                      onClick={() =>
+                        invokeHandlerIfIdExists(projection.assignmentId, handleRejectAssignment)
+                      }
                     >
                       Reject Assignment
                     </Button>
@@ -412,7 +414,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        onClick={() => withExistingId(projection.scheduleId, handleCancelSchedule)}
+                        onClick={() =>
+                          invokeHandlerIfIdExists(projection.scheduleId, handleCancelSchedule)
+                        }
                       >
                         Cancel Schedule
                       </Button>
