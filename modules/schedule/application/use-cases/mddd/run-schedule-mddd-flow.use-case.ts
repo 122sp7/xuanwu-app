@@ -27,6 +27,7 @@ import { createMdddId } from "../../../domain/mddd/utils/create-id";
 // In this first runtime slice, one assignment consumes one abstract capacity unit.
 const DEFAULT_ASSIGNMENT_LOAD_WEIGHT = 1;
 const REVIEW_REJECTION_REASON_UNSPECIFIED = "not_approved";
+const ASSIGNMENT_REJECTION_REASON_UNSPECIFIED = "not_selected";
 
 export type RunScheduleMdddFlowResult =
   | {
@@ -57,6 +58,8 @@ export interface RunScheduleMdddFlowInput {
   readonly useScaffoldingFastClose?: boolean;
   readonly reviewOutcome?: "accepted" | "rejected";
   readonly reviewRejectionReason?: string;
+  readonly assignmentOutcome?: "accepted" | "rejected";
+  readonly assignmentRejectionReason?: string;
 }
 
 export interface RunScheduleMdddFlowOutput {
@@ -72,6 +75,7 @@ export class RunScheduleMdddFlowUseCase {
     const nowISO = new Date().toISOString();
     const useScaffoldingFastClose = input.useScaffoldingFastClose ?? true;
     const reviewOutcome = input.reviewOutcome;
+    const assignmentOutcome = input.assignmentOutcome ?? "accepted";
     const events: ScheduleDomainEvent[] = [];
 
     if (!input.workspaceId.trim()) {
@@ -260,8 +264,32 @@ export class RunScheduleMdddFlowUseCase {
       nowISO,
     });
 
-    const assignment = transitionAssignmentStatus(proposedAssignment, "accepted", nowISO);
     const assignableTask = transitionTaskStatus(matchingTask, "assignable", nowISO);
+
+    if (assignmentOutcome === "rejected") {
+      const rejectedAssignment = transitionAssignmentStatus(proposedAssignment, "rejected", nowISO);
+      events.push({
+        type: "AssignmentRejected",
+        assignmentId: rejectedAssignment.assignmentId,
+        taskId: matchingTask.taskId,
+        assigneeAccountUserId: rejectedAssignment.assigneeAccountUserId,
+        reason: input.assignmentRejectionReason ?? ASSIGNMENT_REJECTION_REASON_UNSPECIFIED,
+        occurredAtISO: nowISO,
+      });
+
+      return {
+        success: true,
+        command: commandSuccess(rejectedAssignment.assignmentId, Date.now()),
+        data: {
+          request,
+          task: assignableTask,
+          assignmentId: rejectedAssignment.assignmentId,
+          events,
+        },
+      };
+    }
+
+    const assignment = transitionAssignmentStatus(proposedAssignment, "accepted", nowISO);
     const assignedTask = transitionTaskStatus(assignableTask, "assigned", nowISO);
 
     const plannedSchedule = createSchedule({
