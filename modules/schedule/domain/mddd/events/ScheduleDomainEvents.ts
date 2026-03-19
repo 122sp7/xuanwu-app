@@ -22,6 +22,15 @@ export interface AssignmentAcceptedEvent {
   readonly occurredAtISO: string;
 }
 
+export interface AssignmentRejectedEvent {
+  readonly type: "AssignmentRejected";
+  readonly assignmentId: string;
+  readonly taskId: string;
+  readonly assigneeAccountUserId: string;
+  readonly reason: string;
+  readonly occurredAtISO: string;
+}
+
 export interface TaskCompletedEvent {
   readonly type: "TaskCompleted";
   readonly taskId: string;
@@ -60,5 +69,6 @@ export type ScheduleDomainEvent =
   | RequestRejectedEvent
   | TaskMatchedEvent
   | AssignmentAcceptedEvent
+  | AssignmentRejectedEvent
   | ScheduleReservedEvent
   | TaskCompletedEvent;

@@ -13,7 +13,9 @@ import {
   transitionTaskStatus,
   type AccountUser,
   type CalendarSlot,
+  type Constraint,
   type Organization,
+  type Preference,
   type Request,
   type Schedule,
   type ScheduleDomainEvent,
@@ -25,6 +27,7 @@ import { createMdddId } from "../../../domain/mddd/utils/create-id";
 // In this first runtime slice, one assignment consumes one abstract capacity unit.
 const DEFAULT_ASSIGNMENT_LOAD_WEIGHT = 1;
 const REVIEW_REJECTION_REASON_UNSPECIFIED = "not_approved";
+const ASSIGNMENT_REJECTION_REASON_UNSPECIFIED = "not_selected";
 
 export type RunScheduleMdddFlowResult =
   | {
@@ -45,6 +48,8 @@ export interface RunScheduleMdddFlowInput {
   readonly requiredHeadcount: number;
   readonly requestedWindowStartISO?: string | null;
   readonly requestedWindowEndISO?: string | null;
+  readonly constraints?: readonly Constraint[];
+  readonly preferences?: readonly Preference[];
   readonly notes?: string;
   readonly actorAccountUserId: string;
   readonly candidates: readonly AccountUser[];
@@ -53,6 +58,8 @@ export interface RunScheduleMdddFlowInput {
   readonly useScaffoldingFastClose?: boolean;
   readonly reviewOutcome?: "accepted" | "rejected";
   readonly reviewRejectionReason?: string;
+  readonly assignmentOutcome?: "accepted" | "rejected";
+  readonly assignmentRejectionReason?: string;
 }
 
 export interface RunScheduleMdddFlowOutput {
@@ -68,6 +75,7 @@ export class RunScheduleMdddFlowUseCase {
     const nowISO = new Date().toISOString();
     const useScaffoldingFastClose = input.useScaffoldingFastClose ?? true;
     const reviewOutcome = input.reviewOutcome;
+    const assignmentOutcome = input.assignmentOutcome ?? "accepted";
     const events: ScheduleDomainEvent[] = [];
 
     if (!input.workspaceId.trim()) {
@@ -118,6 +126,8 @@ export class RunScheduleMdddFlowUseCase {
       requiredSkills: input.requiredSkills,
       requestedWindowStartISO: input.requestedWindowStartISO ?? null,
       requestedWindowEndISO: input.requestedWindowEndISO ?? null,
+      constraints: input.constraints,
+      preferences: input.preferences,
       notes: input.notes,
       createdByAccountUserId: input.actorAccountUserId,
       nowISO,
@@ -183,6 +193,8 @@ export class RunScheduleMdddFlowUseCase {
       requiredHeadcount: input.requiredHeadcount,
       targetWindowStartISO: request.requestedWindowStartISO,
       targetWindowEndISO: request.requestedWindowEndISO,
+      constraints: request.constraints,
+      preferences: request.preferences,
       nowISO,
     });
 
@@ -252,8 +264,32 @@ export class RunScheduleMdddFlowUseCase {
       nowISO,
     });
 
-    const assignment = transitionAssignmentStatus(proposedAssignment, "accepted", nowISO);
     const assignableTask = transitionTaskStatus(matchingTask, "assignable", nowISO);
+
+    if (assignmentOutcome === "rejected") {
+      const rejectedAssignment = transitionAssignmentStatus(proposedAssignment, "rejected", nowISO);
+      events.push({
+        type: "AssignmentRejected",
+        assignmentId: rejectedAssignment.assignmentId,
+        taskId: matchingTask.taskId,
+        assigneeAccountUserId: rejectedAssignment.assigneeAccountUserId,
+        reason: input.assignmentRejectionReason ?? ASSIGNMENT_REJECTION_REASON_UNSPECIFIED,
+        occurredAtISO: nowISO,
+      });
+
+      return {
+        success: true,
+        command: commandSuccess(rejectedAssignment.assignmentId, Date.now()),
+        data: {
+          request,
+          task: assignableTask,
+          assignmentId: rejectedAssignment.assignmentId,
+          events,
+        },
+      };
+    }
+
+    const assignment = transitionAssignmentStatus(proposedAssignment, "accepted", nowISO);
     const assignedTask = transitionTaskStatus(assignableTask, "assigned", nowISO);
 
     const plannedSchedule = createSchedule({
