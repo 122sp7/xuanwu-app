@@ -1,7 +1,15 @@
+import { randomUUID } from "node:crypto";
+
 import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
 import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
-import type { AnswerRagQueryInput, AnswerRagQueryResult, RagRetrievalSummary } from "../../domain/entities/RagQuery";
+import type {
+  AnswerRagQueryInput,
+  AnswerRagQueryResult,
+  RagRetrievalSummary,
+} from "../../domain/entities/RagQuery";
 
+// Keep the default retrieval window small enough for prompt assembly while still leaving
+// a broader cap for future rerank experiments on the same contract.
 const DEFAULT_TOP_K = 5;
 const MAX_TOP_K = 10;
 
@@ -25,7 +33,7 @@ export class AnswerRagQueryUseCase {
     const userQuery = input.userQuery.trim();
     const taxonomy = input.taxonomy?.trim() || undefined;
     const topK = normalizeTopK(input.topK);
-    const traceId = `rag-trace-${crypto.randomUUID()}`;
+    const traceId = `rag-trace-${randomUUID()}`;
 
     if (!tenantId) {
       return {

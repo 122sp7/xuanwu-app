@@ -11,6 +11,10 @@ class RagChunkerPort(Protocol):
     def chunk(self, text: str) -> list[RagChunkDraft]: ...
 
 
+class RagTaxonomyClassifierPort(Protocol):
+    def classify(self, text: str, taxonomy_hint: str | None = None) -> str: ...
+
+
 class RagEmbedderPort(Protocol):
     def embed(self, chunks: list[RagChunkDraft]) -> list[tuple[float, ...]]: ...
 

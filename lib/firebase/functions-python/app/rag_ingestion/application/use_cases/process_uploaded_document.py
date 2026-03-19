@@ -8,6 +8,7 @@ from app.rag_ingestion.domain.ports import (
     RagDocumentRepositoryPort,
     RagEmbedderPort,
     RagParserPort,
+    RagTaxonomyClassifierPort,
 )
 
 
@@ -16,11 +17,13 @@ class ProcessUploadedDocumentUseCase:
         self,
         parser: RagParserPort,
         chunker: RagChunkerPort,
+        taxonomy_classifier: RagTaxonomyClassifierPort,
         embedder: RagEmbedderPort,
         document_repository: RagDocumentRepositoryPort,
     ) -> None:
         self._parser = parser
         self._chunker = chunker
+        self._taxonomy_classifier = taxonomy_classifier
         self._embedder = embedder
         self._document_repository = document_repository
 
@@ -30,9 +33,17 @@ class ProcessUploadedDocumentUseCase:
         try:
             parsed_text = self._parser.parse(command).strip()
             normalized_text = " ".join(parsed_text.split())
-            taxonomy = (command.taxonomy_hint or self._derive_taxonomy(normalized_text)).strip()
+            taxonomy = self._taxonomy_classifier.classify(
+                normalized_text,
+                command.taxonomy_hint,
+            )
             chunk_drafts = self._chunker.chunk(normalized_text)
             embeddings = self._embedder.embed(chunk_drafts)
+            if len(chunk_drafts) != len(embeddings):
+                raise ValueError(
+                    f"Embedder returned {len(embeddings)} embeddings for "
+                    f"{len(chunk_drafts)} chunks; counts must match."
+                )
 
             chunks = [
                 RagChunk(
@@ -65,21 +76,7 @@ class ProcessUploadedDocumentUseCase:
         except Exception as error:
             self._document_repository.mark_failed(
                 command.document_id,
-                "PARSER_RUNTIME_ERROR",
+                "INGESTION_PIPELINE_ERROR",
                 str(error),
             )
             raise
-
-    @staticmethod
-    def _derive_taxonomy(text: str) -> str:
-        if not text:
-            return "general"
-
-        lowered = text.lower()
-        if "invoice" in lowered or "payment" in lowered:
-            return "finance"
-        if "policy" in lowered or "compliance" in lowered:
-            return "governance"
-        if "contract" in lowered or "agreement" in lowered:
-            return "legal"
-        return "general"

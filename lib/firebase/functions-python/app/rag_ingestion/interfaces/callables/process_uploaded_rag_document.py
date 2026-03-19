@@ -10,6 +10,9 @@ from app.rag_ingestion.domain.entities import ProcessUploadedDocumentCommand
 from app.rag_ingestion.infrastructure.default.chunker import SimpleParagraphChunker
 from app.rag_ingestion.infrastructure.default.embedder import DeterministicRagEmbedder
 from app.rag_ingestion.infrastructure.default.parser import PassthroughRagParser
+from app.rag_ingestion.infrastructure.default.taxonomy_classifier import (
+    SimpleRagTaxonomyClassifier,
+)
 from app.rag_ingestion.infrastructure.firebase.document_repository import (
     FirebaseRagDocumentRepository,
 )
@@ -54,6 +57,7 @@ def handle_process_uploaded_rag_document(req: https_fn.CallableRequest):
     use_case = ProcessUploadedDocumentUseCase(
         parser=PassthroughRagParser(),
         chunker=SimpleParagraphChunker(),
+        taxonomy_classifier=SimpleRagTaxonomyClassifier(),
         embedder=DeterministicRagEmbedder(),
         document_repository=FirebaseRagDocumentRepository(),
     )

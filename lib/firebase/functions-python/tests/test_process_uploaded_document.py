@@ -21,6 +21,13 @@ class StubChunker:
         ]
 
 
+class StubTaxonomyClassifier:
+    def classify(self, text: str, taxonomy_hint: str | None = None) -> str:
+        if taxonomy_hint:
+            return taxonomy_hint
+        return "finance" if "invoice" in text.lower() else "general"
+
+
 class StubEmbedder:
     def embed(self, chunks: list[RagChunkDraft]) -> list[tuple[float, ...]]:
         return [(1.0, float(index), 0.5, 0.25) for index, _chunk in enumerate(chunks)]
@@ -54,6 +61,7 @@ def test_process_uploaded_document_marks_ready_with_chunks() -> None:
     use_case = ProcessUploadedDocumentUseCase(
         parser=StubParser(),
         chunker=StubChunker(),
+        taxonomy_classifier=StubTaxonomyClassifier(),
         embedder=StubEmbedder(),
         document_repository=repository,
     )
@@ -95,6 +103,7 @@ def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
     use_case = ProcessUploadedDocumentUseCase(
         parser=FailingParser(),
         chunker=StubChunker(),
+        taxonomy_classifier=StubTaxonomyClassifier(),
         embedder=StubEmbedder(),
         document_repository=repository,
     )
@@ -120,5 +129,5 @@ def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
     assert repository.processing_ids == ["doc-2"]
     assert repository.ready_payloads == []
     assert repository.failed_payloads == [
-        ("doc-2", "PARSER_RUNTIME_ERROR", "parser exploded")
+        ("doc-2", "INGESTION_PIPELINE_ERROR", "parser exploded")
     ]

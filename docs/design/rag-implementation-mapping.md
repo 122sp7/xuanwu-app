@@ -62,7 +62,8 @@ Dependency source:
 3. Document AI parse in functions-python adapter.
 4. Application layer orchestrates normalize -> taxonomy -> chunk.
 5. Persist chunk vectors and document status transitions (`processing` -> `ready`/`failed`).
-6. Write traces/audit logs for retry and observability.
+6. Keep the current skeleton embedding dimension aligned with `firestore.indexes.json` until a real embedding model is selected; update both together when moving beyond the deterministic scaffold.
+7. Write traces/audit logs for retry and observability.
 
 ## 2) ② Query Pipeline - where to implement
 

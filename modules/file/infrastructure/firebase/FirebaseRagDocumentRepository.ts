@@ -1,4 +1,4 @@
-import { doc, getFirestore, serverTimestamp, writeBatch } from "firebase/firestore";
+import { doc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { firebaseClientApp } from "@/infrastructure/firebase/client";
 
@@ -13,10 +13,9 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
   private readonly db = getFirestore(firebaseClientApp);
 
   async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    const batch = writeBatch(this.db);
     const documentRef = doc(this.db, DOCUMENT_COLLECTION, record.id);
 
-    batch.set(documentRef, {
+    await setDoc(documentRef, {
       tenantId: record.tenantId,
       workspaceId: record.workspaceId,
       title: record.title,
@@ -30,10 +29,6 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
       updatedAtISO: record.updatedAtISO,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      ingestionStage: "uploaded",
-      triggerSource: "nextjs-server-action",
     });
-
-    await batch.commit();
   }
 }

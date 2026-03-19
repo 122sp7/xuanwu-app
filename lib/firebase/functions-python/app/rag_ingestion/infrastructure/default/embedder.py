@@ -3,6 +3,11 @@ from app.rag_ingestion.domain.ports import RagEmbedderPort
 
 
 class DeterministicRagEmbedder(RagEmbedderPort):
+    """Temporary scaffold embedder producing 4-D vectors.
+
+    Keep this implementation aligned with the `chunks.embedding` vector dimension declared in
+    `firestore.indexes.json` until a production embedding model replaces the deterministic scaffold.
+    """
     def embed(self, chunks: list[RagChunkDraft]) -> list[tuple[float, ...]]:
         vectors: list[tuple[float, ...]] = []
         for chunk in chunks:

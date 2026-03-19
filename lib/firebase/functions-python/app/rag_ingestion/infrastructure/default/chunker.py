@@ -1,6 +1,8 @@
 from app.rag_ingestion.domain.entities import RagChunkDraft
 from app.rag_ingestion.domain.ports import RagChunkerPort
 
+# Keep the scaffold chunk size near a short paragraph so local tests stay deterministic and
+# future embedding providers can swap in without immediately exceeding common token windows.
 MAX_CHUNK_LENGTH = 800
 
 

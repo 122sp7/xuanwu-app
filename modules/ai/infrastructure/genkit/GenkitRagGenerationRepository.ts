@@ -5,13 +5,12 @@ import type {
 } from "../../domain/repositories/RagGenerationRepository";
 import { aiClient, getConfiguredGenkitModel } from "./client";
 
+function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
+  return `[doc:${input.docId} chunk:${input.chunkIndex}${typeof input.page === "number" ? ` page:${input.page}` : ""} taxonomy:${input.taxonomy}]\n${input.text}`;
+}
+
 function buildPrompt(input: GenerateRagAnswerInput) {
-  const context = input.chunks
-    .map(
-      (chunk) =>
-        `[doc:${chunk.docId} chunk:${chunk.chunkIndex}${typeof chunk.page === "number" ? ` page:${chunk.page}` : ""} taxonomy:${chunk.taxonomy}]\n${chunk.text}`,
-    )
-    .join("\n\n---\n\n");
+  const context = input.chunks.map((chunk) => formatChunkForPrompt(chunk)).join("\n\n---\n\n");
 
   return [
     "Use the retrieved context to answer the user query.",
@@ -37,7 +36,7 @@ export class GenkitRagGenerationRepository implements RagGenerationRepository {
         data: {
           answer: response.text,
           model: getConfiguredGenkitModel(input.model),
-          citations: input.chunks.slice(0, 3).map((chunk) => ({
+          citations: input.chunks.map((chunk) => ({
             docId: chunk.docId,
             chunkIndex: chunk.chunkIndex,
             ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
