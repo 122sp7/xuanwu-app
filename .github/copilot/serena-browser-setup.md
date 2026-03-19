@@ -1,6 +1,6 @@
-# Serena for Browser GitHub Copilot Coding Agent
+# Serena + Sequential Thinking for Browser GitHub Copilot Coding Agent
 
-This guide enables Serena for GitHub-hosted Copilot coding agent sessions (browser workflow).
+This guide enables Serena plus Sequential Thinking for GitHub-hosted Copilot coding agent sessions (browser workflow).
 
 ## Why this guide exists
 
@@ -45,16 +45,25 @@ Serena in this template does not require secrets by default.
 2. Open the generated session logs.
 3. Expand `Start MCP Servers`.
 4. Confirm Serena starts against the checked-out repo and that its initial prompt reads `.serena/memories/INDEX.md`.
-5. Confirm the tool list includes both:
+5. Confirm Sequential Thinking starts and exposes the `sequential_thinking` tool.
+6. Confirm the tool list includes both:
    - LSP navigation tools such as `find_symbol`, `find_referencing_symbols`, and `get_symbols_overview`
    - Memory / handoff tools such as `activate_project`, `list_memories`, `read_memory`, `write_memory`, and `prepare_for_new_conversation`
+   - Evidence helpers such as `find_referencing_code_snippets` and `search_for_pattern`
+7. Use the browser agent in this order for non-trivial work:
+   - Serena project activation and memory bootstrap
+   - Serena LSP and code-snippet evidence collection
+   - Sequential Thinking to expand the plan or routing strategy
+   - Commander or the chosen specialist handoff with the collected evidence
 
 ## Notes
 
 - This template uses `--context ide` to reduce tool duplication with coding agents.
 - `--project .` binds Serena to the checked-out repository workspace.
 - `.serena/project.yml` and `.serena/memories/` are the source of truth for Serena bootstrap, local-context recovery, and conversation continuity.
-- The MCP template intentionally exposes Serena's LSP + memory workflow but not Serena shell tools; use the coding agent's native shell for command execution.
+- The MCP template intentionally exposes Serena's LSP + memory workflow plus Sequential Thinking for plan expansion, but not Serena shell tools; use the coding agent's native shell for command execution.
+- Treat Serena as the code-reading layer and Sequential Thinking as the routing and planning expansion layer.
+- When a dedicated AST or code-search MCP is not available in the current client, use Serena's symbol, reference, snippet, and pattern tools as the baseline evidence pack before handing off.
 - If your organization blocks MCP, update Copilot policy first.
 
 ## Optional collaboration with client-local memory

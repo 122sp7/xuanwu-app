@@ -6,9 +6,10 @@ This document records the active Copilot customization layout in this repository
 
 - Start with `.github/agents/commander.agent.md` for most repository tasks.
 - In browser coding-agent sessions, treat Serena as the project knowledge orchestrator behind that entrypoint: activate the repo from `.github/copilot/serena-coding-agent-mcp.json`, follow `.serena/project.yml`, and bootstrap from `.serena/memories/INDEX.md`.
+- After Serena has gathered symbols, references, snippets, and likely paths, use Sequential Thinking to expand the routing strategy before handing off to another agent.
 - Load `xuanwu-app-skill` first for repository structure and existing patterns.
 - For `.github/*`, agent design, prompts, instructions, skills, or hooks, also load `vscode-docs-skill`.
-- Prefer Serena first for symbol-aware search, references, and precise edits.
+- Prefer Serena first for symbol-aware search, references, snippets, and precise edits.
 - Use direct agent entry only when the workflow is already obvious:
   - `planner` for plan-only work
   - `implementer` for code changes
@@ -22,17 +23,20 @@ This document records the active Copilot customization layout in this repository
 2. `xuanwu-app-skill`
 3. Serena MCP activation for this repo (`.serena/project.yml`)
 4. `.serena/memories/INDEX.md`
-5. `vscode-docs-skill` for `.github/*`
-6. filesystem MCP
-7. repomix MCP
-8. text search only when the stronger context tools are not enough
+5. Serena symbol, reference, snippet, and pattern evidence collection
+6. `sequential-thinking` for route expansion and plan shaping
+7. `vscode-docs-skill` for `.github/*`
+8. filesystem MCP
+9. repomix MCP
+10. text search only when the stronger context tools are not enough
 
 ## Tool choice
 
 | Need | Preferred tool |
 | --- | --- |
-| Symbols, references, precise edits | Serena MCP |
+| Symbols, references, snippets, precise edits | Serena MCP |
 | Conversation bootstrap, local-context recovery, handoff memory | Serena MCP via `.serena/project.yml` + `.serena/memories/*` |
+| Stepwise strategy expansion after code reading | Sequential Thinking MCP |
 | User-specific workflow habits and review preferences | client-local memory layer such as Server-Memory (when available in the client) |
 | Repository tree, path-aware exploration | filesystem MCP when Serena is unavailable or path-level structure is faster |
 | Repo-wide reference pack or index | repomix MCP when Serena and filesystem do not provide enough cross-cutting context |
@@ -108,7 +112,8 @@ This document records the active Copilot customization layout in this repository
 The agent workflow is commander-first:
 
 - `commander` is the recommended entrypoint. It loads repo context, routes work to the right agent, and keeps users from having to choose the best specialist up front.
-- `commander` is the human-facing entrypoint, while Serena is the repository orchestrator for symbol lookup, memory bootstrap, and context carry-forward.
+- `commander` is the human-facing entrypoint, while Serena is the repository orchestrator for symbol lookup, snippet/reference gathering, memory bootstrap, and context carry-forward.
+- For non-trivial work, `commander` is expected to build a `Routing Context Package` from Serena evidence first, then use Sequential Thinking to expand the routing choice before handoff.
 - `planner`, `implementer`, and `reviewer` remain the visible general-purpose workflow for direct access when the route is already obvious.
 - `vsa-mddd-planner` and `vsa-mddd-implementer` remain visible for architecture migration work and explicit handoff-based flows.
 - `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`, `disable-model-invocation: true`) so they can still be routed by `commander` without crowding the picker or being selected accidentally.
@@ -166,13 +171,13 @@ The active hook set is intentionally minimal. This repository enables one guardr
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
 - `commander.agent.md` is the repo entrypoint for agent routing. It relies on VS Code custom-agent `agents` + `agent` tool support to dispatch planner / implementer / reviewer / specialist work.
 - `.serena/project.yml` and `.serena/memories/INDEX.md` are the source of truth for Serena startup, ordered memory loading, and project-level context inheritance.
-- `.github/copilot/serena-coding-agent-mcp.json` must expose Serena's LSP navigation tools and its memory/bootstrap tools so browser coding-agent sessions can recover local context and update project memory between tasks.
+- `.github/copilot/serena-coding-agent-mcp.json` must expose Serena's LSP navigation tools, Serena memory/bootstrap tools, and Sequential Thinking so browser coding-agent sessions can recover local context and expand routing or planning without guessing.
 - When a client also provides a separate memory service such as Server-Memory, treat it as a **user-preference layer** for workflow habits, review preferences, and environment-specific reminders. Keep codebase facts, symbol locations, and architecture bootstrap in Serena / `.serena`.
 - For large changes in clients that support both layers, ask whether both Serena memory and the client-local memory rules should be updated before ending the task.
 - This repository does **not** add an auto-commit `ai-context-sync` workflow for `.serena` updates. Server-Memory is usually client-local, and branch-writing automation should not be introduced until ownership, rollback, and review rules are explicitly defined.
 - If the current environment does not support that custom-agent routing pattern, use `planner`, `implementer`, or `reviewer` directly and follow the Serena-first operating order in this file manually.
 - `.github/instructions/skill-usage.instructions.md` documents when to use explicit `Use skill: ...` references so agent bodies, prompts, and README guidance stay consistent.
-- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `serena`, `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
+- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `serena`, `sequential-thinking`, `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
 - Browser coding-agent MCP is configured in repository settings on GitHub.com. Files in `.github/copilot/` are source-of-truth templates and runbooks for that settings payload.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.
 - Plugin packaging and agentic workflow markdown files are not added yet. For this repository, workspace-level instructions, agents, skills, and a single safety hook currently provide higher value than introducing another distribution layer or `gh aw` compilation flow.
@@ -190,6 +195,6 @@ The active hook set is intentionally minimal. This repository enables one guardr
 - Keep official suffixes and folders unchanged.
 - Keep `SKILL.md` `name` values identical to their parent folder names.
 - Prefer updating existing customizations before creating near-duplicate variants.
-- Keep Serena as the primary code-understanding path and treat other MCP/search tools as explicit fallback layers.
+- Keep Serena as the primary code-understanding path, use Sequential Thinking after Serena evidence for route expansion, and treat other MCP/search tools as explicit fallback layers.
 - Replace scaffold placeholders with real automation only when ownership, rollback, and validation are defined.
 - Update this map whenever files are added, renamed, or removed.
