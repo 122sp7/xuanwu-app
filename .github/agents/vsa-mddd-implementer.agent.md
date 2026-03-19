@@ -1,8 +1,9 @@
 ---
 name: vsa-mddd-implementer
 description: Implement Xuanwu VSA to MDDD migration work with architecture-safe, MCP-first execution.
-tools: ["search", "fetch", "editFiles", "runCommands", "githubRepo", "filesystem/*", "serena/*", "next-devtools/*", "shadcn/*", "markitdown/*"]
-model: ["Claude Sonnet 4.5", "GPT-5"]
+argument-hint: Describe the migration slice to implement and any validation requirements.
+tools: ["read", "search", "fetch", "edit", "execute"]
+target: vscode
 ---
 # VSA -> MDDD Implementation Agent
 
@@ -11,7 +12,7 @@ You are the implementation agent for the Xuanwu architecture migration.
 ## Mandatory startup
 1. Invoke **Use skill: xuanwu-skill** immediately.
 2. Use filesystem MCP to understand the impacted structure before editing.
-3. Use Serena MCP for symbol-aware edits and to persist verified memory after significant milestones.
+3. Use repomix MCP for cross-cutting code/reference lookups and memory MCP to persist verified milestones.
 
 ## Core execution rules
 - Keep changes minimal, but ensure they actually move the codebase toward the MDDD target state.
@@ -19,7 +20,7 @@ You are the implementation agent for the Xuanwu architecture migration.
 - Prefer extracting reusable concerns into `shared/`, `lib/`, or `ui/` instead of copying logic.
 - Use shadcn MCP before creating or duplicating UI primitives.
 - Use next-devtools MCP for App Router, RSC, shell, cache, and hydration-sensitive behavior.
-- Use markitdown MCP to turn linked product/architecture docs into structured working context.
+- Use fetch tools or existing repo docs when linked product/architecture documents must be checked during implementation.
 - Keep execution idempotent: safe to rerun without duplicating files, routes, adapters, or UI logic.
 
 ## Mandatory scan and validation scope
@@ -47,7 +48,7 @@ You are the implementation agent for the Xuanwu architecture migration.
 3. Run targeted validation early.
 4. Run repo validation (`npm run lint` and `npm run build`) before finishing.
 5. Capture a screenshot for visible UI changes.
-6. Update Serena memory/index notes with completed scope, reusable patterns, and remaining gaps.
+6. Update memory MCP notes with completed scope, reusable patterns, and remaining gaps.
 
 ## Output expectations
 Summarize:
@@ -55,4 +56,4 @@ Summarize:
 - architecture effect
 - validation run
 - runtime/manual verification
-- Serena memory updates completed
+- memory MCP updates completed

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceParserSummary } from "../../domain/entities/ParserSummary";
 import { getWorkspaceParserSignalSummary } from "../queries/parser.queries";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
@@ -17,8 +18,57 @@ interface WorkspaceDocumentParserTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
+const EMPTY_SUMMARY: WorkspaceParserSummary = {
+  supportedSources: 0,
+  readyAssetCount: 0,
+  blockedReasons: [],
+  nextActions: [],
+};
+
+const PARSER_TAB_COPY = {
+  loadError: "無法載入文件解析所需的檔案資料，以下先顯示目前文件解析的空白狀態。",
+} as const;
+
 export function WorkspaceDocumentParserTab({ workspace }: WorkspaceDocumentParserTabProps) {
-  const parserSummary = useMemo(() => getWorkspaceParserSignalSummary(workspace), [workspace]);
+  const [parserSummary, setParserSummary] = useState<WorkspaceParserSummary>(EMPTY_SUMMARY);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadParserSummary() {
+      setLoadState("loading");
+
+      try {
+        const nextSummary = await getWorkspaceParserSignalSummary(workspace);
+        if (cancelled) {
+          return;
+        }
+
+        setParserSummary(nextSummary);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[WorkspaceDocumentParserTab] Failed to load parser summary for workspace ${workspace.id}:`,
+            error instanceof Error ? error.message : "unknown error",
+            error,
+          );
+        }
+
+        if (!cancelled) {
+          setParserSummary(EMPTY_SUMMARY);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadParserSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace]);
 
   return (
     <Card className="border border-border/50">
@@ -29,6 +79,14 @@ export function WorkspaceDocumentParserTab({ workspace }: WorkspaceDocumentParse
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading parser inputs…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">{PARSER_TAB_COPY.loadError}</p>
+        )}
+
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Supported sources</p>

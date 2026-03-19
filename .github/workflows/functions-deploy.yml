@@ -1,0 +1,17 @@
+name: Functions Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  functions-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Scaffold note
+        run: |
+          echo "This workflow is a scaffold."
+          echo "Install firebase-tools and configure credentials before running deploy:functions:python here."

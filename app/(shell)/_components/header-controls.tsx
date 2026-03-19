@@ -1,18 +1,21 @@
 "use client";
 
-import { Bell, Languages, Moon, Sun } from "lucide-react";
+/**
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
+ */
+
+import { Bell, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/ui/shadcn/ui/button";
+import { TranslationSwitcher } from "./translation-switcher";
 
-const LOCALE_KEY = "xuanwu_locale";
 const THEME_KEY = "xuanwu_theme";
 
 export function HeaderControls() {
-  const [locale, setLocale] = useState(() => {
-    if (typeof window === "undefined") return "en";
-    return window.localStorage.getItem(LOCALE_KEY) ?? "en";
-  });
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
     const storedTheme = window.localStorage.getItem(THEME_KEY);
@@ -21,18 +24,9 @@ export function HeaderControls() {
   });
 
   useEffect(() => {
-    document.documentElement.lang = locale;
-    window.localStorage.setItem(LOCALE_KEY, locale);
-  }, [locale]);
-
-  useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
-
-  function toggleLocale() {
-    setLocale((current) => (current === "en" ? "zh-TW" : "en"));
-  }
 
   function toggleTheme() {
     setTheme((current) => (current === "light" ? "dark" : "light"));
@@ -40,16 +34,7 @@ export function HeaderControls() {
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleLocale}
-        aria-label="Toggle language"
-        className="text-muted-foreground"
-      >
-        <Languages className="h-4 w-4" />
-      </Button>
+      <TranslationSwitcher />
 
       <Button
         type="button"

@@ -5,14 +5,14 @@ import type {
   WorkspaceFinanceScheduleSnapshot,
   WorkspaceScheduleItem,
 } from "../../domain/entities/ScheduleItem";
-import { LegacyWorkspaceScheduleRepository } from "../../infrastructure/legacy/LegacyWorkspaceScheduleRepository";
+import { DefaultWorkspaceScheduleRepository } from "../../infrastructure/default/DefaultWorkspaceScheduleRepository";
 
 export function getWorkspaceSchedule(
   workspace: WorkspaceEntity,
   finance: WorkspaceFinanceScheduleSnapshot | null,
 ): readonly WorkspaceScheduleItem[] {
   const useCase = new ListWorkspaceScheduleItemsUseCase(
-    new LegacyWorkspaceScheduleRepository(workspace, finance),
+    new DefaultWorkspaceScheduleRepository(workspace, finance),
   );
 
   return useCase.execute({ workspaceId: workspace.id });

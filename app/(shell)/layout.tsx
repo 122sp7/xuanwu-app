@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,6 +17,7 @@ import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { AccountSwitcher } from "./_components/account-switcher";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
 import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
 import { ShellGuard } from "./_components/shell-guard";
 
 const navItems = [
@@ -146,11 +154,14 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
               </div>
 
               <div className="ml-auto flex items-center gap-3">
-                <div className="hidden text-right sm:block">
-                  <p className="text-xs text-muted-foreground">Signed in as</p>
-                  <p className="max-w-[220px] truncate text-sm font-medium">{authState.user?.email ?? "—"}</p>
-                </div>
                 <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
               </div>
             </div>
 

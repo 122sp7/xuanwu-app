@@ -16,4 +16,4 @@ Analyze the requested area as part of the Xuanwu **VSA -> MDDD** migration:
   3) remaining unfinished modules by user-facing impact
 - exclude VS8 unless the user explicitly asks for VS8
 - ask up to 3 clarifying questions only if required
-- return a concrete checklist, validation plan, and Serena memory updates to perform after implementation
+- return a concrete checklist, validation plan, and memory MCP updates to perform after implementation

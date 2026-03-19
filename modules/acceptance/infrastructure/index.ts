@@ -1,1 +1,1 @@
-export { LegacyWorkspaceAcceptanceRepository } from "./legacy/LegacyWorkspaceAcceptanceRepository";
+export { DefaultWorkspaceAcceptanceRepository } from "./default/DefaultWorkspaceAcceptanceRepository";

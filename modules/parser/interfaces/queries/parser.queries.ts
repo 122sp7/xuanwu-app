@@ -1,12 +1,17 @@
+import { getWorkspaceFiles } from "@/modules/file/interfaces/queries/file.queries";
 import type { WorkspaceEntity } from "@/modules/workspace";
 
 import { GetWorkspaceParserSummaryUseCase } from "../../application/use-cases/get-workspace-parser-summary.use-case";
 import type { WorkspaceParserSummary } from "../../domain/entities/ParserSummary";
-import { LegacyWorkspaceParserRepository } from "../../infrastructure/legacy/LegacyWorkspaceParserRepository";
+import { DefaultWorkspaceParserRepository } from "../../infrastructure/default/DefaultWorkspaceParserRepository";
 
-export function getWorkspaceParserSignalSummary(
+export async function getWorkspaceParserSignalSummary(
   workspace: WorkspaceEntity,
-): WorkspaceParserSummary {
-  const useCase = new GetWorkspaceParserSummaryUseCase(new LegacyWorkspaceParserRepository(workspace));
-  return useCase.execute({ workspaceId: workspace.id });
+): Promise<WorkspaceParserSummary> {
+  const files = await getWorkspaceFiles(workspace);
+  const useCase = new GetWorkspaceParserSummaryUseCase(
+    new DefaultWorkspaceParserRepository(workspace, files),
+  );
+
+  return await useCase.execute({ workspaceId: workspace.id });
 }

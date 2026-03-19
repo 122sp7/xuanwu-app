@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "serena": {
+      "type": "local",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide",
+        "--project",
+        "."
+      ],
+      "tools": [
+        "find_symbol",
+        "find_referencing_symbols",
+        "get_symbols_overview",
+        "search_for_pattern",
+        "read_file",
+        "list_dir",
+        "replace_symbol_body",
+        "insert_after_symbol",
+        "insert_before_symbol",
+        "replace_lines",
+        "insert_at_line"
+      ]
+    }
+  }
+}

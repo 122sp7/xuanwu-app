@@ -1,0 +1,17 @@
+name: Firestore Rules Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  firestore-rules-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Scaffold note
+        run: |
+          echo "This workflow is a scaffold."
+          echo "Add emulator-based rules tests or firebase rules unit tests before treating this as enforcement."

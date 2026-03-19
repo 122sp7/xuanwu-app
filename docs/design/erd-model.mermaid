@@ -1,0 +1,70 @@
+erDiagram
+  DOCUMENTS ||--o{ CHUNKS : contains
+  DOCUMENTS ||--o{ QUERY_CACHE : serves
+  DOCUMENTS ||--o{ QUERY_FEEDBACK : receives
+
+  DOCUMENTS {
+    string id PK
+    string tenantId
+    string workspaceId
+    string title
+    string originalFilename
+    string contentType
+    string extension
+    number sizeBytes
+    string storageBucket
+    string storagePath
+    string checksum
+    string parser
+    string status
+    string taxonomy
+    string createdBy
+    datetime createdAt
+    datetime updatedAt
+    datetime processingStartedAt
+    datetime readyAt
+    datetime failedAt
+    datetime archivedAt
+    string errorCode
+    string errorMessage
+  }
+
+  CHUNKS {
+    string id PK
+    string tenantId
+    string workspaceId
+    string docId FK
+    number chunkIndex
+    string text
+    vector embedding
+    string taxonomy
+    number page
+    string tags
+    number tokenCount
+    number charCount
+    string sourceHeading
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  QUERY_CACHE {
+    string id PK
+    string tenantId
+    string workspaceId
+    string queryHash
+    string response
+    string retrievedChunkIds
+    datetime createdAt
+    datetime expiresAt
+  }
+
+  QUERY_FEEDBACK {
+    string id PK
+    string tenantId
+    string workspaceId
+    string queryHash
+    string responseId
+    string rating
+    string reason
+    datetime createdAt
+  }

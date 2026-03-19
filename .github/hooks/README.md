@@ -1,13 +1,20 @@
 # Copilot Hooks
 
-This directory is intentionally created as the canonical workspace location for VS Code Copilot hook JSON files.
+This directory is the canonical workspace location for VS Code Copilot hook JSON files.
 
 - Path convention: `.github/hooks/*.json`
 - Official docs: `https://code.visualstudio.com/docs/copilot/customization/hooks`
-- Status: no active hooks yet
-- Current policy: add hooks only after the lifecycle event contract, ownership, rollback plan, and security review are documented.
-- Notes:
-  - hooks are currently a **Preview** feature in VS Code Copilot
-  - this repository reserves the official path, but does **not** currently enable any hook automation
+- Current policy: keep hook count low and only enable deterministic commands with clear ownership, rollback behavior, and security review
 
-Add hook files here only when there is an approved automation scenario and validated lifecycle event contract.
+Current active files:
+
+- `guardrails.json` uses `PreToolUse` to detect obviously destructive terminal commands and force explicit human review before execution.
+
+Hooks are currently a Preview feature in VS Code Copilot. Keep hook commands minimal, deterministic, and reviewable.
+
+Why only one hook right now:
+
+- destructive terminal commands are the highest-value failure mode to intercept automatically
+- blanket auto-format or auto-lint hooks are too noisy until file-level targeting and team ownership are tighter
+- session bootstrap hooks add little value because this repository already maintains strong always-on instructions and scoped instructions
+
