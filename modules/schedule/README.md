@@ -76,9 +76,26 @@ That legacy domain should migrate into explicit aggregates and services instead 
 5. **Workspace acknowledgement**
    - remains the current migrated write-side slice for derived workspace schedule items
 
+#### Missing concepts in the current migrated module
+
+The current `modules/schedule` implementation only covers derived readiness items, request submission, and acknowledgement persistence. The following legacy domain concepts are still missing as explicit MDDD models:
+
+- `Task`
+  - request decomposition into assignable work units does not exist yet
+- `Match`
+  - task-skill and task-capability evaluation is still implied by legacy UI and event flows, not modeled as a first-class domain result
+- `Schedule`
+  - time allocation and conflict-aware staffing allocation are not modeled separately from request / assignment state
+- `Capability`
+  - only skill requirements are captured today; non-skill operational constraints still need an explicit model
+- `Availability`
+  - assignee time constraints, overlap checks, and scheduling eligibility are not yet represented
+- `Organization`, `Team`, and `AccountUser`
+  - organization-owned fulfillment structure exists elsewhere in the repo, but the schedule target model does not yet declare how those references participate in assignment and scheduling decisions
+
 #### Suggested aggregates and boundaries
 
-##### `ScheduleRequest`
+##### `Request`
 
 - boundary: workspace-originated request lifecycle
 - identity: `requestId`
@@ -86,21 +103,51 @@ That legacy domain should migrate into explicit aggregates and services instead 
   - belongs to one `workspaceId`
   - targets one `organizationId`
   - contains a stable `requiredSkills` snapshot at submission time
+  - may also capture `requiredCapabilities` and requested time constraints
   - cannot be fulfilled before it reaches `submitted`
+- responsibility:
+  - preserves the workspace demand as the source aggregate for downstream task creation
+- note:
+  - the current migrated slice persists this aggregate as `ScheduleRequest`
 - status examples:
   - `draft`
   - `submitted`
   - `cancelled`
   - `closed`
 
-##### `FulfillmentAssignment`
+##### `Task`
+
+- boundary: assignable unit of work derived from one `Request`
+- identity: `taskId`
+- invariants:
+  - belongs to exactly one `Request`
+  - keeps its own `requiredSkills`, `requiredCapabilities`, staffing quantity, and target `TimeWindow`
+  - can enter matching before assignment, but not completion before assignment
+- responsibility:
+  - narrows one workspace demand into a unit the organization can match, assign, and schedule
+- status examples:
+  - `open`
+  - `matching`
+  - `assignable`
+  - `assigned`
+  - `scheduled`
+  - `completed`
+  - `cancelled`
+
+##### `Assignment`
 
 - boundary: organization-owned fulfillment lifecycle
 - identity: `assignmentId`
 - invariants:
-  - belongs to exactly one `ScheduleRequest`
+  - belongs to exactly one `Task`
+  - references the originating `Request`
   - assignment decisions are made by the organization actor, not the workspace actor
   - assignees must satisfy the matching policy before confirmation
+  - may reference one `Team` and one chosen `AccountUser`
+- responsibility:
+  - records who takes the task, under whose organizational authority, and with what decision outcome
+- note:
+  - the current README previously called this target aggregate `FulfillmentAssignment`; `Assignment` is the canonical target name for the full legacy flow
 - status examples:
   - `pending-review`
   - `matching`
@@ -109,13 +156,30 @@ That legacy domain should migrate into explicit aggregates and services instead 
   - `assignment-cancelled`
   - `completed`
 
+##### `Schedule`
+
+- boundary: time allocation lifecycle after assignment is approved
+- identity: `scheduleId`
+- invariants:
+  - belongs to exactly one `Assignment`
+  - allocates one assignee into one `TimeWindow`
+  - must satisfy availability and overlap constraints before becoming active
+- responsibility:
+  - owns the actual staffing allocation in time, separate from demand and assignment decision state
+- status examples:
+  - `planned`
+  - `reserved`
+  - `active`
+  - `completed`
+  - `cancelled`
+
 ##### `ScheduleItemProjection`
 
 - boundary: query-side projection for workspace and organization schedule views
 - identity: `scheduleItemId`
 - purpose:
   - supports the legacy `accounts/{orgId}/schedule_items` read model
-  - exposes request summary, assignees, and skill requirement display state
+  - exposes request summary, task/assignment outcome, assignees, and requirement display state
 - rule:
   - projection state must not become the place where workflow decisions are made
 
@@ -126,22 +190,69 @@ That legacy domain should migrate into explicit aggregates and services instead 
 - rule:
   - remains separate from both derived readiness items and future request / fulfillment aggregates
 
+#### Supporting reference models
+
+##### `AccountUser`
+
+- role in schedule domain:
+  - candidate or assignee selected by the organization
+  - carries skill inventory, capability coverage, team membership, and availability reference
+
+##### `Organization`
+
+- role in schedule domain:
+  - fulfillment owner for a workspace request
+  - owns assignment policy, governance, and the schedule projection single source of truth
+
+##### `Team`
+
+- role in schedule domain:
+  - optional operational grouping inside an organization
+  - narrows eligible assignee pools and can own team-level capability or staffing constraints
+
+##### `Skill`
+
+- role in schedule domain:
+  - competency used for requirement and candidate matching
+  - usually evaluated with level and quantity requirements
+
+##### `Capability`
+
+- role in schedule domain:
+  - non-skill or operational qualification required for a task or assignment
+  - examples include role authorization, equipment access, language coverage, or domain-specific certification
+
+##### `Availability`
+
+- role in schedule domain:
+  - scheduling constraint model that declares whether an `AccountUser` can take a scheduled time allocation
+  - used after candidate matching and before schedule confirmation to prevent overlaps and infeasible assignments
+
 #### Value objects
 
 - `SkillRequirement`
+- `CapabilityRequirement`
 - `TimeWindow`
+- `AvailabilityWindow`
 - `AssignmentDecision`
 - `MatchResult`
+- `MatchCandidate`
+- `MatchGap`
 - `ScheduleRequestStatus`
-- `FulfillmentAssignmentStatus`
+- `TaskStatus`
+- `AssignmentStatus`
+- `ScheduleStatus`
 
 #### Domain services
 
+- `DecomposeRequestIntoTasks`
 - `SubmitScheduleRequest`
 - `CancelScheduleRequest`
 - `EvaluateCandidateMatch`
 - `BuildFulfillmentPlan`
 - `ConfirmAssignment`
+- `AllocateScheduleWindow`
+- `CancelAssignment`
 - `RejectAssignment`
 - `CompleteAssignment`
 - `DeriveWorkspaceScheduleItems`
@@ -149,13 +260,17 @@ That legacy domain should migrate into explicit aggregates and services instead 
 
 ### Matching mechanism
 
-Task-skill matching should be treated as a domain policy, not a UI-only helper.
+Task matching should be treated as a domain policy, not a UI-only helper.
 
 #### Inputs
 
-- `requiredSkills` from the request or schedule item
+- `requiredSkills` from the request or task
+- `requiredCapabilities` from the task or organization policy
 - eligible organization members
 - member skill inventory
+- member capability inventory
+- member availability windows
+- organization and team staffing constraints
 - already assigned members
 - staffing quantity per required skill
 
@@ -163,43 +278,66 @@ Task-skill matching should be treated as a domain policy, not a UI-only helper.
 
 - matched member candidates
 - unmet requirements
+- availability conflicts
 - total coverage vs required headcount
 - assignment allowed / rejected decision
 
 #### Suggested policy surface
 
-- `computeMemberMatch(member, requiredSkills)`
-- `computeRequestCoverage(members, requiredSkills)`
-- `isAssignmentAllowed(candidateSet, requiredSkills)`
+- `computeTaskMatch(task, member, organizationPolicy)`
+- `computeTaskCoverage(task, members)`
+- `resolveAvailabilityConflicts(task, candidateSet, availabilityWindows)`
+- `isAssignmentAllowed(task, candidateSet, matchResult)`
+
+#### Refactored domain type map
+
+| Type | Kind | Responsibility |
+| --- | --- | --- |
+| `Request` | aggregate root | capture workspace demand and its stable requirement snapshot |
+| `Task` | aggregate root | represent the assignable unit of work derived from a request |
+| `Match` | domain service result / value object | describe candidate coverage, gaps, and assignment eligibility |
+| `Assignment` | aggregate root | record organization-owned assignee selection and decision lifecycle |
+| `Schedule` | aggregate root | allocate approved work into an actual time window |
+| `AccountUser` | reference model | candidate / assignee identity with skills, capabilities, and availability |
+| `Organization` | reference model | fulfillment owner and policy boundary |
+| `Team` | reference model | organization sub-structure for staffing pools and operational constraints |
+| `Skill` | value object / catalog reference | competency used for matching |
+| `Capability` | value object / catalog reference | non-skill qualification used for assignment constraints |
+| `Availability` | value object / supporting model | time constraint source used before schedule confirmation |
 
 ### Flow diagram
 
 ```text
 Workspace user
-  -> drafts request with timing, notes, and requiredSkills
+  -> drafts request with timing, notes, requiredSkills, and requiredCapabilities
   -> SubmitScheduleRequest
-  -> ScheduleRequest: draft -> submitted
+  -> Request: draft -> submitted
   -> publish ScheduleRequestSubmitted
+  -> DecomposeRequestIntoTasks
+  -> Task(s): open
   -> projection adds pending organization work item
 
 Organization HR / operations
-  -> reviews pending ScheduleRequest
+  -> reviews pending Request / Task
   -> EvaluateCandidateMatch / BuildFulfillmentPlan
   -> selects assignees
-  -> ConfirmAssignment
-     -> success: FulfillmentAssignment -> assigned
-              -> publish organization:schedule:assigned
-     -> failure: FulfillmentAssignment -> assign-rejected
-               -> publish organization:schedule:assignRejected
+  -> ConfirmAssignment on Assignment
+     -> success: Assignment -> assigned
+              -> AllocateScheduleWindow
+              -> Schedule -> planned / reserved
+               -> publish organization:schedule:assigned
+     -> failure: Assignment -> assign-rejected
+                -> publish organization:schedule:assignRejected
 
 Workspace or organization actor
   -> CancelScheduleRequest
-  -> ScheduleRequest -> cancelled
+  -> Request -> cancelled
   -> publish organization:schedule:proposalCancelled
 
 Organization or system
   -> CompleteAssignment
-  -> FulfillmentAssignment -> completed
+  -> Assignment -> completed
+  -> Schedule -> completed
   -> publish organization:schedule:completed
 
 Current migrated workspace slice
@@ -217,20 +355,32 @@ modules/schedule/
   README.md
   domain/
     entities/
-      ScheduleRequest.ts
-      FulfillmentAssignment.ts
+      Request.ts
+      Task.ts
+      Assignment.ts
+      Schedule.ts
       ScheduleAcknowledgement.ts
     value-objects/
+      Skill.ts
+      Capability.ts
       SkillRequirement.ts
+      CapabilityRequirement.ts
+      Availability.ts
       TimeWindow.ts
       MatchResult.ts
-      ScheduleRequestStatus.ts
-      FulfillmentAssignmentStatus.ts
+      MatchCandidate.ts
+      MatchGap.ts
+      RequestStatus.ts
+      TaskStatus.ts
+      AssignmentStatus.ts
+      ScheduleStatus.ts
     domain-services/
+      DecomposeRequestIntoTasks.ts
       SubmitScheduleRequest.ts
       EvaluateCandidateMatch.ts
       BuildFulfillmentPlan.ts
       ConfirmAssignment.ts
+      AllocateScheduleWindow.ts
       RejectAssignment.ts
       CompleteAssignment.ts
       DeriveWorkspaceScheduleItems.ts
@@ -241,11 +391,15 @@ modules/schedule/
       ScheduleProposalCancelled.ts
       ScheduleCompleted.ts
     ports/
-      ScheduleRequestRepository.ts
-      FulfillmentAssignmentRepository.ts
+      RequestRepository.ts
+      TaskRepository.ts
+      AssignmentRepository.ts
+      ScheduleRepository.ts
       ScheduleAcknowledgementRepository.ts
       ScheduleProjectionRepository.ts
+      OrganizationStructureRepository.ts
       OrganizationMemberSkillRepository.ts
+      MemberAvailabilityRepository.ts
       SchedulingEventBus.ts
   application/
     use-cases/
@@ -256,7 +410,9 @@ modules/schedule/
         acknowledge-workspace-schedule-item.use-case.ts
       organization/
         review-pending-schedule-request.use-case.ts
-        assign-schedule-request.use-case.ts
+        match-schedule-task.use-case.ts
+        assign-schedule-task.use-case.ts
+        allocate-schedule-window.use-case.ts
         reject-schedule-assignment.use-case.ts
         complete-schedule-assignment.use-case.ts
   infrastructure/

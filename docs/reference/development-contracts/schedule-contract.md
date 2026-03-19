@@ -118,8 +118,12 @@ The display `status` on `WorkspaceScheduleItem` is not the same thing as acknowl
 The following legacy responsibilities are still outside this contract and should be introduced as explicit MDDD slices instead of being folded into the current derived milestone model or the initial request submission slice:
 
 - organization HR governance over pending schedule proposals
+- request decomposition into `Task` aggregates
+- task matching outcomes and explicit `Match` result modeling
 - draft / cancellation / closure lifecycle for `ScheduleRequest`
 - member assignment / rejection / proposal cancellation / assignment completion lifecycle
+- schedule time allocation lifecycle and `Availability` conflict enforcement
+- `Capability` requirements and organization / team fulfillment structure
 - persistent organization or account `schedule_items` aggregates and projections
 - schedule events and notification routing such as `organization:schedule:assigned`, `organization:schedule:assignmentCancelled`, and `organization:schedule:completed`
 
