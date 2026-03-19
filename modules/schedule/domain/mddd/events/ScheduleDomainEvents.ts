@@ -29,6 +29,23 @@ export interface TaskCompletedEvent {
   readonly occurredAtISO: string;
 }
 
+export interface RequestAcceptedEvent {
+  readonly type: "RequestAccepted";
+  readonly requestId: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface RequestRejectedEvent {
+  readonly type: "RequestRejected";
+  readonly requestId: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly reason: string;
+  readonly occurredAtISO: string;
+}
+
 export interface ScheduleReservedEvent {
   readonly type: "ScheduleReserved";
   readonly scheduleId: string;
@@ -39,6 +56,8 @@ export interface ScheduleReservedEvent {
 
 export type ScheduleDomainEvent =
   | RequestCreatedEvent
+  | RequestAcceptedEvent
+  | RequestRejectedEvent
   | TaskMatchedEvent
   | AssignmentAcceptedEvent
   | ScheduleReservedEvent

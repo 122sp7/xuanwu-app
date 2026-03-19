@@ -24,6 +24,7 @@ import { createMdddId } from "../../../domain/mddd/utils/create-id";
 
 // In this first runtime slice, one assignment consumes one abstract capacity unit.
 const DEFAULT_ASSIGNMENT_LOAD_WEIGHT = 1;
+const REVIEW_REJECTION_REASON_UNSPECIFIED = "not_approved";
 
 export type RunScheduleMdddFlowResult =
   | {
@@ -50,13 +51,15 @@ export interface RunScheduleMdddFlowInput {
   readonly scheduleSlot: CalendarSlot;
   readonly existingSchedules?: readonly Schedule[];
   readonly useScaffoldingFastClose?: boolean;
+  readonly reviewOutcome?: "accepted" | "rejected";
+  readonly reviewRejectionReason?: string;
 }
 
 export interface RunScheduleMdddFlowOutput {
   readonly request: Request;
-  readonly task: Task;
-  readonly assignmentId: string;
-  readonly scheduleId: string;
+  readonly task?: Task;
+  readonly assignmentId?: string;
+  readonly scheduleId?: string;
   readonly events: readonly ScheduleDomainEvent[];
 }
 
@@ -64,6 +67,8 @@ export class RunScheduleMdddFlowUseCase {
   execute(input: RunScheduleMdddFlowInput): RunScheduleMdddFlowResult {
     const nowISO = new Date().toISOString();
     const useScaffoldingFastClose = input.useScaffoldingFastClose ?? true;
+    const reviewOutcome = input.reviewOutcome;
+    const events: ScheduleDomainEvent[] = [];
 
     if (!input.workspaceId.trim()) {
       return {
@@ -95,6 +100,17 @@ export class RunScheduleMdddFlowUseCase {
       };
     }
 
+    if (!useScaffoldingFastClose && !reviewOutcome) {
+      return {
+        success: false,
+        command: commandFailureFrom(
+          "SCHEDULE_REVIEW_OUTCOME_REQUIRED",
+          "Review outcome is required when scaffolding fast-close mode is disabled.",
+        ),
+        reason: "review_outcome_required",
+      };
+    }
+
     const createdRequest = createRequest({
       requestId: createMdddId("req"),
       workspaceId: input.workspaceId,
@@ -108,11 +124,56 @@ export class RunScheduleMdddFlowUseCase {
     });
 
     // TODO(schedule-mddd): remove fast-close scaffolding when full review/approval flow is implemented.
-    // First executable slice can run with temporary fast-close scaffolding for end-to-end verification.
-    const requestUnderReview = transitionRequestStatus(createdRequest, "under-review", nowISO);
+    // First executable slice can run with temporary fast-close behavior for accepted requests
+    // to keep end-to-end orchestration validation simple.
+    const underReviewRequest = transitionRequestStatus(createdRequest, "under-review", nowISO);
+    // In scaffolding mode, an omitted review outcome follows the accepted path to
+    // preserve the original end-to-end orchestration behavior.
+    const reviewedRequest = transitionRequestStatus(
+      underReviewRequest,
+      reviewOutcome ?? "accepted",
+      nowISO,
+    );
+
+    events.push({
+      type: "RequestCreated",
+      requestId: reviewedRequest.requestId,
+      workspaceId: reviewedRequest.workspaceId,
+      organizationId: reviewedRequest.organizationId,
+      occurredAtISO: nowISO,
+    });
+
+    if (reviewOutcome === "rejected") {
+      const closedRejectedRequest = transitionRequestStatus(reviewedRequest, "closed", nowISO);
+      events.push({
+        type: "RequestRejected",
+        requestId: closedRejectedRequest.requestId,
+        workspaceId: closedRejectedRequest.workspaceId,
+        organizationId: closedRejectedRequest.organizationId,
+        reason: input.reviewRejectionReason ?? REVIEW_REJECTION_REASON_UNSPECIFIED,
+        occurredAtISO: nowISO,
+      });
+
+      return {
+        success: true,
+        command: commandSuccess(closedRejectedRequest.requestId, Date.now()),
+        data: {
+          request: closedRejectedRequest,
+          events,
+        },
+      };
+    }
+
+    events.push({
+      type: "RequestAccepted",
+      requestId: reviewedRequest.requestId,
+      workspaceId: reviewedRequest.workspaceId,
+      organizationId: reviewedRequest.organizationId,
+      occurredAtISO: nowISO,
+    });
     const request = useScaffoldingFastClose
-      ? transitionRequestStatus(requestUnderReview, "closed", nowISO)
-      : requestUnderReview;
+      ? transitionRequestStatus(reviewedRequest, "closed", nowISO)
+      : reviewedRequest;
 
     const createdTask = createTask({
       taskId: createMdddId("task"),
@@ -227,14 +288,7 @@ export class RunScheduleMdddFlowUseCase {
       ? transitionTaskStatus(scheduledTask, "completed", nowISO)
       : scheduledTask;
 
-    const events: ScheduleDomainEvent[] = [
-      {
-        type: "RequestCreated",
-        requestId: request.requestId,
-        workspaceId: request.workspaceId,
-        organizationId: request.organizationId,
-        occurredAtISO: nowISO,
-      },
+    events.push(
       {
         type: "TaskMatched",
         taskId: finalTask.taskId,
@@ -256,7 +310,7 @@ export class RunScheduleMdddFlowUseCase {
         taskId: finalTask.taskId,
         occurredAtISO: nowISO,
       },
-    ];
+    );
 
     if (shouldCompleteNow) {
       events.push({
