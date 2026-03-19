@@ -4,5 +4,6 @@ export type { ScheduleMdddMatchRepository } from "./MatchRepository";
 export type { ScheduleMdddAssignmentRepository } from "./AssignmentRepository";
 export type { ScheduleMdddScheduleRepository } from "./ScheduleRepository";
 export type { ScheduleMdddProjectionRepository } from "./ProjectionRepository";
+export type { ScheduleMdddProjectionQueryRepository } from "./ProjectionQueryRepository";
 export type { ScheduleMdddOrganizationStructureRepository } from "./OrganizationStructureRepository";
 export type { ScheduleMdddMemberAvailabilityRepository } from "./MemberAvailabilityRepository";

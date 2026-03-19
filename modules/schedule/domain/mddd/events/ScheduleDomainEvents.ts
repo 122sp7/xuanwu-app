@@ -8,14 +8,15 @@ export interface RequestCreatedEvent {
 
 export interface TaskMatchedEvent {
   readonly type: "TaskMatched";
-  readonly taskId: string;
   readonly requestId: string;
+  readonly taskId: string;
   readonly topMatchId: string;
   readonly occurredAtISO: string;
 }
 
 export interface AssignmentAcceptedEvent {
   readonly type: "AssignmentAccepted";
+  readonly requestId: string;
   readonly assignmentId: string;
   readonly taskId: string;
   readonly assigneeAccountUserId: string;
@@ -24,6 +25,7 @@ export interface AssignmentAcceptedEvent {
 
 export interface AssignmentRejectedEvent {
   readonly type: "AssignmentRejected";
+  readonly requestId: string;
   readonly assignmentId: string;
   readonly taskId: string;
   readonly assigneeAccountUserId: string;
@@ -33,6 +35,7 @@ export interface AssignmentRejectedEvent {
 
 export interface TaskCompletedEvent {
   readonly type: "TaskCompleted";
+  readonly requestId: string;
   readonly taskId: string;
   readonly scheduleId: string;
   readonly occurredAtISO: string;
@@ -57,9 +60,20 @@ export interface RequestRejectedEvent {
 
 export interface ScheduleReservedEvent {
   readonly type: "ScheduleReserved";
+  readonly requestId: string;
   readonly scheduleId: string;
   readonly assignmentId: string;
   readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface ScheduleCancelledEvent {
+  readonly type: "ScheduleCancelled";
+  readonly requestId: string;
+  readonly scheduleId: string;
+  readonly assignmentId: string;
+  readonly taskId: string;
+  readonly reason: string;
   readonly occurredAtISO: string;
 }
 
@@ -71,4 +85,5 @@ export type ScheduleDomainEvent =
   | AssignmentAcceptedEvent
   | AssignmentRejectedEvent
   | ScheduleReservedEvent
+  | ScheduleCancelledEvent
   | TaskCompletedEvent;
