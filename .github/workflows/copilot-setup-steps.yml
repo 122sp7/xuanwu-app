@@ -1,7 +1,80 @@
-version: "1"
-setup:
-  - name: Global Environment Setup
-    description: Install Node 24 and Python uv
+name: Copilot Setup (Prewarm Full Stack)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup:
+    runs-on: ubuntu-22.04
+
+    env:
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_FUND: "false"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
     steps:
-      - run: npm install
-      - run: uv sync --directory lib/firebase/functions-python
+      # ✅ 一定要有（你現在就是缺這個）
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------
+      # 🟢 Node 預熱
+      # ------------------------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Node deps
+        run: npm ci
+
+      # ------------------------
+      # 🟣 Python + uv 預熱
+      # ------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: |
+          pip install uv
+
+      - name: Prewarm Python deps (uv)
+        run: |
+          if [ -f requirements.txt ]; then
+            uv pip install -r requirements.txt
+          fi
+
+      # ------------------------
+      # 🟡 uvx（MCP / tools 預熱）
+      # ------------------------
+      - name: Prewarm uvx tools
+        run: |
+          uvx --version
+          uvx playwright install chromium || true
+
+      # ------------------------
+      # 🔵 Playwright（Copilot 常用）
+      # ------------------------
+      - name: Install Playwright browsers
+        run: |
+          npx playwright install --with-deps || true
+
+      # ------------------------
+      # 🧠 MCP 預熱（關鍵）
+      # ------------------------
+      - name: Start MCP servers (prewarm)
+        run: |
+          npx -y @modelcontextprotocol/server-filesystem . &
+          sleep 5
+
+      # ------------------------
+      # ⚡ 快取優化（可選）
+      # ------------------------
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
