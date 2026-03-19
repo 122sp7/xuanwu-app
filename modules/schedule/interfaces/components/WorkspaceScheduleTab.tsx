@@ -26,6 +26,19 @@ const statusVariantMap = {
   completed: "secondary",
 } as const;
 
+const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
+  maxLoadPerMember: 4,
+  maxConcurrentAssignmentsPerMember: 2,
+  requiredSkillId: "schedule.coordination",
+  requiredSkillLevel: "junior" as const,
+  candidateSkillLevel: "senior" as const,
+  requiredHeadcount: 1,
+  timezone:
+    typeof Intl !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei"
+      : "Asia/Taipei",
+} as const;
+
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
@@ -90,57 +103,76 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     const endAt = new Date(now.getTime() + 2 * 60 * 60 * 1000);
     const availabilityEndAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const runnerId = defaultCandidateId;
+    const runtimeProfile = DEFAULT_SCHEDULE_RUNTIME_PROFILE;
 
-    const result = await runScheduleMdddFlow({
-      workspaceId: workspace.id,
-      organization: {
-        organizationId: workspace.accountId,
-        maxLoadPerMember: 4,
-        maxConcurrentAssignmentsPerMember: 2,
-      },
-      requiredSkills: [{ skillId: "schedule.coordination", minLevel: "junior", requiredHeadcount: 1 }],
-      requiredHeadcount: 1,
-      actorAccountUserId: runnerId,
-      candidates: [
-        {
-          accountUserId: runnerId,
-          teamIds: workspace.teamIds,
-          skills: [{ skillId: "schedule.coordination", level: "senior" }],
-          capabilities: [],
-          availability: {
-            accountUserId: runnerId,
-            windows: [{ startAtISO: now.toISOString(), endAtISO: availabilityEndAt.toISOString() }],
-            maxConcurrentAssignments: 2,
-            maxLoadPerPeriod: 4,
-          },
-          currentLoadUnits: 0,
+    try {
+      const result = await runScheduleMdddFlow({
+        workspaceId: workspace.id,
+        organization: {
+          organizationId: workspace.accountId,
+          maxLoadPerMember: runtimeProfile.maxLoadPerMember,
+          maxConcurrentAssignmentsPerMember: runtimeProfile.maxConcurrentAssignmentsPerMember,
         },
-      ],
-      scheduleSlot: {
-        startAtISO: startAt.toISOString(),
-        endAtISO: endAt.toISOString(),
-        timezone: "Asia/Taipei",
-        slotType: "planned",
-      },
-      useScaffoldingFastClose: true,
-    });
+        requiredSkills: [
+          {
+            skillId: runtimeProfile.requiredSkillId,
+            minLevel: runtimeProfile.requiredSkillLevel,
+            requiredHeadcount: runtimeProfile.requiredHeadcount,
+          },
+        ],
+        requiredHeadcount: runtimeProfile.requiredHeadcount,
+        actorAccountUserId: runnerId,
+        candidates: [
+          {
+            accountUserId: runnerId,
+            teamIds: workspace.teamIds,
+            skills: [{ skillId: runtimeProfile.requiredSkillId, level: runtimeProfile.candidateSkillLevel }],
+            capabilities: [],
+            availability: {
+              accountUserId: runnerId,
+              windows: [{ startAtISO: now.toISOString(), endAtISO: availabilityEndAt.toISOString() }],
+              maxConcurrentAssignments: runtimeProfile.maxConcurrentAssignmentsPerMember,
+              maxLoadPerPeriod: runtimeProfile.maxLoadPerMember,
+            },
+            currentLoadUnits: 0,
+          },
+        ],
+        scheduleSlot: {
+          startAtISO: startAt.toISOString(),
+          endAtISO: endAt.toISOString(),
+          timezone: runtimeProfile.timezone,
+          slotType: "planned",
+        },
+        useScaffoldingFastClose: true,
+      });
 
-    if (!result.success) {
+      if (!result.success) {
+        setRunState("error");
+        setRunMessage(result.command.error.message);
+        return;
+      }
+
+      setRunState("success");
+      setRunMessage("Schedule MDDD flow 已完成，請檢查下方執行摘要。");
+      setLastRunSummary({
+        requestId: result.data.request.requestId,
+        taskId: result.data.task?.taskId,
+        assignmentId: result.data.assignmentId,
+        scheduleId: result.data.scheduleId,
+        eventTypes: result.data.events.map((event) => event.type),
+      });
+
+      try {
+        await loadSchedule();
+      } catch {
+        setRunMessage("流程已完成，但重新載入清單失敗，請手動刷新頁面。");
+      }
+    } catch (error) {
       setRunState("error");
-      setRunMessage(result.command.error.message);
-      return;
+      setRunMessage(
+        error instanceof Error ? error.message : "Schedule MDDD flow 執行失敗，請稍後再試。",
+      );
     }
-
-    setRunState("success");
-    setRunMessage("Schedule MDDD flow 已完成，請檢查下方執行摘要。");
-    setLastRunSummary({
-      requestId: result.data.request.requestId,
-      taskId: result.data.task?.taskId,
-      assignmentId: result.data.assignmentId,
-      scheduleId: result.data.scheduleId,
-      eventTypes: result.data.events.map((event) => event.type),
-    });
-    await loadSchedule();
   }
 
   return (
@@ -162,7 +194,16 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
             </div>
             <Button
               type="button"
-              onClick={() => void handleRunScheduleFlow()}
+              onClick={() => {
+                handleRunScheduleFlow().catch((error) => {
+                  setRunState("error");
+                  setRunMessage(
+                    error instanceof Error
+                      ? error.message
+                      : "Schedule MDDD flow 執行失敗，請稍後再試。",
+                  );
+                });
+              }}
               disabled={runState === "running"}
             >
               {runState === "running" ? "執行中…" : "執行 MDDD Flow"}
