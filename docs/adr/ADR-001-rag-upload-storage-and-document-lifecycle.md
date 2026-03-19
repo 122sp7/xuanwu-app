@@ -108,6 +108,9 @@ Next.js query orchestration + Genkit answer generation
 - [ADR-006](./ADR-006-rag-query-execution-contract.md): query pipeline 執行契約、retrieval gates、prompt 組裝與 streaming 契約
 - [ADR-007](./ADR-007-rag-optional-enhancements-rollout.md): hybrid search、rerank、cache、feedback 的分階段 rollout 規則
 - [ADR-008](./ADR-008-rag-observability-slo-and-acceptance.md): 觀測指標、SLO、驗收門檻與發布檢核
+- [ADR-009](./ADR-009-rag-firestore-index-matrix.md): Firestore index matrix、query pattern 對應與部署檢核
+- [ADR-010](./ADR-010-rag-upload-and-worker-event-contract.md): Next.js upload 與 worker event contract（request / metadata / event payload）
+- [ADR-011](./ADR-011-rag-genkit-flow-contract.md): Genkit flow contract（preprocess / prompt schema / citation / streaming events）
 
 ### 4. Deployment 與 observability 基線
 
@@ -117,6 +120,26 @@ Next.js query orchestration + Genkit answer generation
 2. Firestore 建立 `chunks.embedding` vector index，並規劃 filter 所需索引。
 3. Cloud Functions (Python) 具備 parser、embedding、Firestore、Storage 所需 IAM 與 runtime config。
 4. upload、processing、ready、failed、query latency、cache hit rate、feedback volume 必須可觀測。
+
+### 5. Required technology stack baseline
+
+本 ADR 系列預設技術棧：
+
+1. App/UI runtime: Next.js 16 + React 19 + TypeScript 5
+2. LLM orchestration: Genkit（Google AI provider 可替換）
+3. Metadata/vector store: Firestore（含 vector index）
+4. Binary storage: Firebase Storage
+5. Worker runtime: Cloud Functions for Firebase (Python)
+6. Optional cache: Firestore cache 或 Redis/Upstash
+
+### 6. 與 functions-python ADR 協作原則
+
+與 `lib/firebase/functions-python/docs/adr` 的協作邊界如下：
+
+1. 本目錄 `docs/adr` 是產品層與跨 runtime 的 canonical orchestration 規範。
+2. `lib/firebase/functions-python/docs/adr` 是 worker runtime 內部實作與依賴策略的 canonical 規範。
+3. 若規則衝突，以「Next.js user-facing 在 app 側、ingestion worker 在 Python 側」作為最高優先邊界，不可互相越界。
+4. 本目錄新增 ADR 必須引用並遵守 functions-python 的 runtime 定位，不可將 Python worker 描述為瀏覽器主入口。
 
 ## Alternatives Considered
 
