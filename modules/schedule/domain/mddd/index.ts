@@ -7,6 +7,7 @@ export * from "./entities/References";
 export * from "./value-objects/Requirements";
 export * from "./value-objects/Scheduling";
 export * from "./value-objects/WorkflowStatuses";
+export * from "./repositories";
 export * from "./services/matching-engine";
 export * from "./services/scheduling-engine";
 export * from "./events/ScheduleDomainEvents";

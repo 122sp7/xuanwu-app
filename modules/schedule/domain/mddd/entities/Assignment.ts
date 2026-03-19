@@ -35,8 +35,20 @@ const ASSIGNMENT_STATUS_TRANSITIONS: Record<AssignmentStatus, readonly Assignmen
   completed: [],
 } as const;
 
+function resolveAcceptedAtISO(
+  status: AssignmentStatus,
+  nowISO: string,
+  currentAcceptedAtISO: string | null = null,
+): string | null {
+  if (status === "accepted") {
+    return currentAcceptedAtISO ?? nowISO;
+  }
+
+  return currentAcceptedAtISO;
+}
+
 export function createAssignment(input: CreateAssignmentInput): Assignment {
-  const initialStatus = input.initialStatus ?? "accepted";
+  const initialStatus = input.initialStatus ?? "pending-review";
 
   return {
     assignmentId: input.assignmentId,
@@ -47,7 +59,7 @@ export function createAssignment(input: CreateAssignmentInput): Assignment {
     assigneeAccountUserId: input.assigneeAccountUserId,
     selectedMatchId: input.selectedMatchId,
     status: initialStatus,
-    acceptedAtISO: initialStatus === "accepted" ? input.nowISO : null,
+    acceptedAtISO: resolveAcceptedAtISO(initialStatus, input.nowISO),
     createdAtISO: input.nowISO,
     updatedAtISO: input.nowISO,
   };
@@ -68,7 +80,7 @@ export function transitionAssignmentStatus(
   return {
     ...assignment,
     status: nextStatus,
-    acceptedAtISO: nextStatus === "accepted" ? nowISO : assignment.acceptedAtISO,
+    acceptedAtISO: resolveAcceptedAtISO(nextStatus, nowISO, assignment.acceptedAtISO),
     updatedAtISO: nowISO,
   };
 }

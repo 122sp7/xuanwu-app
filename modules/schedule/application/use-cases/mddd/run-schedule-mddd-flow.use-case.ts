@@ -6,6 +6,7 @@ import {
   createTask,
   matchTaskCandidates,
   canAllocateSchedule,
+  hasValidCalendarSlotRange,
   transitionAssignmentStatus,
   transitionRequestStatus,
   transitionScheduleStatus,
@@ -86,6 +87,17 @@ export class RunScheduleMdddFlowUseCase {
           "Schedule request requires positive headcount and at least one skill requirement.",
         ),
         reason: "invalid_requirements",
+      };
+    }
+
+    if (!hasValidCalendarSlotRange(input.scheduleSlot)) {
+      return {
+        success: false,
+        command: commandFailureFrom(
+          "SCHEDULE_SLOT_INVALID",
+          "Schedule slot must have valid ISO timestamps with start before end.",
+        ),
+        reason: "invalid_schedule_slot",
       };
     }
 
@@ -201,17 +213,6 @@ export class RunScheduleMdddFlowUseCase {
     const nowAt = Date.parse(nowISO);
     const slotStartAt = Date.parse(input.scheduleSlot.startAtISO);
     const slotEndAt = Date.parse(input.scheduleSlot.endAtISO);
-
-    if (Number.isNaN(slotStartAt) || Number.isNaN(slotEndAt) || slotStartAt >= slotEndAt) {
-      return {
-        success: false,
-        command: commandFailureFrom(
-          "SCHEDULE_SLOT_INVALID",
-          "Schedule slot must have valid ISO timestamps with start before end.",
-        ),
-        reason: "invalid_schedule_slot",
-      };
-    }
 
     const shouldActivateNow = nowAt >= slotStartAt;
     const scheduleActive = shouldActivateNow

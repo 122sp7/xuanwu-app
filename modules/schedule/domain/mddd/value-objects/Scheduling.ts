@@ -17,6 +17,12 @@ export interface CalendarSlot {
   readonly slotType: "planned" | "reserved" | "active";
 }
 
+export function hasValidCalendarSlotRange(slot: CalendarSlot): boolean {
+  const start = Date.parse(slot.startAtISO);
+  const end = Date.parse(slot.endAtISO);
+  return !Number.isNaN(start) && !Number.isNaN(end) && start < end;
+}
+
 export interface Constraint {
   readonly type: string;
   readonly value: string | number | boolean;

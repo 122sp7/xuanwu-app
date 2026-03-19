@@ -1,5 +1,9 @@
 import type { Schedule } from "../entities/Schedule";
-import type { Availability, CalendarSlot } from "../value-objects/Scheduling";
+import {
+  hasValidCalendarSlotRange,
+  type Availability,
+  type CalendarSlot,
+} from "../value-objects/Scheduling";
 
 const ACTIVE_SCHEDULE_STATUSES = ["planned", "reserved", "active"] as const;
 
@@ -12,19 +16,20 @@ function overlaps(a: CalendarSlot, b: CalendarSlot): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
-function isValidTimeRange(startISO: string, endISO: string): boolean {
-  const start = Date.parse(startISO);
-  const end = Date.parse(endISO);
-  return !Number.isNaN(start) && !Number.isNaN(end) && start < end;
-}
-
 export function isSlotWithinAvailability(slot: CalendarSlot, availability: Availability): boolean {
-  if (!isValidTimeRange(slot.startAtISO, slot.endAtISO)) {
+  if (!hasValidCalendarSlotRange(slot)) {
     return false;
   }
 
   return availability.windows.some((window) => {
-    if (!isValidTimeRange(window.startAtISO, window.endAtISO)) {
+    if (
+      !hasValidCalendarSlotRange({
+        startAtISO: window.startAtISO,
+        endAtISO: window.endAtISO,
+        timezone: slot.timezone,
+        slotType: slot.slotType,
+      })
+    ) {
       return false;
     }
 
