@@ -351,34 +351,3 @@ export function getWorkspaceFileAssets(workspace: WorkspaceEntity): WorkspaceFil
 
   return assets;
 }
-
-export function getWorkspaceParserSummary(
-  workspace: WorkspaceEntity,
-  fileAssets: readonly WorkspaceFileAsset[],
-): WorkspaceParserSummary {
-  const blockedReasons: string[] = [];
-  const nextActions: string[] = [];
-
-  if (fileAssets.length === 0) {
-    blockedReasons.push("目前沒有任何可供解析的工作區資產。");
-  }
-
-  if (!workspace.photoURL) {
-    nextActions.push("若有平面圖、報價或合約截圖，可先補上工作區封面或附件來源。");
-  }
-
-  if (workspace.capabilities.length === 0) {
-    nextActions.push("先掛載 capability，讓後續文件解析結果能對應到實際流程。");
-  }
-
-  if (nextActions.length === 0) {
-    nextActions.push("可以從已註冊的資產挑選來源，準備進入知識或審計流程。");
-  }
-
-  return {
-    supportedSources: fileAssets.length,
-    readyAssetCount: fileAssets.filter((asset) => asset.status === "available").length,
-    blockedReasons: blockedReasons.map((reason) => reason.trim()).filter(Boolean),
-    nextActions: nextActions.map((action) => action.trim()).filter(Boolean),
-  };
-}

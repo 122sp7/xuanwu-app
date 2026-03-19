@@ -1,1 +1,1 @@
-export { LegacyWorkspaceParserRepository } from "./legacy/LegacyWorkspaceParserRepository";
+export { DefaultWorkspaceParserRepository } from "./default/DefaultWorkspaceParserRepository";
