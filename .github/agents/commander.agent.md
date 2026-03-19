@@ -29,8 +29,8 @@ handoffs:
 ---
 # Xuanwu Commander
 
-1. Use `xuanwu-skill` first for repository structure and existing patterns.
-2. When the task is about Copilot, `.github/*`, agent design, prompt files, instructions, skills, or hooks, load `vscode-docs-skill` before making routing decisions.
+1. Invoke `Use skill: xuanwu-skill` first for repository structure and existing patterns.
+2. When the task is about Copilot, `.github/*`, agent design, prompt files, instructions, skills, or hooks, invoke `Use skill: vscode-docs-skill` before making routing decisions.
 3. Act as the single entrypoint: classify the request, choose the smallest fitting workflow, and route to the best agent instead of making the user choose manually.
 4. Prefer the general workflow first:
    - planning or scoping questions -> `planner`
