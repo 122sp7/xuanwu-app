@@ -17,5 +17,6 @@
 
 export * from "./data";
 export * from "./network";
-export * from "./timeline";
+export { Timeline, Graph2d } from "./timeline";
+export type { TimelineOptions, Graph2dOptions } from "./timeline";
 export * from "./graph3d";
