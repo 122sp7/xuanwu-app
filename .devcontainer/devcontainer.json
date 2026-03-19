@@ -1,20 +1,15 @@
 {
-  "name": "Node.js 24 Development",
+  "name": "Xuanwu App (Global UV)",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/astral-sh/uv/install:1": {} // 這就是在全域安裝 uv & uvx
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "GitHub.copilot",
-        "GitHub.copilot-chat",
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
-      ]
+      "extensions": ["GitHub.copilot", "ms-python.python", "charliermarsh.ruff"]
     }
   },
-  // 容器建立後自動安裝 npm 套件
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "npm install && cd lib/firebase/functions-python && uv sync",
   "remoteUser": "node"
 }
