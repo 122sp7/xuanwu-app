@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/app/providers/auth-provider";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
 import {
@@ -89,6 +90,7 @@ function formatUpdatedAt(iso: string): string {
 }
 
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
+  const { state: authState } = useAuth();
   const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
   const [flowProjections, setFlowProjections] = useState<readonly ScheduleMdddFlowProjection[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
@@ -107,8 +109,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     () =>
       workspace.personnel?.managerId?.trim() ||
       workspace.personnel?.supervisorId?.trim() ||
+      authState.user?.id ||
       "",
-    [workspace.personnel?.managerId, workspace.personnel?.supervisorId],
+    [authState.user?.id, workspace.personnel?.managerId, workspace.personnel?.supervisorId],
   );
 
   const loadSchedule = useCallback(async () => {
@@ -176,7 +179,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     const runnerId = defaultCandidateId;
     if (!runnerId) {
       setRunState("error");
-      setRunMessage("缺少可用的執行者（manager / supervisor），無法啟動流程。");
+      setRunMessage("缺少可用的執行者（manager / supervisor / authenticated user），無法啟動流程。");
       return;
     }
     const runtimeProfile = DEFAULT_SCHEDULE_RUNTIME_PROFILE;
