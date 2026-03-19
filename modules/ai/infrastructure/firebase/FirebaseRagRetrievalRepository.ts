@@ -1,4 +1,4 @@
-import { collection, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
+import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
 
 import { firebaseClientApp } from "@/infrastructure/firebase/client";
 
@@ -64,7 +64,7 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
 
   async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
     const documentsQuery = query(
-      collection(this.db, "documents"),
+      collectionGroup(this.db, "documents"),
       where("organizationId", "==", input.organizationId),
       where("status", "==", "ready"),
       ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
@@ -87,7 +87,7 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
     }
 
     const chunkQuery = query(
-      collection(this.db, "chunks"),
+      collectionGroup(this.db, "chunks"),
       where("organizationId", "==", input.organizationId),
       ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),

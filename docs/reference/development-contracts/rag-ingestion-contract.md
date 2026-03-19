@@ -31,6 +31,8 @@ This contract is the authoritative implementation reference for the upload-to-wo
 
 ## Canonical `documents` metadata
 
+**Collection Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
+
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `id` | `string` | yes | Server-generated document identifier |
@@ -78,8 +80,11 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 
 ## `chunks` persistence contract
 
+**Collection Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
+
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
+| `chunkId` | `string` | yes | Deterministic chunk identifier |
 | `docId` | `string` | yes | Parent document id |
 | `organizationId` | `string` | yes | Tenant filter |
 | `workspaceId` | `string` | yes | Workspace filter |

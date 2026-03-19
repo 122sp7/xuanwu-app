@@ -7,15 +7,32 @@ import type {
   RagDocumentRepository,
 } from "../../domain/repositories/RagDocumentRepository";
 
-const RAG_DOCUMENT_COLLECTION = "documents";
+function buildKnowledgeDocumentRef(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+}) {
+  return doc(
+    getFirestore(firebaseClientApp),
+    "knowledge_base",
+    input.organizationId,
+    "workspaces",
+    input.workspaceId,
+    "documents",
+    input.documentId,
+  );
+}
 
 export class FirebaseRagDocumentRepository implements RagDocumentRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
   async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    const documentRef = doc(this.db, RAG_DOCUMENT_COLLECTION, record.id);
+    const documentRef = buildKnowledgeDocumentRef({
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      documentId: record.id,
+    });
 
     await setDoc(documentRef, {
+      id: record.id,
       organizationId: record.organizationId,
       workspaceId: record.workspaceId,
       title: record.title,

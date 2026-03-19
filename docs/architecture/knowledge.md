@@ -23,6 +23,44 @@ description: Target metadata, versioning, and retrieval architecture for the ent
 
 此頁仍是**目標架構規範**；目前產品已上線的是 read-side Summary + Workspace Tab，可用來驗證 file / parser / knowledge 的責任分界。
 
+### 0.1 交付 MVP（本輪開始實作）
+
+本輪開始交付的 MVP，不再只停留在 read-side Summary，而是先把最小可運作的 write-side 路徑校正為一致契約：
+
+1. **Upload registration**
+   - `modules/file` 負責註冊已上傳文件 metadata
+   - Firestore 寫入路徑：`/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
+2. **Ingestion worker**
+   - `lib/firebase/functions-python` 負責 `uploaded → processing → ready|failed`
+   - 同一路徑回寫文件狀態與處理時間欄位
+3. **Chunk persistence**
+   - Firestore 寫入路徑：`/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
+   - 與 document 同步保存 `organizationId`、`workspaceId`、`taxonomy`、`chunkIndex`
+4. **Retrieval**
+   - `modules/ai` 先以 Firestore collection-group query 讀取 `documents` / `chunks`
+   - 強制過濾 `organizationId`、`workspaceId`（可選）、`status=ready`、`taxonomy`（可選）
+
+### 0.2 MVP 不在本輪交付的範圍
+
+以下仍屬後續階段，**本輪不假裝已完成**：
+
+- 從 Cloud Storage blob 直接觸發 parser 的正式 event-driven pipeline
+- 真正的向量相似搜尋（目前 retrieval 仍是 skeleton metadata filter）
+- `files` 版本群組與 `documents`/`chunks` 之間的完整 version lineage 對映
+- Knowledge governance（archive / restore / audit log）完整 UI
+- 以 `knowledge` 模組作為完整 write-side aggregate 的最終落位
+
+### 0.3 MVP 儲存邊界
+
+MVP 的實際儲存邊界先明確如下：
+
+| 邊界 | 儲存位置 | 說明 |
+|------|----------|------|
+| 原始檔二進位 | Cloud Storage `organizations/{organizationId}/workspaces/{workspaceId}/files/{fileId}/{filename}` | 由 file upload 路徑管理 |
+| 文件 metadata | Firestore `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}` | upload registration 與 ingestion lifecycle 共同使用 |
+| 切塊與 embedding | Firestore `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}` | ingestion worker 寫入，retrieval 讀取 |
+| 可見 read-side 狀態 | `modules/knowledge` summary/UI | 僅做 posture 呈現，不直接持有 write-side 真實來源 |
+
 ---
 
 ## 1. 核心設計原則
