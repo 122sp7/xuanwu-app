@@ -104,6 +104,10 @@ Next.js query orchestration + Genkit answer generation
 - [ADR-002](./ADR-002-rag-upload-storage-and-naming.md): upload、canonical naming、Storage path、tenant-scoped binary layout
 - [ADR-003](./ADR-003-rag-firestore-data-model-and-lifecycle.md): `documents` / `chunks` schema、status lifecycle、trigger、idempotency
 - [ADR-004](./ADR-004-rag-query-retrieval-and-enterprise-enhancements.md): query pipeline、vector search、hybrid search、rerank、cache、feedback
+- [ADR-005](./ADR-005-rag-ingestion-execution-contract.md): ingestion pipeline 執行契約、欄位流轉、失敗分類、重試邏輯
+- [ADR-006](./ADR-006-rag-query-execution-contract.md): query pipeline 執行契約、retrieval gates、prompt 組裝與 streaming 契約
+- [ADR-007](./ADR-007-rag-optional-enhancements-rollout.md): hybrid search、rerank、cache、feedback 的分階段 rollout 規則
+- [ADR-008](./ADR-008-rag-observability-slo-and-acceptance.md): 觀測指標、SLO、驗收門檻與發布檢核
 
 ### 4. Deployment 與 observability 基線
 
