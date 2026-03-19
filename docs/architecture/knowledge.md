@@ -1,3 +1,8 @@
+---
+title: Knowledge architecture
+description: Target metadata, versioning, and retrieval architecture for the enterprise knowledge base, plus the currently shipped contract and UI entrypoint.
+---
+
 # 企業知識庫元數據與版本管理規範
 
 > **文件編號**：XUANWU-KB-SPEC-001
@@ -5,6 +10,18 @@
 > **版本**：v1.0.0
 > **最後更新**：2026-03-19
 > **維護責任方**：Docs Manager Agent / 平台架構委員會
+
+---
+
+## 0. 目前已上線範圍
+
+目前已先上線一個可見的 Knowledge UI 與對應契約，作為後續知識庫實作的入口：
+
+- **可見 UI**：`/home/runner/work/xuanwu-app/xuanwu-app/modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
+- **掛載位置**：`/home/runner/work/xuanwu-app/xuanwu-app/modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
+- **開發契約**：`/home/runner/work/xuanwu-app/xuanwu-app/docs/reference/development-contracts/knowledge-contract.md`
+
+此頁仍是**目標架構規範**；目前產品已上線的是 read-side Summary + Workspace Tab，可用來驗證 file / parser / knowledge 的責任分界。
 
 ---
 
