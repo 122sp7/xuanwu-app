@@ -1,11 +1,7 @@
 version: "1"
 setup:
-  - name: Install Dependencies
-    description: Installing npm packages for the project
-    run: npm install
-  - name: Environment Check
-    description: Verify Node.js version
-    run: node -v
-  - name: Build
-    description: Initial build to index symbols
-    run: npm run build --if-present
+  - name: Global Environment Setup
+    description: Install Node 24 and Python uv
+    steps:
+      - run: npm install
+      - run: uv sync --directory lib/firebase/functions-python
