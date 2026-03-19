@@ -1,7 +1,20 @@
-version: "1"
-setup:
-  - name: Global Environment Setup
-    description: Install Node 24 and Python uv
-    steps:
-      - run: npm install
-      - run: uv sync --directory lib/firebase/functions-python
+# 使用 Copilot 認可的正式結構
+steps:
+  - name: Setup Node 24
+    description: Install Node.js dependencies in the root directory
+    run: npm install
+
+  - name: Setup Python Environment (uv)
+    description: Initialize and sync Python environment in the specific sub-directory
+    run: |
+      cd lib/firebase/functions-python
+      # 強行補全 [project] 格式確保 uv 能跑
+      if ! grep -q "\[project\]" pyproject.toml 2>/dev/null; then
+        echo -e "[project]\nname = \"xuanwu-functions\"\nversion = \"0.1.0\"\ndependencies = []\n\n$(cat pyproject.toml 2>/dev/null)" > pyproject.toml
+      fi
+      uv sync
+
+  - name: Verify Setup
+    run: |
+      node -v
+      uv --version
