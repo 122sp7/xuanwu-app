@@ -131,7 +131,7 @@ The following legacy responsibilities are still outside this contract and should
 
 The full target MDDD redesign for the legacy workforce scheduling domain is maintained in:
 
-- `/home/runner/work/xuanwu-app/xuanwu-app/modules/schedule/README.md`
+- `modules/schedule/README.md`
 
 That target reference currently defines:
 

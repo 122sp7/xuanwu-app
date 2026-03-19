@@ -248,22 +248,22 @@ The current `modules/schedule` implementation only covers derived readiness item
 
 #### Structured entity map
 
-| Entity | Purpose | Core fields | Notes |
-| --- | --- | --- | --- |
-| `Request` | workspace demand root | `requestId`, `workspaceId`, `organizationId`, `requestedWindow`, `requiredSkills`, `requiredCapabilities`, `constraints`, `preferences`, `status` | source of truth for submitted demand |
-| `Task` | assignable work unit derived from a request | `taskId`, `requestId`, `teamId?`, `requiredHeadcount`, `targetWindow`, `requiredSkills`, `requiredCapabilities`, `constraints`, `preferences`, `status` | may be one of many tasks from one request |
-| `Match` | candidate evaluation result for one task | `matchId`, `taskId`, `candidateAccountUserId`, `eligibility`, `score`, `gaps`, `constraintViolations` | result model produced by matching policies |
-| `Assignment` | organization staffing decision | `assignmentId`, `taskId`, `requestId`, `organizationId`, `teamId?`, `assigneeAccountUserId`, `selectedMatchId`, `status` | decision boundary between candidate ranking and actual staffing |
-| `Schedule` | concrete time allocation after assignment | `scheduleId`, `assignmentId`, `calendarSlot`, `loadUnits`, `status` | owns active/planned time placement and execution lifecycle |
-| `AccountUser` | candidate / assignee reference | `accountUserId`, `skillInventory`, `capabilityInventory`, `teamMemberships`, `availabilityProfile` | used by matching and scheduling policies |
-| `Organization` | fulfillment owner | `organizationId`, `staffingPolicies`, `scheduleGovernanceRules` | controls fulfillment authority and SSOT projections |
-| `Team` | operational staffing subgroup | `teamId`, `organizationId`, `capabilityCoverage`, `capacityPolicy` | narrows candidate pools and local constraints |
-| `Skill` | competency reference | `skillCode`, `level`, `quantity` | often appears inside requirement and inventory value objects |
-| `Capability` | non-skill qualification reference | `capabilityCode`, `scope`, `qualificationLevel?` | covers authorization, equipment, certification, language, etc. |
-| `Availability` | assignee scheduling availability model | `availabilityId`, `accountUserId`, `windows`, `maxConcurrentAssignments`, `maxLoadPerPeriod` | checked before schedule confirmation |
-| `CalendarSlot` | reserved time block | `startAt`, `endAt`, `timezone`, `slotType` | used to detect overlap and calendar conflicts |
-| `Constraint` | hard validation rule | `constraintType`, `value`, `scope` | failing constraint blocks assignment or scheduling |
-| `Preference` | soft optimization rule | `preferenceType`, `weight`, `value` | influences ranking but does not block fulfillment |
+| Entity | Kind | Primary responsibility |
+| --- | --- | --- |
+| `Request` | demand aggregate root | captures workspace-originated staffing demand and preserves the submitted requirement snapshot |
+| `Task` | fulfillment aggregate root | represents one assignable work unit decomposed from a request |
+| `Match` | policy result model | explains candidate eligibility, score, gaps, and rejection reasons for a task |
+| `Assignment` | fulfillment aggregate root | records the organization’s assignee selection and decision lifecycle |
+| `Schedule` | time-allocation aggregate root | owns the concrete reserved slot and execution lifecycle after assignment |
+| `AccountUser` | reference model | provides candidate identity, inventory, team membership, and availability inputs |
+| `Organization` | reference model | owns fulfillment governance, staffing policy, and projection authority |
+| `Team` | reference model | scopes candidate pools and local operational constraints |
+| `Skill` | catalog / value object | represents competency requirements and inventory dimensions |
+| `Capability` | catalog / value object | represents non-skill qualifications such as authorization or certification |
+| `Availability` | supporting model | represents workable time windows and load thresholds |
+| `CalendarSlot` | value object | represents a reserved interval used for overlap detection and projection |
+| `Constraint` | value object / policy input | represents hard rules that block assignment or scheduling when violated |
+| `Preference` | value object / policy input | represents soft ranking signals used for tie-breaking and optimization |
 
 #### Value objects
 
@@ -441,8 +441,9 @@ Task matching should be treated as a domain policy, not a UI-only helper.
 2. **Score**
    - compute weighted coverage for skill fit, capability fit, availability fit, continuity, and preference satisfaction
    - apply penalties for high current load, partial coverage, or expensive schedule adjustments
-3. **Constrain**
-   - reject candidate sets that still violate headcount, overlap, mandatory qualification, or max-load rules
+3. **Constrain candidate set**
+   - validate the proposed assignee set as a whole rather than one candidate at a time
+   - reject candidate combinations that still violate total headcount coverage, team-composition rules, overlap interactions, or combined max-load rules
 4. **Rank**
    - return ordered `Match` results with reasons, gaps, and rejection explanations
 
