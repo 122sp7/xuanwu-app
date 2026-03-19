@@ -7,13 +7,13 @@ import type {
   RagDocumentRepository,
 } from "../../domain/repositories/RagDocumentRepository";
 
-const DOCUMENT_COLLECTION = "documents";
+const RAG_DOCUMENT_COLLECTION = "documents";
 
 export class FirebaseRagDocumentRepository implements RagDocumentRepository {
   private readonly db = getFirestore(firebaseClientApp);
 
   async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    const documentRef = doc(this.db, DOCUMENT_COLLECTION, record.id);
+    const documentRef = doc(this.db, RAG_DOCUMENT_COLLECTION, record.id);
 
     await setDoc(documentRef, {
       organizationId: record.organizationId,

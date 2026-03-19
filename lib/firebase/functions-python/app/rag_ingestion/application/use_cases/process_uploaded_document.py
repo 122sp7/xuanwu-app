@@ -40,11 +40,12 @@ class ProcessUploadedDocumentUseCase:
             chunk_drafts = self._chunker.chunk(normalized_text)
             embeddings = self._embedder.embed(chunk_drafts)
             # Adapters may change independently, so guard the orchestration contract here before
-            # the zip-based chunk assembly can mask a count mismatch from the embedder boundary.
+            # the zip-based chunk assembly; the explicit check keeps the document-specific error
+            # message clearer than the generic `zip(..., strict=True)` failure alone.
             if len(chunk_drafts) != len(embeddings):
                 raise ValueError(
                     f"Embedder returned {len(embeddings)} embeddings for "
-                    f"{len(chunk_drafts)} chunks; counts must match."
+                    f"{len(chunk_drafts)} chunks on document {command.document_id}; counts must match."
                 )
 
             chunks = [

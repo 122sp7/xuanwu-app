@@ -15,10 +15,12 @@ interface FirestoreRagDocument {
   readonly taxonomy?: string;
 }
 
-// Over-fetch ready documents so the skeleton retriever can survive tenant/workspace filtering
-// and still leave enough candidates for scoring before generation.
+// Over-fetch ready documents so the skeleton retriever can survive organization/workspace
+// filtering and still leave enough candidates for chunk scoring before generation.
 const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
 const MIN_DOCUMENT_LIMIT = 20;
+// Pull a wider chunk candidate set because taxonomy and score filtering can drop many results
+// before the final top-k prompt window is assembled.
 const CHUNK_OVER_FETCH_MULTIPLIER = 10;
 const MIN_CHUNK_LIMIT = 50;
 
@@ -32,10 +34,10 @@ interface FirestoreRagChunk {
   readonly chunkIndex?: number;
 }
 
-// Keep ASCII letters/digits plus the basic CJK Unified Ideographs block together so the
-// deterministic scaffold can score both English and Chinese queries before vector search lands.
-// This intentionally stops at the basic block and does not yet cover the wider CJK extensions.
 function tokenize(value: string): readonly string[] {
+  // The regex keeps ASCII letters/digits plus the basic CJK Unified Ideographs block
+  // (`\u4e00-\u9fff`), which covers common Chinese characters but excludes the wider CJK
+  // extensions, supplementary ideographs, and compatibility ideographs.
   return value
     .toLowerCase()
     .split(/[^a-z0-9\u4e00-\u9fff]+/u)
@@ -115,11 +117,7 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
       })
       .filter(
         (chunk) =>
-          chunk.docId &&
-          readyDocumentIds.has(chunk.docId) &&
-          chunk.organizationId === input.organizationId &&
-          (!input.workspaceId || chunk.workspaceId === input.workspaceId) &&
-          chunk.score > 0,
+          chunk.docId && readyDocumentIds.has(chunk.docId) && chunk.score > 0,
       )
       .sort((left, right) => right.score - left.score)
       .slice(0, input.topK)

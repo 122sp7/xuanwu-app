@@ -14,11 +14,15 @@ const DEFAULT_TOP_K = 5;
 const MAX_TOP_K = 10;
 
 function normalizeTopK(value?: number) {
+  if (value === undefined) {
+    return DEFAULT_TOP_K;
+  }
+
   if (!Number.isFinite(value)) {
     return DEFAULT_TOP_K;
   }
 
-  return Math.min(MAX_TOP_K, Math.max(1, Math.trunc(value ?? DEFAULT_TOP_K)));
+  return Math.min(MAX_TOP_K, Math.max(1, Math.trunc(value)));
 }
 
 export class AnswerRagQueryUseCase {
