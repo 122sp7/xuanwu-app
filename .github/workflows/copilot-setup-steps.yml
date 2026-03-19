@@ -9,9 +9,14 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
 
+concurrency:
+  group: copilot-setup-steps-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -52,7 +57,12 @@ jobs:
           PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: |
           python -m pip install --upgrade pip
-          pip install --pre -r requirements-dev.txt
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -67,3 +77,14 @@ jobs:
           python --version
           uv --version
           echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn"
+
+      - name: Validate Copilot customization baseline
+        run: |
+          test -f .github/copilot-instructions.md
+          test -d .github/instructions
+          test -d .github/agents
+          test -d .github/prompts
+          test -d .github/skills
+          test -f .github/hooks/guardrails.json
+          test -f .github/README.md
+          echo "Customization inventory check passed."
