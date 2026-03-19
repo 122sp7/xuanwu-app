@@ -34,6 +34,16 @@ export interface CreateTaskInput {
   readonly nowISO: string;
 }
 
+const TASK_STATUS_TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
+  open: ["matching", "cancelled"],
+  matching: ["assignable", "cancelled"],
+  assignable: ["assigned", "cancelled"],
+  assigned: ["scheduled", "cancelled"],
+  scheduled: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+} as const;
+
 export function createTask(input: CreateTaskInput): Task {
   return {
     taskId: input.taskId,
@@ -50,5 +60,18 @@ export function createTask(input: CreateTaskInput): Task {
     status: "open",
     createdAtISO: input.nowISO,
     updatedAtISO: input.nowISO,
+  };
+}
+
+export function transitionTaskStatus(task: Task, nextStatus: TaskStatus, nowISO: string): Task {
+  const allowed = TASK_STATUS_TRANSITIONS[task.status] ?? [];
+  if (!allowed.includes(nextStatus)) {
+    throw new Error(`Invalid task transition: ${task.status} -> ${nextStatus}. Allowed: ${allowed.join(", ") || "(none)"}`);
+  }
+
+  return {
+    ...task,
+    status: nextStatus,
+    updatedAtISO: nowISO,
   };
 }

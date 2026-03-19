@@ -23,6 +23,15 @@ export interface CreateScheduleInput {
   readonly nowISO: string;
 }
 
+const SCHEDULE_STATUS_TRANSITIONS: Record<ScheduleStatus, readonly ScheduleStatus[]> = {
+  planned: ["reserved", "active", "cancelled", "conflicted"],
+  reserved: ["active", "cancelled", "conflicted"],
+  active: ["completed", "cancelled", "conflicted"],
+  conflicted: ["planned", "cancelled"],
+  cancelled: [],
+  completed: [],
+} as const;
+
 export function createSchedule(input: CreateScheduleInput): Schedule {
   return {
     scheduleId: input.scheduleId,
@@ -34,5 +43,24 @@ export function createSchedule(input: CreateScheduleInput): Schedule {
     status: "planned",
     createdAtISO: input.nowISO,
     updatedAtISO: input.nowISO,
+  };
+}
+
+export function transitionScheduleStatus(
+  schedule: Schedule,
+  nextStatus: ScheduleStatus,
+  nowISO: string,
+): Schedule {
+  const allowed = SCHEDULE_STATUS_TRANSITIONS[schedule.status] ?? [];
+  if (!allowed.includes(nextStatus)) {
+    throw new Error(
+      `Invalid schedule transition: ${schedule.status} -> ${nextStatus}. Allowed: ${allowed.join(", ") || "(none)"}`,
+    );
+  }
+
+  return {
+    ...schedule,
+    status: nextStatus,
+    updatedAtISO: nowISO,
   };
 }

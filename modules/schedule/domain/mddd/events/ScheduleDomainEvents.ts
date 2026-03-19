@@ -29,8 +29,17 @@ export interface TaskCompletedEvent {
   readonly occurredAtISO: string;
 }
 
+export interface ScheduleReservedEvent {
+  readonly type: "ScheduleReserved";
+  readonly scheduleId: string;
+  readonly assignmentId: string;
+  readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
 export type ScheduleDomainEvent =
   | RequestCreatedEvent
   | TaskMatchedEvent
   | AssignmentAcceptedEvent
+  | ScheduleReservedEvent
   | TaskCompletedEvent;

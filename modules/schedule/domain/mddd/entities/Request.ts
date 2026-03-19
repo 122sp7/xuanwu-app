@@ -34,6 +34,14 @@ export interface CreateRequestInput {
   readonly nowISO: string;
 }
 
+const REQUEST_STATUS_TRANSITIONS: Record<RequestStatus, readonly RequestStatus[]> = {
+  draft: ["submitted", "cancelled"],
+  submitted: ["under-review", "cancelled"],
+  "under-review": ["closed", "cancelled"],
+  cancelled: [],
+  closed: [],
+} as const;
+
 export function createRequest(input: CreateRequestInput): Request {
   return {
     requestId: input.requestId,
@@ -50,5 +58,24 @@ export function createRequest(input: CreateRequestInput): Request {
     createdByAccountUserId: input.createdByAccountUserId,
     createdAtISO: input.nowISO,
     updatedAtISO: input.nowISO,
+  };
+}
+
+export function transitionRequestStatus(
+  request: Request,
+  nextStatus: RequestStatus,
+  nowISO: string,
+): Request {
+  const allowed = REQUEST_STATUS_TRANSITIONS[request.status] ?? [];
+  if (!allowed.includes(nextStatus)) {
+    throw new Error(
+      `Invalid request transition: ${request.status} -> ${nextStatus}. Allowed: ${allowed.join(", ") || "(none)"}`,
+    );
+  }
+
+  return {
+    ...request,
+    status: nextStatus,
+    updatedAtISO: nowISO,
   };
 }

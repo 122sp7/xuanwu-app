@@ -6,6 +6,10 @@ import {
   createTask,
   matchTaskCandidates,
   canAllocateSchedule,
+  transitionAssignmentStatus,
+  transitionRequestStatus,
+  transitionScheduleStatus,
+  transitionTaskStatus,
   type AccountUser,
   type CalendarSlot,
   type Organization,
@@ -85,7 +89,7 @@ export class RunScheduleMdddFlowUseCase {
       };
     }
 
-    const request = createRequest({
+    const createdRequest = createRequest({
       requestId: createId("req"),
       workspaceId: input.workspaceId,
       organizationId: input.organization.organizationId,
@@ -97,7 +101,12 @@ export class RunScheduleMdddFlowUseCase {
       nowISO,
     });
 
-    const task = createTask({
+    // First executable slice: run request lifecycle through review to closed so downstream
+    // Task/Assignment/Schedule orchestration can be validated end-to-end in one command.
+    const requestUnderReview = transitionRequestStatus(createdRequest, "under-review", nowISO);
+    const request = transitionRequestStatus(requestUnderReview, "closed", nowISO);
+
+    const createdTask = createTask({
       taskId: createId("task"),
       requestId: request.requestId,
       organizationId: request.organizationId,
@@ -108,8 +117,10 @@ export class RunScheduleMdddFlowUseCase {
       nowISO,
     });
 
+    const matchingTask = transitionTaskStatus(createdTask, "matching", nowISO);
+
     const matching = matchTaskCandidates({
-      task,
+      task: matchingTask,
       candidates: input.candidates,
       organization: input.organization,
       nowISO,
@@ -161,25 +172,62 @@ export class RunScheduleMdddFlowUseCase {
       };
     }
 
-    const assignment = createAssignment({
+    const proposedAssignment = createAssignment({
       assignmentId: createId("assignment"),
       requestId: request.requestId,
-      taskId: task.taskId,
+      taskId: matchingTask.taskId,
       organizationId: request.organizationId,
       assigneeAccountUserId: selectedCandidate.accountUserId,
       selectedMatchId: matching.bestMatch.matchId,
+      initialStatus: "proposed",
       nowISO,
     });
 
-    const schedule = createSchedule({
+    const assignment = transitionAssignmentStatus(proposedAssignment, "accepted", nowISO);
+    const assignableTask = transitionTaskStatus(matchingTask, "assignable", nowISO);
+    const assignedTask = transitionTaskStatus(assignableTask, "assigned", nowISO);
+
+    const plannedSchedule = createSchedule({
       scheduleId: createId("schedule"),
       assignmentId: assignment.assignmentId,
-      taskId: task.taskId,
+      taskId: assignedTask.taskId,
       assigneeAccountUserId: selectedCandidate.accountUserId,
       calendarSlot: input.scheduleSlot,
       loadUnits: DEFAULT_ASSIGNMENT_LOAD_WEIGHT,
       nowISO,
     });
+
+    const scheduleReserved = transitionScheduleStatus(plannedSchedule, "reserved", nowISO);
+    const nowAt = Date.parse(nowISO);
+    const slotStartAt = Date.parse(input.scheduleSlot.startAtISO);
+    const slotEndAt = Date.parse(input.scheduleSlot.endAtISO);
+
+    if (Number.isNaN(slotStartAt) || Number.isNaN(slotEndAt) || slotStartAt >= slotEndAt) {
+      return {
+        success: false,
+        command: commandFailureFrom(
+          "SCHEDULE_SLOT_INVALID",
+          "Schedule slot must have valid ISO timestamps with start before end.",
+        ),
+        reason: "invalid_schedule_slot",
+      };
+    }
+
+    const shouldActivateNow = nowAt >= slotStartAt;
+    const scheduleActive = shouldActivateNow
+      ? transitionScheduleStatus(scheduleReserved, "active", nowISO)
+      : scheduleReserved;
+    const shouldCompleteNow = shouldActivateNow && nowAt >= slotEndAt;
+    const finalSchedule = shouldCompleteNow
+      ? transitionScheduleStatus(scheduleActive, "completed", nowISO)
+      : scheduleActive;
+
+    const scheduledTask = shouldActivateNow
+      ? transitionTaskStatus(assignedTask, "scheduled", nowISO)
+      : assignedTask;
+    const finalTask = shouldCompleteNow
+      ? transitionTaskStatus(scheduledTask, "completed", nowISO)
+      : scheduledTask;
 
     const events: ScheduleDomainEvent[] = [
       {
@@ -191,7 +239,7 @@ export class RunScheduleMdddFlowUseCase {
       },
       {
         type: "TaskMatched",
-        taskId: task.taskId,
+        taskId: finalTask.taskId,
         requestId: request.requestId,
         topMatchId: matching.bestMatch.matchId,
         occurredAtISO: nowISO,
@@ -199,20 +247,36 @@ export class RunScheduleMdddFlowUseCase {
       {
         type: "AssignmentAccepted",
         assignmentId: assignment.assignmentId,
-        taskId: task.taskId,
+        taskId: finalTask.taskId,
         assigneeAccountUserId: assignment.assigneeAccountUserId,
+        occurredAtISO: nowISO,
+      },
+      {
+        type: "ScheduleReserved",
+        scheduleId: finalSchedule.scheduleId,
+        assignmentId: assignment.assignmentId,
+        taskId: finalTask.taskId,
         occurredAtISO: nowISO,
       },
     ];
 
+    if (shouldCompleteNow) {
+      events.push({
+        type: "TaskCompleted",
+        taskId: finalTask.taskId,
+        scheduleId: finalSchedule.scheduleId,
+        occurredAtISO: nowISO,
+      });
+    }
+
     return {
       success: true,
-      command: commandSuccess(schedule.scheduleId, Date.now()),
+      command: commandSuccess(finalSchedule.scheduleId, Date.now()),
       data: {
         request,
-        task,
+        task: finalTask,
         assignmentId: assignment.assignmentId,
-        scheduleId: schedule.scheduleId,
+        scheduleId: finalSchedule.scheduleId,
         events,
       },
     };

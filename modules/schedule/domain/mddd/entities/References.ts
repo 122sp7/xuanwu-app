@@ -14,6 +14,8 @@ export interface Team {
   readonly teamId: string;
   readonly organizationId: string;
   readonly name: string;
+  readonly capabilityIds: readonly string[];
+  readonly memberAccountUserIds: readonly string[];
 }
 
 export interface Organization {
