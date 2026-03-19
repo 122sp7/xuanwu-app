@@ -20,7 +20,7 @@ import {
   SendPasswordResetEmailUseCase,
 } from "@/modules/identity/application/use-cases/identity.use-cases";
 import {
-  DEV_DEMO_ACCOUNT_EMAIL,
+  createDevDemoUser,
   isDevDemoCredential,
   isLocalDevDemoAllowed,
   writeDevDemoSession,
@@ -63,21 +63,18 @@ export default function PublicPage() {
     setError(null);
     setIsLoading(true);
     try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
       const result =
         tab === "login"
           ? await signInUseCase.execute({ email, password })
           : await registerUseCase.execute({ email, password, name });
 
       if (!result.success) {
-        if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-          writeDevDemoSession({
-            id: "dev-demo-user",
-            name: "Demo User",
-            email: DEV_DEMO_ACCOUNT_EMAIL,
-          });
-          router.replace("/dashboard");
-          return;
-        }
         setError(result.error.message);
       }
     } finally {

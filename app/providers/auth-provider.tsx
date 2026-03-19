@@ -41,6 +41,13 @@ function toAuthUser(user: User): AuthUser {
   };
 }
 
+function resolveSignedOutStatePayload(): { user: AuthUser | null; status: "authenticated" | "unauthenticated" } {
+  const demoUser = readDevDemoSession();
+  return demoUser
+    ? { user: demoUser, status: "authenticated" }
+    : { user: null, status: "unauthenticated" };
+}
+
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -90,12 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
           });
         } else {
-          const demoUser = readDevDemoSession();
           dispatch({
             type: "SET_AUTH_STATE",
-            payload: demoUser
-              ? { user: demoUser, status: "authenticated" }
-              : { user: null, status: "unauthenticated" },
+            payload: resolveSignedOutStatePayload(),
           });
         }
       });
@@ -105,12 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       resolved = true;
       window.clearTimeout(timeoutId);
-      const demoUser = readDevDemoSession();
       dispatch({
         type: "SET_AUTH_STATE",
-        payload: demoUser
-          ? { user: demoUser, status: "authenticated" }
-          : { user: null, status: "unauthenticated" },
+        payload: resolveSignedOutStatePayload(),
       });
     }
 

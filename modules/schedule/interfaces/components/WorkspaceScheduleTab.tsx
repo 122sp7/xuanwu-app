@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/app/providers/auth-provider";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
 import {
@@ -33,6 +34,7 @@ const statusVariantMap = {
   scheduled: "outline",
   completed: "secondary",
 } as const;
+const DEFAULT_CLIENT_LOCALE = "zh-TW";
 
 const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   maxLoadPerMember: 4,
@@ -72,13 +74,22 @@ function resolveFlowStatusVariant(status: string | null): "default" | "secondary
   return "outline";
 }
 
+function resolveClientLocale(): string {
+  if (typeof navigator === "undefined") {
+    return DEFAULT_CLIENT_LOCALE;
+  }
+
+  const firstLanguage = Array.isArray(navigator.languages) ? navigator.languages[0] : undefined;
+  return firstLanguage || navigator.language || DEFAULT_CLIENT_LOCALE;
+}
+
 function formatUpdatedAt(iso: string): string {
   const parsed = Date.parse(iso);
   if (Number.isNaN(parsed)) {
     return iso;
   }
 
-  return new Intl.DateTimeFormat("zh-TW", {
+  return new Intl.DateTimeFormat(resolveClientLocale(), {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -89,6 +100,7 @@ function formatUpdatedAt(iso: string): string {
 }
 
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
+  const { state: authState } = useAuth();
   const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
   const [flowProjections, setFlowProjections] = useState<readonly ScheduleMdddFlowProjection[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
@@ -104,11 +116,14 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   } | null>(null);
 
   const defaultCandidateId = useMemo(
+    // Fallback to authenticated user when workspace personnel is not configured yet,
+    // so local runtime checks and early-stage workspaces can still execute the flow.
     () =>
       workspace.personnel?.managerId?.trim() ||
       workspace.personnel?.supervisorId?.trim() ||
+      authState.user?.id ||
       "",
-    [workspace.personnel?.managerId, workspace.personnel?.supervisorId],
+    [authState.user?.id, workspace.personnel?.managerId, workspace.personnel?.supervisorId],
   );
 
   const loadSchedule = useCallback(async () => {
@@ -176,7 +191,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     const runnerId = defaultCandidateId;
     if (!runnerId) {
       setRunState("error");
-      setRunMessage("缺少可用的執行者（manager / supervisor），無法啟動流程。");
+      setRunMessage("缺少可用的執行者（manager / supervisor / authenticated user），無法啟動流程。");
       return;
     }
     const runtimeProfile = DEFAULT_SCHEDULE_RUNTIME_PROFILE;
@@ -453,25 +468,21 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         )}
 
         <div className="space-y-3">
-          {items.length === 0 && loadState === "loaded" ? (
-            <p className="text-sm text-muted-foreground">目前尚無 schedule milestone / follow-up 資料。</p>
-          ) : (
-            items.map((item) => (
-              <div key={item.id} className="rounded-xl border border-border/40 px-4 py-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                      <Badge variant={statusVariantMap[item.status]}>{item.status}</Badge>
-                      <Badge variant="outline">{item.type}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{item.detail}</p>
+          {items.map((item) => (
+            <div key={item.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <Badge variant={statusVariantMap[item.status]}>{item.status}</Badge>
+                    <Badge variant="outline">{item.type}</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{item.timeLabel}</p>
+                  <p className="text-sm text-muted-foreground">{item.detail}</p>
                 </div>
+                <p className="text-xs text-muted-foreground">{item.timeLabel}</p>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
