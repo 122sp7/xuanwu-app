@@ -30,6 +30,7 @@ uploaded -> processing -> ready
          \-> failed
 failed   -> processing (retry)
 ready    -> processing (reprocess)
+ready    -> archived   (maintenance / product archive)
 ```
 
 狀態更新規則：
@@ -38,6 +39,15 @@ ready    -> processing (reprocess)
 2. worker 起始時將狀態更新為 `processing` 並寫入 `processingStartedAt`。
 3. worker 完成 chunk 寫入後更新 `ready` 與 `readyAt`。
 4. worker 失敗時更新 `failed`、`failedAt`、`errorCode`、`errorMessage`。
+5. `archived` 由明確 maintenance 或 product flow 觸發，並寫入 `archivedAt`；worker 不得把 archive 當作 ingestion 副作用。
+
+角色與觸發責任：
+
+- `uploaded`: Next.js upload registration
+- `processing`: ingestion worker on start, or explicit retry / reprocess flow
+- `ready`: ingestion worker after successful chunk persistence
+- `failed`: ingestion worker on classified failure
+- `archived`: maintenance or product archive flow after document governance decision
 
 ### 2. Step contract
 
@@ -86,6 +96,12 @@ worker 在每個步驟至少要維持下列欄位一致：
 - `documents.workspaceId`
 - `documents.status`
 - `documents.checksum`
+- `documents.processingStartedAt`
+- `documents.readyAt`
+- `documents.failedAt`
+- `documents.archivedAt`
+- `documents.errorCode`
+- `documents.errorMessage`
 - `chunks.docId`
 - `chunks.organizationId`
 - `chunks.workspaceId`
@@ -99,6 +115,7 @@ worker 在每個步驟至少要維持下列欄位一致：
 2. `failed` 文件可依策略自動或手動 retry。
 3. retry 必須覆蓋舊 chunk records，避免雙份資料並存。
 4. reprocess 需有明確原因，例如 parser 升級或 taxonomy 策略更新。
+5. 已 `archived` 文件若重新進入 `processing`，必須先由明確治理流程解除 archive，再視為 reprocess，而不是由 worker 自行恢復。
 
 ### 5. Error model
 
