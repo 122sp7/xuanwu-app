@@ -41,6 +41,20 @@ export { fromPromise, fromCallback, fromObservable, fromTransition, fromEventObs
 // ── Utilities ──────────────────────────────────────────────────────────────
 export { waitFor, toPromise, assertEvent, createEmptyActor } from "xstate";
 
+// ── Runtime helpers / compatibility aliases ───────────────────────────────
+export {
+  interpret,
+  stop,
+  transition,
+  matchesState,
+  pathToStateValue,
+  toObserver,
+  isMachineSnapshot,
+  getStateNodes,
+  getInitialSnapshot,
+  getNextSnapshot,
+} from "xstate";
+
 // ── Types ──────────────────────────────────────────────────────────────────
 export type {
   ActorRefFrom,

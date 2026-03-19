@@ -30,6 +30,7 @@
 
 // ── Core ───────────────────────────────────────────────────────────────────
 export { create, createStore, useStore } from "zustand";
+export { middleware as zustandMiddleware, unstable_ssrSafe } from "zustand";
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 export {
