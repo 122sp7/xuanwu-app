@@ -160,6 +160,7 @@ The active hook set is intentionally minimal. This repository enables one guardr
 - `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
 - `commander.agent.md` is the repo entrypoint for agent routing. It relies on VS Code custom-agent `agents` + `agent` tool support to dispatch planner / implementer / reviewer / specialist work.
+- If the current environment does not support that custom-agent routing pattern, use `planner`, `implementer`, or `reviewer` directly and follow the Serena-first operating order in this file manually.
 - `.github/instructions/skill-usage.instructions.md` documents when to use explicit `Use skill: ...` references so agent bodies, prompts, and README guidance stay consistent.
 - Active GitHub Copilot coding-agent MCP servers assumed by this repository are `serena`, `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
 - Browser coding-agent MCP is configured in repository settings on GitHub.com. Files in `.github/copilot/` are source-of-truth templates and runbooks for that settings payload.

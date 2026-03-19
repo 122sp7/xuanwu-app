@@ -25,6 +25,17 @@ Use these rules when repository workflows depend on project skills for durable c
   - `user-invocable: false`
   - `disable-model-invocation: true`
   - explicit coordinator allowlisting through `agents:`
+- Example coordinator allowlist:
+
+```yaml
+agents:
+  - planner
+  - implementer
+  - reviewer
+  - billing-auditor
+```
+
+- In this pattern, `billing-auditor` stays hidden from casual selection, while the coordinator can still dispatch it intentionally because it appears in the coordinator's `agents:` list.
 
 ## Prompt patterns
 

@@ -58,13 +58,36 @@ license: Complete terms in LICENSE.txt
   - 建議補上
   - 若沒有正式 license 檔，可暫時省略，但新增 skill 時應優先補齊
 
-### 可選欄位
+### 關於 hidden specialist 設定
+
+`SKILL.md` 的 frontmatter 以 `name`、`description`、`license` 為主。  
+像 `user-invocable: false`、`disable-model-invocation: true` 這類欄位屬於 **agent** frontmatter，不是 skill frontmatter。
+
+若要表達「平常不要直接挑選，但仍可由協調者路由」的模式，請把設定放在 `.github/agents/*.agent.md`，並搭配 coordinator allowlist：
+
+```yaml
+# specialist.agent.md
+user-invocable: false
+disable-model-invocation: true
+```
+
+```yaml
+# commander.agent.md
+agents:
+  - planner
+  - implementer
+  - reviewer
+  - specialist
+```
+
+這樣的語意是：
 
 - `user-invocable: false`
-  - 隱藏於 `/` 選單，但仍可被模型在相關任務中自動載入
+  - 不出現在一般可直接挑選的入口
 - `disable-model-invocation: true`
-  - 禁止模型根據相關性自動載入或作為一般子技能自動挑選
-  - 若仍需保留人工入口，請不要同時把 `user-invocable` 設為 `false`
+  - 不讓模型自由地把它當成一般子代理亂選
+- coordinator `agents:` allowlist
+  - 允許像 `commander` 這種協調者在明確路由時仍可呼叫它
 
 ## 4. 建議章節
 

@@ -3,6 +3,7 @@ name: commander
 description: Route Xuanwu tasks to the right planning, implementation, review, or specialist agent before work starts.
 argument-hint: Describe the task, affected area, and whether you want a plan, implementation, or review.
 tools: ["read", "search", "fetch", "agent"]
+# Explicit allowlist: this coordinator may dispatch these agents, including hidden specialists.
 agents:
   - planner
   - implementer
