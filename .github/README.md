@@ -1,62 +1,64 @@
 # .github Copilot Configuration Map
 
-This document aligns Xuanwu's `.github/` layout with the official VS Code Copilot customization mechanisms and the GitHub Copilot coding-agent setup workflow used by this repository.
+This document records the active and scaffolded VS Code Copilot customization layout in this repository.
 
-## 1) Official customization mechanism mapping
+## Official path mapping
 
-| Mechanism | Official path pattern | Required suffix | Trigger mode |
-| --- | --- | --- | --- |
-| Repository instructions | `.github/copilot-instructions.md` (or root `AGENTS.md`) | `.md` | Always-on |
-| File-based instructions | `.github/instructions/*.instructions.md` | `.instructions.md` | `applyTo` glob match |
-| Prompt files | `.github/prompts/*.prompt.md` | `.prompt.md` | Manual `/prompt-name` |
-| Custom agents | `.github/agents/*.agent.md` | `.agent.md` | Agent picker / handoff / subagent |
-| Hooks *(Preview)* | `.github/hooks/*.json` | `.json` | Agent lifecycle event |
-| Skills | `.github/skills/<name>/SKILL.md` | `SKILL.md` + folder | On-demand / slash command |
-
-## 2) Related GitHub Copilot coding-agent bootstrap
-
-GitHub Copilot coding agent setup steps are configured separately from the six VS Code customization mechanisms above:
-
-- Workflow path: `.github/workflows/copilot-setup-steps.yml`
-- Required job name: `copilot-setup-steps`
-- Supported job keys for this special workflow: `steps`, `permissions`, `runs-on`, `services`, `snapshot`, and `timeout-minutes`
-- Purpose in this repo: preinstall root Node dependencies, Python worker dependencies, and `uv` before the coding agent starts
-
-## 3) MCP toolchain reference for this repo
-
-| MCP server | Core capability | Role in Xuanwu workflow |
+| Mechanism | Official path pattern | Trigger mode |
 | --- | --- | --- |
-| `filesystem` | Safe file read/write/list/move in allowed directories | Default repo editing and structure inspection |
-| `repomix` | Repository packing, structural grep, large-scale context extraction | Cross-file architecture analysis and onboarding context |
-| `next-devtools` | Next.js runtime/dev diagnostics and route/runtime inspection | App Router, hydration, runtime error checks |
-| `shadcn` | Search/view/install shadcn UI components | UI component reuse and consistency |
-| `markitdown` | Convert external docs (PDF/Office/HTML) to Markdown | Knowledge ingestion for planning/docs |
-| `serena` | Symbol-aware search/edit, project memory, LSP-style navigation | Semantic refactor support and durable project memory |
+| Always-on instructions | `.github/copilot-instructions.md` and root `AGENTS.md` | automatic |
+| File-based instructions | `.github/instructions/*.instructions.md` | `applyTo` glob match |
+| Prompt files | `.github/prompts/*.prompt.md` | manual slash command |
+| Custom agents | `.github/agents/*.agent.md` | agent picker, handoff, or subagent |
+| Hooks | `.github/hooks/*.json` | agent lifecycle event |
+| Skills | `.github/skills/<name>/SKILL.md` | on-demand or automatic load |
+| GitHub issue forms | `.github/ISSUE_TEMPLATE/*.yml` | new issue chooser |
+| GitHub workflows | `.github/workflows/*.yml` | GitHub Actions |
 
-## 4) Current live inventory in Xuanwu
+## Current inventory
 
-### Repository instruction
+### Always-on instructions
 - `.github/copilot-instructions.md`
+- `AGENTS.md`
 
 ### File-based instructions
 - `.github/instructions/copilot-config.instructions.md`
 - `.github/instructions/mddd-migration.instructions.md`
 - `.github/instructions/nextjs-ui.instructions.md`
 - `.github/instructions/typescript.instructions.md`
+- `.github/instructions/nextjs-app-router.instructions.md`
+- `.github/instructions/react-components.instructions.md`
+- `.github/instructions/genkit-flows.instructions.md`
+- `.github/instructions/firestore.instructions.md`
+- `.github/instructions/state-machine.instructions.md`
+- `.github/instructions/billing.instructions.md`
+- `.github/instructions/cloud-functions.instructions.md`
 
 ### Prompt files
 - `.github/prompts/implement-vsa-mddd.prompt.md`
 - `.github/prompts/plan-file-module-mddd.prompt.md`
 - `.github/prompts/plan-vsa-mddd.prompt.md`
 - `.github/prompts/refresh-serena-context.prompt.md`
+- `.github/prompts/scaffold-feature.prompt.md`
+- `.github/prompts/scaffold-genkit-flow.prompt.md`
+- `.github/prompts/scaffold-wbs-task.prompt.md`
+- `.github/prompts/scaffold-billing-cycle.prompt.md`
+- `.github/prompts/scaffold-ticket.prompt.md`
+- `.github/prompts/ingest-knowledge.prompt.md`
+- `.github/prompts/review-security-rules.prompt.md`
+- `.github/prompts/analyze-codebase.prompt.md`
+- `.github/prompts/add-shadcn-component.prompt.md`
+- `.github/prompts/write-tests.prompt.md`
 
 ### Custom agents
 - `.github/agents/vsa-mddd-implementer.agent.md`
 - `.github/agents/vsa-mddd-planner.agent.md`
-
-### Hooks path
-- `.github/hooks/README.md`
-- No active `.github/hooks/*.json` files are enabled yet.
+- `.github/agents/planner.agent.md`
+- `.github/agents/implementer.agent.md`
+- `.github/agents/reviewer.agent.md`
+- `.github/agents/rag-architect.agent.md`
+- `.github/agents/firestore-guard.agent.md`
+- `.github/agents/billing-auditor.agent.md`
 
 ### Skills
 - `.github/skills/awesome-rag-skill/SKILL.md`
@@ -66,30 +68,57 @@ GitHub Copilot coding agent setup steps are configured separately from the six V
 - `.github/skills/langchain-ai-skill/SKILL.md`
 - `.github/skills/ragflow-skill/SKILL.md`
 - `.github/skills/vsa-mddd-migration/SKILL.md`
+- `.github/skills/vscode-docs-skill/SKILL.md`
 - `.github/skills/xuanwu-skill/SKILL.md`
+- `.github/skills/rag-pipeline/SKILL.md`
+- `.github/skills/wbs-state-machine/SKILL.md`
+- `.github/skills/billing-lifecycle/SKILL.md`
+- `.github/skills/multitenancy/SKILL.md`
 
-### Coding-agent setup workflow
+### Hooks
+- `.github/hooks/README.md`
+- `.github/hooks/format.json`
+- `.github/hooks/session.json`
+
+The current hook files are scaffold placeholders with empty hook arrays. They reserve official locations without enabling command execution yet.
+
+### Issue and PR templates
+- `.github/ISSUE_TEMPLATE/config.yml`
+- `.github/ISSUE_TEMPLATE/bug.yml`
+- `.github/ISSUE_TEMPLATE/feature.yml`
+- `.github/ISSUE_TEMPLATE/task-wbs.yml`
+- `.github/ISSUE_TEMPLATE/ticket-support.yml`
+- `.github/ISSUE_TEMPLATE/billing-issue.yml`
+- `.github/pull_request_template.md`
+
+### Workflows
 - `.github/workflows/copilot-setup-steps.yml`
+- `.github/workflows/ci.yml`
+- `.github/workflows/deploy-preview.yml`
+- `.github/workflows/deploy-production.yml`
+- `.github/workflows/functions-deploy.yml`
+- `.github/workflows/genkit-flow-test.yml`
+- `.github/workflows/firestore-rules-test.yml`
+- `.github/workflows/rag-index-sync.yml`
 
-## 5) Documentation references checked
+## Notes on scaffolded files
+
+- `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
+- `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
+- Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.
+
+## Reference docs used for this scaffold
 
 - VS Code custom instructions: `https://code.visualstudio.com/docs/copilot/customization/custom-instructions`
 - VS Code prompt files: `https://code.visualstudio.com/docs/copilot/customization/prompt-files`
 - VS Code custom agents: `https://code.visualstudio.com/docs/copilot/customization/custom-agents`
 - VS Code agent skills: `https://code.visualstudio.com/docs/copilot/customization/agent-skills`
 - VS Code hooks: `https://code.visualstudio.com/docs/copilot/customization/hooks`
-- VS Code customization overview: `https://code.visualstudio.com/docs/copilot/customization/overview`
-- GitHub repository instructions: `https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions?tool=vscode`
-- GitHub coding-agent environment setup: `https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/customize-the-agent-environment`
 
-## 6) Recommended conventions for future additions
+## Maintenance rules
 
-- Keep filenames strictly aligned with official suffix rules (`.instructions.md`, `.prompt.md`, `.agent.md`).
-- Prefer extending existing instructions, prompts, agents, and skills before introducing near-duplicate files.
-- Keep instruction `applyTo` globs explicit and narrow enough to avoid accidental global policy overlap.
-- Keep skills in dedicated folders and make each `SKILL.md` `name` match its parent directory name.
-- Add `.github/hooks/*.json` only after lifecycle event, ownership, and rollback behavior are defined, and remember hooks are currently a VS Code Copilot **Preview** feature.
-- Keep `.github/workflows/copilot-setup-steps.yml` limited to a single `copilot-setup-steps` job so GitHub Copilot coding agent can recognize it.
-- Keep the special `copilot-setup-steps` job limited to the workflow settings GitHub Copilot supports, and move any extra environment configuration into individual steps.
-- Document the difference between active config and reserved paths so readers do not mistake scaffolding for enabled automation.
-- Update this map whenever customization files are added, renamed, or removed.
+- Keep official suffixes and folders unchanged.
+- Keep `SKILL.md` `name` values identical to their parent folder names.
+- Prefer updating existing customizations before creating near-duplicate variants.
+- Replace scaffold placeholders with real automation only when ownership, rollback, and validation are defined.
+- Update this map whenever files are added, renamed, or removed.
