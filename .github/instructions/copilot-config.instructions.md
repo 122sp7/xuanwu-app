@@ -16,5 +16,6 @@ applyTo: ".github/**/*"
 - If `.github/workflows/copilot-setup-steps.yml` exists, it must contain a single job named exactly `copilot-setup-steps`.
 - Prefer updating existing instructions, prompts, agents, and skills before creating near-duplicate files.
 - Keep `.github/README.md` aligned with the actual configured files, not a hypothetical future layout.
+- Keep Serena as the default symbol-aware exploration and edit path for `.github/*` workflows; document other MCP tools as fallback layers instead of equal peers.
 - Only add hook JSON files after the trigger event, ownership, and rollback behavior are documented.
 - When documenting MCP usage, describe real tools and real repo workflows already available in this project.
