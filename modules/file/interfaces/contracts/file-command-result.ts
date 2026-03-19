@@ -7,7 +7,8 @@ export type FileCommandErrorCode =
   | "FILE_VERSION_REQUIRED"
   | "FILE_INVALID_SIZE"
   | "FILE_NOT_FOUND"
-  | "FILE_SCOPE_MISMATCH";
+  | "FILE_SCOPE_MISMATCH"
+  | "FILE_STATUS_CONFLICT";
 
 export type FileCommandResult<TData> =
   | {

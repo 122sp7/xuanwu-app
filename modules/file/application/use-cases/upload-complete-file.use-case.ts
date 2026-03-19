@@ -97,6 +97,16 @@ export class UploadCompleteFileUseCase {
       };
     }
 
+    if (file.status !== "active") {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_STATUS_CONFLICT",
+          message: "File upload completion requires an active file record.",
+        },
+      };
+    }
+
     const nextFile = completeUploadFile({
       file,
       completedAtISO: new Date().toISOString(),
