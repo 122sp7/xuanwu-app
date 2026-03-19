@@ -30,7 +30,16 @@
 
 // ── Core ───────────────────────────────────────────────────────────────────
 export { create, createStore, useStore } from "zustand";
-export { middleware as zustandMiddleware, unstable_ssrSafe } from "zustand";
+
+import * as ZustandNamespace from "zustand";
+
+const zustandRuntime = ZustandNamespace as unknown as {
+  middleware?: unknown;
+  unstable_ssrSafe?: unknown;
+};
+
+export const zustandMiddleware = zustandRuntime.middleware;
+export const unstableSsrSafe = zustandRuntime.unstable_ssrSafe;
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 export {
