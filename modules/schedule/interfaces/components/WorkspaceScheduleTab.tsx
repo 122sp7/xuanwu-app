@@ -93,7 +93,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     };
   }, [loadSchedule]);
 
-  async function handleRunScheduleFlow() {
+  const handleRunScheduleFlow = useCallback(async () => {
     setRunState("running");
     setRunMessage(null);
     setLastRunSummary(null);
@@ -164,7 +164,10 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
 
       try {
         await loadSchedule();
-      } catch {
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceScheduleTab] Flow succeeded but schedule reload failed:", error);
+        }
         setRunMessage("流程已完成，但重新載入清單失敗，請手動刷新頁面。");
       }
     } catch (error) {
@@ -173,7 +176,13 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         error instanceof Error ? error.message : "Schedule MDDD flow 執行失敗，請稍後再試。",
       );
     }
-  }
+  }, [
+    defaultCandidateId,
+    loadSchedule,
+    workspace.accountId,
+    workspace.id,
+    workspace.teamIds,
+  ]);
 
   return (
     <Card className="border border-border/50">
@@ -194,16 +203,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
             </div>
             <Button
               type="button"
-              onClick={() => {
-                handleRunScheduleFlow().catch((error) => {
-                  setRunState("error");
-                  setRunMessage(
-                    error instanceof Error
-                      ? error.message
-                      : "Schedule MDDD flow 執行失敗，請稍後再試。",
-                  );
-                });
-              }}
+              onClick={() => void handleRunScheduleFlow()}
               disabled={runState === "running"}
             >
               {runState === "running" ? "執行中…" : "執行 MDDD Flow"}
