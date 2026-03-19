@@ -63,17 +63,18 @@ export default function PublicPage() {
     setError(null);
     setIsLoading(true);
     try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
       const result =
         tab === "login"
           ? await signInUseCase.execute({ email, password })
           : await registerUseCase.execute({ email, password, name });
 
       if (!result.success) {
-        if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-          writeDevDemoSession(createDevDemoUser());
-          window.location.assign("/dashboard");
-          return;
-        }
         setError(result.error.message);
       }
     } finally {

@@ -34,6 +34,7 @@ const statusVariantMap = {
   scheduled: "outline",
   completed: "secondary",
 } as const;
+const DEFAULT_CLIENT_LOCALE = "zh-TW";
 
 const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   maxLoadPerMember: 4,
@@ -75,11 +76,11 @@ function resolveFlowStatusVariant(status: string | null): "default" | "secondary
 
 function resolveClientLocale(): string {
   if (typeof navigator === "undefined") {
-    return "zh-TW";
+    return DEFAULT_CLIENT_LOCALE;
   }
 
-  const [firstLanguage] = navigator.languages;
-  return firstLanguage || navigator.language || "zh-TW";
+  const firstLanguage = Array.isArray(navigator.languages) ? navigator.languages[0] : undefined;
+  return firstLanguage || navigator.language || DEFAULT_CLIENT_LOCALE;
 }
 
 function formatUpdatedAt(iso: string): string {

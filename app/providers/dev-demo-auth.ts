@@ -5,7 +5,10 @@ import type { AuthUser } from "./auth-context";
 const DEV_DEMO_SESSION_KEY = "xuanwu_dev_demo_session_v1";
 
 export const DEV_DEMO_ACCOUNT_EMAIL = "test@demo.com";
-const DEV_DEMO_ACCOUNT_PASSWORD = "123456";
+// Localhost-only development fallback secret for the requested smoke-test account.
+// Never reuse this pattern for production authentication flows.
+const DEV_DEMO_ACCOUNT_PASSWORD =
+  process.env.NEXT_PUBLIC_DEV_DEMO_PASSWORD ?? "123456";
 
 function isLocalhostHost(hostname: string): boolean {
   return (
