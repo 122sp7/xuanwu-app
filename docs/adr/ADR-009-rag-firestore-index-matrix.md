@@ -30,7 +30,7 @@ RAG 查詢若沒有明確 index matrix，常見問題是：
 
 - Collection: `chunks`
 - Required fields: `embedding`, `organizationId`, `workspaceId`, `taxonomy`
-- Purpose: Top-K + tenant/workspace/taxonomy filter
+- Purpose: Top-K + organization/workspace/taxonomy filter
 
 #### Pattern B: Document readiness lookup
 
@@ -80,7 +80,7 @@ Collection: queryCache
 ### 4. Failure prevention rules
 
 1. 不允許在未建索引前上線新 query pattern。
-2. 不允許在 production 以臨時查詢繞過 tenant/workspace filter。
+2. 不允許在 production 以臨時查詢繞過 organization/workspace filter。
 3. index 變更必須附部署步驟與驗證結果。
 
 ## 與 functions-python ADR 協作與不衝突規則

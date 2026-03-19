@@ -64,7 +64,7 @@ Accepted
 - Availability: ingestion 與 query 可用性
 - Latency: P50/P95/P99
 - Quality: citation completeness、feedback 正向率
-- Isolation: cross-tenant leakage = 0 容忍
+- Isolation: cross-organization leakage = 0 容忍
 
 ### 3. Acceptance gates
 
@@ -72,7 +72,7 @@ Accepted
 
 1. Ingestion gate: uploaded -> ready 成功率達標
 2. Query gate: e2e latency 與 no-context rate 在門檻內
-3. Isolation gate: tenant / workspace filter 驗證通過
+3. Isolation gate: organization / workspace filter 驗證通過
 4. Observability gate: trace 與 metrics 可完整追蹤
 
 ### 4. Trace model
@@ -82,7 +82,7 @@ Accepted
 - requestId
 - traceId
 - documentId
-- tenantId
+- organizationId
 - workspaceId
 
 traceId 應貫穿 upload、processing、query、generation。

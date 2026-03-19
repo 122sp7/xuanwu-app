@@ -58,7 +58,7 @@ Dependency source:
 ### 1.3 Recommended ingestion implementation split (direct coding checklist)
 
 1. Upload endpoint (Next.js): validate input, upload raw file, create `documents` metadata with `status=uploaded`.
-2. Worker trigger contract: pass `organizationId`, `workspaceId`, `fileName`, `mimeType`, `contentBase64` (or storage reference in next iteration).
+2. Worker trigger contract: pass `organizationId`, `workspaceId`, `sourceFileName`, `mimeType`, `contentBase64` (or storage reference in next iteration).
 3. Document AI parse in functions-python adapter.
 4. Application layer orchestrates normalize -> taxonomy -> chunk.
 5. Persist chunk vectors and document status transitions (`processing` -> `ready`/`failed`).

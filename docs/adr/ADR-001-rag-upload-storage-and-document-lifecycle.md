@@ -22,7 +22,7 @@ Accepted
 4. Firestore 是 canonical metadata store，也是第一優先的 vector-search backing store。
 5. `documents` 是 document lifecycle 的 canonical collection。
 6. `chunks` 是 retrieval 與 embedding 的 canonical collection。
-7. 所有 upload、storage、documents、chunks、cache、feedback、background jobs 都必須 tenant-scoped。
+7. 所有 upload、storage、documents、chunks、cache、feedback、background jobs 都必須 organization-scoped，必要時再加上 workspace 子範圍。
 8. Genkit 用於 query preprocess、prompt assembly、LLM generation、tool calling，不承擔 canonical persistence。
 
 ## 設計細節 (Design)
@@ -101,7 +101,7 @@ Next.js query orchestration + Genkit answer generation
 
 ### 3. 拆分後的 ADR 責任
 
-- [ADR-002](./ADR-002-rag-upload-storage-and-naming.md): upload、canonical naming、Storage path、tenant-scoped binary layout
+- [ADR-002](./ADR-002-rag-upload-storage-and-naming.md): upload、canonical naming、Storage path、organization/workspace-scoped binary layout
 - [ADR-003](./ADR-003-rag-firestore-data-model-and-lifecycle.md): `documents` / `chunks` schema、status lifecycle、trigger、idempotency
 - [ADR-004](./ADR-004-rag-query-retrieval-and-enterprise-enhancements.md): query pipeline、vector search、hybrid search、rerank、cache、feedback
 - [ADR-005](./ADR-005-rag-ingestion-execution-contract.md): ingestion pipeline 執行契約、欄位流轉、失敗分類、重試邏輯

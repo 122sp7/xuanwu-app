@@ -39,7 +39,7 @@ optional enhancements 採四階段 rollout：
 
 - baseline latency 可接受
 - citation 完整
-- tenant isolation 無誤
+- organization/workspace isolation 無誤
 
 ### 2. Phase 2: Hybrid retrieval
 
@@ -53,7 +53,7 @@ optional enhancements 採四階段 rollout：
 
 - recall 提升
 - latency 增幅在可控範圍
-- 不影響 tenant/workspace filter gate
+- 不影響 organization/workspace filter gate
 
 ### 3. Phase 3: Re-ranking
 
@@ -88,7 +88,7 @@ optional enhancements 採四階段 rollout：
 
 1. P95 latency 超過既定門檻
 2. answer quality 顯著下降
-3. tenant 隔離風險
+3. organization 隔離風險
 4. 成本異常飆升
 
 回退時僅關閉該 phase 新增能力，保留 Phase 1 baseline。

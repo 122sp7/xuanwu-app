@@ -69,7 +69,7 @@ ready    -> processing (reprocess)
 
 - 輸入: chunk text
 - 輸出: embedding vector
-- 規則: 不得跳過 tenant / workspace metadata 綁定
+- 規則: 不得跳過 organization / workspace metadata 綁定
 
 #### Step F: Persistence
 

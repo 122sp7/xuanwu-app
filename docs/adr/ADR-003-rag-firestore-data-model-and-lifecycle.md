@@ -34,8 +34,8 @@ collection: documents
 - organizationId
 - workspaceId
 - title
-- originalFilename
-- contentType
+- sourceFileName
+- mimeType
 - extension
 - sizeBytes
 - storageBucket
