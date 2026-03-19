@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -38,6 +39,7 @@ const organizationSections = [
   { value: "members", label: "成員" },
   { value: "teams", label: "團隊" },
   { value: "permissions", label: "權限" },
+  { value: "workspaces", label: "工作區" },
   { value: "knowledge", label: "知識" },
   { value: "schedule", label: "排程" },
   { value: "daily", label: "每日" },
@@ -449,6 +451,62 @@ export default function OrganizationPage() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="workspaces" className="mt-4">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle>Workspaces</CardTitle>
+                  <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {loadState === "loading" && (
+                    <p className="text-sm text-muted-foreground">Loading workspaces…</p>
+                  )}
+                  {loadState === "error" && (
+                    <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
+                  )}
+                  {loadState === "loaded" && workspaceSummaries.length === 0 && (
+                    <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
+                  )}
+                  {loadState === "loaded" &&
+                    workspaceSummaries.map((workspace) => (
+                      <div
+                        key={workspace.id}
+                        className="rounded-lg border border-border/40 px-3 py-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                              <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                            </Button>
+                            <Badge
+                              variant={
+                                workspace.lifecycleState === "active"
+                                  ? "default"
+                                  : workspace.lifecycleState === "preparatory"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                            >
+                              {workspace.lifecycleState}
+                            </Badge>
+                            <Badge variant="outline">{workspace.visibility}</Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                              <Link href={`/workspace/${workspace.id}?tab=Files`}>Files</Link>
+                            </Button>
+                            <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                              <Link href={`/workspace/${workspace.id}?tab=Knowledge`}>Knowledge</Link>
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="knowledge" className="mt-4">
               <Card className="border-border/50">
                 <CardHeader>
@@ -489,9 +547,9 @@ export default function OrganizationPage() {
                                 variant="link"
                                 className="h-auto p-0 text-sm font-medium"
                               >
-                                <a href={`/workspace/${workspace.id}?tab=Knowledge`}>
+                                <Link href={`/workspace/${workspace.id}?tab=Knowledge`}>
                                   {workspace.name}
-                                </a>
+                                </Link>
                               </Button>
                               <Badge
                                 variant={status === "ready" ? "default" : status === "staged" ? "secondary" : "outline"}

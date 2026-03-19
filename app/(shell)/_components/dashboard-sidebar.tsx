@@ -26,6 +26,7 @@ const accountManagementItems = [
   { label: "成員", href: "/organization?section=members" },
   { label: "團隊", href: "/organization?section=teams" },
   { label: "權限", href: "/organization?section=permissions" },
+  { label: "工作區", href: "/organization?section=workspaces" },
   { label: "知識", href: "/organization?section=knowledge" },
   { label: "排程", href: "/organization?section=schedule" },
   { label: "每日", href: "/organization?section=daily" },
