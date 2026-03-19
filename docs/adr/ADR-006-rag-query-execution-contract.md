@@ -7,7 +7,7 @@ Accepted
 
 Query pipeline 若僅有高層描述，實作時容易出現：
 
-1. 檢索過濾與 tenant 邊界被忽略。
+1. 檢索過濾與 organization 邊界被忽略。
 2. prompt 組裝缺乏一致規則，造成答案品質飄移。
 3. streaming 回傳格式不穩定，前端難以維護。
 
@@ -16,7 +16,7 @@ Query pipeline 若僅有高層描述，實作時容易出現：
 固定 query 執行契約如下：
 
 1. Query entrypoint 在 Next.js Route Handler 或 Server Action。
-2. Query embedding 後，必須先過 tenant/workspace filter gate。
+2. Query embedding 後，必須先過 organization/workspace filter gate。
 3. retrieval 結果經 context 組裝後才可交由 Genkit 生成。
 4. 回應採 streaming-first，並回傳可追蹤 metadata。
 

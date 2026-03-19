@@ -1,4 +1,21 @@
-export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed";
+export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed" | "archived";
+
+export const ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS: Readonly<
+  Record<RagDocumentStatus, readonly RagDocumentStatus[]>
+> = {
+  uploaded: ["processing"],
+  processing: ["ready", "failed"],
+  ready: ["processing", "archived"],
+  failed: ["processing"],
+  archived: [],
+};
+
+export function canTransitionRagDocumentStatus(
+  fromStatus: RagDocumentStatus,
+  toStatus: RagDocumentStatus,
+): boolean {
+  return ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
+}
 
 export interface RagDocumentRecord {
   readonly id: string;

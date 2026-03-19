@@ -33,8 +33,8 @@ UploadRequest
 - organizationId: string
 - workspaceId: string
 - uploaderId: string
-- originalFilename: string
-- contentType: string
+- sourceFileName: string
+- mimeType: string
 - sizeBytes: number
 - checksum: string
 ```
@@ -52,7 +52,7 @@ DocumentMetadata
 - id: documentId
 - organizationId
 - workspaceId
-- originalFilename
+- sourceFileName
 - title
 - storagePath
 - checksum
@@ -64,7 +64,7 @@ DocumentMetadata
 規則：
 
 1. 建立 metadata 時 `status` 必須是 `uploaded`。
-2. `storagePath` 必須指向 tenant-scoped path。
+2. `storagePath` 必須指向 organization/workspace-scoped path。
 3. metadata 欄位命名需與 ADR-003 一致。
 
 ### 3. Worker trigger event contract
@@ -84,7 +84,7 @@ WorkerTriggerEvent
 
 規則：
 
-1. event payload 缺少 tenant/workspace 時必須拒絕處理。
+1. event payload 缺少 organization/workspace 時必須拒絕處理。
 2. worker 先驗證 `status=uploaded` 才進入 processing。
 3. 同 checksum + same document 不得重複執行完整 ingestion。
 

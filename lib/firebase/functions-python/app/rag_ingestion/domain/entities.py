@@ -1,13 +1,14 @@
 from dataclasses import dataclass
 from typing import Literal
 
-RagDocumentStatus = Literal["uploaded", "processing", "ready", "failed"]
+RagDocumentStatus = Literal["uploaded", "processing", "ready", "failed", "archived"]
 
 ALLOWED_STATUS_TRANSITIONS: dict[RagDocumentStatus, tuple[RagDocumentStatus, ...]] = {
     "uploaded": ("processing",),
     "processing": ("ready", "failed"),
-    "ready": ("processing",),
+    "ready": ("processing", "archived"),
     "failed": ("processing",),
+    "archived": (),
 }
 
 
