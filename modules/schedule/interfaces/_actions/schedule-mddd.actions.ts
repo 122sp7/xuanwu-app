@@ -22,14 +22,27 @@ import {
   FirebaseMdddTaskRepository,
 } from "../../infrastructure";
 
+function createRepositories() {
+  return {
+    requestRepository: new FirebaseMdddRequestRepository(),
+    taskRepository: new FirebaseMdddTaskRepository(),
+    matchRepository: new FirebaseMdddMatchRepository(),
+    assignmentRepository: new FirebaseMdddAssignmentRepository(),
+    scheduleRepository: new FirebaseMdddScheduleRepository(),
+    projectionRepository: new FirebaseMdddProjectionRepository(),
+  };
+}
+
 function createRunFlowUseCase() {
+  const repositories = createRepositories();
+
   return new RunScheduleMdddFlowUseCase(
-    new FirebaseMdddRequestRepository(),
-    new FirebaseMdddTaskRepository(),
-    new FirebaseMdddMatchRepository(),
-    new FirebaseMdddAssignmentRepository(),
-    new FirebaseMdddScheduleRepository(),
-    new FirebaseMdddProjectionRepository(),
+    repositories.requestRepository,
+    repositories.taskRepository,
+    repositories.matchRepository,
+    repositories.assignmentRepository,
+    repositories.scheduleRepository,
+    repositories.projectionRepository,
   );
 }
 
@@ -57,10 +70,11 @@ export async function rejectScheduleRequest(input: {
   readonly reason: string;
 }): Promise<CommandResult> {
   try {
+    const repositories = createRepositories();
     const useCase = new RejectScheduleRequestUseCase(
-      new FirebaseMdddRequestRepository(),
-      new FirebaseMdddTaskRepository(),
-      new FirebaseMdddProjectionRepository(),
+      repositories.requestRepository,
+      repositories.taskRepository,
+      repositories.projectionRepository,
     );
 
     const result = await useCase.execute(input);
@@ -80,10 +94,11 @@ export async function rejectScheduleAssignment(input: {
   readonly reason: string;
 }): Promise<CommandResult> {
   try {
+    const repositories = createRepositories();
     const useCase = new RejectScheduleAssignmentUseCase(
-      new FirebaseMdddAssignmentRepository(),
-      new FirebaseMdddTaskRepository(),
-      new FirebaseMdddProjectionRepository(),
+      repositories.assignmentRepository,
+      repositories.taskRepository,
+      repositories.projectionRepository,
     );
 
     const result = await useCase.execute(input);
@@ -103,11 +118,12 @@ export async function cancelSchedule(input: {
   readonly reason?: string;
 }): Promise<CommandResult> {
   try {
+    const repositories = createRepositories();
     const useCase = new CancelScheduleUseCase(
-      new FirebaseMdddScheduleRepository(),
-      new FirebaseMdddAssignmentRepository(),
-      new FirebaseMdddTaskRepository(),
-      new FirebaseMdddProjectionRepository(),
+      repositories.scheduleRepository,
+      repositories.assignmentRepository,
+      repositories.taskRepository,
+      repositories.projectionRepository,
     );
 
     const result = await useCase.execute(input);

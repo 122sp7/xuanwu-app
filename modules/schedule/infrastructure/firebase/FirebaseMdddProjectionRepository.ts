@@ -21,10 +21,9 @@ function appendEventType(
   eventTypes: readonly string[],
   eventType: string,
 ): readonly string[] {
-  if (eventTypes.includes(eventType)) {
-    return eventTypes;
-  }
-  return [...eventTypes, eventType];
+  const eventTypeSet = new Set(eventTypes);
+  eventTypeSet.add(eventType);
+  return [...eventTypeSet];
 }
 
 function applyEvent(
@@ -132,6 +131,19 @@ function applyEvent(
         eventTypes: appendEventType(base.eventTypes, event.type),
         updatedAtISO: event.occurredAtISO,
       };
+    case "ScheduleCancelled":
+      return {
+        ...base,
+        taskId: event.taskId,
+        assignmentId: event.assignmentId,
+        scheduleId: event.scheduleId,
+        taskStatus: "cancelled",
+        assignmentStatus: "cancelled",
+        scheduleStatus: "cancelled",
+        lastReason: event.reason,
+        eventTypes: appendEventType(base.eventTypes, event.type),
+        updatedAtISO: event.occurredAtISO,
+      };
     default:
       return {
         ...base,
@@ -149,15 +161,43 @@ export class FirebaseMdddProjectionRepository
   }
 
   async project(events: readonly ScheduleDomainEvent[]): Promise<void> {
-    for (const event of events) {
-      const projectionRef = doc(this.db, COLLECTION_NAME, event.requestId);
-      const existing = await getDoc(projectionRef);
-      const next = applyEvent(
-        existing.exists() ? (existing.data() as ScheduleMdddFlowProjection) : null,
-        event,
-      );
-      await setDoc(projectionRef, next, { merge: true });
+    if (events.length === 0) {
+      return;
     }
+
+    const eventsByRequestId = new Map<string, ScheduleDomainEvent[]>();
+    for (const event of events) {
+      const bucket = eventsByRequestId.get(event.requestId) ?? [];
+      bucket.push(event);
+      eventsByRequestId.set(event.requestId, bucket);
+    }
+
+    const requestIds = [...eventsByRequestId.keys()];
+    const existingSnapshots = await Promise.all(
+      requestIds.map(async (requestId) => {
+        const snapshot = await getDoc(doc(this.db, COLLECTION_NAME, requestId));
+        return {
+          requestId,
+          current: snapshot.exists() ? (snapshot.data() as ScheduleMdddFlowProjection) : null,
+        };
+      }),
+    );
+
+    await Promise.all(
+      existingSnapshots.map(async ({ requestId, current }) => {
+        const relatedEvents = eventsByRequestId.get(requestId) ?? [];
+        const nextProjection = relatedEvents.reduce<ScheduleMdddFlowProjection | null>(
+          (acc, event) => applyEvent(acc, event),
+          current,
+        );
+
+        if (!nextProjection) {
+          return;
+        }
+
+        await setDoc(doc(this.db, COLLECTION_NAME, requestId), nextProjection, { merge: true });
+      }),
+    );
   }
 
   async findByRequestId(requestId: string): Promise<ScheduleMdddFlowProjection | null> {

@@ -6,7 +6,14 @@ import type { WorkspaceEntity } from "@/modules/workspace";
 import { cn } from "@/lib/utils";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
-import { runScheduleMdddFlow } from "../_actions/schedule-mddd.actions";
+import {
+  cancelSchedule,
+  rejectScheduleAssignment,
+  rejectScheduleRequest,
+  runScheduleMdddFlow,
+} from "../_actions/schedule-mddd.actions";
+import { listWorkspaceScheduleMdddFlowProjections } from "../queries/schedule-mddd.queries";
+import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Button } from "@/ui/shadcn/ui/button";
 import {
@@ -37,9 +44,31 @@ const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
 } as const;
 
+function resolveFlowStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
+  if (!status) {
+    return "outline";
+  }
+
+  if (["rejected", "cancelled", "conflicted"].includes(status)) {
+    return "destructive";
+  }
+
+  if (["completed", "closed"].includes(status)) {
+    return "secondary";
+  }
+
+  if (["accepted", "assigned", "scheduled", "reserved", "active"].includes(status)) {
+    return "default";
+  }
+
+  return "outline";
+}
+
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
+  const [flowProjections, setFlowProjections] = useState<readonly ScheduleMdddFlowProjection[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [flowLoadState, setFlowLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [runState, setRunState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [lastRunSummary, setLastRunSummary] = useState<{
@@ -74,6 +103,26 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     }
   }, [workspace.id]);
 
+  const loadMdddFlows = useCallback(async () => {
+    setFlowLoadState("loading");
+
+    try {
+      const nextFlows = await listWorkspaceScheduleMdddFlowProjections(workspace.id);
+      setFlowProjections(nextFlows);
+      setFlowLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceScheduleTab] Failed to load MDDD flow projections:", error);
+      }
+      setFlowProjections([]);
+      setFlowLoadState("error");
+    }
+  }, [workspace.id]);
+
+  const reloadAll = useCallback(async () => {
+    await Promise.all([loadSchedule(), loadMdddFlows()]);
+  }, [loadMdddFlows, loadSchedule]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -81,7 +130,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
       if (cancelled) {
         return;
       }
-      await loadSchedule();
+      await reloadAll();
     }
 
     void load();
@@ -89,7 +138,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [loadSchedule]);
+  }, [reloadAll]);
 
   const handleRunScheduleFlow = useCallback(async () => {
     setRunState("running");
@@ -149,14 +198,16 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         useScaffoldingFastClose: true,
       });
 
-      if (!result.success) {
+      if (!result.success || !result.command.success) {
         setRunState("error");
-        setRunMessage(result.command.error.message);
+        setRunMessage(
+          !result.command.success ? result.command.error.message : "Flow failed unexpectedly.",
+        );
         return;
       }
 
       setRunState("success");
-      setRunMessage("Schedule MDDD flow 已完成，請檢查下方執行摘要。");
+      setRunMessage("Schedule MDDD flow 已完成，請檢查下方執行摘要與流程狀態。");
       setLastRunSummary({
         requestId: result.data.request.requestId,
         taskId: result.data.task?.taskId,
@@ -165,28 +216,74 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         eventTypes: result.data.events.map((event) => event.type),
       });
 
-      try {
-        await loadSchedule();
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceScheduleTab] Flow succeeded but schedule reload failed:", error);
-        }
-        setRunState("error");
-        setRunMessage("流程已完成，但重新載入清單失敗，請手動刷新頁面。");
-      }
+      await reloadAll();
     } catch (error) {
       setRunState("error");
       setRunMessage(
         error instanceof Error ? error.message : "Schedule MDDD flow 執行失敗，請稍後再試。",
       );
     }
-  }, [
-    defaultCandidateId,
-    loadSchedule,
-    workspace.accountId,
-    workspace.id,
-    workspace.teamIds,
-  ]);
+  }, [defaultCandidateId, reloadAll, workspace.accountId, workspace.id, workspace.teamIds]);
+
+  const handleRejectRequest = useCallback(
+    async (requestId: string) => {
+      const result = await rejectScheduleRequest({
+        requestId,
+        reason: "rejected_from_workspace_schedule_tab",
+      });
+
+      if (!result.success) {
+        setRunState("error");
+        setRunMessage(result.error.message);
+        return;
+      }
+
+      setRunState("success");
+      setRunMessage("Request 已拒絕並完成關聯任務回滾。");
+      await loadMdddFlows();
+    },
+    [loadMdddFlows],
+  );
+
+  const handleRejectAssignment = useCallback(
+    async (assignmentId: string) => {
+      const result = await rejectScheduleAssignment({
+        assignmentId,
+        reason: "rejected_from_workspace_schedule_tab",
+      });
+
+      if (!result.success) {
+        setRunState("error");
+        setRunMessage(result.error.message);
+        return;
+      }
+
+      setRunState("success");
+      setRunMessage("Assignment 已拒絕並更新任務狀態。");
+      await loadMdddFlows();
+    },
+    [loadMdddFlows],
+  );
+
+  const handleCancelSchedule = useCallback(
+    async (scheduleId: string) => {
+      const result = await cancelSchedule({
+        scheduleId,
+        reason: "cancelled_from_workspace_schedule_tab",
+      });
+
+      if (!result.success) {
+        setRunState("error");
+        setRunMessage(result.error.message);
+        return;
+      }
+
+      setRunState("success");
+      setRunMessage("Schedule 已取消並完成回滾更新。");
+      await loadMdddFlows();
+    },
+    [loadMdddFlows],
+  );
 
   return (
     <Card className="border border-border/50">
@@ -202,7 +299,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Schedule MDDD Runtime</p>
               <p className="text-xs text-muted-foreground">
-                直接觸發一次 Request→Task→Match→Assignment→Schedule 流程，驗證契約對應的可見 UI。
+                直接觸發一次 Request→Task→Match→Assignment→Schedule 流程，並顯示完整狀態轉移。
               </p>
             </div>
             <Button
@@ -230,6 +327,93 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
             </div>
           )}
         </div>
+
+        {flowLoadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading MDDD flow projections…</p>
+        )}
+
+        {flowLoadState === "error" && (
+          <p className="text-sm text-destructive">無法載入 MDDD 流程狀態，請稍後再試。</p>
+        )}
+
+        {flowLoadState === "loaded" && flowProjections.length === 0 && (
+          <p className="text-sm text-muted-foreground">目前尚無 MDDD flow 狀態資料。</p>
+        )}
+
+        {flowProjections.length > 0 && (
+          <div className="space-y-3">
+            {flowProjections.map((projection) => (
+              <div
+                key={projection.requestId}
+                className="rounded-xl border border-border/40 bg-muted/20 px-4 py-4"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">requestId: {projection.requestId}</p>
+                  <Badge variant={resolveFlowStatusVariant(projection.requestStatus)}>
+                    request:{projection.requestStatus}
+                  </Badge>
+                  <Badge variant={resolveFlowStatusVariant(projection.taskStatus)}>
+                    task:{projection.taskStatus ?? "—"}
+                  </Badge>
+                  <Badge variant={resolveFlowStatusVariant(projection.assignmentStatus)}>
+                    assignment:{projection.assignmentStatus ?? "—"}
+                  </Badge>
+                  <Badge variant={resolveFlowStatusVariant(projection.scheduleStatus)}>
+                    schedule:{projection.scheduleStatus ?? "—"}
+                  </Badge>
+                </div>
+
+                <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                  <p>taskId: {projection.taskId ?? "—"}</p>
+                  <p>assignmentId: {projection.assignmentId ?? "—"}</p>
+                  <p>scheduleId: {projection.scheduleId ?? "—"}</p>
+                  <p>assignee: {projection.assigneeAccountUserId ?? "—"}</p>
+                  <p>events: {projection.eventTypes.join(" → ") || "—"}</p>
+                  {projection.lastReason && <p>reason: {projection.lastReason}</p>}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {["submitted", "under-review"].includes(projection.requestStatus) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleRejectRequest(projection.requestId)}
+                    >
+                      Reject Request
+                    </Button>
+                  )}
+
+                  {projection.assignmentId && projection.assignmentStatus === "proposed" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleRejectAssignment(projection.assignmentId!)}
+                    >
+                      Reject Assignment
+                    </Button>
+                  )}
+
+                  {projection.scheduleId &&
+                    projection.scheduleStatus &&
+                    ["planned", "reserved", "active", "conflicted"].includes(
+                      projection.scheduleStatus,
+                    ) && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => void handleCancelSchedule(projection.scheduleId!)}
+                      >
+                        Cancel Schedule
+                      </Button>
+                    )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loadState === "loading" && (
           <p className="text-sm text-muted-foreground">Loading schedule signals…</p>

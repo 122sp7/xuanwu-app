@@ -53,7 +53,7 @@ export class RejectScheduleRequestUseCase {
       };
     }
 
-    if (!["submitted", "under-review", "accepted"].includes(request.status)) {
+    if (!["submitted", "under-review"].includes(request.status)) {
       return {
         command: commandFailure(
           createScheduleMdddDomainError(
@@ -75,16 +75,21 @@ export class RejectScheduleRequestUseCase {
     const closedRequest = transitionRequestStatus(rejectedRequest, "closed", nowISO);
 
     const relatedTasks = await this.taskRepository.listByRequestId(request.requestId);
-    const cancelledTasks = await Promise.all(
-      relatedTasks.map(async (task) => {
-        if (["completed", "cancelled"].includes(task.status)) {
-          return task;
-        }
+    const tasksToCancel = relatedTasks.filter(
+      (task) => !["completed", "cancelled"].includes(task.status),
+    );
+    const cancelledTaskMap = new Map<string, Task>();
 
+    await Promise.all(
+      tasksToCancel.map(async (task) => {
         const cancelled = transitionTaskStatus(task, "cancelled", nowISO);
         await this.taskRepository.save(cancelled);
-        return cancelled;
+        cancelledTaskMap.set(cancelled.taskId, cancelled);
       }),
+    );
+
+    const cancelledTasks = relatedTasks.map(
+      (task) => cancelledTaskMap.get(task.taskId) ?? task,
     );
 
     await this.requestRepository.save(closedRequest);
