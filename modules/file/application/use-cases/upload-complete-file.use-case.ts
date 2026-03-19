@@ -120,41 +120,65 @@ export class UploadCompleteFileUseCase {
       };
     }
 
-    if (file.source === "file-upload-complete") {
-      return {
-        ok: false,
-        error: {
-          code: "FILE_STATUS_CONFLICT",
-          message: "File upload completion has already been finalized for this version.",
-        },
-      };
-    }
-
-    const nextFile = completeUploadFile({
-      file,
-      completedAtISO: new Date().toISOString(),
-    });
-
-    await this.fileRepository.save(nextFile);
-
-    const registerUploadedRagDocumentUseCase = new RegisterUploadedRagDocumentUseCase(
-      this.ragDocumentRepository,
-    );
-    const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
+    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
       organizationId,
       workspaceId,
-      title: file.name,
-      sourceFileName: file.name,
-      mimeType: file.mimeType,
       storagePath: version.storagePath,
-      checksum: version.checksum,
     });
-    if (!ragDocumentResult.ok) {
+
+    const nextFile =
+      file.source === "file-upload-complete"
+        ? file
+        : completeUploadFile({
+            file,
+            completedAtISO: new Date().toISOString(),
+          });
+
+    if (file.source !== "file-upload-complete") {
+      await this.fileRepository.save(nextFile);
+    }
+
+    const ragDocument =
+      existingRagDocument === null
+        ? await (async () => {
+            const registerUploadedRagDocumentUseCase = new RegisterUploadedRagDocumentUseCase(
+              this.ragDocumentRepository,
+            );
+            const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
+              organizationId,
+              workspaceId,
+              title: file.name,
+              sourceFileName: file.name,
+              mimeType: file.mimeType,
+              storagePath: version.storagePath,
+              checksum: version.checksum,
+            });
+            if (!ragDocumentResult.ok) {
+              return ragDocumentResult;
+            }
+
+            return {
+              ok: true as const,
+              data: {
+                documentId: ragDocumentResult.data.documentId,
+                status: ragDocumentResult.data.status,
+              },
+            };
+          })()
+        : {
+            ok: true as const,
+            data: {
+              documentId: existingRagDocument.id,
+              status: existingRagDocument.status,
+            },
+          };
+
+    if (!("data" in ragDocument)) {
       return {
         ok: false,
         error: {
           code: "FILE_RAG_REGISTRATION_FAILED",
-          message: ragDocumentResult.error.message,
+          message: ragDocument.error.message,
         },
       };
     }
@@ -165,8 +189,8 @@ export class UploadCompleteFileUseCase {
         fileId: nextFile.id,
         versionId: nextFile.currentVersionId,
         status: "active",
-        ragDocumentId: ragDocumentResult.data.documentId,
-        ragDocumentStatus: ragDocumentResult.data.status,
+        ragDocumentId: ragDocument.data.documentId,
+        ragDocumentStatus: ragDocument.data.status,
       },
     };
   }

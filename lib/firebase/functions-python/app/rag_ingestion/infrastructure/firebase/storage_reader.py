@@ -31,4 +31,4 @@ class FirebaseStorageTextReader:
             .blob(normalized_storage_path)
             .download_as_bytes()
         )
-        return raw_bytes.decode("utf-8", errors="ignore").strip()
+        return raw_bytes.decode("utf-8", errors="replace").strip()

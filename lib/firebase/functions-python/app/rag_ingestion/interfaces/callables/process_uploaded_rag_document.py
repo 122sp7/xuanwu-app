@@ -21,6 +21,9 @@ from app.rag_ingestion.infrastructure.firebase.storage_reader import (
 )
 
 
+_storage_text_reader: FirebaseStorageTextReader | None = None
+
+
 def _required_string(data: dict[str, Any], key: str) -> str:
     value = data.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -54,14 +57,20 @@ def _build_use_case() -> ProcessUploadedDocumentUseCase:
     )
 
 
+def _get_storage_text_reader() -> FirebaseStorageTextReader:
+    global _storage_text_reader
+    if _storage_text_reader is None:
+        _storage_text_reader = FirebaseStorageTextReader()
+    return _storage_text_reader
+
+
 def _resolve_raw_text(data: dict[str, Any]) -> str:
     raw_text = _optional_string(data, "rawText")
     if raw_text is not None:
         return raw_text
 
-    storage_reader = FirebaseStorageTextReader()
     storage_path = _required_string(data, "storagePath")
-    return storage_reader.read_text(storage_path)
+    return _get_storage_text_reader().read_text(storage_path)
 
 
 def process_uploaded_rag_document_data(data: dict[str, Any]) -> dict[str, Any]:

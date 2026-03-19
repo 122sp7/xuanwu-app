@@ -1,4 +1,5 @@
 import type { File } from "../../domain/entities/File";
+import type { RagDocumentStatus } from "../../domain/repositories/RagDocumentRepository";
 
 export interface WorkspaceFileListItemDto {
   readonly id: string;
@@ -43,5 +44,5 @@ export interface UploadCompleteFileOutputDto {
   readonly versionId: string;
   readonly status: "active";
   readonly ragDocumentId: string;
-  readonly ragDocumentStatus: "uploaded";
+  readonly ragDocumentStatus: RagDocumentStatus;
 }
