@@ -30,3 +30,16 @@ export interface UploadInitFileOutputDto {
   readonly expiresAtISO: string;
 }
 
+export interface UploadCompleteFileInputDto {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+  readonly fileId: string;
+  readonly versionId: string;
+}
+
+export interface UploadCompleteFileOutputDto {
+  readonly fileId: string;
+  readonly versionId: string;
+  readonly status: "active";
+}
