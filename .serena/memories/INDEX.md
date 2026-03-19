@@ -21,4 +21,7 @@ Maintenance rules:
 Task-specific memories:
 - migration/task-slice-progress.md
 - migration/taxonomy-slice-progress.md
-- migration/workspace-shell-phase.md\n- migration/workspace-interface-hook.md\n- migration/workspace-screen-component.md
+- migration/workspace-shell-phase.md
+- migration/workspace-interface-hook.md
+- migration/workspace-screen-component.md
+- migration/schedule-mddd-progress.md  ← NEW: schedule MDDD domain redesign on branch copilot/redesign-scheduling-task-system
