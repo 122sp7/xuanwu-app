@@ -452,29 +452,15 @@ export function WorkspaceKnowledgeTab({ workspace }: WorkspaceKnowledgeTabProps)
             <KpiCard label="已封存" value={counts.archived} />
           </div>
 
-          {/* Blocked reasons + next actions — shown only when relevant */}
-          {(summary.blockedReasons.length > 0 || summary.nextActions.length > 0) && (
-            <div className="grid gap-3 lg:grid-cols-2">
-              {summary.blockedReasons.length > 0 && (
-                <div className="rounded-xl border border-amber-400/40 bg-amber-50/30 px-4 py-4 dark:bg-amber-950/20">
-                  <p className="text-sm font-semibold text-foreground">尚未完成的設定</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                    {summary.blockedReasons.map((reason) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {summary.nextActions.length > 0 && (
-                <div className="rounded-xl border border-border/40 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">建議操作</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                    {summary.nextActions.map((action) => (
-                      <li key={action}>{action}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+          {/* Blocked reasons — shown only when non-empty */}
+          {summary.blockedReasons.length > 0 && (
+            <div className="rounded-xl border border-amber-400/40 bg-amber-50/30 px-4 py-4 dark:bg-amber-950/20">
+              <p className="text-sm font-semibold text-foreground">尚未完成的設定</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                {summary.blockedReasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
             </div>
           )}
         </CardContent>
