@@ -37,7 +37,9 @@ export interface CreateRequestInput {
 const REQUEST_STATUS_TRANSITIONS: Record<RequestStatus, readonly RequestStatus[]> = {
   draft: ["submitted", "cancelled"],
   submitted: ["under-review", "cancelled"],
-  "under-review": ["closed", "cancelled"],
+  "under-review": ["accepted", "rejected", "cancelled"],
+  accepted: ["closed", "cancelled"],
+  rejected: ["closed", "cancelled"],
   cancelled: [],
   closed: [],
 } as const;
