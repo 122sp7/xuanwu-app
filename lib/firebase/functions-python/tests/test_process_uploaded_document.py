@@ -5,6 +5,7 @@ from app.rag_ingestion.domain.entities import (
     ProcessUploadedDocumentCommand,
     RagChunk,
     RagChunkDraft,
+    can_transition_status,
 )
 
 
@@ -131,3 +132,8 @@ def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
     assert repository.failed_payloads == [
         ("doc-2", "INGESTION_PIPELINE_ERROR", "parser exploded")
     ]
+
+
+def test_rag_document_status_transitions_include_archived_terminal_state() -> None:
+    assert can_transition_status("ready", "archived") is True
+    assert can_transition_status("archived", "processing") is False
