@@ -48,21 +48,6 @@ export interface WorkspaceFileAsset {
   readonly href?: string;
 }
 
-export interface WorkspaceFinanceSnapshot {
-  readonly stage: string;
-  readonly paymentTermStartAtISO: string | null;
-  readonly paymentReceivedAtISO: string | null;
-}
-
-export interface WorkspaceScheduleItem {
-  readonly id: string;
-  readonly title: string;
-  readonly timeLabel: string;
-  readonly type: "milestone" | "follow-up" | "maintenance";
-  readonly status: "upcoming" | "scheduled" | "completed";
-  readonly detail: string;
-}
-
 export interface WorkspaceParserSummary {
   readonly supportedSources: number;
   readonly readyAssetCount: number;
@@ -365,68 +350,6 @@ export function getWorkspaceFileAssets(workspace: WorkspaceEntity): WorkspaceFil
   }
 
   return assets;
-}
-
-export function getWorkspaceScheduleItems(
-  workspace: WorkspaceEntity,
-  finance: WorkspaceFinanceSnapshot | null,
-): WorkspaceScheduleItem[] {
-  const items: WorkspaceScheduleItem[] = [
-    {
-      id: "schedule-onboarding",
-      title: "Workspace onboarding",
-      timeLabel: getDateLabel(workspace.createdAt.toDate()),
-      type: "milestone",
-      status: "completed",
-      detail: "工作區已建立，可持續補齊營運設定。",
-    },
-  ];
-
-  if (finance?.paymentTermStartAtISO) {
-    items.push({
-      id: "schedule-payment-term",
-      title: "Payment term window",
-      timeLabel: getDateLabel(finance.paymentTermStartAtISO),
-      type: "milestone",
-      status: finance.paymentReceivedAtISO ? "completed" : "scheduled",
-      detail: `目前 finance stage：${finance.stage}`,
-    });
-  }
-
-  if (finance?.paymentReceivedAtISO) {
-    items.push({
-      id: "schedule-payment-received",
-      title: "Payment received",
-      timeLabel: getDateLabel(finance.paymentReceivedAtISO),
-      type: "milestone",
-      status: "completed",
-      detail: "收款節點已完成。",
-    });
-  }
-
-  if (!hasAddress(workspace) || assignedPersonnelCount(workspace) < 2) {
-    items.push({
-      id: "schedule-profile-followup",
-      title: "Complete workspace profile",
-      timeLabel: "啟用前",
-      type: "follow-up",
-      status: "upcoming",
-      detail: "地址與主要聯絡角色尚未完全就位。",
-    });
-  }
-
-  if (workspace.capabilities.some((capability) => capability.status === "beta")) {
-    items.push({
-      id: "schedule-beta-review",
-      title: "Beta capability review",
-      timeLabel: "本週",
-      type: "maintenance",
-      status: "scheduled",
-      detail: "beta capability 需要 QA / acceptance 同步檢查。",
-    });
-  }
-
-  return sortByStatus(items, ["upcoming", "scheduled", "completed"]);
 }
 
 export function getWorkspaceParserSummary(

@@ -1,1 +1,1 @@
-export { LegacyWorkspaceScheduleRepository } from "./legacy/LegacyWorkspaceScheduleRepository";
+export { DefaultWorkspaceScheduleRepository } from "./default/DefaultWorkspaceScheduleRepository";
