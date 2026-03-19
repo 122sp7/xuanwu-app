@@ -33,10 +33,13 @@
 4. **memory MCP** for durable architecture, migration, and UI pattern notes.
    - Persist verified architecture, module progress, UI patterns, and migration decisions after meaningful steps.
    - When major structure changes land, refresh the project index/skill references used by the team.
-5. **Next DevTools MCP** for real Next.js behavior.
+5. **Client-local memory layers** such as Server-Memory when available in the current client.
+   - Use them only for user-specific workflow preferences, review habits, and environment reminders.
+   - Do not treat client-local memory as the source of truth for repository structure, symbol definitions, or code facts; keep those in Serena / `.serena`.
+6. **Next DevTools MCP** for real Next.js behavior.
    - Prefer runtime inspection over guesswork for App Router, RSC, hydration, routing, cache, and shell behavior.
    - Use browser screenshots only after verifying runtime state.
-6. **shadcn/ui MCP** before inventing or duplicating UI primitives.
+7. **shadcn/ui MCP** before inventing or duplicating UI primitives.
    - Reuse or extend `ui/` and shadcn components instead of creating one-off variants.
 
 ## Architecture and migration rules
@@ -60,6 +63,8 @@
 - Plan first, then implement.
 - For `.github/*`, agent, prompt, instruction, skill, or Copilot workflow changes, load `vscode-docs-skill` before editing.
 - For browser coding-agent sessions, use Serena as the project orchestrator: activate the project, read the ordered `.serena/memories`, inspect symbols/references, then choose the next skill, agent, or prompt.
+- If the current client also exposes Server-Memory or another local memory layer, use Serena for project facts first, then cross-check the solution against the stored user preferences from that client-local memory.
+- After large or architecture-significant changes in clients that support both layers, ask whether Serena memory and the client-local memory rules should both be updated.
 - For complex migration tasks, create or update a plan via `.github/prompts` or `.github/agents` instead of jumping straight to edits.
 - If asked to "continue next phase", choose the highest-priority unfinished slice using this order:
   1. close remaining identity/account/organization gaps

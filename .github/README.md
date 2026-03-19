@@ -33,6 +33,7 @@ This document records the active Copilot customization layout in this repository
 | --- | --- |
 | Symbols, references, precise edits | Serena MCP |
 | Conversation bootstrap, local-context recovery, handoff memory | Serena MCP via `.serena/project.yml` + `.serena/memories/*` |
+| User-specific workflow habits and review preferences | client-local memory layer such as Server-Memory (when available in the client) |
 | Repository tree, path-aware exploration | filesystem MCP when Serena is unavailable or path-level structure is faster |
 | Repo-wide reference pack or index | repomix MCP when Serena and filesystem do not provide enough cross-cutting context |
 | Long-lived architecture or workflow facts | memory MCP |
@@ -166,6 +167,9 @@ The active hook set is intentionally minimal. This repository enables one guardr
 - `commander.agent.md` is the repo entrypoint for agent routing. It relies on VS Code custom-agent `agents` + `agent` tool support to dispatch planner / implementer / reviewer / specialist work.
 - `.serena/project.yml` and `.serena/memories/INDEX.md` are the source of truth for Serena startup, ordered memory loading, and project-level context inheritance.
 - `.github/copilot/serena-coding-agent-mcp.json` must expose Serena's LSP navigation tools and its memory/bootstrap tools so browser coding-agent sessions can recover local context and update project memory between tasks.
+- When a client also provides a separate memory service such as Server-Memory, treat it as a **user-preference layer** for workflow habits, review preferences, and environment-specific reminders. Keep codebase facts, symbol locations, and architecture bootstrap in Serena / `.serena`.
+- For large changes in clients that support both layers, ask whether both Serena memory and the client-local memory rules should be updated before ending the task.
+- This repository does **not** add an auto-commit `ai-context-sync` workflow for `.serena` updates. Server-Memory is usually client-local, and branch-writing automation should not be introduced until ownership, rollback, and review rules are explicitly defined.
 - If the current environment does not support that custom-agent routing pattern, use `planner`, `implementer`, or `reviewer` directly and follow the Serena-first operating order in this file manually.
 - `.github/instructions/skill-usage.instructions.md` documents when to use explicit `Use skill: ...` references so agent bodies, prompts, and README guidance stay consistent.
 - Active GitHub Copilot coding-agent MCP servers assumed by this repository are `serena`, `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
