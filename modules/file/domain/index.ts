@@ -4,6 +4,7 @@ export * from "./entities/PermissionSnapshot";
 export * from "./entities/RetentionPolicy";
 export * from "./entities/AuditRecord";
 export * from "./repositories/FileRepository";
+export * from "./repositories/RagDocumentRepository";
 export * from "./ports/ActorContextPort";
 export * from "./ports/WorkspaceGrantPort";
 export * from "./ports/OrganizationPolicyPort";
