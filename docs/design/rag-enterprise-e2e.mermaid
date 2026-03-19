@@ -1,0 +1,51 @@
+flowchart TD
+  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
+  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
+  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
+  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
+  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
+
+  subgraph ING[① Ingestion Pipeline - 資料進來]
+    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[Cloud Functions Python 觸發]:::ingest --> I5[下載檔案與讀取]:::ingest --> I6[Parsing PDF DOCX HTML to text]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[Embedding 每個 chunk 向量化]:::ingest --> I12[Firestore chunks collection with embedding]:::ingest --> I13[建立 Firestore vector index]:::ingest --> I14[更新文件狀態 ready]:::ingest
+  end
+
+  subgraph QRY[② Query Pipeline - 查詢與 RAG]
+    Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q6[取得 Top-K chunks]:::query --> Q7[Context 組裝 prompt building]:::query --> Q8[Genkit LLM 回答生成]:::query --> Q9[Streaming 回傳 Next.js UI]:::query
+  end
+
+  subgraph OPT[③ Optional 強化 - 企業必備]
+    O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
+    O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
+    O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
+    O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
+  end
+
+  subgraph DATA[④ Firestore 資料結構核心]
+    D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
+    D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
+  end
+
+  subgraph KEY[⑤ 關鍵觀念濃縮]
+    K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
+    K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
+    K3[Vector Search 在 query 做 每次查詢]:::keypoint
+    K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
+    K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
+  end
+
+  subgraph SUM[⑥ 一句話總結]
+    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
+    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
+  end
+
+  I12 -.-> D2
+  I3 -.-> D1
+  Q5 -.-> D2
+  Q2 -.-> D1
+  Q5 -.-> O1
+  Q6 -.-> O2
+  Q1 -.-> O3
+  Q9 -.-> O4
+  S1 -.-> ING
+  S2 -.-> QRY
