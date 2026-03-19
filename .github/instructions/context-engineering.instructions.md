@@ -13,9 +13,10 @@ applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,li
 ## Project Context Signals
 
 - Start with `Use skill: xuanwu-skill` before exploring implementation details.
+- For `.github/*`, Copilot, agent, prompt, instruction, or skill work, also load `vscode-docs-skill` before editing.
 - Use `ARCHITECTURE.md` as the architectural source of truth and verify actual folders before assuming the migration is complete.
 - Map affected work across `app/`, `modules/`, `core/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/` before editing.
-- Prefer filesystem MCP for structure discovery, repomix MCP for cross-cutting reference lookups, and memory MCP for durable verified facts.
+- Prefer Serena MCP for symbol-aware discovery and precise edits, then use filesystem MCP for structure discovery, repomix MCP for cross-cutting reference lookups, and memory MCP for durable verified facts.
 
 ## Structure For Better AI Context
 

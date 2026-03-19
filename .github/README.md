@@ -1,6 +1,41 @@
 # .github Copilot Configuration Map
 
-This document records the active and scaffolded VS Code Copilot customization layout in this repository.
+This document records the active Copilot customization layout in this repository and the shortest path for using it well.
+
+## Recommended entrypoint
+
+- Start with `.github/agents/commander.agent.md` for most repository tasks.
+- Load `xuanwu-skill` first for repository structure and existing patterns.
+- For `.github/*`, agent design, prompts, instructions, skills, or hooks, also load `vscode-docs-skill`.
+- Prefer Serena first for symbol-aware search, references, and precise edits.
+- Use direct agent entry only when the workflow is already obvious:
+  - `planner` for plan-only work
+  - `implementer` for code changes
+  - `reviewer` for findings-first review
+  - `vsa-mddd-planner` / `vsa-mddd-implementer` for explicit migration work
+- Let `commander` route to hidden specialist agents when billing, Firestore, or RAG expertise is needed.
+
+## Recommended operating order
+
+1. `commander`
+2. `xuanwu-skill`
+3. `vscode-docs-skill` for `.github/*`
+4. Serena MCP
+5. filesystem MCP
+6. repomix MCP
+7. text search only when the stronger context tools are not enough
+
+## Tool choice
+
+| Need | Preferred tool |
+| --- | --- |
+| Symbols, references, precise edits | Serena MCP |
+| Repository tree, path-aware exploration | filesystem MCP when Serena is unavailable or path-level structure is faster |
+| Repo-wide reference pack or index | repomix MCP when Serena and filesystem do not provide enough cross-cutting context |
+| Long-lived architecture or workflow facts | memory MCP |
+| Next.js runtime behavior | next-devtools MCP |
+| UI primitives and examples | shadcn MCP |
+| Plain keyword fallback | search / grep |
 
 ## Official path mapping
 
@@ -37,6 +72,7 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/instructions/state-machine.instructions.md`
 - `.github/instructions/billing.instructions.md`
 - `.github/instructions/cloud-functions.instructions.md`
+- `.github/instructions/skill-usage.instructions.md`
 
 ### Prompt files
 - `.github/prompts/implement-vsa-mddd.prompt.md`
@@ -55,6 +91,7 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/prompts/write-tests.prompt.md`
 
 ### Custom agents
+- `.github/agents/commander.agent.md`
 - `.github/agents/vsa-mddd-implementer.agent.md`
 - `.github/agents/vsa-mddd-planner.agent.md`
 - `.github/agents/planner.agent.md`
@@ -64,11 +101,15 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/agents/firestore-guard.agent.md`
 - `.github/agents/billing-auditor.agent.md`
 
-The visible agent set is intentionally small:
+The agent workflow is commander-first:
 
-- `planner`, `implementer`, and `reviewer` are the default general-purpose workflow.
-- `billing-auditor`, `firestore-guard`, and `rag-architect` are domain review/design specialists.
-- `vsa-mddd-planner` and `vsa-mddd-implementer` remain available for architecture migration work. They stay visible because current VS Code handoff validation requires named target agents to remain discoverable.
+- `commander` is the recommended entrypoint. It loads repo context, routes work to the right agent, and keeps users from having to choose the best specialist up front.
+- `planner`, `implementer`, and `reviewer` remain the visible general-purpose workflow for direct access when the route is already obvious.
+- `vsa-mddd-planner` and `vsa-mddd-implementer` remain visible for architecture migration work and explicit handoff-based flows.
+- `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`, `disable-model-invocation: true`) so they can still be routed by `commander` without crowding the picker or being selected accidentally.
+- `disable-model-invocation: true` blocks those specialists from general subagent selection. In environments that support VS Code custom-agent routing, this repository expects `commander` to route only the agents listed in its explicit `agents:` allowlist; otherwise, use the direct-agent fallback noted below.
+- `.github/instructions/agents.instructions.md` documents the hidden-specialist pattern and when coordinator allowlisting is required.
+- Agent files describe routing, skill loading, and tool priority. Model choice is left to the client/runtime instead of being pinned in repo-owned metadata.
 
 ### Skills
 - `.github/skills/awesome-rag-skill/SKILL.md`
@@ -118,7 +159,10 @@ The active hook set is intentionally minimal. This repository enables one guardr
 
 - `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
-- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, `shadcn`, and `serena`.
+- `commander.agent.md` is the repo entrypoint for agent routing. It relies on VS Code custom-agent `agents` + `agent` tool support to dispatch planner / implementer / reviewer / specialist work.
+- If the current environment does not support that custom-agent routing pattern, use `planner`, `implementer`, or `reviewer` directly and follow the Serena-first operating order in this file manually.
+- `.github/instructions/skill-usage.instructions.md` documents when to use explicit `Use skill: ...` references so agent bodies, prompts, and README guidance stay consistent.
+- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `serena`, `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
 - Browser coding-agent MCP is configured in repository settings on GitHub.com. Files in `.github/copilot/` are source-of-truth templates and runbooks for that settings payload.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.
 - Plugin packaging and agentic workflow markdown files are not added yet. For this repository, workspace-level instructions, agents, skills, and a single safety hook currently provide higher value than introducing another distribution layer or `gh aw` compilation flow.
@@ -136,5 +180,6 @@ The active hook set is intentionally minimal. This repository enables one guardr
 - Keep official suffixes and folders unchanged.
 - Keep `SKILL.md` `name` values identical to their parent folder names.
 - Prefer updating existing customizations before creating near-duplicate variants.
+- Keep Serena as the primary code-understanding path and treat other MCP/search tools as explicit fallback layers.
 - Replace scaffold placeholders with real automation only when ownership, rollback, and validation are defined.
 - Update this map whenever files are added, renamed, or removed.
