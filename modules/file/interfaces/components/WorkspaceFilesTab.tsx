@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
@@ -31,7 +31,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
-  async function reloadFiles() {
+  const reloadFiles = useCallback(async () => {
     setLoadState("loading");
 
     try {
@@ -49,7 +49,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       setAssets([]);
       setLoadState("error");
     }
-  }
+  }, [workspace]);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,7 +66,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [workspace]);
+  }, [reloadFiles]);
 
   async function handleUploadFile(file: File) {
     const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
@@ -85,7 +85,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
 
       if (!initResult.ok) {
         setUploadState("error");
-        setUploadMessage(initResult.error.message);
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
         return;
       }
 
@@ -94,7 +94,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       await uploadBytes(storageRef, file, {
         contentType: file.type || "application/octet-stream",
       });
-      const downloadHref = await getDownloadURL(storageRef);
+      await getDownloadURL(storageRef);
 
       const completeResult = await uploadCompleteFile({
         workspaceId: workspace.id,
@@ -106,7 +106,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
 
       if (!completeResult.ok) {
         setUploadState("error");
-        setUploadMessage(completeResult.error.message);
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
         return;
       }
 
@@ -115,18 +115,17 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
         `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
       );
 
-      setAssets((current) =>
-        current.map((asset) =>
-          asset.id === completeResult.data.fileId ? { ...asset, href: asset.href ?? downloadHref } : asset,
-        ),
-      );
       await reloadFiles();
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
       }
       setUploadState("error");
-      setUploadMessage(error instanceof Error ? error.message : "Upload failed unexpectedly.");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
     }
   }
 
