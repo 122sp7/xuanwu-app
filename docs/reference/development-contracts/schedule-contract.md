@@ -25,7 +25,7 @@ The schedule query boundary resolves workspace and finance context inside the sc
 
 ## Current read contract
 
-### Request submission entry point
+### Entry point
 
 `getWorkspaceSchedule(workspaceId)` returns a derived list of `WorkspaceScheduleItem` values.
 
@@ -61,7 +61,7 @@ The schedule query boundary resolves workspace and finance context inside the sc
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | yes | Schedule request identifier |
+| `id` | `string` | yes | Schedule request identifier generated from Firestore document allocation before persistence |
 | `workspaceId` | `string` | yes | Scope boundary |
 | `organizationId` | `string` | yes | Fulfillment owner |
 | `status` | `draft \| submitted \| cancelled \| closed` | yes | Current implementation persists `submitted` |
