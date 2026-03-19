@@ -137,8 +137,6 @@ modules/file/
 │   │   ├── OrganizationPolicyAdapter.ts
 │   │   ├── AuditSinkAdapter.ts
 │   │   └── NotificationAdapter.ts
-│   └── legacy/
-│       └── LegacyWorkspaceFileAssetBridge.ts
 ├── interfaces/
 │   ├── _actions/
 │   │   └── file.actions.ts
@@ -728,7 +726,7 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 ### 明確整合原則
 - file application 只知道 port interface，不知道他模組具體 repository / Firebase adapter。
 - cross-module read model 一律由 file infrastructure 的 adapter 包裝。
-- 若現有資料只能由 legacy workspace projection 提供，必須放在 `infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`，並列入 phase-out 計畫。
+- 目前 active read path 已不再依賴 legacy workspace projection；若後續仍需過渡 adapter，必須明確標記 phase-out 並避免重新掛回 `WorkspaceOperationalSignals`。
 
 ---
 
@@ -740,7 +738,7 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 - 建立 `modules/file/domain / application / infrastructure / interfaces` 正式骨架
 - 建立 `list-workspace-files.use-case.ts` 與 `file.queries.ts`
 - 將 `WorkspaceFilesTab` 從 `getWorkspaceFileAssets(workspace)` 改為 `getWorkspaceFiles(...)`
-- 新增 `LegacyWorkspaceFileAssetBridge` 作為暫時 anti-corruption adapter
+- 目前 read path 已由 `FirebaseFileRepository` 提供，舊 bridge 已可移除
 
 ### 風險
 - 讀取結果與既有 UI 顯示不一致
@@ -767,7 +765,7 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 - 落地 `File / FileVersion / UploadSession / PermissionSnapshot` Firestore collections
 - 實作 `init-file-upload.use-case.ts`、`complete-file-upload.use-case.ts`、`get-file-download-url.use-case.ts`
 - 實作 Firebase Storage adapter 與 signer
-- 移除 `LegacyWorkspaceFileAssetBridge` 的主要讀路徑依賴
+- 移除 `LegacyWorkspaceFileAssetBridge` 與 workspace file projection 的殘留依賴
 
 ### 風險
 - signed URL 與 metadata 寫入不一致
@@ -865,9 +863,9 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 7. **新增** `modules/file/application/use-cases/list-workspace-files.use-case.ts`
    - Symbol: `ListWorkspaceFilesUseCase`
    - 驗收：不 import Firebase / React / Next.js
-8. **新增** `modules/file/infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`
+8. **移除** `modules/file/infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`
    - Symbol: `LegacyWorkspaceFileAssetBridge`
-   - 驗收：只作 temporary anti-corruption mapping，不能包含 UI 文案
+   - 驗收：不再保留對 `WorkspaceOperationalSignals` 的檔案投影依賴
 9. **新增** `modules/file/interfaces/queries/file.queries.ts`
    - Symbol: `getWorkspaceFiles`
    - 驗收：對外回傳 stable DTO，供 UI 使用
