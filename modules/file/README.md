@@ -7,10 +7,10 @@
 ## 1) 問題陳述與目標 / 非目標
 
 ### 問題陳述
-目前 `modules/file` 仍停留在 interface-only 狀態：
+目前 `modules/file` 已完成第一階段解耦，但仍缺少完整生命週期能力：
 
-- `modules/file/interfaces/components/WorkspaceFilesTab.tsx` 直接依賴 `@/modules/workspace/domain/entities/WorkspaceOperationalSignals`
-- 檔案顯示邏輯仍是 workspace 衍生訊號的一部分，而不是 file module 自己的正式 read model / use case
+- `WorkspaceFilesTab` 已走 file module query，不再依賴 workspace projection
+- 讀取路徑已從 workspace 衍生訊號拆離，但 canonical write-side / lifecycle（upload/download/version/retention）仍未完整落地
 - account、workspace、organization 在檔案領域的責任邊界尚未被明確建模
 - 檔案權限、版本、保留、稽核、下載連結生命週期都沒有正式 aggregate / port / use case
 - 如果直接在 app/router 或 UI 補功能，會進一步惡化 coupling，違反本專案的 MDDD + Hexagonal 依賴方向
@@ -742,11 +742,10 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 
 ### 風險
 - 讀取結果與既有 UI 顯示不一致
-- 還沒完成 canonical Firestore model 前，temporary bridge 可能仍要依賴舊 projection
+- 在 canonical Firestore model 完成前，既有 metadata 映射策略可能需要持續校正
 
 ### 回滾
-- 只要保留原 `WorkspaceOperationalSignals` 路徑，UI 可回切到舊 query wrapper
-- 若新 query 發生資料缺失，先回退 `WorkspaceFilesTab` 對新 `getWorkspaceFiles` 的使用
+- 回退 `WorkspaceFilesTab` 對 `getWorkspaceFiles` 的使用，改回上一版 file query implementation（不重掛 workspace projection）
 
 ### 驗證命令
 - `npm run lint`
@@ -765,7 +764,7 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 - 落地 `File / FileVersion / UploadSession / PermissionSnapshot` Firestore collections
 - 實作 `init-file-upload.use-case.ts`、`complete-file-upload.use-case.ts`、`get-file-download-url.use-case.ts`
 - 實作 Firebase Storage adapter 與 signer
-- 移除 `LegacyWorkspaceFileAssetBridge` 與 workspace file projection 的殘留依賴
+- 延續清理與 canonical model 衝突的舊 metadata 轉接邏輯（`LegacyWorkspaceFileAssetBridge` 已移除）
 
 ### 風險
 - signed URL 與 metadata 寫入不一致
