@@ -162,6 +162,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const defaultCandidateId = useMemo(
     // Fallback to authenticated user when workspace personnel is not configured yet,
     // so local runtime checks and early-stage workspaces can still execute the flow.
+    // Downstream server-side flow handlers still enforce domain transitions and policy limits.
     () =>
       workspace.personnel?.managerId?.trim() ||
       workspace.personnel?.supervisorId?.trim() ||
@@ -590,7 +591,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                   <p>assignmentId: {projection.assignmentId ?? "—"}</p>
                   <p>scheduleId: {projection.scheduleId ?? "—"}</p>
                   <p>assignee: {projection.assigneeAccountUserId ?? "—"}</p>
-                  <p>updatedAt: {formatUpdatedAt(projection.updatedAtISO)}</p>
+                  <p>updated at: {formatUpdatedAt(projection.updatedAtISO)}</p>
                   <p>events: {projection.eventTypes.join(" → ") || "—"}</p>
                   {projection.lastReason && <p>reason: {projection.lastReason}</p>}
                 </div>
