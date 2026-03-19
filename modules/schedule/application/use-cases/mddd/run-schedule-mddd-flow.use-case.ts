@@ -240,6 +240,7 @@ export class RunScheduleMdddFlowUseCase {
       assigneeAccountUserId: selectedCandidate.accountUserId,
       existingLoadUnits: selectedCandidate.currentLoadUnits,
       nextLoadUnits: DEFAULT_ASSIGNMENT_LOAD_WEIGHT,
+      maxConcurrentAssignments: input.organization.maxConcurrentAssignmentsPerMember,
     });
 
     if (!allocation.allowed) {

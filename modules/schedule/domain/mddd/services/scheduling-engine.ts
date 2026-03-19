@@ -19,6 +19,12 @@ function overlaps(a: CalendarSlot, b: CalendarSlot): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
+function resolveConcurrencyLimit(availability: Availability, maxConcurrentAssignments: number): number {
+  const availabilityLimit = Math.max(availability.maxConcurrentAssignments, 0);
+  const organizationLimit = Math.max(maxConcurrentAssignments, 0);
+  return Math.min(availabilityLimit, organizationLimit);
+}
+
 export function isSlotWithinAvailability(slot: CalendarSlot, availability: Availability): boolean {
   if (!hasValidCalendarSlotRange(slot)) {
     return false;
@@ -66,9 +72,18 @@ export function canAllocateSchedule(
     readonly assigneeAccountUserId: string;
     readonly existingLoadUnits: number;
     readonly nextLoadUnits: number;
+    readonly maxConcurrentAssignments: number;
   },
 ): { readonly allowed: boolean; readonly reason?: string } {
-  const { slot, availability, schedules, assigneeAccountUserId, existingLoadUnits, nextLoadUnits } = params;
+  const {
+    slot,
+    availability,
+    schedules,
+    assigneeAccountUserId,
+    existingLoadUnits,
+    nextLoadUnits,
+    maxConcurrentAssignments,
+  } = params;
 
   if (!isSlotWithinAvailability(slot, availability)) {
     return { allowed: false, reason: "outside_availability" };
@@ -77,6 +92,16 @@ export function canAllocateSchedule(
   const conflicts = detectScheduleConflicts(slot, schedules, assigneeAccountUserId);
   if (conflicts.length > 0) {
     return { allowed: false, reason: "schedule_conflict" };
+  }
+
+  const activeSchedulesCount = schedules.filter(
+    (schedule) =>
+      schedule.assigneeAccountUserId === assigneeAccountUserId &&
+      ACTIVE_SCHEDULE_STATUSES.includes(schedule.status),
+  ).length;
+  const concurrencyLimit = resolveConcurrencyLimit(availability, maxConcurrentAssignments);
+  if (activeSchedulesCount >= concurrencyLimit) {
+    return { allowed: false, reason: "concurrency_over_capacity" };
   }
 
   if (existingLoadUnits + nextLoadUnits > availability.maxLoadPerPeriod) {
