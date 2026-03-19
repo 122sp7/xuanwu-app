@@ -64,8 +64,9 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
 
   async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
     // Prefer workspace-scoped retrieval whenever the caller has that boundary available.
-    // Organization-only scope is still supported for cross-workspace discovery, but it
-    // intentionally trades higher collection-group scan cost for broader recall.
+    // Organization-only scope is reserved for deliberate cross-workspace discovery flows;
+    // it broadens collection-group scans across every workspace in the organization and
+    // should therefore be treated as the higher-cost, broader-recall mode.
     const documentsQuery = query(
       collectionGroup(this.db, "documents"),
       where("organizationId", "==", input.organizationId),

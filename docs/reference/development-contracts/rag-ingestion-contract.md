@@ -35,7 +35,7 @@ This contract is the authoritative implementation reference for the upload-to-wo
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | yes | Server-generated document identifier |
+| `id` | `string` | yes | Server-generated document identifier, duplicated from the Firestore doc id so collection-group consumers can project a stable field without depending on snapshot metadata |
 | `organizationId` | `string` | yes | Tenant boundary |
 | `workspaceId` | `string` | yes | Workspace retrieval boundary |
 | `title` | `string` | yes | Human-readable document title |
@@ -84,7 +84,7 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `chunkId` | `string` | yes | Deterministic chunk identifier; guaranteed on new MVP ingestion writes, while legacy chunk rows may need reprocessing or backfill |
+| `chunkId` | `string` | yes | Deterministic chunk identifier, duplicated from the Firestore doc id so collection-group consumers can project a stable field without depending on snapshot metadata; guaranteed on new MVP ingestion writes |
 | `docId` | `string` | yes | Parent document id |
 | `organizationId` | `string` | yes | Tenant filter |
 | `workspaceId` | `string` | yes | Workspace filter |
@@ -113,6 +113,11 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 4. Archive is a governance transition, not an ingestion side effect.
 5. The worker must never persist chunks without also writing a terminal document status.
 6. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
+
+## Legacy data note
+
+- Retrieval currently falls back to Firestore snapshot ids, so pre-MVP `documents` or `chunks` rows without duplicated `id` or `chunkId` fields remain readable.
+- No automatic backfill is included in this slice; legacy rows pick up the duplicated fields the next time they are reprocessed.
 
 ## Acceptance gates
 
