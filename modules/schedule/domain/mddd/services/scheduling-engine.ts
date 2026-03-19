@@ -4,8 +4,11 @@ import {
   type Availability,
   type CalendarSlot,
 } from "../value-objects/Scheduling";
+import { SCHEDULE_STATUSES } from "../value-objects/WorkflowStatuses";
 
-const ACTIVE_SCHEDULE_STATUSES = ["planned", "reserved", "active"] as const;
+const ACTIVE_SCHEDULE_STATUSES = SCHEDULE_STATUSES.filter((status) =>
+  ["planned", "reserved", "active"].includes(status),
+);
 
 function overlaps(a: CalendarSlot, b: CalendarSlot): boolean {
   const aStart = Date.parse(a.startAtISO);

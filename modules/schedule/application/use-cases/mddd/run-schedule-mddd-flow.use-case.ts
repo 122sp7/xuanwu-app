@@ -20,18 +20,10 @@ import {
   type SkillRequirement,
   type Task,
 } from "../../../domain/mddd";
+import { createMdddId } from "../../../domain/mddd/utils/create-id";
 
 // In this first runtime slice, one assignment consumes one abstract capacity unit.
 const DEFAULT_ASSIGNMENT_LOAD_WEIGHT = 1;
-
-function createId(prefix: string): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `${prefix}_${crypto.randomUUID()}`;
-  }
-
-  const random = Math.random().toString(36).slice(2, 10);
-  return `${prefix}_${Date.now()}_${random}`;
-}
 
 export type RunScheduleMdddFlowResult =
   | {
@@ -102,7 +94,7 @@ export class RunScheduleMdddFlowUseCase {
     }
 
     const createdRequest = createRequest({
-      requestId: createId("req"),
+      requestId: createMdddId("req"),
       workspaceId: input.workspaceId,
       organizationId: input.organization.organizationId,
       requiredSkills: input.requiredSkills,
@@ -113,13 +105,15 @@ export class RunScheduleMdddFlowUseCase {
       nowISO,
     });
 
-    // First executable slice: run request lifecycle through review to closed so downstream
-    // Task/Assignment/Schedule orchestration can be validated end-to-end in one command.
+    // TODO(schedule-mddd): remove fast-close scaffolding when full review/approval flow is implemented.
+    // First executable slice: transition into under-review, then close immediately so
+    // downstream Task/Assignment/Schedule orchestration can be validated end-to-end.
+    // This is intentional scaffolding for initial runtime verification, not final policy.
     const requestUnderReview = transitionRequestStatus(createdRequest, "under-review", nowISO);
     const request = transitionRequestStatus(requestUnderReview, "closed", nowISO);
 
     const createdTask = createTask({
-      taskId: createId("task"),
+      taskId: createMdddId("task"),
       requestId: request.requestId,
       organizationId: request.organizationId,
       requiredSkills: request.requiredSkills,
@@ -185,7 +179,7 @@ export class RunScheduleMdddFlowUseCase {
     }
 
     const proposedAssignment = createAssignment({
-      assignmentId: createId("assignment"),
+      assignmentId: createMdddId("assignment"),
       requestId: request.requestId,
       taskId: matchingTask.taskId,
       organizationId: request.organizationId,
@@ -200,7 +194,7 @@ export class RunScheduleMdddFlowUseCase {
     const assignedTask = transitionTaskStatus(assignableTask, "assigned", nowISO);
 
     const plannedSchedule = createSchedule({
-      scheduleId: createId("schedule"),
+      scheduleId: createMdddId("schedule"),
       assignmentId: assignment.assignmentId,
       taskId: assignedTask.taskId,
       assigneeAccountUserId: selectedCandidate.accountUserId,

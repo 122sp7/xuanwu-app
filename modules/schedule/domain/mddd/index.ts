@@ -11,3 +11,4 @@ export * from "./repositories";
 export * from "./services/matching-engine";
 export * from "./services/scheduling-engine";
 export * from "./events/ScheduleDomainEvents";
+export * from "./utils/create-id";

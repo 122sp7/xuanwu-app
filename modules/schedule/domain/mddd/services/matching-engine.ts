@@ -2,6 +2,7 @@ import type { AccountUser, Organization } from "../entities/References";
 import type { Task } from "../entities/Task";
 import { createMatch, type Match } from "../entities/Match";
 import { SKILL_LEVELS, type SkillLevel } from "../value-objects/Requirements";
+import { createMdddId } from "../utils/create-id";
 
 const SKILL_LEVEL_RANK: Record<SkillLevel, number> = {
   junior: 1,
@@ -10,8 +11,14 @@ const SKILL_LEVEL_RANK: Record<SkillLevel, number> = {
 };
 
 // Current scoring policy prioritizes skill coverage first (0.6) because missing core skills
-// is the most expensive scheduling failure, then capability coverage (0.4) for compliance fit,
-// and applies a small per-load penalty (0.1) to reduce overload risk without dominating fit.
+// is the most expensive scheduling failure, then capability coverage (0.4) for compliance fit.
+// A separate load penalty (0.1 * current load units) is subtracted from that base score to
+// reduce overload risk without dominating fit. Typical score range can cross below 0 when
+// overload is high; ranking only considers eligible candidates.
+// Examples:
+// - perfect fit + zero load => (1 * 0.6) + (1 * 0.4) - 0 = 1.0
+// - full fit + load=3 => 1.0 - (3 * 0.1) = 0.7
+// - skill fit=0.5, capability fit=1, load=2 => 0.3 + 0.4 - 0.2 = 0.5
 const MATCHING_SCORE_WEIGHTS = {
   skillCoverage: 0.6,
   capabilityCoverage: 0.4,
@@ -82,12 +89,7 @@ export interface MatchingResult {
 }
 
 function createMatchId(taskId: string): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `match_${taskId}_${crypto.randomUUID()}`;
-  }
-
-  const random = Math.random().toString(36).slice(2, 10);
-  return `match_${taskId}_${Date.now()}_${random}`;
+  return createMdddId("match", taskId);
 }
 
 export function matchTaskCandidates(
