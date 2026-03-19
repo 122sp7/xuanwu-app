@@ -66,14 +66,6 @@ const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
 } as const;
 
-function invokeHandlerIfIdExists(id: string | null, handler: (value: string) => Promise<void>) {
-  if (!id) {
-    return;
-  }
-
-  void handler(id);
-}
-
 function resolveFlowStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   if (!status) {
     return "outline";
