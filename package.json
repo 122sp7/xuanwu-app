@@ -16,9 +16,9 @@
     "deploy:functions:python": "firebase deploy --only functions:functions-python",
     "deploy:functions:all": "firebase deploy --only functions",
     "deploy:firebase": "firebase deploy",
-    "repomix:skill": "repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-skill --force",
-    "repomix:remote": "repomix --skill-generate casibase-skill --skill-output .github/skills/casibase-skill --remote casibase/casibase --force",
-    "repomix:remote:vscode-docs": "repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
+    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:remote": "npx repomix --skill-generate casibase-skill --skill-output .github/skills/casibase-skill --remote casibase/casibase --force",
+    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
   },
   "engines": {
     "node": "24"

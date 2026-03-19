@@ -454,7 +454,7 @@ The markdown content below the frontmatter defines the agent's behavior, experti
 ## Skill-Aware Agent Authoring
 
 - When a repository uses skills as stable reference packs, state the relevant skill near the start of the agent body so the intended context source is obvious.
-- Prefer explicit wording such as `Use skill: xuanwu-skill` or `Use skill: billing-lifecycle` when the workflow depends on a specific project skill.
+- Prefer explicit wording such as `Use skill: xuanwu-app-skill` or `Use skill: billing-lifecycle` when the workflow depends on a specific project skill.
 - Keep the skill list small and role-specific. Do not tell every agent to load every skill.
 - If a hidden specialist agent should only run through a coordinator, combine:
   - `user-invocable: false`

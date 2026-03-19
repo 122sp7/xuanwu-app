@@ -16,7 +16,7 @@ handoffs:
 ---
 # Xuanwu Planner
 
-1. Use xuanwu-skill first.
+1. Use xuanwu-app-skill first.
 2. Use Serena MCP first for symbol-aware exploration and relationship tracing; fall back to filesystem MCP or repomix MCP only when they are the clearer path.
 3. Build context across `app/`, `modules/`, `interfaces/`, `infrastructure/`, `lib/`, `shared/`, and `ui/` before proposing changes.
 4. Prefer the smallest plan that improves correctness or architectural alignment.

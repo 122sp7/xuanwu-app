@@ -4,7 +4,7 @@ agent: vsa-mddd-planner
 description: Use the canonical file-module architecture plan to implement the MDDD + Hexagonal file bounded context.
 argument-hint: "[phase, PR slice, or file-module task]"
 ---
-Use **xuanwu-skill** first.
+Use **xuanwu-app-skill** first.
 
 Treat `modules/file/README.md` as the canonical implementation plan for the file domain.
 

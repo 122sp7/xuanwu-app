@@ -4,7 +4,7 @@ description: Draft a billing cycle workflow with statuses, invariants, and audit
 agent: billing-auditor
 argument-hint: "[cycle type] [tenant or account context]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Design a billing cycle scaffold for the requested scenario.
 

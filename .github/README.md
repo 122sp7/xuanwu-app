@@ -6,7 +6,7 @@ This document records the active Copilot customization layout in this repository
 
 - Start with `.github/agents/commander.agent.md` for most repository tasks.
 - In browser coding-agent sessions, treat Serena as the project knowledge orchestrator behind that entrypoint: activate the repo from `.github/copilot/serena-coding-agent-mcp.json`, follow `.serena/project.yml`, and bootstrap from `.serena/memories/INDEX.md`.
-- Load `xuanwu-skill` first for repository structure and existing patterns.
+- Load `xuanwu-app-skill` first for repository structure and existing patterns.
 - For `.github/*`, agent design, prompts, instructions, skills, or hooks, also load `vscode-docs-skill`.
 - Prefer Serena first for symbol-aware search, references, and precise edits.
 - Use direct agent entry only when the workflow is already obvious:
@@ -19,7 +19,7 @@ This document records the active Copilot customization layout in this repository
 ## Recommended operating order
 
 1. `commander`
-2. `xuanwu-skill`
+2. `xuanwu-app-skill`
 3. Serena MCP activation for this repo (`.serena/project.yml`)
 4. `.serena/memories/INDEX.md`
 5. `vscode-docs-skill` for `.github/*`
@@ -125,7 +125,7 @@ The agent workflow is commander-first:
 - `.github/skills/ragflow-skill/SKILL.md`
 - `.github/skills/vsa-mddd-migration/SKILL.md`
 - `.github/skills/vscode-docs-skill/SKILL.md`
-- `.github/skills/xuanwu-skill/SKILL.md`
+- `.github/skills/xuanwu-app-skill/SKILL.md`
 - `.github/skills/rag-pipeline/SKILL.md`
 - `.github/skills/wbs-state-machine/SKILL.md`
 - `.github/skills/billing-lifecycle/SKILL.md`

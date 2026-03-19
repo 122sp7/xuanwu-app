@@ -6,8 +6,8 @@
 - Keep dependency direction strict: `UI -> Application -> Domain <- Infrastructure`.
 
 ## Always-on working mode
-- **Always start by using `Use skill: xuanwu-skill`** before exploring implementation details.
-- Treat `xuanwu-skill` as the fast index for project structure, module placement, and existing patterns.
+- **Always start by using `Use skill: xuanwu-app-skill`** before exploring implementation details.
+- Treat `xuanwu-app-skill` as the fast index for project structure, module placement, and existing patterns.
 - Prefer project context over single-file edits: understand the affected flow across `app/`, `modules/`, `shared/`, `ui/`, `infrastructure/`, and `interfaces/` before changing code.
 
 ## Copilot customization structure
@@ -21,7 +21,7 @@
 ## Tool priority
 1. **Serena MCP** first for symbol-aware retrieval, references, structure navigation, and precise edits.
    - Use Serena as the default path for understanding and changing code so indexing and repository memory improve over time.
-   - After loading `xuanwu-skill`, activate the Serena project for this workspace and follow `.serena/project.yml`.
+   - After loading `xuanwu-app-skill`, activate the Serena project for this workspace and follow `.serena/project.yml`.
    - Use Serena's LSP-backed tools for jump-to-definition, find-references, and symbol navigation before falling back to plain text search.
    - Treat `.serena/memories/INDEX.md` as the persistent bootstrap for local-context recovery, conversation handoff, and architecture continuity.
    - Let Serena classify the request first, then decide which additional skill, agent, or prompt file should be loaded for the task.
@@ -82,5 +82,5 @@
 
 ## References
 - [MDDD architecture guide](../ARCHITECTURE.md)
-- [Xuanwu reference skill](./skills/xuanwu-skill/SKILL.md)
+- [Xuanwu reference skill](./skills/xuanwu-app-skill/SKILL.md)
 - [VSA -> MDDD migration skill](./skills/vsa-mddd-migration/SKILL.md)

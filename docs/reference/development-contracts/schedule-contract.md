@@ -9,7 +9,7 @@ description: Implementation contract for derived schedule items, persisted ackno
 
 This contract defines how the current schedule module combines a derived workspace read model with a workspace request submission write-side and a persisted acknowledgement write-side. It prevents future schedule work from mixing derived milestone logic with mutable item state in ad hoc ways.
 
-It does **not** yet cover the full legacy workforce scheduling domain from `.github/skills/xuanwu-skill/references/files.md`, where a workspace raises staffing proposals and the organization fulfills people assignment through governance flows.
+It does **not** yet cover the full legacy workforce scheduling domain from `.github/skills/xuanwu-app-skill/references/files.md`, where a workspace raises staffing proposals and the organization fulfills people assignment through governance flows.
 
 ## Current owner and dependencies
 

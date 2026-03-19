@@ -4,7 +4,7 @@ description: Scaffold a new feature slice that follows Xuanwu module boundaries 
 agent: planner
 argument-hint: "[feature name] [target module or route]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Create a minimal feature scaffold plan for the requested area.
 

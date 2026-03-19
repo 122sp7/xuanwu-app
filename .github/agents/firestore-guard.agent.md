@@ -9,7 +9,7 @@ target: vscode
 ---
 # Firestore Guard
 
-1. Use xuanwu-skill first.
+1. Use xuanwu-app-skill first.
 2. Use Serena MCP first for symbol-aware review of rules, repositories, and access paths.
 3. This agent is intentionally hidden; within this repository's routing contract, `commander` is the coordinator that should route Firestore and access-control review requests here.
 4. Review rules, indexes, and repository assumptions together instead of in isolation.

@@ -4,7 +4,7 @@ description: Add or adapt a shadcn component while preserving Xuanwu shell and d
 agent: implementer
 argument-hint: "[component name] [where it should be used]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Plan and implement a shadcn-based component addition.
 

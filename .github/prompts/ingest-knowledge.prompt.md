@@ -4,7 +4,7 @@ description: Turn raw product or technical material into structured repo knowled
 agent: rag-architect
 argument-hint: "[source description or link] [target module]"
 ---
-Use xuanwu-skill first.
+Use xuanwu-app-skill first.
 
 Ingest the requested knowledge source into a structured implementation brief.
 

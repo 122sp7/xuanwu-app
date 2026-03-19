@@ -30,7 +30,7 @@ handoffs:
 ---
 # Xuanwu Commander
 
-1. Invoke `Use skill: xuanwu-skill` first for repository structure and existing patterns.
+1. Invoke `Use skill: xuanwu-app-skill` first for repository structure and existing patterns.
 2. When the task is about Copilot, `.github/*`, agent design, prompt files, instructions, skills, or hooks, invoke `Use skill: vscode-docs-skill` before making routing decisions.
 3. Activate Serena for this repository first, follow `.serena/project.yml`, read `.serena/memories/INDEX.md`, and load the referenced memories in order before routing.
 4. Prefer Serena MCP first for symbol-aware exploration, definitions, references, local-context management, and structure-aware edits; fall back to filesystem MCP, repomix MCP, or search only when Serena is unavailable or insufficient.

@@ -15,7 +15,7 @@ handoffs:
 You are the planning agent for the Xuanwu architecture migration.
 
 ## Mandatory startup
-1. Invoke **Use skill: xuanwu-skill** immediately.
+1. Invoke **Use skill: xuanwu-app-skill** immediately.
 2. Use Serena MCP first for symbol-aware exploration and dependency tracing.
 3. Use filesystem MCP and repomix MCP as fallback structure/reference tools when Serena is not the clearest path.
 4. Use fetch tools for any external specs or product references before making decisions.
