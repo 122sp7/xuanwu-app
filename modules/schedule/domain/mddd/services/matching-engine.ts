@@ -24,7 +24,17 @@ const MATCHING_SCORE_WEIGHTS = {
   skillCoverage: 0.6,
   capabilityCoverage: 0.4,
   loadPenaltyPerUnit: 0.1,
+  preferenceBonusUnit: 0.02,
 } as const;
+
+interface ConstraintCheckResult {
+  readonly pass: boolean;
+  readonly violations: readonly string[];
+}
+
+function isStringValue(value: string | number | boolean): value is string {
+  return typeof value === "string";
+}
 
 function isSkillLevel(value: string): value is SkillLevel {
   return SKILL_LEVEL_SET.has(value);
@@ -75,11 +85,35 @@ function computeScore(task: Task, user: AccountUser): number {
 
   const loadPenalty =
     Math.max(user.currentLoadUnits, 0) * MATCHING_SCORE_WEIGHTS.loadPenaltyPerUnit;
+  const preferenceBonus = task.preferences.reduce((sum, preference) => {
+    if (
+      preference.type === "preferred-team" &&
+      isStringValue(preference.value) &&
+      user.teamIds.includes(preference.value)
+    ) {
+      return sum + Math.max(0, preference.weight) * MATCHING_SCORE_WEIGHTS.preferenceBonusUnit;
+    }
+    return sum;
+  }, 0);
   const score =
     skillCoverage * MATCHING_SCORE_WEIGHTS.skillCoverage +
     capabilityCoverage * MATCHING_SCORE_WEIGHTS.capabilityCoverage -
-    loadPenalty;
+    loadPenalty +
+    preferenceBonus;
   return Math.round(score * 10_000) / 10_000;
+}
+
+function satisfiesHardConstraints(task: Task, user: AccountUser): ConstraintCheckResult {
+  const violations: string[] = [];
+  for (const constraint of task.constraints) {
+    if (constraint.type === "team-required" && isStringValue(constraint.value)) {
+      const requiredTeamId = constraint.value;
+      if (!user.teamIds.includes(requiredTeamId)) {
+        violations.push("team_required_mismatch");
+      }
+    }
+  }
+  return { pass: violations.length === 0, violations };
 }
 
 export interface MatchingResult {
@@ -105,12 +139,14 @@ export function matchTaskCandidates(
     const skillPass = includesAllRequiredSkills(task, candidate);
     const capabilityPass = includesAllRequiredCapabilities(task, candidate);
     const loadPass = candidate.currentLoadUnits < organization.maxLoadPerMember;
-    const constraintPass = skillPass && capabilityPass && loadPass;
+    const hardConstraintResult = satisfiesHardConstraints(task, candidate);
+    const constraintPass = skillPass && capabilityPass && loadPass && hardConstraintResult.pass;
 
     const violations: string[] = [];
     if (!skillPass) violations.push("missing_required_skills");
     if (!capabilityPass) violations.push("missing_required_capabilities");
     if (!loadPass) violations.push("member_overloaded");
+    violations.push(...hardConstraintResult.violations);
 
     return createMatch(createMatchId(task.taskId), task.taskId, nowISO, {
       accountUserId: candidate.accountUserId,

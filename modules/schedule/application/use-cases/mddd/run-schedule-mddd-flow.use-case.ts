@@ -13,7 +13,9 @@ import {
   transitionTaskStatus,
   type AccountUser,
   type CalendarSlot,
+  type Constraint,
   type Organization,
+  type Preference,
   type Request,
   type Schedule,
   type ScheduleDomainEvent,
@@ -45,6 +47,8 @@ export interface RunScheduleMdddFlowInput {
   readonly requiredHeadcount: number;
   readonly requestedWindowStartISO?: string | null;
   readonly requestedWindowEndISO?: string | null;
+  readonly constraints?: readonly Constraint[];
+  readonly preferences?: readonly Preference[];
   readonly notes?: string;
   readonly actorAccountUserId: string;
   readonly candidates: readonly AccountUser[];
@@ -118,6 +122,8 @@ export class RunScheduleMdddFlowUseCase {
       requiredSkills: input.requiredSkills,
       requestedWindowStartISO: input.requestedWindowStartISO ?? null,
       requestedWindowEndISO: input.requestedWindowEndISO ?? null,
+      constraints: input.constraints,
+      preferences: input.preferences,
       notes: input.notes,
       createdByAccountUserId: input.actorAccountUserId,
       nowISO,
@@ -183,6 +189,8 @@ export class RunScheduleMdddFlowUseCase {
       requiredHeadcount: input.requiredHeadcount,
       targetWindowStartISO: request.requestedWindowStartISO,
       targetWindowEndISO: request.requestedWindowEndISO,
+      constraints: request.constraints,
+      preferences: request.preferences,
       nowISO,
     });
 
