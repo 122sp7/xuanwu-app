@@ -12,7 +12,7 @@ docs/
 ├── design/            Design diagrams (Mermaid + Markdown)
 ├── explanation/       Governance and policy docs
 └── reference/
-    └── development-contracts/   Formal delivery contracts (6 files)
+    └── development-contracts/   Formal delivery contracts (6 files + overview)
 ```
 
 ---
@@ -83,7 +83,7 @@ All 11 ADRs cover the RAG (Retrieval-Augmented Generation) system:
 
 ## docs/reference/development-contracts/ — ⭐ CRITICAL FOR FUTURE WORK
 
-These are the **formal delivery contracts** that define acceptance criteria, data shapes, and event contracts for each module. Always read the relevant contract before implementing a module.
+These are the **formal delivery contracts** that define acceptance criteria, data shapes, event contracts, and rollout boundaries for each module. Always read the relevant contract before implementing a module.
 
 | Contract File | Module | Notes |
 |--------------|--------|-------|
@@ -97,6 +97,18 @@ These are the **formal delivery contracts** that define acceptance criteria, dat
 
 > ⚠️ **Rule**: Before implementing any module feature, locate and read its contract file here first.  
 > Missing contract = create one in this folder before writing code.
+
+### Delivery Expectations (durable rule)
+- Contract first, code second.
+- ADR first when architecture or runtime boundary changes.
+- Delivery is not complete until acceptance criteria, events, and read/write model boundaries are stated in docs.
+- For schedule and RAG work, treat contract docs as the delivery source of truth, not just helper documentation.
+
+### Future Work Pointers
+1. Add missing development-contract files before starting unfinished modules without contracts.
+2. Keep `docs/adr/` and `docs/reference/development-contracts/` aligned when flows or data ownership change.
+3. For shell-facing work, map UI states back to the contract and state-machine docs before implementation.
+4. For Python function changes, update both Python ADRs and TypeScript-side integration contracts when boundaries move.
 
 ---
 

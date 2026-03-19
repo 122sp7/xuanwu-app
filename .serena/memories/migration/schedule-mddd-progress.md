@@ -4,7 +4,7 @@
 **PR #9:** docs(schedule): define full MDDD contract for bidirectional request→fulfillment workflow  
 **Last verified:** 2026-03-19
 
-## Overall Status: Domain + Infrastructure COMPLETE; UI integration pending
+## Overall Status: Domain + Infrastructure COMPLETE; UI integration partially started
 
 ## Domain Layer — `modules/schedule/domain/mddd/`
 
@@ -82,10 +82,21 @@
 - `rejectScheduleRequest`
 - `createRunFlowUseCase` (factory helper)
 
-### Queries — `queries/schedule-mddd.queries.ts`
-- `getScheduleMdddFlowProjection` — fetch single projection
-- `listWorkspaceScheduleMdddFlowProjections` — list projections for workspace
-- `projectionRepository` — shared repo instance
+### Queries
+- `queries/schedule-mddd.queries.ts`
+  - `getScheduleMdddFlowProjection` — fetch single projection
+  - `listWorkspaceScheduleMdddFlowProjections` — list projections for workspace
+  - `projectionRepository` — shared repo instance
+- `queries/schedule.queries.ts`
+  - `getWorkspaceSchedule` — legacy schedule list query via `FirebaseWorkspaceScheduleRepository`
+
+### UI component status
+- `components/WorkspaceScheduleTab.tsx` already exists
+- It currently mixes:
+  - legacy schedule list data from `getWorkspaceSchedule`
+  - MDDD projection list data from `listWorkspaceScheduleMdddFlowProjections`
+  - MDDD write actions from `schedule-mddd.actions.ts`
+- This means the UI migration has started, but read-model consolidation is not finished yet
 
 ## Development Contract
 
@@ -96,8 +107,9 @@ See `docs/reference/development-contracts/schedule-contract.md` — defines:
 
 ## Next Steps (Priority Order)
 
-1. **UI components** — Build schedule MDDD flow screens (WorkspaceScheduleTab, FlowCard, etc.)
-2. **Schedule state machine** — XState machine wiring for workflow transitions
-3. **Integration tests** — End-to-end flow tests for run→cancel/reject paths
-4. **Legacy migration** — Retire legacy Firebase adapters once MDDD flow is validated
-5. **Firestore indexes** — Confirm `firestore.indexes.json` covers projection queries
+1. **Unify read model in UI** — refactor `WorkspaceScheduleTab` to clearly separate or converge legacy list vs MDDD projection data
+2. **Promote MDDD-first screen contract** — ensure screen states map directly to request/task/match/assignment/schedule projection statuses
+3. **Schedule state machine** — add XState machine wiring for workflow transitions and action affordances
+4. **Integration tests** — end-to-end flow tests for run→cancel/reject paths and projection refresh
+5. **Legacy migration** — retire legacy query/repository path once projection-based view fully replaces it
+6. **Firestore indexes** — confirm `firestore.indexes.json` covers projection queries
