@@ -56,8 +56,8 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     () =>
       workspace.personnel?.managerId?.trim() ||
       workspace.personnel?.supervisorId?.trim() ||
-      `${workspace.id}-schedule-runner`,
-    [workspace.id, workspace.personnel?.managerId, workspace.personnel?.supervisorId],
+      "",
+    [workspace.personnel?.managerId, workspace.personnel?.supervisorId],
   );
 
   const loadSchedule = useCallback(async () => {
@@ -103,6 +103,11 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     const endAt = new Date(now.getTime() + 2 * 60 * 60 * 1000);
     const availabilityEndAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const runnerId = defaultCandidateId;
+    if (!runnerId) {
+      setRunState("error");
+      setRunMessage("缺少可用的執行者（manager / supervisor），無法啟動流程。");
+      return;
+    }
     const runtimeProfile = DEFAULT_SCHEDULE_RUNTIME_PROFILE;
 
     try {
@@ -211,7 +216,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           </div>
 
           {runMessage && (
-            <p className={runState === "error" ? "mt-3 text-sm text-destructive" : "mt-3 text-sm text-emerald-600"}>
+            <p
+              className={`mt-3 text-sm ${runState === "error" ? "text-destructive" : "text-emerald-600"}`}
+            >
               {runMessage}
             </p>
           )}
