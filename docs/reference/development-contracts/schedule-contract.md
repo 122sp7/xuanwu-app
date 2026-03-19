@@ -7,7 +7,7 @@ description: Implementation contract for derived schedule items, persisted ackno
 
 ## Scope
 
-This contract defines how the current schedule module combines a derived workspace read model with a persisted acknowledgement write-side. It prevents future schedule work from mixing derived milestone logic with mutable item state in ad hoc ways.
+This contract defines how the current schedule module combines a derived workspace read model with a workspace request submission write-side and a persisted acknowledgement write-side. It prevents future schedule work from mixing derived milestone logic with mutable item state in ad hoc ways.
 
 It does **not** yet cover the full legacy workforce scheduling domain from `.github/skills/xuanwu-skill/references/files.md`, where a workspace raises staffing proposals and the organization fulfills people assignment through governance flows.
 
@@ -16,6 +16,7 @@ It does **not** yet cover the full legacy workforce scheduling domain from `.git
 | Concern | Owner |
 | --- | --- |
 | Derived schedule item list | `modules/schedule` |
+| Workspace request submission | `modules/schedule` |
 | Finance timing input | `modules/finance` snapshot input |
 | Workspace scope | `modules/workspace` |
 | Item acknowledgement persistence | `modules/schedule` Firebase adapter |
@@ -24,7 +25,7 @@ The schedule query boundary resolves workspace and finance context inside the sc
 
 ## Current read contract
 
-### Entry point
+### Request submission entry point
 
 `getWorkspaceSchedule(workspaceId)` returns a derived list of `WorkspaceScheduleItem` values.
 
@@ -43,9 +44,40 @@ The schedule query boundary resolves workspace and finance context inside the sc
 
 ### Entry point
 
+`submitScheduleRequest(input)` persists a submitted `ScheduleRequest` aggregate.
+
+### Request submission input shape
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `workspaceId` | `string` | yes | Scope boundary |
+| `organizationId` | `string` | yes | Fulfillment target |
+| `requiredSkills` | `SkillRequirement[]` | yes | Stable request snapshot |
+| `proposedStartAtISO` | `string \| null` | no | Optional requested start time |
+| `notes` | `string \| null` | no | Workspace request notes |
+| `actorAccountId` | `string` | yes | Submission actor |
+
+### Persisted request shape
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | yes | Schedule request identifier |
+| `workspaceId` | `string` | yes | Scope boundary |
+| `organizationId` | `string` | yes | Fulfillment owner |
+| `status` | `draft \| submitted \| cancelled \| closed` | yes | Current implementation persists `submitted` |
+| `requiredSkills` | `SkillRequirement[]` | yes | Stable submission snapshot |
+| `proposedStartAtISO` | `string \| null` | no | Requested start time |
+| `notes` | `string` | yes | Supporting request notes |
+| `submittedByAccountId` | `string` | yes | Submission actor |
+| `submittedAtISO` | `string` | yes | Submission timestamp |
+| `createdAtISO` | `string` | yes | Create timestamp |
+| `updatedAtISO` | `string` | yes | Last write timestamp |
+
+### Acknowledgement entry point
+
 `acknowledgeWorkspaceScheduleItem(input)` persists a schedule acknowledgement record.
 
-### Input shape
+### Acknowledgement input shape
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -67,6 +99,7 @@ The schedule query boundary resolves workspace and finance context inside the sc
 
 | State | Trigger actor | Allowed next states | Notes |
 | --- | --- | --- | --- |
+| `submitted` | schedule request write-side | future `cancelled`, `closed` | Current implementation starts directly at submitted |
 | `derived` | schedule read model | `acknowledged` | Base schedule item is computed, not stored |
 | `acknowledged` | schedule write-side action | terminal until a future explicit reset flow exists | Persisted separately from the derived item |
 
@@ -75,16 +108,17 @@ The display `status` on `WorkspaceScheduleItem` is not the same thing as acknowl
 ## Invariants
 
 1. Schedule items remain derived from workspace and finance context.
-2. User interaction state such as acknowledgement is persisted separately.
-3. Acknowledgement must key off the derived item id rather than rewriting the derived item itself.
-4. Future mutations such as dismiss, snooze, or reopen must become explicit write-side records rather than extra booleans on the derived item.
+2. Workspace request submission persists a separate `ScheduleRequest` aggregate and must not be folded into `WorkspaceScheduleItem`.
+3. User interaction state such as acknowledgement is persisted separately.
+4. Acknowledgement must key off the derived item id rather than rewriting the derived item itself.
+5. Future mutations such as dismiss, snooze, reopen, cancel request, or close request must become explicit write-side records rather than extra booleans on the derived item.
 
 ## Remaining migration scope from legacy schedule domain
 
-The following legacy responsibilities are still outside this contract and should be introduced as explicit MDDD slices instead of being folded into the current derived milestone model:
+The following legacy responsibilities are still outside this contract and should be introduced as explicit MDDD slices instead of being folded into the current derived milestone model or the initial request submission slice:
 
-- workspace proposal submission for staffing needs
 - organization HR governance over pending schedule proposals
+- draft / cancellation / closure lifecycle for `ScheduleRequest`
 - member assignment / rejection / proposal cancellation / assignment completion lifecycle
 - persistent organization or account `schedule_items` aggregates and projections
 - schedule events and notification routing such as `organization:schedule:assigned`, `organization:schedule:assignmentCancelled`, and `organization:schedule:completed`
