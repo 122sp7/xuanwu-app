@@ -59,9 +59,11 @@ jobs:
         with:
           enable-cache: false
 
-      - name: Verify toolchain
+      - name: Verify coding-agent toolchain
         run: |
           node -v
           npm -v
+          npx -v
           python --version
           uv --version
+          echo "Expected GitHub Copilot coding-agent MCP servers: filesystem, memory, repomix, next-devtools, shadcn"

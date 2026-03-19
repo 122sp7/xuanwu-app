@@ -22,9 +22,12 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `AGENTS.md`
 
 ### File-based instructions
+- `.github/instructions/context-engineering.instructions.md`
 - `.github/instructions/copilot-config.instructions.md`
+- `.github/instructions/performance-optimization.instructions.md`
 - `.github/instructions/mddd-migration.instructions.md`
 - `.github/instructions/nextjs-ui.instructions.md`
+- `.github/instructions/nextjs-tailwind.instructions.md`
 - `.github/instructions/typescript.instructions.md`
 - `.github/instructions/nextjs-app-router.instructions.md`
 - `.github/instructions/react-components.instructions.md`
@@ -38,7 +41,7 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/prompts/implement-vsa-mddd.prompt.md`
 - `.github/prompts/plan-file-module-mddd.prompt.md`
 - `.github/prompts/plan-vsa-mddd.prompt.md`
-- `.github/prompts/refresh-serena-context.prompt.md`
+- `.github/prompts/refresh-migration-context.prompt.md`
 - `.github/prompts/scaffold-feature.prompt.md`
 - `.github/prompts/scaffold-genkit-flow.prompt.md`
 - `.github/prompts/scaffold-wbs-task.prompt.md`
@@ -105,6 +108,7 @@ The current hook files are scaffold placeholders with empty hook arrays. They re
 
 - `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
+- Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.
 
 ## Reference docs used for this scaffold

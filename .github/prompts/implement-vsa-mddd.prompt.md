@@ -8,10 +8,11 @@ Use **xuanwu-skill** first, then implement the approved migration step.
 
 Requirements:
 - use filesystem MCP to understand the project-wide impact before editing
-- use Serena MCP for symbol-aware edits and memory updates
+- use repomix MCP for project-wide reference lookups
+- use memory MCP for milestone and migration note updates
 - use next-devtools MCP when Next.js runtime behavior matters
 - use shadcn MCP before introducing UI primitives
-- use markitdown MCP when linked documents or product specs need to be normalized
+- use fetch tools or existing repo docs when linked documents or product specs need to be normalized
 - when asked to "continue next phase", execute the next unfinished slice in this order:
   1) identity/account/organization closure
   2) workspace + shell context consistency

@@ -14,7 +14,7 @@ Use this skill for:
 ## Mandatory startup sequence
 1. Invoke **Use skill: xuanwu-skill** immediately.
 2. Use filesystem MCP to map the relevant folders before opening individual files.
-3. Use Serena MCP for symbol-aware investigation and edits.
+3. Use repomix MCP for project-wide references and memory MCP for verified migration notes.
 
 ## Migration priorities
 1. Stabilize and clarify `modules/` boundaries.
@@ -45,15 +45,15 @@ When asked to "continue next phase", apply this deterministic order:
 
 ## MCP strategy
 - **filesystem MCP**: understand the project as a graph of folders and flows, not isolated files.
-- **Serena MCP**: update memory after meaningful milestones and keep symbol-aware edits precise.
+- **repomix MCP**: inspect merged project references and searchable snapshots before broad migration edits.
+- **memory MCP**: update durable migration facts after meaningful milestones.
 - **next-devtools MCP**: inspect App Router, RSC, cache, and shell runtime behavior before modifying Next.js flows.
 - **shadcn MCP**: reuse or extend existing UI primitives instead of inventing inconsistent controls.
-- **markitdown MCP**: convert linked specs, migration notes, or external documentation into structured Markdown before planning.
 
 ## Definition of done
 - the change clearly improves VSA -> MDDD alignment
 - no duplicate logic is introduced
 - validation is run
 - UI changes include a screenshot
-- Serena memory is updated with new durable facts and remaining gaps
-- Serena index/memory updates capture completed modules, enforced UI/UX patterns, and remaining gaps
+- memory MCP notes are updated with new durable facts and remaining gaps
+- memory MCP updates capture completed modules, enforced UI/UX patterns, and remaining gaps

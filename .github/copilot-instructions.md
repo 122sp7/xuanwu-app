@@ -21,16 +21,16 @@
 ## Tool priority
 1. **filesystem MCP** first for repo-wide structure, trees, multi-file reads, and safe path-aware exploration.
    - Goal: help the model understand the project as a system, not as isolated files.
-2. **Serena MCP** for symbol-aware search/edit and durable memory updates.
+2. **repomix MCP** for repo-wide reference snapshots, generated codebase indexes, and fast cross-cutting lookups.
+   - Use it to inspect project-wide structure and searchable reference bundles before broad edits or migration planning.
+3. **memory MCP** for durable architecture, migration, and UI pattern notes.
    - Persist verified architecture, module progress, UI patterns, and migration decisions after meaningful steps.
    - When major structure changes land, refresh the project index/skill references used by the team.
-3. **Next DevTools MCP** for real Next.js behavior.
+4. **Next DevTools MCP** for real Next.js behavior.
    - Prefer runtime inspection over guesswork for App Router, RSC, hydration, routing, cache, and shell behavior.
    - Use browser screenshots only after verifying runtime state.
-4. **shadcn/ui MCP** before inventing or duplicating UI primitives.
+5. **shadcn/ui MCP** before inventing or duplicating UI primitives.
    - Reuse or extend `ui/` and shadcn components instead of creating one-off variants.
-5. **markitdown MCP** for external docs, product notes, and migration references.
-   - Convert long-form documents into structured Markdown context before planning implementation work.
 
 ## Architecture and migration rules
 - Prioritize migration work that clarifies or strengthens:
@@ -57,7 +57,7 @@
   2. close workspace + shell context consistency gaps
   3. continue unfinished modules by user-facing impact (`task`, `notification`, `knowledge`, `retrieval`, then back-office modules)
 - Explicit exception: **exclude VS8** from this continuation flow unless the user explicitly asks to include VS8.
-- Update Serena memory after each significant module completion or architecture decision.
+- Update memory MCP notes after each significant module completion or architecture decision.
 - If docs, prompts, instructions, or agents are improved during migration, keep them aligned with the actual repository state.
 
 ## Validation
