@@ -4,7 +4,7 @@ import type { ScheduleRepository, ScheduleScope } from "../../domain/repositorie
 export class ListWorkspaceScheduleItemsUseCase {
   constructor(private readonly scheduleRepository: ScheduleRepository) {}
 
-  execute(scope: ScheduleScope): readonly WorkspaceScheduleItem[] {
+  async execute(scope: ScheduleScope): Promise<readonly WorkspaceScheduleItem[]> {
     if (!scope.workspaceId.trim()) {
       return [];
     }

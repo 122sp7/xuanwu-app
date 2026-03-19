@@ -29,13 +29,13 @@ RAG 查詢若沒有明確 index matrix，常見問題是：
 #### Pattern A: Query-time vector retrieval
 
 - Collection: `chunks`
-- Required fields: `embedding`, `tenantId`, `workspaceId`, `taxonomy`
-- Purpose: Top-K + tenant/workspace/taxonomy filter
+- Required fields: `embedding`, `organizationId`, `workspaceId`, `taxonomy`
+- Purpose: Top-K + organization/workspace/taxonomy filter
 
 #### Pattern B: Document readiness lookup
 
 - Collection: `documents`
-- Required fields: `tenantId`, `workspaceId`, `status`, `updatedAt`
+- Required fields: `organizationId`, `workspaceId`, `status`, `updatedAt`
 - Purpose: 只查可用於 query 的 `ready` 文件
 
 #### Pattern C: Retry/backfill queue scan
@@ -47,25 +47,25 @@ RAG 查詢若沒有明確 index matrix，常見問題是：
 #### Pattern D: Cache lookup
 
 - Collection: `queryCache`
-- Required fields: `tenantId`, `workspaceId`, `queryHash`, `expiresAt`
+- Required fields: `organizationId`, `workspaceId`, `queryHash`, `expiresAt`
 
 ### 2. Index matrix
 
 ```text
 Collection: chunks
 - Vector index: embedding
-- Filter fields: tenantId, workspaceId, taxonomy
+- Filter fields: organizationId, workspaceId, taxonomy
 - Optional order field: updatedAt
 
 Collection: documents
 - Composite candidates:
-  (tenantId, workspaceId, status)
+  (organizationId, workspaceId, status)
   (status, failedAt)
-  (tenantId, workspaceId, updatedAt)
+  (organizationId, workspaceId, updatedAt)
 
 Collection: queryCache
 - Composite candidates:
-  (tenantId, workspaceId, queryHash)
+  (organizationId, workspaceId, queryHash)
   (expiresAt)
 ```
 
@@ -80,14 +80,14 @@ Collection: queryCache
 ### 4. Failure prevention rules
 
 1. 不允許在未建索引前上線新 query pattern。
-2. 不允許在 production 以臨時查詢繞過 tenant/workspace filter。
+2. 不允許在 production 以臨時查詢繞過 organization/workspace filter。
 3. index 變更必須附部署步驟與驗證結果。
 
 ## 與 functions-python ADR 協作與不衝突規則
 
 1. 本 ADR 定義跨 runtime 的索引需求。
 2. `lib/firebase/functions-python/docs/adr/ADR-007-firestore-rag-data-model-and-indexing.md` 定義 worker 側資料模型與索引語意。
-3. 若命名或欄位有差異，以雙方共同交集為優先：`documents` / `chunks` / `embedding` / `tenantId` / `workspaceId`。
+3. 若命名或欄位有差異，以雙方共同交集為優先：`documents` / `chunks` / `embedding` / `organizationId` / `workspaceId`。
 4. 不得在本 ADR 引入與 functions-python ADR 相衝突的 collection 角色。
 
 ## 後果 (Consequences)

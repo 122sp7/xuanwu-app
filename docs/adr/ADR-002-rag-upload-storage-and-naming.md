@@ -19,8 +19,8 @@ Accepted
 採用以下固定規則：
 
 1. `documentId` 由系統生成，是文件唯一 canonical identity。
-2. `originalFilename` 僅作 display 與 audit，不作 primary key。
-3. Firebase Storage path 必須 tenant-scoped。
+2. `sourceFileName` 僅作 display 與 audit，不作 primary key。
+3. Firebase Storage path 必須 organization/workspace-scoped。
 4. raw file 固定採 `source{ext}` 命名，而非原始檔名。
 5. derived outputs 使用固定子目錄，避免 ad hoc naming。
 
@@ -38,9 +38,9 @@ Accepted
 - 不得把 title、日期、slug 混入 canonical id
 - 所有 chunks、feedback、cache、retry、reprocess 都必須關聯到 `documentId`
 
-#### `originalFilename`
+#### `sourceFileName`
 
-`originalFilename` 只用於：
+`sourceFileName` 只用於：
 
 - UI 顯示
 - audit
@@ -55,9 +55,9 @@ Accepted
 
 #### `title`
 
-`title` 與 `originalFilename` 分離：
+`title` 與 `sourceFileName` 分離：
 
-- `originalFilename`: 使用者上傳時的檔名
+- `sourceFileName`: 使用者上傳時的檔名
 - `title`: product-facing 顯示名稱，可後續編輯
 
 ### 2. Storage path
@@ -65,18 +65,18 @@ Accepted
 建議 canonical path：
 
 ```text
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
 ```
 
 例如：
 
 ```text
-tenants/tnt_123/workspaces/ws_456/documents/doc_789/raw/source.pdf
+organizations/org_123/workspaces/ws_456/documents/doc_789/raw/source.pdf
 ```
 
 設計原則：
 
-1. `tenantId` 與 `workspaceId` 必須進入 path。
+1. `organizationId` 與 `workspaceId` 必須進入 path。
 2. `documentId` 是該文件的 Storage root。
 3. raw file 固定採 `source{ext}`。
 4. bucket 內不得平鋪所有 document。
@@ -86,15 +86,15 @@ tenants/tnt_123/workspaces/ws_456/documents/doc_789/raw/source.pdf
 衍生檔建議路徑：
 
 ```text
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/derived/normalized.md
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/derived/layout.json
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/derived/preview.txt
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/normalized.md
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/layout.json
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/preview.txt
 ```
 
 若需版本化：
 
 ```text
-tenants/{tenantId}/workspaces/{workspaceId}/documents/{documentId}/versions/{version}/raw/source{ext}
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/versions/{version}/raw/source{ext}
 ```
 
 ### 4. Upload ownership
@@ -113,14 +113,14 @@ worker 不負責 browser-facing upload orchestration。
 建議名稱：
 
 - field: `documentId`
-- field: `originalFilename`
+- field: `sourceFileName`
 - field: `title`
 - field: `storageBucket`
 - field: `storagePath`
 
 避免名稱：
 
-- `fileName` 同時表示 display name 與原始檔名
+- `fileName` 這種無法區分 display name 與 `sourceFileName` 的模糊名稱
 - `path` 這種模糊欄位名
 - 以原始檔名作為 storage key
 
@@ -136,7 +136,7 @@ worker 不負責 browser-facing upload orchestration。
 - rename 會破壞 reference
 - 不利於 retry 與 reprocess
 
-### 方案 B：tenant / workspace 僅存在 Firestore，不進 Storage path
+### 方案 B：organization / workspace 僅存在 Firestore，不進 Storage path
 
 不採用。
 
@@ -150,15 +150,15 @@ worker 不負責 browser-facing upload orchestration。
 ### 正面影響
 
 1. Upload naming 穩定可重試。
-2. 多租戶隔離從 binary storage 開始就成立。
+2. organization/workspace 隔離從 binary storage 開始就成立。
 3. 原始檔名與系統識別分離，後續資料治理更容易。
 
 ### 負面影響
 
-1. 需要額外保存 `originalFilename` 與 `title`。
+1. 需要額外保存 `sourceFileName` 與 `title`。
 2. 使用者看到的檔名不再直接等於 storage key。
 
 ## Operational Notes
 
-- Storage bucket 權限與路徑規則必須與 tenant / workspace 邊界一致。
+- Storage bucket 權限與路徑規則必須與 organization / workspace 邊界一致。
 - 若未來引入多 bucket 策略，仍不得改變 `documentId` 作為 canonical identity 的規則。

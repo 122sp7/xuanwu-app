@@ -451,6 +451,17 @@ The markdown content below the frontmatter defines the agent's behavior, experti
 - **Focus on Behavior**: Describe how the agent should think and work
 - **Use Structured Format**: Headers, bullets, and lists make prompts scannable
 
+## Skill-Aware Agent Authoring
+
+- When a repository uses skills as stable reference packs, state the relevant skill near the start of the agent body so the intended context source is obvious.
+- Prefer explicit wording such as `Use skill: xuanwu-skill` or `Use skill: billing-lifecycle` when the workflow depends on a specific project skill.
+- Keep the skill list small and role-specific. Do not tell every agent to load every skill.
+- If a hidden specialist agent should only run through a coordinator, combine:
+  - `user-invocable: false`
+  - `disable-model-invocation: true`
+  - an explicit `agents:` allowlist on the coordinator agent
+- Document why the skill is needed, not just the skill name. This helps future maintainers keep the routing and context-loading behavior aligned.
+
 ## Variable Definition and Extraction
 
 Agents can define dynamic parameters to extract values from user input and use them throughout the agent's behavior and sub-agent communications. This enables flexible, context-aware agents that adapt to user-provided data.

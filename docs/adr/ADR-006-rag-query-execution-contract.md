@@ -7,7 +7,7 @@ Accepted
 
 Query pipeline 若僅有高層描述，實作時容易出現：
 
-1. 檢索過濾與 tenant 邊界被忽略。
+1. 檢索過濾與 organization 邊界被忽略。
 2. prompt 組裝缺乏一致規則，造成答案品質飄移。
 3. streaming 回傳格式不穩定，前端難以維護。
 
@@ -16,7 +16,7 @@ Query pipeline 若僅有高層描述，實作時容易出現：
 固定 query 執行契約如下：
 
 1. Query entrypoint 在 Next.js Route Handler 或 Server Action。
-2. Query embedding 後，必須先過 tenant/workspace filter gate。
+2. Query embedding 後，必須先過 organization/workspace filter gate。
 3. retrieval 結果經 context 組裝後才可交由 Genkit 生成。
 4. 回應採 streaming-first，並回傳可追蹤 metadata。
 
@@ -39,8 +39,8 @@ receive query
 
 每次查詢都必須通過：
 
-1. Tenant gate: `tenantId` 必填
-2. Workspace gate: `workspaceId` 必填
+1. Organization gate: `organizationId` 必填
+2. Workspace gate: 若查詢只針對單一 workspace，`workspaceId` 必填；若做 organization-wide retrieval，可省略
 3. Taxonomy gate: 有指定分類時必須精確套用
 4. Freshness gate: 僅查詢 `documents.status=ready` 對應 chunks
 
@@ -58,7 +58,7 @@ receive query
 規則：
 
 1. context 需保留可引用來源資訊
-2. 不得混入不同 tenant 的 chunks
+2. 不得混入不同 organization 的 chunks
 3. 若 top-k 為空，需回傳明確 no-context response
 
 ### 4. Generation contract

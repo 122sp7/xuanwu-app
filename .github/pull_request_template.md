@@ -8,6 +8,12 @@
 - affected modules:
 - affected infrastructure:
 
+## Architecture Impact
+
+- dependency direction preserved?:
+- shared utilities or UI primitives reused?:
+- boundary changes introduced?:
+
 ## Validation
 
 - [ ] npm run lint
@@ -17,6 +23,11 @@
 ## Risks
 
 -
+
+## Skills and Context Used
+
+- skills invoked:
+- docs or reference packs consulted:
 
 ## Notes
 

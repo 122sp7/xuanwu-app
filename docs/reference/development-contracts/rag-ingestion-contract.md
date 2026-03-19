@@ -1,0 +1,124 @@
+---
+title: RAG ingestion development contract
+description: Authoritative cross-runtime contract for RAG upload registration, worker execution, lifecycle transitions, and acceptance gates.
+---
+
+# RAG ingestion development contract
+
+## Scope
+
+This contract is the authoritative implementation reference for the upload-to-worker boundary that spans Next.js registration, Firestore document metadata, Python ingestion execution, and retrieval readiness.
+
+## Owning modules and runtimes
+
+| Responsibility | Owner |
+| --- | --- |
+| Upload registration and browser-facing orchestration | `modules/file` and Next.js interfaces |
+| Retrieval orchestration and answer generation | `modules/ai` |
+| Parsing, chunking, embedding, and lifecycle write-back | `lib/firebase/functions-python` |
+
+## Canonical upload request
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `organizationId` | `string` | yes | Tenant boundary |
+| `workspaceId` | `string` | yes | Retrieval working-set boundary |
+| `uploaderId` | `string` | yes | Actor for audit and attribution |
+| `sourceFileName` | `string` | yes | Original user-facing file name |
+| `mimeType` | `string` | yes | Required for parser routing |
+| `sizeBytes` | `number` | yes | Artifact size at registration |
+| `checksum` | `string` | yes | Idempotency key component |
+
+## Canonical `documents` metadata
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | yes | Server-generated document identifier |
+| `organizationId` | `string` | yes | Tenant boundary |
+| `workspaceId` | `string` | yes | Workspace retrieval boundary |
+| `title` | `string` | yes | Human-readable document title |
+| `sourceFileName` | `string` | yes | Upload file name |
+| `mimeType` | `string` | yes | Parser routing metadata |
+| `storagePath` | `string` | yes | Organization/workspace-scoped storage pointer |
+| `checksum` | `string` | no | Required in production flow even if compatibility paths still allow omission |
+| `taxonomy` | `string` | no | Optional hint before ingestion completes |
+| `status` | `uploaded \| processing \| ready \| failed \| archived` | yes | Shared lifecycle field |
+| `processingStartedAt` | timestamp | no | Worker-owned |
+| `readyAt` | timestamp | no | Worker-owned |
+| `failedAt` | timestamp | no | Worker-owned |
+| `archivedAt` | timestamp | no | Maintenance or product-owned |
+| `errorCode` | `string` | no | Worker-owned classified failure |
+| `errorMessage` | `string` | no | Worker-owned failure detail |
+| `createdAt` | timestamp | yes | Registration timestamp |
+| `updatedAt` | timestamp | yes | Last metadata update |
+
+## Worker invocation boundary
+
+### Target boundary
+
+The target boundary is a Firestore-driven ingestion flow that begins when a document is registered with `status=uploaded`. The worker must resolve the document metadata, validate tenancy fields, transition the document to `processing`, and then persist chunks plus the final lifecycle result.
+
+### Compatibility boundary
+
+The current Python entrypoint is still an HTTPS callable that accepts `rawText`. That path is a compatibility bridge, not the long-term contract. New work should treat the callable path as transitional and avoid introducing more browser-facing ingestion fields there than are strictly required for compatibility.
+
+## Worker command fields
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `documentId` | `string` | yes | Primary correlation key |
+| `organizationId` | `string` | yes | Reject if missing |
+| `workspaceId` | `string` | yes | Reject if missing |
+| `title` | `string` | yes | Prompt and audit context |
+| `sourceFileName` | `string` | yes | Required by current Python command |
+| `mimeType` | `string` | yes | Required by current Python command |
+| `storagePath` | `string` | yes | Storage lookup target |
+| `checksum` | `string` | no | Idempotency guard |
+| `taxonomyHint` | `string` | no | Optional pre-classification hint |
+
+## `chunks` persistence contract
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `docId` | `string` | yes | Parent document id |
+| `organizationId` | `string` | yes | Tenant filter |
+| `workspaceId` | `string` | yes | Workspace filter |
+| `chunkIndex` | `number` | yes | Deterministic sequence |
+| `text` | `string` | yes | Retrieval source text |
+| `embedding` | `number[]` | yes | Vector payload |
+| `taxonomy` | `string` | yes | Retrieval filter field |
+| `page` | `number` | no | Optional page reference |
+| `tags` | `string[]` | no | Optional retrieval metadata |
+
+## Lifecycle state machine
+
+| State | Trigger actor | Allowed next states | Notes |
+| --- | --- | --- | --- |
+| `uploaded` | Next.js upload registration | `processing` | Registration-only state |
+| `processing` | ingestion worker | `ready`, `failed` | Worker writes `processingStartedAt` |
+| `ready` | ingestion worker or product governance | `processing`, `archived` | `processing` is reprocess; `archived` is not worker-owned |
+| `failed` | ingestion worker | `processing` | Retry path |
+| `archived` | maintenance or product governance | terminal until an explicit unarchive flow is defined | Do not let worker self-revive archived documents |
+
+## Invariants
+
+1. `organizationId` and `workspaceId` must exist on both `documents` and `chunks`.
+2. Embeddings are computed once during ingestion and reused for organization-scoped or workspace-scoped retrieval.
+3. Archive is a governance transition, not an ingestion side effect.
+4. The worker must never persist chunks without also writing a terminal document status.
+5. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
+
+## Acceptance gates
+
+A slice is ready for implementation only when all of the following are true:
+
+- TypeScript registration DTOs, Firestore metadata fields, and Python worker command fields match this page.
+- The chosen trigger path is explicit: either compatibility callable or target Firestore event, with one marked as primary.
+- `firestore.indexes.json` supports the documented retrieval and retry patterns.
+- The ingestion worker records `processingStartedAt`, terminal timestamps, and classified error fields.
+
+## Open blockers still to resolve
+
+- Replace the compatibility callable boundary with the target Firestore `status=uploaded` trigger.
+- Consolidate ADR-010 with the current `mimeType` and `sourceFileName` field usage.
+- Add the archive or unarchive write-side flow before exposing document governance in the UI.

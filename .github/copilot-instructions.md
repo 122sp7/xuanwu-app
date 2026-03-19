@@ -19,20 +19,21 @@
 - Keep on-demand reference packages in `.github/skills/*/SKILL.md`.
 
 ## Tool priority
-1. **filesystem MCP** first for repo-wide structure, trees, multi-file reads, and safe path-aware exploration.
-   - Goal: help the model understand the project as a system, not as isolated files.
-2. **repomix MCP** for repo-wide reference snapshots, generated codebase indexes, and fast cross-cutting lookups.
+1. **Serena MCP** first for symbol-aware retrieval, references, structure navigation, and precise edits.
+   - Use Serena as the default path for understanding and changing code so indexing and repository memory improve over time.
+   - For GitHub-hosted browser coding-agent sessions, keep repository settings MCP config aligned with `.github/copilot/serena-coding-agent-mcp.json`.
+2. **filesystem MCP** for repo-wide structure, trees, multi-file reads, and safe path-aware exploration.
+   - Use it when Serena is unavailable or when path-oriented structure inspection is faster than symbol lookup.
+3. **repomix MCP** for repo-wide reference snapshots, generated codebase indexes, and fast cross-cutting lookups.
    - Use it to inspect project-wide structure and searchable reference bundles before broad edits or migration planning.
-3. **memory MCP** for durable architecture, migration, and UI pattern notes.
+4. **memory MCP** for durable architecture, migration, and UI pattern notes.
    - Persist verified architecture, module progress, UI patterns, and migration decisions after meaningful steps.
    - When major structure changes land, refresh the project index/skill references used by the team.
-4. **Next DevTools MCP** for real Next.js behavior.
+5. **Next DevTools MCP** for real Next.js behavior.
    - Prefer runtime inspection over guesswork for App Router, RSC, hydration, routing, cache, and shell behavior.
    - Use browser screenshots only after verifying runtime state.
-5. **shadcn/ui MCP** before inventing or duplicating UI primitives.
+6. **shadcn/ui MCP** before inventing or duplicating UI primitives.
    - Reuse or extend `ui/` and shadcn components instead of creating one-off variants.
-6. **Serena MCP** for symbol-aware retrieval/editing when available in the current coding-agent environment.
-   - For GitHub-hosted browser coding-agent sessions, keep repository settings MCP config aligned with `.github/copilot/serena-coding-agent-mcp.json`.
 
 ## Architecture and migration rules
 - Prioritize migration work that clarifies or strengthens:
@@ -53,6 +54,7 @@
 
 ## Workflow expectations
 - Plan first, then implement.
+- For `.github/*`, agent, prompt, instruction, skill, or Copilot workflow changes, load `vscode-docs-skill` before editing.
 - For complex migration tasks, create or update a plan via `.github/prompts` or `.github/agents` instead of jumping straight to edits.
 - If asked to "continue next phase", choose the highest-priority unfinished slice using this order:
   1. close remaining identity/account/organization gaps

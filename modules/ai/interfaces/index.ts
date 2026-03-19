@@ -1,1 +1,1 @@
-export { generateAIResponse } from "./_actions/ai.actions";
+export { answerRagQuery, generateAIResponse } from "./_actions/ai.actions";

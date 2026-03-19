@@ -30,18 +30,18 @@ Upload 與 ingestion 若只靠文字描述，容易在 Next.js 與 worker 之間
 
 ```text
 UploadRequest
-- tenantId: string
+- organizationId: string
 - workspaceId: string
 - uploaderId: string
-- originalFilename: string
-- contentType: string
+- sourceFileName: string
+- mimeType: string
 - sizeBytes: number
 - checksum: string
 ```
 
 規則：
 
-1. `tenantId` 與 `workspaceId` 必填。
+1. `organizationId` 與 `workspaceId` 必填。
 2. checksum 必須在 metadata 建立前可用。
 3. `documentId` 由伺服器端生成，不接受前端指定。
 
@@ -50,9 +50,9 @@ UploadRequest
 ```text
 DocumentMetadata
 - id: documentId
-- tenantId
+- organizationId
 - workspaceId
-- originalFilename
+- sourceFileName
 - title
 - storagePath
 - checksum
@@ -64,7 +64,7 @@ DocumentMetadata
 規則：
 
 1. 建立 metadata 時 `status` 必須是 `uploaded`。
-2. `storagePath` 必須指向 tenant-scoped path。
+2. `storagePath` 必須指向 organization/workspace-scoped path。
 3. metadata 欄位命名需與 ADR-003 一致。
 
 ### 3. Worker trigger event contract
@@ -74,7 +74,7 @@ Primary event source: Firestore document create/update to `status=uploaded`
 ```text
 WorkerTriggerEvent
 - documentId
-- tenantId
+- organizationId
 - workspaceId
 - storagePath
 - checksum
@@ -84,7 +84,7 @@ WorkerTriggerEvent
 
 規則：
 
-1. event payload 缺少 tenant/workspace 時必須拒絕處理。
+1. event payload 缺少 organization/workspace 時必須拒絕處理。
 2. worker 先驗證 `status=uploaded` 才進入 processing。
 3. 同 checksum + same document 不得重複執行完整 ingestion。
 

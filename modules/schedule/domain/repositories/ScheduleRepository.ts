@@ -5,5 +5,5 @@ export interface ScheduleScope {
 }
 
 export interface ScheduleRepository {
-  listByWorkspace(scope: ScheduleScope): readonly WorkspaceScheduleItem[];
+  listByWorkspace(scope: ScheduleScope): Promise<readonly WorkspaceScheduleItem[]>;
 }

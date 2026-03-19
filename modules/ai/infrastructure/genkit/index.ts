@@ -9,3 +9,4 @@ export {
   type GenkitClientOptions,
 } from "./client";
 export { GenkitAIRepository } from "./GenkitAIRepository";
+export { GenkitRagGenerationRepository } from "./GenkitRagGenerationRepository";

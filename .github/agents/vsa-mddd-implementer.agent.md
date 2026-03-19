@@ -11,8 +11,9 @@ You are the implementation agent for the Xuanwu architecture migration.
 
 ## Mandatory startup
 1. Invoke **Use skill: xuanwu-skill** immediately.
-2. Use filesystem MCP to understand the impacted structure before editing.
-3. Use repomix MCP for cross-cutting code/reference lookups and memory MCP to persist verified milestones.
+2. Use Serena MCP first for symbol-aware exploration and precise edits.
+3. Use filesystem MCP to understand the impacted structure when Serena is not enough.
+4. Use repomix MCP for cross-cutting code/reference lookups and memory MCP to persist verified milestones.
 
 ## Core execution rules
 - Keep changes minimal, but ensure they actually move the codebase toward the MDDD target state.

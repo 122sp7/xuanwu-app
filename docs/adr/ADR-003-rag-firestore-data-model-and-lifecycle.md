@@ -31,11 +31,11 @@ Accepted
 ```text
 collection: documents
 - id
-- tenantId
+- organizationId
 - workspaceId
 - title
-- originalFilename
-- contentType
+- sourceFileName
+- mimeType
 - extension
 - sizeBytes
 - storageBucket
@@ -68,7 +68,7 @@ collection: documents
 ```text
 collection: chunks
 - id
-- tenantId
+- organizationId
 - workspaceId
 - docId
 - chunkIndex
@@ -87,7 +87,7 @@ collection: chunks
 欄位規則：
 
 - `docId` 必須指向 `documents.id`
-- `tenantId` / `workspaceId` 必須複寫到 chunk 層
+- `organizationId` / `workspaceId` 必須複寫到 chunk 層
 - `taxonomy` 必須可直接用於 retrieval filter
 - `embedding` 與 chunk 同步存放
 
@@ -96,7 +96,7 @@ collection: chunks
 ```text
 collection: queryCache
 - id
-- tenantId
+- organizationId
 - workspaceId
 - queryHash
 - response
@@ -106,7 +106,7 @@ collection: queryCache
 
 collection: queryFeedback
 - id
-- tenantId
+- organizationId
 - workspaceId
 - queryHash
 - responseId
@@ -198,5 +198,5 @@ Failure handling：
 
 ## Operational Notes
 
-- Firestore 索引與 rules 變更必須與本 ADR 的 schema 與 tenant 邊界一致。
+- 在 Xuanwu，organization 是 tenant 邊界，workspace 是子範圍；Firestore 索引與 rules 變更必須與此層級一致。
 - `documents` / `chunks` 欄位命名一旦落地，不應隨意漂移。

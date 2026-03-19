@@ -58,11 +58,12 @@ Dependency source:
 ### 1.3 Recommended ingestion implementation split (direct coding checklist)
 
 1. Upload endpoint (Next.js): validate input, upload raw file, create `documents` metadata with `status=uploaded`.
-2. Worker trigger contract: pass `workspaceId`, `fileName`, `mimeType`, `contentBase64` (or storage reference in next iteration).
+2. Worker trigger contract: pass `organizationId`, `workspaceId`, `sourceFileName`, `mimeType`, `contentBase64` (or storage reference in next iteration).
 3. Document AI parse in functions-python adapter.
 4. Application layer orchestrates normalize -> taxonomy -> chunk.
 5. Persist chunk vectors and document status transitions (`processing` -> `ready`/`failed`).
-6. Write traces/audit logs for retry and observability.
+6. Keep the current skeleton embedding dimension aligned with `firestore.indexes.json` until a real embedding model is selected; update both together when moving beyond the deterministic scaffold.
+7. Write traces/audit logs for retry and observability.
 
 ## 2) ② Query Pipeline - where to implement
 
@@ -141,3 +142,19 @@ Source:
 3. Query use-case path with basic vector retrieval.
 4. Observability (traces/latency/cost) and retry queue.
 5. Optional hybrid retrieval, cache, and feedback loop.
+
+## 7) Organization / workspace scope and vector efficiency
+
+In Xuanwu, the organization is the tenant boundary and the workspace is the working set boundary.
+
+- Store `organizationId` on every document and chunk to keep the canonical corpus reusable across the organization.
+- Store `workspaceId` on every document and chunk to support narrower workspace-only retrieval when the user is operating in one workspace.
+- Compute embeddings once during ingestion, then reuse them for both workspace-level and organization-level retrieval.
+
+This maximizes benefit because the same embedded corpus can serve:
+
+1. workspace-focused retrieval with tighter filters and lower prompt noise
+2. organization-wide retrieval for shared knowledge reuse
+3. taxonomy-filtered retrieval to reduce vector-search cost and context size
+
+Vectors do not lower the overall benefit when they are generated once in ingestion and reused at query time. Efficiency drops only when the system re-embeds too often, skips organization/workspace filters, or sends too many irrelevant chunks into generation.

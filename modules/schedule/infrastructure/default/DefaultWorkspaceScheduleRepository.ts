@@ -30,7 +30,7 @@ export class DefaultWorkspaceScheduleRepository implements ScheduleRepository {
     private readonly finance: ScheduleWorkspaceSnapshotSource["finance"],
   ) {}
 
-  listByWorkspace(scope: ScheduleScope): readonly WorkspaceScheduleItem[] {
+  async listByWorkspace(scope: ScheduleScope): Promise<readonly WorkspaceScheduleItem[]> {
     if (scope.workspaceId !== this.workspace.id) {
       return [];
     }
