@@ -11,7 +11,7 @@ target: vscode
 
 1. Use xuanwu-skill first.
 2. Use Serena MCP first for symbol-aware review of state transitions and repository boundaries.
-3. This agent is intentionally hidden; `commander` is the coordinator that should route billing review requests here.
+3. This agent is intentionally hidden; within this repository's routing contract, `commander` is the coordinator that should route billing review requests here.
 4. If the change touches invoice issuance, credits, subscriptions, reconciliation, or settlement timing, load the billing-lifecycle skill.
 5. Treat billing logic as audit-sensitive domain behavior.
 6. Check state transitions, reconciliation points, retries, and provider-boundary assumptions.
