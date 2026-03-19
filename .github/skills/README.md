@@ -88,6 +88,7 @@ agents:
   - 不讓模型自由地把它當成一般子代理亂選
 - coordinator `agents:` allowlist
   - 允許像 `commander` 這種協調者在明確路由時仍可呼叫它
+  - 若 coordinator 沒有把該 specialist 放進 `agents:`，就不應假設它可以被協調流程穩定使用
 
 ## 4. 建議章節
 

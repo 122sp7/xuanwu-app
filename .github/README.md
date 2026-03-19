@@ -107,7 +107,7 @@ The agent workflow is commander-first:
 - `planner`, `implementer`, and `reviewer` remain the visible general-purpose workflow for direct access when the route is already obvious.
 - `vsa-mddd-planner` and `vsa-mddd-implementer` remain visible for architecture migration work and explicit handoff-based flows.
 - `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`, `disable-model-invocation: true`) so they can still be routed by `commander` without crowding the picker or being selected accidentally.
-- `disable-model-invocation: true` blocks those specialists from general subagent selection. `commander` can still dispatch them because it explicitly allowlists them in its `agents:` frontmatter.
+- `disable-model-invocation: true` blocks those specialists from general subagent selection. In environments that support VS Code custom-agent routing, this repository expects `commander` to route only the agents listed in its explicit `agents:` allowlist; otherwise, use the direct-agent fallback noted below.
 - `.github/instructions/agents.instructions.md` documents the hidden-specialist pattern and when coordinator allowlisting is required.
 - Agent files describe routing, skill loading, and tool priority. Model choice is left to the client/runtime instead of being pinned in repo-owned metadata.
 
