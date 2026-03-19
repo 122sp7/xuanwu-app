@@ -1,7 +1,9 @@
 ---
 name: reviewer
 description: Review Xuanwu changes with emphasis on regressions, security, ownership, and missing verification.
-tools: ["search", "fetch", "runCommands"]
+argument-hint: Point to the files, diff, or feature area that should be reviewed.
+tools: ["read", "search", "fetch"]
+target: vscode
 ---
 # Xuanwu Reviewer
 

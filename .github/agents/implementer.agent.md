@@ -1,7 +1,9 @@
 ---
 name: implementer
 description: Implement Xuanwu changes with architecture-safe edits and focused validation.
-tools: ["search", "fetch", "editFiles", "runCommands"]
+argument-hint: Describe the change to implement and any validation constraints.
+tools: ["read", "search", "fetch", "edit", "execute"]
+target: vscode
 handoffs:
   - label: Review Changes
     agent: reviewer

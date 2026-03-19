@@ -63,6 +63,12 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/agents/firestore-guard.agent.md`
 - `.github/agents/billing-auditor.agent.md`
 
+The visible agent set is intentionally small:
+
+- `planner`, `implementer`, and `reviewer` are the default general-purpose workflow.
+- `billing-auditor`, `firestore-guard`, and `rag-architect` are domain review/design specialists.
+- `vsa-mddd-planner` and `vsa-mddd-implementer` remain available for architecture migration work. They stay visible because current VS Code handoff validation requires named target agents to remain discoverable.
+
 ### Skills
 - `.github/skills/awesome-rag-skill/SKILL.md`
 - `.github/skills/chatbot-ui-skill/SKILL.md`
@@ -80,10 +86,9 @@ This document records the active and scaffolded VS Code Copilot customization la
 
 ### Hooks
 - `.github/hooks/README.md`
-- `.github/hooks/format.json`
-- `.github/hooks/session.json`
+- `.github/hooks/guardrails.json`
 
-The current hook files are scaffold placeholders with empty hook arrays. They reserve official locations without enabling command execution yet.
+The active hook set is intentionally minimal. This repository enables one guardrail hook that intercepts obviously destructive terminal commands and asks for explicit human review before they run.
 
 ### Issue and PR templates
 - `.github/ISSUE_TEMPLATE/config.yml`
@@ -110,6 +115,7 @@ The current hook files are scaffold placeholders with empty hook arrays. They re
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
 - Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, and `shadcn`.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.
+- Plugin packaging and agentic workflow markdown files are not added yet. For this repository, workspace-level instructions, agents, skills, and a single safety hook currently provide higher value than introducing another distribution layer or `gh aw` compilation flow.
 
 ## Reference docs used for this scaffold
 

@@ -1,7 +1,9 @@
 ---
 name: planner
 description: Analyze Xuanwu changes before implementation and return a minimal, reviewable execution plan.
-tools: ["search", "fetch"]
+argument-hint: Describe the feature, bug, or module slice that needs a plan.
+tools: ["read", "search", "fetch"]
+target: vscode
 handoffs:
   - label: Start Implementation
     agent: implementer

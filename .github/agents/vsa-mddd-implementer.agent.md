@@ -1,7 +1,9 @@
 ---
 name: vsa-mddd-implementer
 description: Implement Xuanwu VSA to MDDD migration work with architecture-safe, MCP-first execution.
-tools: ["search", "fetch", "editFiles", "runCommands"]
+argument-hint: Describe the migration slice to implement and any validation requirements.
+tools: ["read", "search", "fetch", "edit", "execute"]
+target: vscode
 ---
 # VSA -> MDDD Implementation Agent
 

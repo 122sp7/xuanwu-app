@@ -1,7 +1,9 @@
 ---
 name: vsa-mddd-planner
 description: Plan Xuanwu VSA to MDDD migration work before implementation.
-tools: ["search", "fetch"]
+argument-hint: Describe the migration slice, route, or module boundary to plan.
+tools: ["read", "search", "fetch"]
+target: vscode
 handoffs:
   - label: Start Migration Implementation
     agent: vsa-mddd-implementer
