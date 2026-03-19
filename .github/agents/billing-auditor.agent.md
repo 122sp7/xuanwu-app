@@ -3,6 +3,7 @@ name: billing-auditor
 description: Analyze billing changes for money movement, auditability, and lifecycle correctness.
 argument-hint: Point to the billing files, diff, or lifecycle you want audited.
 tools: ["read", "search", "fetch"]
+user-invocable: false
 target: vscode
 ---
 # Billing Auditor

@@ -2,6 +2,16 @@
 
 This document records the active and scaffolded VS Code Copilot customization layout in this repository.
 
+## Recommended entrypoint
+
+- Start with `.github/agents/commander.agent.md` for most repository tasks.
+- Use direct agent entry only when the workflow is already obvious:
+  - `planner` for plan-only work
+  - `implementer` for code changes
+  - `reviewer` for findings-first review
+  - `vsa-mddd-planner` / `vsa-mddd-implementer` for explicit migration work
+- Let `commander` route to hidden specialist agents when billing, Firestore, or RAG expertise is needed.
+
 ## Official path mapping
 
 | Mechanism | Official path pattern | Trigger mode |
@@ -55,6 +65,7 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/prompts/write-tests.prompt.md`
 
 ### Custom agents
+- `.github/agents/commander.agent.md`
 - `.github/agents/vsa-mddd-implementer.agent.md`
 - `.github/agents/vsa-mddd-planner.agent.md`
 - `.github/agents/planner.agent.md`
@@ -64,11 +75,12 @@ This document records the active and scaffolded VS Code Copilot customization la
 - `.github/agents/firestore-guard.agent.md`
 - `.github/agents/billing-auditor.agent.md`
 
-The visible agent set is intentionally small:
+The agent workflow is now commander-first:
 
-- `planner`, `implementer`, and `reviewer` are the default general-purpose workflow.
-- `billing-auditor`, `firestore-guard`, and `rag-architect` are domain review/design specialists.
-- `vsa-mddd-planner` and `vsa-mddd-implementer` remain available for architecture migration work. They stay visible because current VS Code handoff validation requires named target agents to remain discoverable.
+- `commander` is the recommended entrypoint. It loads repo context, routes work to the right agent, and keeps users from having to choose the best specialist up front.
+- `planner`, `implementer`, and `reviewer` remain the visible general-purpose workflow for direct access when the route is already obvious.
+- `vsa-mddd-planner` and `vsa-mddd-implementer` remain visible for architecture migration work and explicit handoff-based flows.
+- `billing-auditor`, `firestore-guard`, and `rag-architect` are hidden specialist subagents (`user-invocable: false`) so they can still be routed by `commander` without crowding the picker.
 
 ### Skills
 - `.github/skills/awesome-rag-skill/SKILL.md`
@@ -118,6 +130,7 @@ The active hook set is intentionally minimal. This repository enables one guardr
 
 - `ci.yml` is an active baseline workflow that runs `npm run lint` and `npm run build`.
 - `copilot-setup-steps.yml` remains the special GitHub Copilot coding-agent bootstrap workflow and still contains a single `copilot-setup-steps` job.
+- `commander.agent.md` is the repo entrypoint for agent routing. It relies on VS Code custom-agent `agents` + `agent` tool support to dispatch planner / implementer / reviewer / specialist work.
 - Active GitHub Copilot coding-agent MCP servers assumed by this repository are `filesystem`, `memory`, `repomix`, `next-devtools`, `shadcn`, and `serena`.
 - Browser coding-agent MCP is configured in repository settings on GitHub.com. Files in `.github/copilot/` are source-of-truth templates and runbooks for that settings payload.
 - Deployment and rule-test workflows are intentionally scaffold-level. They are valid workflow files, but they still need environment secrets, deployment targets, and stronger test commands before they should be treated as enforcement.

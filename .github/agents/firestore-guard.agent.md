@@ -3,6 +3,7 @@ name: firestore-guard
 description: Review Firestore and access-control changes for tenant isolation, principle of least privilege, and deployment safety.
 argument-hint: Point to the rules, indexes, repositories, or access-control diff to review.
 tools: ["read", "search", "fetch"]
+user-invocable: false
 target: vscode
 ---
 # Firestore Guard

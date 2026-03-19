@@ -3,6 +3,7 @@ name: rag-architect
 description: Design RAG and knowledge-ingestion flows with explicit contracts, retrieval boundaries, and evaluation points.
 argument-hint: Describe the ingestion, retrieval, or evaluation flow that needs architecture guidance.
 tools: ["read", "search", "fetch"]
+user-invocable: false
 target: vscode
 ---
 # RAG Architect
