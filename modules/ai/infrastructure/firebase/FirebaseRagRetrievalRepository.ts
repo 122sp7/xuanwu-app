@@ -1,4 +1,4 @@
-import { collection, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
+import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
 
 import { firebaseClientApp } from "@/infrastructure/firebase/client";
 
@@ -63,8 +63,12 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
   private readonly db = getFirestore(firebaseClientApp);
 
   async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
+    // Prefer workspace-scoped retrieval whenever the caller has that boundary available.
+    // Organization-only scope is reserved for deliberate cross-workspace discovery flows;
+    // it broadens collection-group scans across every workspace in the organization and
+    // should therefore be treated as the higher-cost, broader-recall mode.
     const documentsQuery = query(
-      collection(this.db, "documents"),
+      collectionGroup(this.db, "documents"),
       where("organizationId", "==", input.organizationId),
       where("status", "==", "ready"),
       ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
@@ -87,7 +91,7 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
     }
 
     const chunkQuery = query(
-      collection(this.db, "chunks"),
+      collectionGroup(this.db, "chunks"),
       where("organizationId", "==", input.organizationId),
       ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),

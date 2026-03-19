@@ -36,12 +36,12 @@ class StubEmbedder:
 
 class SpyRepository:
     def __init__(self) -> None:
-        self.processing_ids: list[str] = []
+        self.processing_ids: list[tuple[str, str, str]] = []
         self.ready_payloads: list[tuple[str, str, str, str, list[RagChunk]]] = []
-        self.failed_payloads: list[tuple[str, str, str]] = []
+        self.failed_payloads: list[tuple[str, str, str, str, str]] = []
 
-    def mark_processing(self, document_id: str) -> None:
-        self.processing_ids.append(document_id)
+    def mark_processing(self, document_id: str, organization_id: str, workspace_id: str) -> None:
+        self.processing_ids.append((document_id, organization_id, workspace_id))
 
     def save_ready(
         self,
@@ -53,8 +53,17 @@ class SpyRepository:
     ) -> None:
         self.ready_payloads.append((document_id, organization_id, workspace_id, taxonomy, chunks))
 
-    def mark_failed(self, document_id: str, error_code: str, error_message: str) -> None:
-        self.failed_payloads.append((document_id, error_code, error_message))
+    def mark_failed(
+        self,
+        document_id: str,
+        organization_id: str,
+        workspace_id: str,
+        error_code: str,
+        error_message: str,
+    ) -> None:
+        self.failed_payloads.append(
+            (document_id, organization_id, workspace_id, error_code, error_message)
+        )
 
 
 def test_process_uploaded_document_marks_ready_with_chunks() -> None:
@@ -83,7 +92,7 @@ def test_process_uploaded_document_marks_ready_with_chunks() -> None:
     assert result.status == "ready"
     assert result.taxonomy == "finance"
     assert result.chunk_count == 2
-    assert repository.processing_ids == ["doc-1"]
+    assert repository.processing_ids == [("doc-1", "org-1", "workspace-1")]
     assert repository.failed_payloads == []
     assert len(repository.ready_payloads) == 1
 
@@ -127,10 +136,10 @@ def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
     else:
         raise AssertionError("Expected parser failure to be re-raised")
 
-    assert repository.processing_ids == ["doc-2"]
+    assert repository.processing_ids == [("doc-2", "org-1", "workspace-1")]
     assert repository.ready_payloads == []
     assert repository.failed_payloads == [
-        ("doc-2", "INGESTION_PIPELINE_ERROR", "parser exploded")
+        ("doc-2", "org-1", "workspace-1", "INGESTION_PIPELINE_ERROR", "parser exploded")
     ]
 
 

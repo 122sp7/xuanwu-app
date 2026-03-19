@@ -10,8 +10,21 @@ class FirebaseRagDocumentRepository(RagDocumentRepositoryPort):
     def __init__(self) -> None:
         self._db = firestore.client()
 
-    def mark_processing(self, document_id: str) -> None:
-        self._db.collection("documents").document(document_id).set(
+    def _workspace_root(self, organization_id: str, workspace_id: str):
+        return (
+            self._db.collection("knowledge_base")
+            .document(organization_id)
+            .collection("workspaces")
+            .document(workspace_id)
+        )
+
+    def _document_ref(self, document_id: str, organization_id: str, workspace_id: str):
+        return self._workspace_root(organization_id, workspace_id).collection("documents").document(
+            document_id
+        )
+
+    def mark_processing(self, document_id: str, organization_id: str, workspace_id: str) -> None:
+        self._document_ref(document_id, organization_id, workspace_id).set(
             {
                 "status": "processing",
                 "processingStartedAt": datetime.now(timezone.utc),
@@ -29,13 +42,15 @@ class FirebaseRagDocumentRepository(RagDocumentRepositoryPort):
         chunks: list[RagChunk],
     ) -> None:
         batch = self._db.batch()
-        chunks_collection = self._db.collection("chunks")
-        document_ref = self._db.collection("documents").document(document_id)
+        workspace_root = self._workspace_root(organization_id, workspace_id)
+        chunks_collection = workspace_root.collection("chunks")
+        document_ref = workspace_root.collection("documents").document(document_id)
 
         for chunk in chunks:
             batch.set(
                 chunks_collection.document(chunk.chunk_id),
                 {
+                    "chunkId": chunk.chunk_id,
                     "docId": chunk.doc_id,
                     "organizationId": organization_id,
                     "workspaceId": workspace_id,
@@ -60,8 +75,15 @@ class FirebaseRagDocumentRepository(RagDocumentRepositoryPort):
         )
         batch.commit()
 
-    def mark_failed(self, document_id: str, error_code: str, error_message: str) -> None:
-        self._db.collection("documents").document(document_id).set(
+    def mark_failed(
+        self,
+        document_id: str,
+        organization_id: str,
+        workspace_id: str,
+        error_code: str,
+        error_message: str,
+    ) -> None:
+        self._document_ref(document_id, organization_id, workspace_id).set(
             {
                 "status": "failed",
                 "errorCode": error_code,

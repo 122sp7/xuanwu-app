@@ -38,6 +38,15 @@ interface FirestoreFileDocument {
   readonly deletedAtISO?: string;
 }
 
+interface FirestoreFileVersionDocument {
+  readonly fileId?: string;
+  readonly versionNumber?: number;
+  readonly status?: FileVersion["status"];
+  readonly storagePath?: string;
+  readonly checksum?: string;
+  readonly createdAtISO?: string;
+}
+
 function isFileStatus(value: unknown): value is File["status"] {
   return value === "active" || value === "archived" || value === "deleted";
 }
@@ -78,6 +87,22 @@ function toFileEntity(fileId: string, data: FirestoreFileDocument): File {
   };
 }
 
+function isFileVersionStatus(value: unknown): value is FileVersion["status"] {
+  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
+}
+
+function toFileVersionEntity(versionId: string, data: FirestoreFileVersionDocument): FileVersion {
+  return {
+    id: versionId,
+    fileId: typeof data.fileId === "string" ? data.fileId : "",
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
+    status: isFileVersionStatus(data.status) ? data.status : "pending",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
 export class FirebaseFileRepository implements FileRepository {
   private readonly db = getFirestore(firebaseClientApp);
 
@@ -97,6 +122,23 @@ export class FirebaseFileRepository implements FileRepository {
     }
 
     return toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument);
+  }
+
+  async findVersion(fileId: string, versionId: string): Promise<FileVersion | null> {
+    const normalizedFileId = fileId.trim();
+    const normalizedVersionId = versionId.trim();
+    if (!normalizedFileId || !normalizedVersionId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(
+      doc(this.db, FILE_COLLECTION, normalizedFileId, VERSION_SUBCOLLECTION, normalizedVersionId),
+    );
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return toFileVersionEntity(snapshot.id, snapshot.data() as FirestoreFileVersionDocument);
   }
 
   async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {

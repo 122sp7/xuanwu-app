@@ -28,7 +28,11 @@ class ProcessUploadedDocumentUseCase:
         self._document_repository = document_repository
 
     def execute(self, command: ProcessUploadedDocumentCommand) -> ProcessUploadedDocumentResult:
-        self._document_repository.mark_processing(command.document_id)
+        self._document_repository.mark_processing(
+            command.document_id,
+            command.organization_id,
+            command.workspace_id,
+        )
 
         try:
             parsed_text = self._parser.parse(command).strip()
@@ -79,6 +83,8 @@ class ProcessUploadedDocumentUseCase:
         except Exception as error:
             self._document_repository.mark_failed(
                 command.document_id,
+                command.organization_id,
+                command.workspace_id,
                 "INGESTION_PIPELINE_ERROR",
                 str(error),
             )

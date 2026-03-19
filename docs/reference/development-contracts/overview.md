@@ -13,6 +13,7 @@ This index collects the development contracts that are intended to remove implem
 | --- | --- | --- | --- |
 | [RAG ingestion contract](./rag-ingestion-contract.md) | `modules/file` + `modules/ai` + `lib/firebase/functions-python` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
 | [Parser contract](./parser-contract.md) | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
+| [Knowledge contract](./knowledge-contract.md) | `modules/knowledge` | Read-side knowledge summary plus visible workspace UI | Missing explicit knowledge-owned document, chunk, and retrieval write boundary |
 | [Schedule contract](./schedule-contract.md) | `modules/schedule` | Derived schedule read model plus acknowledgement write-side | Split ownership between derived items and persisted acknowledgement |
 | [Acceptance contract](./acceptance-contract.md) | `modules/acceptance` | Derived acceptance gates over workspace snapshot | No explicit rule for future write-side approval or override flows |
 | [Billing contract](./billing-contract.md) | `modules/billing` | Read-side billing record model over in-memory data | No canonical contract for invoice, settlement, and refund slices |

@@ -42,7 +42,10 @@ export async function uploadInitFile(
 export async function uploadCompleteFile(
   input: UploadCompleteFileInputDto,
 ): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
-  const useCase = new UploadCompleteFileUseCase(new FirebaseFileRepository());
+  const useCase = new UploadCompleteFileUseCase(
+    new FirebaseFileRepository(),
+    new FirebaseRagDocumentRepository(),
+  );
   const commandId = createCommandId(input.versionId);
   const result = await useCase.execute(input);
 

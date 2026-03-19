@@ -33,5 +33,10 @@ export interface RagDocumentRecord {
 }
 
 export interface RagDocumentRepository {
+  findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+  }): Promise<RagDocumentRecord | null>;
   saveUploaded(record: RagDocumentRecord): Promise<void>;
 }

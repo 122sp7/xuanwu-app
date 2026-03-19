@@ -31,9 +31,11 @@ This contract is the authoritative implementation reference for the upload-to-wo
 
 ## Canonical `documents` metadata
 
+**Collection Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
+
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | yes | Server-generated document identifier |
+| `id` | `string` | yes | Server-generated document identifier, duplicated from the Firestore doc id so collection-group consumers can project a stable field without depending on snapshot metadata |
 | `organizationId` | `string` | yes | Tenant boundary |
 | `workspaceId` | `string` | yes | Workspace retrieval boundary |
 | `title` | `string` | yes | Human-readable document title |
@@ -56,11 +58,11 @@ This contract is the authoritative implementation reference for the upload-to-wo
 
 ### Target boundary
 
-The target boundary is a Firestore-driven ingestion flow that begins when a document is registered with `status=uploaded`. The worker must resolve the document metadata, validate tenancy fields, transition the document to `processing`, and then persist chunks plus the final lifecycle result.
+The primary boundary is now a Firestore-driven ingestion flow that begins when a document is registered with `status=uploaded` under `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`. The worker resolves the document metadata, reads the source artifact from Cloud Storage, transitions the document to `processing`, and then persists chunks plus the final lifecycle result.
 
 ### Compatibility boundary
 
-The current Python entrypoint is still an HTTPS callable that accepts `rawText`. That path is a compatibility bridge, not the long-term contract. New work should treat the callable path as transitional and avoid introducing more browser-facing ingestion fields there than are strictly required for compatibility.
+The Python HTTPS callable remains available as a secondary internal/admin bridge. It may still accept `rawText` for explicit reprocess/testing flows, but when `rawText` is omitted it should resolve the source text from the document `storagePath` instead of inventing a second browser-facing ingestion contract.
 
 ## Worker command fields
 
@@ -70,16 +72,19 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 | `organizationId` | `string` | yes | Reject if missing |
 | `workspaceId` | `string` | yes | Reject if missing |
 | `title` | `string` | yes | Prompt and audit context |
-| `sourceFileName` | `string` | yes | Required by current Python command |
-| `mimeType` | `string` | yes | Required by current Python command |
-| `storagePath` | `string` | yes | Storage lookup target |
+| `sourceFileName` | `string` | yes | File name carried into worker audit context |
+| `mimeType` | `string` | yes | Parser routing hint |
+| `storagePath` | `string` | yes | Cloud Storage object path for worker download |
 | `checksum` | `string` | no | Idempotency guard |
 | `taxonomyHint` | `string` | no | Optional pre-classification hint |
 
 ## `chunks` persistence contract
 
+**Collection Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
+
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
+| `chunkId` | `string` | yes | Deterministic chunk identifier, duplicated from the Firestore doc id so collection-group consumers can project a stable field without depending on snapshot metadata; guaranteed on new MVP ingestion writes |
 | `docId` | `string` | yes | Parent document id |
 | `organizationId` | `string` | yes | Tenant filter |
 | `workspaceId` | `string` | yes | Workspace filter |
@@ -104,9 +109,15 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 
 1. `organizationId` and `workspaceId` must exist on both `documents` and `chunks`.
 2. Embeddings are computed once during ingestion and reused for organization-scoped or workspace-scoped retrieval.
-3. Archive is a governance transition, not an ingestion side effect.
-4. The worker must never persist chunks without also writing a terminal document status.
-5. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
+3. Workspace-scoped retrieval should be preferred whenever the caller has a workspace boundary, because organization-only collection-group scans are broader and more expensive.
+4. Archive is a governance transition, not an ingestion side effect.
+5. The worker must never persist chunks without also writing a terminal document status.
+6. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
+
+## Legacy data note
+
+- Retrieval currently falls back to Firestore snapshot ids, so pre-MVP `documents` or `chunks` rows without duplicated `id` or `chunkId` fields remain readable.
+- No automatic backfill is included in this slice; legacy rows pick up the duplicated fields the next time they are reprocessed.
 
 ## Acceptance gates
 

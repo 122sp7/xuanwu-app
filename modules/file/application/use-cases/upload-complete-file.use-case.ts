@@ -1,11 +1,13 @@
 import type { File } from "../../domain/entities/File";
 import type { FileRepository } from "../../domain/repositories/FileRepository";
 import { completeUploadFile } from "../../domain/services/complete-upload-file";
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import type { FileCommandErrorCode } from "../../interfaces/contracts/file-command-result";
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
 } from "../dto/file.dto";
+import { RegisterUploadedRagDocumentUseCase } from "./register-uploaded-rag-document.use-case";
 
 type UploadCompleteFileUseCaseResult =
   | { ok: true; data: UploadCompleteFileOutputDto }
@@ -26,8 +28,15 @@ function isFileScopeMatch(input: {
   );
 }
 
+function isFileAlreadyCompleted(file: File): boolean {
+  return file.source === "file-upload-complete";
+}
+
 export class UploadCompleteFileUseCase {
-  constructor(private readonly fileRepository: FileRepository) {}
+  constructor(
+    private readonly fileRepository: FileRepository,
+    private readonly ragDocumentRepository: RagDocumentRepository,
+  ) {}
 
   async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteFileUseCaseResult> {
     const workspaceId = input.workspaceId.trim();
@@ -79,6 +88,14 @@ export class UploadCompleteFileUseCase {
       };
     }
 
+    const version = await this.fileRepository.findVersion(fileId, versionId);
+    if (!version) {
+      return {
+        ok: false,
+        error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." },
+      };
+    }
+
     if (
       !isFileScopeMatch({
         file,
@@ -107,12 +124,68 @@ export class UploadCompleteFileUseCase {
       };
     }
 
-    const nextFile = completeUploadFile({
-      file,
-      completedAtISO: new Date().toISOString(),
+    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
+      organizationId,
+      workspaceId,
+      storagePath: version.storagePath,
     });
 
-    await this.fileRepository.save(nextFile);
+    const nextFile =
+      isFileAlreadyCompleted(file)
+        ? file
+        : completeUploadFile({
+            file,
+            completedAtISO: new Date().toISOString(),
+          });
+
+    if (!isFileAlreadyCompleted(file)) {
+      await this.fileRepository.save(nextFile);
+    }
+
+    const ragDocument =
+      existingRagDocument === null
+        ? await (async () => {
+            const registerUploadedRagDocumentUseCase = new RegisterUploadedRagDocumentUseCase(
+              this.ragDocumentRepository,
+            );
+            const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
+              organizationId,
+              workspaceId,
+              title: file.name,
+              sourceFileName: file.name,
+              mimeType: file.mimeType,
+              storagePath: version.storagePath,
+              checksum: version.checksum,
+            });
+            if (!ragDocumentResult.ok) {
+              return ragDocumentResult;
+            }
+
+            return {
+              ok: true as const,
+              data: {
+                documentId: ragDocumentResult.data.documentId,
+                status: ragDocumentResult.data.status,
+              },
+            };
+          })()
+        : {
+            ok: true as const,
+            data: {
+              documentId: existingRagDocument.id,
+              status: existingRagDocument.status,
+            },
+          };
+
+    if (ragDocument.ok === false) {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_RAG_REGISTRATION_FAILED",
+          message: ragDocument.error.message,
+        },
+      };
+    }
 
     return {
       ok: true,
@@ -120,6 +193,8 @@ export class UploadCompleteFileUseCase {
         fileId: nextFile.id,
         versionId: nextFile.currentVersionId,
         status: "active",
+        ragDocumentId: ragDocument.data.documentId,
+        ragDocumentStatus: ragDocument.data.status,
       },
     };
   }
