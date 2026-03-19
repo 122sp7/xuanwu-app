@@ -28,7 +28,7 @@ function isFileScopeMatch(input: {
   );
 }
 
-function shouldSkipFileCompletion(file: File): boolean {
+function isFileAlreadyCompleted(file: File): boolean {
   return file.source === "file-upload-complete";
 }
 
@@ -131,14 +131,14 @@ export class UploadCompleteFileUseCase {
     });
 
     const nextFile =
-      shouldSkipFileCompletion(file)
+      isFileAlreadyCompleted(file)
         ? file
         : completeUploadFile({
             file,
             completedAtISO: new Date().toISOString(),
           });
 
-    if (!shouldSkipFileCompletion(file)) {
+    if (!isFileAlreadyCompleted(file)) {
       await this.fileRepository.save(nextFile);
     }
 

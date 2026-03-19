@@ -1,3 +1,5 @@
+import logging
+
 from firebase_functions import firestore_fn, https_fn
 
 from app.document_ai.interfaces.callables.process_document_with_ai import (
@@ -19,20 +21,24 @@ def process_uploaded_rag_document(req: https_fn.CallableRequest):
     return handle_process_uploaded_rag_document(req)
 
 
+logger = logging.getLogger(__name__)
+
+
 @firestore_fn.on_document_created(
     document="knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}"
 )
 def process_uploaded_rag_document_on_create(event: firestore_fn.Event[firestore_fn.DocumentSnapshot]):
     snapshot = event.data
     if snapshot is None:
-        print("[process_uploaded_rag_document_on_create] skipped: missing snapshot")
+        logger.info("process_uploaded_rag_document_on_create skipped: missing snapshot")
         return None
 
     data = snapshot.to_dict() or {}
     if data.get("status") != "uploaded":
-        print(
-            "[process_uploaded_rag_document_on_create] skipped: "
-            f"status={data.get('status')!r} documentId={event.params['documentId']}"
+        logger.info(
+            "process_uploaded_rag_document_on_create skipped: status=%r documentId=%s",
+            data.get("status"),
+            event.params["documentId"],
         )
         return None
 

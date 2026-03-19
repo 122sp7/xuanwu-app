@@ -91,7 +91,8 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
 
     await setDoc(documentRef, {
       // Duplicate the document id in the payload so collection-group consumers can project
-      // a stable field without depending on Firestore snapshot metadata.
+      // a stable field without depending on Firestore snapshot metadata. Legacy rows that
+      // predate this MVP field remain readable through snapshot.id fallback paths.
       id: record.id,
       organizationId: record.organizationId,
       workspaceId: record.workspaceId,

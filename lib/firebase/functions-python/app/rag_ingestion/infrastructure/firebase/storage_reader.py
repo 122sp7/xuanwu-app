@@ -4,6 +4,8 @@ from google.cloud import storage
 
 
 def _resolve_storage_bucket() -> str:
+    # Runtime-preferred order: dedicated worker env, shared public config fallback, then
+    # an explicit GCS override for local/admin execution paths.
     bucket_name = (
         os.getenv("FIREBASE_STORAGE_BUCKET")
         or os.getenv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET")

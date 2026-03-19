@@ -69,7 +69,13 @@ def _resolve_raw_text(data: dict[str, Any]) -> str:
     if raw_text is not None:
         return raw_text
 
-    storage_path = _required_string(data, "storagePath")
+    storage_path = _optional_string(data, "storagePath")
+    if storage_path is None:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message="storagePath is required when rawText is omitted.",
+        )
+
     return _get_storage_text_reader().read_text(storage_path)
 
 
