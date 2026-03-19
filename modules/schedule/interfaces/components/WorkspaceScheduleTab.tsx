@@ -44,6 +44,14 @@ const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
 } as const;
 
+function invokeHandlerIfIdExists(id: string | null, handler: (value: string) => Promise<void>) {
+  if (!id) {
+    return;
+  }
+
+  void handler(id);
+}
+
 function resolveFlowStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   if (!status) {
     return "outline";
@@ -195,7 +203,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           timezone: runtimeProfile.timezone,
           slotType: "planned",
         },
-        useScaffoldingFastClose: true,
+        useScaffoldingFastClose: false,
       });
 
       if (!result.success || !result.command.success) {
@@ -373,7 +381,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {["submitted", "under-review"].includes(projection.requestStatus) && (
+                  {["submitted", "under-review", "accepted"].includes(projection.requestStatus) && (
                     <Button
                       type="button"
                       variant="outline"
@@ -389,7 +397,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleRejectAssignment(projection.assignmentId!)}
+                      onClick={() =>
+                        invokeHandlerIfIdExists(projection.assignmentId, handleRejectAssignment)
+                      }
                     >
                       Reject Assignment
                     </Button>
@@ -404,7 +414,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        onClick={() => void handleCancelSchedule(projection.scheduleId!)}
+                        onClick={() =>
+                          invokeHandlerIfIdExists(projection.scheduleId, handleCancelSchedule)
+                        }
                       >
                         Cancel Schedule
                       </Button>
