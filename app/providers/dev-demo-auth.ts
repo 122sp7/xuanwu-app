@@ -5,10 +5,15 @@ import type { AuthUser } from "./auth-context";
 const DEV_DEMO_SESSION_KEY = "xuanwu_dev_demo_session_v1";
 
 export const DEV_DEMO_ACCOUNT_EMAIL = "test@demo.com";
-export const DEV_DEMO_ACCOUNT_PASSWORD = "123456";
+const DEV_DEMO_ACCOUNT_PASSWORD = "123456";
 
 function isLocalhostHost(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1";
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  );
 }
 
 export function isLocalDevDemoAllowed(): boolean {
@@ -24,6 +29,14 @@ export function isDevDemoCredential(email: string, password: string): boolean {
     email.trim().toLowerCase() === DEV_DEMO_ACCOUNT_EMAIL &&
     password === DEV_DEMO_ACCOUNT_PASSWORD
   );
+}
+
+export function createDevDemoUser(): AuthUser {
+  return {
+    id: "dev-demo-user",
+    name: "Demo User",
+    email: DEV_DEMO_ACCOUNT_EMAIL,
+  };
 }
 
 export function readDevDemoSession(): AuthUser | null {

@@ -20,7 +20,7 @@ import {
   SendPasswordResetEmailUseCase,
 } from "@/modules/identity/application/use-cases/identity.use-cases";
 import {
-  DEV_DEMO_ACCOUNT_EMAIL,
+  createDevDemoUser,
   isDevDemoCredential,
   isLocalDevDemoAllowed,
   writeDevDemoSession,
@@ -70,11 +70,7 @@ export default function PublicPage() {
 
       if (!result.success) {
         if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-          writeDevDemoSession({
-            id: "dev-demo-user",
-            name: "Demo User",
-            email: DEV_DEMO_ACCOUNT_EMAIL,
-          });
+          writeDevDemoSession(createDevDemoUser());
           window.location.assign("/dashboard");
           return;
         }

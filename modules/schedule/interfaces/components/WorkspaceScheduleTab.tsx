@@ -73,13 +73,22 @@ function resolveFlowStatusVariant(status: string | null): "default" | "secondary
   return "outline";
 }
 
+function resolveClientLocale(): string {
+  if (typeof navigator === "undefined") {
+    return "zh-TW";
+  }
+
+  const [firstLanguage] = navigator.languages;
+  return firstLanguage || navigator.language || "zh-TW";
+}
+
 function formatUpdatedAt(iso: string): string {
   const parsed = Date.parse(iso);
   if (Number.isNaN(parsed)) {
     return iso;
   }
 
-  return new Intl.DateTimeFormat("zh-TW", {
+  return new Intl.DateTimeFormat(resolveClientLocale(), {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -106,6 +115,8 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   } | null>(null);
 
   const defaultCandidateId = useMemo(
+    // Fallback to authenticated user when workspace personnel is not configured yet,
+    // so local runtime checks and early-stage workspaces can still execute the flow.
     () =>
       workspace.personnel?.managerId?.trim() ||
       workspace.personnel?.supervisorId?.trim() ||
@@ -456,25 +467,21 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         )}
 
         <div className="space-y-3">
-          {items.length === 0 && loadState === "loaded" ? (
-            <p className="text-sm text-muted-foreground">目前尚無 schedule milestone / follow-up 資料。</p>
-          ) : (
-            items.map((item) => (
-              <div key={item.id} className="rounded-xl border border-border/40 px-4 py-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                      <Badge variant={statusVariantMap[item.status]}>{item.status}</Badge>
-                      <Badge variant="outline">{item.type}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{item.detail}</p>
+          {items.map((item) => (
+            <div key={item.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <Badge variant={statusVariantMap[item.status]}>{item.status}</Badge>
+                    <Badge variant="outline">{item.type}</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{item.timeLabel}</p>
+                  <p className="text-sm text-muted-foreground">{item.detail}</p>
                 </div>
+                <p className="text-xs text-muted-foreground">{item.timeLabel}</p>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
