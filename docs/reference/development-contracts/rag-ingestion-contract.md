@@ -84,7 +84,7 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `chunkId` | `string` | yes | Deterministic chunk identifier |
+| `chunkId` | `string` | yes | Deterministic chunk identifier; guaranteed on new MVP ingestion writes, while legacy chunk rows may need reprocessing or backfill |
 | `docId` | `string` | yes | Parent document id |
 | `organizationId` | `string` | yes | Tenant filter |
 | `workspaceId` | `string` | yes | Workspace filter |
@@ -109,9 +109,10 @@ The current Python entrypoint is still an HTTPS callable that accepts `rawText`.
 
 1. `organizationId` and `workspaceId` must exist on both `documents` and `chunks`.
 2. Embeddings are computed once during ingestion and reused for organization-scoped or workspace-scoped retrieval.
-3. Archive is a governance transition, not an ingestion side effect.
-4. The worker must never persist chunks without also writing a terminal document status.
-5. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
+3. Workspace-scoped retrieval should be preferred whenever the caller has a workspace boundary, because organization-only collection-group scans are broader and more expensive.
+4. Archive is a governance transition, not an ingestion side effect.
+5. The worker must never persist chunks without also writing a terminal document status.
+6. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
 
 ## Acceptance gates
 

@@ -63,6 +63,9 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
   private readonly db = getFirestore(firebaseClientApp);
 
   async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
+    // Prefer workspace-scoped retrieval whenever the caller has that boundary available.
+    // Organization-only scope is still supported for cross-workspace discovery, but it
+    // intentionally trades higher collection-group scan cost for broader recall.
     const documentsQuery = query(
       collectionGroup(this.db, "documents"),
       where("organizationId", "==", input.organizationId),
