@@ -96,8 +96,8 @@ That legacy domain should migrate into explicit aggregates and services instead 
 - identity: `assignmentId`
 - invariants:
   - belongs to exactly one `ScheduleRequest`
-  - assignment decisions are made by the organization side, not the workspace side
-  - assignees must satisfy the matching policy before confirm
+  - assignment decisions are made by the organization actor, not the workspace actor
+  - assignees must satisfy the matching policy before confirmation
 - status examples:
   - `pending-review`
   - `matching`
@@ -142,8 +142,7 @@ That legacy domain should migrate into explicit aggregates and services instead 
 - `RejectAssignment`
 - `CompleteAssignment`
 - `DeriveWorkspaceScheduleItems`
-
-`DeriveWorkspaceScheduleItems` should remain separate because it belongs to the current workspace readiness slice, not the legacy workforce fulfillment workflow.
+  - remains separate because it belongs to the current workspace readiness slice, not the legacy workforce fulfillment workflow
 
 ### Matching mechanism
 
