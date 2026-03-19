@@ -25,6 +25,12 @@ function resolveConcurrencyLimit(availability: Availability, maxConcurrentAssign
   return Math.min(availabilityLimit, organizationLimit);
 }
 
+function resolveLoadLimit(availability: Availability, maxLoadPerMember: number): number {
+  const availabilityLimit = Math.max(availability.maxLoadPerPeriod, 0);
+  const organizationLimit = Math.max(maxLoadPerMember, 0);
+  return Math.min(availabilityLimit, organizationLimit);
+}
+
 export function isSlotWithinAvailability(slot: CalendarSlot, availability: Availability): boolean {
   if (!hasValidCalendarSlotRange(slot)) {
     return false;
@@ -73,6 +79,7 @@ export function canAllocateSchedule(
     readonly existingLoadUnits: number;
     readonly nextLoadUnits: number;
     readonly maxConcurrentAssignments: number;
+    readonly maxLoadPerMember: number;
   },
 ): { readonly allowed: boolean; readonly reason?: string } {
   const {
@@ -83,6 +90,7 @@ export function canAllocateSchedule(
     existingLoadUnits,
     nextLoadUnits,
     maxConcurrentAssignments,
+    maxLoadPerMember,
   } = params;
 
   if (!isSlotWithinAvailability(slot, availability)) {
@@ -104,7 +112,8 @@ export function canAllocateSchedule(
     return { allowed: false, reason: "concurrency_over_capacity" };
   }
 
-  if (existingLoadUnits + nextLoadUnits > availability.maxLoadPerPeriod) {
+  const loadLimit = resolveLoadLimit(availability, maxLoadPerMember);
+  if (existingLoadUnits + nextLoadUnits > loadLimit) {
     return { allowed: false, reason: "load_over_capacity" };
   }
 

@@ -241,6 +241,7 @@ export class RunScheduleMdddFlowUseCase {
       existingLoadUnits: selectedCandidate.currentLoadUnits,
       nextLoadUnits: DEFAULT_ASSIGNMENT_LOAD_WEIGHT,
       maxConcurrentAssignments: input.organization.maxConcurrentAssignmentsPerMember,
+      maxLoadPerMember: input.organization.maxLoadPerMember,
     });
 
     if (!allocation.allowed) {
