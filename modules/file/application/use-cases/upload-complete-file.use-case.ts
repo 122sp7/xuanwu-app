@@ -151,11 +151,14 @@ export class UploadCompleteFileUseCase {
             const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
               organizationId,
               workspaceId,
+              accountId: actorAccountId,
               title: file.name,
               sourceFileName: file.name,
               mimeType: file.mimeType,
               storagePath: version.storagePath,
+              sizeBytes: file.sizeBytes,
               checksum: version.checksum,
+              versionNumber: version.versionNumber,
             });
             if (!ragDocumentResult.ok) {
               return ragDocumentResult;

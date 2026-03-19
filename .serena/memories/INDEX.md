@@ -2,7 +2,7 @@
 
 **Bootstrap instructions:** Read this file first, then load the numbered memories in order. Only load migration/* and ui/* memories when working in those areas.
 
-**Last updated:** 2026-03-20 | Branch: `main`
+**Last updated:** 2026-03-20 | Branch: `copilot/update-knowledge-development-docs`
 
 ---
 
@@ -51,10 +51,12 @@
 
 ## Key Facts (quick reference)
 
-- **Active branch / PR**: `copilot/redesign-scheduling-task-system` → PR #9 (schedule contract)
+- **Active branch / PR**: `copilot/update-knowledge-development-docs` — Knowledge MVP write-side completion
 - **Schedule MDDD**: Domain + Infrastructure COMPLETE; UI integration is the next milestone
 - **Delivery contracts**: always read `docs/reference/development-contracts/<module>-contract.md` before implementing
 - **Python functions**: `lib/firebase/functions-python/` — deploy with `npm run deploy:functions:python`
 - **namespace-core**: scaffolded only (all .gitkeep) — do not assume it has working code
-- **knowledge module**: top-level `modules/knowledge` exists and owns workspace Knowledge tab read-side surface
+- **knowledge module**: `modules/knowledge` EXISTS and is LIVE — owns workspace Knowledge tab + RAG documents list (WorkspaceKnowledgeTab)
+- **file module**: `RagDocumentRecord` now has complete metadata fields (accountId, sizeBytes, versionGroupId, versionNumber, isLatest, language, accessControl, category, department, tags, statusMessage, chunkCount, indexedAtISO, expiresAtISO). Firestore path: `/knowledge_base/{orgId}/workspaces/{wsId}/documents/{docId}`. `getWorkspaceRagDocuments(workspace)` is now exported.
+- **Organization knowledge tab**: lists all workspaces with status + ready ratio + clickable links to workspace Knowledge tab
 - **Validate with**: `npm run lint` or `npm run build` (no `typecheck` or `check` script on this branch)

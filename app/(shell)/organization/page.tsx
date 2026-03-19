@@ -454,34 +454,67 @@ export default function OrganizationPage() {
                 <CardHeader>
                   <CardTitle>Knowledge</CardTitle>
                   <CardDescription>
-                    組織下各工作區知識狀態總覽，檢視檔案註冊與 ready 比例。
+                    組織下各工作區知識狀態總覽，檢視檔案註冊與 ready 比例。點擊工作區名稱可前往詳細頁。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {workspaceSummaries.length === 0 ? (
+                  {loadState === "loading" && (
+                    <p className="text-sm text-muted-foreground">Loading knowledge summaries…</p>
+                  )}
+                  {loadState === "error" && (
+                    <p className="text-sm text-destructive">無法載入知識摘要資料，請稍後再試。</p>
+                  )}
+                  {loadState === "loaded" && workspaceSummaries.length === 0 && (
                     <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區知識資料。</p>
-                  ) : (
+                  )}
+                  {loadState === "loaded" &&
                     workspaceSummaries.map((workspace) => {
                       const summary = knowledgeSummariesByWorkspaceId[workspace.id];
                       const status = summary?.status ?? "needs-input";
+                      const registeredCount = Math.max(0, summary?.registeredAssetCount ?? 0);
+                      const readyCount = Math.max(0, summary?.readyAssetCount ?? 0);
+                      const readyRatio =
+                        registeredCount > 0
+                          ? Math.max(0, Math.min(100, Math.round((readyCount / registeredCount) * 100)))
+                          : 0;
                       return (
                         <div
                           key={workspace.id}
-                          className="rounded-lg border border-border/40 px-3 py-2"
+                          className="rounded-lg border border-border/40 px-3 py-3"
                         >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-medium">{workspace.name}</p>
-                            <Badge variant={status === "ready" ? "secondary" : "outline"}>{status}</Badge>
-                            <Badge variant="outline">registered:{summary?.registeredAssetCount ?? 0}</Badge>
-                            <Badge variant="outline">ready:{summary?.readyAssetCount ?? 0}</Badge>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                asChild
+                                variant="link"
+                                className="h-auto p-0 text-sm font-medium"
+                              >
+                                <a href={`/workspace/${workspace.id}?tab=Knowledge`}>
+                                  {workspace.name}
+                                </a>
+                              </Button>
+                              <Badge
+                                variant={status === "ready" ? "default" : status === "staged" ? "secondary" : "outline"}
+                              >
+                                {status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span>registered: {registeredCount}</span>
+                              <span>ready: {readyCount}</span>
+                              {registeredCount > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {readyRatio}% ready
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Workspace: {workspace.id}
+                            {workspace.id}
                           </p>
                         </div>
                       );
-                    })
-                  )}
+                    })}
                 </CardContent>
               </Card>
             </TabsContent>
