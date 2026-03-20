@@ -38,6 +38,11 @@ const DAILY_VISIBILITY_LABEL: Record<DailyFeedItem["visibility"], string> = {
   public_demo: "公開展示",
 };
 
+const STANDARD_WORKSPACE_DAILY_VISIBILITIES: readonly PublishDailyEntryInput["visibility"][] = [
+  "workspace_only",
+  "organization",
+];
+
 function formatNotificationTime(timestamp: number) {
   try {
     return new Intl.DateTimeFormat("zh-TW", {
@@ -71,8 +76,11 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
   const { state: appState } = useApp();
   const actorAccountId = appState.activeAccount?.id ?? "";
 
-  const defaultVisibility =
-    workspace.accountType === "organization" ? "organization" : "workspace_only";
+  const supportedVisibilities =
+    workspace.accountType === "organization"
+      ? STANDARD_WORKSPACE_DAILY_VISIBILITIES
+      : ["workspace_only"];
+  const defaultVisibility = supportedVisibilities[0];
 
   const [digest, setDigest] = useState<WorkspaceDailyDigestEntity | null>(null);
   const [feed, setFeed] = useState<readonly DailyFeedItem[]>([]);
@@ -244,9 +252,9 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
                   }
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  {Object.entries(DAILY_VISIBILITY_LABEL).map(([value, label]) => (
+                  {supportedVisibilities.map((value) => (
                     <option key={value} value={value}>
-                      {label}
+                      {DAILY_VISIBILITY_LABEL[value]}
                     </option>
                   ))}
                 </select>

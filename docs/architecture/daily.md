@@ -23,7 +23,7 @@ description: Target architecture for Organization Daily and Workspace Daily, inc
 - **Organization Daily UI**：`app/(shell)/organization/daily/page.tsx`
   - 查詢：`getOrganizationDailyDigest(organizationId, workspaceIds)`
   - 功能：顯示組織名下所有工作區的今日通知與活動摘要
-- **目前資料邊界**：`modules/daily` 只提供 read-side digest，不提供發文、互動、排序策略或內容治理
+- **目前資料邊界**：`modules/daily` 已有 canonical `dailyEntries` write-side、workspace / organization authored feed，以及既有 notification-driven digest compatibility layer
 
 ### 0.1 本輪文件要解決的問題
 
@@ -36,13 +36,13 @@ description: Target architecture for Organization Daily and Workspace Daily, inc
 
 ### 0.2 本輪不假裝已完成
 
-以下能力目前**尚未實作**，本文件只定義方向與契約：
+以下能力目前**尚未完整實作**，本文件只定義方向與契約：
 
-- Workspace 主動發布 Daily 內容
 - 圖片 / 附件 / carousel 類型 Daily 卡片
 - Reaction、bookmark、acknowledgement、comment thread
-- Ranking 與「你今天應該先看什麼」排序器
-- Story / Highlight / Pin 等內容生命週期
+- 多因子 Ranking 與「你今天應該先看什麼」排序器（目前僅 freshness-only）
+- Story / Highlight / Pin 等完整內容生命週期
+- `selected_workspaces` 精準可見性投影
 - Cross-workspace follow / subscribe / digest policy
 - Daily 與 task / knowledge / schedule / billing / audit 的事件整合
 
@@ -303,11 +303,12 @@ modules/daily/
 - 以通知資料生成 workspace / organization Daily digest
 - UI 只做今日摘要顯示
 
-### Phase 2：DailyEntry write-side（下一階段）
+### Phase 2：DailyEntry write-side（目前已落地最小切片）
 
 - 支援 Workspace 主動發布 Daily 內容
 - 建立 canonical `dailyEntries` 集合
 - 組織端顯示跨 workspace feed
+- 目前 Organization feed 以 freshness-only 排序，並保留 digest compatibility layer
 
 ### Phase 3：Ranking + interaction
 

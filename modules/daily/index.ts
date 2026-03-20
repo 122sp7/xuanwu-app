@@ -14,6 +14,7 @@ export type {
 export type { DailyFeedItem } from "./domain/entities/DailyFeed";
 export type { DailyDigestRepository } from "./domain/repositories/DailyDigestRepository";
 export type { DailyEntryRepository } from "./domain/repositories/DailyEntryRepository";
+export type { DailyFeedRepository } from "./domain/repositories/DailyFeedRepository";
 export {
   GetWorkspaceDailyDigestUseCase,
   GetOrganizationDailyDigestUseCase,
@@ -25,6 +26,7 @@ export {
 export { PublishDailyEntryUseCase } from "./application/use-cases/publish-daily-entry.use-case";
 export { DefaultDailyDigestRepository } from "./infrastructure/default/DefaultDailyDigestRepository";
 export { FirebaseDailyEntryRepository } from "./infrastructure/firebase/FirebaseDailyEntryRepository";
+export { FirebaseDailyFeedRepository } from "./infrastructure/firebase/FirebaseDailyFeedRepository";
 export {
   getWorkspaceDailyDigest,
   getOrganizationDailyDigest,

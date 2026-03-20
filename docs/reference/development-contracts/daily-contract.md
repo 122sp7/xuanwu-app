@@ -26,6 +26,14 @@ The repository currently ships these Daily queries:
 | --- | --- | --- |
 | `getWorkspaceDailyDigest(workspaceId, accountId)` | Load the daily digest for a single workspace | `DefaultDailyDigestRepository` over notification data |
 | `getOrganizationDailyDigest(organizationId, workspaceIds)` | Load the organization-level digest across owned workspaces | `DefaultDailyDigestRepository` over notification data |
+| `getWorkspaceDailyFeed(workspaceId)` | Load canonical authored Daily entries for one workspace | `FirebaseDailyFeedRepository` over `dailyEntries` |
+| `getOrganizationDailyFeed(organizationId, workspaceIds)` | Load canonical authored Daily entries across an organization | `FirebaseDailyFeedRepository` over `dailyEntries` |
+
+### Implemented command-side
+
+| Command | Purpose | Current source |
+| --- | --- | --- |
+| `publishDailyEntry(input)` | Publish a canonical authored Daily entry | `PublishDailyEntryUseCase` + `FirebaseDailyEntryRepository` |
 
 ### Implemented entity contract
 
@@ -56,11 +64,11 @@ interface OrganizationDailyDigestEntity {
 
 ### Current limitations
 
-1. no write-side Daily authoring
-2. no Organization Daily ranking beyond timestamp order from notifications
-3. no separation between authored entries and system-generated signals
-4. no interaction contract (ack / bookmark / reaction / comment)
-5. no explicit promotion path to knowledge, task, schedule, or audit
+1. Organization Daily ranking is still freshness-only (`rankReason = ["freshness"]`)
+2. authored entries and notification digest still coexist as dual read paths
+3. no interaction contract implementation yet (ack / bookmark / reaction / comment)
+4. no explicit promotion path to knowledge, task, schedule, or audit
+5. `selected_workspaces` visibility is reserved in the contract but not yet fully implemented in read-side targeting
 
 ## Product contract
 
@@ -282,14 +290,13 @@ Required responsibilities:
 Input:
 
 - `workspaceId: string`
-- `accountId: string`
 - optional future filters: `entryTypes`, `includeArchived`, `cursor`
 
 Output rules:
 
-1. must only return entries visible to the target workspace audience
-2. must include interaction summary relevant to the actor when available
-3. must prefer projected feed items over raw repository joins
+1. current implementation reads canonical feed rows from `FirebaseDailyFeedRepository`
+2. workspace audience currently shows the workspace's own authored entries and filters expired entries
+3. interaction summary is not implemented yet and remains future scope
 
 ### Organization Daily query
 
@@ -301,10 +308,11 @@ Input:
 
 Output rules:
 
-1. must only include workspace entries owned by the provided organization
-2. must support organization-wide ranking
-3. must preserve the origin `workspaceId` for every item
-4. must allow future grouping by workspace without changing the canonical item shape
+1. current implementation reads canonical feed rows from `FirebaseDailyFeedRepository`
+2. it only returns entries whose `organizationId` matches and whose `workspaceId` belongs to the provided workspace list
+3. current visibility enforcement includes `organization` and `public_demo` entries only
+4. current ranking is freshness-only; explainable multi-factor ranking remains future scope
+5. every row preserves the origin `workspaceId`
 
 ## Command contracts
 
@@ -322,10 +330,10 @@ Required input:
 
 Expected outcomes:
 
-- validate actor can publish for the workspace
-- create or publish a `DailyEntry`
-- enqueue feed projection rebuild
-- emit audit-safe event trail
+- validate required fields and supported enum values
+- create and publish a canonical `DailyEntry`
+- make the entry available through `getWorkspaceDailyFeed()` / `getOrganizationDailyFeed()`
+- audit trail / projection rebuild remain future scope
 
 ### `acknowledgeDailyEntry`
 

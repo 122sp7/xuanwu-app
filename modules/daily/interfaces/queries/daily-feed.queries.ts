@@ -3,10 +3,10 @@ import {
   ListOrganizationDailyFeedUseCase,
   ListWorkspaceDailyFeedUseCase,
 } from "../../application/use-cases/list-daily-feed.use-cases";
-import { FirebaseDailyEntryRepository } from "../../infrastructure/firebase/FirebaseDailyEntryRepository";
+import { FirebaseDailyFeedRepository } from "../../infrastructure/firebase/FirebaseDailyFeedRepository";
 
-function createDailyEntryRepository() {
-  return new FirebaseDailyEntryRepository();
+function createDailyFeedRepository() {
+  return new FirebaseDailyFeedRepository();
 }
 
 export async function getWorkspaceDailyFeed(workspaceId: string): Promise<readonly DailyFeedItem[]> {
@@ -15,7 +15,7 @@ export async function getWorkspaceDailyFeed(workspaceId: string): Promise<readon
     return [];
   }
 
-  const useCase = new ListWorkspaceDailyFeedUseCase(createDailyEntryRepository());
+  const useCase = new ListWorkspaceDailyFeedUseCase(createDailyFeedRepository());
   return useCase.execute(normalizedWorkspaceId);
 }
 
@@ -29,6 +29,6 @@ export async function getOrganizationDailyFeed(
   }
 
   const normalizedWorkspaceIds = workspaceIds.map((workspaceId) => workspaceId.trim()).filter(Boolean);
-  const useCase = new ListOrganizationDailyFeedUseCase(createDailyEntryRepository());
+  const useCase = new ListOrganizationDailyFeedUseCase(createDailyFeedRepository());
   return useCase.execute(normalizedOrganizationId, normalizedWorkspaceIds);
 }
