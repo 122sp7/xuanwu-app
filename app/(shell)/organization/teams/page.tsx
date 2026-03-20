@@ -26,20 +26,22 @@ export default function OrganizationTeamsPage() {
     if (!activeOrganizationId) return;
     let cancelled = false;
 
-    setLoadState("loading");
-    getOrganizationTeams(activeOrganizationId)
-      .then((data) => {
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(activeOrganizationId);
         if (!cancelled) {
           setTeams(data);
           setLoadState("loaded");
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setTeams([]);
           setLoadState("error");
         }
-      });
+      }
+    }
+    void load();
 
     return () => {
       cancelled = true;
@@ -48,14 +50,14 @@ export default function OrganizationTeamsPage() {
 
   if (!activeOrganizationId) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="">
         <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
         <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>

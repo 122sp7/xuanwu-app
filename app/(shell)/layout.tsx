@@ -10,28 +10,33 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { AccountSwitcher } from "./_components/account-switcher";
+import { AppRail } from "./_components/app-rail";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
 import { HeaderControls } from "./_components/header-controls";
 import { HeaderUserAvatar } from "./_components/header-user-avatar";
 import { ShellGuard } from "./_components/shell-guard";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/workspace", label: "Workspace" },
-  { href: "/settings", label: "Personal Settings" },
-];
-
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/organization": "Organization Governance",
   "/workspace": "Workspace Hub",
+  "/wiki": "Wiki",
+  "/ai-chat": "AI Chat",
   "/settings": "Personal Settings",
 };
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/workspace", label: "Workspace" },
+  { href: "/settings", label: "Personal Settings" },
+];
 
 const organizationManagementItems = [
   { label: "成員", href: "/organization/members" },
@@ -130,13 +135,13 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 
   return (
     <ShellGuard>
-      <div className="flex min-h-screen bg-background">
-        <DashboardSidebar
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
           pathname={pathname}
-          navItems={navItems}
           user={authState.user}
           activeAccount={appState.activeAccount}
           organizationAccounts={organizationAccounts}
+          isOrganizationAccount={showAccountManagement}
           onSelectPersonal={handleSelectPersonal}
           onSelectOrganization={handleSelectOrganization}
           onOrganizationCreated={handleOrganizationCreated}
@@ -144,15 +149,32 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
             void handleLogout();
           }}
         />
+        <DashboardSidebar
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          onOrganizationCreated={handleOrganizationCreated}
+        />
 
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <header className="border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-16 items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <p className="max-w-[240px] truncate text-xs text-muted-foreground">
-                  Active: {appState.activeAccount?.name ?? authState.user?.name ?? "—"}
-                </p>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => { /* TODO: open global search command palette */ }}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
               </div>
 
               <div className="ml-auto flex items-center gap-3">
@@ -195,7 +217,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
             </div>
 
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {navItems.map((item) => {
+              {mobileNavItems.map((item) => {
                 const isActive = isActiveRoute(item.href);
                 return (
                   <Link
@@ -216,14 +238,10 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           </header>
 
           {logoutError && (
-            <div className="px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
           )}
 
           <main className="flex-1 overflow-auto p-6">{children}</main>
-
-          <footer className="border-t border-border/50 px-4 py-3 text-xs text-muted-foreground md:px-6">
-            Xuanwu App Workspace
-          </footer>
         </div>
       </div>
     </ShellGuard>
