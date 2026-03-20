@@ -56,6 +56,7 @@ export class ListOrganizationDailyFeedUseCase {
     const workspaceIdSet = new Set(workspaceIds);
     const entries = await this.dailyEntryRepository.listByOrganizationId(organizationId);
 
+    // An empty workspace filter means "all workspaces already scoped to this organization".
     return entries
       .filter((entry) => workspaceIdSet.size === 0 || workspaceIdSet.has(entry.workspaceId))
       .filter((entry) => !isExpired(entry))

@@ -165,7 +165,7 @@ export default function OrganizationDailyPage() {
                   <p className="text-sm text-muted-foreground">{entry.summary}</p>
                   {entry.body && <p className="text-sm text-foreground/90">{entry.body}</p>}
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{workspaceNames.get(entry.workspaceId) ?? entry.workspaceId}</span>
+                    <span>{workspaceNames.get(entry.workspaceId) ?? "未知工作區"}</span>
                     <span>•</span>
                     <span>{formatDateTime(entry.publishedAtISO)}</span>
                   </div>

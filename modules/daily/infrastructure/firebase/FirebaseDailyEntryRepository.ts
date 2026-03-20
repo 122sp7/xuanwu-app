@@ -19,10 +19,12 @@ import type { DailyEntryRepository } from "../../domain/repositories/DailyEntryR
 const COLLECTION_NAME = "dailyEntries";
 const DEFAULT_ENTRY_QUERY_LIMIT = 50;
 
-function requireString(data: Record<string, unknown>, field: string) {
+function requireString(data: Record<string, unknown>, field: string, entryId?: string) {
   const value = data[field];
   if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`Daily entry field ${field} is missing, empty, or not a string.`);
+    throw new Error(
+      `Daily entry${entryId ? ` ${entryId}` : ""} field ${field} is missing, empty, or not a string.`,
+    );
   }
 
   return value;
@@ -45,32 +47,23 @@ function toStringArray(data: Record<string, unknown>, field: string) {
 function toDailyEntryEntity(entryId: string, data: Record<string, unknown>): DailyEntry {
   return {
     entryId,
-    organizationId: requireString(data, "organizationId"),
-    workspaceId: requireString(data, "workspaceId"),
-    authorId: requireString(data, "authorId"),
-    entryType: requireString(data, "entryType") as DailyEntry["entryType"],
-    status: requireString(data, "status") as DailyEntry["status"],
-    visibility: requireString(data, "visibility") as DailyEntry["visibility"],
-    title: requireString(data, "title"),
-    summary: requireString(data, "summary"),
+    organizationId: requireString(data, "organizationId", entryId),
+    workspaceId: requireString(data, "workspaceId", entryId),
+    authorId: requireString(data, "authorId", entryId),
+    entryType: requireString(data, "entryType", entryId) as DailyEntry["entryType"],
+    status: requireString(data, "status", entryId) as DailyEntry["status"],
+    visibility: requireString(data, "visibility", entryId) as DailyEntry["visibility"],
+    title: requireString(data, "title", entryId),
+    summary: requireString(data, "summary", entryId),
     body: toOptionalString(data, "body"),
     tags: toStringArray(data, "tags"),
     publishedAtISO: toOptionalString(data, "publishedAtISO"),
     expiresAtISO: toOptionalString(data, "expiresAtISO"),
     sourceModule: toOptionalString(data, "sourceModule"),
     sourceEventId: toOptionalString(data, "sourceEventId"),
-    createdAtISO: requireString(data, "createdAtISO"),
-    updatedAtISO: requireString(data, "updatedAtISO"),
+    createdAtISO: requireString(data, "createdAtISO", entryId),
+    updatedAtISO: requireString(data, "updatedAtISO", entryId),
   };
-}
-
-function createNowISO() {
-  const nowISO = new Date().toISOString();
-  if (Number.isNaN(Date.parse(nowISO))) {
-    throw new Error("Failed to create a valid Daily entry timestamp.");
-  }
-
-  return nowISO;
 }
 
 export class FirebaseDailyEntryRepository implements DailyEntryRepository {
@@ -83,7 +76,7 @@ export class FirebaseDailyEntryRepository implements DailyEntryRepository {
   async publish(input: PublishDailyEntryInput): Promise<DailyEntry> {
     const entryId = doc(collection(this.db, COLLECTION_NAME)).id;
     const entryRef = doc(this.db, COLLECTION_NAME, entryId);
-    const nowISO = createNowISO();
+    const nowISO = new Date().toISOString();
 
     const documentData = {
       organizationId: input.organizationId,
