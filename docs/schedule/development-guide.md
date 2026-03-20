@@ -39,6 +39,7 @@ modules/schedule/
 ├── application/
 │   └── use-cases/
 │       ├── submit-schedule-request.use-case.ts
+│       ├── cancel-schedule-request.use-case.ts
 │       ├── list-schedule-event-types.use-case.ts
 │       ├── list-workspace-schedule-items.use-case.ts
 │       └── mddd/
@@ -223,6 +224,16 @@ if (result.success) {
   }]);
 }
 ```
+
+### 目前已實作的 workspace 請求取消
+
+`WorkspaceScheduleTab` 的取消按鈕現在已串接 `cancelScheduleRequest()`：
+
+- use case：`CancelScheduleRequestUseCase`
+- repository：`FirebaseScheduleRequestRepository.findById/save`
+- projection event：`RequestCancelled`
+
+這個切片刻意維持在目前模組邊界內：只處理**工作區提交者取消自己的請求**，不延伸到組織端審核或完整 MDDD request review flow。
 
 ### 陷阱 3：Server Actions 使用 Client SDK
 

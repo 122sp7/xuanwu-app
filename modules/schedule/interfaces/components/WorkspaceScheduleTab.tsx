@@ -6,7 +6,10 @@ import { FileText, MoreHorizontal, Plus, Send, X } from "lucide-react";
 import { useApp } from "@/app/providers/app-provider";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { listWorkspaceScheduleMdddFlowProjections } from "../queries/schedule-mddd.queries";
-import { submitScheduleRequest } from "../_actions/schedule-request.actions";
+import {
+  cancelScheduleRequest,
+  submitScheduleRequest,
+} from "../_actions/schedule-request.actions";
 import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import type { RequestStatus } from "../../domain/mddd/value-objects/WorkflowStatuses";
 import { Badge } from "@/ui/shadcn/ui/badge";
@@ -49,6 +52,17 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const [requestNotes, setRequestNotes] = useState("");
   const [requestWindow, setRequestWindow] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cancelingRequestId, setCancelingRequestId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function refreshProjections() {
+    try {
+      const rows = await listWorkspaceScheduleMdddFlowProjections(workspace.id);
+      setProjections(rows);
+    } catch {
+      setProjections([]);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -66,9 +80,10 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
 
   async function handleSubmitRequest() {
     if (!requestNotes.trim()) return;
+    setActionError(null);
     setSubmitting(true);
     try {
-      await submitScheduleRequest({
+      const result = await submitScheduleRequest({
         workspaceId: workspace.id,
         organizationId: workspace.accountId,
         requiredSkills: [],
@@ -76,14 +91,40 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         notes: requestNotes.trim(),
         actorAccountId,
       });
+      if (!result.success) {
+        setActionError(result.error.message);
+        return;
+      }
       setRequestNotes("");
       setRequestWindow("");
       setShowRequestForm(false);
-      listWorkspaceScheduleMdddFlowProjections(workspace.id)
-        .then((rows) => setProjections(rows))
-        .catch(() => {});
+      await refreshProjections();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleCancelRequest(requestId: string) {
+    if (!window.confirm("確定要取消這筆資源請求嗎？")) {
+      return;
+    }
+
+    setActionError(null);
+    setCancelingRequestId(requestId);
+    try {
+      const result = await cancelScheduleRequest({
+        requestId,
+        actorAccountId,
+        reason: "工作區取消",
+      });
+      if (!result.success) {
+        setActionError(result.error.message);
+        return;
+      }
+
+      await refreshProjections();
+    } finally {
+      setCancelingRequestId(null);
     }
   }
 
@@ -159,6 +200,12 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         </div>
       )}
 
+      {actionError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          {actionError}
+        </div>
+      )}
+
       {/* ── Request list ── */}
       {projections.length === 0 ? (
         <div className="rounded-md border border-border/50 px-6 py-8 text-center text-xs text-muted-foreground">
@@ -199,6 +246,8 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                     <button
                       type="button"
                       title="取消請求"
+                      disabled={cancelingRequestId === p.requestId}
+                      onClick={() => void handleCancelRequest(p.requestId)}
                       className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
                     >
                       <X className="h-3.5 w-3.5" />

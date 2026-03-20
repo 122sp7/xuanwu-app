@@ -393,6 +393,16 @@ When `schedule-request.actions.ts` successfully writes a request to `scheduleReq
 
 This projection write is best-effort: if it fails after the primary write succeeds, the request document exists but the projection is absent. A future improvement should make this idempotent or use a Firestore trigger.
 
+### Workspace-side cancellation is now live
+
+`WorkspaceScheduleTab` now wires the existing cancel button to `cancelScheduleRequest()`. The current shipped rule is:
+
+- only the original submitter can cancel the request
+- only `draft` and `submitted` requests can be cancelled
+- successful cancellation updates both `scheduleRequests` and the projection stream via `RequestCancelled`
+
+This is still a **workspace-side** cancellation slice, not the full organization-side review/closure workflow described by the target MDDD contract.
+
 ### Firestore collections in use
 
 | Collection | Owner | Read by |

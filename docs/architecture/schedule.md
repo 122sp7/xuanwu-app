@@ -29,6 +29,7 @@ description: Target MDDD architecture for the bidirectional resource-request sch
 | 切片 | 說明 | 路徑 |
 |------|------|------|
 | 資源請求提交 | 工作區提交請求，寫入 `scheduleRequests` | `FirebaseScheduleRequestRepository.submit()` |
+| 資源請求取消 | 工作區取消自己提交的請求，更新 `scheduleRequests` 與 projection | `CancelScheduleRequestUseCase` + `cancelScheduleRequest()` |
 | 初始 projection 建立 | 提交成功後立即建立 `RequestCreated` projection | `schedule-request.actions.ts` → `FirebaseMdddProjectionRepository.project()` |
 | Projection 列表查詢 | 工作區查詢自身所有請求的 projection | `listWorkspaceScheduleMdddFlowProjections(workspaceId)` |
 | 組織待分派視圖 | 跨工作區聚合 `submitted` 狀態請求 | `OrganizationSchedulePage` |
@@ -38,7 +39,7 @@ description: Target MDDD architecture for the bidirectional resource-request sch
 
 以下仍屬後續階段，**本輪不假裝已完成**：
 
-- 請求取消 / 審核拒絕流程（完整 MDDD `Request` 生命週期）
+- 組織端的請求審核 / 拒絕 / 關閉流程（完整 MDDD `Request` 生命週期）
 - 任務分解（`Task`）與候選人比對（`Match`）的完整引擎
 - 人工分派（`Assignment` offer/accept/reject）的 UI
 - 排程衝突偵測與時段重新分配
@@ -186,6 +187,7 @@ planned ──→ reserved ──→ active ──→ completed
 | Event | 觸發時機 | 擁有聚合 |
 |-------|----------|----------|
 | `RequestCreated` | 請求提交成功後立即寫入 | `RequestAggregate` |
+| `RequestCancelled` | 工作區取消自己提交的請求後立即寫入 | `RequestAggregate` |
 | `RequestAccepted` | 組織審核通過 | `RequestAggregate` |
 | `RequestRejected` | 組織審核拒絕 | `RequestAggregate` |
 | `TaskMatched` | 候選人比對完成 | `TaskAggregate` |
