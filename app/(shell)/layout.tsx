@@ -141,6 +141,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           isOrganizationAccount={showAccountManagement}
           onSelectPersonal={handleSelectPersonal}
           onSelectOrganization={handleSelectOrganization}
+          onOrganizationCreated={handleOrganizationCreated}
           onSignOut={() => {
             void handleLogout();
           }}

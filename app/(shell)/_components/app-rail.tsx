@@ -10,12 +10,24 @@
  */
 
 import Link from "next/link";
-import { Building2, LayoutDashboard, Settings, Users } from "lucide-react";
+import { Building2, LayoutDashboard, Plus, Settings, Users } from "lucide-react";
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import { createOrganization } from "@/modules/organization";
 import { Avatar, AvatarFallback } from "@/ui/shadcn/ui/avatar";
+import { Button } from "@/ui/shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/shadcn/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/shadcn/ui/dropdown-menu";
+import { Input } from "@/ui/shadcn/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +52,7 @@ interface AppRailProps {
   readonly isOrganizationAccount: boolean;
   readonly onSelectPersonal: () => void;
   readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
   readonly onSignOut: () => void;
 }
 
@@ -79,8 +93,57 @@ export function AppRail({
   isOrganizationAccount,
   onSelectPersonal,
   onSelectOrganization,
+  onOrganizationCreated,
   onSignOut,
 }: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
@@ -168,6 +231,16 @@ export function AppRail({
                 <span className="truncate">{account.name}</span>
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -242,6 +315,60 @@ export function AppRail({
 
         <div className="h-1" />
       </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
