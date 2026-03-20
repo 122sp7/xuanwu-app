@@ -84,6 +84,118 @@ The sidebar node list is the canonical navigation for all knowledge surfaces. Th
 
 ## RAG pipeline contract
 
+### Taxonomy contract
+
+The `taxonomy` field is the canonical classification label applied at document level during ingestion.
+
+#### Allowed taxonomy values
+
+| Value | Description |
+| --- | --- |
+| `规章制度` | Company rules, compliance, HR policies |
+| `技術文件` | Architecture docs, API specs, ADRs |
+| `產品手冊` | Product documentation, release notes |
+| `操作指南` | SOPs, how-to guides, runbooks |
+| `政策文件` | Security policy, privacy statements |
+| `訓練教材` | Training materials, onboarding content |
+| `研究報告` | Market research, user research, analysis |
+| `其他` | Uncategorized documents |
+
+Rules:
+- `taxonomy` must be set on the `documents` record **before** the ingestion worker starts chunking.
+- Each `chunks` record must inherit `taxonomy` from its parent document.
+- `taxonomy` is a required pre-filter in all RAG vector queries (along with `organizationId` and `isLatest`).
+- Custom taxonomy values may be added via org-level `taxonomyConfig` collection; the enum above is the default baseline.
+
+### Embedding model contract
+
+| Field | Value |
+| --- | --- |
+| Model | `text-embedding-3-small` (default) |
+| Dimensions | **1536** |
+| Firestore field | `chunks.embedding` → `number[]` (float64[1536]) |
+| Model version tracking | `chunks.embeddingModel` (string) + `chunks.embeddingDimensions` (number) |
+| Batch size | ≤ 20 chunks per OpenAI API call |
+| Max tokens per chunk | 512 tokens (for embedding input) |
+| API key env var | `OPENAI_API_KEY` in Cloud Functions secrets |
+| Retry on 429 | Exponential backoff, max 5 retries |
+| Retry on 5xx | Fixed 2s delay, max 3 retries |
+
+### File upload contract
+
+#### documentId generation
+
+```
+documentId = "doc_" + UUID_v4().replace(/-/g, "").slice(0, 16)
+// Example: doc_4b2a1c3d8e9f0a12
+```
+
+Rules:
+- `documentId` is immutable once created — rename, reprocess, or version bumps do NOT change it.
+- `sourceFileName` stores the original filename and is never used as a storage key.
+- `title` is the editable display name, initially equal to `sourceFileName`.
+
+#### Storage path (canonical)
+
+```
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
+```
+
+Examples:
+```
+organizations/org_abc/workspaces/ws_xyz/documents/doc_4b2a1c3d8e9f0a12/raw/source.pdf
+organizations/org_abc/workspaces/ws_xyz/documents/doc_7c9e3f1a2b4d6e8f/raw/source.docx
+```
+
+Derived output paths (written by ingestion worker):
+```
+.../documents/{documentId}/derived/normalized.md
+.../documents/{documentId}/derived/layout.json
+```
+
+#### Upload validation rules
+
+| Rule | Constraint |
+| --- | --- |
+| Allowed MIME types | `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/msword`, `text/html`, `text/plain`, `text/markdown` |
+| Allowed extensions | `.pdf`, `.docx`, `.doc`, `.html`, `.htm`, `.txt`, `.md` |
+| Max file size | 50 MB |
+| Min file size | 1 KB |
+| displayName max length | 255 characters |
+| taxonomy | Required; must be a valid taxonomy enum value |
+| language | ISO 639-1; defaults to `zh-TW` |
+| accessControl | Defaults to `["Admin", "Member"]` |
+
+#### Firestore vector index (required before first write)
+
+`firestore.indexes.json` must include:
+
+```json
+{
+  "fieldOverrides": [
+    {
+      "collectionGroup": "chunks",
+      "fieldPath": "embedding",
+      "indexes": [],
+      "vectorConfig": { "dimension": 1536, "flat": {} }
+    }
+  ]
+}
+```
+
+Composite index for pre-filtering before vector search:
+```json
+{
+  "collectionGroup": "chunks",
+  "queryScope": "COLLECTION_GROUP",
+  "fields": [
+    { "fieldPath": "organizationId", "order": "ASCENDING" },
+    { "fieldPath": "isLatest",       "order": "ASCENDING" },
+    { "fieldPath": "taxonomy",       "order": "ASCENDING" }
+  ]
+}
+```
+
 ### Ingestion entry points
 
 | Step | Owner | Input | Output |

@@ -257,7 +257,186 @@ WikiKnowledgeSearch.tsx (串流顯示)
 
 缺少任一必填參數，RAG flow 應拒絕執行並回傳 `400 Bad Request`。
 
-### 4.4 RAG Checklist（ingestion 前確認）
+### 4.4 documentId 生成（Next.js 上傳端）
+
+```typescript
+// modules/file/application/services/generate-document-id.ts
+import { v4 as uuidv4 } from "uuid";
+
+/**
+ * 生成 canonical documentId。
+ * 規則：固定前綴 "doc_" + 16 位 hex = 20 chars。
+ * 不可變：一旦寫入 Firestore，任何後續操作（rename/reprocess/version）都不得改變此 ID。
+ */
+export function generateDocumentId(): string {
+  return `doc_${uuidv4().replace(/-/g, "").slice(0, 16)}`;
+}
+
+// 生成 Storage canonical path
+export function buildStoragePath(params: {
+  organizationId: string;
+  workspaceId: string;
+  documentId: string;
+  extension: string;          // 含點，例如 ".pdf"
+}): string {
+  const { organizationId, workspaceId, documentId, extension } = params;
+  return (
+    `organizations/${organizationId}` +
+    `/workspaces/${workspaceId}` +
+    `/documents/${documentId}` +
+    `/raw/source${extension}`
+  );
+}
+```
+
+**儲存路徑範例**：
+```
+organizations/org_abc/workspaces/ws_xyz/documents/doc_4b2a1c3d8e9f0a12/raw/source.pdf
+organizations/org_abc/workspaces/ws_xyz/documents/doc_7c9e3f1a2b4d6e8f/raw/source.docx
+```
+
+衍生檔案（由 ingestion worker 寫入）：
+```
+.../documents/{documentId}/derived/normalized.md
+.../documents/{documentId}/derived/layout.json
+```
+
+---
+
+### 4.5 OpenAI Embedding API 呼叫（Python worker）
+
+```python
+# lib/firebase/functions-python/ingestion/embedding.py
+import os
+import time
+import openai
+
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+OPENAI_EMBEDDING_DIMENSIONS = 1536
+OPENAI_BATCH_SIZE = 20          # 每批最多 20 個 chunk（避免超出 rate limit）
+MAX_RETRY_ON_RATE_LIMIT = 5
+MAX_RETRY_ON_SERVER_ERROR = 3
+
+def embed_chunks_batch(texts: list[str]) -> list[list[float]]:
+    """
+    呼叫 OpenAI Embeddings API。
+    - OPENAI_API_KEY 由 Cloud Functions secrets 注入。
+    - 回傳 list[float[1536]]。
+    """
+    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+    for attempt in range(MAX_RETRY_ON_RATE_LIMIT):
+        try:
+            response = client.embeddings.create(
+                model=OPENAI_EMBEDDING_MODEL,
+                input=texts,
+                dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+            )
+            return [item.embedding for item in response.data]
+        except openai.RateLimitError:
+            if attempt == MAX_RETRY_ON_RATE_LIMIT - 1:
+                raise
+            time.sleep(2 ** attempt)   # exponential backoff: 1s, 2s, 4s, 8s, 16s
+        except openai.APIStatusError as e:
+            if e.status_code >= 500 and attempt < MAX_RETRY_ON_SERVER_ERROR - 1:
+                time.sleep(2)
+                continue
+            raise
+
+def embed_all_chunks(chunk_texts: list[str]) -> list[list[float]]:
+    """批次嵌入，自動分批避免超出 API 限制。"""
+    results = []
+    for i in range(0, len(chunk_texts), OPENAI_BATCH_SIZE):
+        batch = chunk_texts[i:i + OPENAI_BATCH_SIZE]
+        results.extend(embed_chunks_batch(batch))
+    return results
+```
+
+設置 API Key（Firebase CLI）：
+```bash
+firebase functions:secrets:set OPENAI_API_KEY
+# 驗證：
+firebase functions:secrets:access OPENAI_API_KEY
+```
+
+---
+
+### 4.6 Firestore Vector Index 建立
+
+`firestore.indexes.json` 中必須包含以下設定（在第一次 embedding 寫入前部署）：
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "organizationId", "order": "ASCENDING" },
+        { "fieldPath": "isLatest",       "order": "ASCENDING" },
+        { "fieldPath": "taxonomy",       "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "chunks",
+      "fieldPath": "embedding",
+      "indexes": [],
+      "vectorConfig": {
+        "dimension": 1536,
+        "flat": {}
+      }
+    }
+  ]
+}
+```
+
+部署索引：
+```bash
+firebase deploy --only firestore:indexes
+```
+
+> ❗ 若 vector index 尚未建立就執行 `findNearest()`，Firestore 會回傳錯誤。
+> 請在 CI/CD pipeline 中確保 index 部署先於 ingestion worker 啟動。
+
+---
+
+### 4.7 Taxonomy 標注（Python worker）
+
+```python
+# lib/firebase/functions-python/ingestion/taxonomy.py
+import openai
+
+TAXONOMY_ENUM = [
+    "规章制度", "技術文件", "產品手冊", "操作指南",
+    "政策文件", "訓練教材", "研究報告", "其他",
+]
+
+def classify_taxonomy(text_excerpt: str) -> str:
+    """
+    使用 LLM 對整份文件的前 2000 字進行 taxonomy 分類。
+    必須在 chunking 之前完成。
+    """
+    client = openai.OpenAI()
+    prompt = (
+        "請根據以下文件節錄，從下列分類中選擇最合適的一個，"
+        f"只回傳分類名稱，不要解釋：\n分類：{', '.join(TAXONOMY_ENUM)}\n\n"
+        f"文件節錄：\n{text_excerpt[:2000]}"
+    )
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        max_tokens=20,
+    )
+    result = response.choices[0].message.content.strip()
+    return result if result in TAXONOMY_ENUM else "其他"
+```
+
+---
+
+### 4.8 RAG Checklist（ingestion 前確認）
 
 依 `rag-pipeline` skill 提供的 checklist 確認：
 
@@ -269,15 +448,17 @@ WikiKnowledgeSearch.tsx (串流顯示)
 處理：
 - 正規化規則：去除 HTML 標籤、段落合併、多餘空白清理
 - chunking 策略：滑動視窗 512 tokens，50 tokens overlap
-- metadata 欄位：docId, chunkIndex, taxonomy, page, organizationId, workspaceId, isLatest
-- embedding 模型：text-embedding-3-small（記錄於 embeddingModel 欄位）
-- 索引目標：Firestore chunks collection + vector index
+- taxonomy：由 LLM 在 chunking 前完成 document-level 分類（必填）
+- embedding 模型：text-embedding-3-small（1536-dim，記錄於 embeddingModel 欄位）
+- batch size：每批 ≤ 20 chunks
+- 索引目標：Firestore chunks collection + vector index（維度 1536）
 
 Retrieval：
 - 查詢入口：WikiKnowledgeSearch → Server Action → Genkit Flow
-- 過濾：organizationId + isLatest + accessControl（必填）；taxonomy（選填）
+- 必填過濾：organizationId + isLatest + accessControl
+- 選填過濾：taxonomy, workspaceId, language
 - reranking：Cross-Encoder（P1 強化）
-- citation：pageNumber + displayName
+- citation：pageNumber + displayName + taxonomy
 ```
 
 ---

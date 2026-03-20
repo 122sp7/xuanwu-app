@@ -372,7 +372,8 @@ export function DashboardSidebar({
                 </p>
                 {(
                   [
-                    { href: "/wiki", label: "所有頁面" },
+                    { href: "/wiki", label: "知識中樞" },
+                    { href: "/organization/knowledge", label: "組織知識庫" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);

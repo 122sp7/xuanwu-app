@@ -214,28 +214,301 @@ Wiki 側邊欄
 ## 5. 關鍵技術觀念
 
 ### 5.1 Taxonomy（分類）
-- 在 Parsing 後、Chunking 前於 document-level 標注
-- 繼承至每個 chunk，供 Vector Search 過濾用
-- 分類表由組織管理員統一維護
 
-### 5.2 Embedding
-- 在 ingestion 階段計算（一次性成本）
-- 使用 Genkit 整合的嵌入模型（如 `text-embedding-3-small`）
-- 維度資訊記錄於 `embeddingModel` 欄位
+Taxonomy 是文件在進入 Chunking 前由 ingestion worker 在 document-level 標注的語意分類。
+它繼承至每個 chunk，作為 Vector Search 必填過濾欄位。
 
-### 5.3 Vector Search
-- 在 query 階段執行（每次查詢）
-- 透過 Firestore Vector Search（中小型，`organizationId` + `isLatest` 過濾）
-- 大規模可遷移至 Pinecone / Vertex AI Vector Search
+#### 5.1.1 預設分類值（taxonomy enum）
 
-### 5.4 Firestore 雙角色
+| 值 | 中文說明 | 適用文件類型範例 |
+|----|----------|----------------|
+| `规章制度` | 企業規章、制度、合規文件 | 員工手冊、考勤規定、薪資辦法 |
+| `技術文件` | 系統架構、API 規格、技術規範 | ADR、架構圖、API spec |
+| `產品手冊` | 產品說明書、功能文件 | 功能規格、版本說明 |
+| `操作指南` | SOP、流程指南、How-to | 入職流程、部署指南 |
+| `政策文件` | 政策宣告、安全政策、隱私政策 | 資安政策、個資聲明 |
+| `訓練教材` | 教育訓練簡報、學習資料 | 新人訓練、技術教材 |
+| `研究報告` | 市場研究、技術研究、分析報告 | 競品分析、使用者調查 |
+| `其他` | 無法歸類的文件 | — |
+
+#### 5.1.2 Taxonomy 標注時機
+
+```
+Parsing（文字萃取）
+    ↓
+Cleaning（正規化）
+    ↓
+✅ Taxonomy 標注（document-level，整份文件）← 必須在此完成
+    ↓
+Chunking（chunk 切分）← chunk 繼承 doc-level taxonomy
+    ↓
+Embedding（每個 chunk 向量化）
+```
+
+> ❗ taxonomy 必須在 chunking **之前**完成，才能確保每個 chunk 都有正確的 taxonomy 欄位。
+
+#### 5.1.3 Taxonomy 欄位規範
+
+- **Firestore `documents/{id}.taxonomy`**：字串，值取自上述 enum（必填）
+- **Firestore `chunks/{id}.taxonomy`**：繼承自 parent document（必填，供 retrieval filter 用）
+- **允許自訂值**：若組織管理員在 `taxonomyConfig` 中新增分類，則 enum 可擴充
+- 空字串或 null 視為 `其他`
+
+---
+
+### 5.2 Embedding（OpenAI API）
+
+#### 5.2.1 模型選擇
+
+| 模型 | 維度 | 成本 | 適用情境 |
+|------|------|------|---------|
+| `text-embedding-3-small` | **1536** | $0.020 / 1M tokens | **預設，中小型知識庫** |
+| `text-embedding-3-large` | 3072 | $0.130 / 1M tokens | 高精度需求 |
+| `text-embedding-ada-002` | 1536 | $0.100 / 1M tokens | 舊版相容 |
+
+預設使用 `text-embedding-3-small`，維度為 **1536**。
+
+#### 5.2.2 API 呼叫規範
+
+```python
+# lib/firebase/functions-python/ingestion/embedding.py
+import openai
+
+OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
+OPENAI_EMBEDDING_DIMENSIONS = 1536
+OPENAI_BATCH_SIZE = 20          # 每批最多 20 個 chunk
+OPENAI_MAX_TOKENS_PER_CHUNK = 512  # chunk 切分上限（tokens）
+
+def embed_chunks(texts: list[str]) -> list[list[float]]:
+    """
+    呼叫 OpenAI Embeddings API，回傳 float[] list。
+    """
+    client = openai.OpenAI()  # 讀取 OPENAI_API_KEY 環境變數
+    response = client.embeddings.create(
+        model=OPENAI_EMBEDDING_MODEL,
+        input=texts,
+        dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+    )
+    return [item.embedding for item in response.data]
+```
+
+#### 5.2.3 環境變數
+
+| 變數名 | 設置位置 | 說明 |
+|--------|----------|------|
+| `OPENAI_API_KEY` | Cloud Functions secrets | OpenAI API 金鑰（必填） |
+| `OPENAI_EMBEDDING_MODEL` | Cloud Functions config | 可覆寫模型（選填，預設 `text-embedding-3-small`） |
+
+```bash
+# 設置 Cloud Functions secret（Firebase CLI）
+firebase functions:secrets:set OPENAI_API_KEY
+```
+
+#### 5.2.4 Embedding 寫入 Firestore
+
+Embedding vector 以 `number[]`（float64 array）寫入 chunks 集合：
+
+```python
+chunk_doc = {
+    "id": chunk_id,
+    "organizationId": organization_id,
+    "workspaceId": workspace_id,
+    "docId": document_id,
+    "chunkIndex": chunk_index,
+    "text": chunk_text,
+    "embedding": embedding_vector,   # number[] (1536-dim)
+    "taxonomy": document_taxonomy,
+    "page": page_number,
+    "tokenCount": token_count,
+    "createdAt": firestore.SERVER_TIMESTAMP,
+    "updatedAt": firestore.SERVER_TIMESTAMP,
+    "embeddingModel": OPENAI_EMBEDDING_MODEL,  # 記錄使用的模型版本
+    "embeddingDimensions": OPENAI_EMBEDDING_DIMENSIONS,
+}
+```
+
+#### 5.2.5 Retry 策略
+
+```python
+# 429 (rate limit) → exponential backoff，最多 5 次重試
+# 500/502/503 → 固定 2 秒 delay，最多 3 次重試
+# 其他錯誤 → 立即標記 chunk embedding_failed，不重試
+```
+
+---
+
+### 5.3 Vector Search（Firestore）
+
+#### 5.3.1 Firestore Vector Index 設定
+
+`firestore.indexes.json` 中必須定義：
+
+```json
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "chunks",
+      "fieldPath": "embedding",
+      "indexes": [],
+      "vectorConfig": {
+        "dimension": 1536,
+        "flat": {}
+      }
+    }
+  ]
+}
+```
+
+> ❗ Vector index 必須在第一次 embedding 寫入前建立，否則查詢會失敗。
+
+#### 5.3.2 查詢範例
+
+```typescript
+// modules/ai/infrastructure/firestore/FirestoreVectorSearchRepository.ts
+import { collection, query, where, getFirestore, orderBy, limit } from "firebase/firestore";
+// Firestore vector search uses the Admin SDK on the server side:
+// import { getFirestore, FieldPath, VectorQuery } from "firebase-admin/firestore";
+
+async function searchChunks(params: {
+  organizationId: string;
+  workspaceId?: string;
+  queryVector: number[];   // 1536-dim, matches OPENAI_EMBEDDING_DIMENSIONS
+  taxonomy?: string;
+  topK: number;
+}): Promise<ChunkResult[]> {
+  const db = getFirestore();
+  const chunksRef = db.collection("chunks");
+
+  // 必填 pre-filter（MUST be applied before vector search）
+  let q = chunksRef
+    .where("organizationId", "==", params.organizationId)
+    .where("isLatest", "==", true);
+
+  if (params.workspaceId) q = q.where("workspaceId", "==", params.workspaceId);
+  if (params.taxonomy)    q = q.where("taxonomy", "==", params.taxonomy);
+
+  // Firestore vector search
+  const vectorQuery = q.findNearest({
+    vectorField: "embedding",
+    queryVector: params.queryVector,
+    limit: params.topK,
+    distanceMeasure: "COSINE",
+  });
+
+  const snapshot = await vectorQuery.get();
+  return snapshot.docs.map((d) => d.data() as ChunkResult);
+}
+```
+
+#### 5.3.3 Composite Index（必建）
+
+除 Vector Index 外，還需在 `firestore.indexes.json` 中建立以下複合索引：
+
+```json
+{
+  "collectionGroup": "chunks",
+  "queryScope": "COLLECTION_GROUP",
+  "fields": [
+    { "fieldPath": "organizationId", "order": "ASCENDING" },
+    { "fieldPath": "isLatest",       "order": "ASCENDING" },
+    { "fieldPath": "taxonomy",       "order": "ASCENDING" }
+  ]
+}
+```
+
+---
+
+### 5.4 上傳檔案（File Upload）
+
+#### 5.4.1 documentId 生成規則
+
+documentId 由 Next.js 在上傳時生成，規則：
+
+```typescript
+import { v4 as uuidv4 } from "uuid";
+
+function generateDocumentId(): string {
+  return `doc_${uuidv4().replace(/-/g, "").slice(0, 16)}`;
+  // 例如：doc_4b2a1c3d8e9f0a12
+}
+```
+
+| 欄位 | 規則 |
+|------|------|
+| 長度 | 固定前綴 `doc_` + 16 hex chars = 20 chars |
+| 唯一性 | UUID v4 保證 |
+| 不可變 | 一旦建立，documentId 不得因 rename/reprocess 而變更 |
+
+#### 5.4.2 Firebase Storage Path（canonical）
+
+```
+organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
+```
+
+**範例**：
+```
+organizations/org_abc/workspaces/ws_xyz/documents/doc_4b2a1c3d8e9f0a12/raw/source.pdf
+```
+
+衍生檔案路徑（由 worker 寫入）：
+```
+.../documents/{documentId}/derived/normalized.md
+.../documents/{documentId}/derived/layout.json
+```
+
+#### 5.4.3 上傳驗證規則
+
+| 欄位 | 規則 |
+|------|------|
+| 允許的 MIME 類型 | `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/msword`, `text/html`, `text/plain`, `text/markdown` |
+| 允許的副檔名 | `.pdf`, `.docx`, `.doc`, `.html`, `.htm`, `.txt`, `.md` |
+| 最大檔案大小 | **50 MB** |
+| 最小檔案大小 | **1 KB** |
+| displayName 最大長度 | 255 字元 |
+| taxonomy | 必填，需為 enum 中的合法值 |
+| language | ISO 639-1，預設 `zh-TW` |
+
+#### 5.4.4 Firestore documents 寫入欄位清單
+
+```typescript
+// 上傳時由 Next.js 建立的完整 documents 記錄
+const documentRecord: RagDocumentRecord = {
+  id:              documentId,              // doc_xxx
+  organizationId,
+  workspaceId,
+  displayName:     file.name,              // 原始檔名，UI 顯示用
+  title:           file.name,              // 可後續編輯
+  sourceFileName:  file.name,              // 永久保存，不變
+  mimeType:        file.type,
+  storagePath:     canonicalStoragePath,   // organizations/.../raw/source.pdf
+  sizeBytes:       file.size,
+  status:          "uploaded",             // ← 觸發 Cloud Functions 的入口
+  checksum:        await sha256(file),     // dedupe 依據
+  taxonomy:        formValues.taxonomy,    // 必填
+  category:        formValues.category,
+  department:      formValues.department,
+  language:        formValues.language ?? "zh-TW",
+  accessControl:   formValues.accessControl ?? ["Admin", "Member"],
+  versionGroupId:  documentId,             // 第一版等於自身
+  versionNumber:   1,
+  isLatest:        true,
+  accountId:       currentUser.uid,
+  createdAtISO:    new Date().toISOString(),
+  updatedAtISO:    new Date().toISOString(),
+};
+```
+
+---
+
+### 5.5 Firestore 雙角色
 - 作為結構化 DB：儲存 wiki_pages / documents metadata
 - 作為 Vector DB：儲存 chunks + embedding（中小型系統最適）
 
-### 5.5 Genkit 角色
+### 5.6 Genkit 角色
 - Flow orchestration：Ingestion + Query 流程統一編排
-- LLM 呼叫：回答生成
-- Tool calling：搜尋工具 / 日誌工具
+- LLM 呼叫：回答生成（Gemini / GPT 可切換）
+- Tool calling：搜尋工具 / 日誌工具 / rerank 工具
 
 ---
 
