@@ -23,14 +23,14 @@ interface NavItem {
 }
 
 const accountManagementItems = [
-  { label: "成員", href: "/organization?section=members" },
-  { label: "團隊", href: "/organization?section=teams" },
-  { label: "權限", href: "/organization?section=permissions" },
-  { label: "工作區", href: "/organization?section=workspaces" },
-  { label: "知識", href: "/organization?section=knowledge" },
-  { label: "排程", href: "/organization?section=schedule" },
-  { label: "每日", href: "/organization?section=daily" },
-  { label: "稽核", href: "/organization?section=audit" },
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+  { label: "知識", href: "/organization/knowledge" },
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
 ] as const;
 
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
@@ -252,15 +252,23 @@ export function DashboardSidebar({
               </span>
             </summary>
             <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
-              {accountManagementItems.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="block rounded-md px-2 py-1.5 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {accountManagementItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`block rounded-md px-2 py-1.5 text-sm transition ${
+                      isActive
+                        ? "bg-primary/10 font-medium text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </div>
           </details>
         )}

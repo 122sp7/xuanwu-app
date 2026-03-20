@@ -34,14 +34,14 @@ const routeTitles: Record<string, string> = {
 };
 
 const organizationManagementItems = [
-  { label: "成員", href: "/organization?section=members" },
-  { label: "團隊", href: "/organization?section=teams" },
-  { label: "權限", href: "/organization?section=permissions" },
-  { label: "工作區", href: "/organization?section=workspaces" },
-  { label: "知識", href: "/organization?section=knowledge" },
-  { label: "排程", href: "/organization?section=schedule" },
-  { label: "每日", href: "/organization?section=daily" },
-  { label: "稽核", href: "/organization?section=audit" },
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+  { label: "知識", href: "/organization/knowledge" },
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
 ] as const;
 
 function isOrganizationAccount(
