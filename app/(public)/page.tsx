@@ -29,7 +29,7 @@ import {
 type Tab = "login" | "register";
 
 export default function PublicPage() {
-  const { state } = useAuth();
+  const { state, dispatch } = useAuth();
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("login");
@@ -87,7 +87,17 @@ export default function PublicPage() {
     setIsLoading(true);
     try {
       const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) setError(result.error.message);
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
     } finally {
       setIsLoading(false);
     }

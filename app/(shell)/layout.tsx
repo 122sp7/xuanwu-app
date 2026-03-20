@@ -132,7 +132,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 
   return (
     <ShellGuard>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex h-screen overflow-hidden bg-background">
         <AppRail
           pathname={pathname}
           user={authState.user}
@@ -155,14 +155,11 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           onOrganizationCreated={handleOrganizationCreated}
         />
 
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <header className="border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-16 items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <p className="max-w-[240px] truncate text-xs text-muted-foreground">
-                  Active: {appState.activeAccount?.name ?? authState.user?.name ?? "—"}
-                </p>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
               </div>
 
               <div className="ml-auto flex items-center gap-3">
@@ -226,14 +223,10 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           </header>
 
           {logoutError && (
-            <div className="px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
           )}
 
           <main className="flex-1 overflow-auto p-6">{children}</main>
-
-          <footer className="border-t border-border/50 px-4 py-3 text-xs text-muted-foreground md:px-6">
-            Xuanwu App Workspace
-          </footer>
         </div>
       </div>
     </ShellGuard>

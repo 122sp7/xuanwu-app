@@ -3,10 +3,10 @@
 /**
  * Module: app-rail.tsx
  * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: top-level section navigation via icon buttons, account context
- *   indicator, and quick sign-out via user avatar dropdown.
- * Constraints: UI-only; business logic stays in providers and module use-cases.
- *   Follows the two-column sidebar pattern referenced from Plane's AppRailRoot.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
  */
 
 import Link from "next/link";
@@ -54,6 +54,23 @@ function getInitial(name: string | undefined | null): string {
   return name?.trim().charAt(0).toUpperCase() || "U";
 }
 
+/** Compact 8px colour strip shown at bottom of the workspace logo tile. */
+function getAccountColour(name: string | undefined | null): string {
+  const palette = [
+    "bg-violet-500",
+    "bg-blue-500",
+    "bg-cyan-500",
+    "bg-teal-500",
+    "bg-green-500",
+    "bg-amber-500",
+    "bg-orange-500",
+    "bg-rose-500",
+  ];
+  if (!name) return palette[0];
+  const idx = [...name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % palette.length;
+  return palette[idx];
+}
+
 export function AppRail({
   pathname,
   user,
@@ -72,45 +89,38 @@ export function AppRail({
     {
       href: "/dashboard",
       label: "Dashboard",
-      icon: <LayoutDashboard className="size-5" />,
+      icon: <LayoutDashboard className="size-[18px]" />,
     },
     {
       href: "/workspace",
       label: "Workspace Hub",
-      icon: <Building2 className="size-5" />,
+      icon: <Building2 className="size-[18px]" />,
     },
     {
       href: "/organization",
       label: "Organization",
-      icon: <Users className="size-5" />,
+      icon: <Users className="size-[18px]" />,
       show: isOrganizationAccount,
     },
     {
       href: "/settings",
       label: "Personal Settings",
-      icon: <Settings className="size-5" />,
-      show: !isOrganizationAccount,
+      icon: <Settings className="size-[18px]" />,
     },
   ];
 
   const visibleRailItems = railItems.filter((item) => item.show !== false);
 
   const accountName = activeAccount?.name ?? user?.name ?? "—";
+  const accentColour = getAccountColour(accountName);
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delayDuration={400}>
       <aside
         aria-label="App navigation rail"
-        className="hidden w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/20 py-3 md:flex"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
       >
-        {/* ── App logo ──────────────────────────────────────────────── */}
-        <div className="mb-1 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary select-none">
-          玄
-        </div>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Account context bubble ────────────────────────────────── */}
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -118,13 +128,18 @@ export function AppRail({
                 <button
                   type="button"
                   aria-label="Switch account context"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-foreground transition hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="group mb-1 flex size-8 flex-col overflow-hidden rounded-lg border border-border/60 bg-background text-xs font-bold tracking-tight text-foreground shadow-sm transition hover:border-border hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
-                  {getInitial(accountName)}
+                  {/* Logo area */}
+                  <span className="flex flex-1 items-center justify-center text-[13px] font-semibold">
+                    {getInitial(accountName)}
+                  </span>
+                  {/* Colour accent strip at bottom */}
+                  <span className={`h-1 w-full rounded-b-lg ${accentColour}`} />
                 </button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[160px]">
+            <TooltipContent side="right" className="max-w-[180px]">
               <p className="text-xs font-medium">{accountName}</p>
               <p className="text-[10px] text-muted-foreground">
                 {isOrganizationAccount ? "Organization" : "Personal"}
@@ -133,7 +148,7 @@ export function AppRail({
           </Tooltip>
 
           <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Account</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
             {user && (
               <DropdownMenuItem
                 onClick={onSelectPersonal}
@@ -159,7 +174,7 @@ export function AppRail({
         <div className="my-2 h-px w-7 bg-border/50" />
 
         {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-1">
+        <nav className="flex flex-col items-center gap-0.5" aria-label="Top-level navigation">
           {visibleRailItems.map((item) => {
             const active = isActive(item.href);
             return (
@@ -224,6 +239,8 @@ export function AppRail({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <div className="h-1" />
       </aside>
     </TooltipProvider>
   );
