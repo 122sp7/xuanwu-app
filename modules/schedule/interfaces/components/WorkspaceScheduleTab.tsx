@@ -1,21 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Clock, ExternalLink, Link2, MoreHorizontal, Plus, Search } from "lucide-react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import { getWorkspaceScheduleEventTypes } from "../queries/schedule-event-types.queries";
 import type { ScheduleEventType } from "../../domain/entities/ScheduleEventType";
-import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "../schedule-ui.constants";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/ui/shadcn/ui/card";
+import { Switch } from "@/ui/shadcn/ui/switch";
 
 interface WorkspaceScheduleTabProps {
   readonly workspace: WorkspaceEntity;
@@ -23,7 +14,7 @@ interface WorkspaceScheduleTabProps {
 
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const [scheduleEventTypes, setScheduleEventTypes] = useState<readonly ScheduleEventType[]>([]);
-  const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -39,89 +30,131 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     };
   }, [workspace.accountId, workspace.id]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getWorkspaceSchedule(workspace.id)
-      .then((nextItems) => {
-        if (!cancelled) setItems(nextItems);
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace.id]);
-
-  // Per-type item count – shown inline on each event type row
-  const itemTypeBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const item of items) {
-      counts[item.type] = (counts[item.type] ?? 0) + 1;
-    }
-    return counts;
-  }, [items]);
+  const filtered = useMemo(
+    () =>
+      scheduleEventTypes.filter(
+        (et) =>
+          et.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          et.slug.toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
+    [scheduleEventTypes, searchQuery],
+  );
 
   return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle>排程類型</CardTitle>
-        <CardDescription>工作區可用的排程樣板</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        {scheduleEventTypes.length === 0 ? (
-          <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-            此工作區尚無排程類型定義。
+    <div className="space-y-4">
+      {/* ── Page header ── */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">活動類型</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            為您的行事曆設定不同的活動，方便他人預約。
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              aria-label="搜尋活動類型"
+              placeholder="搜尋"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background pl-8 pr-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
           </div>
-        ) : (
+          {/* New event type button */}
+          <button
+            type="button"
+            className="flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            全新
+          </button>
+        </div>
+      </div>
+
+      {/* ── Event type list ── */}
+      {filtered.length === 0 ? (
+        <div className="rounded-md border border-border/50 px-6 py-12 text-center text-sm text-muted-foreground">
+          {searchQuery ? "找不到符合的活動類型。" : "此工作區尚無活動類型。"}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-border/50">
           <ul className="divide-y divide-border/40">
-            {scheduleEventTypes.map((et) => (
+            {filtered.map((et) => (
               <li
                 key={et.id}
-                className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-muted/50"
+                className="flex w-full items-center justify-between bg-background px-4 py-3 transition-colors hover:bg-muted/30"
               >
-                {/* Left: title + /workspaceId/slug + description + meta */}
+                {/* Left: title + slug path + duration badge */}
                 <div className="min-w-0 flex-1 pr-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{et.title}</span>
-                    <small className="hidden font-normal text-muted-foreground sm:inline">
+                  <div className="flex flex-wrap items-baseline gap-1.5">
+                    <span className="text-sm font-medium text-foreground">{et.title}</span>
+                    <span className="text-xs text-muted-foreground">
                       /{workspace.id}/{et.slug}
-                    </small>
-                    <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[et.itemType]}>
-                      {et.itemType}
-                    </Badge>
-                    {!et.isActive && (
-                      <Badge variant="secondary">停用</Badge>
-                    )}
+                    </span>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{et.description}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {et.durationLabel}
-                    {itemTypeBreakdown[et.itemType] != null && (
-                      <>
-                        {" · "}
-                        <span className="font-medium tabular-nums text-foreground">
-                          {itemTypeBreakdown[et.itemType]}
-                        </span>{" "}
-                        個排程
-                      </>
-                    )}
-                  </p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">{et.durationLabel}</span>
+                  </div>
                 </div>
-                {/* Right: copy-link button */}
-                <button
-                  type="button"
-                  className="shrink-0 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
-                  onClick={() => void navigator.clipboard.writeText(`/${workspace.id}/${et.slug}`)}
-                  title="複製連結"
-                >
-                  複製連結
-                </button>
+
+                {/* Right: 隱藏 toggle + icon buttons */}
+                <div className="flex shrink-0 items-center gap-3">
+                  {/* Active/hidden toggle */}
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-xs ${
+                        et.isActive ? "text-muted-foreground" : "text-muted-foreground/50"
+                      }`}
+                    >
+                      隱藏
+                    </span>
+                    <Switch
+                      checked={et.isActive}
+                      onCheckedChange={() => {
+                        /* mutation not yet wired */
+                      }}
+                      aria-label={et.isActive ? "設為隱藏" : "設為顯示"}
+                    />
+                  </div>
+
+                  {/* Icon buttons */}
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title="在新分頁開啟"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title="複製連結"
+                      onClick={() =>
+                        void navigator.clipboard.writeText(`/${workspace.id}/${et.slug}`)
+                      }
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title="更多選項"
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </div>
   );
 }

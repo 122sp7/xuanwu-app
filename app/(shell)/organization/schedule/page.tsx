@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  Calendar as CalendarIcon,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  List,
+} from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { getWorkspacesForAccount } from "@/modules/workspace";
@@ -10,24 +18,31 @@ import { getWorkspaceSchedule } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
 import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "@/modules/schedule/interfaces/schedule-ui.constants";
 import { Badge } from "@/ui/shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/ui/shadcn/ui/card";
-import { Calendar } from "@/ui/shadcn/ui/calendar";
-import { ToggleGroup, ToggleGroupItem } from "@/ui/shadcn/ui/toggle-group";
 import { isOrganizationAccount } from "../_utils";
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
 type ViewMode = "list" | "calendar";
+type StatusTab = "upcoming" | "unconfirmed" | "recurring" | "past" | "cancelled";
+
+const STATUS_TABS: { value: StatusTab; label: string }[] = [
+  { value: "upcoming", label: "即將到來" },
+  { value: "unconfirmed", label: "未確認" },
+  { value: "recurring", label: "定期" },
+  { value: "past", label: "之前" },
+  { value: "cancelled", label: "已取消" },
+];
+
+const DAYS_ZH = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 interface BookingRow {
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly item: WorkspaceScheduleItem;
 }
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function isSameDay(a: Date, b: Date): boolean {
   return (
@@ -36,6 +51,22 @@ function isSameDay(a: Date, b: Date): boolean {
     a.getDate() === b.getDate()
   );
 }
+
+function getWeekSunday(offsetWeeks: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay() + offsetWeeks * 7);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatWeekRange(sunday: Date): string {
+  const saturday = new Date(sunday);
+  saturday.setDate(saturday.getDate() + 6);
+  const start = sunday.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${start} - ${saturday.getDate()}, ${saturday.getFullYear()}`;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function OrganizationSchedulePage() {
   const { state: appState } = useApp();
@@ -50,22 +81,39 @@ export default function OrganizationSchedulePage() {
   const viewMode: ViewMode =
     searchParams.get("view") === "calendar" ? "calendar" : "list";
 
+  const activeTab: StatusTab =
+    (searchParams.get("status") as StatusTab | null) ?? "upcoming";
+
+  // ── Data state ──────────────────────────────────────────────────────────────
   const [workspaces, setWorkspaces] = useState<
     Awaited<ReturnType<typeof getWorkspacesForAccount>>
   >([]);
-
-  // All upcoming items aggregated across workspaces
   const [bookingRows, setBookingRows] = useState<readonly BookingRow[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
-  // Calendar month navigation
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  // ── Calendar week navigation ─────────────────────────────────────────────
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Fetch workspaces
+  const weekSunday = useMemo(() => getWeekSunday(weekOffset), [weekOffset]);
+  const weekDays = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekSunday);
+        d.setDate(d.getDate() + i);
+        return d;
+      }),
+    [weekSunday],
+  );
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  // ── Fetch workspaces ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeOrganizationId) return;
     let cancelled = false;
-
     getWorkspacesForAccount(activeOrganizationId)
       .then((data) => {
         if (!cancelled) setWorkspaces(data);
@@ -73,44 +121,46 @@ export default function OrganizationSchedulePage() {
       .catch(() => {
         if (!cancelled) setWorkspaces([]);
       });
-
     return () => {
       cancelled = true;
     };
   }, [activeOrganizationId]);
 
-  // Aggregate upcoming items from all workspaces
+  // ── Aggregate upcoming bookings ────────────────────────────────────────────
   useEffect(() => {
-    if (workspaces.length === 0) {
-      setBookingRows([]);
-      setLoadState("loaded");
-      return;
-    }
     let cancelled = false;
 
-    setLoadState("loading");
-
-    Promise.all(
-      workspaces.map(async (ws) => {
-        try {
-          const items = await getWorkspaceSchedule(ws.id);
-          return items
-            .filter((item) => item.status === "upcoming")
-            .map((item): BookingRow => ({
-              workspaceId: ws.id,
-              workspaceName: ws.name,
-              item,
-            }));
-        } catch {
-          return [] as BookingRow[];
-        }
-      }),
-    )
-      .then((results) => {
-        if (!cancelled) {
-          setBookingRows(results.flat());
+    // All setState calls are inside async callbacks to satisfy the lint rule
+    Promise.resolve(workspaces)
+      .then((ws) => {
+        if (cancelled) return;
+        if (ws.length === 0) {
+          setBookingRows([]);
           setLoadState("loaded");
+          return;
         }
+        setLoadState("loading");
+        return Promise.all(
+          ws.map(async (w) => {
+            try {
+              const items = await getWorkspaceSchedule(w.id);
+              return items
+                .filter((item) => item.status === "upcoming")
+                .map((item): BookingRow => ({
+                  workspaceId: w.id,
+                  workspaceName: w.name,
+                  item,
+                }));
+            } catch {
+              return [] as BookingRow[];
+            }
+          }),
+        ).then((results) => {
+          if (!cancelled) {
+            setBookingRows(results.flat());
+            setLoadState("loaded");
+          }
+        });
       })
       .catch(() => {
         if (!cancelled) {
@@ -124,168 +174,157 @@ export default function OrganizationSchedulePage() {
     };
   }, [workspaces]);
 
-  // Days that have at least one upcoming item with a known startAtISO (for calendar highlights)
-  const daysWithItems = useMemo<Date[]>(() => {
-    const days: Date[] = [];
-    for (const row of bookingRows) {
-      if (row.item.startAtISO) {
-        const d = new Date(row.item.startAtISO);
-        if (!Number.isNaN(d.getTime()) && !days.some((e) => isSameDay(e, d))) {
-          days.push(d);
-        }
-      }
-    }
-    return days;
-  }, [bookingRows]);
-
-  // Rows that fall in the currently displayed calendar month
-  const calendarMonthRows = useMemo(
-    () =>
-      bookingRows.filter((row) => {
-        if (!row.item.startAtISO) return false;
-        const d = new Date(row.item.startAtISO);
-        return (
-          d.getFullYear() === calendarMonth.getFullYear() &&
-          d.getMonth() === calendarMonth.getMonth()
-        );
-      }),
-    [bookingRows, calendarMonth],
+  // Bookings with a known start time – used for calendar cell placement
+  const calendarEvents = useMemo(
+    () => bookingRows.filter((row) => row.item.startAtISO != null),
+    [bookingRows],
   );
 
-  function handleViewChange(value: string) {
-    if (value === "calendar") {
-      router.replace("?view=calendar");
-    } else {
-      router.replace("?");
-    }
+  // ── URL helpers ─────────────────────────────────────────────────────────────
+  function buildUrl(overrides: { view?: "calendar" | "list"; status?: StatusTab }): string {
+    const params = new URLSearchParams();
+    const v = overrides.view ?? viewMode;
+    const s = overrides.status ?? activeTab;
+    if (v === "calendar") params.set("view", "calendar");
+    if (s !== "upcoming") params.set("status", s);
+    const qs = params.toString();
+    return qs ? `?${qs}` : "?";
   }
 
+  function handleViewChange(v: ViewMode) {
+    router.replace(buildUrl({ view: v }));
+  }
+
+  function handleTabChange(tab: StatusTab) {
+    router.replace(buildUrl({ status: tab }));
+  }
+
+  // ── Guard ───────────────────────────────────────────────────────────────────
   if (!activeOrganizationId) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="flex items-center justify-center py-16">
         <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* ── Page header ── */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">排程</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區即將到來的排程總覽。
-          </p>
+  // ── Shared view-mode icon buttons ───────────────────────────────────────────
+  const viewIcons = (
+    <>
+      <button
+        type="button"
+        onClick={() => handleViewChange("list")}
+        className={`rounded-md p-1.5 transition-colors ${
+          viewMode === "list"
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/50"
+        }`}
+        aria-label="列表檢視"
+      >
+        <List className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleViewChange("calendar")}
+        className={`rounded-md p-1.5 transition-colors ${
+          viewMode === "calendar"
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/50"
+        }`}
+        aria-label="月曆檢視"
+      >
+        <CalendarDays className="h-4 w-4" />
+      </button>
+    </>
+  );
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // LIST VIEW
+  // ════════════════════════════════════════════════════════════════════════════
+  if (viewMode === "list") {
+    const activeLabel = STATUS_TABS.find((t) => t.value === activeTab)?.label ?? "即將到來";
+
+    return (
+      <div className="flex flex-col">
+        {/* ── Toolbar ── */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-4 py-2">
+          {/* Left: status tabs + filter button */}
+          <div className="flex flex-wrap items-center gap-1">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => handleTabChange(tab.value)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeTab === tab.value
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <Filter className="h-3.5 w-3.5" />
+              篩選
+            </button>
+          </div>
+
+          {/* Right: saved filters dropdown + view icons */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <Filter className="h-3.5 w-3.5" />
+              已儲存的篩選條件
+              <ChevronLeft className="h-3.5 w-3.5 -rotate-90" />
+            </button>
+            {viewIcons}
+          </div>
         </div>
 
-        {/* ── List / Calendar toggle ── */}
-        <ToggleGroup
-          type="single"
-          value={viewMode}
-          onValueChange={(v) => {
-            if (v) handleViewChange(v);
-          }}
-          variant="outline"
-          size="sm"
-        >
-          <ToggleGroupItem value="list" aria-label="列表檢視">
-            列表
-          </ToggleGroupItem>
-          <ToggleGroupItem value="calendar" aria-label="月曆檢視">
-            月曆
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
-      {/* ── Upcoming bookings card ── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle>即將到來</CardTitle>
-              <CardDescription>
-                組織下所有工作區中狀態為「upcoming」的排程項目。
-              </CardDescription>
-            </div>
-            {loadState === "loaded" && (
-              <span className="rounded-full bg-muted px-3 py-1 text-sm font-medium tabular-nums text-muted-foreground">
-                {bookingRows.length}
-              </span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+        {/* ── Content ── */}
+        <div className="flex-1">
           {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入排程中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取排程失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && bookingRows.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有即將到來的排程項目。</p>
-          )}
-
-          {/* ── Calendar view ── */}
-          {viewMode === "calendar" && loadState === "loaded" && (
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <Calendar
-                mode="multiple"
-                selected={daysWithItems}
-                month={calendarMonth}
-                onMonthChange={setCalendarMonth}
-                modifiers={{ hasItems: daysWithItems }}
-                modifiersClassNames={{
-                  hasItems: "bg-primary/20 font-bold text-primary rounded-full",
-                }}
-                className="rounded-lg border border-border/40 p-3"
-              />
-              <div className="min-w-0 flex-1 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  {calendarMonth.toLocaleDateString("zh-TW", {
-                    year: "numeric",
-                    month: "long",
-                  })}{" "}
-                  有排程的項目
-                </p>
-                {calendarMonthRows.length === 0 && (
-                  <p className="text-xs text-muted-foreground">本月沒有排程項目。</p>
-                )}
-                {calendarMonthRows.map((row) => (
-                  <div
-                    key={`${row.workspaceId}-${row.item.id}`}
-                    className="rounded-lg border border-border/40 px-3 py-2"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium">{row.item.title}</p>
-                      <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]}>
-                        {row.item.type}
-                      </Badge>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      <span>{row.item.timeLabel}</span>
-                      <Link
-                        href={`/workspace/${row.workspaceId}?tab=Schedule`}
-                        className="underline underline-offset-2 hover:text-foreground"
-                      >
-                        {row.workspaceName}
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center justify-center py-20">
+              <p className="text-sm text-muted-foreground">載入排程中…</p>
             </div>
           )}
 
-          {/* ── List view ── */}
-          {viewMode === "list" && loadState === "loaded" && bookingRows.length > 0 && (
-            <ul className="divide-y divide-border/40 overflow-hidden rounded-md border border-border/40">
+          {loadState === "error" && (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-sm text-destructive">讀取排程失敗，請稍後重新整理頁面。</p>
+            </div>
+          )}
+
+          {/* Empty state – icon + heading + description */}
+          {loadState === "loaded" && bookingRows.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <CalendarIcon className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-base font-semibold text-foreground">
+                暫無 {activeLabel} 的預約
+              </h3>
+              <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+                沒有 {activeLabel}{" "}
+                的預約。只要有人預約了時段，立即會在這裡顯示。
+              </p>
+            </div>
+          )}
+
+          {/* Booking rows */}
+          {loadState === "loaded" && bookingRows.length > 0 && (
+            <ul className="divide-y divide-border/40">
               {bookingRows.map((row) => (
                 <li
                   key={`${row.workspaceId}-${row.item.id}`}
-                  className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50"
+                  className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-muted/30"
                 >
-                  {/* Left: title + badges + detail */}
                   <div className="min-w-0 flex-1 pr-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-foreground">{row.item.title}</p>
@@ -294,10 +333,11 @@ export default function OrganizationSchedulePage() {
                       </Badge>
                     </div>
                     {row.item.detail && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.item.detail}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {row.item.detail}
+                      </p>
                     )}
                   </div>
-                  {/* Right: time + workspace link */}
                   <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
                     <span className="tabular-nums">{row.item.timeLabel}</span>
                     <Link
@@ -311,8 +351,129 @@ export default function OrganizationSchedulePage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CALENDAR VIEW  (?view=calendar)  – full weekly grid
+  // ════════════════════════════════════════════════════════════════════════════
+  return (
+    <div className="flex flex-col">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-4 py-2">
+        {/* Left: date range chip */}
+        <div className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground">
+          <span>{formatWeekRange(weekSunday)}</span>
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+        </div>
+
+        {/* Right: today + prev/next + view icons */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setWeekOffset(0)}
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+          >
+            今天
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset((p) => p - 1)}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+            aria-label="上一週"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset((p) => p + 1)}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+            aria-label="下一週"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          {viewIcons}
+        </div>
+      </div>
+
+      {/* ── Week grid ── */}
+      <div className="overflow-auto">
+        <div className="min-w-[560px]">
+          {/* Column headers: GMT+8 | 週日 D … 週六 D */}
+          <div className="sticky top-0 z-10 grid grid-cols-[3rem_repeat(7,1fr)] border-b border-border/40 bg-background">
+            <div className="border-r border-border/40 px-1 py-2 text-center text-[10px] text-muted-foreground">
+              GMT+8
+            </div>
+            {weekDays.map((day, i) => {
+              const isToday = isSameDay(day, today);
+              return (
+                <div
+                  key={i}
+                  className="border-r border-border/40 py-2 text-center last:border-r-0"
+                >
+                  <span className="block text-[11px] text-muted-foreground">
+                    {DAYS_ZH[day.getDay()]}
+                  </span>
+                  <span
+                    className={`mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold ${
+                      isToday
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground"
+                    }`}
+                  >
+                    {day.getDate()}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* One row per hour */}
+          {HOURS.map((hour) => (
+            <div
+              key={hour}
+              className="grid grid-cols-[3rem_repeat(7,1fr)] border-b border-border/40"
+              style={{ height: "48px" }}
+            >
+              {/* Time label */}
+              <div className="flex items-start justify-end border-r border-border/40 pr-2 pt-1">
+                <span className="text-[10px] tabular-nums text-muted-foreground">
+                  {String(hour).padStart(2, "0")}:00
+                </span>
+              </div>
+
+              {/* Day cells */}
+              {weekDays.map((day, di) => {
+                const cellEvents = calendarEvents.filter((row) => {
+                  if (!row.item.startAtISO) return false;
+                  const d = new Date(row.item.startAtISO);
+                  return isSameDay(d, day) && d.getHours() === hour;
+                });
+                return (
+                  <div
+                    key={di}
+                    className="relative border-r border-border/40 last:border-r-0"
+                  >
+                    {cellEvents.map((row) => (
+                      <Link
+                        key={`${row.workspaceId}-${row.item.id}`}
+                        href={`/workspace/${row.workspaceId}?tab=Schedule`}
+                        className="absolute inset-x-0.5 inset-y-0.5 overflow-hidden rounded bg-primary/20 px-1 hover:bg-primary/30"
+                      >
+                        <p className="truncate text-[11px] font-medium text-primary">
+                          {row.item.title}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
