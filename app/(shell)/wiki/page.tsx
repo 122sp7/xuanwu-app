@@ -550,46 +550,58 @@ export default function WikiPage() {
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [mainView, setMainView] = useState<MainView>("hub");
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // ── Data loading ───────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    if (!organizationId) {
-      setEntries([]);
-      setLoadState("loaded");
-      return;
-    }
-    setLoadState("loading");
-    try {
-      const workspaces: WorkspaceEntity[] = await getWorkspacesForAccount(organizationId);
-      const results: WorkspaceEntry[] = await Promise.all(
-        workspaces.map(async (workspace) => {
-          const [summary, docs] = await Promise.all([
-            getWorkspaceKnowledgeSummary(workspace).catch(() => ({
-              registeredAssetCount: 0,
-              readyAssetCount: 0,
-              supportedSourceCount: 0,
-              status: "needs-input" as const,
-              blockedReasons: ["摘要載入失敗"],
-              nextActions: [],
-              visibleSurface: "workspace-tab-live" as const,
-              contractStatus: "contract-live" as const,
-            })),
-            getWorkspaceRagDocuments(workspace).catch(() => [] as readonly RagDocumentRecord[]),
-          ]);
-          return { workspace, summary, docs };
-        }),
-      );
-      setEntries(results);
-      setLoadState("loaded");
-    } catch {
-      setEntries([]);
-      setLoadState("error");
-    }
-  }, [organizationId]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (!organizationId) {
+        if (!cancelled) {
+          setEntries([]);
+          setLoadState("loaded");
+        }
+        return;
+      }
+      if (!cancelled) setLoadState("loading");
+      try {
+        const workspaces: WorkspaceEntity[] = await getWorkspacesForAccount(organizationId);
+        const results: WorkspaceEntry[] = await Promise.all(
+          workspaces.map(async (workspace) => {
+            const [summary, docs] = await Promise.all([
+              getWorkspaceKnowledgeSummary(workspace).catch(() => ({
+                registeredAssetCount: 0,
+                readyAssetCount: 0,
+                supportedSourceCount: 0,
+                status: "needs-input" as const,
+                blockedReasons: ["摘要載入失敗"],
+                nextActions: [],
+                visibleSurface: "workspace-tab-live" as const,
+                contractStatus: "contract-live" as const,
+              })),
+              getWorkspaceRagDocuments(workspace).catch(() => [] as readonly RagDocumentRecord[]),
+            ]);
+            return { workspace, summary, docs };
+          }),
+        );
+        if (!cancelled) {
+          setEntries(results);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setEntries([]);
+          setLoadState("error");
+        }
+      }
+    }
     void load();
-  }, [load]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, refreshKey]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const selectedEntry = useMemo(
@@ -616,7 +628,7 @@ export default function WikiPage() {
           loadState={loadState}
           organizationId={organizationId ?? ""}
           onSelectWorkspace={handleSelectWorkspace}
-          onRefresh={() => void load()}
+          onRefresh={() => setRefreshKey((k) => k + 1)}
         />
       ) : (
         <WorkspaceDocView

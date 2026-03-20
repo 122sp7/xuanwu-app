@@ -121,6 +121,7 @@ export function DashboardSidebar({
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   function toggleCollapsed() {
     onToggleCollapsed();
