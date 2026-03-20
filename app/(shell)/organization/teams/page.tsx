@@ -23,13 +23,17 @@ export default function OrganizationTeamsPage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
-    if (!activeOrganizationId) return;
+    const organizationId = activeOrganizationId;
+    if (!organizationId) return;
     let cancelled = false;
 
-    async function load() {
+    Promise.resolve().then(async () => {
+      if (cancelled) {
+        return;
+      }
       setLoadState("loading");
       try {
-        const data = await getOrganizationTeams(activeOrganizationId);
+        const data = await getOrganizationTeams(organizationId);
         if (!cancelled) {
           setTeams(data);
           setLoadState("loaded");
@@ -40,8 +44,7 @@ export default function OrganizationTeamsPage() {
           setLoadState("error");
         }
       }
-    }
-    void load();
+    });
 
     return () => {
       cancelled = true;

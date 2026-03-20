@@ -23,13 +23,17 @@ export default function OrganizationMembersPage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
-    if (!activeOrganizationId) return;
+    const organizationId = activeOrganizationId;
+    if (!organizationId) return;
     let cancelled = false;
 
-    async function load() {
+    Promise.resolve().then(async () => {
+      if (cancelled) {
+        return;
+      }
       setLoadState("loading");
       try {
-        const data = await getOrganizationMembers(activeOrganizationId);
+        const data = await getOrganizationMembers(organizationId);
         if (!cancelled) {
           setMembers(data);
           setLoadState("loaded");
@@ -40,8 +44,7 @@ export default function OrganizationMembersPage() {
           setLoadState("error");
         }
       }
-    }
-    void load();
+    });
 
     return () => {
       cancelled = true;
