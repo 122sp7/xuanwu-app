@@ -7,7 +7,7 @@ description: Target MDDD architecture for the bidirectional resource-request sch
 
 > **文件編號**：XUANWU-SCHED-SPEC-001
 > **適用系統**：xuanwu-app — 雙向資源請求排程系統
-> **版本**：v1.1.0
+> **版本**：v1.2.0
 > **最後更新**：2026-03-20
 > **維護責任方**：Schedule Module Owner / 平台架構委員會
 
@@ -29,6 +29,7 @@ description: Target MDDD architecture for the bidirectional resource-request sch
 | 切片 | 說明 | 路徑 |
 |------|------|------|
 | 資源請求提交 | 工作區提交請求，寫入 `scheduleRequests` | `FirebaseScheduleRequestRepository.submit()` |
+| 資源請求取消 | 工作區取消自己提交的請求，更新 `scheduleRequests` 與 projection | `CancelScheduleRequestUseCase` + `cancelScheduleRequest()` |
 | 初始 projection 建立 | 提交成功後立即建立 `RequestCreated` projection | `schedule-request.actions.ts` → `FirebaseMdddProjectionRepository.project()` |
 | Projection 列表查詢 | 工作區查詢自身所有請求的 projection | `listWorkspaceScheduleMdddFlowProjections(workspaceId)` |
 | 組織待分派視圖 | 跨工作區聚合 `submitted` 狀態請求 | `OrganizationSchedulePage` |
@@ -38,12 +39,38 @@ description: Target MDDD architecture for the bidirectional resource-request sch
 
 以下仍屬後續階段，**本輪不假裝已完成**：
 
-- 請求取消 / 審核拒絕流程（完整 MDDD `Request` 生命週期）
+- 組織端的請求審核 / 拒絕 / 關閉流程（完整 MDDD `Request` 生命週期）
 - 任務分解（`Task`）與候選人比對（`Match`）的完整引擎
 - 人工分派（`Assignment` offer/accept/reject）的 UI
 - 排程衝突偵測與時段重新分配
 - 跨工作區 Notification 路由（`organization:schedule:assigned`）
 - Temporal workflow 或 Cloud Functions 非同步觸發器
+
+### 0.3 正式缺口登記（current vs target）
+
+下表不是願景口號，而是**目前文件化的正式缺口清單**。後續所有 Schedule 變更都應明確對應到其中一項缺口，避免 UI 與 domain 邊界再次混雜。
+
+| 類別 | 目前已有 | 主要缺口 | 影響 |
+|------|----------|----------|------|
+| Request Intake | 工作區可提交/取消資源請求，並建立初始 projection | 缺少組織端 `under-review` / `accepted` / `rejected` / `closed` 完整生命週期 | 組織目前只能看到待分派，不能正式審核與結案 |
+| Task | `scheduleRequests` 可作為需求入口 | 尚未由 Request 分解出正式 `TaskAggregate` 與任務狀態流 | 無法進入可執行工作單元與後續配對 |
+| Match | 契約中已定義 matching engine 目標 | 尚未落地候選人資格篩選、評分、排序、cut-off | 組織端無法從需求走到候選人 shortlist |
+| Assignment | Projection 預留 `assignmentId` / `assignmentStatus` 欄位 | 尚未建立 offer / accept / reject / cancel 決策流與 UI | 尚無真正的人員指派流程 |
+| Schedule | 組織頁已有 booking list + calendar 顯示 | 尚未把 accepted assignment 轉成正式 `ScheduleAggregate` 與衝突偵測 | 月曆目前是既有 item read model，不是完整 fulfill flow 終點 |
+| Projection | 已有 `RequestCreated` / `RequestCancelled` 驅動的基本投影 | 尚缺 Task / Match / Assignment / Schedule 後續事件折疊與冪等保證 | UI 無法看到完整 Request → Fulfillment 進度 |
+| Integration | 當前由 action 同步補寫初始 projection | 尚缺 outbox / trigger / workflow orchestration / notification routing | 主寫入與投影仍存在 best-effort 風險 |
+
+### 0.4 目標狀態摘要
+
+Schedule 模組的目標不是「做一個更多按鈕的列表」，而是把下列流程落地成可審計的 MDDD flow：
+
+`Request -> Task -> Match -> Assignment -> Schedule`
+
+達成目標狀態前，任何新增 UI 都必須先回答：
+
+1. 它對應哪一個 aggregate 或 projection 階段？
+2. 狀態轉換是否已有 domain/application 契約？
+3. 讀模型是從 event-driven projection 來，還是只是暫時拼接？
 
 ---
 
@@ -186,6 +213,7 @@ planned ──→ reserved ──→ active ──→ completed
 | Event | 觸發時機 | 擁有聚合 |
 |-------|----------|----------|
 | `RequestCreated` | 請求提交成功後立即寫入 | `RequestAggregate` |
+| `RequestCancelled` | 工作區取消自己提交的請求後立即寫入 | `RequestAggregate` |
 | `RequestAccepted` | 組織審核通過 | `RequestAggregate` |
 | `RequestRejected` | 組織審核拒絕 | `RequestAggregate` |
 | `TaskMatched` | 候選人比對完成 | `TaskAggregate` |
@@ -305,3 +333,44 @@ match /scheduleMdddFlowProjections/{requestId} {
 |------|------|----------|------|
 | v1.0.0 | 2026-03-20 | 初版建立，涵蓋 MVP write-side + projection 設計 | xuanwu-app 架構委員會 |
 | v1.1.0 | 2026-03-20 | 補充 Postiz 月曆對映、Firestore 索引、安全規則、`requiredSkills` 可選說明 | Copilot |
+| v1.2.0 | 2026-03-20 | 正式補入 current vs target 缺口登記、目標狀態摘要與分階段 roadmap | Copilot |
+
+---
+
+## 11. 分階段 Roadmap（建議）
+
+### Phase 1 — Request Review
+
+- 補齊組織端 `under-review` / `accepted` / `rejected` / `closed`
+- 補齊對應 server actions、application use cases、projection events
+- 讓組織頁「待分派」不再只是 submitted 清單，而是有正式審核語意
+
+### Phase 2 — Task Decomposition
+
+- 將 `RequestAggregate` 轉成一個或多個 `TaskAggregate`
+- 定義 task readiness 與 task status state machine
+- 補齊 `taskId` / `taskStatus` projection folding
+
+### Phase 3 — Match Generation
+
+- 落地候選人 eligibility filter、availability pre-check、score breakdown
+- 產出可審核的 `Match` 排序結果
+- 補齊 UI 需要的 shortlist / disqualification read model
+
+### Phase 4 — Assignment Decision
+
+- 組織端 offer 指派、成員 accept / reject、系統 cancel / expire
+- 確立唯一 active assignment invariant
+- projection 可顯示 assignee、decision reason、deadline
+
+### Phase 5 — Schedule Allocation
+
+- 將 accepted assignment 轉成正式 `ScheduleAggregate`
+- 加入時段保留、衝突檢測、超載檢測、reschedule trail
+- 組織月曆顯示正式 fulfill flow 結果，而非僅顯示既有靜態 items
+
+### Phase 6 — Integration & Reliability
+
+- 將初始 projection bootstrap 改為可重播/冪等的事件整合
+- 補齊 notification routing、trigger/workflow orchestration、審計紀錄
+- 將 best-effort 寫入路徑升級為可恢復的生產級流程

@@ -31,6 +31,7 @@ export default function SettingsProfilePage() {
 
   const displayName = profile?.name ?? user?.name ?? "";
   const email = profile?.email ?? user?.email ?? "";
+  const avatarUrl = profile?.photoURL ?? null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 pb-10">
@@ -43,9 +44,9 @@ export default function SettingsProfilePage() {
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
         <div className="flex items-center gap-5">
           <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-            {user?.photoURL ? (
+            {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="頭像" className="size-full object-cover" />
+              <img src={avatarUrl} alt="頭像" className="size-full object-cover" />
             ) : (
               <Camera className="size-6 text-muted-foreground" />
             )}

@@ -8,9 +8,10 @@ The schedule module owns derived workspace schedule items, workspace request sub
 
 - derived read model for workspace schedule items
 - workspace-originated request submission write-side
+- workspace-originated request cancellation write-side
 - persisted acknowledgement write-side for individual items
 - schedule queries resolve workspace and finance context inside the module from `workspaceId`
-- no broader request draft, cancellation, or fulfillment workflow yet
+- no broader organization-side review, assignment, or fulfillment workflow yet
 
 ## Migration status against legacy schedule capability
 
@@ -20,12 +21,13 @@ What is migrated today:
 
 - workspace-scoped derived readiness milestones based on workspace lifecycle and finance timing
 - workspace-originated schedule request submission with `requiredSkills` snapshot capture
+- workspace-originated schedule request cancellation with projection sync
 - per-item acknowledgement persisted separately from the derived read model
 
 What is still outside the current module and remains to be migrated into explicit MDDD slices:
 
 - organization-owned HR schedule governance and pending proposal review
-- full request lifecycle such as draft, cancellation, and closure flows
+- full request lifecycle such as organization-side review, rejection, and closure flows
 - staffing assignment lifecycle such as assign, reject, cancel proposal, and complete assignment
 - persistent organization/account `schedule_items` single source of truth and related projection boundaries
 - schedule domain events and downstream notification routing such as `organization:schedule:assigned`

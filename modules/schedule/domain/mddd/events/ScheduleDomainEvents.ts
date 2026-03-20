@@ -58,6 +58,15 @@ export interface RequestRejectedEvent {
   readonly occurredAtISO: string;
 }
 
+export interface RequestCancelledEvent {
+  readonly type: "RequestCancelled";
+  readonly requestId: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly reason: string;
+  readonly occurredAtISO: string;
+}
+
 export interface ScheduleReservedEvent {
   readonly type: "ScheduleReserved";
   readonly requestId: string;
@@ -81,6 +90,7 @@ export type ScheduleDomainEvent =
   | RequestCreatedEvent
   | RequestAcceptedEvent
   | RequestRejectedEvent
+  | RequestCancelledEvent
   | TaskMatchedEvent
   | AssignmentAcceptedEvent
   | AssignmentRejectedEvent

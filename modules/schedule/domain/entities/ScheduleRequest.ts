@@ -40,3 +40,40 @@ export interface SubmitScheduleRequestInput {
   readonly notes?: string | null;
   readonly actorAccountId: string;
 }
+
+const SCHEDULE_REQUEST_STATUS_TRANSITIONS: Record<
+  ScheduleRequestStatus,
+  readonly ScheduleRequestStatus[]
+> = {
+  draft: ["submitted", "cancelled"],
+  submitted: ["cancelled", "closed"],
+  cancelled: [],
+  closed: [],
+} as const;
+
+export function transitionScheduleRequestStatus(
+  request: ScheduleRequest,
+  nextStatus: ScheduleRequestStatus,
+  nowISO: string,
+): ScheduleRequest {
+  const allowed = SCHEDULE_REQUEST_STATUS_TRANSITIONS[request.status] ?? [];
+  if (!allowed.includes(nextStatus)) {
+    const guidance =
+      nextStatus === "cancelled"
+        ? "Schedule requests can only be cancelled while they are in draft or submitted status."
+        : `Schedule request must first enter a state that allows transition to ${nextStatus}.`;
+    throw new Error(
+      `Invalid schedule request transition: ${request.status} -> ${nextStatus}. Allowed: ${allowed.join(", ") || "(none)"}. ${guidance}`,
+    );
+  }
+
+  return {
+    ...request,
+    status: nextStatus,
+    updatedAtISO: nowISO,
+  };
+}
+
+export function canCancelScheduleRequestStatus(status: ScheduleRequestStatus): boolean {
+  return SCHEDULE_REQUEST_STATUS_TRANSITIONS[status]?.includes("cancelled") ?? false;
+}

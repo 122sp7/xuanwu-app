@@ -82,6 +82,16 @@ function applyEvent(
         eventTypes: appendEventType(base.eventTypes, event.type),
         updatedAtISO: event.occurredAtISO,
       };
+    case "RequestCancelled":
+      return {
+        ...base,
+        workspaceId: event.workspaceId,
+        organizationId: event.organizationId,
+        requestStatus: "cancelled",
+        lastReason: event.reason,
+        eventTypes: appendEventType(base.eventTypes, event.type),
+        updatedAtISO: event.occurredAtISO,
+      };
     case "TaskMatched":
       return {
         ...base,

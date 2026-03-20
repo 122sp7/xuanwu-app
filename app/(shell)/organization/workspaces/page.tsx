@@ -28,12 +28,13 @@ export default function OrganizationWorkspacesPage() {
 
   useEffect(() => {
     if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
     let cancelled = false;
 
     async function load() {
       setLoadState("loading");
       try {
-        const data = await getWorkspacesForAccount(activeOrganizationId);
+        const data = await getWorkspacesForAccount(organizationId);
         if (!cancelled) {
           setWorkspaces(data);
           setLoadState("loaded");

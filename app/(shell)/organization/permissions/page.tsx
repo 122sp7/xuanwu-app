@@ -24,12 +24,13 @@ export default function OrganizationPermissionsPage() {
 
   useEffect(() => {
     if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
     let cancelled = false;
 
     async function load() {
       setLoadState("loading");
       try {
-        const data = await getOrgPolicies(activeOrganizationId);
+        const data = await getOrgPolicies(organizationId);
         if (!cancelled) {
           setPolicies(data);
           setLoadState("loaded");
