@@ -23,6 +23,10 @@ export type {
   IRetrievalRepository,
   RetrievalHit,
 } from './domain/repositories/iretrieval.repository'
+export type {
+  IEmbeddingRepository,
+  EmbedTextDTO,
+} from './domain/repositories/iembedding.repository'
 
 // ── Domain: Services ────────────────────────────────────────────────────────
 export {
@@ -43,6 +47,8 @@ export type { DateRange } from './domain/value-objects/search-filter.vo'
 export { Taxonomy } from './domain/value-objects/taxonomy.vo'
 export { UsageStats } from './domain/value-objects/usage-stats.vo'
 export { Vector } from './domain/value-objects/vector.vo'
+export { Embedding } from './domain/value-objects/embedding.vo'
+export type { EmbeddingProps } from './domain/value-objects/embedding.vo'
 
 // ── Application: Use Cases ──────────────────────────────────────────────────
 export { CreateWikiDocumentUseCase } from './application/use-cases/create-wiki-document'
