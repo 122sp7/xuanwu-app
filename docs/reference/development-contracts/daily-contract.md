@@ -235,10 +235,10 @@ Required responsibilities:
 | `body` | `string` | no | extended body |
 | `media` | `DailyMedia[]` | no | optional attachments |
 | `tags` | `string[]` | no | indexing and filtering |
-| `publishedAtISO` | `string \| null` | no | null while draft |
-| `expiresAtISO` | `string \| null` | no | required for `story` |
-| `sourceModule` | `string \| null` | no | set for system signals |
-| `sourceEventId` | `string \| null` | no | set for event-driven projections |
+| `publishedAtISO` | nullable `string` | no | null while draft |
+| `expiresAtISO` | nullable `string` | no | required for `story` |
+| `sourceModule` | nullable `string` | no | set for system signals |
+| `sourceEventId` | nullable `string` | no | set for event-driven projections |
 | `createdAtISO` | `string` | yes | creation time |
 | `updatedAtISO` | `string` | yes | last mutation time |
 
@@ -250,10 +250,10 @@ Required responsibilities:
 | --- | --- | --- | --- |
 | `entryId` | `string` | yes | target Daily entry |
 | `organizationId` | `string` | yes | audience boundary |
-| `workspaceId` | `string \| null` | no | optional scope |
+| `workspaceId` | nullable `string` | no | optional scope |
 | `actorId` | `string` | yes | acting account |
 | `interactionType` | `DailyInteractionType` | yes | interaction kind |
-| `payload` | `object \| null` | no | reaction emoji, comment reference, etc. |
+| `payload` | nullable `object` | no | reaction emoji, comment reference, etc. |
 | `createdAtISO` | `string` | yes | append-only timestamp |
 
 ### `dailyFeedProjections`
@@ -273,7 +273,7 @@ Required responsibilities:
 | `rankReason` | `string[]` | yes | explainable reason list |
 | `interactionSummary` | `object` | yes | unread / acknowledged / bookmarked stats |
 | `publishedAtISO` | `string` | yes | publish timestamp |
-| `expiresAtISO` | `string \| null` | no | hidden after expiry |
+| `expiresAtISO` | nullable `string` | no | hidden after expiry |
 
 ## Query contracts
 

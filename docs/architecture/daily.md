@@ -172,17 +172,17 @@ Daily 不需要複製 Instagram 的娛樂表面，但值得抽取其高價值機
 | `workspaceId` | `string` | 所屬工作區 |
 | `authorId` | `string` | 發布者帳號 |
 | `entryType` | `DailyEntryType` | 內容類型 |
-| `status` | `draft \| published \| archived \| promoted` | 生命週期 |
+| `status` | `draft / published / archived / promoted` | 生命週期 |
 | `visibility` | `DailyVisibility` | 受眾範圍 |
 | `title` | `string` | 標題 |
 | `summary` | `string` | 摘要 |
 | `body` | `string` | 內文 |
 | `media` | `DailyMedia[]` | 圖片 / 附件 / 連結 |
 | `tags` | `string[]` | 主題標籤 |
-| `publishedAtISO` | `string \| null` | 發布時間 |
-| `expiresAtISO` | `string \| null` | Story / 短期訊號過期時間 |
-| `sourceModule` | `string \| null` | 若為系統生成，標記來源模組 |
-| `sourceEventId` | `string \| null` | 對應事件 |
+| `publishedAtISO` | nullable `string` | 發布時間 |
+| `expiresAtISO` | nullable `string` | Story / 短期訊號過期時間 |
+| `sourceModule` | nullable `string` | 若為系統生成，標記來源模組 |
+| `sourceEventId` | nullable `string` | 對應事件 |
 | `createdAtISO` | `string` | 建立時間 |
 | `updatedAtISO` | `string` | 更新時間 |
 
@@ -211,7 +211,7 @@ Daily 不需要複製 Instagram 的娛樂表面，但值得抽取其高價值機
 | `rankReason` | `string[]` | 排序原因 |
 | `interactionSummary` | `object` | 已讀 / 收藏 / 回應統計 |
 | `publishedAtISO` | `string` | 發布時間 |
-| `expiresAtISO` | `string \| null` | 過期時間 |
+| `expiresAtISO` | nullable `string` | 過期時間 |
 
 ### 5.3 目前 shipped read-side（基線）
 
