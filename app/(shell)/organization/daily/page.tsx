@@ -52,15 +52,11 @@ export default function OrganizationDailyPage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
-    const organizationId = activeOrganizationId;
-    if (!organizationId) {
-      setDigest(null);
-      setFeed([]);
-      setWorkspaces([]);
-      setLoadState("idle");
+    if (!activeOrganizationId) {
       return;
     }
 
+    const organizationId = activeOrganizationId;
     let cancelled = false;
 
     async function load() {
