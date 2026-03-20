@@ -110,6 +110,20 @@ export default function OrganizationSchedulePage() {
     return d;
   }, []);
 
+  // ── Current-time indicator (minutes since midnight, refreshed every minute) ─
+  const [nowMinutes, setNowMinutes] = useState<number>(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+  useEffect(() => {
+    const refresh = () => {
+      const n = new Date();
+      setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    };
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // ── Fetch workspaces ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeOrganizationId) return;
@@ -431,47 +445,77 @@ export default function OrganizationSchedulePage() {
           </div>
 
           {/* One row per hour */}
-          {HOURS.map((hour) => (
-            <div
-              key={hour}
-              className="grid grid-cols-[3rem_repeat(7,1fr)] border-b border-border/40"
-              style={{ height: "48px" }}
-            >
-              {/* Time label */}
-              <div className="flex items-start justify-end border-r border-border/40 pr-2 pt-1">
-                <span className="text-[10px] tabular-nums text-muted-foreground">
-                  {String(hour).padStart(2, "0")}:00
-                </span>
-              </div>
+          {HOURS.map((hour) => {
+            // lineOffset: pixel position of current-time line within this hour row (−1 = not in this row)
+            const nowInThisHour =
+              weekDays.some((d) => isSameDay(d, today)) &&
+              nowMinutes >= hour * 60 &&
+              nowMinutes < (hour + 1) * 60;
+            const lineOffset = nowInThisHour ? ((nowMinutes - hour * 60) / 60) * 48 : -1;
 
-              {/* Day cells */}
-              {weekDays.map((day, di) => {
-                const cellEvents = calendarEvents.filter((row) => {
-                  if (!row.item.startAtISO) return false;
-                  const d = new Date(row.item.startAtISO);
-                  return isSameDay(d, day) && d.getHours() === hour;
-                });
-                return (
-                  <div
-                    key={di}
-                    className="relative border-r border-border/40 last:border-r-0"
-                  >
-                    {cellEvents.map((row) => (
-                      <Link
-                        key={`${row.workspaceId}-${row.item.id}`}
-                        href={`/workspace/${row.workspaceId}?tab=Schedule`}
-                        className="absolute inset-x-0.5 inset-y-0.5 overflow-hidden rounded bg-primary/20 px-1 hover:bg-primary/30"
-                      >
-                        <p className="truncate text-[11px] font-medium text-primary">
-                          {row.item.title}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-                );
-              })}
+            return (
+              <div
+                key={hour}
+                className="relative grid grid-cols-[3rem_repeat(7,1fr)] border-b border-border/40"
+                style={{ height: "48px" }}
+              >
+                {/* Time label */}
+                <div className="flex items-start justify-end border-r border-border/40 pr-2 pt-1">
+                  <span className="text-[10px] tabular-nums text-muted-foreground">
+                    {String(hour).padStart(2, "0")}:00
+                  </span>
+                </div>
+
+                {/* Day cells */}
+                {weekDays.map((day, di) => {
+                  const isCurrentDay = isSameDay(day, today);
+                  const cellEvents = calendarEvents.filter((row) => {
+                    if (!row.item.startAtISO) return false;
+                    const d = new Date(row.item.startAtISO);
+                    return isSameDay(d, day) && d.getHours() === hour;
+                  });
+                  return (
+                    <div
+                      key={di}
+                      className="relative border-r border-border/40 last:border-r-0"
+                    >
+                      {/* Current-time indicator line */}
+                      {isCurrentDay && lineOffset >= 0 && (
+                        <div
+                          className="pointer-events-none absolute left-0 right-0 z-10 flex items-center"
+                          style={{ top: `${lineOffset}px` }}
+                        >
+                          <div className="h-px flex-1 bg-primary" />
+                        </div>
+                      )}
+                      {/* Booking chips */}
+                      {cellEvents.map((row) => (
+                        <Link
+                          key={`${row.workspaceId}-${row.item.id}`}
+                          href={`/workspace/${row.workspaceId}?tab=Schedule`}
+                          className="absolute inset-x-0.5 inset-y-0.5 overflow-hidden rounded bg-primary/20 px-1 hover:bg-primary/30"
+                        >
+                          <p className="truncate text-[11px] font-medium text-primary">
+                            {row.item.title}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* Bottom boundary row – shows midnight label (00:00 = start of next day) */}
+          <div className="grid grid-cols-[3rem_repeat(7,1fr)]">
+            <div className="flex items-start justify-end pr-2 pt-1">
+              <span className="text-[10px] tabular-nums text-muted-foreground">00:00</span>
             </div>
-          ))}
+            {weekDays.map((_, di) => (
+              <div key={di} className="border-r border-border/40 last:border-r-0" />
+            ))}
+          </div>
         </div>
       </div>
     </div>
