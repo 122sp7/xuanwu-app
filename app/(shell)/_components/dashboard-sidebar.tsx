@@ -17,6 +17,11 @@ import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
 import { AccountSwitcher } from "./account-switcher";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
 
 interface DashboardSidebarProps {
   readonly pathname: string;
@@ -28,15 +33,15 @@ interface DashboardSidebarProps {
   readonly onOrganizationCreated: (account: AccountEntity) => void;
 }
 
-const accountManagementItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-  { label: "知識", href: "/organization/knowledge" },
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
+const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
+  { id: "members", label: "成員", href: "/organization/members" },
+  { id: "teams", label: "團隊", href: "/organization/teams" },
+  { id: "permissions", label: "權限", href: "/organization/permissions" },
+  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
+  { id: "knowledge", label: "知識", href: "/organization/knowledge" },
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
 ] as const;
 
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
@@ -104,6 +109,8 @@ export function DashboardSidebar({
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
   });
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -116,6 +123,21 @@ export function DashboardSidebar({
   }
 
   const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  // Visible org management items filtered by user's nav preferences
+  const visibleAccountManagementItems = useMemo(() => {
+    return ALL_ACCOUNT_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  // Whether to show recent workspaces section (controlled by personal prefs)
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  // Max workspaces to show (apply user preference)
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
 
   function isActiveRoute(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -165,12 +187,13 @@ export function DashboardSidebar({
       .filter((item): item is { id: string; name: string; href: string } => item !== null);
   }, [recentWorkspaceIds, workspacesById]);
 
-  const hasOverflow = recentWorkspaceLinks.length > MAX_VISIBLE_RECENT_WORKSPACES;
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
   const visibleRecentWorkspaceLinks = isExpanded
     ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, MAX_VISIBLE_RECENT_WORKSPACES);
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
 
   return (
+    <>
     <aside
       aria-label="Secondary navigation"
       className={`hidden h-full shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 transition-[width] duration-200 md:flex ${
@@ -198,6 +221,9 @@ export function DashboardSidebar({
               type="button"
               title="自訂導覽"
               aria-label="自訂導覽"
+              onClick={() => {
+                setCustomizeOpen(true);
+              }}
               className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
             >
               <SlidersHorizontal className="size-3" />
@@ -241,12 +267,12 @@ export function DashboardSidebar({
           <div className="flex-1 overflow-y-auto px-3 py-3">
 
             {/* Organization management sub-nav */}
-            {showAccountManagement && (
+            {showAccountManagement && visibleAccountManagementItems.length > 0 && (
               <nav className="mb-4 space-y-0.5" aria-label="Organization management">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
                   帳戶管理
                 </p>
-                {accountManagementItems.map((item) => {
+                {visibleAccountManagementItems.map((item) => {
                   const active = isActiveRoute(item.href);
                   return (
                     <Link
@@ -267,6 +293,7 @@ export function DashboardSidebar({
             )}
 
             {/* Recent workspaces quick-access */}
+            {showRecentWorkspaces && (
             <div className="space-y-0.5">
               <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
                 最近工作區
@@ -305,9 +332,17 @@ export function DashboardSidebar({
                 </button>
               )}
             </div>
+            )}
           </div>
         </>
       )}
     </aside>
+
+    <CustomizeNavigationDialog
+      open={customizeOpen}
+      onOpenChange={setCustomizeOpen}
+      onPreferencesChange={setNavPrefs}
+    />
+    </>
   );
 }

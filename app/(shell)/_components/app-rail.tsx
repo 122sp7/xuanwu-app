@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Building2, LayoutDashboard, Plus, Settings, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, Plus, Settings, Users } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -150,11 +150,6 @@ export function AppRail({
 
   const railItems: RailItem[] = [
     {
-      href: "/dashboard",
-      label: "Dashboard",
-      icon: <LayoutDashboard className="size-[18px]" />,
-    },
-    {
       href: "/workspace",
       label: "Workspace Hub",
       icon: <Building2 className="size-[18px]" />,
@@ -165,17 +160,20 @@ export function AppRail({
       icon: <BookOpen className="size-[18px]" />,
     },
     {
+      href: "/ai-chat",
+      label: "AI Chat",
+      icon: <Bot className="size-[18px]" />,
+    },
+    {
       href: "/organization",
       label: "Organization",
       icon: <Users className="size-[18px]" />,
       show: isOrganizationAccount,
     },
-    {
-      href: "/settings",
-      label: "Personal Settings",
-      icon: <Settings className="size-[18px]" />,
-    },
   ];
+
+  /** Settings is pinned above the avatar, separate from main nav */
+  const settingsHref = "/settings";
 
   const visibleRailItems = railItems.filter((item) => item.show !== false);
 
@@ -281,6 +279,29 @@ export function AppRail({
 
         {/* ── Spacer ────────────────────────────────────────────────── */}
         <div className="flex-1" />
+
+        {/* ── Settings (pinned above avatar) ────────────────────────── */}
+        <div className="mb-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={settingsHref}
+                aria-current={isActive(settingsHref) ? "page" : undefined}
+                aria-label="Personal Settings"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                  isActive(settingsHref)
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Settings className="size-[18px]" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs">Personal Settings</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
         {/* ── User avatar / sign-out ────────────────────────────────── */}
         <DropdownMenu>
