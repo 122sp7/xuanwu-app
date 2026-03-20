@@ -173,6 +173,34 @@
           }
         }
       ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
