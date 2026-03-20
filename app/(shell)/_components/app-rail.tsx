@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { Building2, LayoutDashboard, Plus, Settings, Users } from "lucide-react";
+import { BookOpen, Building2, LayoutDashboard, Plus, Settings, Users } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -158,6 +158,11 @@ export function AppRail({
       href: "/workspace",
       label: "Workspace Hub",
       icon: <Building2 className="size-[18px]" />,
+    },
+    {
+      href: "/wiki",
+      label: "Wiki",
+      icon: <BookOpen className="size-[18px]" />,
     },
     {
       href: "/organization",

@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { ChevronRight, PanelLeftClose, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { AuthUser } from "@/app/providers/auth-context";
@@ -100,6 +100,20 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
 
   const showAccountManagement = isActiveOrganizationAccount(activeAccount);
 
@@ -159,100 +173,141 @@ export function DashboardSidebar({
   return (
     <aside
       aria-label="Secondary navigation"
-      className="hidden w-52 shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 md:flex"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 transition-[width] duration-200 md:flex ${
+        collapsed ? "w-6" : "w-52"
+      }`}
     >
-      {/* ── Account switcher ──────────────────────────────────────── */}
-      <div className="shrink-0 border-b border-border/40 px-3 py-3">
-        <AccountSwitcher
-          personalAccount={user}
-          organizationAccounts={organizationAccounts}
-          activeAccountId={activeAccount?.id ?? null}
-          onSelectPersonal={onSelectPersonal}
-          onSelectOrganization={onSelectOrganization}
-          onOrganizationCreated={onOrganizationCreated}
-        />
-      </div>
-
-      {/* ── Search hint (like Plane's quick-actions) ──────────────── */}
-      <div className="shrink-0 border-b border-border/40 px-3 py-2">
-        <Link
-          href="/workspace"
-          className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs text-muted-foreground transition hover:border-border hover:bg-muted"
-        >
-          <Search className="size-3.5 shrink-0" />
-          <span>工作區搜尋…</span>
-        </Link>
-      </div>
-
-      {/* ── Scrollable nav body ────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
-
-        {/* Organization management sub-nav */}
-        {showAccountManagement && (
-          <nav className="mb-4 space-y-0.5" aria-label="Organization management">
-            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-              帳戶管理
-            </p>
-            {accountManagementItems.map((item) => {
-              const active = isActiveRoute(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        {/* Recent workspaces quick-access */}
-        <div className="space-y-0.5">
-          <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-            最近工作區
-          </p>
-
-          {visibleRecentWorkspaceLinks.length === 0 ? (
-            <p className="px-2 py-2 text-[11px] text-muted-foreground">
-              尚無最近開啟的工作區。
-            </p>
-          ) : (
-            visibleRecentWorkspaceLinks.map((ws) => (
-              <Link
-                key={ws.id}
-                href={ws.href}
-                className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                  isActiveRoute(ws.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                }`}
-                title={ws.name}
-              >
-                <span className="truncate">{ws.name}</span>
-              </Link>
-            ))
-          )}
-
-          {hasOverflow && (
+      {collapsed ? (
+        /* ── Collapsed strip ──────────────────────────────────────── */
+        <div className="flex flex-1 flex-col items-center pt-2">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="展開側欄"
+            title="展開側欄"
+            className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* ── Sidebar title bar ──────────────────────────────────── */}
+          <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-2 py-1.5">
             <button
               type="button"
-              onClick={() => {
-                setIsExpanded((prev) => !prev);
-              }}
-              className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+              title="自訂導覽"
+              aria-label="自訂導覽"
+              className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
             >
-              {isExpanded ? "收起" : "顯示更多"}
+              <SlidersHorizontal className="size-3" />
+              <span>自訂導覽</span>
             </button>
-          )}
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label="收起側欄"
+              title="收起側欄"
+              className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <PanelLeftClose className="size-3.5" />
+            </button>
+          </div>
+
+          {/* ── Account switcher ──────────────────────────────────── */}
+          <div className="shrink-0 border-b border-border/40 px-3 py-3">
+            <AccountSwitcher
+              personalAccount={user}
+              organizationAccounts={organizationAccounts}
+              activeAccountId={activeAccount?.id ?? null}
+              onSelectPersonal={onSelectPersonal}
+              onSelectOrganization={onSelectOrganization}
+              onOrganizationCreated={onOrganizationCreated}
+            />
+          </div>
+
+          {/* ── Search hint (like Plane's quick-actions) ──────────── */}
+          <div className="shrink-0 border-b border-border/40 px-3 py-2">
+            <Link
+              href="/workspace"
+              className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs text-muted-foreground transition hover:border-border hover:bg-muted"
+            >
+              <Search className="size-3.5 shrink-0" />
+              <span>工作區搜尋…</span>
+            </Link>
+          </div>
+
+          {/* ── Scrollable nav body ────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+
+            {/* Organization management sub-nav */}
+            {showAccountManagement && (
+              <nav className="mb-4 space-y-0.5" aria-label="Organization management">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  帳戶管理
+                </p>
+                {accountManagementItems.map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {/* Recent workspaces quick-access */}
+            <div className="space-y-0.5">
+              <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                最近工作區
+              </p>
+
+              {visibleRecentWorkspaceLinks.length === 0 ? (
+                <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                  尚無最近開啟的工作區。
+                </p>
+              ) : (
+                visibleRecentWorkspaceLinks.map((ws) => (
+                  <Link
+                    key={ws.id}
+                    href={ws.href}
+                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                      isActiveRoute(ws.href)
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                    }`}
+                    title={ws.name}
+                  >
+                    <span className="truncate">{ws.name}</span>
+                  </Link>
+                ))
+              )}
+
+              {hasOverflow && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExpanded((prev) => !prev);
+                  }}
+                  className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                >
+                  {isExpanded ? "收起" : "顯示更多"}
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   );
 }

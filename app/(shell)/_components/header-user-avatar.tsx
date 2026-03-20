@@ -7,12 +7,14 @@
  * Constraints: keep header interaction lightweight and presentation-oriented.
  */
 
+import Link from "next/link";
+import { LogOut, Settings, SlidersHorizontal } from "lucide-react";
+
 import { Avatar, AvatarFallback } from "@/ui/shadcn/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/shadcn/ui/dropdown-menu";
@@ -44,14 +46,40 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="space-y-0.5">
-          <p className="truncate text-sm font-medium text-foreground">{name}</p>
-          <p className="truncate text-xs text-muted-foreground">{email}</p>
-        </DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-64">
+        {/* Profile header */}
+        <div className="flex flex-col items-center gap-2 px-4 py-4">
+          <Avatar size="lg">
+            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+              {toInitial(name, email)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-foreground">{name}</p>
+            <p className="text-xs text-muted-foreground">{email}</p>
+          </div>
+        </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-          Sign Out
+        <DropdownMenuItem asChild>
+          <Link href="/settings" className="flex items-center gap-2">
+            <Settings className="size-4 shrink-0" />
+            <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings?tab=preferences" className="flex items-center gap-2">
+            <SlidersHorizontal className="size-4 shrink-0" />
+            <span>Preferences</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={onSignOut}
+          className="flex items-center gap-2"
+        >
+          <LogOut className="size-4 shrink-0" />
+          <span>Sign Out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
