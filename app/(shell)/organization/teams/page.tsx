@@ -24,12 +24,13 @@ export default function OrganizationTeamsPage() {
 
   useEffect(() => {
     if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
     let cancelled = false;
 
     async function load() {
       setLoadState("loading");
       try {
-        const data = await getOrganizationTeams(activeOrganizationId);
+        const data = await getOrganizationTeams(organizationId);
         if (!cancelled) {
           setTeams(data);
           setLoadState("loaded");

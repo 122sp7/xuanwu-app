@@ -24,12 +24,13 @@ export default function OrganizationMembersPage() {
 
   useEffect(() => {
     if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
     let cancelled = false;
 
     async function load() {
       setLoadState("loading");
       try {
-        const data = await getOrganizationMembers(activeOrganizationId);
+        const data = await getOrganizationMembers(organizationId);
         if (!cancelled) {
           setMembers(data);
           setLoadState("loaded");
