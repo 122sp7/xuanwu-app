@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Filter,
   List,
+  Users,
 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -17,6 +18,8 @@ import { getWorkspacesForAccount } from "@/modules/workspace";
 import { getWorkspaceSchedule } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
 import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "@/modules/schedule/interfaces/schedule-ui.constants";
+import { listWorkspaceScheduleMdddFlowProjections } from "@/modules/schedule/interfaces/queries/schedule-mddd.queries";
+import type { ScheduleMdddFlowProjection } from "@/modules/schedule/domain/mddd/value-objects/Projection";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { isOrganizationAccount } from "../_utils";
 
@@ -90,6 +93,9 @@ export default function OrganizationSchedulePage() {
   >([]);
   const [bookingRows, setBookingRows] = useState<readonly BookingRow[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  // Cross-workspace MDDD flow projections (待分派 view)
+  const [allProjections, setAllProjections] = useState<readonly (ScheduleMdddFlowProjection & { workspaceName: string })[]>([]);
 
   // ── Calendar week navigation ─────────────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0);
@@ -183,6 +189,28 @@ export default function OrganizationSchedulePage() {
         }
       });
 
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaces]);
+
+  // ── Aggregate MDDD projections across all workspaces ─────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      workspaces.map(async (w) => {
+        try {
+          const rows = await listWorkspaceScheduleMdddFlowProjections(w.id);
+          return rows.map((p) => ({ ...p, workspaceName: w.name }));
+        } catch {
+          return [] as (ScheduleMdddFlowProjection & { workspaceName: string })[];
+        }
+      }),
+    ).then((results) => {
+      if (!cancelled) setAllProjections(results.flat());
+    }).catch(() => {
+      if (!cancelled) setAllProjections([]);
+    });
     return () => {
       cancelled = true;
     };
@@ -365,6 +393,69 @@ export default function OrganizationSchedulePage() {
               ))}
             </ul>
           )}
+
+          {/* ── 待分派 section: cross-workspace pending resource requests ── */}
+          {(() => {
+            const pendingProjections = allProjections.filter(
+              (p) => p.requestStatus === "submitted" || p.requestStatus === "under-review",
+            );
+            if (pendingProjections.length === 0) return null;
+            return (
+              <div className="border-t border-border/40 px-4 py-3">
+                <div className="mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">
+                    待分派資源請求
+                  </span>
+                  <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {pendingProjections.length}
+                  </span>
+                </div>
+                <ul className="divide-y divide-border/40 overflow-hidden rounded-md border border-border/50">
+                  {pendingProjections.map((p) => (
+                    <li
+                      key={p.requestId}
+                      className="flex w-full items-center justify-between bg-background px-4 py-3 transition-colors hover:bg-muted/30"
+                    >
+                      <div className="min-w-0 flex-1 pr-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={p.requestStatus === "submitted" ? "secondary" : "default"}>
+                            {p.requestStatus === "submitted" ? "已提交" : "審查中"}
+                          </Badge>
+                          <Link
+                            href={`/workspace/${p.workspaceId}?tab=Schedule`}
+                            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                          >
+                            {p.workspaceName}
+                          </Link>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          更新：{new Date(p.updatedAtISO).toLocaleString("zh-TW")}
+                          {p.lastReason ? ` · ${p.lastReason}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {p.requestStatus === "submitted" && (
+                          <Link
+                            href={`/workspace/${p.workspaceId}?tab=Schedule`}
+                            className="flex h-7 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                          >
+                            <Users className="h-3 w-3" />
+                            前往分派
+                          </Link>
+                        )}
+                        {p.requestStatus === "under-review" && p.assigneeAccountUserId && (
+                          <span className="text-xs text-muted-foreground">
+                            指派給 {p.assigneeAccountUserId.slice(0, 8)}…
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
         </div>
       </div>
     );
