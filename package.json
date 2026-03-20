@@ -17,8 +17,8 @@
     "deploy:functions:all": "firebase deploy --only functions",
     "deploy:firebase": "firebase deploy",
     "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:remote": "npx repomix --skill-generate cal-skill --skill-output .github/skills/cal-skill --remote calcom/cal.com --include \"apps/web/**\" --force",
-    "repomix:local": "npx repomix --skill-generate plane-skill --skill-output .github/skills/plane-skill D:\\122sp7\\apps --force",
+    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
+    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
     "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
   },
   "engines": {
