@@ -9,7 +9,7 @@
  */
 
 import { GripVertical } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/ui/shadcn/ui/button";
 import { Checkbox } from "@/ui/shadcn/ui/checkbox";
@@ -137,14 +137,7 @@ export function CustomizeNavigationDialog({
   onOpenChange,
   onPreferencesChange,
 }: CustomizeNavigationDialogProps) {
-  const [prefs, setPrefs] = useState<NavPreferences>(DEFAULT_PREFS);
-
-  // Hydrate from localStorage when dialog opens — use a ref to avoid the
-  // "setState in effect" lint rule while still re-reading prefs each open.
-  const openRef = { current: open };
-  if (openRef.current && !customizeOpen) {
-    // handled via onOpenChange; initial state already set in useState initializer
-  }
+  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
 
   function updatePrefs(update: Partial<NavPreferences>) {
     setPrefs((prev) => {
