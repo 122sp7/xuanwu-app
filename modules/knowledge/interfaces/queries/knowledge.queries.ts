@@ -6,8 +6,10 @@ import {
 } from "@/modules/parser";
 import type { WorkspaceEntity } from "@/modules/workspace";
 
-import { GetWorkspaceKnowledgeSummaryUseCase } from "../../application/use-cases/get-workspace-knowledge-summary.use-case";
-import type { WorkspaceKnowledgeSummary } from "../../domain/entities/KnowledgeSummary";
+import {
+  GetWorkspaceKnowledgeSummaryUseCase,
+  type WorkspaceKnowledgeSummary,
+} from "@/core/wiki-core";
 import { DefaultWorkspaceKnowledgeRepository } from "../../infrastructure/default/DefaultWorkspaceKnowledgeRepository";
 
 export async function getWorkspaceKnowledgeSummary(

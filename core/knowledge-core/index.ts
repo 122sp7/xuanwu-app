@@ -1,6 +1,8 @@
 /**
  * Module: knowledge-core
  * Layer: facade
- * Purpose: Integration facade that re-exports module contracts and local scaffolds.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
+ * @deprecated knowledge-core has been superseded by core/wiki-core.
+ * This file re-exports from wiki-core for backward compatibility.
+ * Migrate all imports to @/core/wiki-core.
  */
+export * from '../wiki-core'

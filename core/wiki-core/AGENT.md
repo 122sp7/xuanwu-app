@@ -1,10 +1,4 @@
-# Knowledge-Core Agent Contract (Deprecated)
-
-> This module has been superseded by `core/wiki-core`.
-> All domain contracts, use-cases, and infrastructure adapters now live there.
-> Migrate all imports to `@/core/wiki-core`.
-
-See `core/wiki-core/AGENT.md` for the current contract.
+# Wiki-Core Agent Contract
 
 ## Dependency Direction
 - Interfaces -> Application -> Domain <- Infrastructure
@@ -13,30 +7,32 @@ See `core/wiki-core/AGENT.md` for the current contract.
 - Infrastructure implements repository contracts only
 
 ## Flow
-Knowledge -> Taxonomy -> Retrieval -> Governance -> Integration -> Analytics -> Knowledge
+WikiDocument -> Taxonomy -> Retrieval -> AccessControl -> KnowledgeSummary -> UsageStats -> WikiDocument
 
 ## Active Scope (Current)
 - interfaces/api
 - application/use-cases
 - domain/entities
 - domain/repositories
+- domain/services
 - domain/value-objects
 - infrastructure/persistence
 - infrastructure/repositories
 
 ## Out Of Scope (Temporarily Removed)
 - dto / mapper / service layers in application
-- aggregate / domain-service / event / factory / exception / shared in domain
+- aggregate / domain-event / factory / exception / shared in domain
 - external / mapper in infrastructure
 - ai / serializer in interfaces
 
 ## Layer Skeleton
 - Interfaces: receive input and call use-cases
-- Application: orchestrate workflows and transaction boundaries
-- Domain: entities/value-objects/invariants only
+- Application: orchestrate wiki and knowledge workflows
+- Domain: entities/value-objects/services/invariants only
 - Infrastructure: implement ports and external adapters only
 
 ## Guardrails For Copilot
 - Keep write paths in use-cases
 - Keep provider syntax inside infrastructure/persistence or infrastructure/repositories
 - Keep domain deterministic and testable
+- Never import from @/modules/* inside domain or application layers

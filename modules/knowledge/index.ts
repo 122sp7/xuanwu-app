@@ -1,12 +1,13 @@
 /**
- * @deprecated modules/knowledge is a temporary shim.
+ * @deprecated modules/knowledge is a compatibility shim.
  *
- * The UI components (WorkspaceKnowledgeTab, OrganizationKnowledgeTab) have been
- * absorbed into WorkspaceWikiTab and the wiki hub page. The remaining domain
- * types and query are re-exported here only until the wiki module defines its own.
+ * Domain types and use-cases have moved to core/wiki-core.
+ * The cross-module query (getWorkspaceKnowledgeSummary) and its infrastructure
+ * adapter (DefaultWorkspaceKnowledgeRepository) remain here because they depend
+ * on @/modules/file, @/modules/parser, and @/modules/workspace.
  *
- * Canonical home for knowledge domain: core/knowledge-core (wiki foundation).
- * Do NOT add new features here — build them in the wiki section instead.
+ * Canonical domain home: @/core/wiki-core
+ * Do NOT add new features here — build them in core/wiki-core instead.
  */
 export * from "./domain";
 export * from "./application";

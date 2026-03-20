@@ -1,4 +1,10 @@
-# Knowledge Core (Scaffold)
+# Knowledge Core (Deprecated)
+
+> **This module is deprecated.** All domain content has been migrated to `core/wiki-core`.
+> This directory now acts as a thin re-export shim for backward compatibility.
+> Migrate all imports to `@/core/wiki-core`.
+
+See `core/wiki-core/README.md` for the current implementation and documentation.
 
 `core/knowledge-core` is a minimal scaffold for early-phase implementation.
 It intentionally keeps only the core dependency path and basic module boundaries.

@@ -2,13 +2,16 @@ import type { WorkspaceFileListItemDto } from "@/modules/file/application/dto/fi
 import type { WorkspaceParserSummary } from "@/modules/parser";
 import type { WorkspaceEntity } from "@/modules/workspace";
 
-import type { WorkspaceKnowledgeSummary } from "../../domain/entities/KnowledgeSummary";
-import type { KnowledgeRepository, KnowledgeScope } from "../../domain/repositories/KnowledgeRepository";
+import type { WorkspaceKnowledgeSummary } from "@/core/wiki-core";
+import type {
+  IKnowledgeSummaryRepository,
+  IKnowledgeSummaryScope,
+} from "@/core/wiki-core";
 import {
   deriveKnowledgeSummary,
   type KnowledgeSummaryCopy,
   type KnowledgeWorkspaceSnapshot,
-} from "../../domain/services/derive-knowledge-summary";
+} from "@/core/wiki-core";
 
 const KNOWLEDGE_SUMMARY_COPY: KnowledgeSummaryCopy = {
   noAssetsBlockedReason: "目前尚未有任何已註冊的知識來源。",
@@ -17,14 +20,14 @@ const KNOWLEDGE_SUMMARY_COPY: KnowledgeSummaryCopy = {
   defaultAction: "先確認契約、可見 UI 與後續切塊 / 檢索流程的責任邊界。",
 };
 
-export class DefaultWorkspaceKnowledgeRepository implements KnowledgeRepository {
+export class DefaultWorkspaceKnowledgeRepository implements IKnowledgeSummaryRepository {
   constructor(
     private readonly workspace: WorkspaceEntity,
     private readonly files: readonly WorkspaceFileListItemDto[],
     private readonly parserSummary: WorkspaceParserSummary,
   ) {}
 
-  summarize(scope: KnowledgeScope): WorkspaceKnowledgeSummary {
+  summarize(scope: IKnowledgeSummaryScope): WorkspaceKnowledgeSummary {
     if (scope.workspaceId !== this.workspace.id) {
       return {
         registeredAssetCount: 0,
