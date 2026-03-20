@@ -2,13 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   Clock,
+  Copy,
   ExternalLink,
   Link2,
   MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -22,6 +27,13 @@ import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects
 import type { RequestStatus } from "../../domain/mddd/value-objects/WorkflowStatuses";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Switch } from "@/ui/shadcn/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/ui/shadcn/ui/dropdown-menu";
 
 // ── Request status helpers ────────────────────────────────────────────────────
 
@@ -59,6 +71,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const [scheduleEventTypes, setScheduleEventTypes] = useState<readonly ScheduleEventType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ── Priority ordering (local, persisted to state until backend supports it) ─
+  const [orderedIds, setOrderedIds] = useState<readonly string[]>([]);
+
   // ── Resource-request state ────────────────────────────────────────────────
   const [projections, setProjections] = useState<readonly ScheduleMdddFlowProjection[]>([]);
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -70,7 +85,15 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     let cancelled = false;
     getWorkspaceScheduleEventTypes(workspace.accountId, workspace.id)
       .then((types) => {
-        if (!cancelled) setScheduleEventTypes(types);
+        if (!cancelled) {
+          setScheduleEventTypes(types);
+          setOrderedIds((prev) => {
+            // Merge: keep existing order, append any new ids
+            const existing = prev.filter((id) => types.some((t) => t.id === id));
+            const newIds = types.filter((t) => !existing.includes(t.id)).map((t) => t.id);
+            return [...existing, ...newIds];
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) setScheduleEventTypes([]);
@@ -95,15 +118,40 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     };
   }, [workspace.id]);
 
-  const filtered = useMemo(
-    () =>
-      scheduleEventTypes.filter(
-        (et) =>
-          et.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          et.slug.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-    [scheduleEventTypes, searchQuery],
-  );
+  // Ordered + filtered event types
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    const all = scheduleEventTypes.filter(
+      (et) => et.title.toLowerCase().includes(q) || et.slug.toLowerCase().includes(q),
+    );
+    // Sort by orderedIds priority, then append any unordered new items
+    return [...all].sort((a, b) => {
+      const ai = orderedIds.indexOf(a.id);
+      const bi = orderedIds.indexOf(b.id);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [scheduleEventTypes, searchQuery, orderedIds]);
+
+  // ── Priority move helper ────────────────────────────────────────────────
+  function moveItem(id: string, direction: "up" | "down") {
+    setOrderedIds((prev) => {
+      const ids = [...prev];
+      // Ensure this id is in the list
+      if (!ids.includes(id)) {
+        ids.push(...scheduleEventTypes.map((e) => e.id).filter((i) => !ids.includes(i)));
+      }
+      const idx = ids.indexOf(id);
+      if (direction === "up" && idx > 0) {
+        [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
+      } else if (direction === "down" && idx < ids.length - 1) {
+        [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
+      }
+      return ids;
+    });
+  }
 
   // ── Submit a new resource request ────────────────────────────────────────
   async function handleSubmitRequest() {
@@ -173,15 +221,45 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
       ) : (
         <div className="overflow-hidden rounded-md border border-border/50">
           <ul className="divide-y divide-border/40">
-            {filtered.map((et) => (
+            {filtered.map((et, idx) => (
               <li
                 key={et.id}
-                className="flex w-full items-center justify-between bg-background px-4 py-3 transition-colors hover:bg-muted/30"
+                className="group flex w-full items-center bg-background px-2 py-3 transition-colors hover:bg-muted/30"
               >
-                {/* Left: title + slug path + duration badge */}
-                <div className="min-w-0 flex-1 pr-4">
+                {/* Priority reorder arrows – visible on hover */}
+                <div className="mr-1 flex shrink-0 flex-col opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => moveItem(et.id, "up")}
+                    className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                    aria-label="上移"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === filtered.length - 1}
+                    onClick={() => moveItem(et.id, "down")}
+                    className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                    aria-label="下移"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Left: clickable title + slug path + duration badge */}
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 pr-4 text-left"
+                  onClick={() => {
+                    /* TODO: navigate to event-type detail */
+                  }}
+                >
                   <div className="flex flex-wrap items-baseline gap-1.5">
-                    <span className="text-sm font-medium text-foreground">{et.title}</span>
+                    <span className="text-sm font-medium text-foreground hover:underline">
+                      {et.title}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       /{workspace.id}/{et.slug}
                     </span>
@@ -190,9 +268,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                     <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">{et.durationLabel}</span>
                   </div>
-                </div>
+                </button>
 
-                {/* Right: 隱藏 toggle + icon buttons */}
+                {/* Right: 隱藏 toggle + icon buttons + dropdown menu */}
                 <div className="flex shrink-0 items-center gap-3">
                   {/* Active/hidden toggle */}
                   <div className="flex items-center gap-1.5">
@@ -231,13 +309,57 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                     >
                       <Link2 className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      title="更多選項"
-                    >
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </button>
+
+                    {/* MoreHorizontal → dropdown: 編輯 / 複製 / 內嵌 / 刪除 */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          aria-label="更多選項"
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            /* TODO: edit */
+                          }}
+                        >
+                          <Pencil className="mr-2 h-3.5 w-3.5" />
+                          編輯
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            /* TODO: duplicate */
+                          }}
+                        >
+                          <Copy className="mr-2 h-3.5 w-3.5" />
+                          複製
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            /* TODO: embed */
+                          }}
+                        >
+                          <span className="mr-2 inline-flex h-3.5 w-3.5 items-center justify-center font-mono text-[10px]">
+                            {"</>"}
+                          </span>
+                          內嵌
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => {
+                            /* TODO: delete */
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
+                          刪除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </li>
