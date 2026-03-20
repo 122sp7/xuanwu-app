@@ -12,7 +12,7 @@ docs/
 ├── design/            Design diagrams (Mermaid + Markdown)
 ├── explanation/       Governance and policy docs
 └── reference/
-    └── development-contracts/   Formal delivery contracts (6 files + overview)
+    └── development-contracts/   Formal delivery contracts (7 files + overview)
 ```
 
 ---
@@ -93,6 +93,7 @@ These are the **formal delivery contracts** that define acceptance criteria, dat
 | `billing-contract.md` | billing | Billing lifecycle contract |
 | `parser-contract.md` | parser | Document parsing contract |
 | `rag-ingestion-contract.md` | RAG / knowledge-core | RAG ingestion pipeline contract |
+| `knowledge-contract.md` | knowledge | Workspace Knowledge read-side + UI/UX delivery contract + MVP write-side alignment |
 | `schedule-contract.md` | schedule | **Bidirectional request→fulfillment MDDD contract** (PR #9) |
 
 > ⚠️ **Rule**: Before implementing any module feature, locate and read its contract file here first.  

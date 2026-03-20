@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { getWorkspaceFiles } from "../queries/file.queries";
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
 import { Badge } from "@/ui/shadcn/ui/badge";
+import { Button } from "@/ui/shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -13,6 +17,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/shadcn/ui/card";
+import { Input } from "@/ui/shadcn/ui/input";
+import { Label } from "@/ui/shadcn/ui/label";
+import { getFirebaseStorage } from "@/infrastructure/firebase";
 
 interface WorkspaceFilesTabProps {
   readonly workspace: WorkspaceEntity;
@@ -21,33 +28,36 @@ interface WorkspaceFilesTabProps {
 export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
   const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[WorkspaceFilesTab] Failed to load file metadata:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      }
+
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadFiles() {
-      setLoadState("loading");
-
-      try {
-        const nextAssets = await getWorkspaceFiles(workspace);
-        if (cancelled) {
-          return;
-        }
-
-        setAssets(nextAssets);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn(
-            "[WorkspaceFilesTab] Failed to load file metadata:",
-            error instanceof Error ? error.message : "unknown error",
-          );
-        }
-
-        if (!cancelled) {
-          setAssets([]);
-          setLoadState("error");
-        }
+      await reloadFiles();
+      if (cancelled) {
+        return;
       }
     }
 
@@ -56,7 +66,68 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [workspace]);
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(
+        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
+      );
+
+      await reloadFiles();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
+      }
+      setUploadState("error");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
+    }
+  }
 
   const availableCount = useMemo(
     () => assets.filter((asset) => asset.status === "active").length,
@@ -68,10 +139,50 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       <CardHeader>
         <CardTitle>Files</CardTitle>
         <CardDescription>
-          盤點目前已註冊或可立即導出的工作區資產，作為後續檔案流程的起點。
+          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (!nextFile) {
+                  return;
+                }
+
+                void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p
+              className={`mt-3 text-xs ${
+                uploadState === "error" ? "text-destructive" : "text-emerald-600"
+              }`}
+            >
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
         {loadState === "loading" && (
           <p className="text-sm text-muted-foreground">Loading file metadata…</p>
         )}
@@ -120,14 +231,11 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
                 <div className="text-xs text-muted-foreground sm:text-right">
                   <p>Source: {asset.source}</p>
                   {asset.href && (
-                    <a
-                      href={asset.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex text-primary hover:underline"
-                    >
-                      Open asset
-                    </a>
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">
+                        Open asset
+                      </a>
+                    </Button>
                   )}
                 </div>
               </div>

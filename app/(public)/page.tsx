@@ -19,6 +19,12 @@ import {
   RegisterUseCase,
   SendPasswordResetEmailUseCase,
 } from "@/modules/identity/application/use-cases/identity.use-cases";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
 
 type Tab = "login" | "register";
 
@@ -57,6 +63,12 @@ export default function PublicPage() {
     setError(null);
     setIsLoading(true);
     try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
       const result =
         tab === "login"
           ? await signInUseCase.execute({ email, password })

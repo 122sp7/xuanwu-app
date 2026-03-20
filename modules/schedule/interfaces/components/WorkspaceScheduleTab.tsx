@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/app/providers/auth-provider";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
 import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
 import {
@@ -23,9 +24,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/shadcn/ui/card";
+import { Input } from "@/ui/shadcn/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ui/shadcn/ui/alert-dialog";
 
 interface WorkspaceScheduleTabProps {
   readonly workspace: WorkspaceEntity;
+}
+
+type FlowFilter = "all" | "actionable" | "at-risk" | "completed";
+type FlowActionKind = "reject-request" | "reject-assignment" | "cancel-schedule";
+
+interface PendingFlowAction {
+  readonly kind: FlowActionKind;
+  readonly id: string;
+  readonly requestId: string;
 }
 
 const statusVariantMap = {
@@ -33,6 +54,7 @@ const statusVariantMap = {
   scheduled: "outline",
   completed: "secondary",
 } as const;
+const DEFAULT_CLIENT_LOCALE = "zh-TW";
 
 const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   maxLoadPerMember: 4,
@@ -43,14 +65,6 @@ const DEFAULT_SCHEDULE_RUNTIME_PROFILE = {
   requiredHeadcount: 1,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Taipei",
 } as const;
-
-function invokeHandlerIfIdExists(id: string | null, handler: (value: string) => Promise<void>) {
-  if (!id) {
-    return;
-  }
-
-  void handler(id);
-}
 
 function resolveFlowStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   if (!status) {
@@ -72,13 +86,71 @@ function resolveFlowStatusVariant(status: string | null): "default" | "secondary
   return "outline";
 }
 
+function resolveClientLocale(): string {
+  if (typeof navigator === "undefined") {
+    return DEFAULT_CLIENT_LOCALE;
+  }
+
+  const firstLanguage = Array.isArray(navigator.languages) ? navigator.languages[0] : undefined;
+  return firstLanguage || navigator.language || DEFAULT_CLIENT_LOCALE;
+}
+
+function formatUpdatedAt(iso: string): string {
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) {
+    return iso;
+  }
+
+  return new Intl.DateTimeFormat(resolveClientLocale(), {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+}
+
+function isActionableProjection(projection: ScheduleMdddFlowProjection): boolean {
+  return (
+    ["submitted", "under-review", "accepted"].includes(projection.requestStatus) ||
+    projection.assignmentStatus === "proposed" ||
+    (projection.scheduleStatus
+      ? ["planned", "reserved", "active", "conflicted"].includes(projection.scheduleStatus)
+      : false)
+  );
+}
+
+function isAtRiskProjection(projection: ScheduleMdddFlowProjection): boolean {
+  return (
+    projection.requestStatus === "rejected" ||
+    projection.assignmentStatus === "rejected" ||
+    projection.assignmentStatus === "cancelled" ||
+    projection.scheduleStatus === "cancelled" ||
+    projection.scheduleStatus === "conflicted"
+  );
+}
+
+function isCompletedProjection(projection: ScheduleMdddFlowProjection): boolean {
+  return (
+    projection.requestStatus === "closed" ||
+    projection.taskStatus === "completed" ||
+    projection.scheduleStatus === "completed"
+  );
+}
+
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
+  const { state: authState } = useAuth();
   const [items, setItems] = useState<readonly WorkspaceScheduleItem[]>([]);
   const [flowProjections, setFlowProjections] = useState<readonly ScheduleMdddFlowProjection[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [flowLoadState, setFlowLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [runState, setRunState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [runMessage, setRunMessage] = useState<string | null>(null);
+  const [flowSearch, setFlowSearch] = useState("");
+  const [flowFilter, setFlowFilter] = useState<FlowFilter>("all");
+  const [pendingFlowAction, setPendingFlowAction] = useState<PendingFlowAction | null>(null);
+  const [isSubmittingFlowAction, setIsSubmittingFlowAction] = useState(false);
   const [lastRunSummary, setLastRunSummary] = useState<{
     readonly requestId: string;
     readonly taskId?: string;
@@ -88,11 +160,15 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   } | null>(null);
 
   const defaultCandidateId = useMemo(
+    // Fallback to authenticated user when workspace personnel is not configured yet,
+    // so local runtime checks and early-stage workspaces can still execute the flow.
+    // Downstream server-side flow handlers still enforce domain transitions and policy limits.
     () =>
       workspace.personnel?.managerId?.trim() ||
       workspace.personnel?.supervisorId?.trim() ||
+      authState.user?.id ||
       "",
-    [workspace.personnel?.managerId, workspace.personnel?.supervisorId],
+    [authState.user?.id, workspace.personnel?.managerId, workspace.personnel?.supervisorId],
   );
 
   const loadSchedule = useCallback(async () => {
@@ -160,7 +236,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     const runnerId = defaultCandidateId;
     if (!runnerId) {
       setRunState("error");
-      setRunMessage("缺少可用的執行者（manager / supervisor），無法啟動流程。");
+      setRunMessage("缺少可用的執行者（manager / supervisor / authenticated user），無法啟動流程。");
       return;
     }
     const runtimeProfile = DEFAULT_SCHEDULE_RUNTIME_PROFILE;
@@ -293,6 +369,102 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     [loadMdddFlows],
   );
 
+  const filteredFlowProjections = useMemo(() => {
+    const keyword = flowSearch.trim().toLowerCase();
+    return flowProjections.filter((projection) => {
+      if (flowFilter === "actionable" && !isActionableProjection(projection)) {
+        return false;
+      }
+      if (flowFilter === "at-risk" && !isAtRiskProjection(projection)) {
+        return false;
+      }
+      if (flowFilter === "completed" && !isCompletedProjection(projection)) {
+        return false;
+      }
+      if (!keyword) {
+        return true;
+      }
+
+      const searchableFields = [
+        projection.requestId,
+        projection.taskId,
+        projection.assignmentId,
+        projection.scheduleId,
+        projection.assigneeAccountUserId,
+        projection.requestStatus,
+        projection.taskStatus,
+        projection.assignmentStatus,
+        projection.scheduleStatus,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" ")
+        .toLowerCase();
+
+      return searchableFields.includes(keyword);
+    });
+  }, [flowFilter, flowProjections, flowSearch]);
+
+  const flowMetrics = useMemo(() => {
+    const actionableCount = flowProjections.filter(isActionableProjection).length;
+    const atRiskCount = flowProjections.filter(isAtRiskProjection).length;
+    const completedCount = flowProjections.filter(isCompletedProjection).length;
+
+    return {
+      total: flowProjections.length,
+      actionableCount,
+      atRiskCount,
+      completedCount,
+    };
+  }, [flowProjections]);
+
+  const pendingActionMeta = useMemo(() => {
+    if (!pendingFlowAction) {
+      return null;
+    }
+
+    if (pendingFlowAction.kind === "reject-request") {
+      return {
+        title: "Reject Request",
+        description: `將 request ${pendingFlowAction.requestId} 標記為拒絕，並回滾後續任務。`,
+        confirmLabel: "確認 Reject",
+      };
+    }
+
+    if (pendingFlowAction.kind === "reject-assignment") {
+      return {
+        title: "Reject Assignment",
+        description: `將 request ${pendingFlowAction.requestId} 的 assignment 標記為拒絕，流程將回到可再指派狀態。`,
+        confirmLabel: "確認拒絕 Assignment",
+      };
+    }
+
+    return {
+      title: "Cancel Schedule",
+      description: `取消 request ${pendingFlowAction.requestId} 的既有 schedule，並標記原因以利稽核。`,
+      confirmLabel: "確認取消 Schedule",
+    };
+  }, [pendingFlowAction]);
+
+  const handleConfirmFlowAction = useCallback(async () => {
+    if (!pendingFlowAction) {
+      return;
+    }
+
+    setIsSubmittingFlowAction(true);
+    try {
+      if (pendingFlowAction.kind === "reject-request") {
+        await handleRejectRequest(pendingFlowAction.id);
+      } else if (pendingFlowAction.kind === "reject-assignment") {
+        await handleRejectAssignment(pendingFlowAction.id);
+      } else {
+        await handleCancelSchedule(pendingFlowAction.id);
+      }
+      setPendingFlowAction(null);
+    } finally {
+      setIsSubmittingFlowAction(false);
+    }
+  }, [handleCancelSchedule, handleRejectAssignment, handleRejectRequest, pendingFlowAction]);
+
   return (
     <Card className="border border-border/50">
       <CardHeader>
@@ -302,6 +474,25 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Total flows</p>
+            <p className="mt-1 text-xl font-semibold">{flowMetrics.total}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Actionable</p>
+            <p className="mt-1 text-xl font-semibold">{flowMetrics.actionableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">At risk</p>
+            <p className="mt-1 text-xl font-semibold">{flowMetrics.atRiskCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Completed</p>
+            <p className="mt-1 text-xl font-semibold">{flowMetrics.completedCount}</p>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-border/40 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
@@ -350,7 +541,31 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
 
         {flowProjections.length > 0 && (
           <div className="space-y-3">
-            {flowProjections.map((projection) => (
+            <div className="grid gap-3 rounded-xl border border-border/40 p-4 md:grid-cols-[1fr_auto]">
+              <Input
+                value={flowSearch}
+                onChange={(event) => setFlowSearch(event.target.value)}
+                placeholder="搜尋 request / task / assignee / status"
+              />
+              <select
+                value={flowFilter}
+                onChange={(event) => setFlowFilter(event.target.value as FlowFilter)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="all">全部流程</option>
+                <option value="actionable">待處理</option>
+                <option value="at-risk">高風險</option>
+                <option value="completed">已完成</option>
+              </select>
+            </div>
+
+            {filteredFlowProjections.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                目前篩選條件下沒有資料，請調整搜尋關鍵字或篩選條件。
+              </p>
+            )}
+
+            {filteredFlowProjections.map((projection) => (
               <div
                 key={projection.requestId}
                 className="rounded-xl border border-border/40 bg-muted/20 px-4 py-4"
@@ -376,6 +591,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                   <p>assignmentId: {projection.assignmentId ?? "—"}</p>
                   <p>scheduleId: {projection.scheduleId ?? "—"}</p>
                   <p>assignee: {projection.assigneeAccountUserId ?? "—"}</p>
+                  <p>updated at: {formatUpdatedAt(projection.updatedAtISO)}</p>
                   <p>events: {projection.eventTypes.join(" → ") || "—"}</p>
                   {projection.lastReason && <p>reason: {projection.lastReason}</p>}
                 </div>
@@ -386,7 +602,13 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleRejectRequest(projection.requestId)}
+                      onClick={() =>
+                        setPendingFlowAction({
+                          kind: "reject-request",
+                          id: projection.requestId,
+                          requestId: projection.requestId,
+                        })
+                      }
                     >
                       Reject Request
                     </Button>
@@ -397,9 +619,16 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        invokeHandlerIfIdExists(projection.assignmentId, handleRejectAssignment)
-                      }
+                      onClick={() => {
+                        if (!projection.assignmentId) {
+                          return;
+                        }
+                        setPendingFlowAction({
+                          kind: "reject-assignment",
+                          id: projection.assignmentId,
+                          requestId: projection.requestId,
+                        });
+                      }}
                     >
                       Reject Assignment
                     </Button>
@@ -410,22 +639,57 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                     ["planned", "reserved", "active", "conflicted"].includes(
                       projection.scheduleStatus,
                     ) && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() =>
-                          invokeHandlerIfIdExists(projection.scheduleId, handleCancelSchedule)
-                        }
-                      >
-                        Cancel Schedule
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (!projection.scheduleId) {
+                              return;
+                            }
+                            setPendingFlowAction({
+                              kind: "cancel-schedule",
+                              id: projection.scheduleId,
+                              requestId: projection.requestId,
+                            });
+                          }}
+                        >
+                          Cancel Schedule
+                        </Button>
                     )}
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        <AlertDialog
+          open={Boolean(pendingFlowAction)}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && !isSubmittingFlowAction) {
+              setPendingFlowAction(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{pendingActionMeta?.title ?? "確認操作"}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingActionMeta?.description ?? "請確認是否執行此操作。"}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isSubmittingFlowAction}>返回</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isSubmittingFlowAction}
+                onClick={() => void handleConfirmFlowAction()}
+              >
+                {isSubmittingFlowAction ? "處理中…" : pendingActionMeta?.confirmLabel ?? "確認"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {loadState === "loading" && (
           <p className="text-sm text-muted-foreground">Loading schedule signals…</p>
