@@ -52,6 +52,7 @@ import { WorkspaceTaskTab } from "@/modules/task";
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiTab } from "./WorkspaceWikiTab";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 
 const lifecycleBadgeVariant: Record<
@@ -74,6 +75,7 @@ const workspaceTabItems = [
   "Daily",
   "Files",
   "Knowledge",
+  "Wiki",
   "Schedule",
   "Document Parser",
   "Audit",
@@ -285,6 +287,8 @@ export function WorkspaceDetailScreen({
         return <WorkspaceFilesTab workspace={workspace} />;
       case "Knowledge":
         return <WorkspaceKnowledgeTab workspace={workspace} />;
+      case "Wiki":
+        return <WorkspaceWikiTab workspace={workspace} />;
       case "Schedule":
         return <WorkspaceScheduleTab workspace={workspace} />;
       case "Document Parser":
