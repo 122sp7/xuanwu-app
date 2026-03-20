@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -43,7 +43,6 @@ const organizationManagementItems = [
   { label: "團隊", href: "/organization/teams" },
   { label: "權限", href: "/organization/permissions" },
   { label: "工作區", href: "/organization/workspaces" },
-  { label: "知識", href: "/organization/knowledge" },
   { label: "排程", href: "/organization/schedule" },
   { label: "每日", href: "/organization/daily" },
   { label: "稽核", href: "/organization/audit" },
@@ -83,6 +82,20 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   const { state: authState, logout } = useAuth();
   const { state: appState, dispatch } = useApp();
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
 
   const pageTitle = routeTitles[pathname] ?? "Workspace";
   const organizationAccounts = Object.values(appState.accounts ?? {});
@@ -151,18 +164,26 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         />
         <DashboardSidebar
           pathname={pathname}
-          user={authState.user}
           activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          onOrganizationCreated={handleOrganizationCreated}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
             <div className="flex h-12 items-center justify-between gap-4">
               <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
                 <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
                 {/* Global search */}
                 <button

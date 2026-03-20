@@ -9,14 +9,12 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
-import { AccountSwitcher } from "./account-switcher";
 import {
   CustomizeNavigationDialog,
   readNavPreferences,
@@ -25,12 +23,9 @@ import {
 
 interface DashboardSidebarProps {
   readonly pathname: string;
-  readonly user: AuthUser | null;
   readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly onOrganizationCreated: (account: AccountEntity) => void;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
 }
 
 const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
@@ -38,7 +33,6 @@ const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
   { id: "teams", label: "團隊", href: "/organization/teams" },
   { id: "permissions", label: "權限", href: "/organization/permissions" },
   { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
-  { id: "knowledge", label: "知識", href: "/organization/knowledge" },
   { id: "schedule", label: "排程", href: "/organization/schedule" },
   { id: "daily", label: "每日", href: "/organization/daily" },
   { id: "audit", label: "稽核", href: "/organization/audit" },
@@ -120,30 +114,17 @@ function isActiveOrganizationAccount(
 
 export function DashboardSidebar({
   pathname,
-  user,
   activeAccount,
-  organizationAccounts,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
+  collapsed,
+  onToggleCollapsed,
 }: DashboardSidebarProps) {
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
+    onToggleCollapsed();
   }
 
   const showAccountManagement = isActiveOrganizationAccount(activeAccount);
@@ -223,25 +204,11 @@ export function DashboardSidebar({
     <>
     <aside
       aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 transition-[width] duration-200 md:flex ${
-        collapsed ? "w-6" : "w-52"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
       }`}
     >
-      {collapsed ? (
-        /* ── Collapsed strip ──────────────────────────────────────── */
-        <div className="flex flex-1 flex-col items-center pt-2">
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            aria-label="展開側欄"
-            title="展開側欄"
-            className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-      ) : (
-        <>
+      <>
           {/* ── Sidebar title bar ──────────────────────────────────── */}
           <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
             {/* Section label */}
@@ -272,18 +239,6 @@ export function DashboardSidebar({
                 <PanelLeftClose className="size-3.5" />
               </button>
             </div>
-          </div>
-
-          {/* ── Account switcher ──────────────────────────────────── */}
-          <div className="shrink-0 border-b border-border/40 px-3 py-3">
-            <AccountSwitcher
-              personalAccount={user}
-              organizationAccounts={organizationAccounts}
-              activeAccountId={activeAccount?.id ?? null}
-              onSelectPersonal={onSelectPersonal}
-              onSelectOrganization={onSelectOrganization}
-              onOrganizationCreated={onOrganizationCreated}
-            />
           </div>
 
           {/* ── Scrollable nav body ── section-specific ───────────── */}
@@ -368,11 +323,41 @@ export function DashboardSidebar({
             {section === "wiki" && (
               <nav className="space-y-0.5" aria-label="Wiki navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Wiki
+                  知識庫
                 </p>
                 {(
                   [
-                    { href: "/wiki", label: "所有頁面" },
+                    { href: "/wiki", label: "知識中樞" },
+                    { href: "/organization/knowledge", label: "組織知識庫" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="my-1.5 border-t border-border/40" />
+
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  頁面
+                </p>
+                {(
+                  [
+                    { href: "/wiki/shared", label: "共用頁面" },
+                    { href: "/wiki/private", label: "私人頁面" },
+                    { href: "/wiki/archive", label: "封存" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -455,7 +440,6 @@ export function DashboardSidebar({
             )}
           </div>
         </>
-      )}
     </aside>
 
     <CustomizeNavigationDialog
