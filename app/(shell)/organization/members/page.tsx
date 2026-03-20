@@ -27,10 +27,7 @@ export default function OrganizationMembersPage() {
     if (!organizationId) return;
     let cancelled = false;
 
-    Promise.resolve().then(async () => {
-      if (cancelled) {
-        return;
-      }
+    async function load() {
       setLoadState("loading");
       try {
         const data = await getOrganizationMembers(organizationId);
@@ -44,7 +41,8 @@ export default function OrganizationMembersPage() {
           setLoadState("error");
         }
       }
-    });
+    }
+    void load();
 
     return () => {
       cancelled = true;

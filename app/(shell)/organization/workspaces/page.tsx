@@ -31,10 +31,7 @@ export default function OrganizationWorkspacesPage() {
     if (!organizationId) return;
     let cancelled = false;
 
-    Promise.resolve().then(async () => {
-      if (cancelled) {
-        return;
-      }
+    async function load() {
       setLoadState("loading");
       try {
         const data = await getWorkspacesForAccount(organizationId);
@@ -48,7 +45,8 @@ export default function OrganizationWorkspacesPage() {
           setLoadState("error");
         }
       }
-    });
+    }
+    void load();
 
     return () => {
       cancelled = true;

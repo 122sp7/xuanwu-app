@@ -147,19 +147,19 @@ export function OrganizationKnowledgeTab({ workspaces }: OrganizationKnowledgeTa
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const loadAll = useCallback(async (options?: { readonly isCancelled?: () => boolean }) => {
-    if (options?.isCancelled?.()) {
+  const loadAll = useCallback(async (loadControl?: { readonly isCancelled?: () => boolean }) => {
+    if (loadControl?.isCancelled?.()) {
       return;
     }
     setLoadState("loading");
     try {
       const results = await loadKnowledgeEntries(workspaces);
-      if (!options?.isCancelled?.()) {
+      if (!loadControl?.isCancelled?.()) {
         setEntries(results);
         setLoadState("loaded");
       }
     } catch {
-      if (!options?.isCancelled?.()) {
+      if (!loadControl?.isCancelled?.()) {
         setEntries([]);
         setLoadState("error");
       }

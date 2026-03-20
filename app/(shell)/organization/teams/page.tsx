@@ -27,10 +27,7 @@ export default function OrganizationTeamsPage() {
     if (!organizationId) return;
     let cancelled = false;
 
-    Promise.resolve().then(async () => {
-      if (cancelled) {
-        return;
-      }
+    async function load() {
       setLoadState("loading");
       try {
         const data = await getOrganizationTeams(organizationId);
@@ -44,7 +41,8 @@ export default function OrganizationTeamsPage() {
           setLoadState("error");
         }
       }
-    });
+    }
+    void load();
 
     return () => {
       cancelled = true;
