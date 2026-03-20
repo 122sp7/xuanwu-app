@@ -18,13 +18,17 @@ export default function OrganizationKnowledgePage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
-    if (!activeOrganizationId) return;
+    const organizationId = activeOrganizationId;
+    if (!organizationId) return;
     let cancelled = false;
 
-    async function load() {
+    Promise.resolve().then(async () => {
+      if (cancelled) {
+        return;
+      }
       setLoadState("loading");
       try {
-        const data = await getWorkspacesForAccount(activeOrganizationId);
+        const data = await getWorkspacesForAccount(organizationId);
         if (!cancelled) {
           setWorkspaces(data);
           setLoadState("loaded");
@@ -35,8 +39,7 @@ export default function OrganizationKnowledgePage() {
           setLoadState("error");
         }
       }
-    }
-    void load();
+    });
 
     return () => {
       cancelled = true;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRightIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -115,47 +115,76 @@ function WorkspaceHealthCard({ entry }: WorkspaceHealthCardProps) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+async function loadKnowledgeEntries(
+  workspaces: readonly WorkspaceEntity[],
+): Promise<readonly WorkspaceKnowledgeEntry[]> {
+  return Promise.all(
+    workspaces.map(async (workspace) => {
+      try {
+        const summary = await getWorkspaceKnowledgeSummary(workspace);
+        return { workspace, summary };
+      } catch {
+        return {
+          workspace,
+          summary: {
+            registeredAssetCount: 0,
+            readyAssetCount: 0,
+            supportedSourceCount: 0,
+            status: "needs-input" as const,
+            blockedReasons: ["摘要載入失敗"],
+            nextActions: [],
+            visibleSurface: "workspace-tab-live" as const,
+            contractStatus: "contract-live" as const,
+          },
+        };
+      }
+    }),
+  );
+}
+
 export function OrganizationKnowledgeTab({ workspaces }: OrganizationKnowledgeTabProps) {
   const [entries, setEntries] = useState<readonly WorkspaceKnowledgeEntry[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const loadAll = useCallback(async () => {
+  async function loadAll() {
     setLoadState("loading");
     try {
-      const results = await Promise.all(
-        workspaces.map(async (workspace) => {
-          try {
-            const summary = await getWorkspaceKnowledgeSummary(workspace);
-            return { workspace, summary };
-          } catch {
-            return {
-              workspace,
-              summary: {
-                registeredAssetCount: 0,
-                readyAssetCount: 0,
-                supportedSourceCount: 0,
-                status: "needs-input" as const,
-                blockedReasons: ["摘要載入失敗"],
-                nextActions: [],
-                visibleSurface: "workspace-tab-live" as const,
-                contractStatus: "contract-live" as const,
-              },
-            };
-          }
-        }),
-      );
+      const results = await loadKnowledgeEntries(workspaces);
       setEntries(results);
       setLoadState("loaded");
     } catch {
       setEntries([]);
       setLoadState("error");
     }
-  }, [workspaces]);
+  }
 
   useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
+    let cancelled = false;
+
+    Promise.resolve().then(async () => {
+      if (cancelled) {
+        return;
+      }
+      setLoadState("loading");
+      try {
+        const results = await loadKnowledgeEntries(workspaces);
+        if (!cancelled) {
+          setEntries(results);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setEntries([]);
+          setLoadState("error");
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaces]);
 
   // ── Aggregates ────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
