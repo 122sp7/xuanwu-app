@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -161,8 +162,19 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
             <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0">
+              <div className="min-w-0 flex items-center gap-3">
                 <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => { /* TODO: open global search command palette */ }}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
               </div>
 
               <div className="ml-auto flex items-center gap-3">

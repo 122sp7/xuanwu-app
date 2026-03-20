@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { ChevronRight, PanelLeftClose, Search, SlidersHorizontal } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronRight, PanelLeftClose, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { AuthUser } from "@/app/providers/auth-context";
@@ -83,6 +83,28 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
   if (!match) return null;
   return decodeURIComponent(match[1]);
 }
+
+// ── Section helpers ──────────────────────────────────────────────────────────
+
+type NavSection = "workspace" | "wiki" | "ai-chat" | "organization" | "other";
+
+function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
+  if (pathname.startsWith("/wiki")) return "wiki";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+// ── Section icon labels for the title bar ────────────────────────────────────
+
+const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  wiki: { label: "Wiki", icon: <BookOpen className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
 
 function isActiveOrganizationAccount(
   activeAccount: ActiveAccount | null,
@@ -192,6 +214,9 @@ export function DashboardSidebar({
     ? recentWorkspaceLinks
     : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
 
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+
   return (
     <>
     <aside
@@ -216,27 +241,35 @@ export function DashboardSidebar({
       ) : (
         <>
           {/* ── Sidebar title bar ──────────────────────────────────── */}
-          <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-2 py-1.5">
-            <button
-              type="button"
-              title="設定"
-              aria-label="設定"
-              onClick={() => {
-                setCustomizeOpen(true);
-              }}
-              className="flex items-center rounded p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
-            >
-              <SlidersHorizontal className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-label="收起側欄"
-              title="收起側欄"
-              className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            >
-              <PanelLeftClose className="size-3.5" />
-            </button>
+          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+            {/* Section label */}
+            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              {sectionMeta.icon}
+              {sectionMeta.label}
+            </span>
+            {/* Customize + collapse buttons grouped on the right */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                title="設定"
+                aria-label="設定"
+                onClick={() => {
+                  setCustomizeOpen(true);
+                }}
+                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="收起側欄"
+                title="收起側欄"
+                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* ── Account switcher ──────────────────────────────────── */}
@@ -251,27 +284,95 @@ export function DashboardSidebar({
             />
           </div>
 
-          {/* ── Search hint (like Plane's quick-actions) ──────────── */}
-          <div className="shrink-0 border-b border-border/40 px-3 py-2">
-            <Link
-              href="/workspace"
-              className="flex items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs text-muted-foreground transition hover:border-border hover:bg-muted"
-            >
-              <Search className="size-3.5 shrink-0" />
-              <span>工作區搜尋…</span>
-            </Link>
-          </div>
-
-          {/* ── Scrollable nav body ────────────────────────────────── */}
+          {/* ── Scrollable nav body ── section-specific ───────────── */}
           <div className="flex-1 overflow-y-auto px-3 py-3">
+            {section === "organization" && (
+              <>
+                {showAccountManagement && visibleAccountManagementItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Organization management">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      帳戶管理
+                    </p>
+                    {visibleAccountManagementItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看管理選項。
+                  </p>
+                )}
+              </>
+            )}
 
-            {/* Organization management sub-nav */}
-            {showAccountManagement && visibleAccountManagementItems.length > 0 && (
-              <nav className="mb-4 space-y-0.5" aria-label="Organization management">
+            {section === "workspace" && (
+              <>
+                {showRecentWorkspaces && (
+                  <div className="space-y-0.5">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      最近工作區
+                    </p>
+                    {visibleRecentWorkspaceLinks.length === 0 ? (
+                      <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                        尚無最近開啟的工作區。
+                      </p>
+                    ) : (
+                      visibleRecentWorkspaceLinks.map((ws) => (
+                        <Link
+                          key={ws.id}
+                          href={ws.href}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            isActiveRoute(ws.href)
+                              ? "bg-primary/10 text-primary"
+                              : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                          }`}
+                          title={ws.name}
+                        >
+                          <span className="truncate">{ws.name}</span>
+                        </Link>
+                      ))
+                    )}
+                    {hasOverflow && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExpanded((prev) => !prev);
+                        }}
+                        className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                      >
+                        {isExpanded ? "收起" : "顯示更多"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {section === "wiki" && (
+              <nav className="space-y-0.5" aria-label="Wiki navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  帳戶管理
+                  Wiki
                 </p>
-                {visibleAccountManagementItems.map((item) => {
+                {(
+                  [
+                    { href: "/wiki", label: "所有頁面" },
+                  ] as const
+                ).map((item) => {
                   const active = isActiveRoute(item.href);
                   return (
                     <Link
@@ -291,46 +392,33 @@ export function DashboardSidebar({
               </nav>
             )}
 
-            {/* Recent workspaces quick-access */}
-            {showRecentWorkspaces && (
-            <div className="space-y-0.5">
-              <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                最近工作區
-              </p>
-
-              {visibleRecentWorkspaceLinks.length === 0 ? (
-                <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                  尚無最近開啟的工作區。
+            {section === "ai-chat" && (
+              <nav className="space-y-0.5" aria-label="AI Chat navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  AI Chat
                 </p>
-              ) : (
-                visibleRecentWorkspaceLinks.map((ws) => (
-                  <Link
-                    key={ws.id}
-                    href={ws.href}
-                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                      isActiveRoute(ws.href)
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                    }`}
-                    title={ws.name}
-                  >
-                    <span className="truncate">{ws.name}</span>
-                  </Link>
-                ))
-              )}
-
-              {hasOverflow && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsExpanded((prev) => !prev);
-                  }}
-                  className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                >
-                  {isExpanded ? "收起" : "顯示更多"}
-                </button>
-              )}
-            </div>
+                {(
+                  [
+                    { href: "/ai-chat", label: "對話紀錄" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
             )}
           </div>
         </>
