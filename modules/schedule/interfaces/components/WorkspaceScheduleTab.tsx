@@ -18,6 +18,7 @@ import {
 import { listWorkspaceScheduleMdddFlowProjections } from "../queries/schedule-mddd.queries";
 import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import { Badge } from "@/ui/shadcn/ui/badge";
+import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "../schedule-ui.constants";
 import { Button } from "@/ui/shadcn/ui/button";
 import {
   Card,
@@ -513,10 +514,58 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
       <CardHeader>
         <CardTitle>Schedule</CardTitle>
         <CardDescription>
-          以工作區生命週期與 finance 節點整理目前可追蹤的 milestone / follow-up 行程。
+          工作區排程樣板（Event Types）與 lifecycle milestone / follow-up 行程。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* ── Event Types catalog – analogous to cal.com /event-types (workspace-scoped) ── */}
+        <div className="rounded-xl border border-border/40 p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-foreground">排程類型</p>
+            <span className="text-xs text-muted-foreground">
+              工作區可用的排程樣板，類比 cal.com Event Types
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {scheduleEventTypes.map((et) => (
+              <div
+                key={et.id}
+                className="flex flex-col gap-2 rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">{et.title}</p>
+                  <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[et.itemType]}>
+                    {et.itemType}
+                  </Badge>
+                  {!et.isActive && (
+                    <Badge variant="secondary">停用</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{et.description}</p>
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                    /{et.slug}
+                  </code>
+                  <span className="text-xs text-muted-foreground">{et.durationLabel}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  本工作區：
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {itemTypeBreakdown[et.itemType] ?? 0}
+                  </span>{" "}
+                  個項目
+                </p>
+              </div>
+            ))}
+            {scheduleEventTypes.length === 0 && (
+              <p className="col-span-full text-sm text-muted-foreground">
+                載入排程類型中…
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── KPI cards ── */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Total flows</p>
@@ -742,30 +791,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           <p className="text-sm text-destructive">無法載入 schedule 資料，請稍後再試。</p>
         )}
 
-        {/* ── Schedule Event Types breakdown – analogous to cal.com EventType catalog ── */}
-        {scheduleEventTypes.length > 0 && loadState === "loaded" && (
-          <div className="rounded-xl border border-border/40 p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">排程類型</p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {scheduleEventTypes.map((et) => (
-                <div
-                  key={et.id}
-                  className="flex items-center justify-between rounded-lg border border-border/30 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-xs font-medium">{et.title}</p>
-                    <p className="text-xs text-muted-foreground">{et.durationLabel}</p>
-                  </div>
-                  <span className="text-lg font-semibold tabular-nums">
-                    {itemTypeBreakdown[et.itemType] ?? 0}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Upcoming items – analogous to cal.com upcoming bookings view ── */}
+        {/* ── Upcoming items at workspace level (compact strip) ── */}
         {loadState === "loaded" && upcomingItems.length > 0 && (
           <div className="rounded-xl border border-border/40 p-4">
             <p className="mb-3 text-sm font-semibold text-foreground">
