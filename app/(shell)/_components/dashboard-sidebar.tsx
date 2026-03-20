@@ -12,11 +12,9 @@ import Link from "next/link";
 import { BookOpen, Bot, Building2, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
-import { AccountSwitcher } from "./account-switcher";
 import {
   CustomizeNavigationDialog,
   readNavPreferences,
@@ -25,12 +23,7 @@ import {
 
 interface DashboardSidebarProps {
   readonly pathname: string;
-  readonly user: AuthUser | null;
   readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly onOrganizationCreated: (account: AccountEntity) => void;
 }
 
 const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
@@ -120,12 +113,7 @@ function isActiveOrganizationAccount(
 
 export function DashboardSidebar({
   pathname,
-  user,
   activeAccount,
-  organizationAccounts,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
 }: DashboardSidebarProps) {
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
@@ -274,18 +262,6 @@ export function DashboardSidebar({
             </div>
           </div>
 
-          {/* ── Account switcher ──────────────────────────────────── */}
-          <div className="shrink-0 border-b border-border/40 px-3 py-3">
-            <AccountSwitcher
-              personalAccount={user}
-              organizationAccounts={organizationAccounts}
-              activeAccountId={activeAccount?.id ?? null}
-              onSelectPersonal={onSelectPersonal}
-              onSelectOrganization={onSelectOrganization}
-              onOrganizationCreated={onOrganizationCreated}
-            />
-          </div>
-
           {/* ── Scrollable nav body ── section-specific ───────────── */}
           <div className="flex-1 overflow-y-auto px-3 py-3">
             {section === "organization" && (
@@ -368,12 +344,41 @@ export function DashboardSidebar({
             {section === "wiki" && (
               <nav className="space-y-0.5" aria-label="Wiki navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Wiki
+                  知識庫
                 </p>
                 {(
                   [
                     { href: "/wiki", label: "知識中樞" },
                     { href: "/organization/knowledge", label: "組織知識庫" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="my-1.5 border-t border-border/40" />
+
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  頁面
+                </p>
+                {(
+                  [
+                    { href: "/wiki/shared", label: "共用頁面" },
+                    { href: "/wiki/private", label: "私人頁面" },
+                    { href: "/wiki/archive", label: "封存" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);

@@ -151,12 +151,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         />
         <DashboardSidebar
           pathname={pathname}
-          user={authState.user}
           activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          onOrganizationCreated={handleOrganizationCreated}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
