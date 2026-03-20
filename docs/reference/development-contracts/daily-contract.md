@@ -11,10 +11,11 @@ This contract defines the target development boundary for Daily in xuanwu-app:
 
 - **Workspace Daily** is the daily feed for a single workspace
 - **Organization Daily** aggregates all workspace Daily feeds under one organization
-- the current implementation is a notification-driven digest baseline
+- the current standardized baseline is canonical authored entries over `dailyEntries`
+- notification-driven digest remains a compatibility layer during migration
 - the target implementation evolves Daily into an explainable feed system with authored entries, system signals, ranking, and promotion paths
 
-This contract exists to remove ambiguity before expanding Daily beyond its current read-only digest.
+This contract exists to remove ambiguity before expanding Daily beyond its current authored-entry standard.
 
 ## Current runtime boundary
 
@@ -399,11 +400,11 @@ These must be normalized into `DailyEntryType = signal` instead of leaking raw m
 
 ## Acceptance gates
 
-Before Daily expands beyond the current digest baseline, these gates must be satisfied:
+Before Daily expands beyond the current authored-entry standard, these gates must be satisfied:
 
-1. canonical write model for `DailyEntry` is defined and implemented
-2. workspace and organization feeds read from explicit projections, not direct notification scans
+1. canonical write model for `DailyEntry` remains the only standard write surface
+2. workspace and organization feeds stay behind an explicit `DailyFeedRepository` boundary, so projection materialization can replace direct scans without UI breakage
 3. visibility and organization-boundary rules are enforced
 4. ranking reasons are explainable and testable
 5. promotion paths to at least one target module are defined
-6. current digest compatibility is preserved during migration
+6. current digest compatibility is preserved during migration without reclaiming primary ownership of the surface

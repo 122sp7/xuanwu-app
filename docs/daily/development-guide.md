@@ -21,9 +21,16 @@ description: Developer guide for building Workspace Daily and Organization Daily
 
 ---
 
-## 1. 先理解目前基線
+## 1. 先理解目前標準
 
-目前 Daily 已存在的實作，包含 **notification-driven digest baseline** 與 **canonical authored entry baseline**：
+目前 Daily 已存在兩種讀取面，但**標準化判斷只能有一個主體**：
+
+- **目前標準**：canonical authored entry baseline
+- **遷移相容**：notification-driven digest baseline
+
+也就是說，Daily 的文件、命名、UI 說明、後續擴充，都要以 `publishDailyEntry` + `getWorkspaceDailyFeed` + `getOrganizationDailyFeed` 為主軸；digest 只保留為 compatibility layer。
+
+目前 Daily 已存在的實作如下：
 
 - `modules/daily/domain/entities/DailyDigest.ts`
 - `modules/daily/application/use-cases/daily-digest.use-cases.ts`
@@ -42,13 +49,13 @@ description: Developer guide for building Workspace Daily and Organization Daily
 - `modules/workspace/interfaces/components/WorkspaceDailyTab.tsx`
 - `app/(shell)/organization/daily/page.tsx`
 
-這個基線的價值在於：
+這個目前標準的價值在於：
 
 - 已經證明 Workspace / Organization 兩層 Daily UI 入口存在
 - 已經證明 Organization Daily 的聚合邏輯需要 `organizationId + workspaceIds`
 - 已經提供最小 `DailyDigestItem` 形狀，供後續遷移時相容
 
-但它**不是最終架構**。未來不要繼續把 Daily 視為 notification list 的另一個外觀，也不要把目前的 freshness-only feed 誤認為完整 projection / ranking 實作。
+但目前標準**不是最終完整架構**。未來不要繼續把 Daily 視為 notification list 的另一個外觀，也不要把目前的 freshness-only feed 誤認為完整 projection / ranking 實作。
 
 ---
 

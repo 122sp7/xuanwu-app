@@ -194,7 +194,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
           <div>
             <CardTitle>Daily</CardTitle>
             <CardDescription>
-              發布今天最重要的更新、阻塞與協作需求，並保留通知摘要供快速對照。
+              目前以 canonical Daily feed 為標準；通知 digest 僅保留為遷移期間的相容對照。
             </CardDescription>
           </div>
           <button
@@ -210,15 +210,15 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Published today</p>
+            <p className="text-xs text-muted-foreground">Canonical entries</p>
             <p className="mt-1 text-xl font-semibold">{feed.length}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Digest unread</p>
+            <p className="text-xs text-muted-foreground">Digest unread (compat)</p>
             <p className="mt-1 text-xl font-semibold">{unreadCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Recipient</p>
+            <p className="text-xs text-muted-foreground">Workspace account</p>
             <p className="mt-1 text-sm font-semibold text-foreground">{workspace.accountId}</p>
           </div>
         </div>

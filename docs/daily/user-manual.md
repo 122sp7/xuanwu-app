@@ -17,9 +17,10 @@ Daily 目前處於 **基線已上線、完整產品待擴充** 的狀態。
 
 | 能力 | 目前狀態 | 說明 |
 | --- | --- | --- |
-| Workspace Daily 讀取今日摘要 | 已可用 | 在工作區分頁中查看今日通知與動態 |
-| Organization Daily 聚合所有 Workspace Daily 摘要 | 已可用 | 在組織頁面查看所有名下 workspace 今日摘要 |
-| Workspace 主動發布 Daily 內容 | 規劃中 | 未來可像發佈今日動態一樣更新工作區狀態 |
+| Workspace Daily authored feed | 已可用 | 在工作區分頁查看與發布 canonical Daily 條目 |
+| Organization Daily 聚合所有 Workspace Daily feed | 已可用 | 在組織頁面查看所有名下 workspace 的 canonical Daily feed |
+| Digest baseline 相容對照 | 已可用 | 保留既有通知摘要，供遷移期間對照使用 |
+| Workspace 主動發布 Daily 內容 | 已可用（最小切片） | 目前可發布 `update / blocker / ask / milestone / signal / story / highlight` 條目 |
 | Story / Highlight / Reaction / Bookmark | 規劃中 | 文件已定義方向，功能尚未上線 |
 | Daily 升格為 task / knowledge / schedule | 規劃中 | 文件已定義流程，功能尚未上線 |
 
@@ -64,12 +65,12 @@ Organization Daily 是組織層級的 Daily 聚合頁：
 
 ### 目前畫面會看到什麼
 
-Workspace Daily 現在提供的是**今日摘要**：
+Workspace Daily 現在提供的是**canonical Daily feed + digest 對照**：
 
-- **Today items**：今天共有幾則動態
-- **Unread**：今天尚未讀取的項目數
-- **Recipient**：目前讀取使用的帳號識別
-- **動態清單**：每則項目的標題、類型、訊息與時間
+- **Canonical entries**：今天已發布的 Daily 條目
+- **Composer**：可直接發布更新、阻塞、協作需求等條目
+- **Digest unread**：既有通知摘要中尚未讀取的項目數
+- **Digest baseline**：保留通知清單供遷移期間對照
 
 ### 適合理解為什麼
 
@@ -79,7 +80,7 @@ Workspace Daily 現在提供的是**今日摘要**：
 - 有哪些通知還沒處理？
 - 最新訊號大概是什麼？
 
-它目前**還不是**完整的發文型 feed，所以不提供編輯、發佈、收藏或互動操作。
+它目前已經支援**最小發佈型 feed**，但仍**不是完整 Daily 產品**，所以尚不提供互動、收藏、升格與完整排序能力。
 
 ---
 
@@ -95,10 +96,10 @@ Workspace Daily 現在提供的是**今日摘要**：
 
 Organization Daily 目前顯示：
 
-- 組織層級今日摘要說明
-- 今日動態清單
-- 每條動態的標題、類型、訊息
-- 若未讀，會顯示 `Unread`
+- 組織層級 canonical Daily feed
+- 每條 feed 的標題、類型、來源 workspace、發布時間
+- freshness-only 的排序原因
+- 既有 digest baseline 對照區塊
 
 ### 目前適合拿來做什麼
 
@@ -119,7 +120,7 @@ Organization Daily 目前顯示：
 
 ### 4.1 Workspace 擁有者：像經營帳號一樣經營 Daily
 
-未來 Workspace Daily 會支援工作區主動發布 Daily 條目，建議日常操作如下：
+目前 Workspace Daily 已支援最小可用的主動發布條目，後續完整版本會再補齊 ranking / interaction / promotion。建議日常操作如下：
 
 1. 早上發布今日目標或重點進度
 2. 遇到阻塞時發布 `blocker` 或 `ask`
@@ -190,7 +191,7 @@ Instagram 追求停留時間；Daily 追求的是：
 
 ### Q：現在可以像發 Instagram 一樣發布 Daily 嗎？
 
-**A**：目前還不行。現在已上線的是 read-only digest baseline，完整發佈型 Daily 仍在規劃中。
+**A**：可以，但目前是最小切片。你已經可以在 Workspace Daily 發布 canonical Daily 條目；尚未完成的是 reaction、bookmark、acknowledgement、promotion 與完整 ranking。
 
 ### Q：Organization Daily 會顯示其他組織的內容嗎？
 
@@ -210,8 +211,8 @@ Instagram 追求停留時間；Daily 追求的是：
 
 | 資源 | 路徑 | 用途 |
 | --- | --- | --- |
-| Organization Daily 頁面 | `/organization/daily` | 查看所有名下 workspace 今日摘要 |
-| Workspace Daily 分頁 | `/workspace/{id}` → Daily | 查看單一 workspace 今日摘要 |
+| Organization Daily 頁面 | `/organization/daily` | 查看所有名下 workspace 的 canonical Daily feed 與 digest 對照 |
+| Workspace Daily 分頁 | `/workspace/{id}` → Daily | 查看並發布單一 workspace 的 Daily 條目 |
 | 架構規範 | `docs/architecture/daily.md` | 理解設計與 Instagram 價值抽取 |
 | 開發契約 | `docs/reference/development-contracts/daily-contract.md` | 理解資料與邊界契約 |
 | 開發指南 | `docs/daily/development-guide.md` | 未來實作時使用 |

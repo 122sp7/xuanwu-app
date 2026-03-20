@@ -15,17 +15,29 @@ description: Target architecture for Organization Daily and Workspace Daily, inc
 
 ## 0. 目前已上線範圍
 
-目前 Daily 已有最小可用讀模型，但仍屬 **notification-driven digest baseline**：
+目前 Daily 的**標準化基線**已經收斂為 **canonical authored-entry feed**，而不是只有 notification-driven digest：
 
+- **Canonical command / query surface（目前標準）**
+  - `publishDailyEntry(input)`：發布 `dailyEntries` canonical authored entry
+  - `getWorkspaceDailyFeed(workspaceId)`：讀取單一 workspace 的 canonical feed
+  - `getOrganizationDailyFeed(organizationId, workspaceIds)`：讀取組織層跨 workspace canonical feed
 - **Workspace Daily UI**：`modules/workspace/interfaces/components/WorkspaceDailyTab.tsx`
-  - 查詢：`getWorkspaceDailyDigest(workspaceId, accountId)`
-  - 來源：`DefaultDailyDigestRepository` 讀取通知模組，再依當日與 `workspaceId` 過濾
+  - 以 authored entries 為主畫面
+  - 保留 `getWorkspaceDailyDigest(workspaceId, accountId)` 作為遷移對照
 - **Organization Daily UI**：`app/(shell)/organization/daily/page.tsx`
-  - 查詢：`getOrganizationDailyDigest(organizationId, workspaceIds)`
-  - 功能：顯示組織名下所有工作區的今日通知與活動摘要
-- **目前資料邊界**：`modules/daily` 已有 canonical `dailyEntries` write-side、workspace / organization authored feed，以及既有 notification-driven digest compatibility layer
+  - 以 organization feed 為主畫面
+  - 保留 `getOrganizationDailyDigest(organizationId, workspaceIds)` 作為遷移對照
+- **目前資料邊界**：`modules/daily` 已有 canonical `dailyEntries` write-side、workspace / organization feed query，以及既有 notification-driven digest compatibility layer
 
-### 0.1 本輪文件要解決的問題
+### 0.1 目前收斂判斷
+
+本輪對 Daily 的標準化判斷如下：
+
+1. **Feed 是主體**：Workspace / Organization Daily 目前都以 canonical authored feed 為標準
+2. **Digest 不是主體**：digest 僅保留為 compatibility layer，不再描述成目前 Daily 的核心產品形態
+3. **未完成能力要明講**：ranking / interaction / promotion / projection materialization 未完成時，不用文件假裝已交付
+
+### 0.2 本輪文件要解決的問題
 
 本輪先建立 Daily 的設計、契約、開發指南與使用手冊，目的是在正式擴寫 Daily write-side 之前，先回答四件事：
 
@@ -34,7 +46,7 @@ description: Target architecture for Organization Daily and Workspace Daily, inc
 3. **Instagram 能抽取哪些價值**：保留 feed / story / profile / interaction 的產品機制，替換成工作協作語境
 4. **如何在 MDDD 下落地**：保持 `UI -> Application -> Domain <- Infrastructure`，避免 Daily 再次退化成散落在 UI 的卡片集合
 
-### 0.2 本輪不假裝已完成
+### 0.3 本輪不假裝已完成
 
 以下能力目前**尚未完整實作**，本文件只定義方向與契約：
 
