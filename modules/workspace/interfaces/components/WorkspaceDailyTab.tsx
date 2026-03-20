@@ -71,23 +71,22 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
   const { state: appState } = useApp();
   const actorAccountId = appState.activeAccount?.id ?? "";
 
+  const defaultVisibility =
+    workspace.accountType === "organization" ? "organization" : "workspace_only";
+
   const [digest, setDigest] = useState<WorkspaceDailyDigestEntity | null>(null);
   const [feed, setFeed] = useState<readonly DailyFeedItem[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [showComposer, setShowComposer] = useState(false);
   const [entryType, setEntryType] = useState<PublishDailyEntryInput["entryType"]>("update");
   const [visibility, setVisibility] = useState<PublishDailyEntryInput["visibility"]>(
-    workspace.accountType === "organization" ? "organization" : "workspace_only",
+    defaultVisibility,
   );
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setVisibility(workspace.accountType === "organization" ? "organization" : "workspace_only");
-  }, [workspace.accountType]);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +168,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       setSummary("");
       setBody("");
       setEntryType("update");
-      setVisibility(workspace.accountType === "organization" ? "organization" : "workspace_only");
+      setVisibility(defaultVisibility);
       setShowComposer(false);
       await refreshDailyData();
     } finally {

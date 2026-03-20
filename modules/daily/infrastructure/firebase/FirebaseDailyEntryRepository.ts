@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  limit,
   orderBy,
   query,
   setDoc,
@@ -16,6 +17,7 @@ import type { DailyEntry, PublishDailyEntryInput } from "../../domain/entities/D
 import type { DailyEntryRepository } from "../../domain/repositories/DailyEntryRepository";
 
 const COLLECTION_NAME = "dailyEntries";
+const DEFAULT_ENTRY_QUERY_LIMIT = 50;
 
 function requireString(data: Record<string, unknown>, field: string) {
   const value = data[field];
@@ -62,7 +64,18 @@ function toDailyEntryEntity(entryId: string, data: Record<string, unknown>): Dai
   };
 }
 
+function createNowISO() {
+  const nowISO = new Date().toISOString();
+  if (Number.isNaN(Date.parse(nowISO))) {
+    throw new Error("Failed to create a valid Daily entry timestamp.");
+  }
+
+  return nowISO;
+}
+
 export class FirebaseDailyEntryRepository implements DailyEntryRepository {
+  constructor(private readonly entryQueryLimit = DEFAULT_ENTRY_QUERY_LIMIT) {}
+
   private get db() {
     return getFirestore(firebaseClientApp);
   }
@@ -70,7 +83,7 @@ export class FirebaseDailyEntryRepository implements DailyEntryRepository {
   async publish(input: PublishDailyEntryInput): Promise<DailyEntry> {
     const entryId = doc(collection(this.db, COLLECTION_NAME)).id;
     const entryRef = doc(this.db, COLLECTION_NAME, entryId);
-    const nowISO = new Date().toISOString();
+    const nowISO = createNowISO();
 
     const documentData = {
       organizationId: input.organizationId,
@@ -111,6 +124,7 @@ export class FirebaseDailyEntryRepository implements DailyEntryRepository {
         collection(this.db, COLLECTION_NAME),
         where("workspaceId", "==", workspaceId),
         orderBy("publishedAtISO", "desc"),
+        limit(this.entryQueryLimit),
       ),
     );
 
@@ -125,6 +139,7 @@ export class FirebaseDailyEntryRepository implements DailyEntryRepository {
         collection(this.db, COLLECTION_NAME),
         where("organizationId", "==", organizationId),
         orderBy("publishedAtISO", "desc"),
+        limit(this.entryQueryLimit),
       ),
     );
 
