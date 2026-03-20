@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
@@ -24,6 +24,8 @@ import {
 interface DashboardSidebarProps {
   readonly pathname: string;
   readonly activeAccount: ActiveAccount | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
 }
 
 const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
@@ -113,24 +115,15 @@ function isActiveOrganizationAccount(
 export function DashboardSidebar({
   pathname,
   activeAccount,
+  collapsed,
+  onToggleCollapsed,
 }: DashboardSidebarProps) {
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
 
   function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
+    onToggleCollapsed();
   }
 
   const showAccountManagement = isActiveOrganizationAccount(activeAccount);
@@ -210,25 +203,11 @@ export function DashboardSidebar({
     <>
     <aside
       aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 transition-[width] duration-200 md:flex ${
-        collapsed ? "w-6" : "w-52"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
       }`}
     >
-      {collapsed ? (
-        /* ── Collapsed strip ──────────────────────────────────────── */
-        <div className="flex flex-1 flex-col items-center pt-2">
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            aria-label="展開側欄"
-            title="展開側欄"
-            className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-      ) : (
-        <>
+      <>
           {/* ── Sidebar title bar ──────────────────────────────────── */}
           <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
             {/* Section label */}
@@ -460,7 +439,6 @@ export function DashboardSidebar({
             )}
           </div>
         </>
-      )}
     </aside>
 
     <CustomizeNavigationDialog

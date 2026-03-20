@@ -12,20 +12,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArchiveIcon,
-  BookOpenIcon,
   Building2Icon,
-  ChevronDownIcon,
   ChevronRightIcon,
   FileTextIcon,
-  FilePlusIcon,
-  FolderIcon,
-  HomeIcon,
   Loader2Icon,
-  LockIcon,
   RefreshCwIcon,
   SearchIcon,
-  Share2Icon,
   UploadIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -49,7 +41,6 @@ import {
 } from "@/ui/shadcn/ui/card";
 import { Input } from "@/ui/shadcn/ui/input";
 import { Progress } from "@/ui/shadcn/ui/progress";
-import { ScrollArea } from "@/ui/shadcn/ui/scroll-area";
 import { Separator } from "@/ui/shadcn/ui/separator";
 import { Skeleton } from "@/ui/shadcn/ui/skeleton";
 
@@ -123,92 +114,6 @@ function mimeLabel(mime: string): string {
   if (mime.includes("text")) return "TXT";
   if (mime.includes("markdown")) return "MD";
   return mime.split("/").pop()?.toUpperCase() ?? "FILE";
-}
-
-// ── Sidebar sub-components ────────────────────────────────────────────────────
-
-interface SidebarSectionProps {
-  readonly icon: React.ReactNode;
-  readonly label: string;
-  readonly count?: number;
-  readonly active?: boolean;
-  readonly defaultOpen?: boolean;
-  readonly onClick?: () => void;
-  readonly children?: React.ReactNode;
-}
-
-function SidebarSection({
-  icon,
-  label,
-  count,
-  active,
-  defaultOpen = false,
-  onClick,
-  children,
-}: SidebarSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div>
-      <button
-        type="button"
-        className={[
-          "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition",
-          active
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-        ].join(" ")}
-        onClick={() => {
-          onClick?.();
-          if (children) setOpen((o) => !o);
-        }}
-      >
-        {icon}
-        <span className="flex-1 truncate text-left">{label}</span>
-        {count !== undefined && (
-          <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-            {count}
-          </Badge>
-        )}
-        {children &&
-          (open ? (
-            <ChevronDownIcon className="size-3 shrink-0" />
-          ) : (
-            <ChevronRightIcon className="size-3 shrink-0" />
-          ))}
-      </button>
-      {open && children && <div className="ml-2 mt-0.5 space-y-0.5">{children}</div>}
-    </div>
-  );
-}
-
-interface SidebarLeafProps {
-  readonly icon?: React.ReactNode;
-  readonly label: string;
-  readonly count?: number;
-  readonly active?: boolean;
-  readonly onClick?: () => void;
-}
-
-function SidebarLeaf({ icon, label, count, active, onClick }: SidebarLeafProps) {
-  return (
-    <button
-      type="button"
-      className={[
-        "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs transition",
-        active
-          ? "bg-primary/10 font-medium text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-      ].join(" ")}
-      onClick={onClick}
-    >
-      {icon}
-      <span className="flex-1 truncate text-left">{label}</span>
-      {count !== undefined && (
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{count}</span>
-      )}
-    </button>
-  );
 }
 
 // ── RAG Search bar ────────────────────────────────────────────────────────────
@@ -568,7 +473,7 @@ function WorkspaceDocView({ entry, organizationId, onBack }: WorkspaceDocViewPro
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="h-7 text-xs">
-            <Link href={`/workspace/${workspace.id}?tab=Knowledge`}>管理</Link>
+            <Link href={`/workspace/${workspace.id}?tab=Wiki`}>管理</Link>
           </Button>
         </div>
       </div>
@@ -704,165 +609,22 @@ export default function WikiPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full min-h-0 gap-0">
-      {/* ── Left: knowledge navigation sidebar ── */}
-      <aside className="flex w-52 shrink-0 flex-col border-r border-border/50 bg-background/50">
-        <div className="flex items-center justify-between px-3 py-3">
-          <div className="flex items-center gap-1.5">
-            <BookOpenIcon className="size-4 text-primary" />
-            <span className="text-sm font-semibold">Wiki</span>
-          </div>
-          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" asChild>
-            <button
-              type="button"
-              onClick={() => {}}
-              aria-label="新增頁面"
-              title="新增頁面"
-            >
-              <FilePlusIcon className="size-3.5" />
-            </button>
-          </Button>
-        </div>
-
-        <ScrollArea className="flex-1">
-          <nav className="space-y-0.5 px-2 pb-4" aria-label="知識庫導覽">
-            {/* 首頁 */}
-            <SidebarLeaf
-              icon={<HomeIcon className="size-3.5 shrink-0" />}
-              label="首頁"
-              active={mainView === "hub" && !selectedWorkspaceId}
-              onClick={handleBackToHub}
-            />
-
-            <div className="py-1.5">
-              <Separator />
-            </div>
-
-            {/* ── 知識庫 ── */}
-            <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              知識庫
-            </p>
-
-            {/* 組織知識庫 */}
-            <SidebarSection
-              icon={<Building2Icon className="size-3.5 shrink-0" />}
-              label="組織知識庫"
-              count={entries.reduce((n, e) => n + e.docs.length, 0)}
-              active={mainView === "hub"}
-              defaultOpen
-              onClick={handleBackToHub}
-            >
-              {loadState === "loading" && (
-                <div className="space-y-1 pl-2">
-                  <Skeleton className="h-4 w-3/4 rounded" />
-                  <Skeleton className="h-4 w-1/2 rounded" />
-                </div>
-              )}
-              {loadState === "loaded" && entries.length === 0 && (
-                <p className="pl-2 text-[10px] text-muted-foreground">無工作區</p>
-              )}
-            </SidebarSection>
-
-            {/* 工作區知識 */}
-            <SidebarSection
-              icon={<FolderIcon className="size-3.5 shrink-0" />}
-              label="工作區知識"
-              defaultOpen
-            >
-              {loadState === "loading" && (
-                <div className="space-y-1 pl-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-5 rounded" />
-                  ))}
-                </div>
-              )}
-              {loadState === "loaded" &&
-                entries.map((entry) => (
-                  <SidebarLeaf
-                    key={entry.workspace.id}
-                    icon={
-                      <span
-                        className={[
-                          "inline-block size-1.5 shrink-0 rounded-full",
-                          entry.summary.status === "ready"
-                            ? "bg-green-500"
-                            : entry.summary.status === "staged"
-                              ? "bg-amber-400"
-                              : "bg-muted-foreground/40",
-                        ].join(" ")}
-                      />
-                    }
-                    label={entry.workspace.name}
-                    count={entry.docs.length}
-                    active={selectedWorkspaceId === entry.workspace.id}
-                    onClick={() => handleSelectWorkspace(entry.workspace.id)}
-                  />
-                ))}
-              {loadState === "loaded" && entries.length === 0 && (
-                <p className="pl-2 text-[10px] text-muted-foreground">無工作區</p>
-              )}
-            </SidebarSection>
-
-            <div className="py-1.5">
-              <Separator />
-            </div>
-
-            {/* ── 頁面 ── */}
-            <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              頁面
-            </p>
-
-            <SidebarLeaf
-              icon={<Share2Icon className="size-3.5 shrink-0" />}
-              label="共用頁面"
-              count={0}
-            />
-            <SidebarLeaf
-              icon={<LockIcon className="size-3.5 shrink-0" />}
-              label="私人頁面"
-              count={0}
-            />
-
-            <div className="py-1.5">
-              <Separator />
-            </div>
-
-            <SidebarLeaf
-              icon={<ArchiveIcon className="size-3.5 shrink-0" />}
-              label="封存"
-              count={0}
-            />
-          </nav>
-        </ScrollArea>
-
-        {/* Sidebar footer */}
-        {!organizationId && (
-          <div className="border-t border-border/50 px-3 py-2">
-            <p className="text-[10px] text-muted-foreground">請切換至組織帳戶以查看知識庫。</p>
-          </div>
-        )}
-      </aside>
-
-      {/* ── Right: main content ── */}
-      <main className="min-w-0 flex-1 overflow-auto">
-        <div className="px-6 py-5">
-          {mainView === "hub" || !selectedEntry ? (
-            <HubView
-              entries={entries}
-              loadState={loadState}
-              organizationId={organizationId ?? ""}
-              onSelectWorkspace={handleSelectWorkspace}
-              onRefresh={() => void load()}
-            />
-          ) : (
-            <WorkspaceDocView
-              entry={selectedEntry}
-              organizationId={organizationId ?? ""}
-              onBack={handleBackToHub}
-            />
-          )}
-        </div>
-      </main>
+    <div>
+      {mainView === "hub" || !selectedEntry ? (
+        <HubView
+          entries={entries}
+          loadState={loadState}
+          organizationId={organizationId ?? ""}
+          onSelectWorkspace={handleSelectWorkspace}
+          onRefresh={() => void load()}
+        />
+      ) : (
+        <WorkspaceDocView
+          entry={selectedEntry}
+          organizationId={organizationId ?? ""}
+          onBack={handleBackToHub}
+        />
+      )}
     </div>
   );
 }

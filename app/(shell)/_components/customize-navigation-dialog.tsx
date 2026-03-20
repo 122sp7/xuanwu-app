@@ -44,7 +44,7 @@ const STORAGE_KEY = "xuanwu:nav-preferences";
 
 const DEFAULT_PREFS: NavPreferences = {
   pinnedPersonal: ["home", "recent-workspaces"],
-  pinnedWorkspace: ["members", "teams", "permissions", "workspaces", "knowledge", "schedule", "daily", "audit"],
+  pinnedWorkspace: ["members", "teams", "permissions", "workspaces", "schedule", "daily", "audit"],
   workspaceNavStyle: "accordion",
   showLimitedWorkspaces: true,
   maxWorkspaces: 10,
@@ -64,7 +64,6 @@ const WORKSPACE_ITEMS: { id: string; label: string }[] = [
   { id: "teams", label: "團隊" },
   { id: "permissions", label: "權限" },
   { id: "workspaces", label: "工作區" },
-  { id: "knowledge", label: "知識" },
   { id: "schedule", label: "排程" },
   { id: "daily", label: "每日" },
   { id: "audit", label: "稽核" },
