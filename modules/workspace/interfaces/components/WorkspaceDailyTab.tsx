@@ -38,9 +38,12 @@ const DAILY_VISIBILITY_LABEL: Record<DailyFeedItem["visibility"], string> = {
   public_demo: "公開展示",
 };
 
-const STANDARD_WORKSPACE_DAILY_VISIBILITIES: readonly PublishDailyEntryInput["visibility"][] = [
+const WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] = [
   "workspace_only",
   "organization",
+];
+const PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] = [
+  "workspace_only",
 ];
 
 function formatNotificationTime(timestamp: number) {
@@ -78,8 +81,8 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
 
   const supportedVisibilities =
     workspace.accountType === "organization"
-      ? STANDARD_WORKSPACE_DAILY_VISIBILITIES
-      : ["workspace_only"];
+      ? WORKSPACE_DAILY_VISIBILITY_OPTIONS
+      : PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS;
   const defaultVisibility = supportedVisibilities[0];
 
   const [digest, setDigest] = useState<WorkspaceDailyDigestEntity | null>(null);
@@ -191,7 +194,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
           <div>
             <CardTitle>Daily</CardTitle>
             <CardDescription>
-              依文件先落地 Workspace Daily 發布，再逐步保留通知 digest 相容層。
+              發布今天最重要的更新、阻塞與協作需求，並保留通知摘要供快速對照。
             </CardDescription>
           </div>
           <button

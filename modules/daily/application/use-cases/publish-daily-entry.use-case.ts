@@ -16,7 +16,7 @@ export class PublishDailyEntryUseCase {
     const authorId = input.authorId.trim();
     const title = input.title.trim();
     const summary = input.summary.trim();
-    const body = input.body?.trim() || null;
+    const body = input.body?.trim() ?? null;
     const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
 
     if (!organizationId) {
@@ -75,11 +75,12 @@ export class PublishDailyEntryUseCase {
       expiresAtISO,
     });
 
-    const version = Date.parse(entry.publishedAtISO ?? entry.createdAtISO);
+    const versionSource = entry.publishedAtISO ?? entry.createdAtISO;
+    const version = Date.parse(versionSource);
     if (Number.isNaN(version)) {
       return commandFailureFrom(
         "DAILY_ENTRY_TIMESTAMP_INVALID",
-        `Published Daily entry ${entry.entryId} returned an invalid timestamp.`,
+        `Published Daily entry ${entry.entryId} returned an invalid timestamp: ${versionSource}`,
       );
     }
 

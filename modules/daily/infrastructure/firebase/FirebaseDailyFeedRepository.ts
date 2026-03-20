@@ -137,6 +137,7 @@ export class FirebaseDailyFeedRepository implements DailyFeedRepository {
       ),
     );
 
+    // An empty workspace list means the caller already scoped to the whole organization.
     return snapshots.docs
       .map((snapshot) => toDailyEntry(snapshot.id, snapshot.data() as Record<string, unknown>))
       .filter((entry) => workspaceIdSet.size === 0 || workspaceIdSet.has(entry.workspaceId))
