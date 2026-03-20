@@ -332,7 +332,7 @@ These are the migration source components. Their functionality will progressivel
 ```typescript
 // 目前實作欄位（下一階段待補充）
 class WikiDocument {
-  id: string          // 'TODO_ID' → 蟥 doc_ + 16hex
+  id: string          // 'TODO_ID' → 應改為 doc_ + 16hex
   title: string
   content: string
   status: WikiDocumentStatus  // 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
@@ -356,7 +356,7 @@ class WikiDocument {
 
 ### 定義：Value Objects
 
-| 类別 | 合約 |
+| 類別 | 合約 |
 |------|---------|
 | `AccessControl` | `ownerId: string`, `visibility: 'PUBLIC' \| 'PRIVATE' \| 'INTERNAL'`; `canAccess(userId)` |
 | `ContentStatus` | `value: 'DRAFT' \| 'PUBLISHED' \| 'ARCHIVED'`; `isSearchable: boolean` |
@@ -405,7 +405,7 @@ function deriveKnowledgeSummary(
 ): WorkspaceKnowledgeSummary
 ```
 
-**對象**：`WorkspaceKnowledgeSummary`—工作區知識健康狀況的工具泯數預覽資料模型，包含：
+**對象**：`WorkspaceKnowledgeSummary`—工作區知識健康狀況的唯讀數據摘要模型，包含：
 `registeredAssetCount`, `readyAssetCount`, `supportedSourceCount`,
 `status: 'needs-input' | 'staged' | 'ready'`, `blockedReasons`, `nextActions`
 
@@ -427,14 +427,14 @@ interface IKnowledgeSummaryScope { workspaceId: string }
 
 ### 定義：Infrastructure 限制條件
 
-| 宣告 | 張力 |
+| 宣告 | 實作狀態 |
 |------|------|
 | `UPSTASH_VECTOR_REST_URL` + `UPSTASH_VECTOR_REST_TOKEN` 欄位不得為空 | ✅ 已實作 |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` 欄位不得為空 | ✅ 已實作 |
 | Upstash Vector cache TTL 預設 3600 秒 | ✅ 已實作 |
 | Upstash Vector 連綫 timeout 5000 ms | ✅ 已實作 |
 | `UpstashWikiDocumentRepository` 主要方法尚未實作 | 🔲 缺口 |
-| `IEmbeddingRepository` 的 TypeScript 端銀行稏實作 | 🔲 缺口 |
+| `IEmbeddingRepository` 的 TypeScript 端適配器尚未實作 | 🔲 缺口 |
 
 ### 定義：`Embedding` 不變性
 

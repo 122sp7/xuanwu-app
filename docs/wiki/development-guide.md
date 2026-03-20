@@ -573,7 +573,7 @@ npx grep -r "from '@/modules" core/wiki-core/
 # 應輸出空白
 ```
 
-**新嫝 value object 範例**
+**新增 value object 範例**
 
 ```typescript
 // core/wiki-core/domain/value-objects/my-concept.vo.ts
@@ -671,9 +671,9 @@ export class OpenAIEmbeddingRepository implements IEmbeddingRepository {
 }
 ```
 
-短路全部在 `infrastructure/` ，導入 `index.ts` 时加到 Infrastructure 區段。
+短路全部在 `infrastructure/` ，導入 `index.ts` 時加到 Infrastructure 區段。
 
-### 8.5 執行 `npm run lint` 設設
+### 8.5 執行 `npm run lint` 檢查
 
 ```bash
 cd /home/runner/work/xuanwu-app/xuanwu-app
@@ -681,7 +681,7 @@ npm run lint          # ESLint + TypeScript 檢查
 npm run build         # 完整 Next.js 編譯合成
 ```
 
-任何更動 `core/wiki-core` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/core/knowledge-core` shim 與 `@/modules/knowledge` shim 仍正常轉灯。
+任何更動 `core/wiki-core` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/core/knowledge-core` shim 與 `@/modules/knowledge` shim 仍正常運作。
 
 ### 8.6 接管 `modules/knowledge` shim
 
