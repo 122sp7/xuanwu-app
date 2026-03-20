@@ -27,8 +27,8 @@ export default function OrganizationWorkspacesPage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
-    const organizationId = activeOrganizationId;
-    if (!organizationId) return;
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
     let cancelled = false;
 
     async function load() {
