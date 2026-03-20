@@ -1,4 +1,4 @@
-This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
 
 # Summary
 
@@ -31,36 +31,14 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: \apps/**\
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-4517 files | 476,790 lines
+0 files | 0 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript (TSX) | 2131 | 196,758 |
-| TypeScript | 1441 | 155,779 |
-| Python | 611 | 96,771 |
-| SVG | 97 | 2,352 |
-| JSON | 60 | 1,895 |
-| No Extension | 35 | 616 |
-| Markdown | 24 | 3,811 |
-| CSS | 19 | 3,598 |
-| HTML | 15 | 6,603 |
-| YAML | 14 | 1,571 |
-| Other | 70 | 7,036 |
-
-**Largest files:**
-- `packages/i18n/src/locales/ru/translations.ts` (2,924 lines)
-- `packages/i18n/src/locales/ua/translations.ts` (2,916 lines)
-- `packages/i18n/src/locales/en/translations.ts` (2,753 lines)
-- `packages/i18n/src/locales/es/translations.ts` (2,722 lines)
-- `packages/i18n/src/locales/fr/translations.ts` (2,717 lines)
-- `packages/i18n/src/locales/pt-BR/translations.ts` (2,709 lines)
-- `packages/i18n/src/locales/it/translations.ts` (2,707 lines)
-- `packages/i18n/src/locales/ro/translations.ts` (2,702 lines)
-- `packages/i18n/src/locales/id/translations.ts` (2,697 lines)
-- `packages/i18n/src/locales/vi-VN/translations.ts` (2,696 lines)
