@@ -219,15 +219,14 @@ export function DashboardSidebar({
           <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-2 py-1.5">
             <button
               type="button"
-              title="自訂導覽"
-              aria-label="自訂導覽"
+              title="設定"
+              aria-label="設定"
               onClick={() => {
                 setCustomizeOpen(true);
               }}
-              className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+              className="flex items-center rounded p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
             >
-              <SlidersHorizontal className="size-3" />
-              <span>自訂導覽</span>
+              <SlidersHorizontal className="size-3.5" />
             </button>
             <button
               type="button"

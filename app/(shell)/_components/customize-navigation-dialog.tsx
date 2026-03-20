@@ -140,12 +140,10 @@ export function CustomizeNavigationDialog({
   const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
 
   function updatePrefs(update: Partial<NavPreferences>) {
-    setPrefs((prev) => {
-      const next = { ...prev, ...update };
-      writeNavPreferences(next);
-      onPreferencesChange?.(next);
-      return next;
-    });
+    const next = { ...prefs, ...update };
+    writeNavPreferences(next);
+    setPrefs(next);
+    onPreferencesChange?.(next);
   }
 
   function togglePersonal(id: string) {
