@@ -2,6 +2,12 @@ export type {
   WorkspaceFinanceScheduleSnapshot,
   WorkspaceScheduleItem,
 } from "./entities/ScheduleItem";
+export type { ScheduleEventType } from "./entities/ScheduleEventType";
+export { DEFAULT_SCHEDULE_EVENT_TYPES } from "./entities/ScheduleEventType";
+export type {
+  ScheduleEventTypeRepository,
+  ScheduleEventTypeScope,
+} from "./repositories/ScheduleEventTypeRepository";
 export type {
   AcknowledgeWorkspaceScheduleItemInput,
   WorkspaceScheduleAcknowledgement,

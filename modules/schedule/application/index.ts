@@ -1,6 +1,12 @@
 export { ListWorkspaceScheduleItemsUseCase } from "./use-cases/list-workspace-schedule-items.use-case";
+export { ListScheduleEventTypesUseCase } from "./use-cases/list-schedule-event-types.use-case";
 export { AcknowledgeWorkspaceScheduleItemUseCase } from "./use-cases/acknowledge-workspace-schedule-item.use-case";
 export { SubmitScheduleRequestUseCase } from "./use-cases/submit-schedule-request.use-case";
+export {
+  CancelScheduleRequestUseCase,
+  type CancelScheduleRequestInput,
+  type CancelScheduleRequestResult,
+} from "./use-cases/cancel-schedule-request.use-case";
 export { RunScheduleMdddFlowUseCase } from "./use-cases/mddd/run-schedule-mddd-flow.use-case";
 export type {
   RunScheduleMdddFlowInput,

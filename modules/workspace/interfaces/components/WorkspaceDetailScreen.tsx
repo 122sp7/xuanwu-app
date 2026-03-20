@@ -43,7 +43,6 @@ import { WorkspaceAuditTab } from "@/modules/audit";
 import { WorkspaceFilesTab } from "@/modules/file";
 import { WorkspaceFinanceTab } from "@/modules/finance";
 import { WorkspaceIssueTab } from "@/modules/issue";
-import { WorkspaceKnowledgeTab } from "@/modules/knowledge";
 import { WorkspaceDocumentParserTab } from "@/modules/parser";
 import { WorkspaceQATab } from "@/modules/qa";
 import { WorkspaceScheduleTab } from "@/modules/schedule";
@@ -74,7 +73,6 @@ const workspaceTabItems = [
   "Issues",
   "Daily",
   "Files",
-  "Knowledge",
   "Wiki",
   "Schedule",
   "Document Parser",
@@ -285,8 +283,6 @@ export function WorkspaceDetailScreen({
         return <WorkspaceDailyTab workspace={workspace} />;
       case "Files":
         return <WorkspaceFilesTab workspace={workspace} />;
-      case "Knowledge":
-        return <WorkspaceKnowledgeTab workspace={workspace} />;
       case "Wiki":
         return <WorkspaceWikiTab workspace={workspace} />;
       case "Schedule":

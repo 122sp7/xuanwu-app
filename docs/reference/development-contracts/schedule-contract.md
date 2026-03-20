@@ -377,6 +377,114 @@ modules/schedule/
 - This contract defines the **target full MDDD** architecture and must be implemented incrementally by explicit slices.
 - New behavior must follow aggregate boundaries and event ownership above; avoid introducing ad hoc mutable flags into derived read models.
 
+## Current implementation alignment (2026-03-20)
+
+The following clarifications apply to the currently shipped slice:
+
+### `requiredSkills` is optional for simple requests
+
+The `SubmitScheduleRequestUseCase` **allows an empty `requiredSkills` array** for workspace-originated resource requests. The UI form does not collect skills at submission time. The full MDDD flow (`RunScheduleMdddFlowUseCase`) still enforces non-empty skills independently when running the complete matching pipeline.
+
+> Invariant 1 of `RequestAggregate` ("submitted request must contain at least one required capability or skill") applies only when a full MDDD flow is executed, not when a simple resource request is submitted from the workspace UI.
+
+### Initial projection on submit
+
+When `schedule-request.actions.ts` successfully writes a request to `scheduleRequests`, it **immediately projects a `RequestCreated` event** to `scheduleMdddFlowProjections`. This ensures the request is visible in the workspace tab and the organization `待分派` section without waiting for the MDDD flow to execute.
+
+This projection write is best-effort: if it fails after the primary write succeeds, the request document exists but the projection is absent. A future improvement should make this idempotent or use a Firestore trigger.
+
+### Workspace-side cancellation is now live
+
+`WorkspaceScheduleTab` now wires the existing cancel button to `cancelScheduleRequest()`. The current shipped rule is:
+
+- only the original submitter can cancel the request
+- only `draft` and `submitted` requests can be cancelled
+- successful cancellation updates both `scheduleRequests` and the projection stream via `RequestCancelled`
+
+This is still a **workspace-side** cancellation slice, not the full organization-side review/closure workflow described by the target MDDD contract.
+
+### Firestore collections in use
+
+| Collection | Owner | Read by |
+| --- | --- | --- |
+| `scheduleRequests` | `FirebaseScheduleRequestRepository` | Server-side only (not read by UI directly) |
+| `scheduleMdddFlowProjections` | `FirebaseMdddProjectionRepository` | UI (`listWorkspaceScheduleMdddFlowProjections`) |
+| `scheduleMdddRequests` | MDDD repositories | MDDD flow only |
+| `scheduleMdddTasks` | MDDD repositories | MDDD flow only |
+| `scheduleMdddMatches` | MDDD repositories | MDDD flow only |
+| `scheduleMdddAssignments` | MDDD repositories | MDDD flow only |
+| `scheduleMdddSchedules` | MDDD repositories | MDDD flow only |
+
+### Architecture reference
+
+- Design specification: `docs/architecture/schedule.md`
+- Development guide: `docs/schedule/development-guide.md`
+- User manual: `docs/schedule/user-manual.md`
+
+## Explicit contract gaps (must be implemented before claiming full MDDD)
+
+This section records the **current missing contracts**, not optional ideas. The repository should continue to treat the shipped slice as:
+
+- workspace-side request submit/cancel
+- projection-driven workspace request list
+- organization-side pending-request aggregation
+
+Everything below remains required to reach the target contract.
+
+### 1. Missing domain contracts
+
+| Contract area | Current status | Missing contract |
+| --- | --- | --- |
+| `RequestAggregate` review lifecycle | Partial (`draft`/`submitted`/`cancelled`) | explicit review/accept/reject/close commands, policies, and event ownership |
+| `TaskAggregate` | Defined in target structure only | decomposition rules, state transitions, repository contract, task identity/versioning |
+| `Match` | Only conceptual | deterministic `MatchResult` contract, shortlist shape, ranking tie-breakers, persistence boundary |
+| `AssignmentAggregate` | Only conceptual | offer/accept/reject/expire/cancel commands, uniqueness invariant, audit fields |
+| `ScheduleAggregate` | Only conceptual | reserve/reschedule/cancel/complete commands, conflict-set representation, load-policy contract |
+
+### 2. Missing projection contracts
+
+| Projection concern | Current status | Missing contract |
+| --- | --- | --- |
+| request bootstrap | `RequestCreated` / `RequestCancelled` only | versioned idempotency rule for all downstream events |
+| task visibility | `taskId` / `taskStatus` fields exist in projection shape | event folding rules for `TaskDecomposed`, `TaskMatched`, `TaskCompleted` |
+| assignment visibility | placeholder fields only | projection schema for offer status, assignee details, response deadline, decision reason |
+| schedule visibility | placeholder fields only | projection schema for reserved slot, conflict reason, reschedule lineage, completion signal |
+| organization queue views | current UI filters `submitted` requests | dedicated read-model contract for review queue, shortlist queue, assignment queue, schedule queue |
+
+### 3. Missing organization workflow contracts
+
+| Workflow step | Missing command/query contract | Why it matters |
+| --- | --- | --- |
+| review request | `reviewScheduleRequest`, `acceptScheduleRequest`, `rejectScheduleRequest` | organization cannot formally govern intake lifecycle |
+| decompose request to tasks | `decomposeScheduleRequestToTasks` | no boundary between raw demand and executable work |
+| generate shortlist | `generateTaskMatches` / shortlist query | matching remains implicit and non-repeatable |
+| offer assignment | `offerScheduleAssignment` / assignment queue query | no enforceable handoff from organization to assignee |
+| confirm schedule | `confirmScheduleAllocation` / schedule board query | calendar allocation is not tied to accepted assignment |
+
+### 4. UI prerequisites for the ideal state
+
+The current UI should not be expanded into “full scheduling” until these contracts exist:
+
+1. **Workspace tab**
+   - review/result visibility beyond `submitted`
+   - task/assignment/schedule progress timeline
+   - cancellation reason and close reason surfaced from projection
+2. **Organization page**
+   - separate queues for review / matching / assignment / scheduling
+   - shortlist inspection and assignment decision surface
+   - conflict-aware schedule board instead of only showing pre-derived booking items
+3. **Notifications**
+   - contract for requester-facing updates when review/assignment/schedule state changes
+
+### 5. Reliability gaps
+
+| Area | Current behavior | Required contract improvement |
+| --- | --- | --- |
+| primary write + projection | primary write succeeds first, projection bootstrap is best-effort | idempotent retryable event publication contract |
+| event replay | not documented for full flow | replay/version contract per projection event |
+| async orchestration | not wired | outbox / trigger / workflow ownership and failure-handling contract |
+| audit trail | implicit in some timestamps only | explicit actor/source/reason fields across review, assignment, schedule decisions |
+
 ## Acceptance gates
 
 A new scheduling/task slice is accepted only if:
@@ -386,3 +494,4 @@ A new scheduling/task slice is accepted only if:
 3. matching and scheduling decisions are separated into dedicated domain services
 4. emitted events are idempotent and owned by the correct aggregate
 5. repository/adapters stay in infrastructure and do not leak into domain entities
+6. projection writes follow the event-ownership rules above; direct UI writes to projection collections are prohibited except via the initial `RequestCreated` bootstrap
