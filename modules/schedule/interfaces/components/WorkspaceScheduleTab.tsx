@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ChevronDown,
   ChevronUp,
   Clock,
   Copy,
   ExternalLink,
+  FileText,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -25,6 +28,7 @@ import { submitScheduleRequest } from "../_actions/schedule-request.actions";
 import type { ScheduleEventType } from "../../domain/entities/ScheduleEventType";
 import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import type { RequestStatus } from "../../domain/mddd/value-objects/WorkflowStatuses";
+import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "../schedule-ui.constants";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Switch } from "@/ui/shadcn/ui/switch";
 import {
@@ -34,6 +38,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/shadcn/ui/dropdown-menu";
+
+// ── Label helpers ─────────────────────────────────────────────────────────────
+
+type ScheduleItemType = "milestone" | "follow-up" | "maintenance";
+
+const SCHEDULE_ITEM_TYPES = new Set<string>(["milestone", "follow-up", "maintenance"]);
+
+function asItemType(slug: string): ScheduleItemType | null {
+  return SCHEDULE_ITEM_TYPES.has(slug) ? (slug as ScheduleItemType) : null;
+}
+
+const ITEM_TYPE_LABEL: Record<ScheduleItemType, string> = {
+  milestone: "里程碑",
+  "follow-up": "跟進",
+  maintenance: "維護",
+};
 
 // ── Request status helpers ────────────────────────────────────────────────────
 
@@ -67,12 +87,20 @@ interface WorkspaceScheduleTabProps {
 export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const { state: appState } = useApp();
   const actorAccountId = appState.activeAccount?.id ?? "";
+  const router = useRouter();
 
   const [scheduleEventTypes, setScheduleEventTypes] = useState<readonly ScheduleEventType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   // ── Priority ordering (local, persisted to state until backend supports it) ─
   const [orderedIds, setOrderedIds] = useState<readonly string[]>([]);
+
+  // ── New event-type form state ─────────────────────────────────────────────
+  const [showNewEventTypeForm, setShowNewEventTypeForm] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState("");
+  const [newEventSlug, setNewEventSlug] = useState("");
+  const [newEventDuration, setNewEventDuration] = useState("");
+  const [savingEventType, setSavingEventType] = useState(false);
 
   // ── Resource-request state ────────────────────────────────────────────────
   const [projections, setProjections] = useState<readonly ScheduleMdddFlowProjection[]>([]);
@@ -178,6 +206,22 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     }
   }
 
+  // ── Save new event type (stub – persisted locally until backend wired) ────
+  async function handleSaveEventType() {
+    if (!newEventTitle.trim()) return;
+    setSavingEventType(true);
+    try {
+      // TODO: wire to a real create-event-type server action
+      await Promise.resolve(); // stub
+      setNewEventTitle("");
+      setNewEventSlug("");
+      setNewEventDuration("");
+      setShowNewEventTypeForm(false);
+    } finally {
+      setSavingEventType(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* ── Page header ── */}
@@ -205,6 +249,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           {/* New event type button */}
           <button
             type="button"
+            onClick={() => setShowNewEventTypeForm((v) => !v)}
             className="flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -212,6 +257,81 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           </button>
         </div>
       </div>
+
+      {/* ── New event-type inline form ── */}
+      {showNewEventTypeForm && (
+        <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                活動名稱 <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={newEventTitle}
+                onChange={(e) => {
+                  setNewEventTitle(e.target.value);
+                  if (!newEventSlug) {
+                    setNewEventSlug(
+                      e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, ""),
+                    );
+                  }
+                }}
+                placeholder="例：技術評審"
+                className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                URL Slug
+              </label>
+              <input
+                type="text"
+                value={newEventSlug}
+                onChange={(e) => setNewEventSlug(e.target.value)}
+                placeholder="tech-review"
+                className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                預估時間
+              </label>
+              <input
+                type="text"
+                value={newEventDuration}
+                onChange={(e) => setNewEventDuration(e.target.value)}
+                placeholder="30–60 分鐘"
+                className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setShowNewEventTypeForm(false);
+                setNewEventTitle("");
+                setNewEventSlug("");
+                setNewEventDuration("");
+              }}
+              className="flex h-7 items-center gap-1 rounded-md px-2.5 text-xs text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-3 w-3" />
+              取消
+            </button>
+            <button
+              type="button"
+              disabled={savingEventType || !newEventTitle.trim()}
+              onClick={() => void handleSaveEventType()}
+              className="flex h-7 items-center gap-1 rounded-md bg-foreground px-2.5 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+            >
+              <Plus className="h-3 w-3" />
+              {savingEventType ? "儲存中…" : "建立"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Event type list ── */}
       {filtered.length === 0 ? (
@@ -249,26 +369,26 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                 </div>
 
                 {/* Left: clickable title + slug path + duration badge */}
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 pr-4 text-left"
-                  onClick={() => {
-                    /* TODO: navigate to event-type detail */
-                  }}
+                <Link
+                  href={`/workspace/${workspace.id}?tab=Schedule&et=${et.slug}`}
+                  className="min-w-0 flex-1 pr-4"
                 >
                   <div className="flex flex-wrap items-baseline gap-1.5">
-                    <span className="text-sm font-medium text-foreground hover:underline">
+                    <span className="text-sm font-medium text-foreground group-hover:underline">
                       {et.title}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       /{workspace.id}/{et.slug}
                     </span>
+                    <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[et.itemType]} className="text-[10px]">
+                      {ITEM_TYPE_LABEL[et.itemType]}
+                    </Badge>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">{et.durationLabel}</span>
                   </div>
-                </button>
+                </Link>
 
                 {/* Right: 隱藏 toggle + icon buttons + dropdown menu */}
                 <div className="flex shrink-0 items-center gap-3">
@@ -296,6 +416,9 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       title="在新分頁開啟"
+                      onClick={() =>
+                        router.push(`/workspace/${workspace.id}?tab=Schedule&et=${et.slug}`)
+                      }
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </button>
@@ -457,6 +580,19 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       <Badge variant={REQUEST_STATUS_VARIANT[p.requestStatus]}>
                         {REQUEST_STATUS_LABEL[p.requestStatus]}
                       </Badge>
+                      {p.eventTypes.map((etSlug) => {
+                        const itemType = asItemType(etSlug);
+                        return (
+                          <Badge
+                            key={etSlug}
+                            variant={itemType ? SCHEDULE_ITEM_TYPE_VARIANT_MAP[itemType] : "outline"}
+                            className="text-[10px]"
+                          >
+                            <FileText className="mr-1 h-2.5 w-2.5" />
+                            {itemType ? ITEM_TYPE_LABEL[itemType] : etSlug}
+                          </Badge>
+                        );
+                      })}
                       {p.assigneeAccountUserId && (
                         <span className="text-xs text-muted-foreground">
                           指派給 {p.assigneeAccountUserId.slice(0, 8)}…
