@@ -43,7 +43,6 @@ const organizationManagementItems = [
   { label: "團隊", href: "/organization/teams" },
   { label: "權限", href: "/organization/permissions" },
   { label: "工作區", href: "/organization/workspaces" },
-  { label: "知識", href: "/organization/knowledge" },
   { label: "排程", href: "/organization/schedule" },
   { label: "每日", href: "/organization/daily" },
   { label: "稽核", href: "/organization/audit" },
@@ -149,10 +148,12 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
             void handleLogout();
           }}
         />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-        />
+        {!pathname.startsWith("/wiki") && (
+          <DashboardSidebar
+            pathname={pathname}
+            activeAccount={appState.activeAccount}
+          />
+        )}
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">

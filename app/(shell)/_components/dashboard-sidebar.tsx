@@ -31,7 +31,6 @@ const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
   { id: "teams", label: "團隊", href: "/organization/teams" },
   { id: "permissions", label: "權限", href: "/organization/permissions" },
   { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
-  { id: "knowledge", label: "知識", href: "/organization/knowledge" },
   { id: "schedule", label: "排程", href: "/organization/schedule" },
   { id: "daily", label: "每日", href: "/organization/daily" },
   { id: "audit", label: "稽核", href: "/organization/audit" },
