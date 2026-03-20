@@ -1,52 +1,59 @@
-# Event Core (Scaffold)
+# Event Core
 
-`core/event-core` is a minimal scaffold for event lifecycle capabilities.
-It keeps only the core dependency path and basic module boundaries.
+`core/event-core` is the canonical domain event foundation for Xuanwu.
+
+It provides a uniform model for capturing, persisting, dispatching, and correlating
+domain events across all modules, following strict MDDD layering.
+
+## Absorbed From
+
+| Source | Status |
+|--------|--------|
+| N/A — original core module | — |
 
 ## Dependency Direction
-- Interfaces -> Application -> Domain <- Infrastructure
-- Domain is framework-free
-- Event bus and persistence are adapter-side capabilities
 
-## Current Minimal Structure
-- application/use-cases
-- domain/entities
-- domain/repositories
-- domain/value-objects
-- infrastructure/persistence
-- infrastructure/repositories
-- interfaces/api
-
-## Not Included In This Phase
-- application/dto
-- application/mappers
-- application/services
-- domain/aggregates
-- domain/domain-services
-- domain/factories
-- domain/exceptions
-- domain/shared
-- infrastructure/external
-- infrastructure/mappers
-- interfaces/serializers
-
-## Core Flow
-```mermaid
-flowchart TD
-    A[Capture Event] --> B[Persist Event]
-    B --> C[Dispatch Event]
-    C --> D[Observe Delivery]
-    D --> E[Correlate By Aggregate]
+```
+interfaces -> application -> domain <- infrastructure
 ```
 
-## What Is Intentionally Left As Skeleton
-- Use-cases keep method signatures and orchestration points only
-- Domain keeps event invariants and value semantics only
-- Infrastructure keeps adapter boundaries and payload shapes only
-- Interfaces keep transport entry contracts only
+- Domain is framework-free (no SDK/HTTP/DB imports)
+- Infrastructure implements domain ports only
+- Interfaces never bypass Application
+
+## Structure
+
+```
+event-core/
+├── domain/
+│   ├── entities/          # DomainEvent
+│   ├── repositories/      # IEventStoreRepository, IEventBusRepository
+│   ├── services/          # dispatchPolicy (pure dispatch rules)
+│   └── value-objects/     # EventMetadata
+├── application/
+│   └── use-cases/         # PublishDomainEventUseCase, ListEventsByAggregateUseCase
+├── infrastructure/
+│   ├── persistence/       # config (batch size, retry limits)
+│   └── repositories/      # InMemoryEventStoreRepository, NoopEventBusRepository
+└── interfaces/
+    └── api/               # EventController
+```
+
+## Core Flow
+
+```mermaid
+flowchart TD
+    A[Capture Event<br/>捕捉領域事件] --> B[Persist Event<br/>持久化事件紀錄]
+    B --> C[Dispatch Event<br/>派送至事件匯流排]
+    C --> D[Observe Delivery<br/>確認派送狀態]
+    D --> E[Correlate By Aggregate<br/>依聚合根關聯事件]
+    E --> A
+```
 
 ## Fill-In Order (Recommended)
+
 1. Domain event invariants and metadata semantics
-2. Application orchestration and repository composition
-3. Infrastructure adapter implementation
-4. Interface validation and serialization
+2. Dispatch policy rules (pure domain service)
+3. Application orchestration and repository composition
+4. Infrastructure adapter implementation (event store + bus)
+5. Interface validation and serialization
