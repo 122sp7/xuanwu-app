@@ -9,6 +9,7 @@ import { getWorkspacesForAccount } from "@/modules/workspace";
 import { getWorkspaceSchedule } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
 import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "@/modules/schedule/interfaces/schedule-ui.constants";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
   Card,
@@ -22,6 +23,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/ui/shadcn/ui/toggle-group";
 import { formatDateTime, isOrganizationAccount } from "../_utils";
 
 type ViewMode = "list" | "calendar";
+type StatusFilter = "upcoming" | "past" | "all";
 
 interface UpcomingItemRow {
   readonly workspaceId: string;
@@ -49,6 +51,11 @@ export default function OrganizationSchedulePage() {
 
   const viewMode: ViewMode =
     searchParams.get("view") === "calendar" ? "calendar" : "list";
+
+  // Status filter tabs – analogous to cal.com /bookings?status=upcoming|past|all
+  const statusParam = searchParams.get("status") ?? "upcoming";
+  const statusFilter: StatusFilter =
+    statusParam === "past" ? "past" : statusParam === "all" ? "all" : "upcoming";
 
   const [workspaces, setWorkspaces] = useState<
     Awaited<ReturnType<typeof getWorkspacesForAccount>>
@@ -164,12 +171,25 @@ export default function OrganizationSchedulePage() {
     [upcomingRows, calendarMonth],
   );
 
+  // Status-filtered rows – analogous to cal.com /bookings?status= tab filtering
+  const statusFilteredRows = useMemo(() => {
+    if (statusFilter === "upcoming") return upcomingRows.filter((r) => r.item.status === "upcoming");
+    if (statusFilter === "past") return upcomingRows.filter((r) => r.item.status !== "upcoming");
+    return upcomingRows;
+  }, [upcomingRows, statusFilter]);
+
   function handleViewChange(value: string) {
+    const statusPart = statusFilter !== "upcoming" ? `&status=${statusFilter}` : "";
     if (value === "calendar") {
-      router.replace("?view=calendar");
+      router.replace(`?view=calendar${statusPart}`);
     } else {
-      router.replace("?");
+      router.replace(statusFilter !== "upcoming" ? `?status=${statusFilter}` : "?");
     }
+  }
+
+  function handleStatusChange(next: StatusFilter) {
+    const viewPart = viewMode === "calendar" ? "&view=calendar" : "";
+    router.replace(next === "upcoming" ? `?${viewPart.replace("&", "")}` : `?status=${next}${viewPart}`);
   }
 
   if (!activeOrganizationId) {
@@ -181,17 +201,17 @@ export default function OrganizationSchedulePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-6">
       {/* ── Page header ── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">排程</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區即將到來的排程項目總覽，類比 cal.com /bookings?status=upcoming。
+            組織下所有工作區排程項目總覽。
           </p>
         </div>
 
-        {/* ── List / Calendar view toggle – analogous to cal.com ?view=calendar ── */}
+        {/* ── List / Calendar view toggle – cal.com ?view=calendar ── */}
         <ToggleGroup
           type="single"
           value={viewMode}
@@ -210,35 +230,60 @@ export default function OrganizationSchedulePage() {
         </ToggleGroup>
       </div>
 
-      {/* ── Upcoming items – hero section ── */}
+      {/* ── Status tabs – cal.com /bookings?status= ── */}
+      <div className="flex gap-1 rounded-lg border border-border/40 bg-muted/30 p-1">
+        {(["upcoming", "past", "all"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => handleStatusChange(s)}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              statusFilter === s
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {s === "upcoming" ? "即將到來" : s === "past" ? "已完成" : "全部"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Booking rows card ── */}
       <Card className="border-border/50">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle>即將到來</CardTitle>
+              <CardTitle>
+                {statusFilter === "upcoming" ? "即將到來" : statusFilter === "past" ? "已完成" : "全部排程"}
+              </CardTitle>
               <CardDescription>
-                組織下所有工作區中狀態為「upcoming」的排程項目彙整。
+                {statusFilter === "upcoming"
+                  ? "組織下所有工作區中狀態為「upcoming」的排程項目彙整。"
+                  : statusFilter === "past"
+                  ? "已完成或非 upcoming 狀態的排程項目。"
+                  : "組織下所有工作區的排程項目。"}
               </CardDescription>
             </div>
             {upcomingLoadState === "loaded" && (
               <span className="rounded-full bg-muted px-3 py-1 text-sm font-medium tabular-nums text-muted-foreground">
-                {upcomingRows.length}
+                {statusFilteredRows.length}
               </span>
             )}
           </div>
         </CardHeader>
         <CardContent>
           {(loadState === "loading" || upcomingLoadState === "loading") && (
-            <p className="text-sm text-muted-foreground">載入即將到來的排程項目…</p>
+            <p className="text-sm text-muted-foreground">載入排程項目中…</p>
           )}
           {upcomingLoadState === "error" && (
             <p className="text-sm text-destructive">
-              讀取即將到來排程失敗，請稍後重新整理頁面。
+              讀取排程失敗，請稍後重新整理頁面。
             </p>
           )}
-          {upcomingLoadState === "loaded" && upcomingRows.length === 0 && (
+          {upcomingLoadState === "loaded" && statusFilteredRows.length === 0 && viewMode === "list" && (
             <p className="text-sm text-muted-foreground">
-              目前沒有任何工作區的 upcoming 排程項目。
+              此分類下目前沒有排程項目。
             </p>
           )}
 
@@ -299,37 +344,43 @@ export default function OrganizationSchedulePage() {
             </div>
           )}
 
-          {/* ── List view ── */}
-          {viewMode === "list" &&
-            upcomingLoadState === "loaded" &&
-            upcomingRows.map((row) => (
-              <div
-                key={`${row.workspaceId}-${row.item.id}`}
-                className="mb-3 rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold">{row.item.title}</p>
-                  <Badge
-                    variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]}
-                  >
-                    {row.item.type}
-                  </Badge>
-                  <Badge variant="default">upcoming</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {row.item.detail}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span>{row.item.timeLabel}</span>
-                  <Link
-                    href={`/workspace/${row.workspaceId}?tab=Schedule`}
-                    className="underline underline-offset-2 hover:text-foreground"
-                  >
-                    {row.workspaceName}
-                  </Link>
-                </div>
-              </div>
-            ))}
+          {/* ── List view – cal.com bookings list row style ── */}
+          {viewMode === "list" && upcomingLoadState === "loaded" && statusFilteredRows.length > 0 && (
+            <ul className="divide-y divide-border/40 overflow-hidden rounded-md border border-border/40">
+              {statusFilteredRows.map((row) => (
+                <li
+                  key={`${row.workspaceId}-${row.item.id}`}
+                  className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50"
+                >
+                  {/* Left: title + detail + workspace link */}
+                  <div className="min-w-0 flex-1 pr-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{row.item.title}</p>
+                      <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]}>
+                        {row.item.type}
+                      </Badge>
+                      <Badge variant={row.item.status === "upcoming" ? "default" : "secondary"}>
+                        {row.item.status}
+                      </Badge>
+                    </div>
+                    {row.item.detail && (
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.item.detail}</p>
+                    )}
+                  </div>
+                  {/* Right: time + workspace */}
+                  <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+                    <span className="tabular-nums">{row.item.timeLabel}</span>
+                    <Link
+                      href={`/workspace/${row.workspaceId}?tab=Schedule`}
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      {row.workspaceName}
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

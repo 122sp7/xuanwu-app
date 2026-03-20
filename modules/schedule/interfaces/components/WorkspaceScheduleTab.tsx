@@ -518,51 +518,63 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* ── Event Types catalog – analogous to cal.com /event-types (workspace-scoped) ── */}
-        <div className="rounded-xl border border-border/40 p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        {/* ── Event Types catalog – cal.com /event-types style (ul/li list) ── */}
+        <div className="overflow-hidden rounded-md border border-border/50 bg-card">
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
             <p className="text-sm font-semibold text-foreground">排程類型</p>
-            <span className="text-xs text-muted-foreground">
-              工作區可用的排程樣板，類比 cal.com Event Types
-            </span>
+            <span className="text-xs text-muted-foreground">工作區可用的排程樣板</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {scheduleEventTypes.map((et) => (
-              <div
-                key={et.id}
-                className="flex flex-col gap-2 rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-foreground">{et.title}</p>
-                  <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[et.itemType]}>
-                    {et.itemType}
-                  </Badge>
-                  {!et.isActive && (
-                    <Badge variant="secondary">停用</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">{et.description}</p>
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                    /{et.slug}
-                  </code>
-                  <span className="text-xs text-muted-foreground">{et.durationLabel}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  本工作區：
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {itemTypeBreakdown[et.itemType] ?? 0}
-                  </span>{" "}
-                  個項目
-                </p>
-              </div>
-            ))}
-            {scheduleEventTypes.length === 0 && (
-              <p className="col-span-full text-sm text-muted-foreground">
-                載入排程類型中…
-              </p>
-            )}
-          </div>
+          {scheduleEventTypes.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              此工作區尚無排程類型定義。
+            </div>
+          ) : (
+            <ul className="divide-y divide-border/40">
+              {scheduleEventTypes.map((et) => (
+                <li
+                  key={et.id}
+                  className="flex w-full items-center justify-between px-4 py-4 transition-colors hover:bg-muted/50"
+                >
+                  {/* Left: title + /workspace/slug + description */}
+                  <div className="min-w-0 flex-1 overflow-hidden pr-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">{et.title}</span>
+                      <small className="hidden font-normal text-muted-foreground sm:inline">
+                        /{workspace.id}/{et.slug}
+                      </small>
+                      <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[et.itemType]} className="shrink-0">
+                        {et.itemType}
+                      </Badge>
+                      {!et.isActive && (
+                        <Badge variant="secondary" className="shrink-0">停用</Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{et.description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      時長：{et.durationLabel}　本工作區：
+                      <span className="font-medium tabular-nums text-foreground">
+                        {itemTypeBreakdown[et.itemType] ?? 0}
+                      </span>{" "}
+                      個項目
+                    </p>
+                  </div>
+                  {/* Right: copy link button (cal.com ButtonGroup pattern) */}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-md border border-input bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(`/${workspace.id}/${et.slug}`);
+                      }}
+                      title="複製連結"
+                    >
+                      複製連結
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* ── KPI cards ── */}
