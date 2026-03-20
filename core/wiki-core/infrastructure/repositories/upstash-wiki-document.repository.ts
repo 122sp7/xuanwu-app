@@ -17,6 +17,16 @@ export class UpstashWikiDocumentRepository implements IWikiDocumentRepository {
     return null
   }
 
+  async findByOrganization(_organizationId: string): Promise<WikiDocument[]> {
+    // Skeleton only: list documents scoped to an organization.
+    return []
+  }
+
+  async findByWorkspace(_organizationId: string, _workspaceId: string): Promise<WikiDocument[]> {
+    // Skeleton only: list documents scoped to a workspace.
+    return []
+  }
+
   async search(_vector: number[]): Promise<WikiDocument[]> {
     // Skeleton only: retrieval bridge should return ids then hydrate from source.
     return []
