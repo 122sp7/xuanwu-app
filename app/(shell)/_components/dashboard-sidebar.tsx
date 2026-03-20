@@ -239,38 +239,28 @@ export function DashboardSidebar({
         })}
 
         {showAccountManagement && (
-          <details className="group mt-2 rounded-lg border border-border/40 px-3 py-2">
-            <summary
-              aria-label="切換帳戶管理選單"
-              className="cursor-pointer list-none text-sm font-medium text-muted-foreground transition group-open:text-foreground"
-            >
-              <span className="flex items-center justify-between">
-                帳戶管理
-                <span className="text-xs text-muted-foreground transition-transform group-open:rotate-180">
-                  ˅
-                </span>
-              </span>
-            </summary>
-            <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
-              {accountManagementItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`block rounded-md px-2 py-1.5 text-sm transition ${
-                      isActive
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </details>
+          <div className="mt-2 space-y-1">
+            <p className="px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              帳戶管理
+            </p>
+            {accountManagementItems.map((item) => {
+              const isActive = isActiveRoute(item.href);
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         )}
       </nav>
 
