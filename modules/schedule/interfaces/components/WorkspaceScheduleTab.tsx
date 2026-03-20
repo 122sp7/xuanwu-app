@@ -6,6 +6,8 @@ import type { WorkspaceEntity } from "@/modules/workspace";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/app/providers/auth-provider";
 import { getWorkspaceSchedule } from "../queries/schedule.queries";
+import { getWorkspaceScheduleEventTypes } from "../queries/schedule-event-types.queries";
+import type { ScheduleEventType } from "../../domain/entities/ScheduleEventType";
 import type { WorkspaceScheduleItem } from "../../domain/entities/ScheduleItem";
 import {
   cancelSchedule,
@@ -158,6 +160,8 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     readonly scheduleId?: string;
     readonly eventTypes: readonly string[];
   } | null>(null);
+  // Schedule event types – analogous to cal.com EventType catalog
+  const [scheduleEventTypes, setScheduleEventTypes] = useState<readonly ScheduleEventType[]>([]);
 
   const defaultCandidateId = useMemo(
     // Fallback to authenticated user when workspace personnel is not configured yet,
@@ -223,6 +227,27 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
       cancelled = true;
     };
   }, [reloadAll]);
+
+  // Load schedule event types (workspace-scoped) – analogous to cal.com EventType list
+  useEffect(() => {
+    let cancelled = false;
+
+    getWorkspaceScheduleEventTypes(workspace.accountId, workspace.id)
+      .then((types) => {
+        if (!cancelled) {
+          setScheduleEventTypes(types);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScheduleEventTypes([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.accountId, workspace.id]);
 
   const handleRunScheduleFlow = useCallback(async () => {
     setRunState("running");
@@ -416,6 +441,24 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
       completedCount,
     };
   }, [flowProjections]);
+
+  // Upcoming items – analogous to cal.com upcoming bookings (startTime >= now)
+  const upcomingItems = useMemo(
+    () => items.filter((item) => item.status === "upcoming"),
+    [items],
+  );
+
+  // Per-type breakdown aligned with schedule event types
+  const itemTypeBreakdown = useMemo(() => {
+    const counts = { milestone: 0, "follow-up": 0, maintenance: 0 } as Record<
+      "milestone" | "follow-up" | "maintenance",
+      number
+    >;
+    for (const item of items) {
+      counts[item.type] = counts[item.type] + 1;
+    }
+    return counts;
+  }, [items]);
 
   const pendingActionMeta = useMemo(() => {
     if (!pendingFlowAction) {
@@ -697,6 +740,56 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
 
         {loadState === "error" && (
           <p className="text-sm text-destructive">無法載入 schedule 資料，請稍後再試。</p>
+        )}
+
+        {/* ── Schedule Event Types breakdown – analogous to cal.com EventType catalog ── */}
+        {scheduleEventTypes.length > 0 && loadState === "loaded" && (
+          <div className="rounded-xl border border-border/40 p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">排程類型</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {scheduleEventTypes.map((et) => (
+                <div
+                  key={et.id}
+                  className="flex items-center justify-between rounded-lg border border-border/30 px-3 py-2"
+                >
+                  <div>
+                    <p className="text-xs font-medium">{et.title}</p>
+                    <p className="text-xs text-muted-foreground">{et.durationLabel}</p>
+                  </div>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {itemTypeBreakdown[et.itemType] ?? 0}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Upcoming items – analogous to cal.com upcoming bookings view ── */}
+        {loadState === "loaded" && upcomingItems.length > 0 && (
+          <div className="rounded-xl border border-border/40 p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">
+              即將到來{" "}
+              <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                {upcomingItems.length}
+              </span>
+            </p>
+            <div className="space-y-2">
+              {upcomingItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-1 rounded-lg border border-border/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{item.title}</p>
+                    <Badge variant="default">upcoming</Badge>
+                    <Badge variant="outline">{item.type}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{item.timeLabel}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className="space-y-3">
