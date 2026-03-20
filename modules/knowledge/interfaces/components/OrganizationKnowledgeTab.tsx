@@ -147,39 +147,29 @@ export function OrganizationKnowledgeTab({ workspaces }: OrganizationKnowledgeTa
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [searchQuery, setSearchQuery] = useState("");
 
-  async function loadAll() {
+  async function loadAll(options?: { readonly isCancelled?: () => boolean }) {
+    if (options?.isCancelled?.()) {
+      return;
+    }
     setLoadState("loading");
     try {
       const results = await loadKnowledgeEntries(workspaces);
-      setEntries(results);
-      setLoadState("loaded");
+      if (!options?.isCancelled?.()) {
+        setEntries(results);
+        setLoadState("loaded");
+      }
     } catch {
-      setEntries([]);
-      setLoadState("error");
+      if (!options?.isCancelled?.()) {
+        setEntries([]);
+        setLoadState("error");
+      }
     }
   }
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.resolve().then(async () => {
-      if (cancelled) {
-        return;
-      }
-      setLoadState("loading");
-      try {
-        const results = await loadKnowledgeEntries(workspaces);
-        if (!cancelled) {
-          setEntries(results);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setEntries([]);
-          setLoadState("error");
-        }
-      }
-    });
+    Promise.resolve().then(() => loadAll({ isCancelled: () => cancelled }));
 
     return () => {
       cancelled = true;
