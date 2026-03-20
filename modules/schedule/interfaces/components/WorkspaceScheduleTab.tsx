@@ -10,9 +10,28 @@ import {
   cancelScheduleRequest,
   submitScheduleRequest,
 } from "../_actions/schedule-request.actions";
+import {
+  SCHEDULE_REQUEST_CANCEL_CONFIRM_ACTION_LABEL,
+  SCHEDULE_REQUEST_CANCEL_CONFIRM_DESCRIPTION,
+  SCHEDULE_REQUEST_CANCEL_CONFIRM_TITLE,
+  SCHEDULE_REQUEST_CANCEL_KEEP_LABEL,
+  SCHEDULE_REQUEST_CANCEL_PENDING_LABEL,
+  SCHEDULE_REQUEST_CANCEL_REASON_LABEL,
+  SCHEDULE_REQUEST_REFRESH_ERROR_MESSAGE,
+} from "../schedule-ui.constants";
 import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import type { RequestStatus } from "../../domain/mddd/value-objects/WorkflowStatuses";
 import { Badge } from "@/ui/shadcn/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ui/shadcn/ui/alert-dialog";
 
 // ── Request status helpers ────────────────────────────────────────────────────
 
@@ -53,6 +72,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
   const [requestWindow, setRequestWindow] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cancelingRequestId, setCancelingRequestId] = useState<string | null>(null);
+  const [confirmingRequestId, setConfirmingRequestId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   async function refreshProjections() {
@@ -60,7 +80,7 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
       const rows = await listWorkspaceScheduleMdddFlowProjections(workspace.id);
       setProjections(rows);
     } catch {
-      setProjections([]);
+      setActionError(SCHEDULE_REQUEST_REFRESH_ERROR_MESSAGE);
     }
   }
 
@@ -104,18 +124,20 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
     }
   }
 
-  async function handleCancelRequest(requestId: string) {
-    if (!window.confirm("確定要取消這筆資源請求嗎？")) {
+  async function handleCancelRequest() {
+    if (!confirmingRequestId) {
       return;
     }
 
+    const requestId = confirmingRequestId;
+    setConfirmingRequestId(null);
     setActionError(null);
     setCancelingRequestId(requestId);
     try {
       const result = await cancelScheduleRequest({
         requestId,
         actorAccountId,
-        reason: "工作區取消",
+        reason: SCHEDULE_REQUEST_CANCEL_REASON_LABEL,
       });
       if (!result.success) {
         setActionError(result.error.message);
@@ -247,8 +269,8 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
                       type="button"
                       title="取消請求"
                       disabled={cancelingRequestId === p.requestId}
-                      onClick={() => void handleCancelRequest(p.requestId)}
-                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+                      onClick={() => setConfirmingRequestId(p.requestId)}
+                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -266,6 +288,38 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           </ul>
         </div>
       )}
+
+      <AlertDialog
+        open={confirmingRequestId != null}
+        onOpenChange={(open) => {
+          if (!open && cancelingRequestId == null) {
+            setConfirmingRequestId(null);
+          }
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{SCHEDULE_REQUEST_CANCEL_CONFIRM_TITLE}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {SCHEDULE_REQUEST_CANCEL_CONFIRM_DESCRIPTION}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelingRequestId != null}>
+              {SCHEDULE_REQUEST_CANCEL_KEEP_LABEL}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={cancelingRequestId != null}
+              onClick={() => void handleCancelRequest()}
+            >
+              {cancelingRequestId != null
+                ? SCHEDULE_REQUEST_CANCEL_PENDING_LABEL
+                : SCHEDULE_REQUEST_CANCEL_CONFIRM_ACTION_LABEL}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

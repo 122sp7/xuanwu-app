@@ -8,6 +8,7 @@ import {
 } from "../../application";
 import { FirebaseScheduleRequestRepository } from "../../infrastructure/firebase/FirebaseScheduleRequestRepository";
 import { FirebaseMdddProjectionRepository } from "../../infrastructure/firebase/FirebaseMdddProjectionRepository";
+import { SCHEDULE_REQUEST_CANCEL_REASON_LABEL } from "../schedule-ui.constants";
 
 const scheduleRequestRepository = new FirebaseScheduleRequestRepository();
 const submitScheduleRequestUseCase = new SubmitScheduleRequestUseCase(scheduleRequestRepository);
@@ -52,13 +53,16 @@ export async function cancelScheduleRequest(input: {
     const result = await cancelScheduleRequestUseCase.execute(input);
 
     if (result.command.success && result.request) {
+      // Keep this aligned with submitScheduleRequest(): the projection update is a
+      // best-effort follow-up to the primary request write, so a projection failure
+      // can temporarily leave organization/workspace read models stale.
       await projectionRepository.project([
         {
           type: "RequestCancelled",
           requestId: result.request.id,
           workspaceId: result.request.workspaceId,
           organizationId: result.request.organizationId,
-          reason: input.reason?.trim() || "工作區取消",
+          reason: input.reason?.trim() || SCHEDULE_REQUEST_CANCEL_REASON_LABEL,
           occurredAtISO: result.request.updatedAtISO,
         },
       ]);

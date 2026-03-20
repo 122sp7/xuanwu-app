@@ -58,8 +58,12 @@ export function transitionScheduleRequestStatus(
 ): ScheduleRequest {
   const allowed = SCHEDULE_REQUEST_STATUS_TRANSITIONS[request.status] ?? [];
   if (!allowed.includes(nextStatus)) {
+    const guidance =
+      nextStatus === "cancelled"
+        ? "Schedule requests can only be cancelled while they are in draft or submitted status."
+        : `Schedule request must first enter a state that allows transition to ${nextStatus}.`;
     throw new Error(
-      `Invalid schedule request transition: ${request.status} -> ${nextStatus}. Allowed: ${allowed.join(", ") || "(none)"}`,
+      `Invalid schedule request transition: ${request.status} -> ${nextStatus}. Allowed: ${allowed.join(", ") || "(none)"}. ${guidance}`,
     );
   }
 
@@ -68,4 +72,8 @@ export function transitionScheduleRequestStatus(
     status: nextStatus,
     updatedAtISO: nowISO,
   };
+}
+
+export function canCancelScheduleRequestStatus(status: ScheduleRequestStatus): boolean {
+  return SCHEDULE_REQUEST_STATUS_TRANSITIONS[status]?.includes("cancelled") ?? false;
 }

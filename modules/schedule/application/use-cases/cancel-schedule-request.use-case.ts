@@ -1,5 +1,8 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@/shared/types";
-import { transitionScheduleRequestStatus } from "../../domain/entities/ScheduleRequest";
+import {
+  canCancelScheduleRequestStatus,
+  transitionScheduleRequestStatus,
+} from "../../domain/entities/ScheduleRequest";
 import type { ScheduleRequest } from "../../domain/entities/ScheduleRequest";
 import type { ScheduleRequestRepository } from "../../domain/repositories/ScheduleRequestRepository";
 
@@ -61,7 +64,7 @@ export class CancelScheduleRequestUseCase {
         };
       }
 
-      if (!["draft", "submitted"].includes(existingRequest.status)) {
+      if (!canCancelScheduleRequestStatus(existingRequest.status)) {
         return {
           command: commandFailureFrom(
             "SCHEDULE_REQUEST_CANCEL_INVALID",

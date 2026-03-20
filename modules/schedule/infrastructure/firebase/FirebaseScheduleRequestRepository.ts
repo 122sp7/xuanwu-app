@@ -73,7 +73,7 @@ export class FirebaseScheduleRequestRepository implements ScheduleRequestReposit
       updatedAtISO: request.updatedAtISO,
     } satisfies Record<string, unknown>;
 
-    await setDoc(doc(this.db, "scheduleRequests", request.id), documentData, { merge: true });
+    await setDoc(doc(this.db, "scheduleRequests", request.id), documentData);
 
     return request;
   }
