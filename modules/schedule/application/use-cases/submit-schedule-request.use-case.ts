@@ -92,7 +92,12 @@ export class SubmitScheduleRequestUseCase {
       return commandFailureFrom("SCHEDULE_ACTOR_REQUIRED", "Actor account is required.");
     }
 
-    const requiredSkills = normalizeSkillRequirements(input.requiredSkills);
+    // Skills are optional for simple resource requests submitted from the workspace UI.
+    // Full MDDD flow validation enforces skill requirements separately.
+    const requiredSkills =
+      input.requiredSkills.length === 0
+        ? { success: true as const, value: [] as SkillRequirement[] }
+        : normalizeSkillRequirements(input.requiredSkills);
     if (!requiredSkills.success) {
       return commandFailureFrom(requiredSkills.code, requiredSkills.message);
     }
