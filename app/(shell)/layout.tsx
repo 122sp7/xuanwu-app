@@ -15,16 +15,11 @@ import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { AccountSwitcher } from "./_components/account-switcher";
+import { AppRail } from "./_components/app-rail";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
 import { HeaderControls } from "./_components/header-controls";
 import { HeaderUserAvatar } from "./_components/header-user-avatar";
 import { ShellGuard } from "./_components/shell-guard";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/workspace", label: "Workspace" },
-  { href: "/settings", label: "Personal Settings" },
-];
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -32,6 +27,13 @@ const routeTitles: Record<string, string> = {
   "/workspace": "Workspace Hub",
   "/settings": "Personal Settings",
 };
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/workspace", label: "Workspace" },
+  { href: "/settings", label: "Personal Settings" },
+];
 
 const organizationManagementItems = [
   { label: "成員", href: "/organization/members" },
@@ -131,18 +133,26 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   return (
     <ShellGuard>
       <div className="flex min-h-screen bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
         <DashboardSidebar
           pathname={pathname}
-          navItems={navItems}
           user={authState.user}
           activeAccount={appState.activeAccount}
           organizationAccounts={organizationAccounts}
           onSelectPersonal={handleSelectPersonal}
           onSelectOrganization={handleSelectOrganization}
           onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
         />
 
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
@@ -195,7 +205,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
             </div>
 
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {navItems.map((item) => {
+              {mobileNavItems.map((item) => {
                 const isActive = isActiveRoute(item.href);
                 return (
                   <Link

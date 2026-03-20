@@ -75,7 +75,13 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
           </p>
         </div>
 
-        <Button size="sm" className="gap-1.5 self-start sm:self-auto" disabled>
+        <Button
+          size="sm"
+          className="gap-1.5 self-start sm:self-auto"
+          disabled
+          title="新增頁面（即將推出）"
+          aria-label="新增頁面（功能即將推出）"
+        >
           <PlusIcon className="size-4" />
           新增頁面
         </Button>
@@ -101,7 +107,9 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
               key={tab.key}
               type="button"
               role="tab"
+              id={`wiki-tab-${tab.key}`}
               aria-selected={activeVisibility === tab.key}
+              aria-controls="wiki-tabpanel"
               onClick={() => {
                 setActiveVisibility(tab.key);
               }}
@@ -117,8 +125,13 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
         </div>
       </div>
 
-      {/* Page list */}
-      {filteredPages.length === 0 ? (
+      {/* Page list — tabpanel for the visibility filter tablist */}
+      <div
+        id="wiki-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`wiki-tab-${activeVisibility}`}
+      >
+        {filteredPages.length === 0 ? (
         <Card className="border border-border/50">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <FileTextIcon className="size-10 text-muted-foreground/40" />
@@ -165,6 +178,7 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

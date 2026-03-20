@@ -2,9 +2,10 @@
 
 /**
  * Module: dashboard-sidebar.tsx
- * Purpose: render authenticated shell left sidebar navigation and account controls.
- * Responsibilities: main navigation, organization shortcuts, and recent workspace quick access.
- * Constraints: keep UI-only concerns in this component and source workspace records from module interfaces.
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, org management sub-nav, and recent workspace
+ *   quick-access list.  Top-level section navigation is handled by AppRail.
+ * Constraints: keep UI-only concerns here; workspace data sourced from module interfaces.
  */
 
 import Link from "next/link";
@@ -15,11 +16,15 @@ import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
 import { AccountSwitcher } from "./account-switcher";
-import { NavUser } from "./nav-user";
 
-interface NavItem {
-  href: string;
-  label: string;
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly onOrganizationCreated: (account: AccountEntity) => void;
 }
 
 const accountManagementItems = [
@@ -41,21 +46,12 @@ function getStorageKey(accountId: string) {
 }
 
 function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) {
-      return [];
-    }
-
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
+    if (!Array.isArray(parsed)) return [];
     return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
   } catch {
     return [];
@@ -63,19 +59,13 @@ function readRecentWorkspaceIds(accountId: string): string[] {
 }
 
 function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
+  if (typeof window === "undefined") return;
   window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
 }
 
 function trackWorkspaceFromPath(pathname: string, accountId: string) {
   const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) {
-    return;
-  }
-
+  if (!match) return;
   const workspaceId = decodeURIComponent(match[1]);
   const recentIds = readRecentWorkspaceIds(accountId);
   const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
@@ -84,23 +74,8 @@ function trackWorkspaceFromPath(pathname: string, accountId: string) {
 
 function getWorkspaceIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) {
-    return null;
-  }
-
+  if (!match) return null;
   return decodeURIComponent(match[1]);
-}
-
-interface DashboardSidebarProps {
-  pathname: string;
-  navItems: NavItem[];
-  user: AuthUser | null;
-  activeAccount: ActiveAccount | null;
-  organizationAccounts: AccountEntity[];
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated: (account: AccountEntity) => void;
-  onSignOut: () => void;
 }
 
 function isActiveOrganizationAccount(
@@ -115,33 +90,30 @@ function isActiveOrganizationAccount(
 
 export function DashboardSidebar({
   pathname,
-  navItems,
   user,
   activeAccount,
   organizationAccounts,
   onSelectPersonal,
   onSelectOrganization,
   onOrganizationCreated,
-  onSignOut,
 }: DashboardSidebarProps) {
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
 
   function isActiveRoute(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
+  // Track recently visited workspaces in localStorage
   useEffect(() => {
     const accountId = activeAccount?.id;
-    if (!accountId) {
-      return;
-    }
-
+    if (!accountId) return;
     trackWorkspaceFromPath(pathname, accountId);
   }, [activeAccount?.id, pathname]);
 
+  // Load workspace names for quick-access links
   useEffect(() => {
     async function loadWorkspaces() {
       const accountId = activeAccount?.id;
@@ -149,51 +121,33 @@ export function DashboardSidebar({
         setWorkspacesById({});
         return;
       }
-
       try {
         const workspaceList = await getWorkspacesForAccount(accountId);
         setWorkspacesById(
-          Object.fromEntries(workspaceList.map((workspace) => [workspace.id, workspace])),
+          Object.fromEntries(workspaceList.map((ws) => [ws.id, ws])),
         );
       } catch {
         setWorkspacesById({});
       }
     }
-
     void loadWorkspaces();
   }, [activeAccount?.id]);
 
   const recentWorkspaceIds = useMemo(() => {
     const accountId = activeAccount?.id;
-    if (!accountId) {
-      return [] as string[];
-    }
-
+    if (!accountId) return [] as string[];
     const stored = readRecentWorkspaceIds(accountId);
-    const currentWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (!currentWorkspaceId) {
-      return stored;
-    }
-
-    return [
-      currentWorkspaceId,
-      ...stored.filter((workspaceId) => workspaceId !== currentWorkspaceId),
-    ];
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
   }, [activeAccount?.id, pathname]);
 
   const recentWorkspaceLinks = useMemo(() => {
     return recentWorkspaceIds
       .map((workspaceId) => {
-        const workspace = workspacesById[workspaceId];
-        if (!workspace) {
-          return null;
-        }
-
-        return {
-          id: workspace.id,
-          name: workspace.name,
-          href: `/workspace/${workspace.id}`,
-        };
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
       })
       .filter((item): item is { id: string; name: string; href: string } => item !== null);
   }, [recentWorkspaceIds, workspacesById]);
@@ -204,12 +158,8 @@ export function DashboardSidebar({
     : recentWorkspaceLinks.slice(0, MAX_VISIBLE_RECENT_WORKSPACES);
 
   return (
-    <aside className="hidden w-64 border-r border-border/50 bg-card/30 p-5 md:flex md:flex-col">
-      <div className="mb-6 space-y-1">
-        <p className="text-sm font-semibold tracking-tight">Xuanwu App</p>
-        <p className="text-xs text-muted-foreground">Authenticated Workspace</p>
-      </div>
-
+    <aside className="hidden w-52 shrink-0 flex-col border-r border-border/50 bg-card/30 p-4 md:flex">
+      {/* ── Account switcher ──────────────────────────────────────── */}
       <AccountSwitcher
         personalAccount={user}
         organizationAccounts={organizationAccounts}
@@ -219,66 +169,56 @@ export function DashboardSidebar({
         onOrganizationCreated={onOrganizationCreated}
       />
 
-      <nav className="mt-5 space-y-1">
-        {navItems.map((item) => {
-          const isActive = isActiveRoute(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+      {/* ── Organization management sub-nav ───────────────────────── */}
+      {showAccountManagement && (
+        <nav className="mt-4 space-y-0.5" aria-label="Organization management">
+          <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            帳戶管理
+          </p>
+          {accountManagementItems.map((item) => {
+            const active = isActiveRoute(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`block rounded-lg px-2 py-1.5 text-xs font-medium transition ${
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
-        {showAccountManagement && (
-          <div className="mt-2 space-y-1">
-            <p className="px-3 py-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              帳戶管理
-            </p>
-            {accountManagementItems.map((item) => {
-              const isActive = isActiveRoute(item.href);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </nav>
-
-      <section className="mt-5 space-y-2 rounded-lg border border-border/40 p-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Quick Access</h2>
+      {/* ── Recent workspaces quick-access ────────────────────────── */}
+      <section className="mt-4 space-y-1">
+        <h2 className="px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Quick Access
+        </h2>
 
         {visibleRecentWorkspaceLinks.length === 0 ? (
-          <p className="text-xs text-muted-foreground">尚無最近開啟的工作區，先從 Workspace Hub 進入任一工作區。</p>
+          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+            尚無最近開啟的工作區。
+          </p>
         ) : (
-          <div className="space-y-1">
-            {visibleRecentWorkspaceLinks.map((workspace) => (
+          <div className="space-y-0.5">
+            {visibleRecentWorkspaceLinks.map((ws) => (
               <Link
-                key={workspace.id}
-                href={workspace.href}
-                className="block truncate rounded-md border border-border/40 px-2 py-1.5 text-xs font-medium text-foreground/90 transition hover:bg-muted"
-                title={workspace.name}
+                key={ws.id}
+                href={ws.href}
+                className={`block truncate rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                  isActiveRoute(ws.href)
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                }`}
+                title={ws.name}
               >
-                {workspace.name}
+                {ws.name}
               </Link>
             ))}
           </div>
@@ -290,20 +230,12 @@ export function DashboardSidebar({
             onClick={() => {
               setIsExpanded((prev) => !prev);
             }}
-            className="text-xs font-medium text-primary hover:underline"
+            className="px-2 text-[11px] font-medium text-primary hover:underline"
           >
             {isExpanded ? "Show less" : "Show more"}
           </button>
         )}
       </section>
-
-      <div className="mt-auto pt-6">
-        <NavUser
-          name={user?.name ?? "Dimension Member"}
-          email={user?.email ?? "—"}
-          onSignOut={onSignOut}
-        />
-      </div>
     </aside>
   );
 }
