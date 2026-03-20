@@ -347,7 +347,7 @@ describe("SubmitScheduleRequestUseCase", () => {
 
 ## 9. 建議實作順序（先補缺口，再擴 UI）
 
-這份順序是針對**目前已上線切片只有 submit/cancel + projection list** 的現況而寫。新增功能請優先補足缺口，不要先把 UI 做得像完整排程系統。
+這份順序是針對**目前已上線切片只有 submit/cancel + projection list** 的現況而寫。新增功能請優先補足缺口，先把 domain/application/projection 契約補齊，再擴充 UI，這樣才能維持 MDDD 邊界並避免畫面先行後造成技術債。
 
 ### Phase 1 — 補齊 Request review flow
 
