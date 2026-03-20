@@ -1,6 +1,6 @@
 # Module Index
 
-**Verified:** 2026-03-19 — 17 modules confirmed under `modules/`
+**Verified:** 2026-03-20 — 18 modules confirmed under `modules/`
 
 ## Full Module List
 
@@ -12,10 +12,11 @@
 | audit | ✓ | ✓ | ✗ | |
 | billing | ✓ | ✓ | ✓ | See billing-lifecycle skill |
 | daily | ✗ | ✗ | ✗ | |
-| file | ✗ | ✗ | ✓ | |
+| file | ✗ | ✗ | ✓ | Upload pipeline + RagDocumentRepository |
 | finance | ✓ | ✗ | ✗ | |
 | identity | ✓ | ✗ | ✗ | |
 | issue | ✗ | ✗ | ✗ | |
+| knowledge | ✗ | ✗ | ✗ | Read-side summary + workspace knowledge documents UI |
 | notification | ✓ | ✗ | ✗ | |
 | organization | ✓ | ✗ | ✗ | |
 | parser | ✗ | ✗ | ✓ | |
@@ -58,8 +59,25 @@ modules/<name>/
 - Follows billing-lifecycle domain pattern
 - `ports/` present
 
+### knowledge (EXISTS as modules/knowledge)
+- **LIVE** at `modules/knowledge/` — do NOT use core/knowledge-core for workspace UI
+- `interfaces/components/WorkspaceKnowledgeTab.tsx` — read-side summary + RAG document list
+- `interfaces/queries/knowledge.queries.ts` — `getWorkspaceKnowledgeSummary(workspace)`
+- Domain: KnowledgeSummary entity, KnowledgeRepository port, deriveKnowledgeSummary service
+- Infrastructure: DefaultWorkspaceKnowledgeRepository (derives summary from file + parser data)
+- Mounted in workspace detail screen under "Knowledge" tab
+
+### file (upload + RAG document registration)
+- Full upload pipeline: `uploadInitFile` → Firebase Storage → `uploadCompleteFile`
+- `RagDocumentRecord` in domain with complete metadata: accountId, sizeBytes, versionGroupId, versionNumber, isLatest, language, accessControl, category, department, tags, statusMessage, chunkCount, indexedAtISO, expiresAtISO
+- `FirebaseRagDocumentRepository`: `findByStoragePath()`, `findByWorkspace()`, `saveUploaded()`
+- Firestore path: `/knowledge_base/{orgId}/workspaces/{wsId}/documents/{documentId}`
+- `getWorkspaceRagDocuments(workspace)` query exported from file module interfaces
+
 ### knowledge / retrieval / taxonomy
-- **These modules do NOT exist** — do not assume; use core/knowledge-core instead
+- `modules/knowledge` EXISTS — see knowledge section above
+- `core/knowledge-core` exists separately (MDDD — Knowledge entity, Upstash Redis + Vector infra)
+- `retrieval` and `taxonomy` as separate top-level modules do NOT exist
 
 ## core/ Modules (separate from modules/)
 

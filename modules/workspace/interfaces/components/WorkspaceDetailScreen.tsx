@@ -158,6 +158,8 @@ interface WorkspaceDetailScreenProps {
   readonly workspaceId: string;
   readonly accountId: string | null | undefined;
   readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
 }
 
 function renderWorkspacePlaceholderTab(tab: (typeof workspaceTabItems)[number]) {
@@ -180,6 +182,7 @@ export function WorkspaceDetailScreen({
   workspaceId,
   accountId,
   accountsHydrated,
+  initialTab,
 }: WorkspaceDetailScreenProps) {
   const router = useRouter();
   const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
@@ -418,7 +421,7 @@ export function WorkspaceDetailScreen({
       )}
 
       {workspace && (
-        <Tabs defaultValue="Overview" className="space-y-4">
+        <Tabs defaultValue={initialTab && workspaceTabItems.includes(initialTab as (typeof workspaceTabItems)[number]) ? initialTab : "Overview"} className="space-y-4">
           <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border border-border/50 bg-card/50 p-2">
             {workspaceTabItems.map((tab) => (
               <TabsTrigger key={tab} value={tab} className="whitespace-nowrap">

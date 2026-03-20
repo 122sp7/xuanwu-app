@@ -6,6 +6,8 @@ from app.document_ai.domain.ports import DocumentAiProcessorPort
 
 
 class GoogleCloudDocumentAiProcessor(DocumentAiProcessorPort):
+    """OCR Extractor — extracts full text from PDF, images, and other document types."""
+
     def __init__(self, settings: DocumentAiSettings) -> None:
         self._settings = settings
         self._client = documentai.DocumentProcessorServiceClient(
@@ -21,7 +23,7 @@ class GoogleCloudDocumentAiProcessor(DocumentAiProcessorPort):
         )
 
         request = documentai.ProcessRequest(
-            name=self._settings.processor_resource,
+            name=self._settings.ocr_extractor_resource,
             raw_document=raw_document,
         )
 

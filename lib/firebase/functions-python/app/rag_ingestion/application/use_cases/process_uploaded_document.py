@@ -4,6 +4,7 @@ from app.rag_ingestion.domain.entities import (
     RagChunk,
 )
 from app.rag_ingestion.domain.ports import (
+    ProcessedTextWriterPort,
     RagChunkerPort,
     RagDocumentRepositoryPort,
     RagEmbedderPort,
@@ -20,12 +21,14 @@ class ProcessUploadedDocumentUseCase:
         taxonomy_classifier: RagTaxonomyClassifierPort,
         embedder: RagEmbedderPort,
         document_repository: RagDocumentRepositoryPort,
+        text_writer: ProcessedTextWriterPort | None = None,
     ) -> None:
         self._parser = parser
         self._chunker = chunker
         self._taxonomy_classifier = taxonomy_classifier
         self._embedder = embedder
         self._document_repository = document_repository
+        self._text_writer = text_writer
 
     def execute(self, command: ProcessUploadedDocumentCommand) -> ProcessUploadedDocumentResult:
         self._document_repository.mark_processing(
@@ -73,6 +76,17 @@ class ProcessUploadedDocumentUseCase:
                 taxonomy,
                 chunks,
             )
+
+            # Optional: persist extracted text to Storage and patch Firestore metadata.
+            if self._text_writer is not None:
+                self._text_writer.write(
+                    document_id=command.document_id,
+                    organization_id=command.organization_id,
+                    workspace_id=command.workspace_id,
+                    extracted_text=parsed_text,
+                    chunk_count=len(chunks),
+                    taxonomy=taxonomy,
+                )
 
             return ProcessUploadedDocumentResult(
                 document_id=command.document_id,

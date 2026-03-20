@@ -139,3 +139,34 @@ Before expanding beyond the current read-side slice, the team should define:
 - how knowledge write-side status maps to the architecture spec fields in `docs/architecture/knowledge.md`,
 - how retrieval governance and archive flows are audited,
 - and which runtime owns chunk persistence plus vector indexing.
+
+## Shipped UI surfaces (design anchors)
+
+The following UI surfaces have been implemented as design anchors. All governance/retrieval actions are `stubAction()` stubs until the backend is wired.
+
+### Workspace-level: `WorkspaceKnowledgeTab`
+
+| Surface | Location |
+| --- | --- |
+| 6-card KPI row | Registered, Ready, Sources, Processing, Failed, Archived |
+| Filter bar | Status dropdown + free-text search (name, tag, category, department) + Clear |
+| `DocumentRow` | Full metadata: MIME, size, language, category, department, tags, accessControl, chunkCount, expiresAtISO, updateLog, statusMessage |
+| Action buttons | Retry (failed), Archive (non-archived), New version (isLatest) |
+| Version history | Collapsible per `versionGroupId` — all versions with status badge, updateLog, timestamp |
+| Empty states | Full empty with Upload CTA; filter-zero empty |
+| Governance panel | Archive/Restore, Version rollback, Audit trail (stubs) |
+
+Component: `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
+
+### Organization-level: `OrganizationKnowledgeTab`
+
+| Surface | Location |
+| --- | --- |
+| Enterprise KPI row | Total Workspaces, Ready Workspaces, Staged, Needs Input, Total Docs, Org Ready Ratio + progress bar |
+| Knowledge Search | Cross-workspace RAG query input (stub) + expected result shape preview |
+| Workspace Health cards | Per-workspace: name link, status badge, lifecycleState badge, ready ratio + Progress bar, blocked reasons, Manage/Upload quick-links |
+| Workspace filter | Free-text filter by workspace name / ID |
+| Governance Overview | Archive Health, Version Consistency check, Org Audit Trail, ACL Review, Expiry Monitor (all stubs) |
+
+Component: `modules/knowledge/interfaces/components/OrganizationKnowledgeTab.tsx`
+Mounted at: `app/(shell)/organization/page.tsx` → `<TabsContent value="knowledge">`

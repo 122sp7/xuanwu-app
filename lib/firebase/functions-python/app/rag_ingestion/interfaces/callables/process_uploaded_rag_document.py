@@ -1,3 +1,5 @@
+import logging
+import os
 from typing import Any
 
 from firebase_functions import https_fn
@@ -16,12 +18,25 @@ from app.rag_ingestion.infrastructure.default.taxonomy_classifier import (
 from app.rag_ingestion.infrastructure.firebase.document_repository import (
     FirebaseRagDocumentRepository,
 )
-from app.rag_ingestion.infrastructure.firebase.storage_reader import (
-    FirebaseStorageTextReader,
+from app.rag_ingestion.infrastructure.firebase.processed_text_writer import (
+    ProcessedTextWriter,
+)
+from app.rag_ingestion.infrastructure.firebase.storage_reader import FirebaseStorageReader
+from app.rag_ingestion.infrastructure.google.document_ai_parser import DocumentAiRagParser
+from app.rag_ingestion.infrastructure.google.document_ai_taxonomy_classifier import (
+    DocumentAiTaxonomyClassifier,
 )
 
+logger = logging.getLogger(__name__)
 
-_storage_text_reader: FirebaseStorageTextReader | None = None
+_storage_reader: FirebaseStorageReader | None = None
+
+
+def _get_storage_reader() -> FirebaseStorageReader:
+    global _storage_reader
+    if _storage_reader is None:
+        _storage_reader = FirebaseStorageReader()
+    return _storage_reader
 
 
 def _required_string(data: dict[str, Any], key: str) -> str:
@@ -47,27 +62,59 @@ def _optional_string(data: dict[str, Any], key: str) -> str | None:
     return normalized or None
 
 
+def _is_document_ai_enabled() -> bool:
+    """Return True when at least DOCUMENTAI_PROJECT_ID is configured."""
+    return bool(os.getenv("DOCUMENTAI_PROJECT_ID"))
+
+
 def _build_use_case() -> ProcessUploadedDocumentUseCase:
+    storage_reader = _get_storage_reader()
+
+    if _is_document_ai_enabled():
+        from app.config.settings import load_settings
+
+        try:
+            settings = load_settings()
+            logger.info(
+                "Document AI enabled — OCR Extractor: %s, Classifier: %s",
+                settings.document_ai.ocr_extractor_processor_id,
+                settings.document_ai.ocr_classifier_processor_id,
+            )
+            parser = DocumentAiRagParser(settings.document_ai, storage_reader)
+            taxonomy_classifier = DocumentAiTaxonomyClassifier(settings.document_ai)
+        except Exception as error:
+            logger.warning(
+                "Document AI unavailable (%s); falling back to passthrough parser.", error
+            )
+            parser = PassthroughRagParser()
+            taxonomy_classifier = SimpleRagTaxonomyClassifier()
+    else:
+        parser = PassthroughRagParser()
+        taxonomy_classifier = SimpleRagTaxonomyClassifier()
+
     return ProcessUploadedDocumentUseCase(
-        parser=PassthroughRagParser(),
+        parser=parser,
         chunker=SimpleParagraphChunker(),
-        taxonomy_classifier=SimpleRagTaxonomyClassifier(),
+        taxonomy_classifier=taxonomy_classifier,
         embedder=DeterministicRagEmbedder(),
         document_repository=FirebaseRagDocumentRepository(),
+        text_writer=ProcessedTextWriter(),
     )
 
 
-def _get_storage_text_reader() -> FirebaseStorageTextReader:
-    global _storage_text_reader
-    if _storage_text_reader is None:
-        _storage_text_reader = FirebaseStorageTextReader()
-    return _storage_text_reader
-
-
 def _resolve_raw_text(data: dict[str, Any]) -> str:
+    """Return raw_text from the payload or fall back to reading the Storage blob as text.
+
+    When Document AI is enabled the parser reads binary directly from Storage, so
+    raw_text is not strictly required — return an empty string in that case.
+    """
     raw_text = _optional_string(data, "rawText")
     if raw_text is not None:
         return raw_text
+
+    if _is_document_ai_enabled():
+        # DocumentAiRagParser will read binary bytes from storagePath itself.
+        return ""
 
     storage_path = _optional_string(data, "storagePath")
     if storage_path is None:
@@ -76,7 +123,7 @@ def _resolve_raw_text(data: dict[str, Any]) -> str:
             message="storagePath is required when rawText is omitted.",
         )
 
-    return _get_storage_text_reader().read_text(storage_path)
+    return _get_storage_reader().read_text(storage_path)
 
 
 def process_uploaded_rag_document_data(data: dict[str, Any]) -> dict[str, Any]:

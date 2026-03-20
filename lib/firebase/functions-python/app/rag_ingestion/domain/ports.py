@@ -39,3 +39,20 @@ class RagDocumentRepositoryPort(Protocol):
         error_code: str,
         error_message: str,
     ) -> None: ...
+
+
+class ProcessedTextWriterPort(Protocol):
+    """Optional port — persists extracted text to Storage and patches Firestore metadata."""
+
+    def write(
+        self,
+        *,
+        document_id: str,
+        organization_id: str,
+        workspace_id: str,
+        extracted_text: str,
+        chunk_count: int,
+        taxonomy: str,
+    ) -> str:
+        """Returns the Storage path of the saved text file."""
+        ...
