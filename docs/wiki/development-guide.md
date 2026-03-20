@@ -495,7 +495,202 @@ Retrieval：
 | Wiki 架構規範 | `docs/architecture/wiki.md` |
 | Wiki 開發契約 | `docs/reference/development-contracts/wiki-contract.md` |
 | Wiki 使用手冊 | `docs/wiki/user-manual.md` |
+| Wiki UI/UX 規格 | `docs/wiki/ui-ux.md` |
 | Knowledge 架構規範 | `docs/architecture/knowledge.md` |
 | Knowledge 開發契約 | `docs/reference/development-contracts/knowledge-contract.md` |
 | RAG Ingestion ADR | `docs/adr/ADR-005-rag-ingestion-execution-contract.md` |
 | RAG Query ADR | `docs/adr/ADR-006-rag-query-execution-contract.md` |
+
+---
+
+## 8. `core/wiki-core` 開發指引
+
+> 本節專門對象：實作或加入 `core/wiki-core` 域層的工程師。
+> 如果您只是使用 `@/core/wiki-core` export，請參考第 7 節並閱讀 wiki-contract.md。
+
+### 8.1 專案目錄結構與依賴方向
+
+```
+core/wiki-core/
+├── domain/                   ← 純 TypeScript，無任何框架 / SDK import
+│   ├── entities/
+│   │   ├── wiki-document.entity.ts              # WikiDocument class
+│   │   └── workspace-knowledge-summary.entity.ts # WorkspaceKnowledgeSummary
+│   ├── repositories/              # Domain ports（不含實作）
+│   │   ├── iembedding.repository.ts
+│   │   ├── iknowledge-summary.repository.ts
+│   │   ├── iretrieval.repository.ts
+│   │   └── iwiki-document.repository.ts
+│   ├── services/
+│   │   └── derive-knowledge-summary.ts          # 純函式
+│   └── value-objects/
+│       ├── access-control.vo.ts
+│       ├── content-status.vo.ts
+│       ├── embedding.vo.ts
+│       ├── search-filter.vo.ts
+│       ├── taxonomy.vo.ts
+│       ├── usage-stats.vo.ts
+│       ├── vector.vo.ts
+│       └── wiki-document-summary.vo.ts
+├── application/
+│   └── use-cases/
+│       ├── create-wiki-document.ts              # 骨架實作
+│       └── get-workspace-knowledge-summary.use-case.ts
+├── infrastructure/
+│   ├── persistence/
+│   │   ├── config.ts                            # Upstash env vars
+│   │   ├── upstash-redis.ts
+│   │   └── upstash-vector.ts
+│   └── repositories/
+│       └── upstash-wiki-document.repository.ts  # 骨架實作
+├── interfaces/
+│   └── api/
+│       └── wiki.controller.ts                   # 骨架實作
+└── index.ts                               # 全部公開 API export
+```
+
+**依賴方向（嚴格）**
+```
+interfaces (api / controller)
+    ↓
+application (use-cases)
+    ↓
+domain (entities / repositories / services / value-objects)
+    ↑
+infrastructure (persistence / repositories)
+```
+
+> ❗ 禁止 domain 直接 import infrastructure，禁止 application 直接 import UI 元件。
+> 禁止 `core/wiki-core` import `@/modules/*`。
+
+### 8.2 新増 Domain Entity / Value Object
+
+**安全查核清單**
+
+```bash
+# 確認沒有 modules/* 依賴
+npx grep -r "from '@/modules" core/wiki-core/
+# 應輸出空白
+```
+
+**新嫝 value object 範例**
+
+```typescript
+// core/wiki-core/domain/value-objects/my-concept.vo.ts
+
+export class MyConcept {
+  constructor(public readonly value: string) {
+    if (!value.trim()) throw new Error('MyConcept cannot be empty')
+  }
+
+  equals(other: MyConcept): boolean {
+    return this.value === other.value
+  }
+}
+```
+
+完成後在 `index.ts` 新增 export：
+```typescript
+// 加入 Domain: Value Objects 區段
+export { MyConcept } from './domain/value-objects/my-concept.vo'
+```
+
+### 8.3 完善 `CreateWikiDocumentUseCase`
+
+目前骨架缺：ID 生成、taxonomy 標注、embedding 呼叫。以下為設計指引：
+
+```typescript
+export class CreateWikiDocumentUseCase {
+  constructor(
+    private readonly repo: IWikiDocumentRepository,
+    private readonly embedder: IEmbeddingRepository,  // 待加入
+  ) {}
+
+  async execute(dto: CreateWikiDocumentDTO): Promise<WikiDocument> {
+    // 1. 生成 documentId（doc_ + 16 hex—見 wiki-contract.md documentId 生成規則）
+    const id = generateDocumentId()  // 'doc_' + crypto random 8 bytes hex
+
+    // 2. Taxonomy 標注（如來自輸入，否則使用預設）
+    const taxonomy = dto.taxonomy ?? new Taxonomy('技術文件', [], 'default')
+
+    // 3. 建立實體
+    const entity = new WikiDocument(id, dto.title, dto.content, 'DRAFT', new Date())
+
+    // 4. 進行 embedding（非同步 via worker 或直接 API）
+    const embedding = await this.embedder.embed({ text: dto.content, documentId: id })
+
+    // 5. 儲存（必須包含 embedding.values 以律 vector index）
+    await this.repo.save(entity)
+    return entity
+  }
+}
+```
+
+### 8.4 實作 `OpenAIEmbeddingRepository`（TS 端）
+
+> Python 端已在 `libs/firebase/functions-python/app/rag_ingestion/infrastructure/openai/embedder.py`。
+> 以下為 TypeScript 端相同合約的 Next.js server-side 適配器實作指引。
+
+```typescript
+// core/wiki-core/infrastructure/repositories/openai-embedding.repository.ts
+import OpenAI from 'openai'
+import type { IEmbeddingRepository, EmbedTextDTO } from '../../domain/repositories/iembedding.repository'
+import type { Embedding } from '../../domain/value-objects/embedding.vo'
+import { Embedding as EmbeddingVO } from '../../domain/value-objects/embedding.vo'
+
+const MAX_BATCH = 20
+const DEFAULT_MODEL = 'text-embedding-3-small'
+const DEFAULT_DIMENSIONS = 1536
+
+export class OpenAIEmbeddingRepository implements IEmbeddingRepository {
+  private readonly client: OpenAI
+  private readonly model: string
+  private readonly dimensions: number
+
+  constructor(apiKey: string, model = DEFAULT_MODEL, dimensions = DEFAULT_DIMENSIONS) {
+    this.client = new OpenAI({ apiKey })
+    this.model = model
+    this.dimensions = dimensions
+  }
+
+  async embed(dto: EmbedTextDTO): Promise<Embedding> {
+    const [result] = await this.embedBatch([dto])
+    return result
+  }
+
+  async embedBatch(dtos: EmbedTextDTO[]): Promise<Embedding[]> {
+    if (dtos.length > MAX_BATCH) throw new Error(`Max batch size is ${MAX_BATCH}`)
+    const response = await this.client.embeddings.create({
+      model: this.model,
+      input: dtos.map((d) => d.text),
+    })
+    return response.data.map((item) =>
+      new EmbeddingVO({ values: item.embedding, model: this.model, dimensions: this.dimensions }),
+    )
+  }
+}
+```
+
+短路全部在 `infrastructure/` ，導入 `index.ts` 时加到 Infrastructure 區段。
+
+### 8.5 執行 `npm run lint` 設設
+
+```bash
+cd /home/runner/work/xuanwu-app/xuanwu-app
+npm run lint          # ESLint + TypeScript 檢查
+npm run build         # 完整 Next.js 編譯合成
+```
+
+任何更動 `core/wiki-core` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/core/knowledge-core` shim 與 `@/modules/knowledge` shim 仍正常轉灯。
+
+### 8.6 接管 `modules/knowledge` shim
+
+目前 `modules/knowledge` 的 domain + application 層是窄導入 shim：
+
+```typescript
+// modules/knowledge/domain/index.ts 和 application/index.ts
+export * from '@/core/wiki-core'
+```
+
+UI 啟用 `@/modules/knowledge` 為實際引用路徑直到 `modules/wiki` 建立並接管。
+不要直接刪除此 shim，隔離 wiki-page.tsx 與 WorkspaceWikiTab.tsx 不受影響。
