@@ -430,7 +430,9 @@ export function DashboardSidebar({
                 </p>
                 {(
                   [
-                    { href: "/settings", label: "帳號與個人資料" },
+                    { href: "/settings/profile", label: "個人資料" },
+                    { href: "/settings/general", label: "一般" },
+                    { href: "/settings/notifications", label: "推播通知" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
