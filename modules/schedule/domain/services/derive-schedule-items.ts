@@ -100,7 +100,8 @@ function toStartOfWeekISO(): string {
   const now = new Date();
   const day = now.getDay(); // 0 = Sunday
   const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust to Monday
-  const monday = new Date(now.setDate(diff));
+  const monday = new Date(now); // copy – do not mutate `now`
+  monday.setDate(diff);
   monday.setHours(0, 0, 0, 0);
   return monday.toISOString();
 }

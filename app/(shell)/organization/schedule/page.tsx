@@ -149,6 +149,21 @@ export default function OrganizationSchedulePage() {
     return days;
   }, [upcomingRows]);
 
+  // Upcoming rows that fall in the currently displayed calendar month – used by
+  // both the item list and the empty-state check so we don't filter twice.
+  const calendarMonthRows = useMemo(
+    () =>
+      upcomingRows.filter((row) => {
+        if (!row.item.startAtISO) return false;
+        const d = new Date(row.item.startAtISO);
+        return (
+          d.getFullYear() === calendarMonth.getFullYear() &&
+          d.getMonth() === calendarMonth.getMonth()
+        );
+      }),
+    [upcomingRows, calendarMonth],
+  );
+
   function handleViewChange(value: string) {
     if (value === "calendar") {
       router.replace("?view=calendar");
@@ -249,16 +264,7 @@ export default function OrganizationSchedulePage() {
                     month: "long",
                   })} 有排程的項目
                 </p>
-                {upcomingRows
-                  .filter((row) => {
-                    if (!row.item.startAtISO) return false;
-                    const d = new Date(row.item.startAtISO);
-                    return (
-                      d.getFullYear() === calendarMonth.getFullYear() &&
-                      d.getMonth() === calendarMonth.getMonth()
-                    );
-                  })
-                  .map((row) => (
+                {calendarMonthRows.map((row) => (
                     <div
                       key={`${row.workspaceId}-${row.item.id}`}
                       className="rounded-lg border border-border/40 px-3 py-2"
@@ -284,14 +290,7 @@ export default function OrganizationSchedulePage() {
                       </div>
                     </div>
                   ))}
-                {upcomingRows.filter((row) => {
-                  if (!row.item.startAtISO) return false;
-                  const d = new Date(row.item.startAtISO);
-                  return (
-                    d.getFullYear() === calendarMonth.getFullYear() &&
-                    d.getMonth() === calendarMonth.getMonth()
-                  );
-                }).length === 0 && (
+                {calendarMonthRows.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     本月沒有已標記日期的 upcoming 項目。
                   </p>
