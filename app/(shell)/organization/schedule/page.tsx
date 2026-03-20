@@ -9,7 +9,6 @@ import { getWorkspacesForAccount } from "@/modules/workspace";
 import { getWorkspaceSchedule } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
 import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "@/modules/schedule/interfaces/schedule-ui.constants";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import {
   Card,
@@ -20,12 +19,11 @@ import {
 } from "@/ui/shadcn/ui/card";
 import { Calendar } from "@/ui/shadcn/ui/calendar";
 import { ToggleGroup, ToggleGroupItem } from "@/ui/shadcn/ui/toggle-group";
-import { formatDateTime, isOrganizationAccount } from "../_utils";
+import { isOrganizationAccount } from "../_utils";
 
 type ViewMode = "list" | "calendar";
-type StatusFilter = "upcoming" | "past" | "all";
 
-interface UpcomingItemRow {
+interface BookingRow {
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly item: WorkspaceScheduleItem;
@@ -52,44 +50,28 @@ export default function OrganizationSchedulePage() {
   const viewMode: ViewMode =
     searchParams.get("view") === "calendar" ? "calendar" : "list";
 
-  // Status filter tabs – analogous to cal.com /bookings?status=upcoming|past|all
-  const statusParam = searchParams.get("status") ?? "upcoming";
-  const statusFilter: StatusFilter =
-    statusParam === "past" ? "past" : statusParam === "all" ? "all" : "upcoming";
-
   const [workspaces, setWorkspaces] = useState<
     Awaited<ReturnType<typeof getWorkspacesForAccount>>
   >([]);
-  const [loadState, setLoadState] = useState<
-    "idle" | "loading" | "loaded" | "error"
-  >("idle");
 
-  // All upcoming items aggregated across workspaces – analogous to cal.com /bookings?status=upcoming
-  const [upcomingRows, setUpcomingRows] = useState<readonly UpcomingItemRow[]>([]);
-  const [upcomingLoadState, setUpcomingLoadState] = useState<
-    "idle" | "loading" | "loaded" | "error"
-  >("idle");
+  // All upcoming items aggregated across workspaces
+  const [bookingRows, setBookingRows] = useState<readonly BookingRow[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
-  // Calendar month navigation state
+  // Calendar month navigation
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
 
+  // Fetch workspaces
   useEffect(() => {
     if (!activeOrganizationId) return;
     let cancelled = false;
 
-    setLoadState("loading");
     getWorkspacesForAccount(activeOrganizationId)
       .then((data) => {
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoadState("loaded");
-        }
+        if (!cancelled) setWorkspaces(data);
       })
       .catch(() => {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setLoadState("error");
-        }
+        if (!cancelled) setWorkspaces([]);
       });
 
     return () => {
@@ -97,12 +79,16 @@ export default function OrganizationSchedulePage() {
     };
   }, [activeOrganizationId]);
 
-  // Aggregate upcoming items (status === "upcoming") from all workspaces
+  // Aggregate upcoming items from all workspaces
   useEffect(() => {
-    if (workspaces.length === 0) return;
+    if (workspaces.length === 0) {
+      setBookingRows([]);
+      setLoadState("loaded");
+      return;
+    }
     let cancelled = false;
 
-    setUpcomingLoadState("loading");
+    setLoadState("loading");
 
     Promise.all(
       workspaces.map(async (ws) => {
@@ -110,26 +96,26 @@ export default function OrganizationSchedulePage() {
           const items = await getWorkspaceSchedule(ws.id);
           return items
             .filter((item) => item.status === "upcoming")
-            .map((item): UpcomingItemRow => ({
+            .map((item): BookingRow => ({
               workspaceId: ws.id,
               workspaceName: ws.name,
               item,
             }));
         } catch {
-          return [] as UpcomingItemRow[];
+          return [] as BookingRow[];
         }
       }),
     )
       .then((results) => {
         if (!cancelled) {
-          setUpcomingRows(results.flat());
-          setUpcomingLoadState("loaded");
+          setBookingRows(results.flat());
+          setLoadState("loaded");
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setUpcomingRows([]);
-          setUpcomingLoadState("error");
+          setBookingRows([]);
+          setLoadState("error");
         }
       });
 
@@ -138,29 +124,24 @@ export default function OrganizationSchedulePage() {
     };
   }, [workspaces]);
 
-  // Derive calendar modifier: days that have at least one upcoming item with a known startAtISO
+  // Days that have at least one upcoming item with a known startAtISO (for calendar highlights)
   const daysWithItems = useMemo<Date[]>(() => {
     const days: Date[] = [];
-    for (const row of upcomingRows) {
+    for (const row of bookingRows) {
       if (row.item.startAtISO) {
         const d = new Date(row.item.startAtISO);
-        if (!Number.isNaN(d.getTime())) {
-          // Deduplicate per day
-          const alreadyAdded = days.some((existing) => isSameDay(existing, d));
-          if (!alreadyAdded) {
-            days.push(d);
-          }
+        if (!Number.isNaN(d.getTime()) && !days.some((e) => isSameDay(e, d))) {
+          days.push(d);
         }
       }
     }
     return days;
-  }, [upcomingRows]);
+  }, [bookingRows]);
 
-  // Upcoming rows that fall in the currently displayed calendar month – used by
-  // both the item list and the empty-state check so we don't filter twice.
+  // Rows that fall in the currently displayed calendar month
   const calendarMonthRows = useMemo(
     () =>
-      upcomingRows.filter((row) => {
+      bookingRows.filter((row) => {
         if (!row.item.startAtISO) return false;
         const d = new Date(row.item.startAtISO);
         return (
@@ -168,28 +149,15 @@ export default function OrganizationSchedulePage() {
           d.getMonth() === calendarMonth.getMonth()
         );
       }),
-    [upcomingRows, calendarMonth],
+    [bookingRows, calendarMonth],
   );
 
-  // Status-filtered rows – analogous to cal.com /bookings?status= tab filtering
-  const statusFilteredRows = useMemo(() => {
-    if (statusFilter === "upcoming") return upcomingRows.filter((r) => r.item.status === "upcoming");
-    if (statusFilter === "past") return upcomingRows.filter((r) => r.item.status !== "upcoming");
-    return upcomingRows;
-  }, [upcomingRows, statusFilter]);
-
   function handleViewChange(value: string) {
-    const statusPart = statusFilter !== "upcoming" ? `&status=${statusFilter}` : "";
     if (value === "calendar") {
-      router.replace(`?view=calendar${statusPart}`);
+      router.replace("?view=calendar");
     } else {
-      router.replace(statusFilter !== "upcoming" ? `?status=${statusFilter}` : "?");
+      router.replace("?");
     }
-  }
-
-  function handleStatusChange(next: StatusFilter) {
-    const viewPart = viewMode === "calendar" ? "&view=calendar" : "";
-    router.replace(next === "upcoming" ? `?${viewPart.replace("&", "")}` : `?status=${next}${viewPart}`);
   }
 
   if (!activeOrganizationId) {
@@ -207,11 +175,11 @@ export default function OrganizationSchedulePage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">排程</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區排程項目總覽。
+            組織下所有工作區即將到來的排程總覽。
           </p>
         </div>
 
-        {/* ── List / Calendar view toggle – cal.com ?view=calendar ── */}
+        {/* ── List / Calendar toggle ── */}
         <ToggleGroup
           type="single"
           value={viewMode}
@@ -230,65 +198,36 @@ export default function OrganizationSchedulePage() {
         </ToggleGroup>
       </div>
 
-      {/* ── Status tabs – cal.com /bookings?status= ── */}
-      <div className="flex gap-1 rounded-lg border border-border/40 bg-muted/30 p-1">
-        {(["upcoming", "past", "all"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => handleStatusChange(s)}
-            className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              statusFilter === s
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {s === "upcoming" ? "即將到來" : s === "past" ? "已完成" : "全部"}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Booking rows card ── */}
+      {/* ── Upcoming bookings card ── */}
       <Card className="border-border/50">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle>
-                {statusFilter === "upcoming" ? "即將到來" : statusFilter === "past" ? "已完成" : "全部排程"}
-              </CardTitle>
+              <CardTitle>即將到來</CardTitle>
               <CardDescription>
-                {statusFilter === "upcoming"
-                  ? "組織下所有工作區中狀態為「upcoming」的排程項目彙整。"
-                  : statusFilter === "past"
-                  ? "已完成或非 upcoming 狀態的排程項目。"
-                  : "組織下所有工作區的排程項目。"}
+                組織下所有工作區中狀態為「upcoming」的排程項目。
               </CardDescription>
             </div>
-            {upcomingLoadState === "loaded" && (
+            {loadState === "loaded" && (
               <span className="rounded-full bg-muted px-3 py-1 text-sm font-medium tabular-nums text-muted-foreground">
-                {statusFilteredRows.length}
+                {bookingRows.length}
               </span>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {(loadState === "loading" || upcomingLoadState === "loading") && (
-            <p className="text-sm text-muted-foreground">載入排程項目中…</p>
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入排程中…</p>
           )}
-          {upcomingLoadState === "error" && (
-            <p className="text-sm text-destructive">
-              讀取排程失敗，請稍後重新整理頁面。
-            </p>
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取排程失敗，請稍後重新整理頁面。</p>
           )}
-          {upcomingLoadState === "loaded" && statusFilteredRows.length === 0 && viewMode === "list" && (
-            <p className="text-sm text-muted-foreground">
-              此分類下目前沒有排程項目。
-            </p>
+          {loadState === "loaded" && bookingRows.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有即將到來的排程項目。</p>
           )}
 
           {/* ── Calendar view ── */}
-          {viewMode === "calendar" && upcomingLoadState === "loaded" && (
+          {viewMode === "calendar" && loadState === "loaded" && (
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               <Calendar
                 mode="multiple"
@@ -297,8 +236,7 @@ export default function OrganizationSchedulePage() {
                 onMonthChange={setCalendarMonth}
                 modifiers={{ hasItems: daysWithItems }}
                 modifiersClassNames={{
-                  hasItems:
-                    "bg-primary/20 font-bold text-primary rounded-full",
+                  hasItems: "bg-primary/20 font-bold text-primary rounded-full",
                 }}
                 className="rounded-lg border border-border/40 p-3"
               />
@@ -307,67 +245,59 @@ export default function OrganizationSchedulePage() {
                   {calendarMonth.toLocaleDateString("zh-TW", {
                     year: "numeric",
                     month: "long",
-                  })} 有排程的項目
+                  })}{" "}
+                  有排程的項目
                 </p>
-                {calendarMonthRows.map((row) => (
-                    <div
-                      key={`${row.workspaceId}-${row.item.id}`}
-                      className="rounded-lg border border-border/40 px-3 py-2"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium">{row.item.title}</p>
-                        <Badge
-                          variant={
-                            SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]
-                          }
-                        >
-                          {row.item.type}
-                        </Badge>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>{row.item.timeLabel}</span>
-                        <Link
-                          href={`/workspace/${row.workspaceId}?tab=Schedule`}
-                          className="underline underline-offset-2 hover:text-foreground"
-                        >
-                          {row.workspaceName}
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
                 {calendarMonthRows.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    本月沒有已標記日期的 upcoming 項目。
-                  </p>
+                  <p className="text-xs text-muted-foreground">本月沒有排程項目。</p>
                 )}
+                {calendarMonthRows.map((row) => (
+                  <div
+                    key={`${row.workspaceId}-${row.item.id}`}
+                    className="rounded-lg border border-border/40 px-3 py-2"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium">{row.item.title}</p>
+                      <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]}>
+                        {row.item.type}
+                      </Badge>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span>{row.item.timeLabel}</span>
+                      <Link
+                        href={`/workspace/${row.workspaceId}?tab=Schedule`}
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        {row.workspaceName}
+                      </Link>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* ── List view – cal.com bookings list row style ── */}
-          {viewMode === "list" && upcomingLoadState === "loaded" && statusFilteredRows.length > 0 && (
+          {/* ── List view ── */}
+          {viewMode === "list" && loadState === "loaded" && bookingRows.length > 0 && (
             <ul className="divide-y divide-border/40 overflow-hidden rounded-md border border-border/40">
-              {statusFilteredRows.map((row) => (
+              {bookingRows.map((row) => (
                 <li
                   key={`${row.workspaceId}-${row.item.id}`}
                   className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50"
                 >
-                  {/* Left: title + detail + workspace link */}
+                  {/* Left: title + badges + detail */}
                   <div className="min-w-0 flex-1 pr-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-foreground">{row.item.title}</p>
                       <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]}>
                         {row.item.type}
                       </Badge>
-                      <Badge variant={row.item.status === "upcoming" ? "default" : "secondary"}>
-                        {row.item.status}
-                      </Badge>
                     </div>
                     {row.item.detail && (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.item.detail}</p>
                     )}
                   </div>
-                  {/* Right: time + workspace */}
+                  {/* Right: time + workspace link */}
                   <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
                     <span className="tabular-nums">{row.item.timeLabel}</span>
                     <Link
@@ -381,52 +311,6 @@ export default function OrganizationSchedulePage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
-
-      {/* ── Workspace schedule status list (secondary context) ── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>工作區排程狀態</CardTitle>
-          <CardDescription>
-            組織下各工作區的 lifecycle 概覽，點選工作區名稱可前往其 Schedule tab。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入排程資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">
-              讀取排程資料失敗，請稍後重新整理頁面。
-            </p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              目前沒有可顯示的工作區排程資料。
-            </p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div
-                key={workspace.id}
-                className="rounded-lg border border-border/40 px-3 py-2"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/workspace/${workspace.id}?tab=Schedule`}
-                    className="text-sm font-medium underline-offset-2 hover:underline"
-                  >
-                    {workspace.name}
-                  </Link>
-                  <Badge variant="outline">{workspace.lifecycleState}</Badge>
-                  <Badge variant="secondary">{workspace.visibility}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Created: {formatDateTime(workspace.createdAt?.toDate() ?? null)}
-                </p>
-              </div>
-            ))}
         </CardContent>
       </Card>
     </div>
