@@ -8,19 +8,15 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Filter,
-  LayoutGrid,
   List,
   Users,
 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { getWorkspacesForAccount } from "@/modules/workspace";
-import { getWorkspaceSchedule, getWorkspaceScheduleEventTypes } from "@/modules/schedule";
+import { getWorkspaceSchedule } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
-import type { ScheduleEventType } from "@/modules/schedule/domain/entities/ScheduleEventType";
-import { SCHEDULE_ITEM_TYPE_VARIANT_MAP } from "@/modules/schedule/interfaces/schedule-ui.constants";
 import { listWorkspaceScheduleMdddFlowProjections } from "@/modules/schedule/interfaces/queries/schedule-mddd.queries";
 import type { ScheduleMdddFlowProjection } from "@/modules/schedule/domain/mddd/value-objects/Projection";
 import { Badge } from "@/ui/shadcn/ui/badge";
@@ -52,12 +48,6 @@ interface BookingRow {
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly item: WorkspaceScheduleItem;
-}
-
-interface EventTypeRow {
-  readonly workspaceId: string;
-  readonly workspaceName: string;
-  readonly eventType: ScheduleEventType;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,9 +101,6 @@ export default function OrganizationSchedulePage() {
 
   // Cross-workspace MDDD flow projections (待分派 view)
   const [allProjections, setAllProjections] = useState<readonly (ScheduleMdddFlowProjection & { workspaceName: string })[]>([]);
-
-  // Cross-workspace event type catalog (排程類型 section)
-  const [allEventTypeRows, setAllEventTypeRows] = useState<readonly EventTypeRow[]>([]);
 
   // ── Calendar week navigation ─────────────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0);
@@ -233,41 +220,6 @@ export default function OrganizationSchedulePage() {
       cancelled = true;
     };
   }, [workspaces]);
-
-  // ── Aggregate event-type catalog across all workspaces ───────────────────
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    let cancelled = false;
-    Promise.all(
-      workspaces.map(async (w) => {
-        try {
-          const types = await getWorkspaceScheduleEventTypes(activeOrganizationId, w.id);
-          return types.map((et): EventTypeRow => ({ workspaceId: w.id, workspaceName: w.name, eventType: et }));
-        } catch {
-          return [] as EventTypeRow[];
-        }
-      }),
-    ).then((results) => {
-      if (!cancelled) {
-        // De-duplicate using workspaceId+slug composite key: each workspace keeps its own
-        // event-type entries, but the same slug appearing multiple times within the same
-        // workspace (which should not happen) is collapsed.
-        const seen = new Set<string>();
-        const unique = results.flat().filter((row) => {
-          const key = `${row.workspaceId}::${row.eventType.slug}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-        setAllEventTypeRows(unique);
-      }
-    }).catch(() => {
-      if (!cancelled) setAllEventTypeRows([]);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId, workspaces]);
 
   // Bookings with a known start time – used for calendar cell placement
   const calendarEvents = useMemo(
@@ -423,7 +375,7 @@ export default function OrganizationSchedulePage() {
                   <div className="min-w-0 flex-1 pr-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-foreground">{row.item.title}</p>
-                      <Badge variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.item.type]}>
+                      <Badge variant="secondary">
                         {ITEM_TYPE_LABEL[row.item.type]}
                       </Badge>
                     </div>
@@ -445,56 +397,6 @@ export default function OrganizationSchedulePage() {
                 </li>
               ))}
             </ul>
-          )}
-
-          {/* ── 排程類型 section: event-type catalog from all workspaces ── */}
-          {allEventTypeRows.length > 0 && (
-            <div className="border-t border-border/40 px-4 py-3">
-              <div className="mb-3 flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">排程類型</span>
-                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  {allEventTypeRows.length}
-                </span>
-              </div>
-              <ul className="divide-y divide-border/40 overflow-hidden rounded-md border border-border/50">
-                {allEventTypeRows.map((row) => (
-                  <li key={`${row.workspaceId}-${row.eventType.id}`}>
-                    <Link
-                      href={`/workspace/${row.workspaceId}?tab=Schedule&et=${row.eventType.slug}`}
-                      className="flex w-full items-center justify-between bg-background px-4 py-3 transition-colors hover:bg-muted/30"
-                    >
-                      <div className="min-w-0 flex-1 pr-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {row.eventType.title}
-                          </span>
-                          <Badge
-                            variant={SCHEDULE_ITEM_TYPE_VARIANT_MAP[row.eventType.itemType]}
-                            className="text-[10px]"
-                          >
-                            {ITEM_TYPE_LABEL[row.eventType.itemType]}
-                          </Badge>
-                        </div>
-                        <div className="mt-0.5 flex items-center gap-1.5">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {row.eventType.durationLabel}
-                          </span>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="text-xs text-muted-foreground">
-                            {row.workspaceName}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        /{row.workspaceId}/{row.eventType.slug}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
 
           {/* ── 待分派 section: cross-workspace pending resource requests ── */}
