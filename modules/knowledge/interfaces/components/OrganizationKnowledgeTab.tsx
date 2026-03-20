@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRightIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -147,7 +147,7 @@ export function OrganizationKnowledgeTab({ workspaces }: OrganizationKnowledgeTa
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [searchQuery, setSearchQuery] = useState("");
 
-  async function loadAll(options?: { readonly isCancelled?: () => boolean }) {
+  const loadAll = useCallback(async (options?: { readonly isCancelled?: () => boolean }) => {
     if (options?.isCancelled?.()) {
       return;
     }
@@ -164,7 +164,7 @@ export function OrganizationKnowledgeTab({ workspaces }: OrganizationKnowledgeTa
         setLoadState("error");
       }
     }
-  }
+  }, [workspaces]);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,7 +174,7 @@ export function OrganizationKnowledgeTab({ workspaces }: OrganizationKnowledgeTa
     return () => {
       cancelled = true;
     };
-  }, [workspaces]);
+  }, [loadAll]);
 
   // ── Aggregates ────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
