@@ -13,7 +13,7 @@ import { Button } from "@/ui/shadcn/ui/button";
 
 export default function WikiPage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

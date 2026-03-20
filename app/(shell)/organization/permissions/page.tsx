@@ -26,20 +26,22 @@ export default function OrganizationPermissionsPage() {
     if (!activeOrganizationId) return;
     let cancelled = false;
 
-    setLoadState("loading");
-    getOrgPolicies(activeOrganizationId)
-      .then((data) => {
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(activeOrganizationId);
         if (!cancelled) {
           setPolicies(data);
           setLoadState("loaded");
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setPolicies([]);
           setLoadState("error");
         }
-      });
+      }
+    }
+    void load();
 
     return () => {
       cancelled = true;
@@ -48,14 +50,14 @@ export default function OrganizationPermissionsPage() {
 
   if (!activeOrganizationId) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="">
         <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">權限</h1>
         <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>

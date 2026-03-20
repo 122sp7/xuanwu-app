@@ -21,20 +21,22 @@ export default function OrganizationKnowledgePage() {
     if (!activeOrganizationId) return;
     let cancelled = false;
 
-    setLoadState("loading");
-    getWorkspacesForAccount(activeOrganizationId)
-      .then((data) => {
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getWorkspacesForAccount(activeOrganizationId);
         if (!cancelled) {
           setWorkspaces(data);
           setLoadState("loaded");
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setWorkspaces([]);
           setLoadState("error");
         }
-      });
+      }
+    }
+    void load();
 
     return () => {
       cancelled = true;
@@ -43,14 +45,14 @@ export default function OrganizationKnowledgePage() {
 
   if (!activeOrganizationId) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="">
         <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">知識</h1>
         <p className="mt-1 text-sm text-muted-foreground">

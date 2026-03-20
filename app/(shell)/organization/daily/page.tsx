@@ -29,21 +29,23 @@ export default function OrganizationDailyPage() {
     let cancelled = false;
     const organizationId = activeOrganizationId;
 
-    setLoadState("loading");
-    getWorkspacesForAccount(organizationId)
-      .then((workspaces) => getOrganizationDailyDigest(organizationId, workspaces.map((w) => w.id)))
-      .then((data) => {
+    async function load() {
+      setLoadState("loading");
+      try {
+        const workspaces = await getWorkspacesForAccount(organizationId);
+        const data = await getOrganizationDailyDigest(organizationId, workspaces.map((w) => w.id));
         if (!cancelled) {
           setDigest(data);
           setLoadState("loaded");
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setDigest(null);
           setLoadState("error");
         }
-      });
+      }
+    }
+    void load();
 
     return () => {
       cancelled = true;
@@ -54,14 +56,14 @@ export default function OrganizationDailyPage() {
 
   if (!activeOrganizationId) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="">
         <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">每日</h1>
         <p className="mt-1 text-sm text-muted-foreground">組織層級今日通知與活動摘要。</p>

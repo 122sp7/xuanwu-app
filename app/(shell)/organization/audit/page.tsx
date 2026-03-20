@@ -35,27 +35,26 @@ export default function OrganizationAuditPage() {
     let cancelled = false;
     const organizationId = activeOrganizationId;
 
-    setLoadState("loading");
-    getWorkspacesForAccount(organizationId)
-      .then(async (nextWorkspaces) => {
+    async function load() {
+      setLoadState("loading");
+      try {
+        const nextWorkspaces = await getWorkspacesForAccount(organizationId);
         const workspaceIds = nextWorkspaces.map((w) => w.id);
         const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
-        return { nextWorkspaces, logs };
-      })
-      .then(({ nextWorkspaces, logs }) => {
         if (!cancelled) {
           setWorkspaces(nextWorkspaces);
           setAuditLogs(logs);
           setLoadState("loaded");
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setWorkspaces([]);
           setAuditLogs([]);
           setLoadState("error");
         }
-      });
+      }
+    }
+    void load();
 
     return () => {
       cancelled = true;
@@ -69,14 +68,14 @@ export default function OrganizationAuditPage() {
 
   if (!activeOrganizationId) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="">
         <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
         <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
