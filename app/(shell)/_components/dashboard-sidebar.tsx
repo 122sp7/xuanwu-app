@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, ChevronRight, PanelLeftClose, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { AuthUser } from "@/app/providers/auth-context";
@@ -86,13 +86,14 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
 
 // ── Section helpers ──────────────────────────────────────────────────────────
 
-type NavSection = "workspace" | "wiki" | "ai-chat" | "organization" | "other";
+type NavSection = "workspace" | "wiki" | "ai-chat" | "organization" | "settings" | "other";
 
 function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
   if (pathname.startsWith("/wiki")) return "wiki";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (pathname.startsWith("/organization")) return "organization";
+  if (pathname.startsWith("/settings")) return "settings";
   return "other";
 }
 
@@ -103,6 +104,7 @@ const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode 
   wiki: { label: "Wiki", icon: <BookOpen className="size-3" /> },
   "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
+  settings: { label: "設定", icon: <Settings className="size-3" /> },
   other: { label: "導覽", icon: null },
 };
 
@@ -400,6 +402,35 @@ export function DashboardSidebar({
                 {(
                   [
                     { href: "/ai-chat", label: "對話紀錄" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "settings" && (
+              <nav className="space-y-0.5" aria-label="Settings navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  個人設定
+                </p>
+                {(
+                  [
+                    { href: "/settings", label: "帳號與個人資料" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
