@@ -901,7 +901,7 @@ services:
       POSTGRES_PASSWORD: taskcafe_test
       POSTGRES_DB: taskcafe
     volumes:
-      - taskcafe-postgres:/var/lib/postgresql/data
+      - taskcafe-postgres:/var/libs/postgresql/data
     ports:
       - 8865:5432
   mailhog:
@@ -970,7 +970,7 @@ services:
       POSTGRES_PASSWORD: taskcafe_test
       POSTGRES_DB: taskcafe
     volumes:
-      - taskcafe-postgres:/var/lib/postgresql/data
+      - taskcafe-postgres:/var/libs/postgresql/data
 
 volumes:
   taskcafe-postgres:
@@ -33102,7 +33102,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/jinzhu/now v1.1.1
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/lib/pq v1.3.0
+	github.com/libs/pq v1.3.0
 	github.com/lithammer/fuzzysearch v1.1.0
 	github.com/magefile/mage v1.11.0
 	github.com/manifoldco/promptui v0.8.0
@@ -34549,7 +34549,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/libs/pq"
 )
 
 const createNotification = `-- name: CreateNotification :one
@@ -37588,7 +37588,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/libs/pq"
 )
 
 const createDueDateReminder = `-- name: CreateDueDateReminder :one
@@ -78479,7 +78479,7 @@ services:
       POSTGRES_PASSWORD: taskcafe_test
       POSTGRES_DB: taskcafe
     volumes:
-    - taskcafe-latest-postgres:/var/lib/postgresql/data
+    - taskcafe-latest-postgres:/var/libs/postgresql/data
 
 volumes:
   taskcafe-latest-postgres:

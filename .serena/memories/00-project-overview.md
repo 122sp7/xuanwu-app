@@ -32,7 +32,7 @@
 | `interfaces/` | graphql/, rest/ entrypoints |
 | `shared/` | Pure cross-cutting: types, validators, hooks, constants, utils |
 | `ui/` | Reusable UI: shadcn/, vis/ |
-| `lib/` | Utility integrations: date-fns, dragdrop, firebase, react-markdown, remark-gfm, superjson, tanstack, upstash, uuid, vis, xstate, zod, zustand + utils.ts |
+| `libs/` | Utility integrations: date-fns, dragdrop, firebase, react-markdown, remark-gfm, superjson, tanstack, upstash, uuid, vis, xstate, zod, zustand + utils.ts |
 | `docs/` | Architecture decisions, designs, contracts (see 06-docs-index) |
 | `assets/`, `public/` | Static assets |
 
@@ -52,7 +52,7 @@
 
 ## Python Cloud Functions
 
-- Location: `lib/firebase/functions-python/`
+- Location: `libs/firebase/functions-python/`
 - Runtime: Python with Firebase Functions v2
 - Domains: `rag_ingestion` (full MDDD), `document_ai` (full MDDD)
 - Deploy: `npm run deploy:functions:python`

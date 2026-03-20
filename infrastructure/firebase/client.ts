@@ -2,4 +2,4 @@
  * @module infrastructure/firebase/client
  */
 
-export { firebaseClientApp } from "@/lib/firebase";
+export { firebaseClientApp } from "@/libs/firebase";

@@ -7,7 +7,7 @@ argument-hint: "[feature, route, or module to migrate]"
 Use **xuanwu-app-skill** first.
 
 Analyze the requested area as part of the Xuanwu **VSA -> MDDD** migration:
-- map the current implementation across `app/`, `modules/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/`
+- map the current implementation across `app/`, `modules/`, `infrastructure/`, `interfaces/`, `libs/`, `shared/`, and `ui/`
 - compare it against `ARCHITECTURE.md`
 - identify the smallest high-value migration slice
 - if the request is "continue next phase", pick the next slice in this order:

@@ -27,7 +27,7 @@
       "predeploy": [
         "python -m compileall -q \"$RESOURCE_DIR\""
       ],
-      "source": "lib/firebase/functions-python"
+      "source": "libs/firebase/functions-python"
     }
   ],
   "apphosting": {

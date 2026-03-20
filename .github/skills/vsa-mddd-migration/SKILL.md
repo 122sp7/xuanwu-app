@@ -19,7 +19,7 @@ Use this skill for:
 ## Migration priorities
 1. Stabilize and clarify `modules/` boundaries.
 2. Keep `app/` thin and route-focused.
-3. Move reusable logic toward `shared/`, `lib/`, and `ui/`.
+3. Move reusable logic toward `shared/`, `libs/`, and `ui/`.
 4. Keep `infrastructure/` and `interfaces/` as adapter layers, not feature dumping grounds.
 5. Maintain shell UI/UX consistency while migration proceeds.
 6. Validate identity/account/organization module completeness before other unfinished areas.
@@ -37,7 +37,7 @@ When asked to "continue next phase", apply this deterministic order:
   - `modules/`
   - `infrastructure/`
   - `interfaces/`
-  - `lib/`
+  - `libs/`
   - `shared/`
   - `ui/`
 - Continue only unfinished or partially implemented scopes.

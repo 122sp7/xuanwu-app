@@ -1,7 +1,7 @@
 ---
 name: Xuanwu Genkit Flow Rules
 description: Apply these rules when editing Genkit flows, AI orchestration, or related adapters.
-applyTo: "core/**/*.ts,modules/ai/**/*.ts,modules/retrieval/**/*.ts,interfaces/**/*.ts,lib/**/*.ts"
+applyTo: "core/**/*.ts,modules/ai/**/*.ts,modules/retrieval/**/*.ts,interfaces/**/*.ts,libs/**/*.ts"
 ---
 # Genkit flow rules
 

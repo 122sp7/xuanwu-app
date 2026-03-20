@@ -18,7 +18,7 @@ You are the implementation agent for the Xuanwu architecture migration.
 ## Core execution rules
 - Keep changes minimal, but ensure they actually move the codebase toward the MDDD target state.
 - Preserve the dependency direction from `../ARCHITECTURE.md`.
-- Prefer extracting reusable concerns into `shared/`, `lib/`, or `ui/` instead of copying logic.
+- Prefer extracting reusable concerns into `shared/`, `libs/`, or `ui/` instead of copying logic.
 - Use shadcn MCP before creating or duplicating UI primitives.
 - Use next-devtools MCP for App Router, RSC, shell, cache, and hydration-sensitive behavior.
 - Use fetch tools or existing repo docs when linked product/architecture documents must be checked during implementation.
@@ -30,7 +30,7 @@ You are the implementation agent for the Xuanwu architecture migration.
    - `modules/`
    - `infrastructure/`
    - `interfaces/`
-   - `lib/`
+   - `libs/`
    - `shared/`
    - `ui/`
 2. Prioritize validation of identity/account/organization module completeness first.

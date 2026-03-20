@@ -1,7 +1,7 @@
 ---
 name: Xuanwu State Machine Rules
 description: Apply these rules when editing state machines, workflows, or XState-based coordination.
-applyTo: "**/*machine*.ts,**/*machine*.tsx,**/*xstate*.ts,**/*xstate*.tsx,lib/xstate/**/*.ts,modules/**/*.ts,modules/**/*.tsx"
+applyTo: "**/*machine*.ts,**/*machine*.tsx,**/*xstate*.ts,**/*xstate*.tsx,libs/xstate/**/*.ts,modules/**/*.ts,modules/**/*.tsx"
 ---
 # State machine rules
 

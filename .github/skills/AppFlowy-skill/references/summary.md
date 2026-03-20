@@ -59,7 +59,7 @@ This skill contains the following reference files:
 - `frontend/resources/translations/ar-SA.json` (3,431 lines)
 - `frontend/resources/translations/fr-FR.json` (3,406 lines)
 - `frontend/resources/translations/ru-RU.json` (3,388 lines)
-- `frontend/appflowy_flutter/lib/workspace/presentation/settings/widgets/emoji_picker/src/emoji_lists.dart` (3,223 lines)
+- `frontend/appflowy_flutter/libs/workspace/presentation/settings/widgets/emoji_picker/src/emoji_lists.dart` (3,223 lines)
 - `frontend/resources/translations/en-GB.json` (3,212 lines)
 - `frontend/resources/translations/mr-IN.json` (3,210 lines)
 - `frontend/resources/translations/ko-KR.json` (3,187 lines)

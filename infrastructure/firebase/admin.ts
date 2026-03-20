@@ -2,4 +2,4 @@
  * @module infrastructure/firebase/admin
  */
 
-export { firebaseAdminConfig } from "@/lib/firebase";
+export { firebaseAdminConfig } from "@/libs/firebase";

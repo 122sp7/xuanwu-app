@@ -1,6 +1,6 @@
 # Python Cloud Functions
 
-**Location:** `lib/firebase/functions-python/`  
+**Location:** `libs/firebase/functions-python/`  
 **Runtime:** Python (Firebase Functions v2)  
 **Deploy:** `npm run deploy:functions:python`  
 **Verified:** 2026-03-20
@@ -16,7 +16,7 @@ Python functions follow the same **MDDD + Hexagonal** pattern as the TypeScript 
 ## Top-Level Structure
 
 ```
-lib/firebase/functions-python/
+libs/firebase/functions-python/
 ├── app/
 │   ├── bootstrap/         firebase.py — Firebase Admin SDK init
 │   ├── config/            settings.py — environment config
@@ -120,7 +120,7 @@ These align with the TypeScript-side `RagDocumentRecord` metadata fields.
 ## Integration with TypeScript
 
 - Python functions are invoked via Firebase callable functions or Firestore triggers
-- TypeScript code calls them through `lib/firebase/functions.ts`
+- TypeScript code calls them through `libs/firebase/functions.ts`
 - Contracts defined in `docs/adr/` (Python ADRs)
 - RAG ingestion contract: `docs/reference/development-contracts/rag-ingestion-contract.md`
 

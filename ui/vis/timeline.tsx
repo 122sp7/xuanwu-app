@@ -8,7 +8,7 @@
  */
 
 import { useRef, useEffect, FC } from "react";
-import { Timeline, DataSet } from "@/lib/vis";
+import { Timeline, DataSet } from "@/libs/vis";
 
 export interface VisTimelineProps {
   /**

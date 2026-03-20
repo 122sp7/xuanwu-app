@@ -54,13 +54,13 @@ This skill contains the following reference files:
 | Other | 11 | 3,706 |
 
 **Largest files:**
-- `web/test/lib/getSchedule.test.ts` (3,876 lines)
+- `web/test/libs/getSchedule.test.ts` (3,876 lines)
 - `api/v2/src/ee/bookings/2024-08-13/controllers/e2e/user-bookings.e2e-spec.ts` (3,218 lines)
 - `api/v2/src/ee/event-types/event-types_2024_06_14/controllers/event-types.controller.e2e-spec.ts` (3,192 lines)
 - `web/public/country-flag-icons/3x2/index.html` (2,808 lines)
 - `api/v2/src/modules/slots/slots-2024-09-04/controllers/e2e/user-event-type-slots.controller.e2e-spec.ts` (1,947 lines)
 - `web/modules/ee/workflows/components/WorkflowStepContainer.tsx` (1,860 lines)
-- `web/test/lib/getSchedule/futureLimit.timezone.test.ts` (1,675 lines)
+- `web/test/libs/getSchedule/futureLimit.timezone.test.ts` (1,675 lines)
 - `web/modules/event-types/components/tabs/advanced/EventAdvancedTab.tsx` (1,630 lines)
 - `web/modules/embed/components/Embed.tsx` (1,485 lines)
 - `web/app/(use-page-wrapper)/apps/routing-forms/[...pages]/RouteBuilder.tsx` (1,429 lines)

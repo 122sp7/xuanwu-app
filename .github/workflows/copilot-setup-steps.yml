@@ -47,11 +47,11 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: |
-            lib/firebase/functions-python/requirements.txt
-            lib/firebase/functions-python/requirements-dev.txt
+            libs/firebase/functions-python/requirements.txt
+            libs/firebase/functions-python/requirements-dev.txt
 
       - name: Install Python dependencies
-        working-directory: lib/firebase/functions-python
+        working-directory: libs/firebase/functions-python
         env:
           PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: |

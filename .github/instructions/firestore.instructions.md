@@ -1,7 +1,7 @@
 ---
 name: Xuanwu Firestore Rules
 description: Apply these rules when editing Firestore rules, indexes, and Firestore-backed repository code.
-applyTo: "firestore.rules,firestore.indexes.json,**/*firestore*.ts,infrastructure/firebase/**/*.ts,lib/firebase/**/*.ts,modules/**/infrastructure/**/*.ts"
+applyTo: "firestore.rules,firestore.indexes.json,**/*firestore*.ts,infrastructure/firebase/**/*.ts,libs/firebase/**/*.ts,modules/**/infrastructure/**/*.ts"
 ---
 # Firestore rules
 

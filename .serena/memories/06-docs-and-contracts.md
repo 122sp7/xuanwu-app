@@ -113,7 +113,7 @@ These are the **formal delivery contracts** that define acceptance criteria, dat
 
 ---
 
-## Python Functions ADRs — `lib/firebase/functions-python/docs/adr/`
+## Python Functions ADRs — `libs/firebase/functions-python/docs/adr/`
 
 7 Python-specific ADRs (separate from docs/adr/):
 

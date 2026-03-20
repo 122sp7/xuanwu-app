@@ -326,7 +326,7 @@ interfaces/
     schema.ts (8 lines)
   rest/
     apiRouter.ts (7 lines)
-lib/
+libs/
   date-fns/
     index.ts (121 lines)
   dragdrop/

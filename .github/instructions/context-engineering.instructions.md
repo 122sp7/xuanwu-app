@@ -1,6 +1,6 @@
 ---
 description: 'Use these rules to improve Copilot context quality across Xuanwu code, architecture, and customization work.'
-applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,lib/**/*,shared/**/*,ui/**/*,.github/**/*,README.md,ARCHITECTURE.md'
+applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,libs/**/*,shared/**/*,ui/**/*,.github/**/*,README.md,ARCHITECTURE.md'
 ---
 
 # Xuanwu Context Engineering Rules
@@ -15,7 +15,7 @@ applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,li
 - Start with `Use skill: xuanwu-app-skill` before exploring implementation details.
 - For `.github/*`, Copilot, agent, prompt, instruction, or skill work, also load `vscode-docs-skill` before editing.
 - Use `ARCHITECTURE.md` as the architectural source of truth and verify actual folders before assuming the migration is complete.
-- Map affected work across `app/`, `modules/`, `core/`, `infrastructure/`, `interfaces/`, `lib/`, `shared/`, and `ui/` before editing.
+- Map affected work across `app/`, `modules/`, `core/`, `infrastructure/`, `interfaces/`, `libs/`, `shared/`, and `ui/` before editing.
 - Prefer Serena MCP for symbol-aware discovery and precise edits, then use Sequential Thinking to expand the strategy after evidence is collected, then use filesystem MCP for structure discovery, repomix MCP for cross-cutting reference lookups, and memory MCP for durable verified facts.
 - For routing or planning work, package Serena findings as concrete evidence: likely paths, symbols, references, snippets, and architecture constraints.
 
@@ -25,7 +25,7 @@ applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,li
 - Colocate related types, ports, use-cases, adapters, and interface entrypoints within the same module so one search path exposes the full flow.
 - Export stable public surfaces through `index.ts` files. Public exports define the slice contract; non-exported code should stay internal.
 - Prefer extending existing module folders over creating parallel or duplicate paths for the same capability.
-- Keep reusable UI in `ui/`, reusable technical abstractions in `lib/`, and truly cross-cutting shared contracts/utilities in `shared/`.
+- Keep reusable UI in `ui/`, reusable technical abstractions in `libs/`, and truly cross-cutting shared contracts/utilities in `shared/`.
 
 ## Code Pattern Hints
 

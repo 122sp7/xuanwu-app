@@ -1,6 +1,6 @@
 ---
 description: 'Use these rules when reviewing or implementing performance-sensitive code in Xuanwu across Next.js, React, Firebase, and infrastructure adapters.'
-applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,lib/**/*,shared/**/*,ui/**/*'
+applyTo: 'app/**/*,core/**/*,modules/**/*,infrastructure/**/*,interfaces/**/*,libs/**/*,shared/**/*,ui/**/*'
 ---
 
 # Xuanwu Performance Optimization Rules

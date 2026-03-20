@@ -18,7 +18,7 @@
 - github.com/google/uuid (v1.1.1)
 - github.com/jinzhu/now (v1.1.1)
 - github.com/jmoiron/sqlx (v1.2.0)
-- github.com/lib/pq (v1.3.0)
+- github.com/libs/pq (v1.3.0)
 - github.com/lithammer/fuzzysearch (v1.1.0)
 - github.com/magefile/mage (v1.11.0)
 - github.com/manifoldco/promptui (v0.8.0)

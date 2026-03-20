@@ -35,13 +35,13 @@ Place code in these layers (already scaffolded):
 - infrastructure/firebase: Firestore write model and audit logs
 
 Existing anchors:
-- `lib/firebase/functions-python/main.py`
-- `lib/firebase/functions-python/app/document_ai/interfaces/callables/process_document_with_ai.py`
-- `lib/firebase/functions-python/app/document_ai/application/use_cases/process_document_with_ai.py`
-- `lib/firebase/functions-python/app/document_ai/domain/entities.py`
-- `lib/firebase/functions-python/app/document_ai/domain/ports.py`
-- `lib/firebase/functions-python/app/document_ai/infrastructure/google/document_ai_processor.py`
-- `lib/firebase/functions-python/app/document_ai/infrastructure/firebase/audit_log_repository.py`
+- `libs/firebase/functions-python/main.py`
+- `libs/firebase/functions-python/app/document_ai/interfaces/callables/process_document_with_ai.py`
+- `libs/firebase/functions-python/app/document_ai/application/use_cases/process_document_with_ai.py`
+- `libs/firebase/functions-python/app/document_ai/domain/entities.py`
+- `libs/firebase/functions-python/app/document_ai/domain/ports.py`
+- `libs/firebase/functions-python/app/document_ai/infrastructure/google/document_ai_processor.py`
+- `libs/firebase/functions-python/app/document_ai/infrastructure/firebase/audit_log_repository.py`
 
 Python dependencies to use:
 - `firebase-functions`
@@ -53,7 +53,7 @@ Python dependencies to use:
 - `langchain-text-splitters`
 
 Dependency source:
-- `lib/firebase/functions-python/requirements.txt`
+- `libs/firebase/functions-python/requirements.txt`
 
 ### 1.3 Recommended ingestion implementation split (direct coding checklist)
 
@@ -124,7 +124,7 @@ Source:
 - `langchain-text-splitters`
 
 Source:
-- `lib/firebase/functions-python/requirements.txt`
+- `libs/firebase/functions-python/requirements.txt`
 
 ## 5) Deployment commands for this flow
 

@@ -62,4 +62,4 @@ export {
   type Database,
   type DatabaseReference,
   type DataSnapshot,
-} from "@/lib/firebase";
+} from "@/libs/firebase";

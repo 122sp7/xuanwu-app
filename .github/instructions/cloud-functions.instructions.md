@@ -1,7 +1,7 @@
 ---
 name: Xuanwu Cloud Functions Rules
 description: Apply these rules when editing Firebase or server-side function entrypoints and runtime adapters.
-applyTo: "lib/firebase/functions-python/**/*,**/*function*.ts,**/*function*.tsx,infrastructure/firebase/**/*.ts,interfaces/rest/**/*.ts"
+applyTo: "libs/firebase/functions-python/**/*,**/*function*.ts,**/*function*.tsx,infrastructure/firebase/**/*.ts,interfaces/rest/**/*.ts"
 ---
 # Cloud Functions rules
 

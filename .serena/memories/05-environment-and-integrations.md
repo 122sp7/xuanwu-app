@@ -9,12 +9,12 @@
 - No tracked `.env*` file was found in the current workspace scan; do not assume checked-in environment files exist.
 
 ## Upstash
-- `lib/upstash/box.ts`
-- `lib/upstash/qstash.ts`
-- `lib/upstash/redis.ts`
-- `lib/upstash/vector.ts`
-- `lib/upstash/workflow.ts`
-- `lib/upstash/index.ts`
+- `libs/upstash/box.ts`
+- `libs/upstash/qstash.ts`
+- `libs/upstash/redis.ts`
+- `libs/upstash/vector.ts`
+- `libs/upstash/workflow.ts`
+- `libs/upstash/index.ts`
 
 ## Shared infrastructure adapters
 - `infrastructure/axios/` for HTTP client concerns
@@ -22,16 +22,16 @@
 - `infrastructure/upstash/` for shared Upstash-related adapters
 
 ## Other library integration areas
-- `lib/dragdrop/` for drag-and-drop abstraction
-- `lib/xstate/` for state machine helpers
-- `lib/vis/` for visualization helpers
-- `lib/tanstack/` for TanStack integration helpers
-- `lib/react-markdown/` + `lib/remark-gfm/` for markdown rendering
-- `lib/superjson/`, `lib/uuid/`, `lib/zod/`, `lib/zustand/`, `lib/date-fns/`
+- `libs/dragdrop/` for drag-and-drop abstraction
+- `libs/xstate/` for state machine helpers
+- `libs/vis/` for visualization helpers
+- `libs/tanstack/` for TanStack integration helpers
+- `libs/react-markdown/` + `libs/remark-gfm/` for markdown rendering
+- `libs/superjson/`, `libs/uuid/`, `libs/zod/`, `libs/zustand/`, `libs/date-fns/`
 
 ## Python Cloud Functions integration
-- Python functions live under `lib/firebase/functions-python/`
-- Runtime docs and ADRs live under `lib/firebase/functions-python/docs/adr/`
+- Python functions live under `libs/firebase/functions-python/`
+- Runtime docs and ADRs live under `libs/firebase/functions-python/docs/adr/`
 - Deploy via `npm run deploy:functions:python`
 
 ## Caution

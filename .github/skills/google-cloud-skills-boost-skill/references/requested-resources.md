@@ -85,7 +85,7 @@
 
 這組課程和 labs 最適合映射到：
 
-- `lib/firebase/functions-python` 的 ingestion runtime
+- `libs/firebase/functions-python` 的 ingestion runtime
 - 文件上傳後的背景處理管線
 - parser / extraction / metadata persistence / operational automation
 

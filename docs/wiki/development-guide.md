@@ -212,7 +212,7 @@ import { createWikiPageUseCase } from "@/modules/wiki/application/use-cases/crea
 
 ### 4.1 Ingestion Pipeline（資料進來）
 
-Ingestion 由 `lib/firebase/functions-python` 中的 Cloud Functions 處理，與 wiki 模組的介接點：
+Ingestion 由 `libs/firebase/functions-python` 中的 Cloud Functions 處理，與 wiki 模組的介接點：
 
 1. **觸發點**：`modules/file` 上傳成功後，在 Firestore `documents/{docId}` 建立 `status: "uploaded"` 記錄
 2. **Cloud Functions 監聽** `documents` onCreate 事件，開始 Parsing → Chunking → Embedding
@@ -306,7 +306,7 @@ organizations/org_abc/workspaces/ws_xyz/documents/doc_7c9e3f1a2b4d6e8f/raw/sourc
 ### 4.5 OpenAI Embedding API 呼叫（Python worker）
 
 ```python
-# lib/firebase/functions-python/ingestion/embedding.py
+# libs/firebase/functions-python/ingestion/embedding.py
 import os
 import time
 import openai
@@ -405,7 +405,7 @@ firebase deploy --only firestore:indexes
 ### 4.7 Taxonomy 標注（Python worker）
 
 ```python
-# lib/firebase/functions-python/ingestion/taxonomy.py
+# libs/firebase/functions-python/ingestion/taxonomy.py
 import openai
 
 TAXONOMY_ENUM = [

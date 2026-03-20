@@ -52,7 +52,7 @@
   - `modules/`
   - `infrastructure/`
   - `interfaces/`
-  - `lib/`
+  - `libs/`
   - `shared/`
   - `ui/`
 - Keep module boundaries explicit:
@@ -60,7 +60,7 @@
   - `application/` contains use-cases and orchestration only.
   - `infrastructure/` contains adapters only.
   - `interfaces/` contains Next.js actions, hooks, and queries only.
-- Do not duplicate logic across modules. Extract shared concerns into `shared/`, `lib/`, or `ui/` when they are truly reusable.
+- Do not duplicate logic across modules. Extract shared concerns into `shared/`, `libs/`, or `ui/` when they are truly reusable.
 - For UI work, preserve shell consistency and prefer reusable patterns already established in the repo.
 
 ## Workflow expectations

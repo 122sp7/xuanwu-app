@@ -60,7 +60,7 @@ This skill contains the following reference files:
 - `components/chat/chat-helpers/index.ts` (511 lines)
 - `components/messages/message.tsx` (445 lines)
 - `components/chat/chat-hooks/use-chat-handler.tsx` (422 lines)
-- `__tests__/lib/openapi-conversion.test.ts` (369 lines)
+- `__tests__/libs/openapi-conversion.test.ts` (369 lines)
 - `components/sidebar/sidebar-data-list.tsx` (344 lines)
 - `components/utility/global-state.tsx` (331 lines)
 - `db/files.ts` (316 lines)

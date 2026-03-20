@@ -1,8 +1,8 @@
 # Files
 
-## File: __tests__/lib/openapi-conversion.test.ts
+## File: __tests__/libs/openapi-conversion.test.ts
 ````typescript
-import { openapiToFunctions } from "@/lib/openapi-conversion"
+import { openapiToFunctions } from "@/libs/openapi-conversion"
 
 const validSchemaURL = JSON.stringify({
   openapi: "3.1.0",
@@ -698,7 +698,7 @@ import { ChatUI } from "@/components/chat/chat-ui"
 import { QuickSettings } from "@/components/chat/quick-settings"
 import { Brand } from "@/components/ui/brand"
 import { ChatbotUIContext } from "@/context/context"
-import useHotkey from "@/lib/hooks/use-hotkey"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import { useTheme } from "next-themes"
 import { useContext } from "react"
 
@@ -765,8 +765,8 @@ import { getPromptWorkspacesByWorkspaceId } from "@/db/prompts"
 import { getAssistantImageFromStorage } from "@/db/storage/assistant-images"
 import { getToolWorkspacesByWorkspaceId } from "@/db/tools"
 import { getWorkspaceById } from "@/db/workspaces"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
-import { supabase } from "@/lib/supabase/browser-client"
+import { convertBlobToBase64 } from "@/libs/blob-to-b64"
+import { supabase } from "@/libs/supabase/browser-client"
 import { LLMID } from "@/types"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ReactNode, useContext, useEffect, useState } from "react"
@@ -1078,7 +1078,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { GlobalState } from "@/components/utility/global-state"
 import { Providers } from "@/components/utility/providers"
 import TranslationsProvider from "@/components/utility/translations-provider"
-import initTranslations from "@/lib/i18n"
+import initTranslations from "@/libs/i18n"
 import { Database } from "@/supabase/types"
 import { createServerClient } from "@supabase/ssr"
 import { Metadata, Viewport } from "next"
@@ -1202,7 +1202,7 @@ import { Brand } from "@/components/ui/brand"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SubmitButton } from "@/components/ui/submit-button"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/libs/supabase/server"
 import { Database } from "@/supabase/types"
 import { createServerClient } from "@supabase/ssr"
 import { get } from "@vercel/edge-config"
@@ -1426,7 +1426,7 @@ export default async function Login({
 "use client"
 
 import { ChangePassword } from "@/components/utility/change-password"
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -1500,8 +1500,8 @@ import {
 import {
   fetchHostedModels,
   fetchOpenRouterModels
-} from "@/lib/models/fetch-models"
-import { supabase } from "@/lib/supabase/browser-client"
+} from "@/libs/models/fetch-models"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesUpdate } from "@/supabase/types"
 import { useRouter } from "next/navigation"
 import { useContext, useEffect, useState } from "react"
@@ -1749,7 +1749,7 @@ export default function SetupPage() {
 
 ## File: app/api/assistants/openai/route.ts
 ````typescript
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ServerRuntime } from "next"
 import OpenAI from "openai"
 
@@ -1785,9 +1785,9 @@ export async function GET() {
 
 ## File: app/api/chat/anthropic/route.ts
 ````typescript
-import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
-import { getBase64FromDataURL, getMediaTypeFromDataURL } from "@/lib/utils"
+import { CHAT_SETTING_LIMITS } from "@/libs/chat-setting-limits"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
+import { getBase64FromDataURL, getMediaTypeFromDataURL } from "@/libs/utils"
 import { ChatSettings } from "@/types"
 import Anthropic from "@anthropic-ai/sdk"
 import { AnthropicStream, StreamingTextResponse } from "ai"
@@ -1900,7 +1900,7 @@ export async function POST(request: NextRequest) {
 
 ## File: app/api/chat/azure/route.ts
 ````typescript
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatAPIPayload } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
 import OpenAI from "openai"
@@ -2046,7 +2046,7 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/google/route.ts
 ````typescript
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
@@ -2114,8 +2114,8 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/groq/route.ts
 ````typescript
-import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { CHAT_SETTING_LIMITS } from "@/libs/chat-setting-limits"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
 import OpenAI from "openai"
@@ -2173,8 +2173,8 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/mistral/route.ts
 ````typescript
-import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { CHAT_SETTING_LIMITS } from "@/libs/chat-setting-limits"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
 import OpenAI from "openai"
@@ -2233,7 +2233,7 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/openai/route.ts
 ````typescript
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
 import { ServerRuntime } from "next"
@@ -2295,7 +2295,7 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/openrouter/route.ts
 ````typescript
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
 import { ServerRuntime } from "next"
@@ -2350,7 +2350,7 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/perplexity/route.ts
 ````typescript
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
 import OpenAI from "openai"
@@ -2405,8 +2405,8 @@ export async function POST(request: Request) {
 
 ## File: app/api/chat/tools/route.ts
 ````typescript
-import { openapiToFunctions } from "@/lib/openapi-conversion"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { openapiToFunctions } from "@/libs/openapi-conversion"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { Tables } from "@/supabase/types"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
@@ -2627,8 +2627,8 @@ export async function POST(request: Request) {
 
 ## File: app/api/command/route.ts
 ````typescript
-import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { CHAT_SETTING_LIMITS } from "@/libs/chat-setting-limits"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import OpenAI from "openai"
 
 export const runtime = "edge"
@@ -2685,8 +2685,8 @@ export async function POST(request: Request) {
 
 ## File: app/api/keys/route.ts
 ````typescript
-import { isUsingEnvironmentKey } from "@/lib/envs"
-import { createResponse } from "@/lib/server/server-utils"
+import { isUsingEnvironmentKey } from "@/libs/envs"
+import { createResponse } from "@/libs/server/server-utils"
 import { EnvKey } from "@/types/key-type"
 import { VALID_ENV_KEYS } from "@/types/valid-keys"
 
@@ -2727,9 +2727,9 @@ export async function GET() {
 
 ## File: app/api/retrieval/process/docx/route.ts
 ````typescript
-import { generateLocalEmbedding } from "@/lib/generate-local-embedding"
-import { processDocX } from "@/lib/retrieval/processing"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { generateLocalEmbedding } from "@/libs/generate-local-embedding"
+import { processDocX } from "@/libs/retrieval/processing"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { Database } from "@/supabase/types"
 import { FileItemChunk } from "@/types"
 import { createClient } from "@supabase/supabase-js"
@@ -2852,15 +2852,15 @@ export async function POST(req: Request) {
 
 ## File: app/api/retrieval/process/route.ts
 ````typescript
-import { generateLocalEmbedding } from "@/lib/generate-local-embedding"
+import { generateLocalEmbedding } from "@/libs/generate-local-embedding"
 import {
   processCSV,
   processJSON,
   processMarkdown,
   processPdf,
   processTxt
-} from "@/lib/retrieval/processing"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+} from "@/libs/retrieval/processing"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { Database } from "@/supabase/types"
 import { FileItemChunk } from "@/types"
 import { createClient } from "@supabase/supabase-js"
@@ -3031,8 +3031,8 @@ export async function POST(req: Request) {
 
 ## File: app/api/retrieval/retrieve/route.ts
 ````typescript
-import { generateLocalEmbedding } from "@/lib/generate-local-embedding"
-import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { generateLocalEmbedding } from "@/libs/generate-local-embedding"
+import { checkApiKey, getServerProfile } from "@/libs/server/server-chat-helpers"
 import { Database } from "@/supabase/types"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
@@ -3220,7 +3220,7 @@ export async function POST(request: Request) {
 
 ## File: app/auth/callback/route.ts
 ````typescript
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/libs/supabase/server"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
@@ -3258,7 +3258,7 @@ export async function GET(request: Request) {
   },
   "aliases": {
     "components": "@/components",
-    "utils": "@/lib/utils"
+    "utils": "@/libs/utils"
   }
 }
 ````
@@ -3451,8 +3451,8 @@ export const ChatCommandInput: FC<ChatCommandInputProps> = ({}) => {
 ````typescript
 import { ChatbotUIContext } from "@/context/context"
 import { getFileFromStorage } from "@/db/storage/files"
-import useHotkey from "@/lib/hooks/use-hotkey"
-import { cn } from "@/lib/utils"
+import useHotkey from "@/libs/hooks/use-hotkey"
+import { cn } from "@/libs/utils"
 import { ChatFile, MessageImage } from "@/types"
 import {
   IconCircleFilled,
@@ -3736,7 +3736,7 @@ const RetrievalToggle = ({}) => {
 
 ## File: components/chat/chat-help.tsx
 ````typescript
-import useHotkey from "@/lib/hooks/use-hotkey"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import {
   IconBrandGithub,
   IconBrandX,
@@ -3958,8 +3958,8 @@ import { uploadMessageImage } from "@/db/storage/message-images"
 import {
   buildFinalMessages,
   adaptMessagesForGoogleGemini
-} from "@/lib/build-prompt"
-import { consumeReadableStream } from "@/lib/consume-stream"
+} from "@/libs/build-prompt"
+import { consumeReadableStream } from "@/libs/consume-stream"
 import { Tables, TablesInsert } from "@/supabase/types"
 import {
   ChatFile,
@@ -4470,12 +4470,12 @@ import { getAssistantToolsByAssistantId } from "@/db/assistant-tools"
 import { updateChat } from "@/db/chats"
 import { getCollectionFilesByCollectionId } from "@/db/collection-files"
 import { deleteMessagesIncludingAndAfter } from "@/db/messages"
-import { buildFinalMessages } from "@/lib/build-prompt"
+import { buildFinalMessages } from "@/libs/build-prompt"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
 import { useRouter } from "next/navigation"
 import { useContext, useEffect, useRef } from "react"
-import { LLM_LIST } from "../../../lib/models/llm/llm-list"
+import { LLM_LIST } from "../../../libs/models/llm/llm-list"
 import {
   createTempMessages,
   handleCreateChat,
@@ -5257,7 +5257,7 @@ export const useScroll = () => {
 ````typescript
 import { ChatbotUIContext } from "@/context/context"
 import { createDocXFile, createFile } from "@/db/files"
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
 import mammoth from "mammoth"
 import { useContext, useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -5464,9 +5464,9 @@ export const useSelectFileHandler = () => {
 ## File: components/chat/chat-input.tsx
 ````typescript
 import { ChatbotUIContext } from "@/context/context"
-import useHotkey from "@/lib/hooks/use-hotkey"
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
-import { cn } from "@/lib/utils"
+import useHotkey from "@/libs/hooks/use-hotkey"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
+import { cn } from "@/libs/utils"
 import {
   IconBolt,
   IconCirclePlus,
@@ -5987,8 +5987,8 @@ export const ChatSecondaryButtons: FC<ChatSecondaryButtonsProps> = ({}) => {
 ## File: components/chat/chat-settings.tsx
 ````typescript
 import { ChatbotUIContext } from "@/context/context"
-import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
-import useHotkey from "@/lib/hooks/use-hotkey"
+import { CHAT_SETTING_LIMITS } from "@/libs/chat-setting-limits"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import { LLMID, ModelProvider } from "@/types"
 import { IconAdjustmentsHorizontal } from "@tabler/icons-react"
 import { FC, useContext, useEffect, useRef } from "react"
@@ -6093,8 +6093,8 @@ import { getChatById } from "@/db/chats"
 import { getMessageFileItemsByMessageId } from "@/db/message-file-items"
 import { getMessagesByChatId } from "@/db/messages"
 import { getMessageImageFromStorage } from "@/db/storage/message-images"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
-import useHotkey from "@/lib/hooks/use-hotkey"
+import { convertBlobToBase64 } from "@/libs/blob-to-b64"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import { LLMID, MessageImage } from "@/types"
 import { useParams } from "next/navigation"
 import { FC, useContext, useEffect, useState } from "react"
@@ -6699,7 +6699,7 @@ export const PromptPicker: FC<PromptPickerProps> = ({}) => {
 
 ## File: components/chat/quick-setting-option.tsx
 ````typescript
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
 import { Tables } from "@/supabase/types"
 import { IconCircleCheckFilled, IconRobotFace } from "@tabler/icons-react"
 import Image from "next/image"
@@ -6779,8 +6779,8 @@ import { getAssistantCollectionsByAssistantId } from "@/db/assistant-collections
 import { getAssistantFilesByAssistantId } from "@/db/assistant-files"
 import { getAssistantToolsByAssistantId } from "@/db/assistant-tools"
 import { getCollectionFilesByCollectionId } from "@/db/collection-files"
-import useHotkey from "@/lib/hooks/use-hotkey"
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
+import useHotkey from "@/libs/hooks/use-hotkey"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
 import { Tables } from "@/supabase/types"
 import { LLMID } from "@/types"
 import { IconChevronDown, IconRobotFace } from "@tabler/icons-react"
@@ -7492,7 +7492,7 @@ export const MessageActions: FC<MessageActionsProps> = ({
 ## File: components/messages/message-codeblock.tsx
 ````typescript
 import { Button } from "@/components/ui/button"
-import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard"
+import { useCopyToClipboard } from "@/libs/hooks/use-copy-to-clipboard"
 import { IconCheck, IconCopy, IconDownload } from "@tabler/icons-react"
 import { FC, memo } from "react"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
@@ -7769,8 +7769,8 @@ export const MessageReplies: FC<MessageRepliesProps> = ({}) => {
 ````typescript
 import { useChatHandler } from "@/components/chat/chat-hooks/use-chat-handler"
 import { ChatbotUIContext } from "@/context/context"
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
-import { cn } from "@/lib/utils"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
+import { cn } from "@/libs/utils"
 import { Tables } from "@/supabase/types"
 import { LLM, LLMID, MessageImage, ModelProvider } from "@/types"
 import {
@@ -8216,7 +8216,7 @@ export const Message: FC<MessageProps> = ({
 
 ## File: components/models/model-icon.tsx
 ````typescript
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import mistral from "@/public/providers/mistral.png"
 import groq from "@/public/providers/groq.png"
 import perplexity from "@/public/providers/perplexity.png"
@@ -9127,7 +9127,7 @@ import {
   uploadAssistantImage
 } from "@/db/storage/assistant-images"
 import { createTool } from "@/db/tools"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
+import { convertBlobToBase64 } from "@/libs/blob-to-b64"
 import { Tables, TablesInsert } from "@/supabase/types"
 import { ContentType } from "@/types"
 import { FC, useContext, useRef, useState } from "react"
@@ -9508,7 +9508,7 @@ export const SidebarDeleteItem: FC<SidebarDeleteItemProps> = ({
 ````typescript
 import { ChatbotUIContext } from "@/context/context"
 import { createChat } from "@/db/chats"
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { Tables } from "@/supabase/types"
 import { ContentType, DataItemType } from "@/types"
 import { useRouter } from "next/navigation"
@@ -9716,7 +9716,7 @@ import {
   getToolWorkspacesByToolId,
   updateTool
 } from "@/db/tools"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
+import { convertBlobToBase64 } from "@/libs/blob-to-b64"
 import { Tables, TablesUpdate } from "@/supabase/types"
 import { CollectionFile, ContentType, DataItemType } from "@/types"
 import { FC, useContext, useEffect, useRef, useState } from "react"
@@ -11212,8 +11212,8 @@ export const CreateAssistant: FC<CreateAssistantProps> = ({
 import { ModelIcon } from "@/components/models/model-icon"
 import { WithTooltip } from "@/components/ui/with-tooltip"
 import { ChatbotUIContext } from "@/context/context"
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
-import { cn } from "@/lib/utils"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
+import { cn } from "@/libs/utils"
 import { Tables } from "@/supabase/types"
 import { LLM } from "@/types"
 import { IconRobotFace } from "@tabler/icons-react"
@@ -11336,7 +11336,7 @@ import {
 } from "@/components/ui/dialog"
 import { ChatbotUIContext } from "@/context/context"
 import { deleteChat } from "@/db/chats"
-import useHotkey from "@/lib/hooks/use-hotkey"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import { Tables } from "@/supabase/types"
 import { IconTrash } from "@tabler/icons-react"
 import { FC, useContext, useRef, useState } from "react"
@@ -12079,7 +12079,7 @@ import {
 } from "@/components/ui/dialog"
 import { ChatbotUIContext } from "@/context/context"
 import { deleteFolder } from "@/db/folders"
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { Tables } from "@/supabase/types"
 import { ContentType } from "@/types"
 import { IconTrash } from "@tabler/icons-react"
@@ -12212,7 +12212,7 @@ export const DeleteFolder: FC<DeleteFolderProps> = ({
 
 ## File: components/sidebar/items/folders/folder-item.tsx
 ````typescript
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { Tables } from "@/supabase/types"
 import { ContentType } from "@/types"
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react"
@@ -12727,7 +12727,7 @@ import { ChatSettingsForm } from "@/components/ui/chat-settings-form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PRESET_NAME_MAX } from "@/db/limits"
-import { LLM_LIST } from "@/lib/models/llm/llm-list"
+import { LLM_LIST } from "@/libs/models/llm/llm-list"
 import { Tables } from "@/supabase/types"
 import { FC, useState } from "react"
 import { SidebarItem } from "../all/sidebar-display-item"
@@ -12944,7 +12944,7 @@ import { Label } from "@/components/ui/label"
 import { TextareaAutosize } from "@/components/ui/textarea-autosize"
 import { ChatbotUIContext } from "@/context/context"
 import { TOOL_DESCRIPTION_MAX, TOOL_NAME_MAX } from "@/db/limits"
-import { validateOpenAPI } from "@/lib/openapi-conversion"
+import { validateOpenAPI } from "@/libs/openapi-conversion"
 import { TablesInsert } from "@/supabase/types"
 import { FC, useContext, useState } from "react"
 
@@ -13118,7 +13118,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TextareaAutosize } from "@/components/ui/textarea-autosize"
 import { TOOL_DESCRIPTION_MAX, TOOL_NAME_MAX } from "@/db/limits"
-import { validateOpenAPI } from "@/lib/openapi-conversion"
+import { validateOpenAPI } from "@/libs/openapi-conversion"
 import { Tables } from "@/supabase/types"
 import { IconBolt } from "@tabler/icons-react"
 import { FC, useState } from "react"
@@ -13508,7 +13508,7 @@ import { updateModel } from "@/db/models"
 import { updatePreset } from "@/db/presets"
 import { updatePrompt } from "@/db/prompts"
 import { updateTool } from "@/db/tools"
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { Tables } from "@/supabase/types"
 import { ContentType, DataItemType, DataListType } from "@/types"
 import { FC, useContext, useEffect, useRef, useState } from "react"
@@ -14129,7 +14129,7 @@ import * as React from "react"
 import * as AccordionPrimitive from "@radix-ui/react-accordion"
 import { ChevronDown } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Accordion = AccordionPrimitive.Root
 
@@ -14234,7 +14234,7 @@ export const AdvancedSettings: FC<AdvancedSettingsProps> = ({ children }) => {
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { buttonVariants } from "@/components/ui/button"
 
 const AlertDialog = AlertDialogPrimitive.Root
@@ -14377,7 +14377,7 @@ export {
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const alertVariants = cva(
   "[&>svg]:text-foreground relative w-full rounded-lg border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7",
@@ -14453,7 +14453,7 @@ export { AspectRatio }
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
@@ -14505,7 +14505,7 @@ export { Avatar, AvatarImage, AvatarFallback }
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const badgeVariants = cva(
   "focus:ring-ring inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2",
@@ -14576,7 +14576,7 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const buttonVariants = cva(
   "ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -14638,7 +14638,7 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker } from "react-day-picker"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
@@ -14704,7 +14704,7 @@ export { Calendar }
 ````typescript
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -14788,7 +14788,7 @@ export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
 "use client"
 
 import { ChatbotUIContext } from "@/context/context"
-import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
+import { CHAT_SETTING_LIMITS } from "@/libs/chat-setting-limits"
 import { ChatSettings } from "@/types"
 import { IconInfoCircle } from "@tabler/icons-react"
 import { FC, useContext } from "react"
@@ -15048,7 +15048,7 @@ import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { Check } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
@@ -15098,7 +15098,7 @@ import { type DialogProps } from "@radix-ui/react-dialog"
 import { Command as CommandPrimitive } from "cmdk"
 import { Search } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 const Command = React.forwardRef<
@@ -15256,7 +15256,7 @@ import * as React from "react"
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const ContextMenu = ContextMenuPrimitive.Root
 
@@ -15460,8 +15460,8 @@ import { Sidebar } from "@/components/sidebar/sidebar"
 import { SidebarSwitcher } from "@/components/sidebar/sidebar-switcher"
 import { Button } from "@/components/ui/button"
 import { Tabs } from "@/components/ui/tabs"
-import useHotkey from "@/lib/hooks/use-hotkey"
-import { cn } from "@/lib/utils"
+import useHotkey from "@/libs/hooks/use-hotkey"
+import { cn } from "@/libs/utils"
 import { ContentType } from "@/types"
 import { IconChevronCompactRight } from "@tabler/icons-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -15596,7 +15596,7 @@ export const Dashboard: FC<DashboardProps> = ({ children }) => {
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Dialog = DialogPrimitive.Root
 
@@ -15722,7 +15722,7 @@ import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const DropdownMenu = DropdownMenuPrimitive.Root
 
@@ -15960,7 +15960,7 @@ export const FileIcon: FC<FileIconProps> = ({ type, size = 32 }) => {
 
 ## File: components/ui/file-preview.tsx
 ````typescript
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { Tables } from "@/supabase/types"
 import { ChatFile, MessageImage } from "@/types"
 import { IconFileFilled } from "@tabler/icons-react"
@@ -16044,7 +16044,7 @@ import {
   useFormContext
 } from "react-hook-form"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { Label } from "@/components/ui/label"
 
 const Form = FormProvider
@@ -16217,7 +16217,7 @@ export {
 import * as React from "react"
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const HoverCard = HoverCardPrimitive.Root
 
@@ -16349,7 +16349,7 @@ export default ImagePicker
 ````typescript
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {}
@@ -16382,7 +16382,7 @@ import * as LabelPrimitive from "@radix-ui/react-label"
 import { cva, type VariantProps } from "class-variance-authority"
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const labelVariants = cva(
   "text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -16430,7 +16430,7 @@ import * as React from "react"
 import * as MenubarPrimitive from "@radix-ui/react-menubar"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const MenubarMenu = MenubarPrimitive.Menu
 
@@ -16669,7 +16669,7 @@ import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu"
 import { cva } from "class-variance-authority"
 import { ChevronDown } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const NavigationMenu = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Root>,
@@ -16801,7 +16801,7 @@ export {
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Popover = PopoverPrimitive.Root
 
@@ -16836,7 +16836,7 @@ export { Popover, PopoverTrigger, PopoverContent }
 import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
@@ -16869,7 +16869,7 @@ import * as React from "react"
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"
 import { Circle } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const RadioGroup = React.forwardRef<
   React.ElementRef<typeof RadioGroupPrimitive.Root>,
@@ -16932,7 +16932,7 @@ export const ScreenLoader: FC<ScreenLoaderProps> = () => {
 import * as React from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
@@ -16985,7 +16985,7 @@ import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Select = SelectPrimitive.Root
 
@@ -17148,7 +17148,7 @@ export {
 import * as React from "react"
 import * as SeparatorPrimitive from "@radix-ui/react-separator"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Separator = React.forwardRef<
   React.ElementRef<typeof SeparatorPrimitive.Root>,
@@ -17184,7 +17184,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Sheet = SheetPrimitive.Root
 
@@ -17321,7 +17321,7 @@ export {
 
 ## File: components/ui/skeleton.tsx
 ````typescript
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 function Skeleton({
   className,
@@ -17345,7 +17345,7 @@ export { Skeleton }
 import * as SliderPrimitive from "@radix-ui/react-slider"
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
@@ -17433,7 +17433,7 @@ export { SubmitButton }
 import * as React from "react"
 import * as SwitchPrimitives from "@radix-ui/react-switch"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
@@ -17463,7 +17463,7 @@ export { Switch }
 ````typescript
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -17587,7 +17587,7 @@ export {
 import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const Tabs = TabsPrimitive.Root
 
@@ -17641,7 +17641,7 @@ export { Tabs, TabsList, TabsTrigger, TabsContent }
 
 ## File: components/ui/textarea-autosize.tsx
 ````typescript
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { FC } from "react"
 import ReactTextareaAutosize from "react-textarea-autosize"
 
@@ -17702,7 +17702,7 @@ export const TextareaAutosize: FC<TextareaAutosizeProps> = ({
 ````typescript
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
@@ -17733,7 +17733,7 @@ import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -17904,7 +17904,7 @@ import * as React from "react"
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"
 import { VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 import { toggleVariants } from "@/components/ui/toggle"
 
 const ToggleGroupContext = React.createContext<
@@ -17969,7 +17969,7 @@ import * as React from "react"
 import * as TogglePrimitive from "@radix-ui/react-toggle"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const toggleVariants = cva(
   "ring-offset-background hover:bg-muted hover:text-muted-foreground focus-visible:ring-ring data-[state=on]:bg-accent data-[state=on]:text-accent-foreground inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -18017,7 +18017,7 @@ export { Toggle, toggleVariants }
 import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/libs/utils"
 
 const TooltipProvider = TooltipPrimitive.Provider
 
@@ -18484,7 +18484,7 @@ export const Announcements: FC<AnnouncementsProps> = () => {
 ````typescript
 "use client"
 
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { useRouter } from "next/navigation"
 import { FC, useState } from "react"
 import { Button } from "../ui/button"
@@ -18551,7 +18551,7 @@ export const ChangePassword: FC<ChangePasswordProps> = () => {
 ## File: components/utility/command-k.tsx
 ````typescript
 import { ChatbotUIContext } from "@/context/context"
-import useHotkey from "@/lib/hooks/use-hotkey"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import { IconLoader2, IconSend } from "@tabler/icons-react"
 import { FC, useContext, useState } from "react"
 import { Dialog, DialogContent } from "../ui/dialog"
@@ -18761,13 +18761,13 @@ import { ChatbotUIContext } from "@/context/context"
 import { getProfileByUserId } from "@/db/profile"
 import { getWorkspaceImageFromStorage } from "@/db/storage/workspace-images"
 import { getWorkspacesByUserId } from "@/db/workspaces"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
+import { convertBlobToBase64 } from "@/libs/blob-to-b64"
 import {
   fetchHostedModels,
   fetchOllamaModels,
   fetchOpenRouterModels
-} from "@/lib/models/fetch-models"
-import { supabase } from "@/lib/supabase/browser-client"
+} from "@/libs/models/fetch-models"
+import { supabase } from "@/libs/supabase/browser-client"
 import { Tables } from "@/supabase/types"
 import {
   ChatFile,
@@ -19393,11 +19393,11 @@ import {
 } from "@/db/limits"
 import { updateProfile } from "@/db/profile"
 import { uploadProfileImage } from "@/db/storage/profile-images"
-import { exportLocalStorageAsJSON } from "@/lib/export-old-data"
-import { fetchOpenRouterModels } from "@/lib/models/fetch-models"
-import { LLM_LIST_MAP } from "@/lib/models/llm/llm-list"
-import { supabase } from "@/lib/supabase/browser-client"
-import { cn } from "@/lib/utils"
+import { exportLocalStorageAsJSON } from "@/libs/export-old-data"
+import { fetchOpenRouterModels } from "@/libs/models/fetch-models"
+import { LLM_LIST_MAP } from "@/libs/models/llm/llm-list"
+import { supabase } from "@/libs/supabase/browser-client"
+import { cn } from "@/libs/utils"
 import { OpenRouterLLM } from "@/types"
 import {
   IconCircleCheckFilled,
@@ -20207,7 +20207,7 @@ export const ThemeSwitcher: FC<ThemeSwitcherProps> = () => {
 ````typescript
 "use client"
 
-import initTranslations from "@/lib/i18n"
+import initTranslations from "@/libs/i18n"
 import { createInstance } from "i18next"
 import { I18nextProvider } from "react-i18next"
 
@@ -20237,7 +20237,7 @@ import {
 } from "@/components/ui/popover"
 import { ChatbotUIContext } from "@/context/context"
 import { createWorkspace } from "@/db/workspaces"
-import useHotkey from "@/lib/hooks/use-hotkey"
+import useHotkey from "@/libs/hooks/use-hotkey"
 import { IconBuilding, IconHome, IconPlus } from "@tabler/icons-react"
 import { ChevronsUpDown } from "lucide-react"
 import Image from "next/image"
@@ -20740,7 +20740,7 @@ import {
   uploadWorkspaceImage
 } from "@/db/storage/workspace-images"
 import { updateWorkspace } from "@/db/workspaces"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
+import { convertBlobToBase64 } from "@/libs/blob-to-b64"
 import { LLMID } from "@/types"
 import { IconHome, IconSettings } from "@tabler/icons-react"
 import { FC, useContext, useEffect, useRef, useState } from "react"
@@ -21306,7 +21306,7 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
 
 ## File: db/assistant-collections.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert } from "@/supabase/types"
 
 export const getAssistantCollectionsByAssistantId = async (
@@ -21379,7 +21379,7 @@ export const deleteAssistantCollection = async (
 
 ## File: db/assistant-files.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert } from "@/supabase/types"
 
 export const getAssistantFilesByAssistantId = async (assistantId: string) => {
@@ -21450,7 +21450,7 @@ export const deleteAssistantFile = async (
 
 ## File: db/assistant-tools.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert } from "@/supabase/types"
 
 export const getAssistantToolsByAssistantId = async (assistantId: string) => {
@@ -21521,7 +21521,7 @@ export const deleteAssistantTool = async (
 
 ## File: db/assistants.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getAssistantById = async (assistantId: string) => {
@@ -21709,7 +21709,7 @@ export const deleteAssistantWorkspace = async (
 
 ## File: db/chat-files.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert } from "@/supabase/types"
 
 export const getChatFilesByChatId = async (chatId: string) => {
@@ -21763,7 +21763,7 @@ export const createChatFiles = async (
 
 ## File: db/chats.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getChatById = async (chatId: string) => {
@@ -21848,7 +21848,7 @@ export const deleteChat = async (chatId: string) => {
 
 ## File: db/collection-files.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert } from "@/supabase/types"
 
 export const getCollectionFilesByCollectionId = async (
@@ -21921,7 +21921,7 @@ export const deleteCollectionFile = async (
 
 ## File: db/collections.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getCollectionById = async (collectionId: string) => {
@@ -22109,7 +22109,7 @@ export const deleteCollectionWorkspace = async (
 
 ## File: db/files.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 import mammoth from "mammoth"
 import { toast } from "sonner"
@@ -22429,7 +22429,7 @@ export const deleteFileWorkspace = async (
 
 ## File: db/folders.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getFoldersByWorkspaceId = async (workspaceId: string) => {
@@ -22551,7 +22551,7 @@ export const MODEL_DESCRIPTION_MAX = 500
 
 ## File: db/message-file-items.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert } from "@/supabase/types"
 
 export const getMessageFileItemsByMessageId = async (messageId: string) => {
@@ -22591,7 +22591,7 @@ export const createMessageFileItems = async (
 
 ## File: db/messages.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getMessageById = async (messageId: string) => {
@@ -22699,7 +22699,7 @@ export async function deleteMessagesIncludingAndAfter(
 
 ## File: db/models.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getModelById = async (modelId: string) => {
@@ -22880,7 +22880,7 @@ export const deleteModelWorkspace = async (
 
 ## File: db/presets.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getPresetById = async (presetId: string) => {
@@ -23061,7 +23061,7 @@ export const deletePresetWorkspace = async (
 
 ## File: db/profile.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getProfileByUserId = async (userId: string) => {
@@ -23136,7 +23136,7 @@ export const deleteProfile = async (profileId: string) => {
 
 ## File: db/prompts.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getPromptById = async (promptId: string) => {
@@ -23317,7 +23317,7 @@ export const deletePromptWorkspace = async (
 
 ## File: db/storage/assistant-images.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { Tables } from "@/supabase/types"
 
 export const uploadAssistantImage = async (
@@ -23377,7 +23377,7 @@ export const getAssistantImageFromStorage = async (filePath: string) => {
 
 ## File: db/storage/files.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { toast } from "sonner"
 
 export const uploadFile = async (
@@ -23438,7 +23438,7 @@ export const getFileFromStorage = async (filePath: string) => {
 
 ## File: db/storage/message-images.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 
 export const uploadMessageImage = async (path: string, image: File) => {
   const bucket = "message_images"
@@ -23475,7 +23475,7 @@ export const getMessageImageFromStorage = async (filePath: string) => {
 
 ## File: db/storage/profile-images.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { Tables } from "@/supabase/types"
 
 export const uploadProfileImage = async (
@@ -23526,7 +23526,7 @@ export const uploadProfileImage = async (
 
 ## File: db/storage/workspace-images.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { Tables } from "@/supabase/types"
 
 export const uploadWorkspaceImage = async (
@@ -23586,7 +23586,7 @@ export const getWorkspaceImageFromStorage = async (filePath: string) => {
 
 ## File: db/tools.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getToolById = async (toolId: string) => {
@@ -23767,7 +23767,7 @@ export const deleteToolWorkspace = async (
 
 ## File: db/workspaces.ts
 ````typescript
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/libs/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getHomeWorkspaceByUserId = async (userId: string) => {
@@ -23912,7 +23912,7 @@ const config: Config = {
 export default createJestConfig(config)
 ````
 
-## File: lib/blob-to-b64.ts
+## File: libs/blob-to-b64.ts
 ````typescript
 export const convertBlobToBase64 = async (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -23924,12 +23924,12 @@ export const convertBlobToBase64 = async (blob: Blob): Promise<string> => {
 }
 ````
 
-## File: lib/build-prompt.ts
+## File: libs/build-prompt.ts
 ````typescript
 import { Tables } from "@/supabase/types"
 import { ChatPayload, MessageImage } from "@/types"
 import { encode } from "gpt-tokenizer"
-import { getBase64FromDataURL, getMediaTypeFromDataURL } from "@/lib/utils"
+import { getBase64FromDataURL, getMediaTypeFromDataURL } from "@/libs/utils"
 
 const buildBasePrompt = (
   prompt: string,
@@ -24187,7 +24187,7 @@ export async function adaptMessagesForGoogleGemini(
 }
 ````
 
-## File: lib/chat-setting-limits.ts
+## File: libs/chat-setting-limits.ts
 ````typescript
 import { LLMID } from "@/types"
 
@@ -24431,7 +24431,7 @@ export const CHAT_SETTING_LIMITS: Record<LLMID, ChatSettingLimits> = {
 }
 ````
 
-## File: lib/consume-stream.ts
+## File: libs/consume-stream.ts
 ````typescript
 export async function consumeReadableStream(
   stream: ReadableStream<Uint8Array>,
@@ -24467,7 +24467,7 @@ export async function consumeReadableStream(
 }
 ````
 
-## File: lib/envs.ts
+## File: libs/envs.ts
 ````typescript
 import { EnvKey } from "@/types/key-type"
 
@@ -24477,7 +24477,7 @@ export function isUsingEnvironmentKey(type: EnvKey) {
 }
 ````
 
-## File: lib/export-old-data.ts
+## File: libs/export-old-data.ts
 ````typescript
 export function exportLocalStorageAsJSON() {
   const data: { [key: string]: string | null } = {}
@@ -24502,7 +24502,7 @@ export function exportLocalStorageAsJSON() {
 }
 ````
 
-## File: lib/generate-local-embedding.ts
+## File: libs/generate-local-embedding.ts
 ````typescript
 import { pipeline } from "@xenova/transformers"
 
@@ -24523,7 +24523,7 @@ export async function generateLocalEmbedding(content: string) {
 }
 ````
 
-## File: lib/hooks/use-copy-to-clipboard.tsx
+## File: libs/hooks/use-copy-to-clipboard.tsx
 ````typescript
 import { useState } from "react"
 
@@ -24558,7 +24558,7 @@ export function useCopyToClipboard({
 }
 ````
 
-## File: lib/hooks/use-hotkey.tsx
+## File: libs/hooks/use-hotkey.tsx
 ````typescript
 import { useEffect } from "react"
 
@@ -24582,7 +24582,7 @@ const useHotkey = (key: string, callback: () => void): void => {
 export default useHotkey
 ````
 
-## File: lib/i18n.ts
+## File: libs/i18n.ts
 ````typescript
 import i18nConfig from "@/i18nConfig"
 import { createInstance } from "i18next"
@@ -24627,7 +24627,7 @@ export default async function initTranslations(
 }
 ````
 
-## File: lib/models/fetch-models.ts
+## File: libs/models/fetch-models.ts
 ````typescript
 import { Tables } from "@/supabase/types"
 import { LLM, LLMID, OpenRouterLLM } from "@/types"
@@ -24744,7 +24744,7 @@ export const fetchOpenRouterModels = async () => {
 }
 ````
 
-## File: lib/models/llm/anthropic-llm-list.ts
+## File: libs/models/llm/anthropic-llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 
@@ -24859,7 +24859,7 @@ export const ANTHROPIC_LLM_LIST: LLM[] = [
 ]
 ````
 
-## File: lib/models/llm/google-llm-list.ts
+## File: libs/models/llm/google-llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 
@@ -24910,7 +24910,7 @@ const GEMINI_PRO_VISION: LLM = {
 export const GOOGLE_LLM_LIST: LLM[] = [GEMINI_PRO, GEMINI_PRO_VISION, GEMINI_1_5_PRO, GEMINI_1_5_FLASH]
 ````
 
-## File: lib/models/llm/groq-llm-list.ts
+## File: libs/models/llm/groq-llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 
@@ -24984,7 +24984,7 @@ export const GROQ_LLM_LIST: LLM[] = [
 ]
 ````
 
-## File: lib/models/llm/llm-list.ts
+## File: libs/models/llm/llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 import { ANTHROPIC_LLM_LIST } from "./anthropic-llm-list"
@@ -25014,7 +25014,7 @@ export const LLM_LIST_MAP: Record<string, LLM[]> = {
 }
 ````
 
-## File: lib/models/llm/mistral-llm-list.ts
+## File: libs/models/llm/mistral-llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 
@@ -25088,7 +25088,7 @@ export const MISTRAL_LLM_LIST: LLM[] = [
 ]
 ````
 
-## File: lib/models/llm/openai-llm-list.ts
+## File: libs/models/llm/openai-llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 
@@ -25182,7 +25182,7 @@ export const OPENAI_LLM_LIST: LLM[] = [
 ]
 ````
 
-## File: lib/models/llm/perplexity-llm-list.ts
+## File: libs/models/llm/perplexity-llm-list.ts
 ````typescript
 import { LLM } from "@/types"
 
@@ -25274,7 +25274,7 @@ export const PERPLEXITY_LLM_LIST: LLM[] = [
 ]
 ````
 
-## File: lib/openapi-conversion.ts
+## File: libs/openapi-conversion.ts
 ````typescript
 import $RefParser from "@apidevtools/json-schema-ref-parser"
 
@@ -25448,7 +25448,7 @@ export const openapiToFunctions = async (
 }
 ````
 
-## File: lib/retrieval/processing/csv.ts
+## File: libs/retrieval/processing/csv.ts
 ````typescript
 import { FileItemChunk } from "@/types"
 import { encode } from "gpt-tokenizer"
@@ -25483,7 +25483,7 @@ export const processCSV = async (csv: Blob): Promise<FileItemChunk[]> => {
 }
 ````
 
-## File: lib/retrieval/processing/docx.ts
+## File: libs/retrieval/processing/docx.ts
 ````typescript
 import { FileItemChunk } from "@/types"
 import { encode } from "gpt-tokenizer"
@@ -25512,7 +25512,7 @@ export const processDocX = async (text: string): Promise<FileItemChunk[]> => {
 }
 ````
 
-## File: lib/retrieval/processing/index.ts
+## File: libs/retrieval/processing/index.ts
 ````typescript
 export * from "./csv"
 export * from "./docx"
@@ -25525,7 +25525,7 @@ export const CHUNK_SIZE = 4000
 export const CHUNK_OVERLAP = 200
 ````
 
-## File: lib/retrieval/processing/json.ts
+## File: libs/retrieval/processing/json.ts
 ````typescript
 import { FileItemChunk } from "@/types"
 import { encode } from "gpt-tokenizer"
@@ -25563,7 +25563,7 @@ export const processJSON = async (json: Blob): Promise<FileItemChunk[]> => {
 }
 ````
 
-## File: lib/retrieval/processing/md.ts
+## File: libs/retrieval/processing/md.ts
 ````typescript
 import { FileItemChunk } from "@/types"
 import { encode } from "gpt-tokenizer"
@@ -25599,7 +25599,7 @@ export const processMarkdown = async (
 }
 ````
 
-## File: lib/retrieval/processing/pdf.ts
+## File: libs/retrieval/processing/pdf.ts
 ````typescript
 import { FileItemChunk } from "@/types"
 import { encode } from "gpt-tokenizer"
@@ -25633,7 +25633,7 @@ export const processPdf = async (pdf: Blob): Promise<FileItemChunk[]> => {
 }
 ````
 
-## File: lib/retrieval/processing/txt.ts
+## File: libs/retrieval/processing/txt.ts
 ````typescript
 import { FileItemChunk } from "@/types"
 import { encode } from "gpt-tokenizer"
@@ -25666,7 +25666,7 @@ export const processTxt = async (txt: Blob): Promise<FileItemChunk[]> => {
 }
 ````
 
-## File: lib/server/server-chat-helpers.ts
+## File: libs/server/server-chat-helpers.ts
 ````typescript
 import { Database, Tables } from "@/supabase/types"
 import { VALID_ENV_KEYS } from "@/types/valid-keys"
@@ -25743,7 +25743,7 @@ export function checkApiKey(apiKey: string | null, keyName: string) {
 }
 ````
 
-## File: lib/server/server-utils.ts
+## File: libs/server/server-utils.ts
 ````typescript
 export function createResponse(data: object, status: number): Response {
   return new Response(JSON.stringify(data), {
@@ -25755,7 +25755,7 @@ export function createResponse(data: object, status: number): Response {
 }
 ````
 
-## File: lib/supabase/browser-client.ts
+## File: libs/supabase/browser-client.ts
 ````typescript
 import { Database } from "@/supabase/types"
 import { createBrowserClient } from "@supabase/ssr"
@@ -25766,7 +25766,7 @@ export const supabase = createBrowserClient<Database>(
 )
 ````
 
-## File: lib/supabase/client.ts
+## File: libs/supabase/client.ts
 ````typescript
 import { createBrowserClient } from "@supabase/ssr"
 
@@ -25777,7 +25777,7 @@ export const createClient = () =>
   )
 ````
 
-## File: lib/supabase/middleware.ts
+## File: libs/supabase/middleware.ts
 ````typescript
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
@@ -25842,7 +25842,7 @@ export const createClient = (request: NextRequest) => {
 }
 ````
 
-## File: lib/supabase/server.ts
+## File: libs/supabase/server.ts
 ````typescript
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { cookies } from "next/headers"
@@ -25880,7 +25880,7 @@ export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
 }
 ````
 
-## File: lib/utils.ts
+## File: libs/utils.ts
 ````typescript
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -25936,7 +25936,7 @@ SOFTWARE.
 
 ## File: middleware.ts
 ````typescript
-import { createClient } from "@/lib/supabase/middleware"
+import { createClient } from "@/libs/supabase/middleware"
 import { i18nRouter } from "next-i18n-router"
 import { NextResponse, type NextRequest } from "next/server"
 import i18nConfig from "./i18nConfig"
@@ -26184,7 +26184,7 @@ module.exports = {
     '^types$',
     '^@/types/(.*)$',
     '^@/config/(.*)$',
-    '^@/lib/(.*)$',
+    '^@/libs/(.*)$',
     '^@/hooks/(.*)$',
     '^@/components/ui/(.*)$',
     '^@/components/(.*)$',

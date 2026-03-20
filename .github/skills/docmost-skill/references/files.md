@@ -9023,7 +9023,7 @@ import PasswordReset from "./pages/auth/password-reset";
 import Billing from "@/ee/billing/pages/billing.tsx";
 import CloudLogin from "@/ee/pages/cloud-login.tsx";
 import CreateWorkspace from "@/ee/pages/create-workspace.tsx";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 import Security from "@/ee/security/pages/security.tsx";
 import License from "@/ee/licence/pages/license.tsx";
@@ -9634,13 +9634,13 @@ import {
 import { Link } from "react-router-dom";
 import PageListSkeleton from "@/components/ui/page-list-skeleton.tsx";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
-import { formattedDate } from "@/lib/time.ts";
+import { formattedDate } from "@/libs/time.ts";
 import { useRecentChangesQuery } from "@/features/page/queries/page-query.ts";
 import { IconFileDescription, IconFiles } from "@tabler/icons-react";
 import { EmptyState } from "@/components/ui/empty-state.tsx";
-import { getSpaceUrl } from "@/lib/config.ts";
+import { getSpaceUrl } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
-import { getInitialsColor } from "@/lib/get-initials-color.ts";
+import { getInitialsColor } from "@/libs/get-initials-color.ts";
 
 interface Props {
   spaceId?: string;
@@ -10324,7 +10324,7 @@ import classes from "./app-header.module.css";
 import React from "react";
 import TopMenu from "@/components/layouts/global/top-menu.tsx";
 import { Link } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 import { useAtom } from "jotai";
 import {
   desktopSidebarAtom,
@@ -10334,7 +10334,7 @@ import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-to
 import SidebarToggle from "@/components/ui/sidebar-toggle-button.tsx";
 import { useTranslation } from "react-i18next";
 import useTrial from "@/ee/hooks/use-trial.tsx";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import {
   SearchControl,
   SearchMobileControl,
@@ -10671,7 +10671,7 @@ export default function GlobalAppShell({
 
 ## File: apps/client/src/components/layouts/global/hooks/atoms/sidebar-atom.ts
 ````typescript
-import { atomWithWebStorage } from "@/lib/jotai-helper.ts";
+import { atomWithWebStorage } from "@/libs/jotai-helper.ts";
 import { atom } from "jotai";
 
 export const mobileSidebarAtom = atom<boolean>(false);
@@ -10714,7 +10714,7 @@ import { UserProvider } from "@/features/user/user-provider.tsx";
 import { Outlet, useParams } from "react-router-dom";
 import GlobalAppShell from "@/components/layouts/global/global-app-shell.tsx";
 import { PosthogUser } from "@/ee/components/posthog-user.tsx";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import { SearchSpotlight } from "@/features/search/components/search-spotlight.tsx";
 import React from "react";
 import { useGetSpaceBySlugQuery } from "@/features/space/queries/space-query.ts";
@@ -10760,7 +10760,7 @@ import {
 import { useAtom } from "jotai";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { Link } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 import useAuth from "@/features/auth/hooks/use-auth.ts";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
 import { useTranslation } from "react-i18next";
@@ -10906,7 +10906,7 @@ export default function TopMenu() {
 ## File: apps/client/src/components/settings/app-version.tsx
 ````typescript
 import { useAppVersion } from "@/features/workspace/queries/workspace-query.ts";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import classes from "@/components/settings/settings.module.css";
 import { Indicator, Text, Tooltip } from "@mantine/core";
 import React from "react";
@@ -10989,7 +10989,7 @@ import {
 } from "@/ee/billing/services/billing-service.ts";
 import { getSpaces } from "@/features/space/services/space-service.ts";
 import { getGroups } from "@/features/group/services/group-service.ts";
-import { QueryParams } from "@/lib/types.ts";
+import { QueryParams } from "@/libs/types.ts";
 import { getWorkspaceMembers } from "@/features/workspace/services/workspace-service.ts";
 import { getLicenseInfo } from "@/ee/licence/services/license-service.ts";
 import { getSsoProviders } from "@/ee/security/services/security-service.ts";
@@ -11097,7 +11097,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
 import { useTranslation } from "react-i18next";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { useAtom } from "jotai";
 import { entitlementAtom } from "@/ee/entitlement/entitlement-atom";
@@ -11578,7 +11578,7 @@ export function AutoTooltipText({
 ````typescript
 import React from "react";
 import { Avatar } from "@mantine/core";
-import { getAvatarUrl } from "@/lib/config.ts";
+import { getAvatarUrl } from "@/libs/config.ts";
 import { AvatarIconType } from "@/features/attachments/types/attachment.types.ts";
 
 interface CustomAvatarProps {
@@ -11915,7 +11915,7 @@ export function ResponsiveSettingsControl({ children }: ResponsiveSettingsContro
 import React, { forwardRef } from "react";
 import { IconCheck, IconChevronDown } from "@tabler/icons-react";
 import { Group, Text, Menu, Button } from "@mantine/core";
-import { IRoleData } from "@/lib/types.ts";
+import { IRoleData } from "@/libs/types.ts";
 import { useTranslation } from "react-i18next";
 
 interface RoleButtonProps extends React.ComponentPropsWithoutRef<"button"> {
@@ -13039,7 +13039,7 @@ import { notifications } from "@mantine/notifications";
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
 import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
-import { getAppUrl } from "@/lib/config.ts";
+import { getAppUrl } from "@/libs/config.ts";
 import { IconCheck, IconCopy, IconInfoCircle } from "@tabler/icons-react";
 import { CopyButton } from "@/components/common/copy-button.tsx";
 
@@ -13294,7 +13294,7 @@ export function useAiStream() {
 ## File: apps/client/src/ee/ai/pages/ai-settings.tsx
 ````typescript
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import React from "react";
 import useUserRole from "@/hooks/use-user-role.tsx";
@@ -13307,7 +13307,7 @@ import { IconInfoCircle } from "@tabler/icons-react";
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
 import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import { useLocation, useNavigate } from "react-router-dom";
 
 export default function AiSettings() {
@@ -13428,7 +13428,7 @@ export function useAiGenerateStreamMutation(): UseMutationResult<
 
 ## File: apps/client/src/ee/ai/services/ai-search-service.ts
 ````typescript
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 import { IPageSearchParams } from "@/features/search/types/search.types.ts";
 
 export interface IAiSearchResponse {
@@ -13515,7 +13515,7 @@ export async function aiAnswers(
 
 ## File: apps/client/src/ee/ai/services/ai-service.ts
 ````typescript
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 import {
   AiGenerateDto,
   AiContentResponse,
@@ -14282,7 +14282,7 @@ import { IconInfoCircle } from "@tabler/icons-react";
 import { Helmet } from "react-helmet-async";
 import { Trans, useTranslation } from "react-i18next";
 import SettingsTitle from "@/components/settings/settings-title";
-import { getAppName, getAppUrl } from "@/lib/config";
+import { getAppName, getAppUrl } from "@/libs/config";
 import { ApiKeyTable } from "@/ee/api-key/components/api-key-table";
 import { CreateApiKeyModal } from "@/ee/api-key/components/create-api-key-modal";
 import { ApiKeyCreatedModal } from "@/ee/api-key/components/api-key-created-modal";
@@ -14440,7 +14440,7 @@ import { Anchor, Button, Divider, Group, Space, Text } from "@mantine/core";
 import { Helmet } from "react-helmet-async";
 import { Trans, useTranslation } from "react-i18next";
 import SettingsTitle from "@/components/settings/settings-title";
-import { getAppName } from "@/lib/config";
+import { getAppName } from "@/libs/config";
 import { ApiKeyTable } from "@/ee/api-key/components/api-key-table";
 import { CreateApiKeyModal } from "@/ee/api-key/components/create-api-key-modal";
 import { ApiKeyCreatedModal } from "@/ee/api-key/components/api-key-created-modal";
@@ -14565,7 +14565,7 @@ export default function WorkspaceApiKeys() {
 
 ## File: apps/client/src/ee/api-key/queries/api-key-query.ts
 ````typescript
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import {
   keepPreviousData,
   useMutation,
@@ -14666,13 +14666,13 @@ export function useUpdateApiKeyMutation() {
 
 ## File: apps/client/src/ee/api-key/services/api-key-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   ICreateApiKeyRequest,
   IApiKey,
   IUpdateApiKeyRequest,
 } from "@/ee/api-key/types/api-key.types";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 
 export async function getApiKeys(
   params?: QueryParams,
@@ -14748,8 +14748,8 @@ import {
 } from "@tabler/icons-react";
 import { IAuditLog } from "@/ee/audit/types/audit.types";
 import { CustomAvatar } from "@/components/ui/custom-avatar";
-import { getEventLabel } from "@/ee/audit/lib/audit-event-labels";
-import { formattedDate } from "@/lib/time";
+import { getEventLabel } from "@/ee/audit/libs/audit-event-labels";
+import { formattedDate } from "@/libs/time";
 import NoTableResults from "@/components/common/no-table-results";
 import classes from "./audit-logs.module.css";
 
@@ -15101,7 +15101,7 @@ export default function AuditLogsTable({
 }
 ````
 
-## File: apps/client/src/ee/audit/lib/audit-event-labels.ts
+## File: apps/client/src/ee/audit/libs/audit-event-labels.ts
 ````typescript
 type EventOption = {
   value: string;
@@ -15293,7 +15293,7 @@ import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 import { IconSettings } from "@tabler/icons-react";
 import SettingsTitle from "@/components/settings/settings-title";
-import { getAppName } from "@/lib/config";
+import { getAppName } from "@/libs/config";
 import Paginate from "@/components/common/paginate";
 import { useCursorPaginate } from "@/hooks/use-cursor-paginate";
 import {
@@ -15302,7 +15302,7 @@ import {
   useUpdateAuditRetentionMutation,
 } from "@/ee/audit/queries/audit-query";
 import { IAuditLogParams } from "@/ee/audit/types/audit.types";
-import { eventFilterOptions } from "@/ee/audit/lib/audit-event-labels";
+import { eventFilterOptions } from "@/ee/audit/libs/audit-event-labels";
 import AuditLogsTable from "@/ee/audit/components/audit-logs-table";
 import useUserRole from "@/hooks/use-user-role";
 
@@ -15517,7 +15517,7 @@ import {
   updateAuditRetention,
 } from "@/ee/audit/services/audit-service";
 import { IAuditLog, IAuditLogParams } from "@/ee/audit/types/audit.types";
-import { IPagination } from "@/lib/types";
+import { IPagination } from "@/libs/types";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
@@ -15559,9 +15559,9 @@ export function useUpdateAuditRetentionMutation() {
 
 ## File: apps/client/src/ee/audit/services/audit-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { IAuditLog, IAuditLogParams } from "@/ee/audit/types/audit.types";
-import { IPagination } from "@/lib/types";
+import { IPagination } from "@/libs/types";
 
 export async function getAuditLogs(
   params?: IAuditLogParams,
@@ -16061,7 +16061,7 @@ export default function BillingPlans() {
 import { Alert } from "@mantine/core";
 import { useBillingQuery } from "@/ee/billing/queries/billing-query.ts";
 import useTrial from "@/ee/hooks/use-trial.tsx";
-import { getBillingTrialDays } from '@/lib/config.ts';
+import { getBillingTrialDays } from '@/libs/config.ts';
 
 export default function BillingTrial() {
   const { data: billing, isLoading } = useBillingQuery();
@@ -16147,7 +16147,7 @@ export default function ManageBilling() {
 ## File: apps/client/src/ee/billing/pages/billing.tsx
 ````typescript
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import BillingPlans from "@/ee/billing/components/billing-plans.tsx";
 import BillingTrial from "@/ee/billing/components/billing-trial.tsx";
@@ -16215,7 +16215,7 @@ export function useBillingPlans(): UseQueryResult<IBillingPlan[], Error> {
 
 ## File: apps/client/src/ee/billing/services/billing-service.ts
 ````typescript
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 import {
   IBilling,
   IBillingPlan,
@@ -16355,7 +16355,7 @@ export function useJoinedWorkspacesQuery(): UseQueryResult<
 ## File: apps/client/src/ee/cloud/service/cloud-service.ts
 ````typescript
 import { IWorkspace } from "@/features/workspace/types/workspace.types.ts";
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 
 export async function getJoinedWorkspaces(): Promise<Partial<IWorkspace[]>> {
   const req = await api.post<Partial<IWorkspace[]>>("/workspace/joined");
@@ -16459,7 +16459,7 @@ import {
   IResolveComment,
 } from "@/features/comment/types/comment.types";
 import { notifications } from "@mantine/notifications";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 import { useTranslation } from "react-i18next";
 import { RQ_KEY } from "@/features/comment/queries/comment-query";
 
@@ -16560,9 +16560,9 @@ import {
 import classes from "../../features/auth/components/auth.module.css";
 import { getCheckHostname } from "@/features/workspace/services/workspace-service.ts";
 import { useState } from "react";
-import { getSubdomainHost } from "@/lib/config.ts";
+import { getSubdomainHost } from "@/libs/config.ts";
 import { Link } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 import { useTranslation } from "react-i18next";
 import JoinedWorkspaces from "@/ee/components/joined-workspaces.tsx";
 import { useJoinedWorkspacesQuery } from "@/ee/cloud/query/cloud-query.ts";
@@ -16785,7 +16785,7 @@ import { notifications } from "@mantine/notifications";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IAuthProvider } from "@/ee/security/types/security.types";
-import APP_ROUTE, { getPostLoginRedirect } from "@/lib/app-route";
+import APP_ROUTE, { getPostLoginRedirect } from "@/libs/app-route";
 import { ldapLogin } from "@/ee/security/services/ldap-auth-service";
 
 const formSchema = z.object({
@@ -16913,7 +16913,7 @@ import { useForm } from "@mantine/form";
 import { zod4Resolver } from "mantine-form-zod-resolver";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
-import { getSubdomainHost } from "@/lib/config.ts";
+import { getSubdomainHost } from "@/libs/config.ts";
 import { IWorkspace } from "@/features/workspace/types/workspace.types.ts";
 import { updateWorkspace } from "@/features/workspace/services/workspace-service.ts";
 import { getHostnameUrl } from "@/ee/utils.ts";
@@ -17200,7 +17200,7 @@ export const entitlementAtom = atomWithStorage<Entitlements | null>(
 
 ## File: apps/client/src/ee/entitlement/entitlement-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { Entitlements } from "./entitlement.types";
 
 export async function getEntitlements(): Promise<Entitlements> {
@@ -17296,8 +17296,8 @@ export default usePlan;
 ````typescript
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getAppUrl, getServerAppUrl, isCloud } from "@/lib/config.ts";
-import APP_ROUTE from "@/lib/app-route.ts";
+import { getAppUrl, getServerAppUrl, isCloud } from "@/libs/config.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 
 export const useRedirectToCloudSelect = () => {
   const navigate = useNavigate();
@@ -17320,8 +17320,8 @@ export const useRedirectToCloudSelect = () => {
 ````typescript
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getBillingTrialDays, isCloud } from "@/lib/config.ts";
-import APP_ROUTE from "@/lib/app-route.ts";
+import { getBillingTrialDays, isCloud } from "@/libs/config.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { notifications } from "@mantine/notifications";
 import useTrial from "@/ee/hooks/use-trial.tsx";
@@ -17381,7 +17381,7 @@ export default useTrial;
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 import { entitlementAtom } from "@/ee/entitlement/entitlement-atom";
-import { isCloud } from "@/lib/config";
+import { isCloud } from "@/libs/config";
 
 export function useUpgradeLabel(): string {
   const { t } = useTranslation();
@@ -17808,7 +17808,7 @@ export function hasExpiredGracePeriod(license: ILicenseInfo): boolean {
 ## File: apps/client/src/ee/licence/pages/license.tsx
 ````typescript
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import React from "react";
 import useUserRole from "@/hooks/use-user-role.tsx";
@@ -17905,7 +17905,7 @@ export function useRemoveLicenseMutation() {
 
 ## File: apps/client/src/ee/licence/services/license-service.ts
 ````typescript
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 import { ILicenseInfo } from "@/ee/licence/types/license.types.ts";
 
 export async function getLicenseInfo(): Promise<ILicenseInfo> {
@@ -18281,7 +18281,7 @@ import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
 import classes from "./mfa-challenge.module.css";
 import { verifyMfa } from "@/ee/mfa";
-import APP_ROUTE, { getPostLoginRedirect } from "@/lib/app-route";
+import APP_ROUTE, { getPostLoginRedirect } from "@/libs/app-route";
 import { useTranslation } from "react-i18next";
 import { z } from "zod/v4";
 import { MfaBackupCodeInput } from "./mfa-backup-code-input";
@@ -19057,7 +19057,7 @@ import { Container, Paper, Title, Text, Alert, Stack } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { MfaSetupModal } from "@/ee/mfa";
-import APP_ROUTE, { getPostLoginRedirect } from "@/lib/app-route.ts";
+import APP_ROUTE, { getPostLoginRedirect } from "@/libs/app-route.ts";
 import { useNavigate } from "react-router-dom";
 
 export default function MfaSetupRequired() {
@@ -19141,7 +19141,7 @@ export default function MfaSetupRequired() {
 ````typescript
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import APP_ROUTE, { getPostLoginRedirect } from "@/lib/app-route";
+import APP_ROUTE, { getPostLoginRedirect } from "@/libs/app-route";
 import { validateMfaAccess } from "@/ee/mfa";
 
 export function useMfaPageProtection() {
@@ -19251,7 +19251,7 @@ import {
 } from "@mantine/core";
 import { IconShieldCheck, IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import APP_ROUTE from "@/lib/app-route";
+import APP_ROUTE from "@/libs/app-route";
 import { MfaSetupModal } from "@/ee/mfa";
 import classes from "@/features/auth/components/auth.module.css";
 import { notifications } from "@mantine/notifications";
@@ -19353,7 +19353,7 @@ export function MfaSetupRequiredPage() {
 
 ## File: apps/client/src/ee/mfa/services/mfa-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   MfaBackupCodesResponse,
   MfaDisableRequest,
@@ -20357,7 +20357,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getPageIcon } from "@/lib";
 import CopyTextButton from "@/components/common/copy";
-import { getAppUrl, isCloud } from "@/lib/config";
+import { getAppUrl, isCloud } from "@/libs/config";
 import { buildPageUrl } from "@/features/page/page.utils";
 import {
   useCreateShareMutation,
@@ -20823,8 +20823,8 @@ export function useUpdatePagePermissionRoleMutation() {
 
 ## File: apps/client/src/ee/page-permission/services/page-permission-service.ts
 ````typescript
-import api from "@/lib/api-client";
-import { IPagination } from "@/lib/types";
+import api from "@/libs/api-client";
+import { IPagination } from "@/libs/types";
 import {
   IAddPagePermission,
   IPagePermissionMember,
@@ -20882,7 +20882,7 @@ export async function getPageRestrictionInfo(
 
 ## File: apps/client/src/ee/page-permission/types/page-permission-role-data.ts
 ````typescript
-import { IRoleData } from "@/lib/types";
+import { IRoleData } from "@/libs/types";
 import { PagePermissionRole } from "./page-permission.types";
 
 export const pagePermissionRoleData: IRoleData[] = [
@@ -20972,7 +20972,7 @@ export type IPagePermissionMember = IPagePermissionUser | IPagePermissionGroup;
 ## File: apps/client/src/ee/pages/cloud-login.tsx
 ````typescript
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { CloudLoginForm } from "@/ee/components/cloud-login-form.tsx";
 import { useTranslation } from "react-i18next";
 
@@ -20998,7 +20998,7 @@ export default function CloudLogin() {
 import { SetupWorkspaceForm } from "@/features/auth/components/setup-workspace-form.tsx";
 import { Helmet } from "react-helmet-async";
 import React from "react";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 
 export default function CreateWorkspace() {
   return (
@@ -21023,7 +21023,7 @@ import {
   resendVerificationEmail,
 } from "@/ee/cloud/service/cloud-service.ts";
 import { notifications } from "@mantine/notifications";
-import APP_ROUTE from "@/lib/app-route.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 import { useTranslation } from "react-i18next";
 
 export default function VerifyEmail() {
@@ -22755,7 +22755,7 @@ export enum SSO_PROVIDER {
 ## File: apps/client/src/ee/security/pages/security.tsx
 ````typescript
 import { Helmet } from "react-helmet-async";
-import { getAppName, isCloud } from "@/lib/config.ts";
+import { getAppName, isCloud } from "@/libs/config.ts";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import { Divider, Title } from "@mantine/core";
 import React from "react";
@@ -22843,7 +22843,7 @@ import {
 } from "@/ee/security/services/security-service.ts";
 import { notifications } from "@mantine/notifications";
 import { IAuthProvider } from "@/ee/security/types/security.types.ts";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 
 export function useGetSsoProviders(): UseQueryResult<IPagination<IAuthProvider>, Error> {
   return useQuery({
@@ -22921,7 +22921,7 @@ export function useDeleteSsoProviderMutation() {
 
 ## File: apps/client/src/ee/security/services/ldap-auth-service.ts
 ````typescript
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 import { ILoginResponse } from "@/features/auth/types/auth.types.ts";
 
 interface ILdapLogin {
@@ -22948,9 +22948,9 @@ export async function ldapLogin(data: ILdapLogin): Promise<ILoginResponse> {
 
 ## File: apps/client/src/ee/security/services/security-service.ts
 ````typescript
-import api from "@/lib/api-client.ts";
+import api from "@/libs/api-client.ts";
 import { IAuthProvider } from "@/ee/security/types/security.types.ts";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 
 export async function getSsoProviderById(data: {
   providerId: string;
@@ -22986,7 +22986,7 @@ export async function updateSsoProvider(
 ## File: apps/client/src/ee/security/sso.utils.ts
 ````typescript
 import { SSO_PROVIDER } from "@/ee/security/contants.ts";
-import { getAppUrl, getServerAppUrl } from "@/lib/config.ts";
+import { getAppUrl, getServerAppUrl } from "@/libs/config.ts";
 
 export function buildCallbackUrl(opts: {
   providerId: string;
@@ -23061,7 +23061,7 @@ export interface IAuthProvider {
 
 ## File: apps/client/src/ee/utils.ts
 ````typescript
-import { getServerAppUrl, getSubdomainHost } from "@/lib/config.ts";
+import { getServerAppUrl, getSubdomainHost } from "@/libs/config.ts";
 
 export function getHostnameUrl(hostname: string): string {
   const url = new URL(getServerAppUrl());
@@ -23081,7 +23081,7 @@ export function exchangeTokenRedirectUrl(
 
 ## File: apps/client/src/features/attachments/services/attachment-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import loadImage from "blueimp-load-image";
 import {
   AvatarIconType,
@@ -23490,7 +23490,7 @@ import {
 import classes from "./auth.module.css";
 import { useRedirectIfAuthenticated } from "@/features/auth/hooks/use-redirect-if-authenticated.ts";
 import { Link } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 import { useTranslation } from "react-i18next";
 import SsoLogin from "@/ee/components/sso-login.tsx";
 import { useWorkspacePublicDataQuery } from "@/features/workspace/queries/workspace-query.ts";
@@ -23675,9 +23675,9 @@ import useAuth from "@/features/auth/hooks/use-auth";
 import classes from "@/features/auth/components/auth.module.css";
 import { useTranslation } from "react-i18next";
 import SsoCloudSignup from "@/ee/components/sso-cloud-signup.tsx";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import { Link } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
 
 const formSchema = z.object({
   workspaceName: z.string().trim().max(50).optional(),
@@ -23808,10 +23808,10 @@ import {
   acceptInvitation,
   createWorkspace,
 } from "@/features/workspace/services/workspace-service.ts";
-import APP_ROUTE, { getPostLoginRedirect } from "@/lib/app-route.ts";
+import APP_ROUTE, { getPostLoginRedirect } from "@/libs/app-route.ts";
 import { RESET } from "jotai/utils";
 import { useTranslation } from "react-i18next";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 import { exchangeTokenRedirectUrl, getHostnameUrl } from "@/ee/utils.ts";
 
 export default function useAuth() {
@@ -24007,7 +24007,7 @@ export default function useAuth() {
 ````typescript
 import { useEffect } from "react";
 import useCurrentUser from "@/features/user/hooks/use-current-user.ts";
-import { getPostLoginRedirect } from "@/lib/app-route.ts";
+import { getPostLoginRedirect } from "@/libs/app-route.ts";
 import { useNavigate } from "react-router-dom";
 
 export function useRedirectIfAuthenticated() {
@@ -24065,7 +24065,7 @@ export function useCollabToken(): UseQueryResult<ICollabToken, Error> {
 
 ## File: apps/client/src/features/auth/services/auth-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   IChangePassword,
   ICollabToken,
@@ -24745,7 +24745,7 @@ import CommentActions from "@/features/comment/components/comment-actions";
 import { useFocusWithin } from "@mantine/hooks";
 import { IComment } from "@/features/comment/types/comment.types.ts";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 import { extractPageSlugId } from "@/lib";
 import { useTranslation } from "react-i18next";
 import { useGetSpaceBySlugQuery } from "@/features/space/queries/space-query.ts";
@@ -25303,7 +25303,7 @@ import {
   IComment,
 } from "@/features/comment/types/comment.types";
 import { notifications } from "@mantine/notifications";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo } from "react";
 
@@ -25446,13 +25446,13 @@ export function useDeleteCommentMutation(pageId?: string) {
 
 ## File: apps/client/src/features/comment/services/comment-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   ICommentParams,
   IComment,
   IResolveComment,
 } from "@/features/comment/types/comment.types";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 
 export async function createComment(
   data: Partial<IComment>,
@@ -25493,7 +25493,7 @@ export async function deleteComment(commentId: string): Promise<void> {
 ## File: apps/client/src/features/comment/types/comment.types.ts
 ````typescript
 import { IUser } from "@/features/user/types/user.types";
-import { QueryParams } from "@/lib/types.ts";
+import { QueryParams } from "@/libs/types.ts";
 
 export interface IComment {
   id: string;
@@ -25554,7 +25554,7 @@ export const showLinkMenuAtom = atom(false);
 ````typescript
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { Group, Text, Paper, ActionIcon, Loader } from "@mantine/core";
-import { getFileUrl } from "@/lib/config.ts";
+import { getFileUrl } from "@/libs/config.ts";
 import { IconDownload, IconPaperclip } from "@tabler/icons-react";
 import { useHover } from "@mantine/hooks";
 import { formatBytes } from "@/lib";
@@ -25611,7 +25611,7 @@ export default function AttachmentView(props: NodeViewProps) {
 import { handleAttachmentUpload } from "@docmost/editor-ext";
 import { uploadFile } from "@/features/page/services/page-service.ts";
 import { notifications } from "@mantine/notifications";
-import { getFileUploadSizeLimit } from "@/lib/config.ts";
+import { getFileUploadSizeLimit } from "@/libs/config.ts";
 import { formatBytes } from "@/lib";
 import i18n from "@/i18n.ts";
 
@@ -27525,7 +27525,7 @@ import { uploadImageAction } from "@/features/editor/components/image/upload-ima
 import { uploadVideoAction } from "@/features/editor/components/video/upload-video-action.tsx";
 import { uploadAttachmentAction } from "../attachment/upload-attachment-action";
 import { createMentionAction } from "@/features/editor/components/link/internal-link-paste.ts";
-import { INTERNAL_LINK_REGEX } from "@/lib/constants.ts";
+import { INTERNAL_LINK_REGEX } from "@/libs/constants.ts";
 import { Editor } from "@tiptap/core";
 import {
   getAttachmentInfo,
@@ -28342,7 +28342,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { getDrawioUrl, getFileUrl } from "@/lib/config.ts";
+import { getDrawioUrl, getFileUrl } from "@/libs/config.ts";
 import { uploadFile } from "@/features/page/services/page-service.ts";
 import {
   DrawIoEmbed,
@@ -28351,7 +28351,7 @@ import {
   EventExport,
   EventSave,
 } from "react-drawio";
-import { decodeBase64ToSvgString, svgStringToFile } from "@/lib/utils";
+import { decodeBase64ToSvgString, svgStringToFile } from "@/libs/utils";
 import { IAttachment } from "@/features/attachments/types/attachment.types";
 import { modals } from "@mantine/modals";
 import classes from "../common/toolbar-menu.module.css";
@@ -28714,7 +28714,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadFile } from "@/features/page/services/page-service.ts";
 import { useDisclosure } from "@mantine/hooks";
-import { getDrawioUrl } from "@/lib/config.ts";
+import { getDrawioUrl } from "@/libs/config.ts";
 import {
   DrawIoEmbed,
   DrawIoEmbedRef,
@@ -28723,7 +28723,7 @@ import {
   EventSave,
 } from "react-drawio";
 import { IAttachment } from "@/features/attachments/types/attachment.types";
-import { decodeBase64ToSvgString, svgStringToFile } from "@/lib/utils";
+import { decodeBase64ToSvgString, svgStringToFile } from "@/libs/utils";
 import clsx from "clsx";
 import { IconEdit } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -29600,7 +29600,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { getFileUrl } from "@/lib/config.ts";
+import { getFileUrl } from "@/libs/config.ts";
 import { uploadFile } from "@/features/page/services/page-service.ts";
 import { svgStringToFile } from "@/lib";
 import "@excalidraw/excalidraw/index.css";
@@ -30325,7 +30325,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { getFileUrl } from "@/lib/config.ts";
+import { getFileUrl } from "@/libs/config.ts";
 import { uploadImageAction } from "@/features/editor/components/image/upload-image-action.tsx";
 import classes from "../common/toolbar-menu.module.css";
 
@@ -30659,7 +30659,7 @@ export const imageResizeClasses = buildResizeClasses("node-image");
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { Group, Image, Loader, Text } from "@mantine/core";
 import { useMemo } from "react";
-import { getFileUrl } from "@/lib/config.ts";
+import { getFileUrl } from "@/libs/config.ts";
 import clsx from "clsx";
 import classes from "./image-view.module.css";
 import { useTranslation } from "react-i18next";
@@ -30733,7 +30733,7 @@ export default function ImageView(props: NodeViewProps) {
 import { handleImageUpload } from "@docmost/editor-ext";
 import { uploadFile } from "@/features/page/services/page-service.ts";
 import { notifications } from "@mantine/notifications";
-import { getFileUploadSizeLimit } from "@/lib/config.ts";
+import { getFileUploadSizeLimit } from "@/libs/config.ts";
 import { formatBytes } from "@/lib";
 import i18n from "@/i18n.ts";
 
@@ -31195,7 +31195,7 @@ import {
 } from "@mantine/core";
 import classes from "./link.module.css";
 import { useTranslation } from "react-i18next";
-import { INTERNAL_LINK_REGEX } from "@/lib/constants";
+import { INTERNAL_LINK_REGEX } from "@/libs/constants";
 import { LinkEditorPanel } from "@/features/editor/components/link/link-editor-panel.tsx";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { useSharePageQuery } from "@/features/share/queries/share-query.ts";
@@ -35849,7 +35849,7 @@ export interface ShouldShowProps {
 import { handleVideoUpload } from "@docmost/editor-ext";
 import { uploadFile } from "@/features/page/services/page-service.ts";
 import { notifications } from "@mantine/notifications";
-import { getFileUploadSizeLimit } from "@/lib/config.ts";
+import { getFileUploadSizeLimit } from "@/libs/config.ts";
 import { formatBytes } from "@/lib";
 import i18n from "@/i18n.ts";
 
@@ -35904,7 +35904,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { getFileUrl } from "@/lib/config.ts";
+import { getFileUrl } from "@/libs/config.ts";
 import classes from "../common/toolbar-menu.module.css";
 
 export function VideoMenu({ editor }: EditorMenuProps) {
@@ -36123,7 +36123,7 @@ export default VideoMenu;
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { Group, Loader, Text } from "@mantine/core";
 import { useMemo } from "react";
-import { getFileUrl } from "@/lib/config.ts";
+import { getFileUrl } from "@/libs/config.ts";
 import clsx from "clsx";
 import classes from "./video-view.module.css";
 import { useTranslation } from "react-i18next";
@@ -36328,16 +36328,16 @@ import ExcalidrawView from "@/features/editor/components/excalidraw/excalidraw-v
 import EmbedView from "@/features/editor/components/embed/embed-view.tsx";
 import SubpagesView from "@/features/editor/components/subpages/subpages-view.tsx";
 import { common, createLowlight } from "lowlight";
-import plaintext from "highlight.js/lib/languages/plaintext";
-import powershell from "highlight.js/lib/languages/powershell";
+import plaintext from "highlight.js/libs/languages/plaintext";
+import powershell from "highlight.js/libs/languages/powershell";
 import abap from "highlightjs-sap-abap";
-import elixir from "highlight.js/lib/languages/elixir";
-import erlang from "highlight.js/lib/languages/erlang";
-import dockerfile from "highlight.js/lib/languages/dockerfile";
-import clojure from "highlight.js/lib/languages/clojure";
-import fortran from "highlight.js/lib/languages/fortran";
-import haskell from "highlight.js/lib/languages/haskell";
-import scala from "highlight.js/lib/languages/scala";
+import elixir from "highlight.js/libs/languages/elixir";
+import erlang from "highlight.js/libs/languages/erlang";
+import dockerfile from "highlight.js/libs/languages/dockerfile";
+import clojure from "highlight.js/libs/languages/clojure";
+import fortran from "highlight.js/libs/languages/fortran";
+import haskell from "highlight.js/libs/languages/haskell";
+import scala from "highlight.js/libs/languages/scala";
 import mentionRenderItems from "@/features/editor/components/mention/mention-suggestion.ts";
 import { ReactNodeViewRenderer, ReactMarkViewRenderer } from "@tiptap/react";
 import MentionView from "@/features/editor/components/mention/mention-view.tsx";
@@ -36835,7 +36835,7 @@ export function FullEditor({
 
 ## File: apps/client/src/features/editor/hooks/use-collaboration-url.ts
 ````typescript
-import { getCollaborationUrl } from "@/lib/config.ts";
+import { getCollaborationUrl } from "@/libs/config.ts";
 
 const useCollaborationURL = (): string => {
   return getCollaborationUrl();
@@ -36970,7 +36970,7 @@ import { queryClient } from "@/main.tsx";
 import { IPage } from "@/features/page/types/page.types.ts";
 import { useParams } from "react-router-dom";
 import { extractPageSlugId } from "@/lib";
-import { FIVE_MINUTES } from "@/lib/constants.ts";
+import { FIVE_MINUTES } from "@/libs/constants.ts";
 import { PageEditMode } from "@/features/user/types/user.types.ts";
 import { jwtDecode } from "jwt-decode";
 import { searchSpotlight } from "@/features/search/constants.ts";
@@ -38798,7 +38798,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import EmojiCommand from "@/features/editor/extensions/emoji-command.ts";
 import { UpdateEvent } from "@/features/websocket/types";
-import localEmitter from "@/lib/local-emitter.ts";
+import localEmitter from "@/libs/local-emitter.ts";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { PageEditMode } from "@/features/user/types/user.types.ts";
 import { searchSpotlight } from "@/features/search/constants.ts";
@@ -39088,9 +39088,9 @@ export default isTextSelected;
 
 ## File: apps/client/src/features/file-task/services/file-task-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { IFileTask } from "@/features/file-task/types/file-task.types.ts";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { IApiKey } from "@/ee/api-key";
 
 export async function getFileTaskById(fileTaskId: string): Promise<IFileTask> {
@@ -39976,7 +39976,7 @@ import {
   updateGroup,
 } from "@/features/group/services/group-service";
 import { notifications } from "@mantine/notifications";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { IUser } from "@/features/user/types/user.types.ts";
 import { useEffect } from "react";
 import { validate as isValidUuid } from "uuid";
@@ -40129,9 +40129,9 @@ export function useRemoveGroupMemberMutation() {
 
 ## File: apps/client/src/features/group/services/group-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { IGroup } from "@/features/group/types/group.types";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { IUser } from "@/features/user/types/user.types.ts";
 
 export async function getGroups(
@@ -40853,9 +40853,9 @@ export function useMarkAllReadMutation() {
 
 ## File: apps/client/src/features/notification/services/notification-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { INotification } from "../types/notification.types";
-import { IPagination } from "@/lib/types";
+import { IPagination } from "@/libs/types";
 
 export async function getNotifications(params: {
   limit?: number;
@@ -41310,7 +41310,7 @@ export function HistoryEditor({
 ````typescript
 import { Text, Group, UnstyledButton, Avatar, Tooltip } from "@mantine/core";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
-import { formattedDate } from "@/lib/time";
+import { formattedDate } from "@/libs/time";
 import classes from "./css/history.module.css";
 import clsx from "clsx";
 import { IPageHistory } from "@/features/page-history/types/page.types";
@@ -41727,7 +41727,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { IconCheck, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { usePageHistoryListQuery } from "@/features/page-history/queries/page-history-query";
-import { formattedDate } from "@/lib/time";
+import { formattedDate } from "@/libs/time";
 import {
   useDiffNavigation,
   useHistoryReset,
@@ -42235,7 +42235,7 @@ import {
   getPageHistoryList,
 } from "@/features/page-history/services/page-history-service";
 import { IPageHistory } from "@/features/page-history/types/page.types";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 import { queryClient } from "@/main";
 
 const HISTORY_STALE_TIME = 60 * 60 * 1000;
@@ -42275,9 +42275,9 @@ export function usePageHistoryQuery(
 
 ## File: apps/client/src/features/page-history/services/page-history-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { IPageHistory } from "@/features/page-history/types/page.types";
-import { IPagination } from "@/lib/types.ts";
+import { IPagination } from "@/libs/types.ts";
 
 export async function getPageHistoryList(
   pageId: string,
@@ -42672,7 +42672,7 @@ import { useParams } from "react-router-dom";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { notifications } from "@mantine/notifications";
-import { getAppUrl } from "@/lib/config.ts";
+import { getAppUrl } from "@/libs/config.ts";
 import { extractPageSlugId } from "@/lib";
 import { treeApiAtom } from "@/features/page/tree/atoms/tree-api-atom.ts";
 import { useDeletePageModal } from "@/features/page/hooks/use-delete-page-modal.tsx";
@@ -42684,7 +42684,7 @@ import {
   pageEditorAtom,
   yjsConnectionStatusAtom,
 } from "@/features/editor/atoms/editor-atoms.ts";
-import { formattedDate } from "@/lib/time.ts";
+import { formattedDate } from "@/libs/time.ts";
 import { PageStateSegmentedControl } from "@/features/user/components/page-state-pref.tsx";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
@@ -43183,7 +43183,7 @@ import { IPage } from "@/features/page/types/page.types.ts";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfluenceIcon } from "@/components/icons/confluence-icon.tsx";
-import { getFileImportSizeLimit } from "@/lib/config.ts";
+import { getFileImportSizeLimit } from "@/libs/config.ts";
 import { formatBytes } from "@/lib";
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
@@ -43733,7 +43733,7 @@ import {
   SidebarPagesParams,
 } from "@/features/page/types/page.types";
 import { notifications } from "@mantine/notifications";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { queryClient } from "@/main.tsx";
 import { buildTree } from "@/features/page/tree/utils";
 import { useEffect } from "react";
@@ -44313,7 +44313,7 @@ export function invalidateOnDeletePage(pageId: string) {
 
 ## File: apps/client/src/features/page/services/page-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   ICopyPageToSpace,
   IExportPageParams,
@@ -44323,8 +44323,8 @@ import {
   IPageInput,
   SidebarPagesParams,
 } from '@/features/page/types/page.types';
-import { QueryParams } from "@/lib/types";
-import { IPagination } from "@/lib/types.ts";
+import { QueryParams } from "@/libs/types";
+import { IPagination } from "@/libs/types.ts";
 import { saveAs } from "file-saver";
 import { InfiniteData } from "@tanstack/react-query";
 import { IFileTask } from '@/features/file-task/types/file-task.types.ts';
@@ -44578,7 +44578,7 @@ import {
 } from "@/features/page/queries/page-query";
 import { modals } from "@mantine/modals";
 import { useTranslation } from "react-i18next";
-import { formattedDate } from "@/lib/time";
+import { formattedDate } from "@/libs/time";
 import { useState } from "react";
 import TrashPageContentModal from "@/features/page/trash/components/trash-page-content-modal";
 import { UserInfo } from "@/components/common/user-info.tsx";
@@ -44878,7 +44878,7 @@ import { dfs } from "react-arborist/dist/module/utils";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { notifications } from "@mantine/notifications";
-import { getAppUrl } from "@/lib/config.ts";
+import { getAppUrl } from "@/libs/config.ts";
 import { extractPageSlugId } from "@/lib";
 import { useDeletePageModal } from "@/features/page/hooks/use-delete-page-modal.tsx";
 import { useTranslation } from "react-i18next";
@@ -45581,7 +45581,7 @@ import {
 import { generateJitteredKeyBetween } from "fractional-indexing-jittered";
 import { SpaceTreeNode } from "@/features/page/tree/types.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
-import { getSpaceUrl } from "@/lib/config.ts";
+import { getSpaceUrl } from "@/libs/config.ts";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
 
 export function useTreeMutation<T>(spaceId: string) {
@@ -47279,7 +47279,7 @@ export function useAttachmentSearchQuery(
 
 ## File: apps/client/src/features/search/services/search-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   IAttachmentSearch,
   IPageSearch,
@@ -47394,7 +47394,7 @@ export const sharedTreeDataAtom = atom<SharedPageTreeNode[] | null>(null);
 
 ## File: apps/client/src/features/share/atoms/sidebar-atom.ts
 ````typescript
-import { atomWithWebStorage } from "@/lib/jotai-helper.ts";
+import { atomWithWebStorage } from "@/libs/jotai-helper.ts";
 import { atom } from 'jotai';
 
 export const tableOfContentAsideAtom = atomWithWebStorage<boolean>(
@@ -47683,7 +47683,7 @@ import { extractPageSlugId, getPageIcon } from "@/lib";
 import { useTranslation } from "react-i18next";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import CopyTextButton from "@/components/common/copy.tsx";
-import { getAppUrl, isCloud } from "@/lib/config.ts";
+import { getAppUrl, isCloud } from "@/libs/config.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import classes from "@/features/share/components/share.module.css";
 import useTrial from "@/ee/hooks/use-trial.tsx";
@@ -48454,7 +48454,7 @@ import {
   getShares,
   updateShare,
 } from "@/features/share/services/share-service.ts";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 
 export function useGetSharesQuery(
   params?: QueryParams,
@@ -48609,7 +48609,7 @@ export function useGetSharedPageTreeQuery(
 
 ## File: apps/client/src/features/share/services/share-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { IPage } from "@/features/page/types/page.types";
 
 import {
@@ -48622,7 +48622,7 @@ import {
   IShareInfoInput,
   IUpdateShare,
 } from "@/features/share/types/share.types.ts";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 
 export async function getShares(
   params?: QueryParams,
@@ -48846,7 +48846,7 @@ import React, { useState } from "react";
 import { useAddSpaceMemberMutation } from "@/features/space/queries/space-query.ts";
 import { MultiMemberSelect } from "@/features/space/components/multi-member-select.tsx";
 import { SpaceMemberRole } from "@/features/space/components/space-member-role.tsx";
-import { SpaceRole } from "@/lib/types.ts";
+import { SpaceRole } from "@/libs/types.ts";
 import { useTranslation } from "react-i18next";
 
 interface AddSpaceMemberModalProps {
@@ -48926,7 +48926,7 @@ import { z } from "zod/v4";
 import { useNavigate } from "react-router-dom";
 import { useCreateSpaceMutation } from "@/features/space/queries/space-query.ts";
 import { computeSpaceSlug } from "@/lib";
-import { getSpaceUrl } from "@/lib/config.ts";
+import { getSpaceUrl } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 
 const formSchema = z.object({
@@ -49066,7 +49066,7 @@ import { useDeleteSpaceMutation } from "../queries/space-query";
 import { useField } from "@mantine/form";
 import { ISpace } from "../types/space.types";
 import { useNavigate } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route";
+import APP_ROUTE from "@/libs/app-route";
 import { Trans, useTranslation } from "react-i18next";
 import { useState } from "react";
 
@@ -49714,7 +49714,7 @@ import clsx from "clsx";
 import { useDisclosure } from "@mantine/hooks";
 import SpaceSettingsModal from "@/features/space/components/settings-modal.tsx";
 import { useGetSpaceBySlugQuery } from "@/features/space/queries/space-query.ts";
-import { getSpaceUrl } from "@/lib/config.ts";
+import { getSpaceUrl } from "@/libs/config.ts";
 import SpaceTree from "@/features/page/tree/components/space-tree.tsx";
 import { useSpaceAbility } from "@/features/space/permissions/use-space-ability.ts";
 import {
@@ -49987,7 +49987,7 @@ function SpaceMenu({ spaceId, onSpaceSettings }: SpaceMenuProps) {
 import classes from "./switch-space.module.css";
 import { useNavigate } from "react-router-dom";
 import { SpaceSelect } from "./space-select";
-import { getSpaceUrl } from "@/lib/config";
+import { getSpaceUrl } from "@/libs/config";
 import { Button, Popover, Text } from "@mantine/core";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
@@ -50243,7 +50243,7 @@ import {
   prefetchSpace,
   useGetSpacesQuery,
 } from "@/features/space/queries/space-query.ts";
-import { getSpaceUrl } from "@/lib/config.ts";
+import { getSpaceUrl } from "@/libs/config.ts";
 import { Link } from "react-router-dom";
 import classes from "./space-grid.module.css";
 import { formatMemberCount } from "@/lib";
@@ -50474,7 +50474,7 @@ import { Group, Select, SelectProps, Text } from "@mantine/core";
 import React from "react";
 import { spaceRoleData } from "@/features/space/types/space-role-data.ts";
 import { useTranslation } from "react-i18next";
-import { IRoleData } from "@/lib/types.ts";
+import { IRoleData } from "@/libs/types.ts";
 
 const iconProps = {
   stroke: 1.5,
@@ -50810,7 +50810,7 @@ import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { formatMemberCount } from "@/lib";
-import { getSpaceUrl } from "@/lib/config";
+import { getSpaceUrl } from "@/libs/config";
 import { prefetchSpace } from "@/features/space/queries/space-query";
 import { SearchInput } from "@/components/common/search-input";
 import Paginate from "@/components/common/paginate";
@@ -51033,7 +51033,7 @@ import {
   deleteSpace,
 } from "@/features/space/services/space-service.ts";
 import { notifications } from "@mantine/notifications";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { useTranslation } from "react-i18next";
 import { queryClient } from "@/main.tsx";
 import { getRecentChanges } from "@/features/page/services/page-service.ts";
@@ -51276,7 +51276,7 @@ export function useChangeSpaceMemberRoleMutation() {
 
 ## File: apps/client/src/features/space/services/space-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import {
   IAddSpaceMember,
   IChangeSpaceMemberRole,
@@ -51285,7 +51285,7 @@ import {
   ISpace,
   ISpaceMember,
 } from "@/features/space/types/space.types";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { saveAs } from "file-saver";
 
 export async function getSpaces(
@@ -51360,7 +51360,7 @@ export async function exportSpace(data: IExportSpaceParams): Promise<void> {
 
 ## File: apps/client/src/features/space/types/space-role-data.ts
 ````typescript
-import { IRoleData, SpaceRole } from "@/lib/types.ts";
+import { IRoleData, SpaceRole } from "@/libs/types.ts";
 
 export const spaceRoleData: IRoleData[] = [
   {
@@ -51388,7 +51388,7 @@ export function getSpaceRoleLabel(value: string) {
 
 ## File: apps/client/src/features/space/types/space.types.ts
 ````typescript
-import { SpaceRole } from "@/lib/types.ts";
+import { SpaceRole } from "@/libs/types.ts";
 import {
   SpaceCaslAction,
   SpaceCaslSubject,
@@ -52183,7 +52183,7 @@ export default function useCurrentUser(): UseQueryResult<ICurrentUser> {
 
 ## File: apps/client/src/features/user/services/user-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { ICurrentUser, IUser } from "@/features/user/types/user.types";
 
 export async function getMyInfo(): Promise<ICurrentUser> {
@@ -52471,7 +52471,7 @@ import { useAtom } from "jotai";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import { WebSocketEvent } from "@/features/websocket/types";
 import { IPage } from "../page/types/page.types";
-import { IPagination } from "@/lib/types";
+import { IPagination } from "@/libs/types";
 import {
   invalidateOnCreatePage,
   invalidateOnDeletePage,
@@ -52640,7 +52640,7 @@ import { WebSocketEvent } from "@/features/websocket/types";
 import { SpaceTreeNode } from "@/features/page/tree/types.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { SimpleTree } from "react-arborist";
-import localEmitter from "@/lib/local-emitter.ts";
+import localEmitter from "@/libs/local-emitter.ts";
 
 export const useTreeSocket = () => {
   const [socket] = useAtom(socketAtom);
@@ -52762,7 +52762,7 @@ import { notifications } from "@mantine/notifications";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { getInviteLink } from "@/features/workspace/services/workspace-service.ts";
 import useUserRole from "@/hooks/use-user-role.tsx";
-import { isCloud } from "@/lib/config.ts";
+import { isCloud } from "@/libs/config.ts";
 
 interface Props {
   invitationId: string;
@@ -52992,7 +52992,7 @@ export default function MemberActionMenu({ userId, deactivatedAt }: Props) {
 import { Group, Box, Button, TagsInput, Select } from "@mantine/core";
 import React, { useState } from "react";
 import { MultiGroupSelect } from "@/features/group/components/multi-group-select.tsx";
-import { UserRole } from "@/lib/types.ts";
+import { UserRole } from "@/libs/types.ts";
 import { userRoleData } from "@/features/workspace/types/user-role-data.ts";
 import { useCreateInvitationMutation } from "@/features/workspace/queries/workspace-query.ts";
 import { useNavigate } from "react-router-dom";
@@ -53181,7 +53181,7 @@ import React from "react";
 import { getUserRoleLabel } from "@/features/workspace/types/user-role-data.ts";
 import InviteActionMenu from "@/features/workspace/components/members/components/invite-action-menu.tsx";
 import { IconInfoCircle } from "@tabler/icons-react";
-import { timeAgo } from "@/lib/time.ts";
+import { timeAgo } from "@/libs/time.ts";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { useTranslation } from "react-i18next";
 import Paginate from "@/components/common/paginate.tsx";
@@ -53269,7 +53269,7 @@ import {
   userRoleData,
 } from "@/features/workspace/types/user-role-data.ts";
 import useUserRole from "@/hooks/use-user-role.tsx";
-import { UserRole } from "@/lib/types.ts";
+import { UserRole } from "@/libs/types.ts";
 import { useTranslation } from "react-i18next";
 import Paginate from "@/components/common/paginate.tsx";
 import { SearchInput } from "@/components/common/search-input.tsx";
@@ -53567,7 +53567,7 @@ import {
   deactivateWorkspaceMember,
   activateWorkspaceMember,
 } from "@/features/workspace/services/workspace-service";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { notifications } from "@mantine/notifications";
 import {
   ICreateInvite,
@@ -53791,7 +53791,7 @@ export function useAppVersion(
 
 ## File: apps/client/src/features/workspace/services/workspace-service.ts
 ````typescript
-import api from "@/lib/api-client";
+import api from "@/libs/api-client";
 import { IUser } from "@/features/user/types/user.types";
 import {
   ICreateInvite,
@@ -53802,7 +53802,7 @@ import {
   IInvitationLink,
   IVersion,
 } from "../types/workspace.types";
-import { IPagination, QueryParams } from "@/lib/types.ts";
+import { IPagination, QueryParams } from "@/libs/types.ts";
 import { ISetupWorkspace } from "@/features/auth/types/auth.types.ts";
 
 export async function getWorkspace(): Promise<IWorkspace> {
@@ -53919,7 +53919,7 @@ export async function getAppVersion(): Promise<IVersion> {
 
 ## File: apps/client/src/features/workspace/types/user-role-data.ts
 ````typescript
-import { IRoleData, UserRole } from "@/lib/types.ts";
+import { IRoleData, UserRole } from "@/libs/types.ts";
 
 export const userRoleData: IRoleData[] = [
   {
@@ -54277,7 +54277,7 @@ export function useSettingsNavigation() {
 
 ## File: apps/client/src/hooks/use-time-ago.tsx
 ````typescript
-import { timeAgo } from "@/lib/time.ts";
+import { timeAgo } from "@/libs/time.ts";
 import { useMemo, useSyncExternalStore } from "react";
 
 let tick = 0;
@@ -54356,7 +54356,7 @@ export function useTrackOrigin() {
 ## File: apps/client/src/hooks/use-user-role.tsx
 ````typescript
 import { useAtom } from "jotai";
-import { UserRole } from "@/lib/types.ts";
+import { UserRole } from "@/libs/types.ts";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 
 export const useUserRole = () => {
@@ -54407,11 +54407,11 @@ i18n
 export default i18n;
 ````
 
-## File: apps/client/src/lib/api-client.ts
+## File: apps/client/src/libs/api-client.ts
 ````typescript
 import axios, { AxiosInstance } from "axios";
-import APP_ROUTE from "@/lib/app-route.ts";
-import { isCloud } from "@/lib/config.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
+import { isCloud } from "@/libs/config.ts";
 
 const api: AxiosInstance = axios.create({
   baseURL: "/api",
@@ -54493,7 +54493,7 @@ function redirectToLogin() {
 export default api;
 ````
 
-## File: apps/client/src/lib/app-route.ts
+## File: apps/client/src/libs/app-route.ts
 ````typescript
 const APP_ROUTE = {
   HOME: "/home",
@@ -54546,10 +54546,10 @@ export function getPostLoginRedirect(): string {
 export default APP_ROUTE;
 ````
 
-## File: apps/client/src/lib/config.ts
+## File: apps/client/src/libs/config.ts
 ````typescript
 import bytes from "bytes";
-import { castToBoolean } from "@/lib/utils.tsx";
+import { castToBoolean } from "@/libs/utils.tsx";
 import { AvatarIconType } from "@/features/attachments/types/attachment.types.ts";
 
 declare global {
@@ -54657,7 +54657,7 @@ function getConfigValue(key: string, defaultValue: string = undefined): string {
 }
 ````
 
-## File: apps/client/src/lib/constants.ts
+## File: apps/client/src/libs/constants.ts
 ````typescript
 export const INTERNAL_LINK_REGEX =
   /^(https?:\/\/)?([^\/]+)?(\/s\/([^\/]+)\/)?p\/([a-zA-Z0-9-]+)\/?(?:#(.*))?$/;
@@ -54665,7 +54665,7 @@ export const INTERNAL_LINK_REGEX =
 export const FIVE_MINUTES = 5 * 60 * 1000;
 ````
 
-## File: apps/client/src/lib/get-initials-color.ts
+## File: apps/client/src/libs/get-initials-color.ts
 ````typescript
 import { MantineColor } from "@mantine/core";
 
@@ -54703,12 +54703,12 @@ export function getInitialsColor(
 }
 ````
 
-## File: apps/client/src/lib/index.ts
+## File: apps/client/src/libs/index.ts
 ````typescript
 export * from "./utils";
 ````
 
-## File: apps/client/src/lib/jotai-helper.ts
+## File: apps/client/src/libs/jotai-helper.ts
 ````typescript
 import { atom } from "jotai";
 
@@ -54729,14 +54729,14 @@ export function atomWithWebStorage<Value>(key: string, initialValue: Value, stor
 }
 ````
 
-## File: apps/client/src/lib/local-emitter.ts
+## File: apps/client/src/libs/local-emitter.ts
 ````typescript
 import mitt from "mitt";
 const localEmitter = mitt();
 export default localEmitter;
 ````
 
-## File: apps/client/src/lib/time.ts
+## File: apps/client/src/libs/time.ts
 ````typescript
 import { formatDistanceStrict } from "date-fns";
 import { format, isToday, isYesterday } from "date-fns";
@@ -54757,7 +54757,7 @@ export function formattedDate(date: Date) {
 }
 ````
 
-## File: apps/client/src/lib/types.ts
+## File: apps/client/src/libs/types.ts
 ````typescript
 export interface QueryParams {
   query?: string;
@@ -54802,7 +54802,7 @@ export type IPagination<T> = {
 };
 ````
 
-## File: apps/client/src/lib/utils.tsx
+## File: apps/client/src/libs/utils.tsx
 ````typescript
 import { validate as isValidUUID } from "uuid";
 import { ActionIcon } from "@mantine/core";
@@ -54954,7 +54954,7 @@ import {
   getPostHogKey,
   isCloud,
   isPostHogEnabled,
-} from "@/lib/config.ts";
+} from "@/libs/config.ts";
 import posthog from "posthog-js";
 
 export const queryClient = new QueryClient({
@@ -55001,7 +55001,7 @@ root.render(
 ## File: apps/client/src/pages/auth/forgot-password.tsx
 ````typescript
 import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form";
-import { getAppName } from "@/lib/config";
+import { getAppName } from "@/libs/config";
 import { Helmet } from "react-helmet-async";
 
 export default function ForgotPassword() {
@@ -55020,7 +55020,7 @@ export default function ForgotPassword() {
 ````typescript
 import { Helmet } from "react-helmet-async";
 import { InviteSignUpForm } from "@/features/auth/components/invite-sign-up-form.tsx";
-import {getAppName} from "@/lib/config.ts";
+import {getAppName} from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 
 export default function InviteSignup() {
@@ -55041,7 +55041,7 @@ export default function InviteSignup() {
 ````typescript
 import { LoginForm } from "@/features/auth/components/login-form";
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
@@ -55067,8 +55067,8 @@ import { PasswordResetForm } from "@/features/auth/components/password-reset-for
 import { Link, useSearchParams } from "react-router-dom";
 import { useVerifyUserTokenQuery } from "@/features/auth/queries/auth-query";
 import { Button, Container, Group, Text } from "@mantine/core";
-import APP_ROUTE from "@/lib/app-route";
-import { getAppName } from "@/lib/config.ts";
+import APP_ROUTE from "@/libs/app-route";
+import { getAppName } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 
 export default function PasswordReset() {
@@ -55131,8 +55131,8 @@ import { SetupWorkspaceForm } from "@/features/auth/components/setup-workspace-f
 import { Helmet } from "react-helmet-async";
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import APP_ROUTE from "@/lib/app-route.ts";
-import { getAppName } from "@/lib/config.ts";
+import APP_ROUTE from "@/libs/app-route.ts";
+import { getAppName } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 
 export default function SetupWorkspace() {
@@ -55182,7 +55182,7 @@ export default function SetupWorkspace() {
 import { Container, Space } from "@mantine/core";
 import HomeTabs from "@/features/home/components/home-tabs";
 import SpaceGrid from "@/features/space/components/space-grid.tsx";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 
@@ -55368,7 +55368,7 @@ import AccountLanguage from "@/features/user/components/account-language.tsx";
 import AccountTheme from "@/features/user/components/account-theme.tsx";
 import PageWidthPref from "@/features/user/components/page-width-pref.tsx";
 import PageEditPref from "@/features/user/components/page-state-pref";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { Divider } from "@mantine/core";
 import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
@@ -55411,7 +55411,7 @@ import ChangePassword from "@/features/user/components/change-password";
 import { Divider } from "@mantine/core";
 import AccountAvatar from "@/features/user/components/account-avatar";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 import { AccountMfaSection } from "@/features/user/components/account-mfa-section";
@@ -55453,7 +55453,7 @@ export default function AccountSettings() {
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import GroupMembersList from "@/features/group/components/group-members";
 import GroupDetails from "@/features/group/components/group-details";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 
@@ -55482,7 +55482,7 @@ import SettingsTitle from "@/components/settings/settings-title.tsx";
 import { Group } from "@mantine/core";
 import CreateGroupModal from "@/features/group/components/create-group-modal";
 import useUserRole from "@/hooks/use-user-role.tsx";
-import {getAppName} from "@/lib/config.ts";
+import {getAppName} from "@/libs/config.ts";
 import {Helmet} from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 
@@ -55511,7 +55511,7 @@ export default function Groups() {
 ````typescript
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 import ShareList from "@/features/share/components/share-list.tsx";
 import { Alert, Text } from "@mantine/core";
@@ -55550,7 +55550,7 @@ import useUserRole from "@/hooks/use-user-role.tsx";
 import { Group } from "@mantine/core";
 import CreateSpaceModal from "@/features/space/components/create-space-modal.tsx";
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { useTranslation } from "react-i18next";
 
 export default function Spaces() {
@@ -55586,7 +55586,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import WorkspaceInvitesTable from "@/features/workspace/components/members/components/workspace-invites-table.tsx";
 import useUserRole from "@/hooks/use-user-role.tsx";
-import { getAppName } from "@/lib/config.ts";
+import { getAppName } from "@/libs/config.ts";
 import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
@@ -55663,7 +55663,7 @@ import SettingsTitle from "@/components/settings/settings-title.tsx";
 import WorkspaceNameForm from "@/features/workspace/components/settings/components/workspace-name-form";
 import WorkspaceIcon from "@/features/workspace/components/settings/components/workspace-icon.tsx";
 import { useTranslation } from "react-i18next";
-import { getAppName, isCloud } from "@/lib/config.ts";
+import { getAppName, isCloud } from "@/libs/config.ts";
 import { Helmet } from "react-helmet-async";
 import ManageHostname from "@/ee/components/manage-hostname.tsx";
 import { Divider } from "@mantine/core";
@@ -55813,7 +55813,7 @@ import {Container} from "@mantine/core";
 import SpaceHomeTabs from "@/features/space/components/space-home-tabs.tsx";
 import {useParams} from "react-router-dom";
 import {useGetSpaceBySlugQuery} from "@/features/space/queries/space-query.ts";
-import {getAppName} from "@/lib/config.ts";
+import {getAppName} from "@/libs/config.ts";
 import {Helmet} from "react-helmet-async";
 
 export default function SpaceHome() {
@@ -55869,7 +55869,7 @@ export default function SpaceTrash() {
 import { Container, Title, Text, Group, Box } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
-import { getAppName } from "@/lib/config";
+import { getAppName } from "@/libs/config";
 import { useGetSpacesQuery } from "@/features/space/queries/space-query";
 import CreateSpaceModal from "@/features/space/components/create-space-modal";
 import { AllSpacesList } from "@/features/space/components/spaces-page";
@@ -60074,7 +60074,7 @@ export class DomainMiddleware implements NestMiddleware {
 ## File: apps/server/src/common/validators/is-iso6391.ts
 ````typescript
 // MIT - https://github.com/typestack/class-validator/pull/2626
-import isISO6391Validator from 'validator/lib/isISO6391';
+import isISO6391Validator from 'validator/libs/isISO6391';
 import { buildMessage, ValidateBy, ValidationOptions } from 'class-validator';
 
 export const IS_ISO6391 = 'isISO6391';
@@ -84798,7 +84798,7 @@ export * from './mail.interface';
 
 ## File: apps/server/src/integrations/mail/interfaces/mail.interface.ts
 ````typescript
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import SMTPTransport from 'nodemailer/libs/smtp-transport';
 
 export enum MailOption {
   SMTP = 'smtp',
@@ -85006,7 +85006,7 @@ import { SmtpDriver, PostmarkDriver, LogDriver } from '../drivers';
 import { MailDriver } from '../drivers/interfaces/mail-driver.interface';
 import { MailConfig } from '../interfaces';
 import { MAIL_CONFIG_TOKEN, MAIL_DRIVER_TOKEN } from '../mail.constants';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import SMTPTransport from 'nodemailer/libs/smtp-transport';
 
 function createMailDriver(mail: MailConfig): MailDriver {
   switch (mail.driver) {
@@ -87587,7 +87587,7 @@ FROM base AS installer
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl bash \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/libs/apt/lists/*
 
 WORKDIR /app
 
@@ -88520,38 +88520,38 @@ Tiptap editor extensions
 
 ## File: packages/editor-ext/src/index.ts
 ````typescript
-export * from "./lib/trailing-node";
-export * from "./lib/comment/comment";
-export * from "./lib/utils";
-export * from "./lib/math";
-export * from "./lib/details";
-export * from "./lib/table";
-export * from "./lib/image";
-export * from "./lib/video";
-export * from "./lib/callout";
-export * from "./lib/media-utils";
-export * from "./lib/link";
-export * from "./lib/selection";
-export * from "./lib/attachment";
-export * from "./lib/custom-code-block";
-export * from "./lib/drawio";
-export * from "./lib/excalidraw";
-export * from "./lib/embed";
-export * from "./lib/mention";
-export * from "./lib/markdown";
-export * from "./lib/search-and-replace";
-export * from "./lib/embed-provider";
-export * from "./lib/subpages";
-export * from "./lib/highlight";
-export * from "./lib/heading/heading";
-export * from "./lib/unique-id";
-export * from "./lib/shared-storage";
-export * from "./lib/recreate-transform";
-export * from "./lib/columns";
-export * from "./lib/status";
+export * from "./libs/trailing-node";
+export * from "./libs/comment/comment";
+export * from "./libs/utils";
+export * from "./libs/math";
+export * from "./libs/details";
+export * from "./libs/table";
+export * from "./libs/image";
+export * from "./libs/video";
+export * from "./libs/callout";
+export * from "./libs/media-utils";
+export * from "./libs/link";
+export * from "./libs/selection";
+export * from "./libs/attachment";
+export * from "./libs/custom-code-block";
+export * from "./libs/drawio";
+export * from "./libs/excalidraw";
+export * from "./libs/embed";
+export * from "./libs/mention";
+export * from "./libs/markdown";
+export * from "./libs/search-and-replace";
+export * from "./libs/embed-provider";
+export * from "./libs/subpages";
+export * from "./libs/highlight";
+export * from "./libs/heading/heading";
+export * from "./libs/unique-id";
+export * from "./libs/shared-storage";
+export * from "./libs/recreate-transform";
+export * from "./libs/columns";
+export * from "./libs/status";
 ````
 
-## File: packages/editor-ext/src/lib/attachment/attachment-upload.ts
+## File: packages/editor-ext/src/libs/attachment/attachment-upload.ts
 ````typescript
 import { Node } from "@tiptap/pm/model";
 import { MediaUploadOptions, UploadFn } from "../media-utils";
@@ -88680,7 +88680,7 @@ const handleAttachmentUpload =
 export { handleAttachmentUpload };
 ````
 
-## File: packages/editor-ext/src/lib/attachment/attachment.ts
+## File: packages/editor-ext/src/libs/attachment/attachment.ts
 ````typescript
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
@@ -88816,13 +88816,13 @@ export const Attachment = Node.create<AttachmentOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/attachment/index.ts
+## File: packages/editor-ext/src/libs/attachment/index.ts
 ````typescript
 export { Attachment } from "./attachment";
 export * from "./attachment-upload";
 ````
 
-## File: packages/editor-ext/src/lib/callout/callout.ts
+## File: packages/editor-ext/src/libs/callout/callout.ts
 ````typescript
 import {
   findParentNode,
@@ -89050,13 +89050,13 @@ export const Callout = Node.create<CalloutOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/callout/index.ts
+## File: packages/editor-ext/src/libs/callout/index.ts
 ````typescript
 export { Callout } from "./callout";
 export * from "./utils";
 ````
 
-## File: packages/editor-ext/src/lib/callout/utils.ts
+## File: packages/editor-ext/src/libs/callout/utils.ts
 ````typescript
 export type CalloutType =
   | 'default'
@@ -89081,7 +89081,7 @@ export function getValidCalloutType(value: string): string {
 }
 ````
 
-## File: packages/editor-ext/src/lib/columns/column.ts
+## File: packages/editor-ext/src/libs/columns/column.ts
 ````typescript
 import { Node, mergeAttributes, findParentNode } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
@@ -89212,7 +89212,7 @@ export const Column = Node.create<ColumnOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/columns/columns.ts
+## File: packages/editor-ext/src/libs/columns/columns.ts
 ````typescript
 import { Node, mergeAttributes, findParentNode } from "@tiptap/core";
 import { Fragment, Node as PMNode } from "@tiptap/pm/model";
@@ -89453,7 +89453,7 @@ export const Columns = Node.create<ColumnsOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/columns/index.ts
+## File: packages/editor-ext/src/libs/columns/index.ts
 ````typescript
 export { Columns } from "./columns";
 export type { ColumnsOptions, ColumnsAttributes, ColumnsLayout, WidthMode } from "./columns";
@@ -89461,7 +89461,7 @@ export { Column } from "./column";
 export type { ColumnOptions, ColumnAttributes } from "./column";
 ````
 
-## File: packages/editor-ext/src/lib/comment/comment-decoration.ts
+## File: packages/editor-ext/src/libs/comment/comment-decoration.ts
 ````typescript
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -89500,7 +89500,7 @@ export function commentDecoration(): Plugin {
 }
 ````
 
-## File: packages/editor-ext/src/lib/comment/comment.ts
+## File: packages/editor-ext/src/libs/comment/comment.ts
 ````typescript
 import { Mark, mergeAttributes } from "@tiptap/core";
 import { commentDecoration } from "./comment-decoration";
@@ -89721,7 +89721,7 @@ export const Comment = Mark.create<ICommentOptions, ICommentStorage>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/custom-code-block/custom-code-block.ts
+## File: packages/editor-ext/src/libs/custom-code-block/custom-code-block.ts
 ````typescript
 import type { CodeBlockOptions } from "@tiptap/extension-code-block";
 import CodeBlock from "@tiptap/extension-code-block";
@@ -89833,19 +89833,19 @@ export const CustomCodeBlock = CodeBlock.extend<CodeBlockLowlightOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/custom-code-block/index.ts
+## File: packages/editor-ext/src/libs/custom-code-block/index.ts
 ````typescript
 export { CustomCodeBlock } from "./custom-code-block";
 ````
 
-## File: packages/editor-ext/src/lib/custom-code-block/lowlight-plugin.ts
+## File: packages/editor-ext/src/libs/custom-code-block/lowlight-plugin.ts
 ````typescript
 import { findChildren } from '@tiptap/core';
 import type { Node as ProsemirrorNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 // @ts-ignore
-import highlight from 'highlight.js/lib/core';
+import highlight from 'highlight.js/libs/core';
 
 function parseNodes(
   nodes: any[],
@@ -90044,7 +90044,7 @@ export function LowlightPlugin({
 }
 ````
 
-## File: packages/editor-ext/src/lib/details/details-content.ts
+## File: packages/editor-ext/src/libs/details/details-content.ts
 ````typescript
 import {
   Node,
@@ -90159,7 +90159,7 @@ export const DetailsContent = Node.create<DetailsContentOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/details/details-summary.ts
+## File: packages/editor-ext/src/libs/details/details-summary.ts
 ````typescript
 import { Node, defaultBlockAt, mergeAttributes } from "@tiptap/core";
 import { Selection } from "@tiptap/pm/state";
@@ -90259,7 +90259,7 @@ export const DetailsSummary = Node.create<DetailsSummaryOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/details/details.ts
+## File: packages/editor-ext/src/libs/details/details.ts
 ````typescript
 import {
   Node,
@@ -90508,14 +90508,14 @@ export const Details = Node.create<DetailsOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/details/index.ts
+## File: packages/editor-ext/src/libs/details/index.ts
 ````typescript
 export { Details } from "./details";
 export { DetailsSummary } from "./details-summary";
 export { DetailsContent } from "./details-content";
 ````
 
-## File: packages/editor-ext/src/lib/drawio.ts
+## File: packages/editor-ext/src/libs/drawio.ts
 ````typescript
 import { Node, mergeAttributes, ResizableNodeView } from "@tiptap/core";
 import type { ResizableNodeViewDirection } from "@tiptap/core";
@@ -90863,7 +90863,7 @@ function applyAlignment(container: HTMLElement, align: string) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/embed-provider.ts
+## File: packages/editor-ext/src/libs/embed-provider.ts
 ````typescript
 export interface IEmbedProvider {
   id: string;
@@ -91009,7 +91009,7 @@ export function getEmbedUrlAndProvider(url: string): IEmbedResult {
 }
 ````
 
-## File: packages/editor-ext/src/lib/embed.ts
+## File: packages/editor-ext/src/libs/embed.ts
 ````typescript
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
@@ -91151,7 +91151,7 @@ export const Embed = Node.create<EmbedOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/excalidraw.ts
+## File: packages/editor-ext/src/libs/excalidraw.ts
 ````typescript
 import { Node, mergeAttributes, ResizableNodeView } from "@tiptap/core";
 import type { ResizableNodeViewDirection } from "@tiptap/core";
@@ -91499,7 +91499,7 @@ function applyAlignment(container: HTMLElement, align: string) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/heading/heading.ts
+## File: packages/editor-ext/src/libs/heading/heading.ts
 ````typescript
 import TiptapHeading, {
   HeadingOptions as TiptapHeadingOptions,
@@ -91583,7 +91583,7 @@ export const Heading = TiptapHeading.extend<TiptapHeadingOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/highlight.ts
+## File: packages/editor-ext/src/libs/highlight.ts
 ````typescript
 import {
   Highlight as TiptapHighlight,
@@ -91627,7 +91627,7 @@ export const Highlight = TiptapHighlight.extend<HighlightOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/image/image-upload.ts
+## File: packages/editor-ext/src/libs/image/image-upload.ts
 ````typescript
 import { imageDimensionsFromData } from 'image-dimensions';
 import { MediaUploadOptions, UploadFn } from '../media-utils';
@@ -91786,7 +91786,7 @@ const handleImageUpload =
 export { handleImageUpload };
 ````
 
-## File: packages/editor-ext/src/lib/image/image.ts
+## File: packages/editor-ext/src/libs/image/image.ts
 ````typescript
 import Image from "@tiptap/extension-image";
 import { ImageOptions as DefaultImageOptions } from "@tiptap/extension-image";
@@ -92176,13 +92176,13 @@ function applyAlignment(container: HTMLElement, align: string) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/image/index.ts
+## File: packages/editor-ext/src/libs/image/index.ts
 ````typescript
 export { TiptapImage } from "./image";
 export * from "./image-upload";
 ````
 
-## File: packages/editor-ext/src/lib/link.ts
+## File: packages/editor-ext/src/libs/link.ts
 ````typescript
 import { mergeAttributes } from "@tiptap/core";
 import TiptapLink from "@tiptap/extension-link";
@@ -92319,13 +92319,13 @@ export const LinkExtension = TiptapLink.extend({
 });
 ````
 
-## File: packages/editor-ext/src/lib/markdown/index.ts
+## File: packages/editor-ext/src/libs/markdown/index.ts
 ````typescript
 export * from "./utils/marked.utils";
 export * from "./utils/turndown.utils";
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/basename.ts
+## File: packages/editor-ext/src/libs/markdown/utils/basename.ts
 ````typescript
 /**
  * Flexible `basename` implementation for node and the browser
@@ -92358,7 +92358,7 @@ export function getBasename(path: string) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/callout.marked.ts
+## File: packages/editor-ext/src/libs/markdown/utils/callout.marked.ts
 ````typescript
 import { Token, marked } from 'marked';
 
@@ -92403,7 +92403,7 @@ export const calloutExtension = {
 };
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/marked.utils.ts
+## File: packages/editor-ext/src/libs/markdown/utils/marked.utils.ts
 ````typescript
 import { marked } from "marked";
 import { calloutExtension } from "./callout.marked";
@@ -92455,7 +92455,7 @@ export function markdownToHtml(
 }
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/math-block.marked.ts
+## File: packages/editor-ext/src/libs/markdown/utils/math-block.marked.ts
 ````typescript
 import { Token, marked } from 'marked';
 
@@ -92496,7 +92496,7 @@ export const mathBlockExtension = {
 };
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/math-inline.marked.ts
+## File: packages/editor-ext/src/libs/markdown/utils/math-inline.marked.ts
 ````typescript
 import { Token, marked } from 'marked';
 
@@ -92555,7 +92555,7 @@ export const mathInlineExtension = {
 };
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/turndown.d.ts
+## File: packages/editor-ext/src/libs/markdown/utils/turndown.d.ts
 ````typescript
 // Map @joplin/turndown types to @types/turndown
 declare module "@joplin/turndown" {
@@ -92571,7 +92571,7 @@ declare module "@joplin/turndown-plugin-gfm" {
 }
 ````
 
-## File: packages/editor-ext/src/lib/markdown/utils/turndown.utils.ts
+## File: packages/editor-ext/src/libs/markdown/utils/turndown.utils.ts
 ````typescript
 import * as _TurndownService from '@joplin/turndown';
 import * as TurndownPluginGfm from '@joplin/turndown-plugin-gfm';
@@ -92743,13 +92743,13 @@ function video(turndownService: _TurndownService) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/math/index.ts
+## File: packages/editor-ext/src/libs/math/index.ts
 ````typescript
 export { MathInline } from "./math-inline";
 export { MathBlock } from "./math-block";
 ````
 
-## File: packages/editor-ext/src/lib/math/math-block.ts
+## File: packages/editor-ext/src/libs/math/math-block.ts
 ````typescript
 import { Node, nodeInputRule } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
@@ -92850,7 +92850,7 @@ export const MathBlock = Node.create({
 });
 ````
 
-## File: packages/editor-ext/src/lib/math/math-inline.ts
+## File: packages/editor-ext/src/libs/math/math-inline.ts
 ````typescript
 import { Node, nodeInputRule } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
@@ -92951,7 +92951,7 @@ export const MathInline = Node.create<MathInlineOption>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/media-utils.ts
+## File: packages/editor-ext/src/libs/media-utils.ts
 ````typescript
 import { Editor } from "@tiptap/core";
 
@@ -92977,7 +92977,7 @@ export interface MediaUploadOptions {
 }
 ````
 
-## File: packages/editor-ext/src/lib/mention.ts
+## File: packages/editor-ext/src/libs/mention.ts
 ````typescript
 import { mergeAttributes, Node } from "@tiptap/core";
 import { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -93335,14 +93335,14 @@ export const Mention = Node.create<MentionOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/copy.ts
+## File: packages/editor-ext/src/libs/recreate-transform/copy.ts
 ````typescript
 export function copy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/getFromPath.ts
+## File: packages/editor-ext/src/libs/recreate-transform/getFromPath.ts
 ````typescript
 import { AnyObject } from "./types";
 
@@ -93363,7 +93363,7 @@ export function getFromPath(obj: AnyObject, path: string): any {
 }
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/getReplaceStep.ts
+## File: packages/editor-ext/src/libs/recreate-transform/getReplaceStep.ts
 ````typescript
 import { ReplaceStep } from "@tiptap/pm/transform";
 import { Node } from "@tiptap/pm/model";
@@ -93396,7 +93396,7 @@ export function getReplaceStep(fromDoc: Node, toDoc: Node) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/index.ts
+## File: packages/editor-ext/src/libs/recreate-transform/index.ts
 ````typescript
 // https://gitlab.com/mpapp-public/prosemirror-recreate-steps - MIT
 // https://github.com/sueddeutsche/prosemirror-recreate-transform - MIT
@@ -93404,7 +93404,7 @@ export { recreateTransform, RecreateTransform } from "./recreateTransform";
 export type { Options } from "./recreateTransform";
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/recreateTransform.ts
+## File: packages/editor-ext/src/libs/recreate-transform/recreateTransform.ts
 ````typescript
 import { Transform } from "@tiptap/pm/transform";
 import { Node, Schema } from "@tiptap/pm/model";
@@ -93687,7 +93687,7 @@ export function recreateTransform(
 }
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/removeMarks.ts
+## File: packages/editor-ext/src/libs/recreate-transform/removeMarks.ts
 ````typescript
 import { Transform } from "@tiptap/pm/transform";
 import { Node } from "@tiptap/pm/model";
@@ -93699,7 +93699,7 @@ export function removeMarks(doc: Node) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/simplifyTransform.ts
+## File: packages/editor-ext/src/libs/recreate-transform/simplifyTransform.ts
 ````typescript
 import { Transform, ReplaceStep, Step } from "@tiptap/pm/transform";
 import { getReplaceStep } from "./getReplaceStep";
@@ -93733,21 +93733,21 @@ export function simplifyTransform(tr: Transform) {
 }
 ````
 
-## File: packages/editor-ext/src/lib/recreate-transform/types.ts
+## File: packages/editor-ext/src/libs/recreate-transform/types.ts
 ````typescript
 export interface AnyObject {
     [p: string]: any;
 }
 ````
 
-## File: packages/editor-ext/src/lib/search-and-replace/index.ts
+## File: packages/editor-ext/src/libs/search-and-replace/index.ts
 ````typescript
 import { SearchAndReplace } from './search-and-replace'
 export * from './search-and-replace'
 export default SearchAndReplace
 ````
 
-## File: packages/editor-ext/src/lib/search-and-replace/search-and-replace.ts
+## File: packages/editor-ext/src/libs/search-and-replace/search-and-replace.ts
 ````typescript
 /***
  MIT License
@@ -94224,7 +94224,7 @@ export const SearchAndReplace = Extension.create<
 export default SearchAndReplace;
 ````
 
-## File: packages/editor-ext/src/lib/selection.ts
+## File: packages/editor-ext/src/libs/selection.ts
 ````typescript
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
@@ -94264,12 +94264,12 @@ export const Selection = Extension.create({
 export default Selection;
 ````
 
-## File: packages/editor-ext/src/lib/shared-storage/index.ts
+## File: packages/editor-ext/src/libs/shared-storage/index.ts
 ````typescript
 export { SharedStorage } from "./shared-storage";
 ````
 
-## File: packages/editor-ext/src/lib/shared-storage/shared-storage.ts
+## File: packages/editor-ext/src/libs/shared-storage/shared-storage.ts
 ````typescript
 import { Extension } from "@tiptap/core";
 
@@ -94290,7 +94290,7 @@ const SharedStorage = Extension.create({
 export { SharedStorage };
 ````
 
-## File: packages/editor-ext/src/lib/status.ts
+## File: packages/editor-ext/src/libs/status.ts
 ````typescript
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
@@ -94402,13 +94402,13 @@ export const Status = Node.create<StatusOption, StatusStorage>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/subpages/index.ts
+## File: packages/editor-ext/src/libs/subpages/index.ts
 ````typescript
 export { Subpages } from "./subpages";
 export type { SubpagesAttributes, SubpagesOptions } from "./subpages";
 ````
 
-## File: packages/editor-ext/src/lib/subpages/subpages.ts
+## File: packages/editor-ext/src/libs/subpages/subpages.ts
 ````typescript
 import { mergeAttributes, Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
@@ -94484,7 +94484,7 @@ export const Subpages = Node.create<SubpagesOptions>({
 });
 ````
 
-## File: packages/editor-ext/src/lib/table/cell.ts
+## File: packages/editor-ext/src/libs/table/cell.ts
 ````typescript
 import { TableCell as TiptapTableCell } from "@tiptap/extension-table";
 
@@ -94531,7 +94531,7 @@ export const TableCell = TiptapTableCell.extend({
 });
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/auto-scroll-controller.ts
+## File: packages/editor-ext/src/libs/table/dnd/auto-scroll-controller.ts
 ````typescript
 import { DraggingDOMs } from "./utils";
 
@@ -94611,7 +94611,7 @@ export class AutoScrollController {
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/calc-drag-over.ts
+## File: packages/editor-ext/src/libs/table/dnd/calc-drag-over.ts
 ````typescript
 function findDragOverElement(
   elements: Element[],
@@ -94659,7 +94659,7 @@ export function getDragOverRow(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/dnd-extension.ts
+## File: packages/editor-ext/src/libs/table/dnd/dnd-extension.ts
 ````typescript
 import { Editor, Extension } from "@tiptap/core";
 import { PluginKey, Plugin, PluginSpec } from "@tiptap/pm/state";
@@ -94979,7 +94979,7 @@ export const TableDndExtension = Extension.create({
 });
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/handle/drag-handle-controller.ts
+## File: packages/editor-ext/src/libs/table/dnd/handle/drag-handle-controller.ts
 ````typescript
 import { Editor } from "@tiptap/core";
 import { HoveringCellInfo } from "../utils";
@@ -95088,7 +95088,7 @@ export class DragHandleController {
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/handle/empty-image-controller.ts
+## File: packages/editor-ext/src/libs/table/dnd/handle/empty-image-controller.ts
 ````typescript
 export class EmptyImageController {
     private _emptyImage: HTMLImageElement;
@@ -95113,12 +95113,12 @@ export class EmptyImageController {
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/index.ts
+## File: packages/editor-ext/src/libs/table/dnd/index.ts
 ````typescript
 export * from './dnd-extension'
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/preview/drop-indicator-controller.ts
+## File: packages/editor-ext/src/libs/table/dnd/preview/drop-indicator-controller.ts
 ````typescript
 import { computePosition, offset } from "@floating-ui/dom";
 import { DraggingDOMs } from "../utils";
@@ -95224,7 +95224,7 @@ export class DropIndicatorController {
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/preview/preview-controller.ts
+## File: packages/editor-ext/src/libs/table/dnd/preview/preview-controller.ts
 ````typescript
 import { computePosition, offset, ReferenceElement } from "@floating-ui/dom";
 import { DraggingDOMs } from "../utils";
@@ -95350,7 +95350,7 @@ function getVirtualElement(cell: HTMLElement, x: number, y: number): ReferenceEl
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/preview/render-preview.ts
+## File: packages/editor-ext/src/libs/table/dnd/preview/render-preview.ts
 ````typescript
 export function clearPreviewDOM(previewRoot: HTMLElement): void {
   while (previewRoot.firstChild) {
@@ -95391,7 +95391,7 @@ export function createPreviewDOM(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/dnd/utils.ts
+## File: packages/editor-ext/src/libs/table/dnd/utils.ts
 ````typescript
 import { cellAround, TableMap } from "@tiptap/pm/tables"
 import { EditorView } from "@tiptap/pm/view"
@@ -95502,7 +95502,7 @@ export function getDndRelatedDOMs(view: EditorView, cellPos: number | undefined,
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/header.ts
+## File: packages/editor-ext/src/libs/table/header.ts
 ````typescript
 import { TableHeader as TiptapTableHeader } from "@tiptap/extension-table";
 
@@ -95549,7 +95549,7 @@ export const TableHeader = TiptapTableHeader.extend({
 });
 ````
 
-## File: packages/editor-ext/src/lib/table/index.ts
+## File: packages/editor-ext/src/libs/table/index.ts
 ````typescript
 export * from "./row";
 export * from "./cell";
@@ -95558,7 +95558,7 @@ export * from "./table";
 export * from "./dnd";
 ````
 
-## File: packages/editor-ext/src/lib/table/row.ts
+## File: packages/editor-ext/src/libs/table/row.ts
 ````typescript
 import { TableRow as TiptapTableRow } from "@tiptap/extension-table";
 
@@ -95567,7 +95567,7 @@ export const TableRow = TiptapTableRow.extend({
 });
 ````
 
-## File: packages/editor-ext/src/lib/table/table.ts
+## File: packages/editor-ext/src/libs/table/table.ts
 ````typescript
 import { Table } from "@tiptap/extension-table";
 import { Editor } from "@tiptap/core";
@@ -95652,7 +95652,7 @@ export const CustomTable = Table.extend({
 });
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/convert-array-of-rows-to-table-node.ts
+## File: packages/editor-ext/src/libs/table/utils/convert-array-of-rows-to-table-node.ts
 ````typescript
 import type { Node } from '@tiptap/pm/model'
 import { TableMap } from '@tiptap/pm/tables'
@@ -95700,7 +95700,7 @@ export function convertArrayOfRowsToTableNode(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/convert-table-node-to-array-of-rows.ts
+## File: packages/editor-ext/src/libs/table/utils/convert-table-node-to-array-of-rows.ts
 ````typescript
 import type { Node } from '@tiptap/pm/model'
 import { TableMap } from '@tiptap/pm/tables'
@@ -95765,7 +95765,7 @@ export function convertTableNodeToArrayOfRows(tableNode: Node): (Node | null)[][
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/get-cells-in-column.ts
+## File: packages/editor-ext/src/libs/table/utils/get-cells-in-column.ts
 ````typescript
 import type { Selection } from '@tiptap/pm/state'
 import { TableMap } from '@tiptap/pm/tables'
@@ -95805,7 +95805,7 @@ export function getCellsInColumn(columnIndexes: number | number[], selection: Se
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/get-cells-in-row.ts
+## File: packages/editor-ext/src/libs/table/utils/get-cells-in-row.ts
 ````typescript
 import type { Selection } from '@tiptap/pm/state'
 import { TableMap } from '@tiptap/pm/tables'
@@ -95845,7 +95845,7 @@ export function getCellsInRow(rowIndex: number | number[], selection: Selection)
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/get-selection-range-in-column.ts
+## File: packages/editor-ext/src/libs/table/utils/get-selection-range-in-column.ts
 ````typescript
 import type { Transaction } from '@tiptap/pm/state'
 
@@ -95940,7 +95940,7 @@ export function getSelectionRangeInColumn(tr: Transaction, startColIndex: number
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/get-selection-range-in-row.ts
+## File: packages/editor-ext/src/libs/table/utils/get-selection-range-in-row.ts
 ````typescript
 import type { Transaction } from '@tiptap/pm/state'
 
@@ -96033,14 +96033,14 @@ export function getSelectionRangeInRow(tr: Transaction, startRowIndex: number, e
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/index.ts
+## File: packages/editor-ext/src/libs/table/utils/index.ts
 ````typescript
 export * from './move-column'
 export * from './move-row'
 export * from './query'
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/move-column.ts
+## File: packages/editor-ext/src/libs/table/utils/move-column.ts
 ````typescript
 import type { Node } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
@@ -96125,7 +96125,7 @@ function moveTableColumn(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/move-row-in-array-of-rows.ts
+## File: packages/editor-ext/src/libs/table/utils/move-row-in-array-of-rows.ts
 ````typescript
 /**
  * Move a row in an array of rows.
@@ -96159,7 +96159,7 @@ export function moveRowInArrayOfRows<T>(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/move-row.ts
+## File: packages/editor-ext/src/libs/table/utils/move-row.ts
 ````typescript
 import type { Node } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
@@ -96237,7 +96237,7 @@ function moveTableRow(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/query.ts
+## File: packages/editor-ext/src/libs/table/utils/query.ts
 ````typescript
 import type {
   Node,
@@ -96363,7 +96363,7 @@ export function findParentNode(
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/transpose.ts
+## File: packages/editor-ext/src/libs/table/utils/transpose.ts
 ````typescript
 /**
  * Transposes a 2D array by flipping columns to rows.
@@ -96396,7 +96396,7 @@ export function transpose<T>(array: T[][]): T[][] {
 }
 ````
 
-## File: packages/editor-ext/src/lib/table/utils/types.ts
+## File: packages/editor-ext/src/libs/table/utils/types.ts
 ````typescript
 import type {
   Node,
@@ -96418,7 +96418,7 @@ export type CellSelectionRange = {
 }
 ````
 
-## File: packages/editor-ext/src/lib/trailing-node.ts
+## File: packages/editor-ext/src/libs/trailing-node.ts
 ````typescript
 import { Extension } from '@tiptap/core'
 import { PluginKey, Plugin } from '@tiptap/pm/state';
@@ -96502,7 +96502,7 @@ export const TrailingNode = Extension.create<TrailingNodeExtensionOptions>({
 })
 ````
 
-## File: packages/editor-ext/src/lib/types.ts
+## File: packages/editor-ext/src/libs/types.ts
 ````typescript
 // repetition for now
 export interface IAttachment {
@@ -96523,13 +96523,13 @@ export interface IAttachment {
 }
 ````
 
-## File: packages/editor-ext/src/lib/unique-id/index.ts
+## File: packages/editor-ext/src/libs/unique-id/index.ts
 ````typescript
 export { UniqueID } from "./unique-id";
 export * from "./unique-id.util";
 ````
 
-## File: packages/editor-ext/src/lib/unique-id/unique-id.ts
+## File: packages/editor-ext/src/libs/unique-id/unique-id.ts
 ````typescript
 import { generateNodeId } from "../utils";
 import { UniqueID as TiptapUniqueID } from "@tiptap/extension-unique-id";
@@ -96544,7 +96544,7 @@ export const UniqueID = TiptapUniqueID.extend({
 });
 ````
 
-## File: packages/editor-ext/src/lib/unique-id/unique-id.util.ts
+## File: packages/editor-ext/src/libs/unique-id/unique-id.util.ts
 ````typescript
 import type { Extensions, JSONContent } from "@tiptap/core";
 import { findChildren, getSchema } from "@tiptap/core";
@@ -96626,7 +96626,7 @@ export function addUniqueIdsToDoc(
 }
 ````
 
-## File: packages/editor-ext/src/lib/utils.ts
+## File: packages/editor-ext/src/libs/utils.ts
 ````typescript
 import { Editor, findParentNode, isTextSelection } from "@tiptap/core";
 import { EditorState, Selection, Transaction } from "@tiptap/pm/state";
@@ -97038,13 +97038,13 @@ export function execCommandCopy(text: string): void {
 }
 ````
 
-## File: packages/editor-ext/src/lib/video/index.ts
+## File: packages/editor-ext/src/libs/video/index.ts
 ````typescript
 export { TiptapVideo } from "./video";
 export * from "./video-upload";
 ````
 
-## File: packages/editor-ext/src/lib/video/video-upload.ts
+## File: packages/editor-ext/src/libs/video/video-upload.ts
 ````typescript
 import { MediaUploadOptions, UploadFn } from "../media-utils";
 import { IAttachment } from "../types";
@@ -97223,7 +97223,7 @@ const handleVideoUpload =
 export { handleVideoUpload };
 ````
 
-## File: packages/editor-ext/src/lib/video/video.ts
+## File: packages/editor-ext/src/libs/video/video.ts
 ````typescript
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Range, Node, mergeAttributes, ResizableNodeView } from "@tiptap/core";
@@ -97719,10 +97719,10 @@ index 6f357a03b038abeb5ed86967b7fc7c3e5eb1d2d6..2d2742532860821984e1ba8262582150
      document.addEventListener("keydown", this.handleKeyDown);
      document.addEventListener("keyup", this.handleKeyUp);
    }
-diff --git a/src/lib/ResizableNodeView.ts b/src/lib/ResizableNodeView.ts
+diff --git a/src/libs/ResizableNodeView.ts b/src/libs/ResizableNodeView.ts
 index f13e210b0aa46aefe7c31105deee3d2aa8a26cd5..9bac138dbf17c6ae6c3c129cbedb3a81bd39b60c 100644
---- a/src/lib/ResizableNodeView.ts
-+++ b/src/lib/ResizableNodeView.ts
+--- a/src/libs/ResizableNodeView.ts
++++ b/src/libs/ResizableNodeView.ts
 @@ -523,7 +523,10 @@ export class ResizableNodeView {
        }
  
