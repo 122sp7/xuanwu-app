@@ -10,6 +10,9 @@ import type { IRetrievalRepository } from '../../domain/repositories/iretrieval.
 import { RAGQueryResult } from '../../domain/value-objects/rag-query-result.vo'
 import type { RAGSource } from '../../domain/value-objects/rag-query-result.vo'
 
+const EXCERPT_MAX_CHARS = 300
+const CONTEXT_MAX_CHARS = 500
+
 export interface GetRAGAnswerDTO {
   query: string
   organizationId: string
@@ -41,13 +44,13 @@ export class GetRAGAnswerUseCase {
     const sources: RAGSource[] = hits.map((hit) => ({
       documentId: hit.entity.id,
       title: hit.entity.title,
-      excerpt: hit.entity.content.slice(0, 300),
+      excerpt: hit.entity.content.slice(0, EXCERPT_MAX_CHARS),
       score: hit.score,
       taxonomy: hit.entity.taxonomy.category,
     }))
 
     const contextParts = hits.map(
-      (hit, i) => `[${i + 1}] ${hit.entity.title}\n${hit.entity.content.slice(0, 500)}`,
+      (hit, i) => `[${i + 1}] ${hit.entity.title}\n${hit.entity.content.slice(0, CONTEXT_MAX_CHARS)}`,
     )
     const assembledContext = contextParts.join('\n\n---\n\n')
 

@@ -20,6 +20,9 @@ export interface RAGQueryResultProps {
   readonly queryLatencyMs?: number
 }
 
+/** Minimum retrieval confidence score required for a result to be surfaced to users. */
+const HIGH_CONFIDENCE_THRESHOLD = 0.7
+
 export class RAGQueryResult {
   constructor(public readonly props: RAGQueryResultProps) {
     if (props.confidence < 0 || props.confidence > 1) {
@@ -29,7 +32,7 @@ export class RAGQueryResult {
 
   /** Returns true when the retrieval confidence meets the production threshold (≥0.7). */
   get hasHighConfidence(): boolean {
-    return this.props.confidence >= 0.7
+    return this.props.confidence >= HIGH_CONFIDENCE_THRESHOLD
   }
 
   toJSON(): RAGQueryResultProps {

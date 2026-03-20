@@ -36,7 +36,7 @@ export class CreateWikiDocumentUseCase {
   async execute(dto: CreateWikiDocumentDTO): Promise<WikiDocument> {
     const id = generateDocumentId()
 
-    const taxonomy = dto.taxonomy ?? new Taxonomy('其他', [], 'default')
+    const taxonomy = dto.taxonomy ?? new Taxonomy('other', [], 'default')
     const scope = dto.scope ?? 'organization'
 
     const entity = new WikiDocument(

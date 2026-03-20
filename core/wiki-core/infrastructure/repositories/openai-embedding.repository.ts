@@ -31,7 +31,10 @@ export class OpenAIEmbeddingRepository implements IEmbeddingRepository {
     dimensions = DEFAULT_DIMENSIONS,
   ) {
     if (!apiKey.trim()) {
-      throw new Error('OpenAIEmbeddingRepository: apiKey is required')
+      throw new Error(
+        'OpenAIEmbeddingRepository: apiKey is required and cannot be empty. ' +
+          'Ensure OPENAI_API_KEY environment variable is set or pass a valid key to the constructor.',
+      )
     }
     this.apiKey = apiKey
     this.model = model
