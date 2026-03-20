@@ -5,7 +5,7 @@ description: Developer guide for contributing to the schedule module — module 
 
 # Schedule 模組開發指南
 
-> **文件版本**：v1.0.0
+> **文件版本**：v1.1.0
 > **最後更新**：2026-03-20
 > **目標讀者**：參與 `modules/schedule` 實作的後端/全端工程師
 
@@ -342,3 +342,91 @@ describe("SubmitScheduleRequestUseCase", () => {
 | `modules/schedule/README.md` | 模組邊界與遷移狀態 |
 | `ARCHITECTURE.md` | 整體 MDDD 架構指南 |
 | Postiz `apps/orchestrator/src/workflows/post-workflows/` | 排程工作流參考實作 |
+
+---
+
+## 9. 建議實作順序（先補缺口，再擴 UI）
+
+這份順序是針對**目前已上線切片只有 submit/cancel + projection list** 的現況而寫。新增功能請優先補足缺口，不要先把 UI 做得像完整排程系統。
+
+### Phase 1 — 補齊 Request review flow
+
+- 新增組織端審核 use cases：review / accept / reject / close
+- 補齊 `RequestAggregate` 狀態轉換與對應 events
+- 讓 projection 可顯示 review state、last reason、review timestamps
+
+**Definition of Done**
+
+- 組織端可正式改變 request 狀態，不再只有 `submitted` 聚合清單
+- workspace 與 organization 都能從 projection 看到 review 結果
+- 無任何 UI 直接寫 projection 集合
+
+### Phase 2 — 建立 Task decomposition
+
+- 定義 Request → Task 的 application orchestration
+- 實作 `TaskRepository`、`TaskAggregate`、task events
+- 補齊 projection 的 `taskId` / `taskStatus`
+
+**Definition of Done**
+
+- 每個 accepted request 都能被拆成可追蹤 task
+- task 狀態轉換不依賴 UI 自行拼接布林旗標
+- task lifecycle 可由 projection 被讀取
+
+### Phase 3 — 落地 Match shortlist
+
+- 實作 matching engine 的 eligibility filter、availability pre-check、score breakdown
+- 建立 shortlist query / projection contract
+- 在 organization 端提供 shortlist 檢視能力
+
+**Definition of Done**
+
+- match 結果可重跑且規則明確
+- shortlist 來源可追蹤，不是手動挑人後再回填狀態
+- disqualification / penalty reason 可被審核
+
+### Phase 4 — 補齊 Assignment decision flow
+
+- 新增 offer / accept / reject / expire / cancel
+- 定義唯一 active assignment invariant
+- 補齊 assignment queue / assignee-facing read model
+
+**Definition of Done**
+
+- task 不會在沒有 accepted assignment 的情況下進入 scheduled
+- assignment 決策有 actor、time、reason
+- organization 與 assignee 看到的是同一條決策流
+
+### Phase 5 — 補齊 Schedule allocation
+
+- accepted assignment 產生 `ScheduleAggregate`
+- 實作 conflict detection、overload checks、reschedule trail
+- 月曆讀模型改由正式 scheduling flow 支撐
+
+**Definition of Done**
+
+- 月曆上的排程可回溯到 assignment 與 task
+- 衝突與超載會阻止確認，而不是事後人工修補
+- reschedule / cancel 有明確事件軌跡
+
+### Phase 6 — 補強 integration / reliability
+
+- 將 projection bootstrap 與後續事件發佈做成冪等且可恢復
+- 定義 notifications / triggers / workflow ownership
+- 完成 audit trail 與故障補償策略
+
+**Definition of Done**
+
+- 主寫入成功但 projection 缺失時，可重播或補償
+- 通知與 workflow 的責任邊界清楚
+- 文件與實作對齊，不再只存在聊天室描述
+
+---
+
+## 10. 實作時的禁止事項
+
+- **不要先補大面積 UI 再回頭想 domain**：先補 contract，再補畫面。
+- **不要讓 interfaces 直接吸 Firebase 資料形狀當 domain 狀態**：需要 repository + mapper 邊界。
+- **不要把 projection 當 aggregate**：projection 是讀模型，不是決策來源。
+- **不要用零散布林旗標代替狀態機**：review / assignment / schedule 都要走明確 status 與 event。
+- **不要把「目前只有 MVP」寫成模糊敘述**：缺口要記錄在文件並隨實作更新。
