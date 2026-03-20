@@ -377,6 +377,40 @@ modules/schedule/
 - This contract defines the **target full MDDD** architecture and must be implemented incrementally by explicit slices.
 - New behavior must follow aggregate boundaries and event ownership above; avoid introducing ad hoc mutable flags into derived read models.
 
+## Current implementation alignment (2026-03-20)
+
+The following clarifications apply to the currently shipped slice:
+
+### `requiredSkills` is optional for simple requests
+
+The `SubmitScheduleRequestUseCase` **allows an empty `requiredSkills` array** for workspace-originated resource requests. The UI form does not collect skills at submission time. The full MDDD flow (`RunScheduleMdddFlowUseCase`) still enforces non-empty skills independently when running the complete matching pipeline.
+
+> Invariant 1 of `RequestAggregate` ("submitted request must contain at least one required capability or skill") applies only when a full MDDD flow is executed, not when a simple resource request is submitted from the workspace UI.
+
+### Initial projection on submit
+
+When `schedule-request.actions.ts` successfully writes a request to `scheduleRequests`, it **immediately projects a `RequestCreated` event** to `scheduleMdddFlowProjections`. This ensures the request is visible in the workspace tab and the organization `待分派` section without waiting for the MDDD flow to execute.
+
+This projection write is best-effort: if it fails after the primary write succeeds, the request document exists but the projection is absent. A future improvement should make this idempotent or use a Firestore trigger.
+
+### Firestore collections in use
+
+| Collection | Owner | Read by |
+| --- | --- | --- |
+| `scheduleRequests` | `FirebaseScheduleRequestRepository` | Server-side only (not read by UI directly) |
+| `scheduleMdddFlowProjections` | `FirebaseMdddProjectionRepository` | UI (`listWorkspaceScheduleMdddFlowProjections`) |
+| `scheduleMdddRequests` | MDDD repositories | MDDD flow only |
+| `scheduleMdddTasks` | MDDD repositories | MDDD flow only |
+| `scheduleMdddMatches` | MDDD repositories | MDDD flow only |
+| `scheduleMdddAssignments` | MDDD repositories | MDDD flow only |
+| `scheduleMdddSchedules` | MDDD repositories | MDDD flow only |
+
+### Architecture reference
+
+- Design specification: `docs/architecture/schedule.md`
+- Development guide: `docs/schedule/development-guide.md`
+- User manual: `docs/schedule/user-manual.md`
+
 ## Acceptance gates
 
 A new scheduling/task slice is accepted only if:
@@ -386,3 +420,4 @@ A new scheduling/task slice is accepted only if:
 3. matching and scheduling decisions are separated into dedicated domain services
 4. emitted events are idempotent and owned by the correct aggregate
 5. repository/adapters stay in infrastructure and do not leak into domain entities
+6. projection writes follow the event-ownership rules above; direct UI writes to projection collections are prohibited except via the initial `RequestCreated` bootstrap
