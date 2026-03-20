@@ -14,7 +14,7 @@ export { CreateWikiPageUseCase } from '@/core/wiki-core'
 export type { CreateWikiPageDTO } from '@/core/wiki-core'
 
 // ── Interfaces: actions ───────────────────────────────────────────────────────
-export { createWikiPage } from './interfaces/_actions/wiki-page.actions'
+export { createWikiPage, archiveWikiPage, updateWikiPage } from './interfaces/_actions/wiki-page.actions'
 
 // ── Interfaces: queries ───────────────────────────────────────────────────────
 export {

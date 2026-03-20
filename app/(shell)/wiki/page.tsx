@@ -23,8 +23,7 @@ import {
   UploadIcon,
 } from "lucide-react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
 import { isOrganizationAccount } from "@/app/(shell)/organization/_utils";
@@ -37,9 +36,11 @@ import { getWorkspaceKnowledgeSummary } from "@/modules/knowledge";
 import type { WikiPage as WikiPageEntity, WikiPageScope } from "@/modules/wiki";
 import {
   WikiPageCard,
+  WikiPageView,
   CreateWikiPageDialog,
   getOrgWikiPages,
   getArchivedWikiPages,
+  archiveWikiPage,
 } from "@/modules/wiki";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Button } from "@/ui/shadcn/ui/button";
@@ -110,18 +111,6 @@ const TAXONOMY_TILES = [
   { key: "教育訓練", className: "bg-pink-50 dark:bg-pink-950/30 border-pink-200/60 dark:border-pink-800/40" },
   { key: "其他", className: "bg-muted/40 border-border/60" },
 ] as const;
-
-const SCOPE_LABEL: Record<WikiPageScope, string> = {
-  organization: "組織共用",
-  workspace: "工作區",
-  private: "私人",
-};
-
-const SCOPE_EMOJI: Record<WikiPageScope, string> = {
-  organization: "🏢",
-  workspace: "🗂️",
-  private: "🔒",
-};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -746,66 +735,6 @@ function ArchivedView({ archivedPages, loadState, onSelectPage }: ArchivedViewPr
   );
 }
 
-// ── Wiki page detail (inline) ─────────────────────────────────────────────────
-
-interface WikiPageDetailViewProps {
-  readonly page: WikiPageEntity;
-  readonly workspaceName?: string;
-  readonly onBack: () => void;
-}
-
-function WikiPageDetailView({ page, workspaceName, onBack }: WikiPageDetailViewProps) {
-  const scopeLabel =
-    page.scope === "workspace" && workspaceName
-      ? `工作區：${workspaceName}`
-      : SCOPE_LABEL[page.scope];
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          className="mt-1 text-xs text-muted-foreground hover:text-foreground"
-          onClick={onBack}
-          aria-label="返回"
-        >
-          ← 返回
-        </button>
-        <Separator orientation="vertical" className="h-5" />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold">{page.title}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>
-              {SCOPE_EMOJI[page.scope]} {scopeLabel}
-            </span>
-            <span>·</span>
-            <span>建立者：{page.createdBy}</span>
-          </div>
-        </div>
-      </div>
-
-      <Separator />
-
-      {page.content.trim() ? (
-        <div className="prose prose-sm max-w-none dark:prose-invert">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{page.content}</ReactMarkdown>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
-          <p className="text-sm text-muted-foreground">此頁面尚無內容。</p>
-        </div>
-      )}
-
-      <Separator />
-
-      <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-        <span>建立：{new Date(page.createdAtISO).toLocaleDateString("zh-TW")}</span>
-        <span>最後更新：{new Date(page.updatedAtISO).toLocaleDateString("zh-TW")}</span>
-      </div>
-    </div>
-  );
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WikiPage() {
@@ -995,12 +924,23 @@ export default function WikiPage() {
       ? entries.find((e) => e.workspace.id === selectedPage.workspaceId)?.workspace.name
       : undefined;
     content = (
-      <WikiPageDetailView
+      <WikiPageView
         page={selectedPage}
         workspaceName={workspaceName}
         onBack={() => {
           setSelectedPage(null);
           setMainView("pages");
+        }}
+        onArchive={async (pageId) => {
+          const result = await archiveWikiPage(pageId)
+          if (result.success) {
+            toast.success('頁面已封存')
+            setSelectedPage(null)
+            setMainView("pages")
+            setPagesRefreshKey((k) => k + 1)
+          } else {
+            toast.error('封存失敗', { description: result.error?.message })
+          }
         }}
       />
     );
