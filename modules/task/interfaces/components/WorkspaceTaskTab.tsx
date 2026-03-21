@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/ui/shadcn/ui/card";
 import { Input } from "@/ui/shadcn/ui/input";
-import type { WorkspaceTaskEntity, WorkspaceTaskStatus } from "@/modules/task/domain/entities/Task";
+import type { WorkspaceTaskEntity, WorkspaceTaskStatus } from "@task-core";
 import {
   createWorkspaceTask,
   deleteWorkspaceTask,

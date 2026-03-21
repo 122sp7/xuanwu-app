@@ -20,8 +20,8 @@ import type {
   WorkspaceTaskEntity,
   WorkspaceTaskPriority,
   WorkspaceTaskStatus,
-} from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+  TaskRepository,
+} from "@task-core";
 
 const VALID_STATUSES = new Set<WorkspaceTaskStatus>(["pending", "in-progress", "completed"]);
 const VALID_PRIORITIES = new Set<WorkspaceTaskPriority>(["low", "medium", "high"]);

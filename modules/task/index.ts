@@ -5,14 +5,14 @@ export type {
   WorkspaceTaskPriority,
   CreateWorkspaceTaskInput,
   UpdateWorkspaceTaskInput,
-} from "./domain/entities/Task";
-export type { TaskRepository } from "./domain/repositories/TaskRepository";
+} from "@task-core";
+export type { TaskRepository } from "@task-core";
 export {
   CreateWorkspaceTaskUseCase,
   UpdateWorkspaceTaskUseCase,
   DeleteWorkspaceTaskUseCase,
   ListWorkspaceTasksUseCase,
-} from "./application/use-cases/task.use-cases";
+} from "@task-service";
 export { FirebaseTaskRepository } from "./infrastructure/firebase/FirebaseTaskRepository";
 export {
   createWorkspaceTask,

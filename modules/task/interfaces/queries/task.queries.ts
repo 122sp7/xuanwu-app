@@ -1,5 +1,5 @@
-import type { WorkspaceTaskEntity } from "../../domain/entities/Task";
-import { ListWorkspaceTasksUseCase } from "../../application/use-cases/task.use-cases";
+import type { WorkspaceTaskEntity } from "@task-core";
+import { ListWorkspaceTasksUseCase } from "@task-service";
 import { FirebaseTaskRepository } from "../../infrastructure/firebase/FirebaseTaskRepository";
 
 const taskRepository = new FirebaseTaskRepository();

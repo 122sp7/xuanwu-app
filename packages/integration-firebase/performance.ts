@@ -1,5 +1,4 @@
 /**
- * @module libs/firebase/performance
  * Firebase Performance Monitoring wrapper (browser-only).
  */
 

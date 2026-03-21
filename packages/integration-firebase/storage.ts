@@ -1,5 +1,4 @@
 /**
- * @module libs/firebase/storage
  * Firebase Cloud Storage wrapper.
  */
 

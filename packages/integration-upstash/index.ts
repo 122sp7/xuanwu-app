@@ -2,12 +2,9 @@
  * @package integration-upstash
  * Upstash services integration — Redis, Vector, QStash, Workflow, Box.
  *
- * Provides a single import path for all Upstash cloud services:
- *   - Redis     — low-latency key/value store and session cache
- *   - Vector    — semantic similarity search and RAG retrieval
- *   - QStash    — durable HTTP message queue and scheduler
- *   - Workflow  — multi-step durable serverless workflows
- *   - Box       — sandboxed AI coding agent runtime
+ * This package IS the source of truth for all Upstash client wiring.
+ * All client initialization lives in the sub-files alongside this index.
+ * No re-exports from external libs/ paths.
  *
  * All exports are server-only. Do not import from Client Components.
  *
@@ -16,20 +13,20 @@
  */
 
 // ── Redis ──────────────────────────────────────────────────────────────────
-export { redis } from "@/libs/upstash/redis";
+export { redis } from "./redis";
 
 // ── Vector ─────────────────────────────────────────────────────────────────
-export { vectorIndex } from "@/libs/upstash/vector";
+export { vectorIndex } from "./vector";
 
 // ── QStash ─────────────────────────────────────────────────────────────────
-export { qstash, qstashReceiver } from "@/libs/upstash/qstash";
+export { qstash, qstashReceiver } from "./qstash";
 
 // ── Workflow ───────────────────────────────────────────────────────────────
 export {
   serve,
   WorkflowClient,
   workflowClient,
-} from "@/libs/upstash/workflow";
+} from "./workflow";
 
 // ── Box ────────────────────────────────────────────────────────────────────
 export {
@@ -38,4 +35,4 @@ export {
   ClaudeCode,
   createBox,
   type BoxConfig,
-} from "@/libs/upstash/box";
+} from "./box";

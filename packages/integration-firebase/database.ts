@@ -1,5 +1,4 @@
 /**
- * @module libs/firebase/database
  * Firebase Realtime Database wrapper.
  */
 
@@ -48,7 +47,7 @@ export function getFirebaseDatabase(): Database {
       const emulatorHost =
         process.env.NEXT_PUBLIC_FIREBASE_DATABASE_EMULATOR_HOST ?? "localhost";
       const emulatorPort = Number(
-        process.env.NEXT_PUBLIC_FIREBASE_DATABASE_EMULATOR_PORT ?? "9000"
+        process.env.NEXT_PUBLIC_FIREBASE_DATABASE_EMULATOR_PORT ?? "9000",
       );
       connectDatabaseEmulator(_database, emulatorHost, emulatorPort);
     }

@@ -1,5 +1,4 @@
 /**
- * @module libs/firebase/remote-config
  * Firebase Remote Config wrapper.
  */
 
@@ -25,7 +24,7 @@ let _remoteConfig: RemoteConfig | null = null;
 
 /**
  * Returns the singleton Remote Config instance (browser-only).
- * Sets a sensible default `minimumFetchIntervalMillis` of 30 s in dev.
+ * Sets a sensible default minimumFetchIntervalMillis of 30 s in dev.
  */
 export function getFirebaseRemoteConfig(): RemoteConfig | null {
   if (typeof window === "undefined") return null;

@@ -1,15 +1,12 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type {
-  CreateWorkspaceTaskInput,
-  UpdateWorkspaceTaskInput,
-} from "../../domain/entities/Task";
+import type { CreateWorkspaceTaskInput, UpdateWorkspaceTaskInput } from "@task-core";
 import {
   CreateWorkspaceTaskUseCase,
   DeleteWorkspaceTaskUseCase,
   UpdateWorkspaceTaskUseCase,
-} from "../../application/use-cases/task.use-cases";
+} from "@task-service";
 import { FirebaseTaskRepository } from "../../infrastructure/firebase/FirebaseTaskRepository";
 
 const taskRepository = new FirebaseTaskRepository();

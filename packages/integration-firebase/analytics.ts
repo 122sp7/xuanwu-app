@@ -1,5 +1,4 @@
 /**
- * @module libs/firebase/analytics
  * Firebase Analytics wrapper (browser-only).
  * All exports are safe to import in SSR; actual SDK calls are no-ops on the server.
  */

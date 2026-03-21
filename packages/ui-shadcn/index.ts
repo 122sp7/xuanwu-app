@@ -75,4 +75,9 @@ export * from "@/ui/shadcn/hooks/use-toast";
 
 // ── Utilities ─────────────────────────────────────────────────────────────
 // cn() — class-name merging utility (clsx + tailwind-merge)
-export { cn } from "@/libs/utils";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}

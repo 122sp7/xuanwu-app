@@ -1,5 +1,5 @@
 /**
- * @module libs/firebase/firestore
+ * Firebase Firestore database helpers.
  */
 
 import {

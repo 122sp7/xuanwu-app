@@ -2,28 +2,17 @@
  * @package integration-firebase
  * Firebase SDK integration — unified public barrel for the entire application.
  *
- * This package provides the single import path for all Firebase services:
- *   - Client App initialization
- *   - Admin SDK configuration
- *   - Authentication (Auth)
- *   - Firestore database
- *   - Cloud Storage
- *   - Cloud Functions
- *   - App Check
- *   - Analytics, Performance, Remote Config
- *   - Realtime Database
- *   - Cloud Messaging
- *
- * Server-side Admin SDK initialization lives in Cloud Functions
- * (libs/firebase/functions-python).
+ * This package IS the source of truth for all Firebase SDK wiring.
+ * All Firebase SDK initialization and service helpers live in the sub-files
+ * alongside this index. No re-exports from external libs/ paths.
  *
  * Usage:
- *   import { getFirebaseFirestore, getFirebaseAuth } from "@integration-firebase";
+ *   import { firebaseClientApp, getFirebaseFirestore } from "@integration-firebase";
  */
 
 // ── App instances ──────────────────────────────────────────────────────────
-export { firebaseClientApp } from "@/libs/firebase/client";
-export { firebaseAdminConfig } from "@/libs/firebase/admin";
+export { firebaseClientApp } from "./client";
+export { firebaseAdminConfig } from "./admin";
 
 // ── Authentication ─────────────────────────────────────────────────────────
 export {
@@ -31,14 +20,14 @@ export {
   onFirebaseAuthStateChanged,
   signOutFirebase,
   type User,
-} from "@/libs/firebase/auth";
+} from "./auth";
 
 // ── Firestore ──────────────────────────────────────────────────────────────
 export {
   getFirebaseFirestore,
   firestoreApi,
   type Firestore,
-} from "@/libs/firebase/firestore";
+} from "./firestore";
 
 // ── App Check ─────────────────────────────────────────────────────────────
 export {
@@ -46,7 +35,7 @@ export {
   appCheckApi,
   type AppCheck,
   type AppCheckToken,
-} from "@/libs/firebase/appcheck";
+} from "./appcheck";
 
 // ── Analytics ─────────────────────────────────────────────────────────────
 export {
@@ -54,7 +43,7 @@ export {
   analyticsApi,
   type Analytics,
   type EventParams,
-} from "@/libs/firebase/analytics";
+} from "./analytics";
 
 // ── Performance ────────────────────────────────────────────────────────────
 export {
@@ -62,7 +51,7 @@ export {
   performanceApi,
   type FirebasePerformance,
   type PerformanceTrace,
-} from "@/libs/firebase/performance";
+} from "./performance";
 
 // ── Remote Config ──────────────────────────────────────────────────────────
 export {
@@ -70,7 +59,7 @@ export {
   remoteConfigApi,
   type RemoteConfig,
   type Value,
-} from "@/libs/firebase/remote-config";
+} from "./remote-config";
 
 // ── Storage ────────────────────────────────────────────────────────────────
 export {
@@ -82,7 +71,7 @@ export {
   type FullMetadata,
   type SettableMetadata,
   type ListResult,
-} from "@/libs/firebase/storage";
+} from "./storage";
 
 // ── Messaging ─────────────────────────────────────────────────────────────
 export {
@@ -90,7 +79,7 @@ export {
   messagingApi,
   type Messaging,
   type MessagePayload,
-} from "@/libs/firebase/messaging";
+} from "./messaging";
 
 // ── Functions ─────────────────────────────────────────────────────────────
 export {
@@ -99,7 +88,7 @@ export {
   type Functions,
   type HttpsCallable,
   type HttpsCallableOptions,
-} from "@/libs/firebase/functions";
+} from "./functions";
 
 // ── Realtime Database ──────────────────────────────────────────────────────
 export {
@@ -108,4 +97,4 @@ export {
   type Database,
   type DatabaseReference,
   type DataSnapshot,
-} from "@/libs/firebase/database";
+} from "./database";

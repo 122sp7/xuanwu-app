@@ -1,5 +1,6 @@
 /**
- * @module libs/firebase/admin
+ * Firebase Admin SDK configuration.
+ * Used by Cloud Functions and server-side admin operations.
  */
 
 export const firebaseAdminConfig = {

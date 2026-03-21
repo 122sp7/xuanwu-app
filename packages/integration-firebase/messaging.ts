@@ -1,5 +1,4 @@
 /**
- * @module libs/firebase/messaging
  * Firebase Cloud Messaging (FCM) wrapper (browser / service-worker only).
  */
 
