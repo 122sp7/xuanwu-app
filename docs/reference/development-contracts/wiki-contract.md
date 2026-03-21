@@ -322,10 +322,10 @@ These are the migration source components. Their functionality will progressivel
 
 ---
 
-## `core/wiki-core` 域層合約（Domain Contracts）
+## `modules/wiki` 域層合約（Domain Contracts）
 
-> 本節記載目前已在 `core/wiki-core` 中實作的全部公開合約。
-> 模組實作者引用 `@/core/wiki-core` 時，以此為正式 API 界面。
+> 本節記載目前已在 `modules/wiki` 中實作的全部公開合約。
+> 模組實作者引用 `@/modules/wiki` 時，以此為正式 API 界面。
 
 ### 定義：`WikiDocument`
 
@@ -444,7 +444,7 @@ interface IKnowledgeSummaryScope { workspaceId: string }
 4. 不同 model 的 Embedding 不得相互比較（透過 `isCompatibleWith` 檢查）
 5. `IEmbeddingRepository.embedBatch` 輸入數量上限 20
 
-### 定義：Public API（`@/core/wiki-core` 導出清單）
+### 定義：Public API（`@/modules/wiki` 導出清單）
 
 ```typescript
 // Entities

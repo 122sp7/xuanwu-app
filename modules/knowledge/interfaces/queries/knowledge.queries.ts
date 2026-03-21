@@ -9,7 +9,7 @@ import type { WorkspaceEntity } from "@/modules/workspace";
 import {
   GetWorkspaceKnowledgeSummaryUseCase,
   type WorkspaceKnowledgeSummary,
-} from "@/core/wiki-core";
+} from '@/modules/wiki';
 import { DefaultWorkspaceKnowledgeRepository } from "../../infrastructure/default/DefaultWorkspaceKnowledgeRepository";
 
 export async function getWorkspaceKnowledgeSummary(

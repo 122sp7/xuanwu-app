@@ -6,8 +6,8 @@
  *       when the Firestore adapter is implemented in Phase 3.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import type { WikiPage, WikiPageScope } from '@/core/wiki-core'
-import { InMemoryWikiPageRepository } from '@/core/wiki-core'
+import type { WikiPage, WikiPageScope } from '@/modules/wiki'
+import { InMemoryWikiPageRepository } from '@/modules/wiki'
 
 // Stub repository shared across calls during the same server process lifetime.
 // Production implementation will use a Firestore-backed repository.

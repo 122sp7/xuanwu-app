@@ -8,9 +8,9 @@
  */
 import { commandFailureFrom, commandSuccess, type CommandResult } from '@/shared/types'
 
-import { CreateWikiPageUseCase, ArchiveWikiPageUseCase, UpdateWikiPageUseCase } from '@/core/wiki-core'
-import type { CreateWikiPageDTO, UpdateWikiPageDTO } from '@/core/wiki-core'
-import { InMemoryWikiPageRepository } from '@/core/wiki-core'
+import { CreateWikiPageUseCase, ArchiveWikiPageUseCase, UpdateWikiPageUseCase } from '@/modules/wiki'
+import type { CreateWikiPageDTO, UpdateWikiPageDTO } from '@/modules/wiki'
+import { InMemoryWikiPageRepository } from '@/modules/wiki'
 
 // Stub repository — replace with FirestoreWikiPageRepository when Phase 3 Firestore adapter lands.
 const wikiPageRepository = new InMemoryWikiPageRepository()

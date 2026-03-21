@@ -9,7 +9,7 @@
  */
 import { ArchiveIcon } from 'lucide-react'
 
-import type { WikiPage } from '@/core/wiki-core'
+import type { WikiPage } from '@/modules/wiki'
 import { Skeleton } from '@/ui/shadcn/ui/skeleton'
 import { WikiPageCard } from './WikiPageCard'
 

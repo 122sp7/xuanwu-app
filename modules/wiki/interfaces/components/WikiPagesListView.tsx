@@ -10,7 +10,7 @@
 import { useMemo } from 'react'
 import { FileTextIcon, PlusIcon } from 'lucide-react'
 
-import type { WikiPage, WikiPageScope } from '@/core/wiki-core'
+import type { WikiPage, WikiPageScope } from '@/modules/wiki'
 import { Button } from '@/ui/shadcn/ui/button'
 import { Skeleton } from '@/ui/shadcn/ui/skeleton'
 import {

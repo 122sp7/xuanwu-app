@@ -6,7 +6,7 @@
  * adapter (DefaultWorkspaceKnowledgeRepository) remain here because they depend
  * on @/modules/file, @/modules/parser, and @/modules/workspace.
  *
- * Canonical domain home: @/core/wiki-core
+ * Canonical domain home: @/modules/wiki
  * Do NOT add new features here — build them in core/wiki-core instead.
  */
 export * from "./domain";

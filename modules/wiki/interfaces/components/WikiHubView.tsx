@@ -21,7 +21,7 @@ import Link from 'next/link'
 
 import type { WorkspaceEntity } from '@/modules/workspace'
 import type { RagDocumentRecord } from '@/modules/file'
-import type { WorkspaceKnowledgeSummary } from '@/core/wiki-core'
+import type { WorkspaceKnowledgeSummary } from '@/modules/wiki'
 import { Badge } from '@/ui/shadcn/ui/badge'
 import { Button } from '@/ui/shadcn/ui/button'
 import {

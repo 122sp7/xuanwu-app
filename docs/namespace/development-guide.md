@@ -7,7 +7,7 @@ description: Developer guide for contributing to namespace-core — registering 
 
 > **文件版本**：v1.0.0
 > **最後更新**：2026-03-20
-> **目標讀者**：參與 `core/namespace-core` 實作或在模組中使用命名空間功能的工程師
+> **目標讀者**：參與 `modules/namespace` 實作或在模組中使用命名空間功能的工程師
 
 ---
 
@@ -24,7 +24,7 @@ description: Developer guide for contributing to namespace-core — registering 
 ## 1. 模組結構
 
 ```
-core/namespace-core/
+modules/namespace/
 ├── domain/
 │   ├── entities/
 │   │   └── namespace.entity.ts              # Namespace class
@@ -69,9 +69,9 @@ infrastructure (adapters)
 
 ```typescript
 // modules/organization/application/use-cases/create-organization.use-case.ts
-import { RegisterNamespaceUseCase, deriveSlugCandidate } from '@/core/namespace-core'
+import { RegisterNamespaceUseCase, deriveSlugCandidate } from '@/modules/namespace'
 import type { IOrganizationRepository } from '../domain/repositories/iorganization.repository'
-import type { INamespaceRepository } from '@/core/namespace-core'
+import type { INamespaceRepository } from '@/modules/namespace'
 
 export class CreateOrganizationUseCase {
   constructor(
@@ -105,7 +105,7 @@ export class CreateOrganizationUseCase {
 使用 slug-policy 純函式處理 slug 邏輯：
 
 ```typescript
-import { deriveSlugCandidate, isValidSlug, NamespaceSlug } from '@/core/namespace-core'
+import { deriveSlugCandidate, isValidSlug, NamespaceSlug } from '@/modules/namespace'
 
 // 推導候選值
 const candidate = deriveSlugCandidate('My Organization 2024!')
@@ -126,7 +126,7 @@ console.log(slug.value) // → 'my-organization-2024'
 ## 4. 解析 Slug → Namespace
 
 ```typescript
-import { ResolveNamespaceUseCase } from '@/core/namespace-core'
+import { ResolveNamespaceUseCase } from '@/modules/namespace'
 
 const resolveNamespace = new ResolveNamespaceUseCase(namespaceRepo)
 
@@ -146,10 +146,10 @@ if (!namespace) {
 
 ```typescript
 // modules/organization/infrastructure/firebase/FirebaseNamespaceRepository.ts
-import type { INamespaceRepository } from '@/core/namespace-core'
-import { Namespace, NamespaceSlug } from '@/core/namespace-core'
+import type { INamespaceRepository } from '@/modules/namespace'
+import { Namespace, NamespaceSlug } from '@/modules/namespace'
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore'
-import { NAMESPACE_CORE_CONFIG } from '@/core/namespace-core/infrastructure/persistence/config'
+import { NAMESPACE_CORE_CONFIG } from '@/modules/namespace/infrastructure/persistence/config'
 
 export class FirebaseNamespaceRepository implements INamespaceRepository {
   private readonly db = getFirestore()
@@ -208,7 +208,7 @@ import {
   RegisterNamespaceUseCase,
   ResolveNamespaceUseCase,
   deriveSlugCandidate,
-} from '@/core/namespace-core'
+} from '@/modules/namespace'
 
 describe('RegisterNamespaceUseCase', () => {
   it('registers a new namespace', async () => {

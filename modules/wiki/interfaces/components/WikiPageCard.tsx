@@ -8,7 +8,7 @@
  */
 import { FileTextIcon, LockIcon, BuildingIcon, FolderIcon } from 'lucide-react'
 import { Badge } from '@/ui/shadcn/ui/badge'
-import type { WikiPage, WikiPageScope } from '@/core/wiki-core'
+import type { WikiPage, WikiPageScope } from '@/modules/wiki'
 
 interface WikiPageCardProps {
   readonly page: WikiPage
