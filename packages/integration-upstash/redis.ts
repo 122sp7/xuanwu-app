@@ -10,7 +10,7 @@
  *   UPSTASH_REDIS_REST_TOKEN — bearer token
  *
  * Usage:
- *   import { redis } from "@/infrastructure/upstash/redis";
+ *   import { redis } from "@integration-upstash";
  *   await redis.set("key", "value");
  *   const value = await redis.get<string>("key");
  */

@@ -149,10 +149,10 @@ export async function createWikiPageUseCase(
 
 ### 2.4 Infrastructure adapter
 
-在 `modules/wiki/infrastructure/firebase/FirebaseWikiPageRepository.ts` 實作 port，使用 `@/infrastructure/firebase` 的 Firestore SDK：
+在 `modules/wiki/infrastructure/firebase/FirebaseWikiPageRepository.ts` 實作 port，使用 `@integration-firebase` 的 Firestore SDK：
 
 ```typescript
-import { db } from "@/infrastructure/firebase";
+import { db } from "@integration-firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 // ...實作 WikiPageRepository interface
 ```

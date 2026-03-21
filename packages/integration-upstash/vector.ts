@@ -10,13 +10,13 @@
  *   UPSTASH_VECTOR_REST_TOKEN — bearer token
  *
  * Metadata shape (T) can be overridden at call site:
- *   import { vectorIndex } from "@/infrastructure/upstash/vector";
+ *   import { vectorIndex } from "@integration-upstash";
  *   const idx = vectorIndex<{ title: string; module: string }>();
  *   await idx.upsert([{ id: "doc-1", vector: [...], metadata: { title: "…", module: "file" } }]);
  *   const results = await idx.query({ vector: [...], topK: 5, includeMetadata: true });
  *
  * Usage (with default metadata):
- *   import { vectorIndex } from "@/infrastructure/upstash/vector";
+ *   import { vectorIndex } from "@integration-upstash";
  *   const results = await vectorIndex().query({ vector: [...], topK: 10 });
  */
 

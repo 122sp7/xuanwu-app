@@ -12,14 +12,14 @@
  *   QSTASH_NEXT_SIGNING_KEY    — next signing key   (webhook verification)
  *
  * Usage — publish a message:
- *   import { qstash } from "@/infrastructure/upstash/qstash";
+ *   import { qstash } from "@integration-upstash";
  *   await qstash.publishJSON({
  *     url: "https://my-app.vercel.app/api/jobs/process-document",
  *     body: { fileId: "abc123" },
  *   });
  *
  * Usage — verify an incoming webhook:
- *   import { qstashReceiver } from "@/infrastructure/upstash/qstash";
+ *   import { qstashReceiver } from "@integration-upstash";
  *   const isValid = await qstashReceiver.verify({
  *     signature: req.headers.get("upstash-signature") ?? "",
  *     body: await req.text(),

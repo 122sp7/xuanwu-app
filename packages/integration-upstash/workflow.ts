@@ -11,7 +11,7 @@
  *
  * Usage — declare a workflow Route Handler:
  *   // app/api/workflows/process-document/route.ts
- *   import { serve } from "@/infrastructure/upstash/workflow";
+ *   import { serve } from "@integration-upstash";
  *
  *   export const { POST } = serve<{ fileId: string }>(async (context) => {
  *     const { fileId } = context.requestPayload;
@@ -26,7 +26,7 @@
  *   });
  *
  * Usage — trigger a workflow from a Server Action:
- *   import { workflowClient } from "@/infrastructure/upstash/workflow";
+ *   import { workflowClient } from "@integration-upstash";
  *   await workflowClient.trigger({
  *     url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/process-document`,
  *     body: { fileId: "abc123" },

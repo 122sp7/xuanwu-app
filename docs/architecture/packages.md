@@ -117,6 +117,67 @@ modules/*/interfaces      → application, @ui-*, @shared-*
 
 ---
 
+## 5.5 `/ui`、`/libs`、`/infrastructure`、`/interfaces` 要怎麼收口
+
+這四個目錄如果不講清楚，確實最容易讓 package 設計繼續變糊。
+
+| 目錄 | 現在的定位 | 應該怎麼用 | 不該怎麼用 |
+|------|-----------|-----------|-----------|
+| `/ui` | package internal implementation | 由 `@ui-shadcn`、`@lib-vis` 對外暴露 | app/module 直接把 `ui/*` 當公共 API 使用 |
+| `/libs` | TypeScript app code 已退場 | 僅保留 `libs/firebase/functions-python/` Python worker runtime | 再新增 TS wrapper / utility 到這裡 |
+| `/infrastructure` | 根目錄只保留極少數 cross-cutting runtime adapter | 例如 `infrastructure/axios/httpClient.ts` 這種全域 runtime concern | 把 Firebase / Upstash / feature adapter 再塞回 root infrastructure |
+| `/interfaces` | 根目錄只保留全域 transport entrypoints | 例如 REST / GraphQL registry | 把 feature UI、Server Actions、queries、hooks 放在 root interfaces |
+
+因此 xuanwu-app 的收口規則是：
+
+1. `/ui` 存在，但主要是 package internals，不是給整個 app 任意直連
+2. `/libs` 對 TS app 已經收斂完成；只剩 Python worker runtime
+3. `/infrastructure` 根目錄不是 feature adapter 區，feature adapter 應回到 `modules/*/infrastructure`
+4. `/interfaces` 根目錄不是 feature interface 區，feature interfaces 應回到 `modules/*/interfaces`
+
+---
+
+## 5.6 哪些要先完整放進 packages，哪些不要先完整放
+
+如果目標是讓邊界越來越清楚，遷移順序本身就很重要。
+
+### 應該先完整放進 `packages/*`
+
+這些越早完整收斂，邊界越清楚：
+
+1. `shared-*`
+   - 型別、常數、validators、純工具
+2. `integration-*`
+   - Firebase、Upstash 這種 vendor SDK 邊界
+3. `ui-*`
+   - shadcn / vis 這種 reusable primitive surface
+4. `lib-*`
+   - 第三方套件的穩定 wrapper
+5. `api-contracts`
+   - DTO / transport-safe contract
+
+**原因**：這些東西的 owner 與責任比較穩定，先完整搬可以快速減少 app 對 legacy 目錄的直接耦合。
+
+### 不要先完整放進 `packages/*`
+
+這些太早完整搬進 packages，通常只會讓邊界更糊：
+
+1. module entities / repository ports / use cases
+2. module-specific hooks / actions / queries / controllers
+3. feature UI composition 與 screen-level components
+4. feature infrastructure adapters
+5. root `interfaces/` 與 `infrastructure/` 裡仍帶有 app wiring 性質的東西
+
+**原因**：這些仍然在描述「哪個 bounded context 負責什麼」，不是單純的共享公共能力。
+
+### 一句判斷法
+
+> **先完整搬「穩定的共用基礎」，不要先完整搬「還在變動的 feature orchestration」。**
+
+這樣 package 邊界才會越來越清楚，而不是越搬越糊。
+
+---
+
 ## 6. 與 reviewer 顧慮直接對應的結論
 
 review 提到的風險是對的：  

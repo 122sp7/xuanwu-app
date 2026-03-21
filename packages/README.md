@@ -92,6 +92,52 @@ Promote module code into `packages/` only when it has:
 3. a clear ownership rule,
 4. no dependency on app/module-specific orchestration.
 
+## Top-Level Directory Disposition
+
+The directories that most often cause package-boundary confusion are intentionally narrowed as follows:
+
+| Directory | Status | What belongs there now |
+|-----------|--------|------------------------|
+| `ui/` | keep, but as package internals | implementation files behind `@ui-shadcn` and `@lib-vis` |
+| `libs/` | retired for TS app code | only `libs/firebase/functions-python/` remains as the Python worker runtime |
+| `infrastructure/` | keep, but very small | rare root-level runtime adapters such as `infrastructure/axios/httpClient.ts` |
+| `interfaces/` | keep, but very small | global transport entrypoints like REST/GraphQL registry files |
+
+Practical rule:
+
+- if it is reusable UI, consume it through `@ui-shadcn` / `@lib-vis`
+- if it is a vendor SDK boundary, consume it through `@integration-*`
+- if it is a shared transport contract, consume it through `@api-contracts`
+- if it is feature-owned orchestration, keep it in `modules/*/interfaces` or `modules/*/infrastructure`
+
+## Migration Order
+
+To keep boundaries getting clearer instead of blurrier, package migration should happen in this order:
+
+### 1. Fully move first
+
+Move these into `packages/*` early and completely:
+
+- shared types / validators / constants / pure utils
+- vendor integrations (`@integration-*`)
+- reusable UI primitives (`@ui-*`)
+- thin library wrappers (`@lib-*`)
+- transport-safe shared contracts (`@api-contracts`)
+
+Why first? These have clearer ownership, broader reuse, and lower risk of dragging feature orchestration into the package layer.
+
+### 2. Delay full moves for these
+
+Do **not** fully move these into `packages/*` until the bounded context has stabilized:
+
+- module entities / repository ports / use cases
+- module-specific UI and page composition
+- module server actions, hooks, queries, controllers
+- module infrastructure adapters
+- root app wiring under `infrastructure/` or `interfaces/`
+
+Why delay? These areas still encode business ownership and application composition. Moving them too early creates package sprawl and makes boundaries less obvious, not more obvious.
+
 ## Usage
 
 ```typescript

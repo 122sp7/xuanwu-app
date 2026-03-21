@@ -21,9 +21,9 @@ modules/<feature>/
 ├── application/
 │   └── use-cases/           # Business workflows (no framework, no Firebase)
 ├── infrastructure/
-│   └── firebase/            # Firebase adapters implementing port interfaces
-│       ├── Firebase<Feature>Repository.ts
-│       └── (mappers: Firestore ↔ Domain — validate enum fields before mapping)
+│   ├── firebase/            # Module-local Firebase adapters implementing port interfaces
+│   ├── default/             # In-memory / default adapters when a module needs them
+│   └── ...                  # Other module-owned adapters and persistence helpers
 ├── interfaces/
 │   ├── _actions/            # Next.js "use server" Server Actions (thin adapters)
 │   ├── hooks/               # "use client" React hooks (identity token-refresh hook)
@@ -63,14 +63,14 @@ modules/<feature>/
 - ❌ No direct Firebase/Firestore calls
 - ❌ No React hooks or UI code
 
-### Infrastructure Layer (`infrastructure/firebase/`)
+### Infrastructure Layer (`modules/*/infrastructure/`)
 - ✅ Implements domain repository interfaces (the Adapter)
-- ✅ Contains all Firebase SDK usage
+- ✅ Contains module-owned adapter code and persistence details
 - ✅ Includes Firestore ↔ Domain mappers with **enum field validation** (no silent coercion)
 - ✅ Wallet credit/debit uses Firestore **transactions** (atomic balance enforcement — balance never negative)
 - ❌ Must NOT be imported by domain or application layers
 
-### Interface Layer (`interfaces/`)
+### Interface Layer (`modules/*/interfaces/`)
 - **`_actions/`** — Next.js `"use server"` Server Actions: thin wrappers, no business logic
 - **`hooks/`** — `"use client"` React hooks (e.g. `useTokenRefreshListener` — [S6] Party 3)
 - **`queries/`** — Read query wrappers for real-time subscriptions, callable from React components
@@ -106,6 +106,43 @@ Use a package only when the code has a stable responsibility and a clear public 
 This follows the same broad lesson visible in cal.com and plane: packages work best for
 **shared foundations, integrations, and platform surfaces**, while feature workflows stay in
 their feature/module boundaries.
+
+## Root Directory Boundary Status
+
+The remaining top-level directories are intentionally narrow and should not blur the `modules/*` vs `packages/*` split:
+
+| Directory | Current role | Import rule |
+|-----------|--------------|-------------|
+| `ui/` | package internals for reusable primitives (`ui/shadcn`, `ui/vis`) | app/module code should import via `@ui-shadcn` or `@lib-vis`, not from `ui/*` directly |
+| `libs/` | retired for TypeScript app code; only `libs/firebase/functions-python/` remains as the Python worker runtime | do not add new TS app utilities here |
+| `infrastructure/` | rare root-level cross-cutting runtime adapters (currently `infrastructure/axios/httpClient.ts`) | vendor SDK entrypoints belong in `packages/integration-*`; feature adapters belong in `modules/*/infrastructure` |
+| `interfaces/` | rare root-level global transport entrypoints (currently REST/GraphQL registry files) | shared contracts belong in `@api-contracts`; feature UI/actions/hooks/queries belong in `modules/*/interfaces` |
+
+## Migration Sequencing Policy
+
+To make boundaries clearer over time, not everything should be “fully moved” at once.
+
+### Move completely into `packages/*` first
+
+These are good early full-migration targets because they are stable and cross-cutting:
+
+- shared contracts, constants, validators, pure utilities
+- vendor SDK entrypoints and transport helpers
+- reusable design-system primitives
+- thin third-party wrapper surfaces
+- transport-safe DTO / API contract definitions
+
+### Do **not** fully move into `packages/*` too early
+
+These should stay in `modules/*` or narrow top-level directories until their ownership is unquestionably stable:
+
+- business entities, repository ports, use cases, workflows
+- feature-specific hooks, server actions, queries, view models
+- feature UI composition and screen-level components
+- feature infrastructure adapters and persistence details
+- root transport registries or runtime adapters that still act as application wiring
+
+Rule of thumb: **move stable foundations first; keep volatile feature orchestration local until it stops changing shape.**
 
 ---
 
@@ -155,7 +192,7 @@ if (!result.success) {
 - [x] Domain layer has zero external dependencies
 - [x] All data access goes through repository interfaces (ports)
 - [x] UI does not contain business logic
-- [x] Firebase only exists in `infrastructure/firebase/` directories
+- [x] Vendor SDK entrypoints live in `packages/integration-*`, while feature adapters live in `modules/*/infrastructure/`
 - [x] Use-cases are framework-agnostic (pure TypeScript)
 - [x] No feature-to-feature domain coupling (each module has independent domain types)
 - [x] `CommandResult` contract used consistently across all use cases

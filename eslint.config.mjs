@@ -40,8 +40,16 @@ const eslintConfig = defineConfig([
               message: "Import shadcn primitives through @ui-shadcn so the app uses a single public UI boundary.",
             },
             {
+              group: ["@/ui/shadcn/hooks/*", "@/ui/vis/*"],
+              message: "Use @ui-shadcn or @lib-vis instead of importing package-internal ui/* files directly.",
+            },
+            {
               group: ["@/infrastructure/firebase", "@/infrastructure/firebase/*", "@/infrastructure/upstash", "@/infrastructure/upstash/*"],
               message: "Use @integration-firebase or @integration-upstash instead of legacy infrastructure shim paths.",
+            },
+            {
+              group: ["@/interfaces/*"],
+              message: "Use @api-contracts for shared transport contracts, or module-local interfaces under modules/*/interfaces.",
             },
           ],
         },

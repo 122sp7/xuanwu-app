@@ -13,14 +13,14 @@
  *   UPSTASH_BOX_API_KEY — Upstash Box API key (console.upstash.com/box)
  *
  * Usage — basic agent run:
- *   import { createBox } from "@/infrastructure/upstash/box";
+ *   import { createBox } from "@integration-upstash";
  *   const box = await createBox({ runtime: "node" });
  *   const result = await box.agent.run({ prompt: "…" });
  *   console.log(result.result);
  *   await box.delete();
  *
  * Usage — structured output:
- *   import { createBox } from "@/infrastructure/upstash/box";
+ *   import { createBox } from "@integration-upstash";
  *   import { z } from "zod";
  *   const box = await createBox({ runtime: "python" });
  *   const schema = z.object({ summary: z.string(), confidence: z.number() });
