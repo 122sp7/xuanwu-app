@@ -1,15 +1,15 @@
 # Architecture Index
 
 **Primary source of truth:** `ARCHITECTURE.md`  
-**Verified against repo:** 2026-03-19
+**Verified against repo:** 2026-03-21
 
 ## Global dependency direction
 
 `UI -> Application -> Domain <- Infrastructure`
 
 Additional cross-cutting rules from repo structure:
-- `shared/` can be used across layers when kept pure
-- `ui/` is for reusable UI primitives consumed by app/shell/features
+- `packages/*` is the stable public boundary for shared/integration/UI/lib/contract surfaces
+- `ui/` contains package internals for reusable UI primitives
 - `interfaces/` and `app/` stay thin; business decisions belong in application/domain
 
 ## Actual per-module layout pattern in this workspace
@@ -28,7 +28,9 @@ modules/<feature>/
 ├── application/
 │   └── use-cases/
 ├── infrastructure/
-│   └── firebase/
+│   ├── firebase/
+│   ├── default/
+│   └── ...
 ├── interfaces/
 │   ├── _actions/
 │   ├── hooks/
@@ -66,9 +68,9 @@ modules/<feature>/
 - `ARCHITECTURE.md` describes the target MDDD + Hexagonal architecture; actual coverage varies by module.
 - `schedule` is currently the most complete active MDDD slice.
 - `workspace` has interface-level screen composition already present.
-- `core/` contains reusable bounded contexts outside `modules/`: `event-core`, `knowledge-core`, `namespace-core`.
-- `namespace-core` is scaffolded only; do not assume implementation exists.
-- `knowledge/retrieval/taxonomy` are not top-level modules in `modules/`; knowledge functionality currently lives in `core/knowledge-core`.
+- `core/` and `shared/` are no longer active app-code boundaries.
+- `event`, `namespace`, and `wiki` live under `modules/`; do not route new work through old `core/*` assumptions.
+- Fully migrate stable shared/integration/UI/lib/contract surfaces into `packages/*` first; keep feature entities/use-cases/module UI/actions/hooks/queries/adapters local until ownership stabilizes.
 
 ## Validation guidance
 

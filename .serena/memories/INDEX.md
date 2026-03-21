@@ -2,7 +2,7 @@
 
 **Bootstrap instructions:** Read this file first, then load the numbered memories in order. Only load migration/* and ui/* memories when working in those areas.
 
-**Last updated:** 2026-03-20 | Branch: `copilot/update-knowledge-development-docs`
+**Last updated:** 2026-03-21 | Branch: `copilot/analyze-project-architecture`
 
 ---
 
@@ -12,7 +12,7 @@
 |--------|-------------|
 | `00-project-overview` | Stack versions, directory slices, npm scripts, Python functions summary |
 | `01-architecture-index` | MDDD + Hexagonal architecture, CommandResult pattern, dependency direction |
-| `02-module-index` | All 17 modules, ports/ presence, core/ modules status |
+| `02-module-index` | Active modules, ports/ presence, and current bounded-context ownership |
 | `03-runtime-entrypoints` | App Router routes, API routes, providers |
 | `04-commands-and-checks` | Dev, build, lint, deploy commands |
 | `05-environment-and-integrations` | Firebase, Upstash, Genkit, env var patterns |
@@ -51,12 +51,13 @@
 
 ## Key Facts (quick reference)
 
-- **Active branch / PR**: `copilot/update-knowledge-development-docs` — Document AI OCR Extractor + Classifier integrated into rag_ingestion pipeline
+- **Active branch / PR**: `copilot/analyze-project-architecture` — package boundaries, legacy root directory handling, and migration order clarified
 - **Schedule MDDD**: Domain + Infrastructure COMPLETE; UI integration is the next milestone
 - **Delivery contracts**: always read `docs/reference/development-contracts/<module>-contract.md` before implementing
 - **Python functions**: `libs/firebase/functions-python/` — deploy with `npm run deploy:functions:python`
-- **namespace-core**: scaffolded only (all .gitkeep) — do not assume it has working code
-- **knowledge module**: `modules/knowledge` EXISTS and is LIVE — owns workspace Knowledge tab + RAG documents list (WorkspaceKnowledgeTab)
+- **packages/**: stable public boundaries only; business workflows stay in `modules/*`
+- **legacy roots**: `ui/` is package-internal, `libs/` is retired for TS app code except Python functions, and root `interfaces/` / `infrastructure/` remain intentionally small
+- **knowledge/wiki ownership**: workspace knowledge summary and related UI now route through `modules/wiki` + `modules/workspace`, not `modules/knowledge` or `core/*`
 - **file module**: `RagDocumentRecord` has complete metadata fields. `getWorkspaceRagDocuments(workspace)` is now exported.
 - **Organization knowledge tab**: lists all workspaces with status + ready ratio + clickable links to workspace Knowledge tab
 - **Document AI**: OCR Extractor (`1516a32299c1709e`) extracts text from binary files; OCR Classifier (`17f1013111dec644`) classifies document type. Both in `asia-southeast1`. Activated when `DOCUMENTAI_PROJECT_ID` env var is set.

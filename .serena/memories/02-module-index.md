@@ -1,6 +1,6 @@
 # Module Index
 
-**Verified:** 2026-03-20 — 18 modules confirmed under `modules/`
+**Verified:** 2026-03-21 — 19 modules confirmed under `modules/`
 
 ## Full Module List
 
@@ -59,13 +59,11 @@ modules/<name>/
 - Follows billing-lifecycle domain pattern
 - `ports/` present
 
-### knowledge (EXISTS as modules/knowledge)
-- **LIVE** at `modules/knowledge/` — do NOT use core/knowledge-core for workspace UI
-- `interfaces/components/WorkspaceKnowledgeTab.tsx` — read-side summary + RAG document list
-- `interfaces/queries/knowledge.queries.ts` — `getWorkspaceKnowledgeSummary(workspace)`
-- Domain: KnowledgeSummary entity, KnowledgeRepository port, deriveKnowledgeSummary service
-- Infrastructure: DefaultWorkspaceKnowledgeRepository (derives summary from file + parser data)
-- Mounted in workspace detail screen under "Knowledge" tab
+### wiki
+- Knowledge and wiki ownership now live under `modules/wiki`
+- `modules/wiki/interfaces/queries/knowledge.queries.ts` exports `getWorkspaceKnowledgeSummary(...)`
+- `modules/wiki/infrastructure/default/DefaultWorkspaceKnowledgeRepository.ts` provides the default summary adapter
+- Mounted into the workspace surface via `modules/workspace/interfaces/components/WorkspaceWikiTab.tsx`
 
 ### file (upload + RAG document registration)
 - Full upload pipeline: `uploadInitFile` → Firebase Storage → `uploadCompleteFile`
@@ -74,15 +72,6 @@ modules/<name>/
 - Firestore path: `/knowledge_base/{orgId}/workspaces/{wsId}/documents/{documentId}`
 - `getWorkspaceRagDocuments(workspace)` query exported from file module interfaces
 
-### knowledge / retrieval / taxonomy
-- `modules/knowledge` EXISTS — see knowledge section above
-- `core/knowledge-core` exists separately (MDDD — Knowledge entity, Upstash Redis + Vector infra)
-- `retrieval` and `taxonomy` as separate top-level modules do NOT exist
-
-## core/ Modules (separate from modules/)
-
-| Core | Status | Notes |
-|------|--------|-------|
-| event-core | Complete | MDDD — DomainEvent, IEventStore, IEventBus, PublishDomainEvent use-case |
-| knowledge-core | Complete | MDDD — Knowledge entity, 6 VOs, Upstash Redis + Vector infra adapters |
-| namespace-core | Scaffolded only | All subdirs are .gitkeep placeholders |
+### top-level module reality
+- `modules/event`, `modules/namespace`, and `modules/wiki` are the active locations for those bounded contexts
+- `retrieval` and `taxonomy` are not separate top-level modules on this branch

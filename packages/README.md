@@ -32,37 +32,37 @@ It is **not** a second feature layer and **not** a place to move arbitrary modul
 ### Shared Kernel
 | Package | Alias | From | Purpose |
 |---------|-------|------|---------|
-| `shared-types` | `@shared-types` | `shared/types/` | `CommandResult`, `DomainError`, `Timestamp`, primitives |
-| `shared-utils` | `@shared-utils` | `shared/utils/` | Pure utility functions |
-| `shared-validators` | `@shared-validators` | `shared/validators/` | Zod schemas for input validation |
-| `shared-hooks` | `@shared-hooks` | `shared/hooks/` | Zustand app store, shared hooks |
-| `shared-constants` | `@shared-constants` | `shared/constants/` | App-wide constants |
+| `shared-types` | `@shared-types` | `packages/shared-types/` | `CommandResult`, `DomainError`, `Timestamp`, primitives |
+| `shared-utils` | `@shared-utils` | `packages/shared-utils/` | Pure utility functions |
+| `shared-validators` | `@shared-validators` | `packages/shared-validators/` | Zod schemas for input validation |
+| `shared-hooks` | `@shared-hooks` | `packages/shared-hooks/` | Zustand app store, shared hooks |
+| `shared-constants` | `@shared-constants` | `packages/shared-constants/` | App-wide constants |
 
 ### Integrations
 | Package | Alias | From | Purpose |
 |---------|-------|------|---------|
-| `integration-firebase` | `@integration-firebase` | `libs/firebase/` | Firebase client + admin SDK |
-| `integration-upstash` | `@integration-upstash` | `libs/upstash/` | Redis, Vector, QStash, Workflow |
+| `integration-firebase` | `@integration-firebase` | `packages/integration-firebase/` | Firebase client + admin SDK |
+| `integration-upstash` | `@integration-upstash` | `packages/integration-upstash/` | Redis, Vector, QStash, Workflow |
 
 ### UI
 | Package | Alias | From | Purpose |
 |---------|-------|------|---------|
-| `ui-shadcn` | `@ui-shadcn` | `ui/shadcn/` | shadcn/ui components + `cn` utility |
+| `ui-shadcn` | `@ui-shadcn` | `packages/ui-shadcn/` (backed by `ui/shadcn/` internals) | shadcn/ui components + `cn` utility |
 
 ### Library Wrappers
 | Package | Alias | From | Purpose |
 |---------|-------|------|---------|
-| `lib-date-fns` | `@lib-date-fns` | `libs/date-fns/` | Date utility functions |
-| `lib-zod` | `@lib-zod` | `libs/zod/` | Schema validation |
-| `lib-xstate` | `@lib-xstate` | `libs/xstate/` | State machines + React hooks |
-| `lib-tanstack` | `@lib-tanstack` | `libs/tanstack/` | React Query, Form, Table, Virtual |
-| `lib-superjson` | `@lib-superjson` | `libs/superjson/` | Enhanced JSON serialization |
-| `lib-vis` | `@lib-vis` | `libs/vis/` | Vis.js visualization |
-| `lib-react-markdown` | `@lib-react-markdown` | `libs/react-markdown/` | Markdown rendering |
-| `lib-remark-gfm` | `@lib-remark-gfm` | `libs/remark-gfm/` | GitHub Flavored Markdown |
-| `lib-uuid` | `@lib-uuid` | `libs/uuid/` | UUID generation and validation |
-| `lib-dragdrop` | `@lib-dragdrop` | `libs/dragdrop/` | Atlaskit drag-and-drop |
-| `lib-zustand` | `@lib-zustand` | `libs/zustand/` | State management |
+| `lib-date-fns` | `@lib-date-fns` | `packages/lib-date-fns/` | Date utility functions |
+| `lib-zod` | `@lib-zod` | `packages/lib-zod/` | Schema validation |
+| `lib-xstate` | `@lib-xstate` | `packages/lib-xstate/` | State machines + React hooks |
+| `lib-tanstack` | `@lib-tanstack` | `packages/lib-tanstack/` | React Query, Form, Table, Virtual |
+| `lib-superjson` | `@lib-superjson` | `packages/lib-superjson/` | Enhanced JSON serialization |
+| `lib-vis` | `@lib-vis` | `packages/lib-vis/` (backed by `ui/vis/` internals) | Vis.js visualization |
+| `lib-react-markdown` | `@lib-react-markdown` | `packages/lib-react-markdown/` | Markdown rendering |
+| `lib-remark-gfm` | `@lib-remark-gfm` | `packages/lib-remark-gfm/` | GitHub Flavored Markdown |
+| `lib-uuid` | `@lib-uuid` | `packages/lib-uuid/` | UUID generation and validation |
+| `lib-dragdrop` | `@lib-dragdrop` | `packages/lib-dragdrop/` | Atlaskit drag-and-drop |
+| `lib-zustand` | `@lib-zustand` | `packages/lib-zustand/` | State management |
 
 ### API Contracts
 | Package | Alias | From | Purpose |

@@ -1,7 +1,7 @@
 # Project Overview
 
 **Project name:** xuanwu-app  
-**Verified:** 2026-03-19 on branch `copilot/redesign-scheduling-task-system`
+**Verified:** 2026-03-21 on branch `copilot/analyze-project-architecture`
 
 ## Stack (exact versions from package.json)
 
@@ -26,13 +26,12 @@
 | Path | Role |
 |------|------|
 | `app/` | Next.js App Router: layouts, route groups, providers |
-| `core/` | Cross-cutting bounded-context cores (event-core, knowledge-core, namespace-core) |
-| `modules/` | 17 feature modules — see 02-module-index |
-| `infrastructure/` | Shared adapters: axios, firebase, upstash |
+| `modules/` | 19 feature modules — see 02-module-index |
+| `packages/` | Stable public boundaries: shared, integration, UI, lib wrappers, API contracts |
+| `infrastructure/` | Rare root-level runtime adapters (currently axios only) |
 | `interfaces/` | graphql/, rest/ entrypoints |
-| `shared/` | Pure cross-cutting: types, validators, hooks, constants, utils |
-| `ui/` | Reusable UI: shadcn/, vis/ |
-| `libs/` | Utility integrations: date-fns, dragdrop, firebase, react-markdown, remark-gfm, superjson, tanstack, upstash, uuid, vis, xstate, zod, zustand + utils.ts |
+| `ui/` | Package internals for reusable UI primitives: shadcn/, vis/ |
+| `libs/` | Only `libs/firebase/functions-python/` remains for the Python worker runtime |
 | `docs/` | Architecture decisions, designs, contracts (see 06-docs-index) |
 | `assets/`, `public/` | Static assets |
 
@@ -49,6 +48,13 @@
 
 - No `typecheck`, `test`, or `check` script in package.json on this branch.
 - Run `npm run lint` or `npm run build` to validate changes.
+
+## Boundary notes
+
+- `packages/*` is the stable public surface; feature workflows stay in `modules/*`.
+- `ui/` should be consumed through `@ui-shadcn` / `@lib-vis`, not as a direct app-facing public API.
+- Do not add new TypeScript app utilities under `libs/`; that area is retired except for Python functions.
+- `interfaces/` and `infrastructure/` at repo root stay intentionally small; feature-facing adapters belong under `modules/*/interfaces` and `modules/*/infrastructure`.
 
 ## Python Cloud Functions
 

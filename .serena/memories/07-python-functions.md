@@ -120,7 +120,7 @@ These align with the TypeScript-side `RagDocumentRecord` metadata fields.
 ## Integration with TypeScript
 
 - Python functions are invoked via Firebase callable functions or Firestore triggers
-- TypeScript code calls them through `libs/firebase/functions.ts`
+- TypeScript code calls them through `@integration-firebase` (see `packages/integration-firebase/functions.ts`)
 - Contracts defined in `docs/adr/` (Python ADRs)
 - RAG ingestion contract: `docs/reference/development-contracts/rag-ingestion-contract.md`
 
