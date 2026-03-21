@@ -1,12 +1,6 @@
-import type {
-  CreateWorkspaceTaskInput,
-  UpdateWorkspaceTaskInput,
-  WorkspaceTaskEntity,
-} from "../entities/Task";
-
-export interface TaskRepository {
-  create(input: CreateWorkspaceTaskInput): Promise<WorkspaceTaskEntity>;
-  update(taskId: string, input: UpdateWorkspaceTaskInput): Promise<WorkspaceTaskEntity | null>;
-  delete(taskId: string): Promise<void>;
-  findByWorkspaceId(workspaceId: string): Promise<WorkspaceTaskEntity[]>;
-}
+/**
+ * @deprecated Backward-compat shim.
+ * TaskRepository port has moved to the canonical @task-core package.
+ * Import from "@task-core" directly.
+ */
+export type { TaskRepository } from "@task-core";

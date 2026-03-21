@@ -1,15 +1,23 @@
 /**
  * @package task-service
- * Task application service — use-cases and business workflows.
+ * Task application service — pure use-case orchestration.
  *
- * This package exposes the executable task business logic:
- *   - CreateWorkspaceTaskUseCase
- *   - UpdateWorkspaceTaskUseCase
- *   - DeleteWorkspaceTaskUseCase
- *   - ListWorkspaceTasksUseCase
+ * This package IS the source of truth for task use-cases.
+ * It depends only on @task-core (domain contracts) and @shared-types.
  *
- * All use-cases are framework-agnostic and depend only on the
- * TaskRepository port (from @task-core) and @shared-types.
+ * Dependency rule:
+ *   - @task-core    — TaskRepository port, entity types
+ *   - @shared-types — CommandResult
+ *   - NO Firebase, NO HTTP, NO React, NO Next.js
+ *
+ * Infrastructure adapters, server actions, server queries, and UI components
+ * are NOT exported from this package. Access them from the modules/task/ layer:
+ *
+ *   - FirebaseTaskRepository → @/modules/task/infrastructure/firebase/FirebaseTaskRepository
+ *   - Server actions         → @/modules/task/interfaces/_actions/task.actions
+ *   - Server queries         → @/modules/task/interfaces/queries/task.queries
+ *   - WorkspaceTaskTab       → @/modules/task/interfaces/components/WorkspaceTaskTab
+ *   - All of the above       → @/modules/task (barrel)
  *
  * Usage:
  *   import { CreateWorkspaceTaskUseCase } from "@task-service";
@@ -17,24 +25,9 @@
  *   const result = await useCase.execute(input);
  */
 
-// ── Use-cases ─────────────────────────────────────────────────────────────
 export {
   CreateWorkspaceTaskUseCase,
   UpdateWorkspaceTaskUseCase,
   DeleteWorkspaceTaskUseCase,
   ListWorkspaceTasksUseCase,
-} from "@/modules/task/application/use-cases/task.use-cases";
-
-// ── Infrastructure adapter (concrete implementation) ─────────────────────
-export { FirebaseTaskRepository } from "@/modules/task/infrastructure/firebase/FirebaseTaskRepository";
-
-// ── Interface layer ───────────────────────────────────────────────────────
-export {
-  createWorkspaceTask,
-  updateWorkspaceTask,
-  deleteWorkspaceTask,
-} from "@/modules/task/interfaces/_actions/task.actions";
-export { getWorkspaceTasks } from "@/modules/task/interfaces/queries/task.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────
-export { WorkspaceTaskTab } from "@/modules/task/interfaces/components/WorkspaceTaskTab";
+} from "./use-cases";
