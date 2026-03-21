@@ -1,3 +1,10 @@
+/**
+ * Module: wiki
+ * Layer: interfaces/queries
+ * Purpose: Read-side cross-module query that derives WorkspaceKnowledgeSummary
+ *          from file, parser, and workspace data.
+ * Dependency Direction: interfaces -> application -> domain <- infrastructure
+ */
 import { getWorkspaceFiles } from "@/modules/file";
 import {
   DefaultWorkspaceParserRepository,
@@ -10,7 +17,7 @@ import {
   GetWorkspaceKnowledgeSummaryUseCase,
   type WorkspaceKnowledgeSummary,
 } from '@/modules/wiki';
-import { DefaultWorkspaceKnowledgeRepository } from "../../infrastructure/default/DefaultWorkspaceKnowledgeRepository";
+import { DefaultWorkspaceKnowledgeRepository } from '../../infrastructure/default/DefaultWorkspaceKnowledgeRepository';
 
 export async function getWorkspaceKnowledgeSummary(
   workspace: WorkspaceEntity,

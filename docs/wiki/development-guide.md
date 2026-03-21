@@ -442,7 +442,7 @@ def classify_taxonomy(text_excerpt: str) -> str:
 
 ```
 來源類型：wiki page / knowledge document
-所有者模組：modules/wiki / modules/knowledge
+所有者模組：modules/wiki
 租戶可見性：organizationId + workspaceId（可選）
 
 處理：
@@ -681,7 +681,7 @@ npm run lint          # ESLint + TypeScript 檢查
 npm run build         # 完整 Next.js 編譯合成
 ```
 
-任何更動 `modules/wiki` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/modules/wiki` shim 與 `@/modules/knowledge` shim 仍正常運作。
+任何更動 `modules/wiki` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/modules/wiki` public API 仍正常運作。
 
 ### 8.6 接管 `modules/knowledge` shim
 

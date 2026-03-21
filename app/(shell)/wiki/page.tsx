@@ -16,7 +16,7 @@ import type { WorkspaceEntity } from "@/modules/workspace";
 import { getWorkspacesForAccount } from "@/modules/workspace";
 import type { RagDocumentRecord } from "@/modules/file";
 import { getWorkspaceRagDocuments } from "@/modules/file";
-import { getWorkspaceKnowledgeSummary } from "@/modules/knowledge";
+import { getWorkspaceKnowledgeSummary } from "@/modules/wiki";
 import type { WikiPage as WikiPageEntity, WikiPageScope } from "@/modules/wiki";
 import {
   type WorkspaceEntry,

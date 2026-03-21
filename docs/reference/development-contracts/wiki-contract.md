@@ -18,13 +18,13 @@ This contract defines the Wiki module as the **現代型知識中樞** for xuanw
 | Concern | Owner |
 | --- | --- |
 | Wiki page stub UI | `app/(shell)/wiki/page.tsx` |
-| Organization knowledge tab | `modules/knowledge/interfaces/components/OrganizationKnowledgeTab.tsx` |
-| Workspace knowledge tab | `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx` |
-| Knowledge read-side summary | `modules/knowledge` |
-| Document metadata + lifecycle | `modules/knowledge` (target: `modules/wiki`) |
+| Organization knowledge tab | `app/(shell)/wiki/page.tsx` (WikiHubView) |
+| Workspace knowledge tab | `modules/workspace/interfaces/components/WorkspaceWikiTab.tsx` |
+| Knowledge read-side summary | `modules/wiki` |
+| Document metadata + lifecycle | `modules/wiki` |
 | File upload registration | `modules/file` |
 | Ingestion worker | `libs/firebase/functions-python` |
-| Chunk persistence + vector index | `modules/knowledge` infrastructure |
+| Chunk persistence + vector index | `modules/wiki` infrastructure |
 | RAG query flow | `modules/ai` (Genkit) |
 
 ## Bounded contexts
@@ -295,7 +295,7 @@ Dependency direction: `interfaces → application → domain ← infrastructure`
 ## Invariants
 
 1. `modules/wiki` owns wiki page aggregates; it does not own knowledge document write-side or ingestion lifecycle.
-2. Knowledge document ownership remains in `modules/knowledge` and `modules/file` until an explicit ownership transfer is defined.
+2. Knowledge document ownership resides in `modules/wiki` and `modules/file` until an explicit ownership transfer is defined.
 3. The wiki sidebar is a read surface; it does not hold mutable business state.
 4. All RAG queries must pass `organizationId`, `isLatest`, and `accessControl` filters.
 5. Wiki pages and knowledge documents share the same sidebar tree but maintain separate Firestore collections.
@@ -315,8 +315,8 @@ Before expanding beyond the current stub page:
 | Surface | Location |
 | --- | --- |
 | Wiki page stub | `app/(shell)/wiki/page.tsx` |
-| Organization knowledge tab | `modules/knowledge/interfaces/components/OrganizationKnowledgeTab.tsx` |
-| Workspace knowledge tab | `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx` |
+| Organization knowledge tab | `app/(shell)/wiki/page.tsx` (WikiHubView) |
+| Workspace knowledge tab | `modules/workspace/interfaces/components/WorkspaceWikiTab.tsx` |
 
 These are the migration source components. Their functionality will progressively move to `modules/wiki/interfaces/components/WikiSidebar.tsx` as the wiki knowledge hub is built out.
 

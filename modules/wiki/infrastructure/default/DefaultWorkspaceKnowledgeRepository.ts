@@ -1,3 +1,9 @@
+/**
+ * Module: wiki
+ * Layer: infrastructure
+ * Purpose: Cross-module adapter that derives WorkspaceKnowledgeSummary from file + parser data.
+ * Dependency Direction: interfaces -> application -> domain <- infrastructure
+ */
 import type { WorkspaceFileListItemDto } from "@/modules/file/application/dto/file.dto";
 import type { WorkspaceParserSummary } from "@/modules/parser";
 import type { WorkspaceEntity } from "@/modules/workspace";

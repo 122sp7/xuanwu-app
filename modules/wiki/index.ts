@@ -60,6 +60,7 @@ export { InMemoryWikiPageRepository } from './infrastructure/repositories'
 export { InMemoryWikiDocumentRepository } from './infrastructure/repositories'
 export { UpstashWikiDocumentRepository } from './infrastructure/repositories'
 export { OpenAIEmbeddingRepository } from './infrastructure/repositories'
+export { DefaultWorkspaceKnowledgeRepository } from './infrastructure/default/DefaultWorkspaceKnowledgeRepository'
 
 // ── Interfaces: actions ───────────────────────────────────────────────────────
 export { createWikiPage, archiveWikiPage, updateWikiPage } from './interfaces/_actions/wiki-page.actions'
@@ -71,6 +72,7 @@ export {
   getArchivedWikiPages,
   getWikiPageChildren,
 } from './interfaces/queries/wiki.queries'
+export { getWorkspaceKnowledgeSummary } from './interfaces/queries/knowledge.queries'
 
 // ── Interfaces: components ────────────────────────────────────────────────────
 export { WikiPageCard } from './interfaces/components/WikiPageCard'
