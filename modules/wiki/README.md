@@ -225,12 +225,25 @@ The Python embedder uses the `openai` SDK and processes chunks in batches during
 
 ## 4. How to Use Upstash (Vector + Redis)
 
+### Upstash Vector — Provisioning Guide
+
+Create a new Vector index at <https://console.upstash.com/vector> with the following settings:
+
+| Setting | Recommended Value | Notes |
+|---------|-------------------|-------|
+| **Region** | `us-east-1` (Washington D.C.) | Match your Vercel deployment region. Options: `us-east-1` (lad1), `eu-west-1` (dub1), `us-central1` (GCP Iowa) |
+| **Index Type** | `DENSE` | Standard float vector embeddings. Alternatives: `SPARSE` (BM25-style), `HYBRID` (dense + sparse) |
+| **Dense Embedding Model** | `None` | We use OpenAI `text-embedding-3-small` externally. Alternatives: `BGE_SMALL_EN_V1_5` (384d), `BGE_BASE_EN_V1_5` (768d), `BGE_LARGE_EN_V1_5` (1024d), `BGE_M3` (1024d, multilingual) |
+| **Dimensions** | `1536` | Must match the OpenAI `text-embedding-3-small` output dimension |
+| **Similarity Function** | `COSINE` | Default; works with normalised embeddings. Alternatives: `DOT_PRODUCT`, `EUCLIDEAN` |
+| **Sparse Embedding Model** | `None` | Only needed for `SPARSE`/`HYBRID` index types. Options: `BM25`, `BGE_M3` |
+
 ### Upstash Vector — Semantic Search
 
-Used for storing and querying document embeddings.
+Client instances are centralised in `@integration-upstash` and re-exported through the wiki persistence layer for module-boundary hygiene.
 
 ```typescript
-// Module-level client (already configured)
+// Module-level client (delegates to @integration-upstash singleton)
 import { vectorIndex } from '../../infrastructure/persistence/upstash-vector'
 
 // Upsert a document embedding
@@ -256,8 +269,6 @@ const results = await vectorIndex.query({
 
 ### Upstash Redis — Document Storage + Cache
 
-Used for storing serialized wiki document records and maintaining index sets.
-
 ```typescript
 import { redisClient } from '../../infrastructure/persistence/upstash-redis'
 
@@ -282,11 +293,21 @@ const orgDocs = await redisClient.smembers('wiki:org:org_123')
 
 ### Environment Variables
 
+All Upstash credentials are read from the **same** set of environment variables across the entire application. See `.env.example` at the repository root for the full list and provisioning instructions.
+
 ```env
-UPSTASH_VECTOR_REST_URL=https://your-index.upstash.io
-UPSTASH_VECTOR_REST_TOKEN=your-vector-token
+# Upstash Redis
 UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-redis-token
+
+# Upstash Vector
+UPSTASH_VECTOR_REST_URL=https://your-index.upstash.io
+UPSTASH_VECTOR_REST_TOKEN=your-vector-token
+
+# Upstash QStash (used by Workflow SDK)
+QSTASH_TOKEN=your-qstash-token
+QSTASH_CURRENT_SIGNING_KEY=your-current-signing-key
+QSTASH_NEXT_SIGNING_KEY=your-next-signing-key
 ```
 
 ---

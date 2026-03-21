@@ -1,18 +1,14 @@
 /**
  * Module: wiki
  * Layer: infrastructure/persistence
- * Purpose: Vendor configuration values for Upstash adapters.
+ * Purpose: Wiki-specific Upstash adapter configuration.
+ *          Connection credentials are centralised in @integration-upstash;
+ *          this file only holds wiki-specific tuning knobs.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
 export const UPSTASH_CONFIG = {
-  VECTOR: {
-    URL: process.env.UPSTASH_VECTOR_REST_URL || '',
-    TOKEN: process.env.UPSTASH_VECTOR_REST_TOKEN || '',
-    TIMEOUT: 5000,
-  },
-  REDIS: {
-    URL: process.env.UPSTASH_REDIS_REST_URL || '',
-    TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-  },
+  /** Timeout (ms) for Upstash Vector HTTP calls. */
+  VECTOR_TIMEOUT: 5000,
+  /** Default TTL (seconds) for cached entries in Upstash Redis. */
   CACHE_TTL: 3600,
 } as const

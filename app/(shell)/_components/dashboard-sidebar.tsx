@@ -328,10 +328,10 @@ export function DashboardSidebar({
                 {(
                   [
                     { href: "/wiki", label: "知識中樞" },
-                    { href: "/organization/knowledge", label: "組織知識庫" },
+                    { href: "/wiki?view=pages", label: "Wiki 頁面" },
                   ] as const
                 ).map((item) => {
-                  const active = isActiveRoute(item.href);
+                  const active = pathname === item.href || (item.href !== "/wiki" && pathname.startsWith(item.href));
                   return (
                     <Link
                       key={item.href}
@@ -351,16 +351,14 @@ export function DashboardSidebar({
                 <div className="my-1.5 border-t border-border/40" />
 
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  頁面
+                  管理
                 </p>
                 {(
                   [
-                    { href: "/wiki/shared", label: "共用頁面" },
-                    { href: "/wiki/private", label: "私人頁面" },
-                    { href: "/wiki/archive", label: "封存" },
+                    { href: "/wiki?view=archived", label: "封存頁面" },
                   ] as const
                 ).map((item) => {
-                  const active = isActiveRoute(item.href);
+                  const active = pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.href}

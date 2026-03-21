@@ -1,12 +1,13 @@
 /**
  * Module: wiki
  * Layer: infrastructure/persistence
- * Purpose: Upstash Vector index client setup for retrieval adapters.
+ * Purpose: Re-export a typed Upstash Vector index from @integration-upstash.
+ *          Wiki-specific code should import `vectorIndex` from this file so that
+ *          the module boundary stays clean while the actual client factory is
+ *          centralised in the integration package (no duplicate clients).
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import { Index } from '@upstash/vector'
+import { vectorIndex as createVectorIndex } from '@integration-upstash'
+import type { WikiVectorMetadata } from '../repositories/upstash-shared'
 
-export const vectorIndex = new Index({
-  url: process.env.UPSTASH_VECTOR_REST_URL || '',
-  token: process.env.UPSTASH_VECTOR_REST_TOKEN || '',
-})
+export const vectorIndex = createVectorIndex<WikiVectorMetadata>()

@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -36,10 +37,21 @@ type MainView = "hub" | "workspace" | "pages" | "archived" | "page-detail";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+/** Map `?view=` query-param values to internal MainView keys. */
+const VIEW_PARAM_MAP: Record<string, MainView> = {
+  hub: "hub",
+  pages: "pages",
+  archived: "archived",
+};
+
 export default function WikiPage() {
   const { state: appState } = useApp();
   const { activeAccount } = appState;
   const organizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const searchParams = useSearchParams();
+
+  // Resolve the initial view from the `?view=` query parameter (defaults to "hub").
+  const initialView: MainView = VIEW_PARAM_MAP[searchParams.get("view") ?? ""] ?? "hub";
 
   // Knowledge state
   const [entries, setEntries] = useState<readonly WorkspaceEntry[]>([]);
@@ -47,7 +59,7 @@ export default function WikiPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // View state
-  const [mainView, setMainView] = useState<MainView>("hub");
+  const [mainView, setMainView] = useState<MainView>(initialView);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
 
   // Wiki pages state
