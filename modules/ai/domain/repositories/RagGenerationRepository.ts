@@ -1,4 +1,4 @@
-import type { DomainError } from "@/shared/types";
+import type { DomainError } from "@shared-types";
 
 import type { RagCitation, RagRetrievedChunk } from "../entities/RagQuery";
 

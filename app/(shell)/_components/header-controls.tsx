@@ -17,8 +17,8 @@ import {
   markNotificationRead,
 } from "@/modules/notification/interfaces/_actions/notification.actions";
 import { getNotificationsForRecipient } from "@/modules/notification/interfaces/queries/notification.queries";
-import { Button } from "@/ui/shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@/ui/shadcn/ui/dropdown-menu";
+import { Button } from "@ui-shadcn";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn";
 import { TranslationSwitcher } from "./translation-switcher";
 
 const THEME_KEY = "xuanwu_theme";

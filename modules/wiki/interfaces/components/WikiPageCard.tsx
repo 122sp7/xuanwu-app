@@ -7,7 +7,7 @@
  * Constraints: UI-only; no business logic.
  */
 import { FileTextIcon, LockIcon, BuildingIcon, FolderIcon } from 'lucide-react'
-import { Badge } from '@/ui/shadcn/ui/badge'
+import { Badge } from '@ui-shadcn'
 import type { WikiPage, WikiPageScope } from '@/modules/wiki'
 
 interface WikiPageCardProps {

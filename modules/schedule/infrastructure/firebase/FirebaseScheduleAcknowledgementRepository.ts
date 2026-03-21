@@ -5,7 +5,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 import {
   SCHEDULE_ACKNOWLEDGEMENT_ID_DELIMITER,
   AcknowledgeWorkspaceScheduleItemInput,

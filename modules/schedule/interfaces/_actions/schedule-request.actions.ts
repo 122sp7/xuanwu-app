@@ -1,6 +1,6 @@
 "use server";
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { SubmitScheduleRequestInput } from "../../domain/entities/ScheduleRequest";
 import {
   CancelScheduleRequestUseCase,

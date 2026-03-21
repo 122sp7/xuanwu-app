@@ -11,15 +11,15 @@ import { useMemo } from 'react'
 import { FileTextIcon, PlusIcon } from 'lucide-react'
 
 import type { WikiPage, WikiPageScope } from '@/modules/wiki'
-import { Button } from '@/ui/shadcn/ui/button'
-import { Skeleton } from '@/ui/shadcn/ui/skeleton'
+import { Button } from '@ui-shadcn'
+import { Skeleton } from '@ui-shadcn'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/ui/shadcn/ui/select'
+} from '@ui-shadcn'
 import { WikiPageCard } from './WikiPageCard'
 import { CreateWikiPageDialog } from './CreateWikiPageDialog'
 

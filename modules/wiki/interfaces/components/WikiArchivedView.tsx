@@ -10,7 +10,7 @@
 import { ArchiveIcon } from 'lucide-react'
 
 import type { WikiPage } from '@/modules/wiki'
-import { Skeleton } from '@/ui/shadcn/ui/skeleton'
+import { Skeleton } from '@ui-shadcn'
 import { WikiPageCard } from './WikiPageCard'
 
 export interface WikiArchivedViewProps {

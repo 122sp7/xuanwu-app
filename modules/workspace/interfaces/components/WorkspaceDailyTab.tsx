@@ -12,14 +12,14 @@ import type {
 import { getWorkspaceDailyDigest, getWorkspaceDailyFeed } from "@/modules/daily";
 import { publishDailyEntry } from "@/modules/daily/interfaces/_actions/daily.actions";
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn";
 
 const DAILY_ENTRY_TYPE_LABEL: Record<DailyFeedItem["entryType"], string> = {
   update: "更新",

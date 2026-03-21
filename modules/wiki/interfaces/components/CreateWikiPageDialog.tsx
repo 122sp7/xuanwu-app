@@ -9,7 +9,7 @@
 import { useState, useTransition } from 'react'
 import { PlusIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/ui/shadcn/ui/button'
+import { Button } from '@ui-shadcn'
 import {
   Dialog,
   DialogContent,
@@ -18,17 +18,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/ui/shadcn/ui/dialog'
-import { Input } from '@/ui/shadcn/ui/input'
-import { Label } from '@/ui/shadcn/ui/label'
+} from '@ui-shadcn'
+import { Input } from '@ui-shadcn'
+import { Label } from '@ui-shadcn'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/ui/shadcn/ui/select'
-import { Textarea } from '@/ui/shadcn/ui/textarea'
+} from '@ui-shadcn'
+import { Textarea } from '@ui-shadcn'
 import type { WikiPageScope } from '@/modules/wiki'
 import { createWikiPage } from '../_actions/wiki-page.actions'
 

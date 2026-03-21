@@ -5,15 +5,15 @@ import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { getWorkspacesForAccount } from "@/modules/workspace";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Badge } from "@ui-shadcn";
+import { Button } from "@ui-shadcn";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationWorkspacesPage() {

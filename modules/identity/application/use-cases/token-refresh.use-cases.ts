@@ -3,7 +3,7 @@
  * No React, no Firebase SDK, no UI framework.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
 import type { TokenRefreshReason } from "../../domain/entities/TokenRefreshSignal";
 

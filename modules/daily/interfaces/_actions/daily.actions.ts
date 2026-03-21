@@ -1,6 +1,6 @@
 "use server";
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 
 import type { PublishDailyEntryInput } from "../../domain/entities/DailyEntry";
 import { PublishDailyEntryUseCase } from "../../application/use-cases/publish-daily-entry.use-case";

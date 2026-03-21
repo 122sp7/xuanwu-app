@@ -10,14 +10,14 @@
 import Link from "next/link";
 import { LogOut, Settings, SlidersHorizontal } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/ui/shadcn/ui/avatar";
+import { Avatar, AvatarFallback } from "@ui-shadcn";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/ui/shadcn/ui/dropdown-menu";
+} from "@ui-shadcn";
 
 interface HeaderUserAvatarProps {
   readonly name: string;

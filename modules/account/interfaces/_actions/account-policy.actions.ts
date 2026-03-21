@@ -4,7 +4,7 @@
  * Account Policy Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
  */
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import {
   CreateAccountPolicyUseCase,
   UpdateAccountPolicyUseCase,

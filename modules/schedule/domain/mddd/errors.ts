@@ -1,4 +1,4 @@
-import type { DomainError } from "@/shared/types";
+import type { DomainError } from "@shared-types";
 
 export const SCHEDULE_MDDD_ERROR_CODES = {
   WORKSPACE_REQUIRED: "SCHEDULE_WORKSPACE_REQUIRED",

@@ -2,7 +2,7 @@
  * Organization Domain Entities — pure TypeScript, zero framework dependencies.
  */
 
-import type { Timestamp } from "@/shared/types";
+import type { Timestamp } from "@shared-types";
 
 // ─── Re-export shared types (avoid cross-module domain imports) ───────────────
 

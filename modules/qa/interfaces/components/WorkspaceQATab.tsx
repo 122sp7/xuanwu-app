@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Badge } from "@ui-shadcn";
+import { Button } from "@ui-shadcn";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
-import { Input } from "@/ui/shadcn/ui/input";
+} from "@ui-shadcn";
+import { Input } from "@ui-shadcn";
 import type {
   WorkspaceQualityCheckEntity,
   WorkspaceQualityCheckStatus,

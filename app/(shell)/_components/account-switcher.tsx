@@ -7,7 +7,7 @@ import type { AuthUser } from "@/app/providers/auth-context";
 import { useApp } from "@/app/providers/app-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { createOrganization } from "@/modules/organization";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Button } from "@ui-shadcn";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/shadcn/ui/dialog";
-import { Input } from "@/ui/shadcn/ui/input";
+} from "@ui-shadcn";
+import { Input } from "@ui-shadcn";
 
 interface AccountSwitcherProps {
   personalAccount: AuthUser | null;

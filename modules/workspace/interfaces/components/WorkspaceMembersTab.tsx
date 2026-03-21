@@ -4,15 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
-import { Avatar, AvatarFallback } from "@/ui/shadcn/ui/avatar";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Avatar, AvatarFallback } from "@ui-shadcn";
+import { Badge } from "@ui-shadcn";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn";
 import { getWorkspaceMembers } from "../queries/workspace-member.queries";
 
 function getMemberInitials(name: string) {

@@ -21,7 +21,7 @@ import {
 } from "../schedule-ui.constants";
 import type { ScheduleMdddFlowProjection } from "../../domain/mddd/value-objects/Projection";
 import type { RequestStatus } from "../../domain/mddd/value-objects/WorkflowStatuses";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/ui/shadcn/ui/alert-dialog";
+} from "@ui-shadcn";
 
 // ── Request status helpers ────────────────────────────────────────────────────
 

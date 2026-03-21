@@ -1,6 +1,6 @@
 "use server";
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AcknowledgeWorkspaceScheduleItemInput } from "../../domain/entities/ScheduleAcknowledgement";
 import { AcknowledgeWorkspaceScheduleItemUseCase } from "../../application/use-cases/acknowledge-workspace-schedule-item.use-case";
 import { FirebaseScheduleAcknowledgementRepository } from "../../infrastructure/firebase/FirebaseScheduleAcknowledgementRepository";

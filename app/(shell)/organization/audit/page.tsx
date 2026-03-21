@@ -5,14 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/app/providers/app-provider";
 import { getOrganizationAuditLogs } from "@/modules/audit";
 import { getWorkspacesForAccount } from "@/modules/workspace";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn";
 import { formatDateTime, isOrganizationAccount } from "../_utils";
 
 const MAX_DISPLAYED_AUDIT_LOGS = 50;

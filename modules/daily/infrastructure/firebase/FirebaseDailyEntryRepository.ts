@@ -11,7 +11,7 @@ import {
   where,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 
 import type { DailyEntry, PublishDailyEntryInput } from "../../domain/entities/DailyEntry";
 import type { DailyEntryRepository } from "../../domain/repositories/DailyEntryRepository";

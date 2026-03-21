@@ -9,7 +9,7 @@ import {
   where,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 import type { Schedule } from "../../domain/mddd/entities/Schedule";
 import type { ScheduleMdddScheduleRepository } from "../../domain/mddd/repositories/ScheduleRepository";
 
