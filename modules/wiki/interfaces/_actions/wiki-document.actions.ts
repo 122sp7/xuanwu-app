@@ -99,6 +99,8 @@ export async function deleteWikiDocument(documentId: string): Promise<CommandRes
 // ── Document-AI (via functions-python) ──────────────────────────────────────
 
 export interface CallDocumentAiDTO {
+  /** Workspace ID — required by the Python callable for audit logging. */
+  workspaceId: string
   /** Base64-encoded file content. */
   contentBase64: string
   /** Original file name for parser selection. */
@@ -153,9 +155,10 @@ export async function callDocumentAi(dto: CallDocumentAiDTO): Promise<DocumentAi
     const functions = getFirebaseFunctions()
     const callable = functionsApi.httpsCallable(functions, 'process_document_with_ai')
     const response = await callable({
-      content_base64: dto.contentBase64,
-      file_name: dto.fileName,
-      mime_type: dto.mimeType,
+      workspaceId: dto.workspaceId,
+      contentBase64: dto.contentBase64,
+      fileName: dto.fileName,
+      mimeType: dto.mimeType,
     })
 
     const data = response.data as Record<string, unknown>

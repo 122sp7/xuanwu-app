@@ -435,9 +435,8 @@
 [10] Retrieval ───────→ │ FirebaseRagRetrievalRepository.retrieve()               │
                         │ + UpstashRetrievalRepository (wiki vector search)       │
 [11] Filtering ───────→ │ organizationId + workspaceId + taxonomy + status=ready  │
-                        │ + isLatest=true (本 PR 修復)                            │
-                        │ ⚠️ Missing: accessControl RBAC                         │
-[12] Reranking ───────→ │ ❌ NOT IMPLEMENTED (token scoring only)                 │
+                        │ + isLatest=true + accessControl RBAC (userRoles)        │
+[12] Reranking ───────→ │ GenkitRagRerankerRepository.rerank() (LLM-based)       │
 [13] Generation ──────→ │ GenkitRagGenerationRepository.generate()                │
                         │ → Genkit LLM → streaming answer + citations             │
                         └─────────────────────────────────────────────────────────┘
@@ -448,11 +447,15 @@
 ## 待辦事項
 
 ### P0（安全性）
-- [ ] **Layer 11**：在 `RetrieveRagChunksInput` 加入 `userRoles: string[]`，在 Firestore query 中加入 `accessControl` array-contains-any filter
+- [x] **Layer 11**：~~在 `RetrieveRagChunksInput` 加入 `userRoles: string[]`，在 Firestore query 中加入 `accessControl` RBAC filter~~（已完成）
 
 ### P1（資料正確性）
-- [x] **Layer 11**：~~在 retrieval query 中加入 `isLatest == true` filter~~（已在本 PR 完成）
-- [ ] **Layer 12**：實作 Cross-Encoder reranking（可使用 Cohere Rerank API 或 LLM-based rerank）
+- [x] **Layer 11**：~~在 retrieval query 中加入 `isLatest == true` filter~~（已完成）
+- [x] **Layer 12**：~~實作 Cross-Encoder reranking~~（使用 GenkitRagRerankerRepository LLM-based rerank，已完成）
+
+### P1（流程修正）
+- [x] **Layer 2**：修正 `callDocumentAi` server action 參數名稱（snake_case → camelCase）+ 補上缺失的 `workspaceId` 欄位
+- [x] **Cloud Functions region**：修正 `getFirebaseFunctions()` 預設 region 從 `asia-east1` → `us-central1`，與 functions-python 部署區域一致
 
 ### P2（品質提升）
 - [ ] **Layer 7**：考慮語意分塊（semantic chunking）或 overlapping window 策略
