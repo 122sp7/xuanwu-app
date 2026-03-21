@@ -55,8 +55,46 @@ Domain definitions: contracts, entities, ports, and bounded context documentatio
 
 | Package | Path | Alias | Description |
 |---------|------|-------|-------------|
-| `ui-shadcn` | `packages/ui-shadcn/` | `@ui-shadcn` | shadcn/ui component library (Radix primitives) |
+| `ui-shadcn` | `packages/ui-shadcn/` | `@ui-shadcn` | shadcn/ui component library (Radix primitives) + `cn` utility |
 | `ui-vis` | `packages/ui-vis/` | `@ui-vis` | vis.js visualization components |
+
+### Domain Packages — Task
+
+| Package | Path | Alias | Description |
+|---------|------|-------|-------------|
+| `task-core` | `packages/task-core/` | `@task-core` | Task entity types and `TaskRepository` port (zero deps) |
+| `task-service` | `packages/task-service/` | `@task-service` | Task use-cases, Firebase adapter, server actions, UI tab |
+
+### Domain Packages — Skill
+
+| Package | Path | Alias | Description |
+|---------|------|-------|-------------|
+| `skill-core` | `packages/skill-core/` | `@skill-core` | Skill entity, `AccountSkillEntity`, repository ports (zero deps) |
+
+### Domain Packages — Matching
+
+| Package | Path | Alias | Description |
+|---------|------|-------|-------------|
+| `matching-engine` | `packages/matching-engine/` | `@matching-engine` | Matching request/assignment contracts and `IMatchingEngine` port |
+
+---
+
+## Module → Package Mapping
+
+| Module | Packages | Layer | Status |
+|--------|----------|-------|--------|
+| Cross-cutting | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-hooks` | Shared | ✅ Complete |
+| Infrastructure | `@integration-firebase`, `@integration-upstash`, `@integration-http` | Integration | ✅ Complete |
+| Presentation | `@ui-shadcn`, `@ui-vis` | UI | ✅ Complete |
+| `modules/task` | `@task-core`, `@task-service` | Domain | ✅ Complete |
+| `modules/skill` | `@skill-core` | Domain | 🟡 Core only (no service yet) |
+| `modules/matching` | `@matching-engine` | Domain | 🟡 Contracts only (no service yet) |
+| `modules/knowledge` | (see `modules/wiki`) | Domain | ✅ Implemented in modules/wiki |
+| `modules/identity` | (inline in module) | Domain | ✅ Full module implementation |
+| `modules/account` | (inline in module) | Domain | ✅ Full module implementation |
+| `modules/workspace` | (inline in module) | Domain | ✅ Full module implementation |
+| `modules/organization` | (inline in module) | Domain | ✅ Full module implementation |
+| `modules/schedule` | (inline in module) | Domain | ✅ Full MDDD flow |
 
 ---
 
@@ -207,28 +245,34 @@ import { type CommandResult, commandSuccess, commandFailureFrom } from "@shared-
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | `packages/` directory created with all legacy root packages |
-| Phase 2 | ✅ Complete | `shared/`, `infrastructure/`, `interfaces/` become backward-compat shims |
-| Phase 3 | 🔄 In Progress | Apps adopt `@package-name` imports; modules keep only definitions |
-| Phase 4 | ⏳ Pending | Delete legacy root folders (`libs/`, `shared/`, `interfaces/`, `infrastructure/`, `ui/`) |
+| Phase 2 | ✅ Complete | TypeScript path aliases configured; `shared/*` backward-compat shims added |
+| Phase 3 | ✅ Complete | All legacy imports migrated; `shared/` shim deleted; domain packages + module READMEs added |
+| Phase 4 | ⏳ Pending | Delete remaining legacy root folders (`libs/`, `infrastructure/`, `ui/`) when all modules' internal usages are migrated |
 
-### Legacy Folders (Backward Compatibility Only)
+### Import Migration Summary (Phase 3)
 
-The following root-level folders are **deprecated** and exist only for backward compatibility during migration. Migrate all new code to `packages/`:
+All 73 files migrated to canonical package imports:
 
-| Folder | Target Package | Status |
-|--------|---------------|--------|
-| `shared/types/` | `@shared-types` | Shim → `packages/shared-types` |
-| `shared/utils/` | `@shared-utils` | Shim → `packages/shared-utils` |
-| `shared/constants/` | `@shared-utils` | Shim → `packages/shared-utils` |
-| `shared/validators/` | `@shared-validators` | Shim → `packages/shared-validators` |
-| `shared/hooks/` | `@shared-hooks` | Shim → `packages/shared-hooks` |
-| `infrastructure/firebase/` | `@integration-firebase` | Shim → `packages/integration-firebase` |
-| `infrastructure/upstash/` | `@integration-upstash` | Shim → `packages/integration-upstash` |
-| `infrastructure/axios/` | `@integration-http` | Future migration |
-| `libs/firebase/` | `@integration-firebase` | Internal to package |
-| `libs/upstash/` | `@integration-upstash` | Internal to package |
-| `ui/shadcn/` | `@ui-shadcn` | Internal to package |
-| `ui/vis/` | `@ui-vis` | Internal to package |
+| Old Import | New Import | Files |
+|-----------|-----------|-------|
+| `@/shared/types` | `@shared-types` | 44 |
+| `@/infrastructure/firebase/client` | `@integration-firebase` | 27 |
+| `@/infrastructure/firebase` | `@integration-firebase` | 1 |
+| `@/libs/firebase` | `@integration-firebase` | 2 |
+| `@/libs/utils` | `@ui-shadcn` | 1 |
+
+### Remaining Legacy Folders
+
+The following root-level folders still exist for internal use by packages. Do NOT import them directly — use the package alias:
+
+| Folder | Internal to Package | Notes |
+|--------|-------------------|-------|
+| `infrastructure/firebase/` | `@integration-firebase` | Still has its own barrel; packages re-export from it |
+| `libs/firebase/` | `@integration-firebase` | Internal SDK wrappers |
+| `libs/upstash/` | `@integration-upstash` | Internal SDK wrappers |
+| `libs/utils.ts` | `@ui-shadcn` | `cn` function exported from `@ui-shadcn` |
+| `ui/shadcn/` | `@ui-shadcn` | Internal component source |
+| `ui/vis/` | `@ui-vis` | Internal vis.js wrappers |
 
 ---
 
@@ -248,3 +292,10 @@ The following root-level folders are **deprecated** and exist only for backward 
 - [x] Next.js build: passes
 - [x] `packages/` layer created with proper `README.md` and `index.ts` for each package
 - [x] TypeScript path aliases configured for all packages in `tsconfig.json`
+- [x] All `@/shared/*` imports replaced with `@shared-types` / `@shared-utils`
+- [x] All `@/infrastructure/firebase*` imports replaced with `@integration-firebase`
+- [x] All `@/libs/firebase` imports replaced with `@integration-firebase`
+- [x] `shared/` shim directory deleted
+- [x] Domain packages created: `@task-core`, `@task-service`, `@skill-core`, `@matching-engine`
+- [x] Module READMEs created: `modules/task`, `modules/skill`, `modules/knowledge`, `modules/matching`
+- [x] Module → package mapping documented in `ARCHITECTURE.md` and `packages/README.md`

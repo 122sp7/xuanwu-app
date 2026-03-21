@@ -52,6 +52,18 @@
       ],
       "@ui-vis": [
         "./packages/ui-vis/index.ts"
+      ],
+      "@task-core": [
+        "./packages/task-core/index.ts"
+      ],
+      "@task-service": [
+        "./packages/task-service/index.ts"
+      ],
+      "@skill-core": [
+        "./packages/skill-core/index.ts"
+      ],
+      "@matching-engine": [
+        "./packages/matching-engine/index.ts"
       ]
     }
   },

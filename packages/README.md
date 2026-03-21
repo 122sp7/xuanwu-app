@@ -36,12 +36,42 @@ modules/       → conceptual definitions (domain contracts, no business logic)
 | [`ui-shadcn`](./ui-shadcn/) | shadcn/ui component library (Radix-based primitives) | `@ui-shadcn` |
 | [`ui-vis`](./ui-vis/) | vis.js visualization components (network, timeline) | `@ui-vis` |
 
+### Domain Packages — Task
+
+| Package | Description | Alias |
+|---------|-------------|-------|
+| [`task-core`](./task-core/) | Task domain: entity types and `TaskRepository` port | `@task-core` |
+| [`task-service`](./task-service/) | Task use-cases, Firebase adapter, server actions, UI components | `@task-service` |
+
+### Domain Packages — Skill
+
+| Package | Description | Alias |
+|---------|-------------|-------|
+| [`skill-core`](./skill-core/) | Skill domain: `SkillEntity`, `AccountSkillEntity`, repository ports | `@skill-core` |
+
+### Domain Packages — Matching
+
+| Package | Description | Alias |
+|---------|-------------|-------|
+| [`matching-engine`](./matching-engine/) | Matching domain: request/assignment contracts and `IMatchingEngine` port | `@matching-engine` |
+
+## Module → Package Mapping
+
+| Module | Packages | Layer |
+|--------|----------|-------|
+| Cross-cutting | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-hooks` | Shared |
+| Infrastructure | `@integration-firebase`, `@integration-upstash`, `@integration-http` | Integration |
+| Presentation | `@ui-shadcn`, `@ui-vis` | UI |
+| `modules/task` | `@task-core`, `@task-service` | Domain |
+| `modules/skill` | `@skill-core` | Domain |
+| `modules/matching` | `@matching-engine` | Domain |
+
 ## Dependency Rules
 
 ```
-core packages → no dependencies
-service packages → core packages
-app → all packages
+core packages     → no external dependencies
+service packages  → core packages only
+app               → all packages
 ```
 
 ### Forbidden
@@ -58,11 +88,13 @@ app → all packages
 import { CommandResult } from "@shared-types";
 import { Button } from "@ui-shadcn";
 import { getFirebaseFirestore } from "@integration-firebase";
+import type { WorkspaceTaskEntity } from "@task-core";
 
-// ❌ Do not import internal paths directly
-import { CommandResult } from "@/shared/types";          // use @shared-types
-import { Button } from "@/ui/shadcn/ui/button";         // use @ui-shadcn
-import { getFirebaseFirestore } from "@/libs/firebase"; // use @integration-firebase
+// ❌ Do not import legacy paths
+import { CommandResult } from "@/shared/types";          // → @shared-types (DELETED)
+import { Button } from "@/ui/shadcn/ui/button";         // → @ui-shadcn
+import { getFirebaseFirestore } from "@/libs/firebase"; // → @integration-firebase
+import { firebaseClientApp } from "@/infrastructure/firebase/client"; // → @integration-firebase
 ```
 
 ## Adding a New Package
