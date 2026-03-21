@@ -53,7 +53,8 @@ modules/       → conceptual definitions (domain contracts, no business logic)
 
 | Package | Description | Alias |
 |---------|-------------|-------|
-| [`matching-engine`](./matching-engine/) | Matching domain: request/assignment contracts and `IMatchingEngine` port | `@matching-engine` |
+| [`matching-engine`](./matching-engine/) | Matching domain: request/assignment contracts, pure `SkillMatcher`, `matchTaskToSkills`, `assignTask` | `@matching-engine` |
+| [`matching-service`](./matching-service/) | Matching orchestration: `MatchTaskUseCase`, `AssignTaskUseCase` (repo-backed) | `@matching-service` |
 
 ## Module → Package Mapping
 
@@ -64,7 +65,7 @@ modules/       → conceptual definitions (domain contracts, no business logic)
 | Presentation | `@ui-shadcn`, `@ui-vis` | UI |
 | `modules/task` | `@task-core`, `@task-service` | Domain |
 | `modules/skill` | `@skill-core` | Domain |
-| `modules/matching` | `@matching-engine` | Domain |
+| `modules/matching` | `@matching-engine`, `@matching-service` | Domain |
 
 ## Dependency Rules
 

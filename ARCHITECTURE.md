@@ -75,7 +75,8 @@ Domain definitions: contracts, entities, ports, and bounded context documentatio
 
 | Package | Path | Alias | Description |
 |---------|------|-------|-------------|
-| `matching-engine` | `packages/matching-engine/` | `@matching-engine` | Matching request/assignment contracts and `IMatchingEngine` port |
+| `matching-engine` | `packages/matching-engine/` | `@matching-engine` | Pure scoring logic, `SkillMatcher`, domain contracts, repository ports |
+| `matching-service` | `packages/matching-service/` | `@matching-service` | `MatchTaskUseCase`, `AssignTaskUseCase` (orchestrates repos + engine) |
 
 ---
 
@@ -88,7 +89,7 @@ Domain definitions: contracts, entities, ports, and bounded context documentatio
 | Presentation | `@ui-shadcn`, `@ui-vis` | UI | ✅ Complete |
 | `modules/task` | `@task-core`, `@task-service` | Domain | ✅ Complete |
 | `modules/skill` | `@skill-core` | Domain | 🟡 Core only (no service yet) |
-| `modules/matching` | `@matching-engine` | Domain | 🟡 Contracts only (no service yet) |
+| `modules/matching` | `@matching-engine`, `@matching-service` | Domain | 🟡 Engine complete; Firebase adapter pending |
 | `modules/knowledge` | (see `modules/wiki`) | Domain | ✅ Implemented in modules/wiki |
 | `modules/identity` | (inline in module) | Domain | ✅ Full module implementation |
 | `modules/account` | (inline in module) | Domain | ✅ Full module implementation |
@@ -296,6 +297,8 @@ The following root-level folders still exist for internal use by packages. Do NO
 - [x] All `@/infrastructure/firebase*` imports replaced with `@integration-firebase`
 - [x] All `@/libs/firebase` imports replaced with `@integration-firebase`
 - [x] `shared/` shim directory deleted
-- [x] Domain packages created: `@task-core`, `@task-service`, `@skill-core`, `@matching-engine`
+- [x] Domain packages created: `@task-core`, `@task-service`, `@skill-core`, `@matching-engine`, `@matching-service`
+- [x] `@matching-engine` contains pure `matchTaskToSkills`, `assignTask`, `SkillMatcher` (zero I/O)
+- [x] `@matching-service` orchestrates repos + engine via `MatchTaskUseCase` + `AssignTaskUseCase`
 - [x] Module READMEs created: `modules/task`, `modules/skill`, `modules/knowledge`, `modules/matching`
 - [x] Module → package mapping documented in `ARCHITECTURE.md` and `packages/README.md`

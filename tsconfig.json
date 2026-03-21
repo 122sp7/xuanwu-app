@@ -64,6 +64,9 @@
       ],
       "@matching-engine": [
         "./packages/matching-engine/index.ts"
+      ],
+      "@matching-service": [
+        "./packages/matching-service/index.ts"
       ]
     }
   },
