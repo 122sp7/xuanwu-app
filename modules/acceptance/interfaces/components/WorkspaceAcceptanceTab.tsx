@@ -4,14 +4,14 @@ import { useMemo } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { getWorkspaceAcceptanceSummary } from "../queries/acceptance.queries";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 
 interface WorkspaceAcceptanceTabProps {
   readonly workspace: WorkspaceEntity;

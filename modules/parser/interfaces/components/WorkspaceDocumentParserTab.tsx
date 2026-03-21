@@ -5,14 +5,14 @@ import { useEffect, useState } from "react";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import type { WorkspaceParserSummary } from "../../domain/entities/ParserSummary";
 import { getWorkspaceParserSignalSummary } from "../queries/parser.queries";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 
 interface WorkspaceDocumentParserTabProps {
   readonly workspace: WorkspaceEntity;

@@ -1,4 +1,4 @@
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import {
   canCancelScheduleRequestStatus,
   transitionScheduleRequestStatus,

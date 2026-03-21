@@ -8,7 +8,7 @@ import {
   where,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 
 import type { DailyEntry, DailyVisibility } from "../../domain/entities/DailyEntry";
 import type { DailyFeedItem } from "../../domain/entities/DailyFeed";

@@ -4,15 +4,15 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/shadcn/ui/dialog";
-import { Input } from "@/ui/shadcn/ui/input";
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
 
 import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
 

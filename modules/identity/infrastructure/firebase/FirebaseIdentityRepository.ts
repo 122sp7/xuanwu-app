@@ -14,7 +14,7 @@ import {
   signOut as fbSignOut,
   type User,
 } from "firebase/auth";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
 import type {
   IdentityEntity,

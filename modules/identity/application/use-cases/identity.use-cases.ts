@@ -4,7 +4,7 @@
  * Depends only on the IdentityRepository port.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
 import type { SignInCredentials, RegistrationInput } from "../../domain/entities/Identity";
 import { toIdentityErrorMessage } from "../identity-error-message";

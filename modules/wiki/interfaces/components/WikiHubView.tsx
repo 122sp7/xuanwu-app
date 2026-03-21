@@ -18,17 +18,17 @@ import {
 import Link from 'next/link'
 
 import type { WorkspaceKnowledgeSummary } from '@/modules/wiki'
-import { Badge } from '@/ui/shadcn/ui/badge'
-import { Button } from '@/ui/shadcn/ui/button'
+import { Badge } from '@ui-shadcn/ui/badge'
+import { Button } from '@ui-shadcn/ui/button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/ui/shadcn/ui/card'
-import { Progress } from '@/ui/shadcn/ui/progress'
-import { Skeleton } from '@/ui/shadcn/ui/skeleton'
+} from '@ui-shadcn/ui/card'
+import { Progress } from '@ui-shadcn/ui/progress'
+import { Skeleton } from '@ui-shadcn/ui/skeleton'
 import { RagSearchBar } from './RagSearchBar'
 import type { WorkspaceEntry } from '../view-models/workspace-entry.vm'
 

@@ -7,14 +7,14 @@ import type { DailyFeedItem, OrganizationDailyDigestEntity } from "@/modules/dai
 import { getOrganizationDailyDigest, getOrganizationDailyFeed } from "@/modules/daily";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { getWorkspacesForAccount } from "@/modules/workspace";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 import { isOrganizationAccount } from "../_utils";
 
 const DAILY_ENTRY_TYPE_LABEL: Record<DailyFeedItem["entryType"], string> = {

@@ -8,7 +8,7 @@
 
 import { Bot, SendHorizonal, Sparkles } from "lucide-react";
 
-import { Button } from "@/ui/shadcn/ui/button";
+import { Button } from "@ui-shadcn/ui/button";
 
 export default function AiChatPage() {
   return (

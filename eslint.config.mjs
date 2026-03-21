@@ -13,6 +13,43 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── Package boundary enforcement ───────────────────────────────────────
+  // Forbid legacy import paths that were migrated to packages/*.
+  {
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/shared/*"],
+              message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
+            },
+            {
+              group: ["@/infrastructure/*"],
+              message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
+            },
+            {
+              group: ["@/libs/*"],
+              message: "Use the corresponding @lib-* or @integration-* package alias instead.",
+            },
+            {
+              group: ["@/ui/shadcn/*"],
+              message: "Use @ui-shadcn/* instead.",
+            },
+            {
+              group: ["@/ui/vis", "@/ui/vis/*"],
+              message: "Use @ui-vis instead.",
+            },
+            {
+              group: ["@/interfaces/*"],
+              message: "Use @api-contracts instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

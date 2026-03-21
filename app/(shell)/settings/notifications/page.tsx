@@ -6,10 +6,10 @@
  */
 
 import { useState } from "react";
-import { Label } from "@/ui/shadcn/ui/label";
-import { Switch } from "@/ui/shadcn/ui/switch";
-import { Button } from "@/ui/shadcn/ui/button";
-import { Separator } from "@/ui/shadcn/ui/separator";
+import { Label } from "@ui-shadcn/ui/label";
+import { Switch } from "@ui-shadcn/ui/switch";
+import { Button } from "@ui-shadcn/ui/button";
+import { Separator } from "@ui-shadcn/ui/separator";
 
 interface NotificationSetting {
   id: string;

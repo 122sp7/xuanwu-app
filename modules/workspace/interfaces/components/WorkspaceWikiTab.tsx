@@ -27,29 +27,29 @@ import type { RagDocumentRecord } from "@/modules/file";
 import { getWorkspaceRagDocuments } from "@/modules/file";
 import type { WorkspaceKnowledgeSummary } from "@/modules/wiki";
 import { getWorkspaceKnowledgeSummary } from "@/modules/wiki";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/ui/shadcn/ui/collapsible";
-import { Input } from "@/ui/shadcn/ui/input";
+} from "@ui-shadcn/ui/collapsible";
+import { Input } from "@ui-shadcn/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/shadcn/ui/select";
-import { Separator } from "@/ui/shadcn/ui/separator";
+} from "@ui-shadcn/ui/select";
+import { Separator } from "@ui-shadcn/ui/separator";
 
 interface WorkspaceWikiTabProps {
   readonly workspace: WorkspaceEntity;

@@ -20,7 +20,7 @@ import {
   arrayRemove,
   serverTimestamp,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
 import type {
   WorkspaceEntity,

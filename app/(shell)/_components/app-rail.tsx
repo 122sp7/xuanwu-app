@@ -18,8 +18,8 @@ import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { createOrganization } from "@/modules/organization";
-import { Avatar, AvatarFallback } from "@/ui/shadcn/ui/avatar";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/shadcn/ui/dialog";
+} from "@ui-shadcn/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,14 +35,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/ui/shadcn/ui/dropdown-menu";
-import { Input } from "@/ui/shadcn/ui/input";
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/ui/shadcn/ui/tooltip";
+} from "@ui-shadcn/ui/tooltip";
 
 interface AppRailProps {
   readonly pathname: string;

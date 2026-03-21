@@ -6,7 +6,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 import type {
   ScheduleRequest,
   SubmitScheduleRequestInput,

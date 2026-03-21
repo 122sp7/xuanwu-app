@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { createWorkspace } from "../_actions/workspace.actions";
 import { getWorkspacesForAccount } from "../queries/workspace.queries";

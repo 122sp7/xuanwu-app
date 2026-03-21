@@ -8,18 +8,18 @@ import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { getWorkspaceFiles } from "../queries/file.queries";
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
-import { Input } from "@/ui/shadcn/ui/input";
-import { Label } from "@/ui/shadcn/ui/label";
-import { getFirebaseStorage } from "@/infrastructure/firebase";
+} from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { getFirebaseStorage } from "@integration-firebase";
 
 interface WorkspaceFilesTabProps {
   readonly workspace: WorkspaceEntity;

@@ -10,7 +10,7 @@
 import { Languages } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/ui/shadcn/ui/button";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/ui/shadcn/ui/dropdown-menu";
+} from "@ui-shadcn/ui/dropdown-menu";
 
 const LOCALE_STORAGE_KEY = "xuanwu_locale";
 

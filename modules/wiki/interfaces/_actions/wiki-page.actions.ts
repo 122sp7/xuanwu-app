@@ -6,7 +6,7 @@
  * Purpose: Server Actions for wiki page write operations.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import { commandFailureFrom, commandSuccess, type CommandResult } from '@/shared/types'
+import { commandFailureFrom, commandSuccess, type CommandResult } from '@shared-types'
 
 import { CreateWikiPageUseCase, ArchiveWikiPageUseCase, UpdateWikiPageUseCase } from '@/modules/wiki'
 import type { CreateWikiPageDTO, UpdateWikiPageDTO } from '@/modules/wiki'

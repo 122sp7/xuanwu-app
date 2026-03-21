@@ -2,7 +2,7 @@
  * Finance Use Cases — pure business workflows.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { FinanceRepository } from "../../domain/repositories/FinanceRepository";
 import type { FinanceClaimLineItem } from "../../domain/entities/Finance";
 import { canAdvanceStage, nextStage, calculateTotalClaim } from "../../domain/entities/Finance";

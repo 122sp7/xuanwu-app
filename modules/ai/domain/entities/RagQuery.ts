@@ -1,4 +1,4 @@
-import type { DomainError } from "@/shared/types";
+import type { DomainError } from "@shared-types";
 
 export interface RagRetrievedChunk {
   readonly chunkId: string;

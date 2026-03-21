@@ -3,7 +3,7 @@
  * notification-hub = sole side-effect outlet. All notification dispatch routes through here.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
 import type { DispatchNotificationInput } from "../../domain/entities/Notification";
 

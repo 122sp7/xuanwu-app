@@ -12,8 +12,8 @@
 import { useCallback, useState } from 'react'
 import { Loader2Icon, SearchIcon } from 'lucide-react'
 
-import { Button } from '@/ui/shadcn/ui/button'
-import { Input } from '@/ui/shadcn/ui/input'
+import { Button } from '@ui-shadcn/ui/button'
+import { Input } from '@ui-shadcn/ui/input'
 
 export interface RagSearchBarProps {
   readonly organizationId: string | null
