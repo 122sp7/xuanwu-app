@@ -28,7 +28,7 @@ libs/firebase/functions-python/
 ├── pyproject.toml         Python project config
 ├── requirements.txt       Production dependencies
 ├── requirements-dev.txt   Dev dependencies
-└── AGENTS.md              Agent instructions for Python functions
+└── AGENT.md              Agent instructions for Python functions
 ```
 
 ---

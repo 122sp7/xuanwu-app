@@ -18,13 +18,13 @@ This contract defines the Wiki module as the **現代型知識中樞** for xuanw
 | Concern | Owner |
 | --- | --- |
 | Wiki page stub UI | `app/(shell)/wiki/page.tsx` |
-| Organization knowledge tab | `modules/knowledge/interfaces/components/OrganizationKnowledgeTab.tsx` |
-| Workspace knowledge tab | `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx` |
-| Knowledge read-side summary | `modules/knowledge` |
-| Document metadata + lifecycle | `modules/knowledge` (target: `modules/wiki`) |
+| Organization knowledge tab | `app/(shell)/wiki/page.tsx` (WikiHubView) |
+| Workspace knowledge tab | `modules/workspace/interfaces/components/WorkspaceWikiTab.tsx` |
+| Knowledge read-side summary | `modules/wiki` |
+| Document metadata + lifecycle | `modules/wiki` |
 | File upload registration | `modules/file` |
 | Ingestion worker | `libs/firebase/functions-python` |
-| Chunk persistence + vector index | `modules/knowledge` infrastructure |
+| Chunk persistence + vector index | `modules/wiki` infrastructure |
 | RAG query flow | `modules/ai` (Genkit) |
 
 ## Bounded contexts
@@ -295,7 +295,7 @@ Dependency direction: `interfaces → application → domain ← infrastructure`
 ## Invariants
 
 1. `modules/wiki` owns wiki page aggregates; it does not own knowledge document write-side or ingestion lifecycle.
-2. Knowledge document ownership remains in `modules/knowledge` and `modules/file` until an explicit ownership transfer is defined.
+2. Knowledge document ownership resides in `modules/wiki` and `modules/file` until an explicit ownership transfer is defined.
 3. The wiki sidebar is a read surface; it does not hold mutable business state.
 4. All RAG queries must pass `organizationId`, `isLatest`, and `accessControl` filters.
 5. Wiki pages and knowledge documents share the same sidebar tree but maintain separate Firestore collections.
@@ -315,7 +315,164 @@ Before expanding beyond the current stub page:
 | Surface | Location |
 | --- | --- |
 | Wiki page stub | `app/(shell)/wiki/page.tsx` |
-| Organization knowledge tab | `modules/knowledge/interfaces/components/OrganizationKnowledgeTab.tsx` |
-| Workspace knowledge tab | `modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx` |
+| Organization knowledge tab | `app/(shell)/wiki/page.tsx` (WikiHubView) |
+| Workspace knowledge tab | `modules/workspace/interfaces/components/WorkspaceWikiTab.tsx` |
 
 These are the migration source components. Their functionality will progressively move to `modules/wiki/interfaces/components/WikiSidebar.tsx` as the wiki knowledge hub is built out.
+
+---
+
+## `modules/wiki` 域層合約（Domain Contracts）
+
+> 本節記載目前已在 `modules/wiki` 中實作的全部公開合約。
+> 模組實作者引用 `@/modules/wiki` 時，以此為正式 API 界面。
+
+### 定義：`WikiDocument`
+
+```typescript
+// 目前實作欄位（下一階段待補充）
+class WikiDocument {
+  id: string          // 'TODO_ID' → 應改為 doc_ + 16hex
+  title: string
+  content: string
+  status: WikiDocumentStatus  // 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+  createdAt: Date
+
+  publish(): void
+  archive(): void
+}
+```
+
+**需補充欄位（Phase 1）**
+```typescript
+// 待新増
+ organizationId: string
+ workspaceId: string
+ scope: 'organization' | 'workspace' | 'private'
+ taxonomy: Taxonomy
+ accessControl: AccessControl
+ embedding?: Embedding
+```
+
+### 定義：Value Objects
+
+| 類別 | 合約 |
+|------|---------|
+| `AccessControl` | `ownerId: string`, `visibility: 'PUBLIC' \| 'PRIVATE' \| 'INTERNAL'`; `canAccess(userId)` |
+| `ContentStatus` | `value: 'DRAFT' \| 'PUBLISHED' \| 'ARCHIVED'`; `isSearchable: boolean` |
+| `Taxonomy` | `category: string`, `tags: string[]` (小寫 + 去重), `namespace: string` (default `'default'`); `equals(other)` |
+| `Vector` | `values: number[]` (不可為空) |
+| `Embedding` | `values: number[]`, `model: string` (非空), `dimensions: number` (必須 = values.length); `isCompatibleWith(other)` |
+| `SearchFilter` | `category?: string`, `tags: string[]`, `dateRange?: { start, end }` |
+| `WikiDocumentSummary` | `{ id, title, status }`; `toJSON()` |
+| `UsageStats` | `viewCount: number`, `lastAccessedAt: Date \| null` |
+
+### 定義：Repository Ports
+
+```typescript
+// wiki document 持久化
+ interface IWikiDocumentRepository {
+   save(entity: WikiDocument): Promise<void>
+   findById(id: string): Promise<WikiDocument | null>
+   search(vector: number[]): Promise<WikiDocument[]>
+ }
+
+// knowledge summary 讀取
+ interface IKnowledgeSummaryRepository {
+   summarize(scope: IKnowledgeSummaryScope): WorkspaceKnowledgeSummary
+ }
+
+// vector 定向搜尋
+ interface IRetrievalRepository {
+   searchByVector(vector: number[], topK: number): Promise<RetrievalHit[]>
+   searchByMetadata(filter: string, vector: number[]): Promise<WikiDocument[]>
+ }
+
+// embedding 生成
+ interface IEmbeddingRepository {
+   embed(dto: EmbedTextDTO): Promise<Embedding>
+   embedBatch(dtos: EmbedTextDTO[]): Promise<Embedding[]>  // max 20 per call
+ }
+```
+
+### 定義：Domain Service
+
+```typescript
+// 純函式，無 infra 依賴
+function deriveKnowledgeSummary(
+  workspace: KnowledgeWorkspaceSnapshot,
+  copy: KnowledgeSummaryCopy,
+): WorkspaceKnowledgeSummary
+```
+
+**對象**：`WorkspaceKnowledgeSummary`—工作區知識健康狀況的唯讀數據摘要模型，包含：
+`registeredAssetCount`, `readyAssetCount`, `supportedSourceCount`,
+`status: 'needs-input' | 'staged' | 'ready'`, `blockedReasons`, `nextActions`
+
+### 定義：Application Use Cases
+
+```typescript
+// 建立 wiki 文件
+class CreateWikiDocumentUseCase {
+  execute(dto: CreateWikiDocumentDTO): Promise<WikiDocument>
+}
+interface CreateWikiDocumentDTO { title: string; content: string }
+
+// 取得工作區知識摘要
+class GetWorkspaceKnowledgeSummaryUseCase {
+  execute(scope: IKnowledgeSummaryScope): WorkspaceKnowledgeSummary
+}
+interface IKnowledgeSummaryScope { workspaceId: string }
+```
+
+### 定義：Infrastructure 限制條件
+
+| 宣告 | 實作狀態 |
+|------|------|
+| `UPSTASH_VECTOR_REST_URL` + `UPSTASH_VECTOR_REST_TOKEN` 欄位不得為空 | ✅ 已實作 |
+| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` 欄位不得為空 | ✅ 已實作 |
+| Upstash Vector cache TTL 預設 3600 秒 | ✅ 已實作 |
+| Upstash Vector 連綫 timeout 5000 ms | ✅ 已實作 |
+| `UpstashWikiDocumentRepository` 主要方法尚未實作 | 🔲 缺口 |
+| `IEmbeddingRepository` 的 TypeScript 端適配器尚未實作 | 🔲 缺口 |
+
+### 定義：`Embedding` 不變性
+
+1. `values` 不可為空
+2. `values.length === dimensions`，違反拋出 `Error`
+3. `model` 不可為空字串
+4. 不同 model 的 Embedding 不得相互比較（透過 `isCompatibleWith` 檢查）
+5. `IEmbeddingRepository.embedBatch` 輸入數量上限 20
+
+### 定義：Public API（`@/modules/wiki` 導出清單）
+
+```typescript
+// Entities
+export { WikiDocument }
+export type { WikiDocumentStatus, WorkspaceKnowledgeSummary, WorkspaceKnowledgeStatus }
+
+// Ports
+export type { IWikiDocumentRepository, IKnowledgeSummaryRepository,
+              IKnowledgeSummaryScope, IRetrievalRepository, RetrievalHit,
+              IEmbeddingRepository, EmbedTextDTO }
+
+// Domain Service
+export { deriveKnowledgeSummary }
+export type { KnowledgeSummaryCopy, KnowledgeWorkspaceSnapshot }
+
+// Value Objects
+export { AccessControl, ContentStatus, WikiDocumentSummary,
+         SearchFilter, Taxonomy, UsageStats, Vector, Embedding }
+export type { Visibility, ContentStatusValue, WikiDocumentSummaryProps,
+              DateRange, EmbeddingProps }
+
+// Application
+export { CreateWikiDocumentUseCase, GetWorkspaceKnowledgeSummaryUseCase }
+export type { CreateWikiDocumentDTO }
+
+// Infrastructure
+export { UpstashWikiDocumentRepository }
+
+// Interfaces
+export { WikiController }
+```

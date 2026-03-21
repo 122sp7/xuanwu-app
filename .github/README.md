@@ -49,7 +49,7 @@ This document records the active Copilot customization layout in this repository
 
 | Mechanism | Official path pattern | Trigger mode |
 | --- | --- | --- |
-| Always-on instructions | `.github/copilot-instructions.md` and root `AGENTS.md` | automatic |
+| Always-on instructions | `.github/copilot-instructions.md` and root `AGENT.md` | automatic |
 | File-based instructions | `.github/instructions/*.instructions.md` | `applyTo` glob match |
 | Prompt files | `.github/prompts/*.prompt.md` | manual slash command |
 | Custom agents | `.github/agents/*.agent.md` | agent picker, handoff, or subagent |
@@ -63,7 +63,7 @@ This document records the active Copilot customization layout in this repository
 
 ### Always-on instructions
 - `.github/copilot-instructions.md`
-- `AGENTS.md`
+- `AGENT.md`
 
 ### File-based instructions
 - `.github/instructions/context-engineering.instructions.md`

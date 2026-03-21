@@ -13,13 +13,22 @@ description: Target metadata, versioning, and retrieval architecture for the ent
 
 ---
 
+> **⚠️ 已整合至 `modules/wiki`**
+> `modules/knowledge` 已於 2026-03-21 全數遷移至 `modules/wiki` 並刪除。
+> - 領域類型（`WorkspaceKnowledgeSummary` 等）、`GetWorkspaceKnowledgeSummaryUseCase`：`@/modules/wiki`
+> - 跨模組 adapter：`modules/wiki/infrastructure/default/DefaultWorkspaceKnowledgeRepository`
+> - 查詢函數 `getWorkspaceKnowledgeSummary`：`modules/wiki/interfaces/queries/knowledge.queries.ts`
+> 本文件保留作目標架構記錄；新開發請直接操作 `modules/wiki`。
+
+---
+
 ## 0. 目前已上線範圍
 
-目前已先上線一個可見的 Knowledge UI 與對應契約，作為後續知識庫實作的入口：
+目前 knowledge 功能已整合至 wiki 模組：
 
-- **可見 UI**：`modules/knowledge/interfaces/components/WorkspaceKnowledgeTab.tsx`
+- **可見 UI**：`modules/workspace/interfaces/components/WorkspaceWikiTab.tsx`
 - **掛載位置**：`modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
-- **開發契約**：`docs/reference/development-contracts/knowledge-contract.md`
+- **開發契約**：`docs/reference/development-contracts/wiki-contract.md`
 
 此頁仍是**目標架構規範**；目前產品已上線的是 read-side Summary + Workspace Tab，可用來驗證 file / parser / knowledge 的責任分界。
 

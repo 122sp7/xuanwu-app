@@ -15,3 +15,6 @@ langchain-text-splitters<1.0.0
 # 基礎雲端工具：通常很穩定，不寫版本風險較小
 google-cloud-storage<3.0.0
 google-cloud-firestore<3.0.0
+
+# OpenAI API — used by the OpenAI embedding adapter (text-embedding-3-small, 1536 dims)
+openai>=1.23.0,<2.0.0

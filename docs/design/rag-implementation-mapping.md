@@ -67,7 +67,7 @@ Dependency source:
 
 ## 2) ② Query Pipeline - where to implement
 
-Owner: Next.js + knowledge-core adapters
+Owner: Next.js + modules/wiki adapters
 
 Place code in these layers:
 - interfaces/app route: query entry in app/API boundary
@@ -75,9 +75,9 @@ Place code in these layers:
 - core infrastructure layer: vector/redis retrieval adapters
 
 Existing anchors:
-- `core/knowledge-core/interfaces/api/knowledge.controller.ts`
-- `core/knowledge-core/infrastructure/repositories/upstash-knowledge.repository.ts`
-- `core/knowledge-core/infrastructure/persistence/upstash-vector.ts`
+- `modules/wiki/interfaces/api/wiki.controller.ts`
+- `modules/wiki/infrastructure/repositories/upstash-wiki-document.repository.ts`
+- `modules/wiki/infrastructure/persistence/upstash-vector.ts`
 
 Dependencies to use:
 - `genkit`
@@ -89,7 +89,7 @@ Dependencies to use:
 ## 3) ③ Optional enterprise enhancements - where to implement
 
 ### 3.1 Hybrid retrieval / rerank
-- Implement in `core/knowledge-core/infrastructure/repositories` adapters.
+- Implement in `modules/wiki/infrastructure/repositories` adapters.
 - Reuse `@upstash/vector` and extend with keyword channel in same adapter boundary.
 
 ### 3.2 Cache / feedback loop
