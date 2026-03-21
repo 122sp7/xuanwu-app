@@ -1,12 +1,5 @@
 /**
- * @module libs/remark-gfm
- * Thin wrapper for remark-gfm.
- *
- * Adds GitHub Flavored Markdown support for react-markdown / unified:
- * tables, autolinks, task lists, and strikethrough.
+ * @deprecated Use @lib-remark-gfm instead.
+ * @backward-compat Retained for gradual migration.
  */
-
-export { default as remarkGfm } from "remark-gfm";
-export { default } from "remark-gfm";
-
-export type { Options as RemarkGfmOptions } from "remark-gfm";
+export * from "@/packages/lib-remark-gfm";

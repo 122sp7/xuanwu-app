@@ -1,6 +1,5 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+/**
+ * @deprecated Use @ui-shadcn instead: import { cn } from "@ui-shadcn"
+ * @backward-compat Retained for gradual migration.
+ */
+export { cn } from "@/packages/ui-shadcn";

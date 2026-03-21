@@ -1,7 +1,5 @@
-export function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
-export function generateId(): string {
-  return crypto.randomUUID();
-}
+/**
+ * @deprecated Use @shared-utils instead.
+ * @backward-compat Retained for gradual migration.
+ */
+export * from "@/packages/shared-utils";

@@ -1,11 +1,5 @@
-import { create } from "zustand";
-
-interface AppState {
-  isLoading: boolean;
-  setLoading: (loading: boolean) => void;
-}
-
-export const useAppStore = create<AppState>((set) => ({
-  isLoading: false,
-  setLoading: (loading) => set({ isLoading: loading }),
-}));
+/**
+ * @deprecated Use @shared-hooks instead.
+ * @backward-compat Retained for gradual migration.
+ */
+export * from "@/packages/shared-hooks";
