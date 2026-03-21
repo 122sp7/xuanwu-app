@@ -77,15 +77,35 @@ modules/<feature>/
 
 ---
 
-## Shared Kernel (`shared/`)
+## Shared Kernel (`packages/shared-*`)
 
-| Path | Contents |
-|------|----------|
-| `shared/types/index.ts` | `CommandResult`, `CommandSuccess`, `CommandFailure`, `DomainError`, `Timestamp`, factory helpers |
-| `shared/validators/index.ts` | Zod schemas for input validation |
-| `shared/hooks/useStore.ts` | Zustand app store |
-| `shared/constants/index.ts` | App-wide constants |
-| `shared/utils/index.ts` | Pure utility functions |
+| Package | Alias | Contents |
+|---------|-------|----------|
+| `packages/shared-types` | `@shared-types` | `CommandResult`, `CommandSuccess`, `CommandFailure`, `DomainError`, `Timestamp`, factory helpers |
+| `packages/shared-validators` | `@shared-validators` | Zod schemas for input validation |
+| `packages/shared-hooks` | `@shared-hooks` | Shared hooks and store wiring |
+| `packages/shared-constants` | `@shared-constants` | App-wide constants |
+| `packages/shared-utils` | `@shared-utils` | Pure utility functions |
+
+## Package Boundary Rules
+
+`packages/` is a **stable public boundary**, not a second feature layer and not a dumping ground.
+
+Follow this split:
+
+- `modules/*` owns business bounded contexts: entities, use-cases, repositories, server actions, view models
+- `packages/shared-*` owns cross-cutting contracts and pure utilities shared by many modules
+- `packages/integration-*` owns vendor SDK entrypoints and transport adapters
+- `packages/ui-*` owns reusable primitives/design-system surfaces only
+- `packages/lib-*` owns thin third-party wrappers only
+- `packages/api-contracts` owns DTOs and transport-safe contracts only
+
+Do **not** move code into `packages/` just because it is reused once or feels “generic”.
+Use a package only when the code has a stable responsibility and a clear public surface.
+
+This follows the same broad lesson visible in cal.com and plane: packages work best for
+**shared foundations, integrations, and platform surfaces**, while feature workflows stay in
+their feature/module boundaries.
 
 ---
 

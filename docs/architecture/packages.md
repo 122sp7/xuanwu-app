@@ -1,312 +1,157 @@
-# MDDD packages/ — 架構分析與設計指南
+# MDDD packages/ — 邊界設計修正版
 
-> **關鍵詞**: MDDD · Hexagonal · Packages · cal.com · plane · 邊界設計 · 長期穩定性
-
----
-
-## 1. 研究背景：分析兩大開源專案
-
-### 1.1 cal.com 架構分析
-
-cal.com 是一個開源排程平台，採用 **Turbo 單倉多包 (monorepo)** 架構：
-
-```
-cal.com/
-├── apps/
-│   ├── web/              ← Next.js 主應用
-│   └── api/              ← API 服務
-└── packages/
-    ├── prisma/           ← 資料層（ORM schema + migrations）
-    ├── trpc/             ← API 層（tRPC routers + 型別安全 API）
-    ├── lib/              ← 共用工具函數和業務邏輯
-    ├── features/         ← 功能模組（booking, calendar, routing...）
-    ├── ui/               ← 共用 UI 元件
-    ├── app-store/        ← 第三方整合（OAuth, 行事曆, 視訊會議）
-    ├── types/            ← TypeScript 型別定義
-    └── i18n/             ← 國際化
-```
-
-**cal.com 的設計優點：**
-1. **明確的資料邊界**: `packages/prisma` 是唯一可以直接操作資料庫的地方
-2. **型別安全的 API 邊界**: `packages/trpc` 集中所有 API 合約，前後端共用型別
-3. **整合隔離**: `packages/app-store` 把所有第三方整合隔離，核心業務不直接依賴第三方
-4. **功能模組化**: `packages/features` 每個功能 (booking, workflows, teams) 是獨立的子包
-
-### 1.2 plane 架構分析
-
-plane 是一個開源專案管理工具，同樣採用 **Turbo 單倉多包** 架構：
-
-```
-plane/
-├── web/                  ← Next.js 主應用
-├── apiserver/            ← Django REST API
-└── packages/
-    ├── types/            ← TypeScript 型別定義（最基礎層）
-    ├── constants/        ← 應用常數（路由、狀態、配置）
-    ├── utils/            ← 純工具函數（無副作用）
-    ├── hooks/            ← 共用 React Hooks
-    ├── ui/               ← 基礎 UI 元件（atoms）
-    ├── propel/           ← 進階 UI 元件（molecules/organisms）
-    ├── editor/           ← 富文字編輯器（複雜子系統）
-    ├── services/         ← API 服務層（HTTP 請求）
-    ├── shared-state/     ← MobX 狀態管理
-    ├── i18n/             ← 國際化
-    ├── logger/           ← 日誌系統
-    ├── tailwind-config/  ← Tailwind CSS 配置
-    └── typescript-config/← TypeScript 配置共用
-```
-
-**plane 的設計優點：**
-1. **分層粒度細**: `packages/ui` (atoms) 和 `packages/propel` (molecules) 分開，視覺複雜度可控
-2. **常數獨立**: `packages/constants` 獨立，常數改變只需更新一個地方
-3. **服務層清晰**: `packages/services` 集中所有 API 呼叫，UI 不直接發 HTTP 請求
-4. **編輯器自治**: `packages/editor` 是完整的子系統，有自己的 extensions, hooks, plugins
+> **目的**：回應目前對 `packages/` 邊界清晰度的疑慮，明確定義 xuanwu-app 中 `packages/*` 與 `modules/*` 的分工，避免未來混淆。
 
 ---
 
-## 2. 共同架構模式分析
+## 1. 從 cal.com 與 plane 得到的共同結論
 
-### 2.1 兩專案的共同架構優點
+這兩個大型專案雖然細節不同，但有幾個共同點非常清楚：
 
-| 架構模式 | cal.com | plane | 共同優點 |
-|---------|---------|-------|---------|
-| **型別優先** | `packages/types` | `packages/types` | 型別是最基礎的依賴，循環依賴問題最少 |
-| **UI 分離** | `packages/ui` | `packages/ui` + `packages/propel` | UI 不含業務邏輯，可獨立測試和替換 |
-| **工具函數** | `packages/lib` 中 | `packages/utils` | 純函數，無副作用，最容易測試 |
-| **常數集中** | `packages/lib` 中 | `packages/constants` | 應用行為由常數控制，容易調整 |
-| **整合隔離** | `packages/app-store` | `packages/services` | 第三方變更不影響核心業務 |
-| **明確 API 邊界** | `packages/trpc` | `packages/services` | API 合約集中，前後端共用 |
+1. **`packages/` 主要承載共享基礎能力**
+   - 型別、工具函數、UI primitives、服務整合、API contracts、配置
+2. **Feature / business workflow 不會因為「可重用」就一律塞進 packages**
+   - 真正的功能邊界通常仍然保留在 feature/module 本身
+3. **packages 必須有清楚的 public surface**
+   - package 的價值是「明確邊界」與「穩定入口」，不是只是把檔案搬位置
+4. **反向依賴必須被禁止**
+   - packages 不應回頭依賴 app 或 feature internals，否則包層會失去意義
 
-### 2.2 最重要的共同原則
+換句話說，cal.com / plane 的重點不是「有 packages」，而是：
 
-```
-所有成功的大型前端專案都遵循同一個法則：
-
-「把不同速率變化的代碼放在不同的包中。」
-                              — 包設計的基本原理
-```
-
-**變化速率分類：**
-
-| 變化速率 | 代碼類型 | 範例 |
-|---------|---------|------|
-| 最低 (年) | 型別定義 | `CommandResult`, `DomainError` |
-| 低 (月) | 工具函數 | `formatDate`, `generateId` |
-| 中 (週) | UI 元件 | `Button`, `Dialog`, `Table` |
-| 高 (天) | 業務功能 | 訂單流程、工作流、通知 |
-| 最高 (隨時) | 配置/常數 | API endpoints, pagination limits |
+> **packages 只放跨切面、穩定、可作為公共邊界的東西；業務模組依然維持自己的自治。**
 
 ---
 
-## 3. MDDD packages/ 設計決策
+## 2. xuanwu-app 的正確 package 切法
 
-### 3.1 為什麼不用完整 monorepo？
+在 xuanwu-app：
 
-xuanwu-app 是單一 Next.js 應用，不是多 app 架構。使用完整 Turbo monorepo 會帶來：
-- 每個 package 需要獨立的 `package.json` + `tsconfig.json` + 構建配置
-- 需要處理跨包 symlinks 和版本管理
-- CI/CD 複雜度大幅提升
+- `modules/*` = **bounded context / feature ownership**
+- `packages/*` = **stable public boundary**
 
-**解決方案：TypeScript 路徑別名 packages**
+這代表 `packages/*` 不是第二個 `modules/*`，也不是所有共用代碼的回收桶。
 
-我們用 **TypeScript `paths` 別名** 模擬 monorepo 的包邊界：
+### 2.1 應該放進 packages 的東西
 
-```jsonc
-// tsconfig.json — 每個別名 = 一個邏輯包
-{
-  "paths": {
-    "@shared-types":       ["./packages/shared-types/index.ts"],
-    "@integration-firebase": ["./packages/integration-firebase/index.ts"],
-    "@ui-shadcn":          ["./packages/ui-shadcn/index.ts"]
-    // ...
-  }
-}
-```
+| 類型 | 目錄 | 說明 |
+|------|------|------|
+| Shared kernel | `packages/shared-*` | 跨模組合約、常數、validators、純工具 |
+| Integrations | `packages/integration-*` | 第三方 SDK / transport adapters |
+| UI primitives | `packages/ui-*` | shadcn / design-system 級別的可重用 UI |
+| Vendor wrappers | `packages/lib-*` | 第三方庫的穩定入口 |
+| API contracts | `packages/api-contracts` | DTO、transport-safe interfaces |
 
-**效果等同於 monorepo 但零額外配置複雜度。**
+### 2.2 不應該放進 packages 的東西
 
-### 3.2 packages/ 結構設計
+以下內容應留在 `modules/*`：
 
-```
+- domain entities / value objects / repository ports（若只屬於單一 bounded context）
+- use cases / workflows / orchestration
+- module-specific hooks / server actions / view models
+- screens、page composition、feature-specific UI
+
+**判斷原則**：  
+如果某段程式碼的主要問題是「它屬於哪個業務模組」，那它應該先留在 `modules/*`；  
+如果主要問題是「它是不是一個跨模組的穩定公共能力」，才考慮 `packages/*`。
+
+---
+
+## 3. 什麼時候才能把 module code 升格成 package
+
+只有同時滿足以下條件，才值得從模組抽成 package：
+
+1. **有穩定 public API**
+2. **有多個真實 consumer boundary**
+   - 不是同一個模組內部多檔案重用而已
+3. **責任單一**
+   - 例如 shared contract、integration adapter、matching engine
+4. **不依賴 app/module-specific orchestration**
+5. **有清楚 owner**
+   - 之後誰負責維護這個包要說得清楚
+
+---
+
+## 4. 目前 xuanwu-app 採用的 package taxonomy
+
+```text
 packages/
-├── README.md
-│
-├── ── Shared Kernel ───────────────────────────────────────────
-├── shared-types/        @shared-types       CommandResult, DomainError, Timestamp
-├── shared-utils/        @shared-utils       純工具函數
-├── shared-validators/   @shared-validators  Zod 輸入驗證 schemas
-├── shared-hooks/        @shared-hooks       Zustand app store
-├── shared-constants/    @shared-constants   應用常數
-│
-├── ── Integrations ────────────────────────────────────────────
-├── integration-firebase/ @integration-firebase  Firebase SDK (client + admin)
-├── integration-upstash/  @integration-upstash   Redis, Vector, QStash, Workflow
-│
-├── ── UI Layer ────────────────────────────────────────────────
-├── ui-shadcn/           @ui-shadcn          shadcn/ui 元件 + cn utility
-│
-├── ── Library Wrappers ────────────────────────────────────────
-├── lib-date-fns/        @lib-date-fns       日期工具
-├── lib-zod/             @lib-zod            Schema 驗證
-├── lib-xstate/          @lib-xstate         狀態機
-├── lib-tanstack/        @lib-tanstack       Query, Form, Table, Virtual
-├── lib-superjson/       @lib-superjson      JSON 序列化
-├── lib-vis/             @lib-vis            Vis.js 視覺化
-├── lib-react-markdown/  @lib-react-markdown Markdown 渲染
-├── lib-remark-gfm/      @lib-remark-gfm     GitHub Flavored Markdown
-├── lib-uuid/            @lib-uuid           UUID 生成
-├── lib-dragdrop/        @lib-dragdrop       拖放功能
-├── lib-zustand/         @lib-zustand        Zustand 狀態
-│
-└── ── API Contracts ───────────────────────────────────────────
-    api-contracts/       @api-contracts      API 介面和 DTO
+├── shared-*         跨模組共享基礎
+├── integration-*    第三方整合邊界
+├── ui-*             UI primitives / design-system surface
+├── lib-*            第三方 library wrappers
+└── api-contracts    API contracts
 ```
 
-### 3.3 依賴方向規則
+這種 taxonomy 的好處是：**名稱本身就帶語義**。
 
-```
-依賴方向圖 (箭頭 = 允許依賴):
+- `@shared-types` 一看就知道是共享合約
+- `@integration-firebase` 一看就知道是 vendor adapter
+- `@ui-shadcn` 一看就知道是 UI primitive surface
 
-packages/lib-*         ──────────→  (只依賴 npm packages，不依賴內部)
-packages/shared-types  ──────────→  (只依賴 npm packages，不依賴內部)
-packages/shared-*      ──→  @shared-types (僅限)
-packages/integration-* ──→  @shared-types, @lib-*
-packages/ui-shadcn     ──→  @shared-types (僅 cn utility)
-packages/api-contracts ──→  @shared-types
-
-modules/*/domain       ──→  @shared-types (僅限)
-modules/*/application  ──→  @shared-types, domain
-modules/*/infrastructure ─→ @integration-*, @lib-*, domain
-modules/*/interfaces   ──→  @ui-shadcn, @shared-*, application
-```
-
-**嚴禁：**
-- `packages/shared-types` 依賴任何 `packages/integration-*`
-- `packages/lib-*` 依賴任何 `packages/shared-*`
-- `modules/*/domain` 依賴任何 UI 或 infrastructure
+反過來說，若未來出現一個很模糊的名稱（例如單純叫 `@core`、`@common`、`@base`），那通常就是設計訊號：**邊界開始模糊了**。
 
 ---
 
-## 4. 如何降低複雜性、實現長期穩定
+## 5. 依賴方向
 
-### 4.1 變更影響半徑最小化
+```text
+packages/lib-*            → npm packages only
+packages/shared-types     → npm packages only
+packages/shared-*         → @shared-types (必要時)
+packages/integration-*    → @shared-types, @lib-*
+packages/ui-*             → @shared-*, UI internals only
+packages/api-contracts    → @shared-types
 
-**以前（沒有 packages 層）：**
-```
-改一個 Zod 版本 → 可能影響所有導入 "zod" 的文件
-改 CommandResult 型別 → 需要全局搜索 @/shared/types
-新增 Firebase 功能 → 不知道誰在使用哪個 Firebase API
-```
-
-**現在（有 packages 層）：**
-```
-改 Zod 版本 → 只改 packages/lib-zod/index.ts 的導出
-改 CommandResult → 只改 packages/shared-types/index.ts
-新增 Firebase 功能 → 只在 packages/integration-firebase/index.ts 加導出
+modules/*/domain          → @shared-types
+modules/*/application     → domain, @shared-types
+modules/*/infrastructure  → domain, @integration-*, @lib-*
+modules/*/interfaces      → application, @ui-*, @shared-*
 ```
 
-### 4.2 可替換性（Replaceability）
+**禁止：**
 
-每個 package 的 `index.ts` 是一個**抽象門面（Facade）**：
-
-```typescript
-// 今天：使用 Upstash Vector
-// packages/integration-upstash/index.ts
-export * from "@/libs/upstash";
-
-// 未來：如果要換成 Pinecone，只改這一個文件：
-// packages/integration-upstash/index.ts  ← 改成 Pinecone 的實現
-// 所有使用 @integration-upstash 的模組不需要改！
-```
-
-### 4.3 邊界清晰化帶來的好處
-
-| 問題 | 沒有 packages | 有 packages |
-|------|--------------|-------------|
-| 新人 onboarding | 需要理解整個 libs/ 結構 | 看 packages/README.md 即可 |
-| Code review | 不知道變更影響範圍 | 看別名就知道（`@shared-types` 是公共合約）|
-| 重構 | 全局搜索替換，風險高 | 修改 package index.ts，影響範圍可控 |
-| 測試 | 難以 mock 深層依賴 | 每個 package 可獨立 mock |
-| 循環依賴 | 容易意外引入 | 別名命名規範讓違規立即顯眼 |
+- `packages/*` 反向依賴 `app/*`, `modules/*`, `interfaces/*`, `infrastructure/*`
+- `modules/*/domain` 依賴 UI 或 vendor integration
+- 用舊路徑 (`@/shared/*`, `@/libs/*`, `@/ui/shadcn/ui/*`) 繞過 package boundary
 
 ---
 
-## 5. 模組特定包（Module-Specific Packages）
+## 6. 與 reviewer 顧慮直接對應的結論
 
-對於複雜的核心業務邏輯，可進一步抽取成 module packages：
+review 提到的風險是對的：  
+如果 `packages/` 只是把檔案搬走、但沒有清楚 taxonomy 和依賴限制，未來一定會混淆。
 
-### 5.1 計劃中的 module packages
+所以 xuanwu-app 應該把 `packages/` 明確定義成：
 
-```
-packages/
-├── task-core/        @task-core        Task 實體、VO、Repository 介面
-├── task-service/     @task-service     Task use cases（應用層）
-├── skill-core/       @skill-core       Skill 實體、VO、Repository 介面
-├── matching-engine/  @matching-engine  純匹配算法（無副作用）
-└── matching-service/ @matching-service MatchTask, AssignTask use cases
-```
+> **共享基礎能力與公共入口層，不是功能模組層。**
 
-### 5.2 模組包的設計原則（參考 cal.com features 包）
+也因此：
 
-```typescript
-// packages/task-core/index.ts
-// 只導出：實體、值物件、Repository 介面（ports）
-// 絕不導出：Firebase 實現、React hooks、Server Actions
-export type { Task, TaskStatus, TaskPriority } from "./entities/task.entity";
-export type { ITaskRepository } from "./repositories/task.repository.port";
-```
-
-```typescript
-// packages/task-service/index.ts  
-// 只導出：use cases（應用層編排）
-// 依賴：@task-core（domain）、@shared-types
-export { CreateTaskUseCase } from "./use-cases/create-task.use-case";
-export { UpdateTaskStatusUseCase } from "./use-cases/update-task-status.use-case";
-```
+- feature / bounded context 的主戰場仍然是 `modules/*`
+- `packages/*` 只承載跨模組穩定能力
+- 邊界必須靠文件 + lint 規則一起維持
 
 ---
 
-## 6. 與 ARCHITECTURE.md 的關係
+## 7. 實作上的 guardrails
 
-packages/ 層是 MDDD + Hexagonal 架構的**補充層**，不是替換：
+為了避免文件說一套、代碼長回去一套，目前應維持這些 guardrails：
 
-```
-ARCHITECTURE.md 定義：         packages/ 實現：
-─────────────────────────────────────────────────────────
-Domain Layer (純 TS)         ←── @shared-types, module packages
-Application Layer (用例)     ←── module service packages
-Infrastructure Layer (適配器) ←── @integration-firebase, @integration-upstash
-Interface Layer (Next.js)    ←── @ui-shadcn, @shared-validators
-Shared Kernel               ←── @shared-types, @shared-utils, @shared-constants
-```
-
----
-
-## 7. 遷移進度追蹤
-
-### 已完成 ✅
-
-- [x] **Phase 1**: 建立 packages/ 目錄結構（20 個邏輯包）
-- [x] **Phase 2**: 所有包的 `index.ts` 建立（source of truth）
-- [x] **Phase 3**: `shared/` 和 `libs/` 轉為 backward-compat shims
-- [x] **Phase 4**: `tsconfig.json` 加入所有路徑別名
-- [x] **Phase 5**: `packages/README.md` 建立
-- [x] Lint + Build clean
-
-### 下一步 📋
-
-- [ ] **Phase 6**: 模組層 — 建立 `packages/task-core`, `packages/task-service`
-- [ ] **Phase 7**: 模組層 — 建立 `packages/skill-core`, `packages/matching-engine`
-- [ ] **Phase 8**: 新代碼統一使用 `@shared-types` 替代 `@/shared/types`
-- [ ] **Phase 9**: 審計 — 移除 `@/shared/` 和 `@/libs/` 的舊式引用
-- [ ] **Phase 10**: 考慮升級為真正的 Turbo workspace（如果多 app 需求出現）
+1. 新代碼統一走 package aliases
+   - `@shared-types`
+   - `@shared-utils`
+   - `@integration-firebase`
+   - `@ui-shadcn`
+2. packages 不得反向 import app/modules internals
+3. module 業務代碼預設留在 `modules/*`
+4. 若要新增 package，先回答：
+   - 它是 shared / integration / ui / lib / contract 哪一類？
+   - 它的 public API 是什麼？
+   - 它的 owner 是誰？
 
 ---
 
-## 附錄：參考資料
+## 8. 一句話總結
 
-- [cal.com repository](https://github.com/calcom/cal.com) — packages/ 設計範例
-- [plane repository](https://github.com/makeplane/plane) — packages/ 設計範例
-- [Turbo monorepo docs](https://turbo.build/repo/docs) — monorepo 架構
-- [ARCHITECTURE.md](../../ARCHITECTURE.md) — MDDD + Hexagonal 架構指南
-- [packages/README.md](../../packages/README.md) — 包層使用指南
+**不是因為要學 cal.com / plane 才做 packages；而是要學它們「只把真正跨切面、穩定、值得公開的東西做成 packages」這個邊界原則。**

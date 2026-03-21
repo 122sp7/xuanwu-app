@@ -1,8 +1,10 @@
-# packages/ — MDDD Logical Package Layer
+# packages/ — MDDD Public Package Boundaries
 
-This directory contains the **logical package layer** for the xuanwu-app MDDD architecture.
+This directory contains the **stable public package surfaces** for xuanwu-app.
 
-Inspired by how [cal.com](https://github.com/calcom/cal.com) and [plane](https://github.com/makeplane/plane) organize their codebases with explicit package boundaries, this layer provides **TypeScript path alias packages** that give the project clear, auditable module boundaries — without the overhead of a full monorepo.
+Inspired by the common patterns in [cal.com](https://github.com/calcom/cal.com) and [plane](https://github.com/makeplane/plane), `packages/` exists to keep **shared foundations, integrations, UI primitives, and transport contracts** behind explicit import boundaries.
+
+It is **not** a second feature layer and **not** a place to move arbitrary module code.
 
 ## Design Rationale
 
@@ -20,10 +22,10 @@ Inspired by how [cal.com](https://github.com/calcom/cal.com) and [plane](https:/
 
 ### Why This Approach
 
-1. **Single repo, clear boundaries**: We don't need the full Turbo monorepo overhead — TypeScript path aliases give us the same import clarity.
-2. **Dependency direction enforcement**: Aliases make it explicit which layer you're importing from. `@shared-types` is clearly a shared contract; `@integration-firebase` is clearly an external service adapter.
-3. **Gradual migration**: Old paths (`@/shared/types`, `@/libs/firebase`) become thin shims — existing code keeps working while new code uses the alias.
-4. **Single responsibility**: Each package has one reason to change (types, utils, UI, integration, etc.).
+1. **Single repo, clear boundaries**: We avoid full monorepo tooling overhead while still getting explicit import surfaces through TypeScript path aliases.
+2. **Stable package taxonomy**: Package names encode responsibility — shared kernel, integrations, UI primitives, third-party wrappers, contracts.
+3. **Feature logic stays in modules**: `packages/` does not replace `modules/*`; business workflows remain in their bounded contexts.
+4. **Single responsibility**: Each package has one reason to change (types, utils, UI, integration, contracts).
 
 ## Package Map
 
@@ -67,19 +69,38 @@ Inspired by how [cal.com](https://github.com/calcom/cal.com) and [plane](https:/
 |---------|-------|------|---------|
 | `api-contracts` | `@api-contracts` | new | API interfaces and DTOs |
 
+## Boundary Rules
+
+Use `packages/` only for code that matches one of these buckets:
+
+- **Shared kernel**: cross-cutting contracts, constants, validators, pure utilities
+- **Integrations**: vendor SDK entrypoints and transport adapters
+- **UI primitives**: reusable shadcn/design-system surfaces
+- **Library wrappers**: thin third-party re-export boundaries
+- **API contracts**: DTOs and transport-safe interfaces
+
+Keep code in `modules/*` when it is:
+
+- a business entity, value object, repository port, or use case
+- a module-specific view model, hook, server action, or screen composition
+- logic owned by one bounded context even if reused internally in that module
+
+Promote module code into `packages/` only when it has:
+
+1. a stable public API,
+2. more than one real consumer boundary,
+3. a clear ownership rule,
+4. no dependency on app/module-specific orchestration.
+
 ## Usage
 
 ```typescript
-// New code — use alias imports
+// Preferred — use explicit package boundaries
 import type { CommandResult, DomainError } from "@shared-types";
 import { formatDate } from "@shared-utils";
 import { Button, cn } from "@ui-shadcn";
 import { redis } from "@integration-upstash";
 import { z } from "@lib-zod";
-
-// Old code — still works (backward-compat shims)
-import type { CommandResult } from "@/shared/types";
-import { cn } from "@/libs/utils";
 ```
 
 ## Dependency Rules
@@ -95,15 +116,15 @@ modules/*/domain          ←── may import @shared-types only
 modules/*/application     ←── may import @shared-types, domain
 modules/*/infrastructure  ←── may import @integration-*, domain
 modules/*/interfaces      ←── may import all packages, application
+packages/*                ←── must NOT import @/app/*, @/modules/*, @/interfaces/*, @/infrastructure/*
 ```
 
-## Migration Guide
+## Guidance
 
 When you write new code:
-1. Use `@shared-types` instead of `@/shared/types`
-2. Use `@shared-utils` instead of `@/shared/utils`
-3. Use `@ui-shadcn` instead of `@/ui/shadcn/utils/utils` or `@/ui/shadcn/ui/*`
-4. Use `@integration-firebase` instead of `@/libs/firebase`
-5. Use `@lib-zod` instead of `@/libs/zod`
 
-Existing code using `@/shared/*` and `@/libs/*` continues to work via backward-compat shims.
+1. Use package aliases (`@shared-types`, `@shared-utils`, `@ui-shadcn`, `@integration-firebase`, `@lib-zod`)
+2. Keep business workflows and domain modeling in `modules/*`
+3. Add new packages only when the code is cross-cutting and stable enough to justify a public package boundary
+
+ESLint enforces these package boundaries for app/module code so legacy import paths and reverse package dependencies do not creep back in.
