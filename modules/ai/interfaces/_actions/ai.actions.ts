@@ -10,6 +10,7 @@ import { GenerateAIResponseUseCase } from "../../application/use-cases/generate-
 import { FirebaseRagRetrievalRepository } from "../../infrastructure/firebase/FirebaseRagRetrievalRepository";
 import { GenkitAIRepository } from "../../infrastructure/genkit/GenkitAIRepository";
 import { GenkitRagGenerationRepository } from "../../infrastructure/genkit/GenkitRagGenerationRepository";
+import { GenkitRagRerankerRepository } from "../../infrastructure/genkit/GenkitRagRerankerRepository";
 
 export async function generateAIResponse(
   input: GenerateAIResponseInput,
@@ -22,6 +23,7 @@ export async function answerRagQuery(input: AnswerRagQueryInput): Promise<Answer
   const useCase = new AnswerRagQueryUseCase(
     new FirebaseRagRetrievalRepository(),
     new GenkitRagGenerationRepository(),
+    new GenkitRagRerankerRepository(),
   );
   return useCase.execute(input);
 }

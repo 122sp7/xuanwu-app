@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
+import type { RagRerankerRepository } from "../../domain/repositories/RagRerankerRepository";
 import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
 import type {
   AnswerRagQueryInput,
@@ -12,6 +13,8 @@ import type {
 // a broader cap for future rerank experiments on the same contract.
 const DEFAULT_TOP_K = 5;
 const MAX_TOP_K = 10;
+// After reranking, keep the top-N chunks for generation (ADR-004 §4).
+const DEFAULT_RERANK_TOP_N = 3;
 
 function normalizeTopK(value?: number) {
   if (value === undefined) {
@@ -29,6 +32,7 @@ export class AnswerRagQueryUseCase {
   constructor(
     private readonly ragRetrievalRepository: RagRetrievalRepository,
     private readonly ragGenerationRepository: RagGenerationRepository,
+    private readonly ragRerankerRepository?: RagRerankerRepository,
   ) {}
 
   async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
@@ -68,6 +72,7 @@ export class AnswerRagQueryUseCase {
       normalizedQuery: userQuery.toLowerCase(),
       taxonomy,
       topK,
+      ...(input.userRoles && input.userRoles.length > 0 ? { userRoles: input.userRoles } : {}),
     });
 
     if (chunks.length === 0) {
@@ -82,12 +87,22 @@ export class AnswerRagQueryUseCase {
       };
     }
 
+    // Layer 12: Reranking — when a reranker is wired, re-score and re-order the
+    // retrieved chunks using LLM-based relevance assessment (ADR-004 §4).
+    const rankedChunks = this.ragRerankerRepository
+      ? await this.ragRerankerRepository.rerank({
+          userQuery,
+          chunks,
+          topN: Math.min(DEFAULT_RERANK_TOP_N, chunks.length),
+        })
+      : chunks;
+
     const generation = await this.ragGenerationRepository.generate({
       traceId,
       organizationId,
       ...(workspaceId ? { workspaceId } : {}),
       userQuery,
-      chunks,
+      chunks: rankedChunks,
       model: input.model,
     });
 

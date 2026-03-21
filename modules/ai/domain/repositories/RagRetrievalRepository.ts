@@ -6,6 +6,8 @@ export interface RetrieveRagChunksInput {
   readonly normalizedQuery: string;
   readonly taxonomy?: string;
   readonly topK: number;
+  /** Caller's access-control roles for RBAC filtering (Layer 11). */
+  readonly userRoles?: readonly string[];
 }
 
 export interface RagRetrievalRepository {

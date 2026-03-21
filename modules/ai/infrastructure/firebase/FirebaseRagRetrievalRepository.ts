@@ -13,6 +13,7 @@ interface FirestoreRagDocument {
   readonly workspaceId?: string;
   readonly status?: string;
   readonly taxonomy?: string;
+  readonly accessControl?: readonly string[];
 }
 
 // Over-fetch ready documents so the skeleton retriever can survive organization/workspace
@@ -85,7 +86,24 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
       documentSnapshots.docs
         .filter((snapshot) => {
           const data = snapshot.data() as FirestoreRagDocument;
-          return data.status === "ready";
+          if (data.status !== "ready") {
+            return false;
+          }
+          // Layer 11: RBAC accessControl filter — when the caller supplies userRoles,
+          // only include documents whose accessControl list shares at least one role.
+          // Documents with an empty or missing accessControl array are treated as
+          // unrestricted and pass through regardless.
+          if (input.userRoles && input.userRoles.length > 0) {
+            const acl = data.accessControl;
+            if (Array.isArray(acl) && acl.length > 0) {
+              const rolesSet = new Set(input.userRoles);
+              const hasAccess = acl.some((role) => rolesSet.has(role));
+              if (!hasAccess) {
+                return false;
+              }
+            }
+          }
+          return true;
         })
         .map((snapshot) => snapshot.id),
     );

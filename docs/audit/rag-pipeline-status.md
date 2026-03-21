@@ -19,11 +19,11 @@
 | 8 | 向量化層（Embedding Layer） | ✅ | functions-python + Next.js |
 | 9 | 索引層（Indexing Layer） | ✅ | functions-python (Firestore) |
 | 10 | 語意檢索層（Semantic Retrieval Layer） | ✅ | Next.js (modules/ai + modules/wiki) |
-| 11 | 約束過濾層（Constraint & Filtering Layer） | ⚠️ 部分完成 | Next.js (modules/ai) |
-| 12 | 重排序層（Reranking Layer） | ❌ | 尚未實作 |
+| 11 | 約束過濾層（Constraint & Filtering Layer） | ✅ | Next.js (modules/ai) |
+| 12 | 重排序層（Reranking Layer） | ✅ | Next.js (modules/ai Genkit) |
 | 13 | 推理與生成層（Reasoning & Generation / RAG） | ✅ | Next.js (modules/ai Genkit) |
 
-**完成：10/13 ✅ ｜ 部分完成：1/13 ⚠️ ｜ 未完成：1/13 ❌ ｜ 已規劃但未觸發：1/13**
+**完成：13/13 ✅**
 
 ---
 
@@ -250,6 +250,7 @@
 - **Ingestion-side（Python）**：
   - `OpenAiEmbedder`：使用 `text-embedding-3-small`（1536 維），batch size ≤ 20，含 retry + backoff
   - `DeterministicRagEmbedder`：4 維 scaffold，本地測試使用
+  - `_build_use_case()` 現已自動偵測 `OPENAI_API_KEY`：有設定時使用 `OpenAiEmbedder`，否則 fallback 至 `DeterministicRagEmbedder`
 - **Query-side（Next.js）**：
   - `OpenAIEmbeddingRepository`：使用相同的 `text-embedding-3-small` 模型和維度（1536）
   - 用於將使用者查詢轉換為向量以進行檢索
@@ -314,18 +315,18 @@
 
 ---
 
-## Layer 11: 約束過濾層（Constraint & Filtering Layer） — ⚠️ 部分完成
+## Layer 11: 約束過濾層（Constraint & Filtering Layer） — ✅ 已完成
 
 ### 實作位置
 
 | 元件 | 路徑 | 狀態 |
 |------|------|------|
-| organizationId filter | `FirebaseRagRetrievalRepository.ts:72` | ✅ 已實作 |
-| workspaceId filter | `FirebaseRagRetrievalRepository.ts:74` | ✅ 已實作 |
-| taxonomy filter | `FirebaseRagRetrievalRepository.ts:75` | ✅ 已實作 |
-| status=ready filter | `FirebaseRagRetrievalRepository.ts:73` | ✅ 已實作 |
-| isLatest filter | `FirebaseRagRetrievalRepository.ts:74` | ✅ 已實作（本 PR 修復） |
-| accessControl RBAC filter | 文件要求（`accessControl in userRoles`）但未在 retrieval 中實作 | ❌ 缺失 |
+| organizationId filter | `FirebaseRagRetrievalRepository.ts:75` | ✅ 已實作 |
+| workspaceId filter | `FirebaseRagRetrievalRepository.ts:78` | ✅ 已實作 |
+| taxonomy filter | `FirebaseRagRetrievalRepository.ts:79` | ✅ 已實作 |
+| status=ready filter | `FirebaseRagRetrievalRepository.ts:76` | ✅ 已實作 |
+| isLatest filter | `FirebaseRagRetrievalRepository.ts:77` | ✅ 已實作 |
+| accessControl RBAC filter | `FirebaseRagRetrievalRepository.ts:91-101` | ✅ 已實作 |
 
 ### 詳細描述
 
@@ -334,43 +335,35 @@
   - `workspaceId`（可選）：工作區範圍 ✅
   - `taxonomy`（可選）：分類篩選 ✅
   - `status == "ready"`：排除未就緒文件 ✅
-  - `isLatest == true`：排除廢棄版本 ✅（本 PR 修復）
-- **缺失的過濾**（文件合約要求但未實作）：
-  - `accessControl in userRoles`：RBAC 權限過濾（`RetrieveRagChunksInput` 中無 `userRoles` 欄位）
+  - `isLatest == true`：排除廢棄版本 ✅
+  - `accessControl in userRoles`：RBAC 權限過濾 ✅（新增）
+- `RetrieveRagChunksInput` 新增 `userRoles?: readonly string[]` 欄位
+- `AnswerRagQueryInput` 新增 `userRoles?: readonly string[]` 欄位
+- 文件的 `accessControl` 陣列為空或不存在時視為無限制（任何使用者皆可存取）
 - 參考合約：`docs/reference/development-contracts/wiki-contract.md` §Required query filters
-- 參考架構文件：`docs/wiki/development-guide.md` §4.3
-
-### 影響
-
-- 無 `accessControl` filter：權限受限的文件可能被無權限的使用者檢索到
 
 ---
 
-## Layer 12: 重排序層（Reranking Layer） — ❌ 未完成
+## Layer 12: 重排序層（Reranking Layer） — ✅ 已完成
 
 ### 實作位置
 
-無實作程式碼。
+| 元件 | 路徑 |
+|------|------|
+| Domain Port | `modules/ai/domain/repositories/RagRerankerRepository.ts` |
+| Infrastructure Adapter | `modules/ai/infrastructure/genkit/GenkitRagRerankerRepository.ts` |
+| Use Case Integration | `modules/ai/application/use-cases/answer-rag-query.use-case.ts` |
+| Server Action Wiring | `modules/ai/interfaces/_actions/ai.actions.ts` |
 
 ### 詳細描述
 
-- ADR-004 §4 明確規劃了 Reranking layer：
-  ```text
-  [Top-K chunks] → [Cross-Encoder / LLM rerank] → [Top-N chunks]
-  ```
-- 開發指南 §4.8 將 reranking 標記為「P1 強化」（`reranking：Cross-Encoder（P1 強化）`）
-- 目前 retrieval 只使用 token-based scoring（`scoreChunk`）作為排序依據，無 Cross-Encoder 或 LLM-based reranking
-- `FirebaseRagRetrievalRepository` 中的 `.sort((left, right) => right.score - left.score)` 是簡單的分數排序，非語意重排序
-
-### 影響
-
-- 檢索精度受限於 token 匹配，語意相關但詞彙不重疊的 chunk 可能排名偏低
-- 中文文本的 BM25-like token matching 效果有限（分詞粒度粗）
-
-### 建議
-
-- 引入 Cross-Encoder reranker（如 Cohere Rerank API、BGE-reranker、或 LLM-based rerank）
-- 在 `AnswerRagQueryUseCase.execute()` 中，在 `retrieve()` 之後、`generate()` 之前插入 rerank 步驟
+- **GenkitRagRerankerRepository**（LLM-based reranker）：
+  1. 使用 Genkit LLM 評估每個 chunk 與 user query 的相關性（0-10 分）
+  2. 按分數降序排列後取 top-N（預設 3）
+  3. 分數正規化至 0-1 區間
+- **Graceful degradation**：LLM 呼叫失敗時自動降級為原始排序截斷
+- **可選注入**：`AnswerRagQueryUseCase` 的 reranker 為可選依賴，不傳入時行為不變
+- 符合 ADR-004 §4：`[Top-K chunks] → [LLM rerank] → [Top-N chunks]`
 
 ---
 

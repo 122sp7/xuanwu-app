@@ -26,6 +26,7 @@ from app.rag_ingestion.infrastructure.google.document_ai_parser import DocumentA
 from app.rag_ingestion.infrastructure.google.document_ai_taxonomy_classifier import (
     DocumentAiTaxonomyClassifier,
 )
+from app.rag_ingestion.infrastructure.openai.embedder import OpenAiEmbedder
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +93,29 @@ def _build_use_case() -> ProcessUploadedDocumentUseCase:
         parser = PassthroughRagParser()
         taxonomy_classifier = SimpleRagTaxonomyClassifier()
 
+    # Use OpenAI embedder when OPENAI_API_KEY is available; fall back to deterministic scaffold.
+    embedder: DeterministicRagEmbedder | OpenAiEmbedder
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if openai_api_key:
+        from app.config.settings import OpenAiSettings
+
+        openai_settings = OpenAiSettings(
+            api_key=openai_api_key,
+            model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+            dimensions=int(os.getenv("OPENAI_EMBEDDING_DIMENSIONS", "1536")),
+            max_batch_size=int(os.getenv("OPENAI_EMBEDDING_BATCH_SIZE", "20")),
+        )
+        embedder = OpenAiEmbedder(openai_settings)
+        logger.info("Using OpenAI embedder (model=%s, dims=%d)", openai_settings.model, openai_settings.dimensions)
+    else:
+        embedder = DeterministicRagEmbedder()
+        logger.info("OPENAI_API_KEY not set — using deterministic scaffold embedder (4 dims)")
+
     return ProcessUploadedDocumentUseCase(
         parser=parser,
         chunker=SimpleParagraphChunker(),
         taxonomy_classifier=taxonomy_classifier,
-        embedder=DeterministicRagEmbedder(),
+        embedder=embedder,
         document_repository=FirebaseRagDocumentRepository(),
         text_writer=ProcessedTextWriter(),
     )
