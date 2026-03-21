@@ -1,5 +1,5 @@
 ---
-description: 'Project-specific instructions for the xuanwu-app Next.js 16 + MDDD codebase.'
+description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
 applyTo: '**/*.ts, **/*.tsx, **/*.js, **/*.jsx, **/*.css'
 ---
 
@@ -84,6 +84,16 @@ import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 ```ts
 import { formatDate } from "@/shared/utils";
 import { Button } from "@/ui/shadcn/ui/button";
+import { updateWorkspaceSettings } from "@/modules/workspace";
+```
+
+### Internal Module Import Example
+
+```ts
+// Good: keep module-internal imports relative
+import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+
+// Bad: do not re-import the module barrel from inside the same module
 import { updateWorkspaceSettings } from "@/modules/workspace";
 ```
 
