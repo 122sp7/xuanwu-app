@@ -72,6 +72,8 @@ export async function searchWikiDocuments(
     const embedding = await embedder.embed({ text: query, documentId: '__query__' })
 
     // 2. Build a SearchFilter scoped to the organization (and optionally workspace / category).
+    //    The `ws:<id>` tag convention is used by the retrieval adapter's metadata filter
+    //    to scope results to a specific workspace within the organization.
     const filter = new SearchFilter(
       category ?? undefined,
       workspaceId ? [`ws:${workspaceId}`] : [],
