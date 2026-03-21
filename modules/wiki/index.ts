@@ -76,6 +76,8 @@ export type {
   CallDocumentAiDTO,
   DocumentAiResult,
 } from './interfaces/_actions/wiki-document.actions'
+export { searchWikiDocuments } from './interfaces/_actions/wiki-search.actions'
+export type { WikiSearchHit, WikiSearchResult } from './interfaces/_actions/wiki-search.actions'
 
 // ── Interfaces: queries ───────────────────────────────────────────────────────
 export {
