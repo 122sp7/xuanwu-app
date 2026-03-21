@@ -91,3 +91,10 @@ import { format } from "@lib-date-fns";
 | 6 | shadcn components + cn() | `ui/shadcn/` + `libs/utils.ts` | `packages/ui-shadcn/` |
 | 7 | Vis.js components | `ui/vis/` | `packages/ui-vis/` |
 | 8 | Library wrappers | `libs/*` | `packages/lib-*` |
+| — | Python worker runtime | `libs/firebase/functions-python/` | `functions-python/` (root) |
+
+> **Note:** `functions-python/` is a Python Firebase Functions codebase and is **not** a TypeScript
+> package. It lives at the project root as a first-class deployment artifact (Firebase codebase name
+> `functions-python`). It is deployed via `npm run deploy:functions:python` and uses its own
+> `pyproject.toml` / `requirements.txt`. It is **not** imported by TypeScript code — interactions
+> happen through Firebase callable functions and Firestore triggers.

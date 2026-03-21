@@ -23,7 +23,7 @@ This contract defines the Wiki module as the **現代型知識中樞** for xuanw
 | Knowledge read-side summary | `modules/wiki` |
 | Document metadata + lifecycle | `modules/wiki` |
 | File upload registration | `modules/file` |
-| Ingestion worker | `libs/firebase/functions-python` |
+| Ingestion worker | `functions-python` |
 | Chunk persistence + vector index | `modules/wiki` infrastructure |
 | RAG query flow | `modules/ai` (Genkit) |
 

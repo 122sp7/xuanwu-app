@@ -1,6 +1,6 @@
 # functions-python ADR 規範與索引
 
-本目錄是 `libs/firebase/functions-python` 的 **Architecture Decision Record (ADR)** 集中管理區。
+本目錄是 `functions-python` 的 **Architecture Decision Record (ADR)** 集中管理區。
 
 目標不是累積抽象文件，而是把會影響後續設計、實作、重構、遷移與 Copilot 判斷的決策，固定成可追蹤的規範。
 
@@ -14,7 +14,7 @@
 2. 它和 **Next.js / Genkit / Firestore / Firebase Storage** 的**責任邊界**是什麼？
 3. 依賴套件為什麼這樣選？哪些可以用、哪些不要引入？
 4. 目錄結構、層次依賴、觸發方式、資料流應該如何設計？
-5. 如何從 `libs/firebase/functions` 遷移到 `libs/firebase/functions-python`？
+5. 如何從 `libs/firebase/functions` 遷移到 `functions-python`？
 
 如果一個技術決策會直接影響以上任一題，就應該寫成 ADR，而不是只留在註解或 README 片段裡。
 

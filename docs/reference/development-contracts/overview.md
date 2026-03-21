@@ -11,7 +11,7 @@ This index collects the development contracts that are intended to remove implem
 
 | Contract | Primary owner | Current shape | Main blocker removed |
 | --- | --- | --- | --- |
-| [RAG ingestion contract](./rag-ingestion-contract.md) | `modules/file` + `modules/ai` + `libs/firebase/functions-python` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
+| [RAG ingestion contract](./rag-ingestion-contract.md) | `modules/file` + `modules/ai` + `functions-python` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
 | [Parser contract](./parser-contract.md) | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
 | [Knowledge contract](./knowledge-contract.md) | `modules/wiki` (integrated) | Read-side knowledge summary + visible workspace UI + MVP write-side alignment | Clarifies UI/UX acceptance and maps summary posture to architecture lifecycle without ownership drift |
 | [Schedule contract](./schedule-contract.md) | `modules/schedule` | Resource request write-side + initial projection on submit + org-level pending dispatch view | Split ownership between derived items, persisted requests, and projection read model — see also [Schedule architecture](../../architecture/schedule.md), [Dev guide](../../schedule/development-guide.md), [User manual](../../schedule/user-manual.md) |

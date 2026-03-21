@@ -40,7 +40,7 @@ description: Target metadata, versioning, and retrieval architecture for the ent
    - `modules/file` 負責註冊已上傳文件 metadata
    - Firestore 寫入路徑：`/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
 2. **Ingestion worker**
-   - `libs/firebase/functions-python` 負責 `uploaded → processing → ready|failed`
+   - `functions-python` 負責 `uploaded → processing → ready|failed`
    - 同一路徑回寫文件狀態與處理時間欄位
 3. **Chunk persistence**
    - Firestore 寫入路徑：`/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
