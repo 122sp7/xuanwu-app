@@ -1,50 +1,47 @@
 ---
 title: Key File Locations
 impact: LOW
-impactDescription: Quick reference for finding important files
-tags: reference, navigation, file-locations
+impactDescription: Quick reference for navigating the codebase
+tags: reference, file-locations, navigation
 ---
 
-# Key File Locations
+## Key File Locations
 
-## UI Components
+**Impact: LOW**
 
-- Event types page: `apps/web/modules/event-types/views/event-types-listing-view.tsx`
-- Bookings page: `apps/web/modules/bookings/views/bookings-view.tsx`
-- Shared UI patterns (tabs, search bars, filter buttons) should maintain consistent alignment across views
+Quick reference for the most frequently needed files and directories.
 
-## Database
+| Path | Purpose |
+|------|---------|
+| `modules/` | All 20 business modules (MDDD bounded contexts) |
+| `packages/` | 21 shared packages (stable public boundaries) |
+| `app/` | Next.js App Router pages and layouts |
+| `agents/` | MDDD architecture knowledge system (this directory) |
+| `docs/architecture/` | Detailed architecture specifications per module |
+| `.github/agents/` | VS Code Copilot custom agents |
+| `.github/instructions/` | Copilot custom instruction files |
+| `.github/skills/` | Agent skills (documentation-writer, etc.) |
+| `tsconfig.json` | TypeScript config with all `@alias` path mappings |
+| `eslint.config.mjs` | ESLint config with package boundary enforcement |
+| `package.json` | Dependencies and npm scripts |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration |
 
-- Schema: `packages/prisma/schema.prisma`
-- Migrations: `packages/prisma/migrations/`
+**Module structure pattern:**
 
-## API
-
-- tRPC routers: `packages/trpc/server/routers/`
-- API v2 controllers: `apps/api/v2/src/modules/*/controllers/*.controller.ts`
-- OpenAPI spec: `docs/api-reference/v2/openapi.json` (auto-generated, don't edit manually)
-
-## Features
-
-- Workflow constants: `packages/features/ee/workflows/lib/constants.ts`
-- Round-robin/host prioritization: `packages/features/bookings/lib/getLuckyUser.ts`
-- Calendar cache: `packages/features/calendar-cache-sql`
-- DataTable guide: `packages/features/data-table/GUIDE.md`
-
-## Translations
-
-- English: `packages/i18n/locales/en/common.json`
-
-## App Store
-
-- Generated files: `packages/app-store/*.generated.ts`
-- CLI tool: `packages/app-store-cli/`
-
-## File Naming Conventions
-
-- **Repository files**: `PrismaBookingRepository.ts` (PascalCase with Repository suffix)
-- **Service files**: `MembershipService.ts` (PascalCase with Service suffix)
-- **Components**: `BookingForm.tsx` (PascalCase)
-- **Utilities**: `date-utils.ts` (kebab-case)
-- **Types**: `Booking.types.ts` (PascalCase with .types.ts suffix)
-- **Tests**: Same as source file + `.test.ts` or `.spec.ts`
+```
+modules/<name>/
+├── index.ts                    # Public barrel export
+├── domain/entities/            # Aggregate roots, value objects
+├── domain/repositories/        # Repository interfaces
+├── domain/services/            # Domain services (optional)
+├── domain/ports/               # Hexagonal ports (optional)
+├── application/use-cases/      # Use case implementations
+├── infrastructure/firebase/    # Firebase repository implementations
+├── interfaces/components/      # React components
+├── interfaces/queries/         # TanStack Query hooks
+├── interfaces/_actions/        # Next.js Server Actions
+└── interfaces/hooks/           # Custom React hooks
+```

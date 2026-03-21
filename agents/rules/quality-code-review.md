@@ -1,36 +1,37 @@
 ---
-title: Code Review Focus
-impact: MEDIUM
-impactDescription: Focused reviews are more useful than scattered feedback
-tags: code-review, workflow
+title: Code Review Standards
+impact: HIGH
+impactDescription: Catches defects early and maintains architectural consistency
+tags: quality, code-review, standards
 ---
 
-# Code Review Focus
+## Code Review Standards
 
-## When Asked to Review a PR
+**Impact: HIGH**
 
-Focus on providing a clear summary of what the PR is doing and its core functionality.
+Every code change must be reviewed with attention to architectural alignment, not just correctness.
 
-**Avoid getting sidetracked by:**
-- CI failures
-- Testing issues
-- Technical implementation details (unless specifically requested)
+**Review checklist:**
 
-## Good Review Structure
+1. **Module boundaries** — Does the change respect module `index.ts` barrel exports? No internal cross-module imports?
+2. **Layer direction** — Does the domain layer remain free of infrastructure/framework imports?
+3. **Import aliases** — Are all shared imports using `@alias` paths? No legacy `@/shared/*`, `@/infrastructure/*`, `@/libs/*`?
+4. **Use-case structure** — Are new use cases single-purpose files under `application/use-cases/`?
+5. **Repository pattern** — Are repository interfaces in `domain/`, implementations in `infrastructure/`?
+6. **Type safety** — Are `CommandResult` and `DomainError` used for error handling? No bare `throw` from use cases?
+7. **Testing** — Are new behaviors covered by tests?
 
-1. **Summary**: What does this PR do?
-2. **Core changes**: What are the main code changes?
-3. **Impact**: What parts of the system does this affect?
+**Incorrect (rubber-stamp review):**
 
-## What to Look For
+```
+LGTM 👍
+```
 
-- Does the code do what it claims to do?
-- Are there any obvious bugs or edge cases?
-- Does it follow Cal.com coding standards?
-- Is the change appropriately scoped?
+**Correct (substantive review):**
 
-## What to Skip (Unless Asked)
-
-- Nitpicks about style (Biome handles this)
-- Suggestions for refactoring unrelated code
-- Deep dives into implementation details
+```
+- ✅ Module boundaries respected (imports via barrel)
+- ⚠️ Line 42: This use case imports directly from `@integration-firebase` — 
+     should the Firestore call go through a repository interface instead?
+- ❌ Line 78: `@/shared/types` is a legacy path — use `@shared-types`
+```

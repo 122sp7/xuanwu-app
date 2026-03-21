@@ -1,73 +1,58 @@
 ---
 title: Local Development Setup
 impact: LOW
-impactDescription: Reference guide for local development environment
-tags: reference, development, setup
+impactDescription: Gets developers productive quickly
+tags: reference, local-dev, setup
 ---
 
-# Local Development Setup
+## Local Development Setup
 
-## Initial Setup
+**Impact: LOW**
 
-```bash
-# Install dependencies
-yarn
+Steps to get the development environment running locally.
 
-# Set up environment
-cp .env.example .env
-```
+**Prerequisites:**
+- Node.js 24 (see `engines` in `package.json`)
+- npm (included with Node.js)
+- Firebase CLI: `npx firebase` (no global install needed)
 
-## Environment Variables
-
-Generate required secrets:
+**Setup steps:**
 
 ```bash
-# NEXTAUTH_SECRET
-openssl rand -base64 32
+# 1. Install dependencies
+npm install
 
-# CALENDSO_ENCRYPTION_KEY (must be 32 characters for AES256)
-openssl rand -base64 24
+# 2. Start development server
+npm run dev
+
+# 3. Open browser
+# Navigate to http://localhost:3000
 ```
 
-Configure in `.env`:
-- `DATABASE_URL` - PostgreSQL connection string
-- `DATABASE_DIRECT_URL` - Same as DATABASE_URL
+**Common commands:**
 
-## Database Setup
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start Next.js dev server |
+| `npm run build` | Production build (includes type-check) |
+| `npm run lint` | Run ESLint |
+| `npm run start` | Start production server |
+
+**Firebase deployment (when needed):**
 
 ```bash
-# Development
-yarn workspace @calcom/prisma db-migrate
-
-# Production
-yarn workspace @calcom/prisma db-deploy
+npm run deploy:rules          # Firestore + Storage rules
+npm run deploy:functions      # Cloud Functions (Python)
+npm run deploy:firebase       # Everything
 ```
 
-## Test Users
+**Key environment files:**
+- Firebase config is in `firebase.json`
+- App Hosting config is in `apphosting.yaml`
+- Firestore rules are in `firestore.rules`
+- Storage rules are in `storage.rules`
 
-When setting up local development database, it creates test users. The passwords are the same as the username:
-- `free:free`
-- `pro:pro`
-
-## Logging
-
-Control logging verbosity by setting `NEXT_PUBLIC_LOGGER_LEVEL` in .env:
-- 0: silly
-- 1: trace
-- 2: debug
-- 3: info
-- 4: warn
-- 5: error
-- 6: fatal
-
-## API v2 Imports
-
-If you need to import from `@calcom/features` or `@calcom/trpc` into `apps/api/v2`, use the platform-libraries package instead:
-
-```typescript
-// ✅ Good
-import { SomeService } from "@calcom/platform-libraries";
-
-// ❌ Bad - Will cause module resolution errors
-import { SomeService } from "@calcom/features/...";
-```
+**Useful tips:**
+- The dev server supports Fast Refresh — save a file and see changes instantly
+- ESLint will block legacy import paths (`@/shared/*`, `@/infrastructure/*`, etc.) — use `@alias` paths
+- TypeScript path aliases are defined in `tsconfig.json` — check there for available `@package` imports

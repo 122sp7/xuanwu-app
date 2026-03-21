@@ -1,49 +1,51 @@
 ---
-title: Import and Export Patterns
-impact: MEDIUM
-impactDescription: Incorrect imports cause build failures and bundle bloat
-tags: imports, exports, modules, app-store
+title: Use Package Alias Imports
+impact: CRITICAL
+impactDescription: Prevents legacy path usage and maintains clean dependency graph
+tags: quality, imports, aliases, eslint, packages
 ---
 
-# Import and Export Patterns
+## Use Package Alias Imports
 
-## Named vs Default Exports
+**Impact: CRITICAL**
 
-When working with imports in the Cal.com codebase, particularly in app-store integrations, pay attention to whether modules use named exports or default exports.
+All shared code must be imported through `@alias` paths defined in `tsconfig.json`. Legacy paths are blocked by ESLint. Cross-module imports use `@/modules/<name>` (the barrel export). Within a module, use relative imports.
 
-Many services like VideoApiAdapter, CalendarService, and PaymentService are exported as named exports, but the actual export name may differ from the generic service type.
+**Incorrect (legacy paths — ESLint blocks these):**
 
 ```typescript
-// ✅ Good - Verify actual export name and use named import
-import { AppleCalendarService } from "./applecalendar/lib/CalendarService";
-
-// With renaming if needed
-import { AppleCalendarService as ApplecalendarCalendarService } from "./applecalendar/lib/CalendarService";
-
-// ❌ Bad - Assuming default export without checking
-import CalendarService from "./applecalendar/lib/CalendarService";
+import type { CommandResult } from "@/shared/types";
+import { db } from "@/infrastructure/firebase";
+import { cn } from "@/libs/utils";
+import { Button } from "@/ui/shadcn/ui/button";
 ```
 
-## Generated Files
-
-When fixing imports in Cal.com's generated files (like `packages/app-store/apps.browser-*.generated.tsx`), always check the actual exports in the source files first.
-
-For EventTypeAppCardInterface components, they likely use named exports rather than default exports, requiring:
+**Incorrect (reaching into another module's internals):**
 
 ```typescript
-import * as ComponentName from "./path";
-// instead of
-import ComponentName from "./path";
+import { Task } from "@/modules/task/domain/entities/Task";
 ```
 
-## Factory Function Naming
-
-When creating factory functions that replace class exports, use the naming convention `Build[ServiceName]` instead of just `[ServiceName]`:
+**Correct (package aliases for shared code):**
 
 ```typescript
-// ✅ Good - Clear factory function naming
-export function BuildPaymentService() { ... }
+import type { CommandResult, DomainError } from "@shared-types";
+import { cn } from "@shared-utils";
+import { auth, db } from "@integration-firebase";
+import { Button } from "@ui-shadcn/ui/button";
+import { z } from "@lib-zod";
+```
 
-// ❌ Bad - Confusing with class export
-export function PaymentService() { ... }
+**Correct (module barrel for cross-module):**
+
+```typescript
+import { publishDomainEvent } from "@/modules/event";
+import type { Task } from "@/modules/task";
+```
+
+**Correct (relative within same module):**
+
+```typescript
+// Inside modules/wiki/application/use-cases/create-wiki-document.ts
+import { WikiDocument } from "../../domain/entities/wiki-document.entity";
 ```

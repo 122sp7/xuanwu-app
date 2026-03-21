@@ -1,6 +1,6 @@
-# Cal.com Engineering Rules
+# Xuanwu MDDD Engineering Rules
 
-This directory contains modular, machine-readable engineering rules derived from [Cal.com's Engineering Standards for 2026 and Beyond](https://cal.com/blog/engineering-in-2026-and-beyond).
+This directory contains modular, machine-readable engineering rules for the xuanwu-app Module-Driven Domain Design architecture.
 
 ## Structure
 
@@ -16,12 +16,14 @@ Rules are organized by section prefix, as defined in `_sections.md`:
 | `testing-` | Testing | MEDIUM-HIGH |
 | `patterns-` | Design Patterns | MEDIUM |
 | `culture-` | Team Culture | MEDIUM |
+| `ci-` | CI/CD | HIGH |
+| `reference-` | Reference | LOW |
 
 ## Files
 
-- `_sections.md` - Defines all sections, their ordering, and impact levels
-- `_template.md` - Template for creating new rules
-- `{section}-{rule-name}.md` - Individual rule files
+- `_sections.md` — Defines all sections, their ordering, and impact levels
+- `_template.md` — Template for creating new rules
+- `{section}-{rule-name}.md` — Individual rule files
 
 ## Rule Format
 
@@ -31,7 +33,7 @@ Each rule file follows a consistent format with YAML frontmatter:
 ---
 title: Rule Title Here
 impact: CRITICAL | HIGH | MEDIUM | LOW
-impactDescription: Optional description (e.g., "20-50% improvement")
+impactDescription: Optional description (e.g., "Prevents architecture erosion")
 tags: tag1, tag2, tag3
 ---
 
@@ -58,22 +60,10 @@ Reference: [Link](url)
 
 1. Copy `_template.md` to a new file with the appropriate section prefix
 2. Fill in the frontmatter (title, impact, tags)
-3. Write a clear explanation of the rule
+3. Write a clear explanation using xuanwu-app examples
 4. Provide incorrect and correct code examples
 5. Add a reference link if applicable
 
-## Usage
-
-These rules are designed to be:
-- **Human-readable**: Engineers can browse and learn from them
-- **Machine-readable**: AI agents can parse and apply them
-- **Modular**: Individual rules can be updated without affecting others
-- **Versionable**: Changes are tracked in git history
-
 ## Core Principles
 
-From the blog post, our engineering philosophy is:
-
-> We are building infrastructure that must almost never fail. To achieve this, we move fast while shipping amazing quality software with no shortcuts or compromises.
-
-The rules in this directory encode the specific practices that enable this philosophy.
+> The architecture is **module-driven, not layer-driven**. Every business capability is a self-contained module. Modules communicate through barrel exports, never by reaching into each other's internals. Packages are stable public boundaries for shared concerns.
