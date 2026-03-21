@@ -37,7 +37,8 @@ type MainView = "hub" | "workspace" | "pages" | "archived" | "page-detail";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-/** Map `?view=` query-param values to internal MainView keys. */
+/** Map `?view=` query-param values to internal MainView keys.
+ *  Unknown values silently fall back to "hub" (the default landing view). */
 const VIEW_PARAM_MAP: Record<string, MainView> = {
   hub: "hub",
   pages: "pages",
