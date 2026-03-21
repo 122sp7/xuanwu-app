@@ -353,6 +353,7 @@ Do **not** turn this codebase into a parallel Next.js app server.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
+pip install -r requirements.txt
 ```
 
 ## Local sanity check
