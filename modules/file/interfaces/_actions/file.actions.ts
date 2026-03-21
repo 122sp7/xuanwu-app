@@ -67,3 +67,43 @@ export async function registerUploadedRagDocument(
     commandId,
   };
 }
+
+// ── Archive RAG Document ────────────────────────────────────────────────────
+
+export interface ArchiveRagDocumentInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+}
+
+export interface ArchiveRagDocumentResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Archives a RAG document by setting its Firestore status to "archived".
+ * Archived documents are excluded from RAG retrieval queries.
+ */
+export async function archiveRagDocument(
+  input: ArchiveRagDocumentInput,
+): Promise<ArchiveRagDocumentResult> {
+  try {
+    if (!input.documentId.trim()) {
+      return { ok: false, error: "documentId is required" };
+    }
+    const repo = new FirebaseRagDocumentRepository();
+    await repo.updateStatus({
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      documentId: input.documentId,
+      status: "archived",
+    });
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Archive failed",
+    };
+  }
+}

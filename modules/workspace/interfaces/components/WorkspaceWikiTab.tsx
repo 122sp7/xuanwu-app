@@ -8,7 +8,7 @@
  * Constraints: UI components only — no business logic.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArchiveIcon,
   ChevronDownIcon,
@@ -21,12 +21,16 @@ import {
   SearchIcon,
   UploadIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import type { RagDocumentRecord } from "@/modules/file";
 import { getWorkspaceRagDocuments } from "@/modules/file";
+import { archiveRagDocument } from "@/modules/file";
+import { resolveFileOrganizationId } from "@/modules/file";
 import type { WorkspaceKnowledgeSummary } from "@/modules/wiki";
 import { getWorkspaceKnowledgeSummary } from "@/modules/wiki";
+import { retryDocumentProcessing } from "@/modules/wiki/interfaces/_actions/wiki-document.actions";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -188,6 +192,7 @@ interface DocumentRowProps {
   readonly onRetry: (docId: string) => void;
   readonly onArchive: (docId: string) => void;
   readonly onUploadVersion: (versionGroupId: string) => void;
+  readonly actionsDisabled?: boolean;
 }
 
 function DocumentRow({
@@ -196,6 +201,7 @@ function DocumentRow({
   onRetry,
   onArchive,
   onUploadVersion,
+  actionsDisabled,
 }: DocumentRowProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const hasOtherVersions = versionHistory.length > 1;
@@ -270,6 +276,7 @@ function DocumentRow({
                 variant="outline"
                 size="sm"
                 className="h-6 gap-1 text-xs"
+                disabled={actionsDisabled}
                 onClick={() => onRetry(doc.id)}
               >
                 <RefreshCwIcon className="size-3" />
@@ -281,6 +288,7 @@ function DocumentRow({
                 variant="outline"
                 size="sm"
                 className="h-6 gap-1 text-xs"
+                disabled={actionsDisabled}
                 onClick={() => onArchive(doc.id)}
               >
                 <ArchiveIcon className="size-3" />
@@ -292,6 +300,7 @@ function DocumentRow({
                 variant="outline"
                 size="sm"
                 className="h-6 gap-1 text-xs"
+                disabled={actionsDisabled}
                 onClick={() => onUploadVersion(doc.versionGroupId)}
               >
                 <UploadIcon className="size-3" />
@@ -452,8 +461,43 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
     });
   }, [latestDocs, statusFilter, docSearch]);
 
-  const handleRetry = useCallback((docId: string) => { stubAction(`retry:${docId}`); }, []);
-  const handleArchive = useCallback((docId: string) => { stubAction(`archive:${docId}`); }, []);
+  const [isRetrying, startRetryTransition] = useTransition();
+  const [isArchiving, startArchiveTransition] = useTransition();
+
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+
+  const handleRetry = useCallback((docId: string) => {
+    startRetryTransition(async () => {
+      const result = await retryDocumentProcessing({
+        documentId: docId,
+        organizationId,
+        workspaceId: workspace.id,
+      });
+      if (result.ok) {
+        toast.success("文件已重新提交處理");
+        await loadKnowledgeData();
+      } else {
+        toast.error(result.error ?? "重試處理失敗");
+      }
+    });
+  }, [organizationId, workspace.id, loadKnowledgeData]);
+
+  const handleArchive = useCallback((docId: string) => {
+    startArchiveTransition(async () => {
+      const result = await archiveRagDocument({
+        documentId: docId,
+        organizationId,
+        workspaceId: workspace.id,
+      });
+      if (result.ok) {
+        toast.success("文件已封存");
+        await loadKnowledgeData();
+      } else {
+        toast.error(result.error ?? "封存失敗");
+      }
+    });
+  }, [organizationId, workspace.id, loadKnowledgeData]);
+
   const handleUploadVersion = useCallback((versionGroupId: string) => {
     stubAction(`upload-version:${versionGroupId}`);
   }, []);
@@ -765,6 +809,7 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
                   onRetry={handleRetry}
                   onArchive={handleArchive}
                   onUploadVersion={handleUploadVersion}
+                  actionsDisabled={isRetrying || isArchiving}
                 />
               ))}
           </CardContent>

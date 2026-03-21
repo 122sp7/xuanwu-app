@@ -173,6 +173,93 @@ export async function callDocumentAi(dto: CallDocumentAiDTO): Promise<DocumentAi
   }
 }
 
+// ── Retry Document Processing (re-trigger functions-python pipeline) ────────
+
+export interface RetryDocumentProcessingDTO {
+  /** Firestore document ID (e.g. doc_xxx). */
+  documentId: string
+  organizationId: string
+  workspaceId: string
+}
+
+export interface RetryDocumentProcessingResult {
+  ok: boolean
+  status?: string
+  chunkCount?: number
+  taxonomy?: string
+  error?: string
+}
+
+/**
+ * Re-triggers the RAG ingestion pipeline for a document that previously failed
+ * processing. Calls the `process_uploaded_rag_document` Cloud Function callable
+ * defined in `functions-python/main.py`.
+ *
+ * The callable:
+ * 1. Downloads the original file from Storage via `storagePath`.
+ * 2. Parses it with Document AI (OCR Extractor).
+ * 3. Classifies taxonomy via Document AI (OCR Classifier).
+ * 4. Chunks the extracted text.
+ * 5. Embeds chunks deterministically.
+ * 6. Writes extracted text to Storage (`extracted/{documentId}.txt`).
+ * 7. Updates the Firestore document record with status, chunkCount, indexedAtISO.
+ */
+export async function retryDocumentProcessing(
+  dto: RetryDocumentProcessingDTO,
+): Promise<RetryDocumentProcessingResult> {
+  try {
+    if (!dto.documentId.trim()) {
+      return { ok: false, error: 'documentId is required' }
+    }
+
+    // Look up the existing document record from Firestore
+    const { FirebaseRagDocumentRepository } = await import(
+      '@/modules/file/infrastructure/firebase/FirebaseRagDocumentRepository'
+    )
+    const repo = new FirebaseRagDocumentRepository()
+    const record = await repo.findById({
+      organizationId: dto.organizationId,
+      workspaceId: dto.workspaceId,
+      documentId: dto.documentId,
+    })
+
+    if (!record) {
+      return { ok: false, error: `Document not found: ${dto.documentId}` }
+    }
+
+    // Invoke the process_uploaded_rag_document Cloud Function callable
+    const { getFirebaseFunctions, functionsApi } = await import(
+      '@integration-firebase/functions'
+    )
+
+    const functions = getFirebaseFunctions()
+    const callable = functionsApi.httpsCallable(functions, 'process_uploaded_rag_document')
+    const response = await callable({
+      documentId: record.id,
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      title: record.title,
+      sourceFileName: record.sourceFileName,
+      mimeType: record.mimeType,
+      storagePath: record.storagePath,
+      ...(record.taxonomy ? { taxonomyHint: record.taxonomy } : {}),
+    })
+
+    const data = response.data as Record<string, unknown>
+    return {
+      ok: true,
+      status: data.status as string | undefined,
+      chunkCount: data.chunkCount as number | undefined,
+      taxonomy: data.taxonomy as string | undefined,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Retry processing failed',
+    }
+  }
+}
+
 // ── Embed Wiki Document (Next.js-side, lightweight) ─────────────────────────
 
 /**

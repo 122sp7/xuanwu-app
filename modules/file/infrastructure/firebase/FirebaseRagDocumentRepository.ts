@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   limit,
@@ -16,6 +17,7 @@ import { firebaseClientApp } from "@integration-firebase/client";
 import type {
   RagDocumentRecord,
   RagDocumentRepository,
+  RagDocumentStatus,
 } from "../../domain/repositories/RagDocumentRepository";
 
 function buildKnowledgeDocumentRef(input: {
@@ -101,6 +103,8 @@ function toRagDocumentRecord(
     chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
     indexedAtISO:
       typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
+    extractedTextStoragePath:
+      typeof data.extractedTextStoragePath === "string" ? data.extractedTextStoragePath : undefined,
     expiresAtISO:
       typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
@@ -109,6 +113,26 @@ function toRagDocumentRecord(
 }
 
 export class FirebaseRagDocumentRepository implements RagDocumentRepository {
+  async findById(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly documentId: string;
+  }): Promise<RagDocumentRecord | null> {
+    const docRef = buildKnowledgeDocumentRef({
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+      documentId: scope.documentId,
+    });
+    const snapshot = await getDoc(docRef);
+    if (!snapshot.exists()) {
+      return null;
+    }
+    return toRagDocumentRecord(snapshot.id, snapshot.data() as Record<string, unknown>, {
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+    });
+  }
+
   async findByStoragePath(scope: {
     readonly organizationId: string;
     readonly workspaceId: string;
@@ -198,5 +222,30 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+  }
+
+  async updateStatus(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly documentId: string;
+    readonly status: RagDocumentStatus;
+    readonly statusMessage?: string;
+  }): Promise<void> {
+    const documentRef = buildKnowledgeDocumentRef({
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+      documentId: scope.documentId,
+    });
+
+    await setDoc(
+      documentRef,
+      {
+        status: scope.status,
+        ...(scope.statusMessage !== undefined ? { statusMessage: scope.statusMessage } : {}),
+        updatedAtISO: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
   }
 }

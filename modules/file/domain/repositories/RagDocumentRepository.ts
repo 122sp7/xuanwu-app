@@ -65,6 +65,8 @@ export interface RagDocumentRecord {
   readonly chunkCount?: number;
   /** ISO-8601 timestamp set by the ingestion worker when indexing completes. */
   readonly indexedAtISO?: string;
+  /** Storage path of the extracted text written by the ingestion worker. */
+  readonly extractedTextStoragePath?: string;
   /** ISO-8601 expiry timestamp; the document is auto-archived when reached. */
   readonly expiresAtISO?: string;
   readonly createdAtISO: string;
@@ -81,5 +83,17 @@ export interface RagDocumentRepository {
     readonly organizationId: string;
     readonly workspaceId: string;
   }): Promise<readonly RagDocumentRecord[]>;
+  findById(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly documentId: string;
+  }): Promise<RagDocumentRecord | null>;
   saveUploaded(record: RagDocumentRecord): Promise<void>;
+  updateStatus(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly documentId: string;
+    readonly status: RagDocumentStatus;
+    readonly statusMessage?: string;
+  }): Promise<void>;
 }
