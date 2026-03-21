@@ -324,7 +324,7 @@
 | workspaceId filter | `FirebaseRagRetrievalRepository.ts:74` | ✅ 已實作 |
 | taxonomy filter | `FirebaseRagRetrievalRepository.ts:75` | ✅ 已實作 |
 | status=ready filter | `FirebaseRagRetrievalRepository.ts:73` | ✅ 已實作 |
-| isLatest filter | 文件要求但未在 retrieval 中實作 | ❌ 缺失 |
+| isLatest filter | `FirebaseRagRetrievalRepository.ts:74` | ✅ 已實作（本 PR 修復） |
 | accessControl RBAC filter | 文件要求（`accessControl in userRoles`）但未在 retrieval 中實作 | ❌ 缺失 |
 
 ### 詳細描述
@@ -334,15 +334,14 @@
   - `workspaceId`（可選）：工作區範圍 ✅
   - `taxonomy`（可選）：分類篩選 ✅
   - `status == "ready"`：排除未就緒文件 ✅
+  - `isLatest == true`：排除廢棄版本 ✅（本 PR 修復）
 - **缺失的過濾**（文件合約要求但未實作）：
-  - `isLatest == true`：排除廢棄版本（`RetrieveRagChunksInput` 中無此欄位，Firestore query 未包含）
   - `accessControl in userRoles`：RBAC 權限過濾（`RetrieveRagChunksInput` 中無 `userRoles` 欄位）
 - 參考合約：`docs/reference/development-contracts/wiki-contract.md` §Required query filters
 - 參考架構文件：`docs/wiki/development-guide.md` §4.3
 
 ### 影響
 
-- 無 `isLatest` filter：版本更新後舊版本的 chunks 可能仍被檢索到
 - 無 `accessControl` filter：權限受限的文件可能被無權限的使用者檢索到
 
 ---
@@ -441,7 +440,8 @@
 [10] Retrieval ───────→ │ FirebaseRagRetrievalRepository.retrieve()               │
                         │ + UpstashRetrievalRepository (wiki vector search)       │
 [11] Filtering ───────→ │ organizationId + workspaceId + taxonomy + status=ready  │
-                        │ ⚠️ Missing: isLatest, accessControl RBAC               │
+                        │ + isLatest=true (本 PR 修復)                            │
+                        │ ⚠️ Missing: accessControl RBAC                         │
 [12] Reranking ───────→ │ ❌ NOT IMPLEMENTED (token scoring only)                 │
 [13] Generation ──────→ │ GenkitRagGenerationRepository.generate()                │
                         │ → Genkit LLM → streaming answer + citations             │
@@ -456,7 +456,7 @@
 - [ ] **Layer 11**：在 `RetrieveRagChunksInput` 加入 `userRoles: string[]`，在 Firestore query 中加入 `accessControl` array-contains-any filter
 
 ### P1（資料正確性）
-- [ ] **Layer 11**：在 retrieval query 中加入 `isLatest == true` filter，防止檢索到廢棄版本
+- [x] **Layer 11**：~~在 retrieval query 中加入 `isLatest == true` filter~~（已在本 PR 完成）
 - [ ] **Layer 12**：實作 Cross-Encoder reranking（可使用 Cohere Rerank API 或 LLM-based rerank）
 
 ### P2（品質提升）
