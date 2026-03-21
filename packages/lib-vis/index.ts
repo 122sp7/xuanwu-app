@@ -1,5 +1,5 @@
 /**
- * @module libs/vis
+ * @package lib-vis
  * Unified Vis.js visualization library barrel.
  *
  * Provides thin wrappers for all vis.js core libraries:
@@ -12,7 +12,7 @@
  * without proper use-client boundary.
  *
  * Usage:
- *   import { DataSet, Network, Timeline, Graph3d } from "@/libs/vis";
+ *   import { DataSet, Network, Timeline, Graph3d } from "@lib-vis";
  */
 
 export * from "./data";

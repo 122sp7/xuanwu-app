@@ -11,11 +11,11 @@ import { Camera, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/app/providers/auth-provider";
 import { subscribeToUserProfile } from "@/modules/account/interfaces/queries/account.queries";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
-import { Button } from "@/ui/shadcn/ui/button";
-import { Input } from "@/ui/shadcn/ui/input";
-import { Label } from "@/ui/shadcn/ui/label";
-import { Separator } from "@/ui/shadcn/ui/separator";
-import { Textarea } from "@/ui/shadcn/ui/textarea";
+import { Button } from '@ui-shadcn';
+import { Input } from '@ui-shadcn';
+import { Label } from '@ui-shadcn';
+import { Separator } from '@ui-shadcn';
+import { Textarea } from '@ui-shadcn';
 
 export default function SettingsProfilePage() {
   const { state: authState, logout } = useAuth();

@@ -73,6 +73,36 @@
       ],
       "@wiki-service": [
         "./packages/wiki-service/index.ts"
+      ],
+      "@lib-date-fns": [
+        "./packages/lib-date-fns/index.ts"
+      ],
+      "@lib-zod": [
+        "./packages/lib-zod/index.ts"
+      ],
+      "@lib-xstate": [
+        "./packages/lib-xstate/index.ts"
+      ],
+      "@lib-tanstack": [
+        "./packages/lib-tanstack/index.ts"
+      ],
+      "@lib-superjson": [
+        "./packages/lib-superjson/index.ts"
+      ],
+      "@lib-dragdrop": [
+        "./packages/lib-dragdrop/index.ts"
+      ],
+      "@lib-react-markdown": [
+        "./packages/lib-react-markdown/index.ts"
+      ],
+      "@lib-remark-gfm": [
+        "./packages/lib-remark-gfm/index.ts"
+      ],
+      "@lib-vis": [
+        "./packages/lib-vis/index.ts"
+      ],
+      "@api-contracts": [
+        "./packages/api-contracts/index.ts"
       ]
     }
   },

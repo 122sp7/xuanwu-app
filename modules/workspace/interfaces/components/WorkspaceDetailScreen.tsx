@@ -10,16 +10,16 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/ui/shadcn/ui/avatar";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+} from '@ui-shadcn';
+import { Badge } from '@ui-shadcn';
+import { Button } from '@ui-shadcn';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from '@ui-shadcn';
 import {
   Dialog,
   DialogContent,
@@ -27,17 +27,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/shadcn/ui/dialog";
-import { Input } from "@/ui/shadcn/ui/input";
+} from '@ui-shadcn';
+import { Input } from '@ui-shadcn';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/shadcn/ui/select";
-import { Separator } from "@/ui/shadcn/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/shadcn/ui/tabs";
+} from '@ui-shadcn';
+import { Separator } from '@ui-shadcn';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ui-shadcn';
 import { WorkspaceAcceptanceTab } from "@/modules/acceptance";
 import { WorkspaceAuditTab } from "@/modules/audit";
 import { WorkspaceFilesTab } from "@/modules/file";

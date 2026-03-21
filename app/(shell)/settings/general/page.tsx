@@ -6,15 +6,15 @@
  */
 
 import { useState } from "react";
-import { Button } from "@/ui/shadcn/ui/button";
-import { Label } from "@/ui/shadcn/ui/label";
+import { Button } from '@ui-shadcn';
+import { Label } from '@ui-shadcn';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/shadcn/ui/select";
+} from '@ui-shadcn';
 
 const LANGUAGES = [
   { value: "zh-TW", label: "中文（台灣）" },
