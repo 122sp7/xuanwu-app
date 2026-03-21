@@ -519,7 +519,7 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
       });
 
       if (!initResult.ok) {
-        toast.error(`上傳初始化失敗：${initResult.error.message}`);
+        toast.error("上傳初始化失敗，請稍後再試。");
         return;
       }
 
@@ -539,16 +539,14 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
       });
 
       if (!completeResult.ok) {
-        toast.error(`上傳完成失敗：${completeResult.error.message}`);
+        toast.error("上傳完成失敗，請稍後再試。");
         return;
       }
 
       toast.success(`已上傳「${file.name}」，文件狀態：${completeResult.data.ragDocumentStatus}`);
       await loadKnowledgeData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? `上傳失敗：${error.message}` : "上傳時發生非預期錯誤",
-      );
+    } catch {
+      toast.error("上傳文件時發生錯誤，請稍後再試。");
     } finally {
       setIsUploading(false);
     }
