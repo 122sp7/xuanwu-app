@@ -77,15 +77,55 @@ modules/<feature>/
 
 ---
 
-## Shared Kernel (`shared/`)
+## Package Boundaries (`packages/`)
 
-| Path | Contents |
-|------|----------|
-| `shared/types/index.ts` | `CommandResult`, `CommandSuccess`, `CommandFailure`, `DomainError`, `Timestamp`, factory helpers |
-| `shared/validators/index.ts` | Zod schemas for input validation |
-| `shared/hooks/useStore.ts` | Zustand app store |
-| `shared/constants/index.ts` | App-wide constants |
-| `shared/utils/index.ts` | Pure utility functions |
+All cross-cutting concerns live in `packages/` with TypeScript path aliases.
+ESLint `no-restricted-imports` forbids the legacy `@/shared/*`, `@/libs/*`,
+`@/infrastructure/*`, `@/ui/*`, and `@/interfaces/*` paths.
+
+See [`packages/README.md`](packages/README.md) for the full inventory.
+
+### Shared Contracts
+
+| Alias | Contents |
+|-------|----------|
+| `@shared-types` | `CommandResult`, `CommandSuccess`, `CommandFailure`, `DomainError`, `Timestamp`, factory helpers |
+| `@shared-validators` | Zod schemas for input validation |
+| `@shared-hooks` | Zustand app store |
+| `@shared-constants` | App-wide constants |
+| `@shared-utils` | `cn()`, `formatDate()`, `generateId()` |
+
+### Integration Adapters
+
+| Alias | Contents |
+|-------|----------|
+| `@integration-firebase` | Firebase client SDK (auth, firestore, storage, etc.) |
+| `@integration-upstash` | Upstash Redis, Vector, QStash, Workflow, Box |
+| `@integration-http` | Axios HTTP client with interceptors |
+| `@api-contracts` | REST route registry + GraphQL schema |
+
+### UI Packages
+
+| Alias | Contents |
+|-------|----------|
+| `@ui-shadcn` | shadcn/ui components + cn() utility + hooks |
+| `@ui-vis` | Vis.js React components (VisNetwork, VisTimeline) |
+
+### Library Wrappers
+
+| Alias | Wraps |
+|-------|-------|
+| `@lib-date-fns` | date-fns v4 |
+| `@lib-zod` | Zod v4 |
+| `@lib-uuid` | UUID v13 |
+| `@lib-zustand` | Zustand v5 |
+| `@lib-xstate` | XState v5 + @xstate/react |
+| `@lib-tanstack` | TanStack Query/Form/Table/Virtual |
+| `@lib-superjson` | SuperJSON |
+| `@lib-dragdrop` | Atlaskit Pragmatic Drag and Drop |
+| `@lib-react-markdown` | react-markdown |
+| `@lib-remark-gfm` | remark-gfm |
+| `@lib-vis` | vis-data / vis-network / vis-timeline / vis-graph3d |
 
 ---
 
