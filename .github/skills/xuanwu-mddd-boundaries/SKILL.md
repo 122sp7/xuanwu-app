@@ -1,6 +1,6 @@
 ---
 name: xuanwu-mddd-boundaries
-description: 'Enforce Xuanwu''s Module-Driven Domain Design boundaries. Use when adding, moving, or refactoring code in `modules/`, `packages/`, `app/`, server actions, repositories, DTOs, or cross-module imports. Helps choose the correct owning module and layer, preserve `UI -> Application -> Domain <- Infrastructure`, use package aliases, and avoid reaching into another module or package internals.'
+description: 'Enforce Xuanwu''s MDDD module architecture and bounded-context boundaries. Use for cross-module imports, dependency violations, refactors in `modules/`, `packages/`, or `app/`, and changes to repositories, DTOs, or server actions. Preserves correct module ownership, layer placement, package aliases, and public boundaries.'
 ---
 
 # Xuanwu MDDD Boundaries

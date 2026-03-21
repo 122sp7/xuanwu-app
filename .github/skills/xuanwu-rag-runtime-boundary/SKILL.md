@@ -1,6 +1,6 @@
 ---
 name: xuanwu-rag-runtime-boundary
-description: 'Apply Xuanwu''s RAG runtime split between Next.js and `functions-python`. Use when working on uploads, document ingestion, parser jobs, taxonomy, chunking, embeddings, Firestore `documents` or `chunks`, vector retrieval, or AI query orchestration. Helps decide which runtime owns the change, preserve the fixed ingestion order, and keep organization/workspace retrieval boundaries intact.'
+description: 'Enforce Xuanwu''s RAG runtime split between Next.js and `functions-python`. Use for uploads, ingestion, parser jobs, chunking, embeddings, Firestore `documents` or `chunks`, vector retrieval, and AI query orchestration. Preserves runtime ownership, fixed ingestion order, and organization/workspace boundaries.'
 ---
 
 # Xuanwu RAG Runtime Boundary
