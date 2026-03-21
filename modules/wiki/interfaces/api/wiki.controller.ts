@@ -8,29 +8,19 @@
 import type {
   CreateWikiDocumentUseCase,
   CreateWikiDocumentDTO,
-} from '../../application/use-cases/create-wiki-document'
-import type {
   CreateWikiPageUseCase,
   CreateWikiPageDTO,
-} from '../../application/use-cases/create-wiki-page.use-case'
-import type {
   ArchiveWikiPageUseCase,
   ArchiveWikiPageDTO,
-} from '../../application/use-cases/archive-wiki-page.use-case'
-import type {
   UpdateWikiPageUseCase,
   UpdateWikiPageDTO,
-} from '../../application/use-cases/update-wiki-page.use-case'
-import type { GetWorkspaceKnowledgeSummaryUseCase } from '../../application/use-cases/get-workspace-knowledge-summary.use-case'
-import type { IKnowledgeSummaryScope } from '../../domain/repositories/iknowledge-summary.repository'
-import type {
+  GetWorkspaceKnowledgeSummaryUseCase,
   GetRAGAnswerUseCase,
   GetRAGAnswerDTO,
-} from '../../application/use-cases/get-rag-answer.use-case'
-import type {
   SearchWikiDocumentsUseCase,
   SearchWikiDocumentsDTO,
-} from '../../application/use-cases/search-wiki-documents.use-case'
+} from '@wiki-service'
+import type { IKnowledgeSummaryScope } from '@wiki-core'
 
 export class WikiController {
   constructor(

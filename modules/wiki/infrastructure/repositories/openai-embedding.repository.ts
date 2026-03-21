@@ -6,8 +6,8 @@
  *          OPENAI_API_KEY environment variable at runtime.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import type { IEmbeddingRepository, EmbedTextDTO } from '../../domain/repositories/iembedding.repository'
-import { Embedding } from '../../domain/value-objects/embedding.vo'
+import type { IEmbeddingRepository, EmbedTextDTO } from '@wiki-core'
+import { Embedding } from '@wiki-core'
 
 const MAX_BATCH = 20
 const DEFAULT_MODEL = 'text-embedding-3-small'
@@ -75,7 +75,6 @@ export class OpenAIEmbeddingRepository implements IEmbeddingRepository {
 
     const json = (await response.json()) as OpenAIEmbeddingResponse
 
-    // Results are returned in the same order as the input array.
     return json.data
       .sort((a, b) => a.index - b.index)
       .map(

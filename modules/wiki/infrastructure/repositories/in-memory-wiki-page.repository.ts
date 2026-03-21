@@ -4,8 +4,7 @@
  * Purpose: In-memory adapter for wiki page repository — local development and tests.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import type { WikiPage, WikiPageScope } from '../../domain/entities/wiki-page.entity'
-import type { IWikiPageRepository } from '../../domain/repositories/iwiki-page.repository'
+import type { WikiPage, WikiPageScope, IWikiPageRepository } from '@wiki-core'
 
 export class InMemoryWikiPageRepository implements IWikiPageRepository {
   private readonly store = new Map<string, WikiPage>()

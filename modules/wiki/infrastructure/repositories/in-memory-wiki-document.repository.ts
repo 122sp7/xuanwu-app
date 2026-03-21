@@ -4,8 +4,7 @@
  * Purpose: In-memory adapter for wiki document repository — local development and tests.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import type { WikiDocument } from '../../domain/entities/wiki-document.entity'
-import type { IWikiDocumentRepository } from '../../domain/repositories/iwiki-document.repository'
+import type { WikiDocument, IWikiDocumentRepository } from '@wiki-core'
 
 export class InMemoryWikiDocumentRepository implements IWikiDocumentRepository {
   private readonly store = new Map<string, WikiDocument>()
@@ -29,7 +28,6 @@ export class InMemoryWikiDocumentRepository implements IWikiDocumentRepository {
   }
 
   async search(_vector: number[]): Promise<WikiDocument[]> {
-    // In-memory adapter returns all documents; Upstash or Firestore adapter handles real vector search.
     return [...this.store.values()]
   }
 

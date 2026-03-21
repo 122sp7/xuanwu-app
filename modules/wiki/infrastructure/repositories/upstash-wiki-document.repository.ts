@@ -1,34 +1,79 @@
 /**
  * Module: wiki
  * Layer: infrastructure/repository
- * Purpose: Adapter implementing wiki document repository contract via Upstash services.
+ * Purpose: Upstash Vector adapter implementing wiki document persistence and vector search.
+ *          Uses @integration-upstash directly — no local Upstash client setup needed.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import type { WikiDocument } from '../../domain/entities/wiki-document.entity'
-import type { IWikiDocumentRepository } from '../../domain/repositories/iwiki-document.repository'
+import { vectorIndex } from '@integration-upstash'
+import type { IWikiDocumentRepository } from '@wiki-core'
+import type { WikiDocument } from '@wiki-core'
+import {
+  type WikiDocVectorMetadata,
+  toMetadata,
+  fromMetadata,
+  escapeFilterValue,
+} from './wiki-vector-metadata'
+
+/**
+ * Placeholder vector used for metadata-only upserts and list queries.
+ * The Python ingestion worker overwrites this with real OpenAI embeddings.
+ * Dimension aligned with text-embedding-3-small (1536).
+ */
+const PLACEHOLDER_VECTOR: number[] = Array<number>(1536).fill(0)
 
 export class UpstashWikiDocumentRepository implements IWikiDocumentRepository {
-  async save(_entity: WikiDocument): Promise<void> {
-    // Skeleton only: persist source-of-truth data with adapter composition.
+  private readonly index = vectorIndex<WikiDocVectorMetadata>()
+
+  async save(entity: WikiDocument): Promise<void> {
+    await this.index.upsert({
+      id: entity.id,
+      vector: PLACEHOLDER_VECTOR,
+      metadata: toMetadata(entity),
+    })
   }
 
-  async findById(_id: string): Promise<WikiDocument | null> {
-    // Skeleton only: hydrate domain entity from storage.
-    return null
+  async findById(id: string): Promise<WikiDocument | null> {
+    const results = await this.index.fetch([id], { includeMetadata: true })
+    const result = results[0]
+    if (!result?.metadata) {
+      return null
+    }
+    return fromMetadata(String(result.id), result.metadata)
   }
 
-  async findByOrganization(_organizationId: string): Promise<WikiDocument[]> {
-    // Skeleton only: list documents scoped to an organization.
-    return []
+  async findByOrganization(organizationId: string): Promise<WikiDocument[]> {
+    const results = await this.index.query({
+      vector: PLACEHOLDER_VECTOR,
+      topK: 1000,
+      filter: `organizationId = '${escapeFilterValue(organizationId)}'`,
+      includeMetadata: true,
+    })
+    return results
+      .filter((r) => r.metadata !== undefined)
+      .map((r) => fromMetadata(String(r.id), r.metadata!))
   }
 
-  async findByWorkspace(_organizationId: string, _workspaceId: string): Promise<WikiDocument[]> {
-    // Skeleton only: list documents scoped to a workspace.
-    return []
+  async findByWorkspace(organizationId: string, workspaceId: string): Promise<WikiDocument[]> {
+    const results = await this.index.query({
+      vector: PLACEHOLDER_VECTOR,
+      topK: 1000,
+      filter: `organizationId = '${escapeFilterValue(organizationId)}' AND workspaceId = '${escapeFilterValue(workspaceId)}'`,
+      includeMetadata: true,
+    })
+    return results
+      .filter((r) => r.metadata !== undefined)
+      .map((r) => fromMetadata(String(r.id), r.metadata!))
   }
 
-  async search(_vector: number[]): Promise<WikiDocument[]> {
-    // Skeleton only: retrieval bridge should return ids then hydrate from source.
-    return []
+  async search(vector: number[]): Promise<WikiDocument[]> {
+    const results = await this.index.query({
+      vector,
+      topK: 20,
+      includeMetadata: true,
+    })
+    return results
+      .filter((r) => r.metadata !== undefined)
+      .map((r) => fromMetadata(String(r.id), r.metadata!))
   }
 }

@@ -2,70 +2,78 @@
  * Module: wiki
  * Layer: facade
  * Purpose: Public API for the wiki module.
+ *
+ * Domain types and use-cases come from their canonical packages:
+ *   @wiki-core   — entities, value objects, repository ports, domain services
+ *   @wiki-service — application use-case classes
+ *
+ * Infrastructure adapters and interface wiring remain in this module.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
 
-// ── Domain: Entities (value + type) ──────────────────────────────────────────
-export { WikiDocument } from './domain'
-export type { WikiDocumentStatus, WikiDocumentScope } from './domain'
-export { WikiPage } from './domain'
-export type { WikiPageScope, WikiPageStatus } from './domain'
-export type { WorkspaceKnowledgeSummary, WorkspaceKnowledgeStatus } from './domain'
+// ── Domain: Entities ──────────────────────────────────────────────────────────
+export { WikiDocument } from '@wiki-core'
+export type { WikiDocumentStatus, WikiDocumentScope } from '@wiki-core'
+export { WikiPage } from '@wiki-core'
+export type { WikiPageScope, WikiPageStatus } from '@wiki-core'
+export type { WorkspaceKnowledgeSummary, WorkspaceKnowledgeStatus } from '@wiki-core'
 
-// ── Domain: Repositories (ports) ──────────────────────────────────────────────
-export type { IWikiPageRepository } from './domain'
-export type { IWikiDocumentRepository } from './domain'
-export type { IKnowledgeSummaryRepository, IKnowledgeSummaryScope } from './domain'
-export type { IRetrievalRepository, RetrievalHit } from './domain'
-export type { IEmbeddingRepository, EmbedTextDTO } from './domain'
+// ── Domain: Repository Ports ──────────────────────────────────────────────────
+export type { IWikiPageRepository } from '@wiki-core'
+export type { IWikiDocumentRepository } from '@wiki-core'
+export type { IKnowledgeSummaryRepository, IKnowledgeSummaryScope } from '@wiki-core'
+export type { IRetrievalRepository, RetrievalHit } from '@wiki-core'
+export type { IEmbeddingRepository, EmbedTextDTO } from '@wiki-core'
 
 // ── Domain: Services ──────────────────────────────────────────────────────────
-export { deriveKnowledgeSummary } from './domain'
-export type { KnowledgeSummaryCopy, KnowledgeWorkspaceSnapshot } from './domain'
+export { deriveKnowledgeSummary } from '@wiki-core'
+export type { KnowledgeSummaryCopy, KnowledgeWorkspaceSnapshot } from '@wiki-core'
 
 // ── Domain: Value Objects ─────────────────────────────────────────────────────
-export { Taxonomy } from './domain'
-export { Embedding } from './domain'
-export type { EmbeddingProps } from './domain'
-export { RAGQueryResult } from './domain'
-export type { RAGQueryResultProps, RAGSource } from './domain'
-export { Vector } from './domain'
-export { SearchFilter } from './domain'
-export type { DateRange } from './domain'
-export { AccessControl } from './domain'
-export type { Visibility } from './domain'
-export { ContentStatus } from './domain'
-export type { ContentStatusValue } from './domain'
-export { WikiDocumentSummary } from './domain'
-export type { WikiDocumentSummaryProps } from './domain'
-export { UsageStats } from './domain'
+export { Taxonomy } from '@wiki-core'
+export { Embedding } from '@wiki-core'
+export type { EmbeddingProps } from '@wiki-core'
+export { RAGQueryResult } from '@wiki-core'
+export type { RAGQueryResultProps, RAGSource } from '@wiki-core'
+export { Vector } from '@wiki-core'
+export { SearchFilter } from '@wiki-core'
+export type { DateRange } from '@wiki-core'
+export { AccessControl } from '@wiki-core'
+export type { Visibility } from '@wiki-core'
+export { ContentStatus } from '@wiki-core'
+export type { ContentStatusValue } from '@wiki-core'
+export { WikiDocumentSummary } from '@wiki-core'
+export type { WikiDocumentSummaryProps } from '@wiki-core'
+export { UsageStats } from '@wiki-core'
 
 // ── Application: Use Cases ────────────────────────────────────────────────────
-export { CreateWikiPageUseCase } from './application'
-export type { CreateWikiPageDTO } from './application'
-export { ArchiveWikiPageUseCase } from './application'
-export type { ArchiveWikiPageDTO } from './application'
-export { UpdateWikiPageUseCase } from './application'
-export type { UpdateWikiPageDTO } from './application'
-export { CreateWikiDocumentUseCase } from './application'
-export type { CreateWikiDocumentDTO } from './application'
-export { GetWorkspaceKnowledgeSummaryUseCase } from './application'
-export { GetRAGAnswerUseCase } from './application'
-export type { GetRAGAnswerDTO } from './application'
-export { SearchWikiDocumentsUseCase } from './application'
-export type { SearchWikiDocumentsDTO } from './application'
+export { CreateWikiPageUseCase } from '@wiki-service'
+export type { CreateWikiPageDTO } from '@wiki-service'
+export { ArchiveWikiPageUseCase } from '@wiki-service'
+export type { ArchiveWikiPageDTO } from '@wiki-service'
+export { UpdateWikiPageUseCase } from '@wiki-service'
+export type { UpdateWikiPageDTO } from '@wiki-service'
+export { CreateWikiDocumentUseCase } from '@wiki-service'
+export type { CreateWikiDocumentDTO } from '@wiki-service'
+export { GetWorkspaceKnowledgeSummaryUseCase } from '@wiki-service'
+export { GetRAGAnswerUseCase } from '@wiki-service'
+export type { GetRAGAnswerDTO } from '@wiki-service'
+export { SearchWikiDocumentsUseCase } from '@wiki-service'
+export type { SearchWikiDocumentsDTO } from '@wiki-service'
 
-// ── Infrastructure ────────────────────────────────────────────────────────────
-export { InMemoryWikiPageRepository } from './infrastructure/repositories'
-export { InMemoryWikiDocumentRepository } from './infrastructure/repositories'
-export { UpstashWikiDocumentRepository } from './infrastructure/repositories'
-export { OpenAIEmbeddingRepository } from './infrastructure/repositories'
+// ── Infrastructure: Repositories ──────────────────────────────────────────────
+// In-memory stubs and the OpenAI adapter are client-safe (no server-only imports).
+// Upstash adapters are server-only — import from the deep path in server-side code:
+//   import { UpstashWikiDocumentRepository } from '@/modules/wiki/infrastructure/repositories'
+export { InMemoryWikiPageRepository } from './infrastructure/repositories/in-memory-wiki-page.repository'
+export { InMemoryWikiDocumentRepository } from './infrastructure/repositories/in-memory-wiki-document.repository'
+export { OpenAIEmbeddingRepository } from './infrastructure/repositories/openai-embedding.repository'
 export { DefaultWorkspaceKnowledgeRepository } from './infrastructure/default/DefaultWorkspaceKnowledgeRepository'
 
-// ── Interfaces: actions ───────────────────────────────────────────────────────
+// ── Interfaces: Actions ───────────────────────────────────────────────────────
 export { createWikiPage, archiveWikiPage, updateWikiPage } from './interfaces/_actions/wiki-page.actions'
 
-// ── Interfaces: queries ───────────────────────────────────────────────────────
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
 export {
   getOrgWikiPages,
   getWorkspaceWikiPages,
@@ -74,7 +82,7 @@ export {
 } from './interfaces/queries/wiki.queries'
 export { getWorkspaceKnowledgeSummary } from './interfaces/queries/knowledge.queries'
 
-// ── Interfaces: components ────────────────────────────────────────────────────
+// ── Interfaces: Components ────────────────────────────────────────────────────
 export { WikiPageCard } from './interfaces/components/WikiPageCard'
 export { WikiPageView } from './interfaces/components/WikiPageView'
 export { CreateWikiPageDialog } from './interfaces/components/CreateWikiPageDialog'
@@ -88,5 +96,6 @@ export { WikiPagesListView } from './interfaces/components/WikiPagesListView'
 export type { WikiPagesListViewProps } from './interfaces/components/WikiPagesListView'
 export { WikiArchivedView } from './interfaces/components/WikiArchivedView'
 export type { WikiArchivedViewProps } from './interfaces/components/WikiArchivedView'
-// ── Interfaces: view-models ───────────────────────────────────────────────────
+
+// ── Interfaces: View Models ───────────────────────────────────────────────────
 export type { WorkspaceEntry } from './interfaces/view-models/workspace-entry.vm'

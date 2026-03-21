@@ -8,16 +8,14 @@ import type { WorkspaceFileListItemDto } from "@/modules/file/application/dto/fi
 import type { WorkspaceParserSummary } from "@/modules/parser";
 import type { WorkspaceEntity } from "@/modules/workspace";
 
-import type { WorkspaceKnowledgeSummary } from '@/modules/wiki';
 import type {
+  WorkspaceKnowledgeSummary,
   IKnowledgeSummaryRepository,
   IKnowledgeSummaryScope,
-} from '@/modules/wiki';
-import {
-  deriveKnowledgeSummary,
-  type KnowledgeSummaryCopy,
-  type KnowledgeWorkspaceSnapshot,
-} from '@/modules/wiki';
+  KnowledgeSummaryCopy,
+  KnowledgeWorkspaceSnapshot,
+} from '@wiki-core'
+import { deriveKnowledgeSummary } from '@wiki-core'
 
 const KNOWLEDGE_SUMMARY_COPY: KnowledgeSummaryCopy = {
   noAssetsBlockedReason: "目前尚未有任何已註冊的知識來源。",

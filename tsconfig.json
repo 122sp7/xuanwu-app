@@ -67,6 +67,12 @@
       ],
       "@matching-service": [
         "./packages/matching-service/index.ts"
+      ],
+      "@wiki-core": [
+        "./packages/wiki-core/index.ts"
+      ],
+      "@wiki-service": [
+        "./packages/wiki-service/index.ts"
       ]
     }
   },
