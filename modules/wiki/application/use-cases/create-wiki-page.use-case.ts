@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: application/use-case
  * Purpose: Write-side orchestration for creating a wiki page record.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

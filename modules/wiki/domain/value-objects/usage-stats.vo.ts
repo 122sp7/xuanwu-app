@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Immutable usage snapshot for analytics integration boundaries.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

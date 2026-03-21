@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Immutable embedding value object — wraps a float vector with its model provenance.
  *          No provider dependency; provider details belong in infrastructure.

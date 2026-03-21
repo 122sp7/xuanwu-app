@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: application/use-case
  * Purpose: Write-side orchestration for updating wiki page title and/or content.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

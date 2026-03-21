@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: infrastructure/persistence
  * Purpose: Upstash Vector index client setup for retrieval adapters.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Immutable result of a RAG query — answer text, source references, and confidence score.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/entity
  * Purpose: Workspace-level knowledge health summary — aggregated read-model for wiki hub UI.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Semantic classification independent from content storage and retrieval index.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

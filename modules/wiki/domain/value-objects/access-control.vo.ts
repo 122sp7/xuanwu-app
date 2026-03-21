@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Access policy value object for owner and visibility rules.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: infrastructure/repository
  * Purpose: OpenAI Embeddings API adapter — converts text chunks to Embedding value objects.
  *          Uses native fetch to avoid adding an openai package dependency; requires

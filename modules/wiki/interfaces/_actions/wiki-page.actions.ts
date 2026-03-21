@@ -10,10 +10,10 @@ import { commandFailureFrom, commandSuccess, type CommandResult } from '@/shared
 
 import { CreateWikiPageUseCase, ArchiveWikiPageUseCase, UpdateWikiPageUseCase } from '@/modules/wiki'
 import type { CreateWikiPageDTO, UpdateWikiPageDTO } from '@/modules/wiki'
-import { InMemoryWikiPageRepository } from '@/modules/wiki'
+import { wikiPageRepository } from '../../infrastructure/repositories/registry'
 
-// Stub repository — replace with FirestoreWikiPageRepository when Phase 3 Firestore adapter lands.
-const wikiPageRepository = new InMemoryWikiPageRepository()
+// Shared repository singleton — same instance used by wiki.queries.ts so reads reflect writes.
+// Replace with FirestoreWikiPageRepository when Phase 3 Firestore adapter lands.
 const createWikiPageUseCase = new CreateWikiPageUseCase(wikiPageRepository)
 const archiveWikiPageUseCase = new ArchiveWikiPageUseCase(wikiPageRepository)
 const updateWikiPageUseCase = new UpdateWikiPageUseCase(wikiPageRepository)

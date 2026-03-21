@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Vector value with minimal invariant checks; no provider dependency.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

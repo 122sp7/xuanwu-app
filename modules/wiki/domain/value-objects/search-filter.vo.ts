@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Search filter definition independent from vector provider SDKs.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

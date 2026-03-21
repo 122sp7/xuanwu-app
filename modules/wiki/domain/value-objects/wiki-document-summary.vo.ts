@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Immutable lightweight summary of a wiki document record.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/entity
  * Purpose: Canonical wiki document entity — source of truth for knowledge document lifecycle and RAG pipeline.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

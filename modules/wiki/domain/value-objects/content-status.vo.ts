@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/value-object
  * Purpose: Status constraints and semantic helper for wiki document lifecycle.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

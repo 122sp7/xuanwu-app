@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/port
  * Purpose: Embedding generation contract — converts text chunks to Embedding value objects.
  *          No provider dependency; OpenAI / local model adapters live in infrastructure.

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: application/use-case
  * Purpose: Metadata-driven search over indexed wiki documents using a SearchFilter and optional vector.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

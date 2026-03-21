@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: application/use-case
  * Purpose: RAG query orchestration — embeds query, retrieves top-K chunks, and assembles context.
  *          LLM answer generation is delegated to the caller (modules/ai via Genkit).

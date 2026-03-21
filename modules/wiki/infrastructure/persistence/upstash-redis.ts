@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: infrastructure/persistence
  * Purpose: Upstash Redis client setup for analytics/cache adapters.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

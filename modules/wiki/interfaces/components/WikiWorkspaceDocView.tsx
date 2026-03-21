@@ -7,8 +7,8 @@
  * Constraints: UI-only; no business logic.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import { useMemo, useState, useCallback } from 'react'
-import { FileTextIcon, Loader2Icon, SearchIcon, UploadIcon } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { FileTextIcon, SearchIcon, UploadIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import type { RagDocumentRecord } from '@/modules/file'
@@ -17,72 +17,8 @@ import { Badge } from '@/ui/shadcn/ui/badge'
 import { Button } from '@/ui/shadcn/ui/button'
 import { Input } from '@/ui/shadcn/ui/input'
 import { Separator } from '@/ui/shadcn/ui/separator'
-import type { WorkspaceEntry } from './WikiHubView'
-
-// ── Inline RAG search bar ─────────────────────────────────────────────────────
-// Stub — scoped to the current workspace. Replace with Genkit flow when RAG is wired.
-
-function RagSearchBar({
-  organizationId,
-  workspaceId,
-}: {
-  readonly organizationId: string | null
-  readonly workspaceId?: string | null
-}) {
-  const [query, setQuery] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const [hasResult, setHasResult] = useState(false)
-
-  const handleSearch = useCallback(() => {
-    if (!query.trim() || !organizationId) return
-    setIsSearching(true)
-    setHasResult(false)
-    setTimeout(() => {
-      setIsSearching(false)
-      setHasResult(true)
-    }, 800)
-  }, [query, organizationId])
-
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <SearchIcon className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-9 pl-8 text-sm"
-            placeholder="向知識庫提問，例如：此工作區的部署流程是什麼？"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
-          />
-        </div>
-        <Button
-          size="sm"
-          className="h-9 gap-1.5"
-          onClick={handleSearch}
-          disabled={!query.trim() || !organizationId || isSearching}
-        >
-          {isSearching ? (
-            <Loader2Icon className="size-3.5 animate-spin" />
-          ) : (
-            <SearchIcon className="size-3.5" />
-          )}
-          搜尋
-        </Button>
-      </div>
-      {workspaceId && (
-        <p className="text-[11px] text-muted-foreground">搜尋範圍：目前工作區文件</p>
-      )}
-      {hasResult && (
-        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">AI 回答（示範）</p>
-          <p className="mt-1">🚧 RAG 查詢功能尚在建置中。Genkit Flow 串接完成後，此處將顯示 AI 生成回答與引用來源。</p>
-          <p className="mt-2 font-mono text-[10px]">{query}</p>
-        </div>
-      )}
-    </div>
-  )
-}
+import { RagSearchBar } from './RagSearchBar'
+import type { WorkspaceEntry } from '../view-models/workspace-entry.vm'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/entity
  * Purpose: Wiki page entity — navigable knowledge page with scope and hierarchical nesting.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

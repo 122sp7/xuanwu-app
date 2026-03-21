@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: application/use-case
  * Purpose: Read-side orchestration for deriving workspace knowledge health summary.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

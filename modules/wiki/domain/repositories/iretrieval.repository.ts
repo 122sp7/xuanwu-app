@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/port
  * Purpose: Retrieval index contract; index is disposable and rebuildable.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

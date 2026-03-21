@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: infrastructure/repository
  * Purpose: Adapter implementing wiki document repository contract via Upstash services.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

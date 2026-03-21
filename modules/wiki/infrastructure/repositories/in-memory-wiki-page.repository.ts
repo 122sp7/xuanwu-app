@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: infrastructure/repository
  * Purpose: In-memory adapter for wiki page repository — local development and tests.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

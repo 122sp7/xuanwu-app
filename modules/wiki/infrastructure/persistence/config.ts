@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: infrastructure/persistence
  * Purpose: Vendor configuration values for Upstash adapters.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

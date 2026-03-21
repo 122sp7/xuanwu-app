@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/port
  * Purpose: Repository contract for wiki document persistence and querying.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: wiki-core
+ * Module: wiki
  * Layer: domain/service
  * Purpose: Pure function deriving workspace knowledge health summary from parser and file snapshots.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

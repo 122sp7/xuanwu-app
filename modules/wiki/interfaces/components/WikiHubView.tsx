@@ -8,19 +8,15 @@
  * Constraints: UI-only; data fetching remains in the page layer.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Building2Icon,
   ChevronRightIcon,
-  Loader2Icon,
   RefreshCwIcon,
-  SearchIcon,
   UploadIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 
-import type { WorkspaceEntity } from '@/modules/workspace'
-import type { RagDocumentRecord } from '@/modules/file'
 import type { WorkspaceKnowledgeSummary } from '@/modules/wiki'
 import { Badge } from '@/ui/shadcn/ui/badge'
 import { Button } from '@/ui/shadcn/ui/button'
@@ -31,18 +27,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/ui/shadcn/ui/card'
-import { Input } from '@/ui/shadcn/ui/input'
 import { Progress } from '@/ui/shadcn/ui/progress'
 import { Skeleton } from '@/ui/shadcn/ui/skeleton'
+import { RagSearchBar } from './RagSearchBar'
+import type { WorkspaceEntry } from '../view-models/workspace-entry.vm'
 
-// ── Shared view model ─────────────────────────────────────────────────────────
-
-/** Aggregated view model combining workspace metadata, knowledge summary, and RAG docs. */
-export interface WorkspaceEntry {
-  readonly workspace: WorkspaceEntity
-  readonly summary: WorkspaceKnowledgeSummary
-  readonly docs: readonly RagDocumentRecord[]
-}
+export type { WorkspaceEntry }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -63,74 +53,6 @@ const TAXONOMY_TILES = [
   { key: '教育訓練', className: 'bg-pink-50 dark:bg-pink-950/30 border-pink-200/60 dark:border-pink-800/40' },
   { key: '其他', className: 'bg-muted/40 border-border/60' },
 ] as const
-
-// ── RAG Search bar ────────────────────────────────────────────────────────────
-
-interface RagSearchBarProps {
-  readonly organizationId: string | null
-  readonly workspaceId?: string | null
-}
-
-function RagSearchBar({ organizationId, workspaceId }: RagSearchBarProps) {
-  const [query, setQuery] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const [hasResult, setHasResult] = useState(false)
-
-  const handleSearch = useCallback(() => {
-    if (!query.trim() || !organizationId) return
-    setIsSearching(true)
-    setHasResult(false)
-    // Stub: replace with Genkit flow invocation when RAG backend is wired.
-    setTimeout(() => {
-      setIsSearching(false)
-      setHasResult(true)
-    }, 800)
-  }, [query, organizationId])
-
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <SearchIcon className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-9 pl-8 text-sm"
-            placeholder="向知識庫提問，例如：特休天數如何計算？"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSearch()
-            }}
-          />
-        </div>
-        <Button
-          size="sm"
-          className="h-9 gap-1.5"
-          onClick={handleSearch}
-          disabled={!query.trim() || !organizationId || isSearching}
-        >
-          {isSearching ? (
-            <Loader2Icon className="size-3.5 animate-spin" />
-          ) : (
-            <SearchIcon className="size-3.5" />
-          )}
-          搜尋
-        </Button>
-      </div>
-      {workspaceId && (
-        <p className="text-[11px] text-muted-foreground">搜尋範圍：目前工作區文件</p>
-      )}
-      {hasResult && (
-        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">AI 回答（示範）</p>
-          <p className="mt-1">
-            🚧 RAG 查詢功能尚在建置中。Genkit Flow 串接完成後，此處將顯示 AI 生成回答與引用來源。
-          </p>
-          <p className="mt-2 font-mono text-[10px]">{query}</p>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── Org KPI row ───────────────────────────────────────────────────────────────
 
