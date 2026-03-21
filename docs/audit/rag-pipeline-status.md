@@ -456,6 +456,13 @@
 ### P1（流程修正）
 - [x] **Layer 2**：修正 `callDocumentAi` server action 參數名稱（snake_case → camelCase）+ 補上缺失的 `workspaceId` 欄位
 - [x] **Cloud Functions region**：修正 `getFirebaseFunctions()` 預設 region 從 `asia-east1` → `us-central1`，與 functions-python 部署區域一致
+- [x] **部署清理**：移除 `firebase.json` 中已刪除的 `functions-llama-pipeline` codebase 參照，移除 `package.json` 中 `deploy:functions:llama` 腳本
+
+### P1（部署清理 — 需手動操作）
+- [ ] **刪除殘留 Cloud Function**：`processDocument`（asia-east1）仍殘留在 GCP Console，需手動刪除：
+  ```bash
+  npx firebase functions:delete processDocument --region asia-east1
+  ```
 
 ### P2（品質提升）
 - [ ] **Layer 7**：考慮語意分塊（semantic chunking）或 overlapping window 策略
