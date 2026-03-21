@@ -82,6 +82,10 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
     );
 
     const documentSnapshots = await getDocs(documentsQuery);
+    // Pre-compute the roles Set once for the RBAC check (Layer 11).
+    const userRolesSet =
+      input.userRoles && input.userRoles.length > 0 ? new Set(input.userRoles) : null;
+
     const readyDocumentIds = new Set(
       documentSnapshots.docs
         .filter((snapshot) => {
@@ -93,11 +97,10 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
           // only include documents whose accessControl list shares at least one role.
           // Documents with an empty or missing accessControl array are treated as
           // unrestricted and pass through regardless.
-          if (input.userRoles && input.userRoles.length > 0) {
+          if (userRolesSet) {
             const acl = data.accessControl;
             if (Array.isArray(acl) && acl.length > 0) {
-              const rolesSet = new Set(input.userRoles);
-              const hasAccess = acl.some((role) => rolesSet.has(role));
+              const hasAccess = acl.some((role) => userRolesSet.has(role));
               if (!hasAccess) {
                 return false;
               }

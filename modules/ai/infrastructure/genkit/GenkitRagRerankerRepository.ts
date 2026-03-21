@@ -22,7 +22,7 @@ function buildRerankPrompt(userQuery: string, chunks: readonly RagRetrievedChunk
   const chunkEntries = chunks
     .map(
       (chunk, index) =>
-        `[${index}] (docId=${chunk.docId}, chunkIndex=${chunk.chunkIndex})\n${chunk.text.slice(0, MAX_CHUNK_PREVIEW)}`,
+        `[${index}] (docId=${chunk.docId}, chunkIndex=${chunk.chunkIndex})\n${chunk.text.slice(0, MAX_CHUNK_PREVIEW)}${chunk.text.length > MAX_CHUNK_PREVIEW ? "..." : ""}`,
     )
     .join("\n\n");
 
