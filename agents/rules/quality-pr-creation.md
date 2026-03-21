@@ -1,36 +1,37 @@
 ---
-title: PR Creation Best Practices
-impact: HIGH
-impactDescription: PRs that don't follow guidelines slow down review cycles
-tags: pull-request, code-review, workflow
+title: Pull Request Best Practices
+impact: MEDIUM
+impactDescription: Ensures clean, reviewable, and complete pull requests
+tags: quality, pr, git, review
 ---
 
-# PR Creation Best Practices
+## Pull Request Best Practices
 
-## Draft Mode
+**Impact: MEDIUM**
 
-Create pull requests in draft mode by default, so that a human reviewer can mark it as ready for review only when it is.
+Every pull request must be complete, focused, and reviewable. No "follow-up PRs" for unfinished work — if it's in scope, finish it in the current PR.
 
-## PR Title
+**Guidelines:**
 
-- Use conventional commits: `feat:`, `fix:`, `refactor:`
-- Be specific: `fix: handle timezone edge case in booking creation`
-- Not generic: `fix: booking bug`
+1. **Single responsibility** — One PR addresses one concern (feature, bug fix, refactor)
+2. **Complete work** — Don't leave TODOs or broken tests for follow-up PRs
+3. **Clear description** — Explain what changed, why, and how to verify
+4. **Small diffs** — Prefer multiple small PRs over one massive PR
+5. **Module-scoped** — Changes should ideally be contained within one module; cross-module changes need extra review attention
 
-## Size Limits
+**PR description template:**
 
-- **Large PRs** (>500 lines or >10 files) are not recommended
-- Split large changes by layer (database, backend, frontend)
-- Split by feature component (API, UI, integration)
+```markdown
+## What
+Brief description of the change.
 
-## PR Requirements
+## Why
+Business context or technical motivation.
 
-- PR title must follow Conventional Commits specification
-- For most PRs, you only need to run linting and type checking
-- E2E tests will only run if PR has "ready-for-e2e" label
+## How to Verify
+Steps to test the change locally.
 
-## Before Pushing
-
-1. Run `yarn type-check:ci --force` to check types
-2. Run `yarn biome check --write .` to lint and format
-3. Run relevant tests locally
+## Module(s) Affected
+- modules/task
+- packages/shared-types
+```

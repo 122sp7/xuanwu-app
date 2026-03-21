@@ -1,52 +1,55 @@
 ---
-title: Error Handling Patterns
+title: Error Handling with CommandResult and DomainError
 impact: HIGH
-impactDescription: Proper error handling ensures debuggable and secure code
-tags: errors, trpc, services, repositories
+impactDescription: Ensures consistent, type-safe error handling across the codebase
+tags: quality, error-handling, domain-error, command-result
 ---
 
-# Error Handling Patterns
+## Error Handling with CommandResult and DomainError
 
-## Descriptive Errors
+**Impact: HIGH**
 
-```typescript
-// ✅ Good - Descriptive error with context
-throw new Error(`Unable to create booking: User ${userId} has no available time slots for ${date}`);
+Use `CommandResult` for use-case return types and `DomainError` for domain-level errors. Both are defined in `@shared-types`. Avoid throwing raw exceptions from use cases — use typed result objects instead.
 
-// ❌ Bad - Generic error
-throw new Error("Booking failed");
-```
-
-## ErrorWithCode vs TRPCError
-
-Use `ErrorWithCode` for files that are not directly coupled to tRPC. The tRPC package has a middleware called `errorConversionMiddleware` that automatically converts `ErrorWithCode` instances into `TRPCError` instances.
-
-### In Non-tRPC Files (services, repositories, utilities)
+**Incorrect (throwing raw errors):**
 
 ```typescript
-import { ErrorCode } from "@calcom/lib/errorCodes";
-import { ErrorWithCode } from "@calcom/lib/errors";
-
-// Option 1: Using constructor with ErrorCode enum
-throw new ErrorWithCode(ErrorCode.BookingNotFound, "Booking not found");
-
-// Option 2: Using the Factory pattern for common HTTP errors
-throw ErrorWithCode.Factory.Forbidden("You don't have permission to view this");
-throw ErrorWithCode.Factory.NotFound("Resource not found");
-throw ErrorWithCode.Factory.BadRequest("Invalid input");
+// modules/task/application/use-cases/create-task.use-case.ts
+export async function createTask(input: CreateTaskInput) {
+  if (!input.title) throw new Error("Title is required");       // ❌ Raw throw
+  if (!input.workspaceId) throw new Error("Workspace required"); // ❌ Untyped error
+  // ...
+}
 ```
 
-### In tRPC Routers Only
+**Correct (typed result objects):**
 
 ```typescript
-import { TRPCError } from "@trpc/server";
+import type { CommandResult } from "@shared-types";
+import { DomainError } from "@shared-types";
 
-throw new TRPCError({
-  code: "BAD_REQUEST",
-  message: "Invalid booking time slot",
-});
+// modules/task/application/use-cases/create-task.use-case.ts
+export async function createTask(input: CreateTaskInput): Promise<CommandResult<Task>> {
+  if (!input.title) {
+    return { success: false, error: new DomainError("missing-title", "Title is required") };
+  }
+
+  const task = new Task(input);
+  await taskRepo.save(task);
+  return { success: true, data: task };
+}
 ```
 
-## packages/features Import Restrictions
+**At the interfaces layer, handle the result:**
 
-Files in `packages/features/**` should NOT import from `@calcom/trpc`. This keeps the features package decoupled from the tRPC layer, making the code more reusable and testable. Use `ErrorWithCode` for error handling in these files.
+```typescript
+// modules/task/interfaces/_actions/task.actions.ts
+export async function createTaskAction(input: CreateTaskInput) {
+  const result = await createTask(input);
+  if (!result.success) {
+    // Convert DomainError to user-facing message
+    return { error: result.error.message };
+  }
+  return { data: result.data };
+}
+```

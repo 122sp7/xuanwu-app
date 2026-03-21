@@ -1,26 +1,60 @@
 ---
-title: Mock Implementation Patterns
-impact: MEDIUM
-impactDescription: Poor mocks cause flaky tests and false positives
-tags: testing, mocking, calendar, app-store
+title: Mocking Services and Repositories
+impact: MEDIUM-HIGH
+impactDescription: Enables isolated, fast, and deterministic tests
+tags: testing, mocking, repositories, isolation
 ---
 
-# Mock Implementation Patterns
+## Mocking Services and Repositories
 
-## Calendar Service Mocks
+**Impact: MEDIUM-HIGH**
 
-When mocking calendar services in Cal.com test files, implement the `Calendar` interface rather than adding individual properties from each specific calendar service type (like `FeishuCalendarService`).
+The repository pattern makes mocking straightforward — mock the interface, not the implementation. Use case tests should never touch Firebase or any external system.
 
-Since all calendar services implement the `Calendar` interface and are stored in a map, the mock service should also implement this interface to ensure type compatibility.
+**Incorrect (testing with real Firebase):**
 
-## App-Store Integration Mocks
+```typescript
+// ❌ Test depends on Firebase — slow, flaky, requires network
+import { db } from "@integration-firebase";
 
-When mocking app-store resources in Cal.com tests, prefer implementing simpler mock designs that directly implement the required interfaces rather than trying to match complex deep mock structures created with `mockDeep`.
+test("createTask stores in Firestore", async () => {
+  await createTask({ title: "Test", workspaceId: "ws-1" });
+  const snap = await getDoc(doc(db, "tasks", "..."));       // ❌ Real database call
+  expect(snap.exists()).toBe(true);
+});
+```
 
-This approach is more maintainable and helps resolve type compatibility issues.
+**Correct (mock the repository interface):**
 
-## General Guidance
+```typescript
+// ✅ Fast, deterministic, no external dependencies
+const mockTaskRepo: TaskRepository = {
+  findById: vi.fn().mockResolvedValue(null),
+  findByWorkspace: vi.fn().mockResolvedValue([]),
+  save: vi.fn().mockResolvedValue(undefined),
+};
 
-- For complex mocks that cause type compatibility issues with deep mocks, consider using simpler fake implementations
-- When needed, you can modify other mock files to support your implementation
-- Creative solutions and refactoring to better designs are encouraged when standard mocking causes persistent type errors
+test("createTask returns success with valid input", async () => {
+  const result = await createTask(
+    { title: "Test", workspaceId: "ws-1" },
+    { taskRepo: mockTaskRepo },
+  );
+  expect(result.success).toBe(true);
+  expect(mockTaskRepo.save).toHaveBeenCalledOnce();
+});
+
+test("createTask returns error when title is empty", async () => {
+  const result = await createTask(
+    { title: "", workspaceId: "ws-1" },
+    { taskRepo: mockTaskRepo },
+  );
+  expect(result.success).toBe(false);
+  expect(result.error?.code).toBe("missing-title");
+});
+```
+
+**Guidelines:**
+- Mock at the repository interface boundary
+- For domain services, test with real entities and mock only repositories
+- For infrastructure tests, use the real implementation against a test environment
+- Keep mocks minimal — don't over-mock or you'll test nothing

@@ -1,43 +1,38 @@
 ---
-title: Type Check Before Tests
+title: Type-Check Before Tests
 impact: HIGH
-impactDescription: Type errors are often the root cause of test failures
-tags: ci, typescript, type-check, workflow
+impactDescription: Catches errors faster than running the full test suite
+tags: ci, type-check, typescript, workflow
 ---
 
-# Type Check Before Tests
+## Type-Check Before Tests
 
-## Priority Order
+**Impact: HIGH**
 
-When working on the Cal.com repository, prioritize fixing type issues before addressing failing tests.
+Always run TypeScript type-checking before running tests. Type errors are cheaper to fix than test failures, and they provide immediate feedback on import and interface mismatches.
 
-1. Run `yarn type-check:ci --force` first
-2. Fix all TypeScript errors
-3. Then run tests with `TZ=UTC yarn test`
+**Workflow order:**
 
-## Why Type Check First
+1. `npm run lint` — ESLint (catches import violations, unused vars)
+2. `npm run build` — Next.js build (includes TypeScript type-checking)
+3. Run tests (if build passes)
 
-Type errors are often the root cause of test failures. Fixing types first:
-- Eliminates cascading failures
-- Ensures code compiles correctly
-- Catches issues that tests might miss
-
-## Comparing Branches
-
-Compare type check results between the main branch and your feature branch to confirm whether you've introduced new type errors:
+**Incorrect (running tests first):**
 
 ```bash
-# On your branch
-yarn type-check:ci --force 2>&1 | tee /tmp/feature-types.log
-
-# On main
-git checkout main
-yarn type-check:ci --force 2>&1 | tee /tmp/main-types.log
-
-# Compare
-diff /tmp/main-types.log /tmp/feature-types.log
+npm test                    # ❌ Tests may fail due to type errors
+npm run build               # Only checked after tests failed
 ```
 
-## Missing Enum Errors
+**Correct (lint → build → test):**
 
-If you encounter errors related to missing enum values (like `CreationSource.WEBAPP`), running `yarn prisma generate` will typically resolve these issues by regenerating the TypeScript types from the schema.
+```bash
+npm run lint                # ✅ Catches ESLint violations first
+npm run build               # ✅ Type-checks and builds
+npm test                    # ✅ Only runs after types are clean
+```
+
+**Why this matters:**
+- A type error in a module boundary (`index.ts`) will cascade into dozens of test failures
+- Fixing the type error is one change; debugging failed tests is many
+- The `npm run build` step catches missing exports, wrong types, and broken imports across all modules

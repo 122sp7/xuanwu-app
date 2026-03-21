@@ -1,75 +1,21 @@
 ---
-title: Leverage AI for Boilerplate and Testing
+title: AI-Assisted Development Practices
 impact: MEDIUM
-impactDescription: Accelerates development while maintaining quality
-tags: culture, ai, automation, testing
+impactDescription: Maximizes AI tooling value while maintaining code quality
+tags: culture, ai, tooling, copilot
 ---
 
-## Leverage AI for Boilerplate and Testing
+## AI-Assisted Development Practices
 
 **Impact: MEDIUM**
 
-Generate 80% of boilerplate and non-critical code using AI, allowing us to focus solely on complex business logic and critical architectures.
+AI tools (GitHub Copilot, coding agents) are first-class development aids. Use them effectively, but always review and validate their output.
 
-**Where AI excels:**
-- Generating boilerplate code (DTOs, basic CRUD operations)
-- Building comprehensive test suites
-- Creating documentation
-- Repetitive refactoring tasks
-- Code review assistance
-
-**Where humans must focus:**
-- Complex business logic
-- Critical architectural decisions
-- Security-sensitive code
-- Performance-critical algorithms
-- Domain-specific edge cases
-
-**Example - AI-assisted test generation:**
-
-```typescript
-// Human writes the function
-export function calculateOverlap(slot: TimeSlot, busy: BusyTime): boolean {
-  return slot.start < busy.end && slot.end > busy.start;
-}
-
-// AI generates comprehensive tests
-describe("calculateOverlap", () => {
-  it("returns true when slot starts during busy period", () => {
-    // AI-generated test case
-  });
-
-  it("returns true when slot ends during busy period", () => {
-    // AI-generated test case
-  });
-
-  it("returns false when slot is completely before busy period", () => {
-    // AI-generated test case
-  });
-
-  it("returns false when slot is completely after busy period", () => {
-    // AI-generated test case
-  });
-
-  it("returns true when slot completely contains busy period", () => {
-    // AI-generated test case
-  });
-
-  it("returns true when busy period completely contains slot", () => {
-    // AI-generated test case
-  });
-
-  // AI identifies edge cases humans might miss
-  it("handles exact boundary matches correctly", () => {
-    // AI-generated edge case
-  });
-});
-```
-
-**Our CI is the final boss:**
-- Everything in our standards document is checked before code is merged in PRs
-- No surprises make it into main
-- Checks are fast and useful
-- AI helps ensure comprehensive coverage
-
-Reference: [Cal.com Engineering Blog](https://cal.com/blog/engineering-in-2026-and-beyond)
+**Guidelines:**
+- **Trust but verify** — AI-generated code must pass the same review standards as human-written code
+- **Feed context** — point AI tools to the relevant module's `index.ts`, `README.md`, and architecture docs for better suggestions
+- **Use the agents knowledge base** — the `agents/` directory contains rules, patterns, and domain knowledge that AI tools can reference
+- **Keep agents updated** — when you change a module's structure or patterns, update the corresponding knowledge base entries
+- **Don't blindly accept** — if AI suggests a pattern that violates MDDD rules (e.g., importing infrastructure in domain), correct it
+- **Leverage for repetitive tasks** — module scaffolding, test generation, DTO creation, and boilerplate are ideal AI tasks
+- **Use skills** — skills under `agents/skills/` and `.github/skills/` provide specialized capabilities (React best practices, web design guidelines, documentation writing)

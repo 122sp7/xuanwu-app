@@ -1,78 +1,68 @@
-# Cal.com Agent Documentation Index
+# Xuanwu MDDD Architecture Knowledge System
 
-- **[../AGENTS.md](../AGENTS.md)** - Main guide (structure, tech stack, commands, examples)
-- **[commands.md](commands.md)** - Command reference
-- **[knowledge-base.md](knowledge-base.md)** - Domain knowledge and business rules
+> Module-Driven Domain Design (MDDD) agent knowledge base for xuanwu-app.
+> This directory teaches AI agents how to navigate, understand, and contribute to the codebase.
+
+- **[knowledge-base.md](knowledge-base.md)** — Domain knowledge, module responsibilities, and architectural patterns
+- **[commands.md](commands.md)** — Build, lint, deploy, and development command reference
 
 ## Rules Index
 
 ### Architecture
 
-- [architecture-vertical-slices](rules/architecture-vertical-slices.md) - Vertical slice architecture
-- [architecture-feature-boundaries](rules/architecture-feature-boundaries.md) - Feature boundaries
-- [architecture-page-level-auth](rules/architecture-page-level-auth.md) - Auth in page.tsx, not layout.tsx
-- [architecture-features-modules](rules/architecture-features-modules.md) - packages/features vs apps/web/modules
+- [architecture-module-structure](rules/architecture-module-structure.md) — Four-layer module layout (domain / application / infrastructure / interfaces)
+- [architecture-dependency-direction](rules/architecture-dependency-direction.md) — UI → Application → Domain ← Infrastructure
+- [architecture-module-boundaries](rules/architecture-module-boundaries.md) — Module public API via `index.ts` barrel exports
+- [architecture-package-boundaries](rules/architecture-package-boundaries.md) — `packages/*` as stable public boundaries
+- [architecture-hexagonal-ports](rules/architecture-hexagonal-ports.md) — Ports pattern for cross-cutting concerns
 
-### Quality
+### Code Quality
 
-- [quality-avoid-barrel-imports](rules/quality-avoid-barrel-imports.md) - Avoid index.ts barrel imports
-- [quality-simplicity](rules/quality-simplicity.md) - Keep code simple
-- [quality-no-followup-prs](rules/quality-no-followup-prs.md) - Complete work in PR
-- [quality-thorough-code-review](rules/quality-thorough-code-review.md) - Code review standards
-- [quality-error-handling](rules/quality-error-handling.md) - ErrorWithCode vs TRPCError
-- [quality-imports](rules/quality-imports.md) - Import patterns and named exports
-- [quality-pr-creation](rules/quality-pr-creation.md) - PR best practices
-- [quality-code-comments](rules/quality-code-comments.md) - Comment guidelines
-- [quality-code-review](rules/quality-code-review.md) - Code review focus
+- [quality-imports](rules/quality-imports.md) — `@alias` imports, no legacy paths
+- [quality-simplicity](rules/quality-simplicity.md) — Keep code simple
+- [quality-code-review](rules/quality-code-review.md) — Code review standards
+- [quality-error-handling](rules/quality-error-handling.md) — `CommandResult` / `DomainError` patterns
+- [quality-code-comments](rules/quality-code-comments.md) — Comment guidelines
+- [quality-pr-creation](rules/quality-pr-creation.md) — Pull request best practices
 
 ### Data Layer
 
-- [data-prefer-select-over-include](rules/data-prefer-select-over-include.md) - Use select in Prisma queries
-- [data-repository-pattern](rules/data-repository-pattern.md) - Repository pattern
-- [data-repository-methods](rules/data-repository-methods.md) - Repository method standards
-- [data-dto-boundaries](rules/data-dto-boundaries.md) - DTO boundaries
-- [data-prisma-migrations](rules/data-prisma-migrations.md) - Schema changes and migrations
-- [data-prisma-feature-flags](rules/data-prisma-feature-flags.md) - Feature flag seeding
+- [data-repository-pattern](rules/data-repository-pattern.md) — Interface in `domain/`, implementation in `infrastructure/`
+- [data-dto-boundaries](rules/data-dto-boundaries.md) — DTOs at layer boundaries
+- [data-firebase-collections](rules/data-firebase-collections.md) — Firebase Firestore patterns
 
-### API
+### API Design
 
-- [api-no-breaking-changes](rules/api-no-breaking-changes.md) - API stability
-- [api-thin-controllers](rules/api-thin-controllers.md) - Thin controller pattern
+- [api-module-surface](rules/api-module-surface.md) — Module API surface via barrel exports
+- [api-contracts](rules/api-contracts.md) — `@api-contracts` route registry patterns
 
 ### Performance
 
-- [performance-avoid-quadratic](rules/performance-avoid-quadratic.md) - Avoid O(n²) algorithms
-- [performance-dayjs-usage](rules/performance-dayjs-usage.md) - Day.js optimization
-- [performance-scheduling-complexity](rules/performance-scheduling-complexity.md) - Scheduling performance
+- [performance-avoid-quadratic](rules/performance-avoid-quadratic.md) — Avoid O(n²) algorithms
 
 ### Testing
 
-- [testing-coverage-requirements](rules/testing-coverage-requirements.md) - Test coverage standards
-- [testing-playwright](rules/testing-playwright.md) - Playwright test execution
-- [testing-mocking](rules/testing-mocking.md) - Mock services and integrations
-- [testing-timezone](rules/testing-timezone.md) - Timezone handling (TZ=UTC)
-- [testing-incremental](rules/testing-incremental.md) - Incremental test fixing
+- [testing-coverage](rules/testing-coverage.md) — Test coverage requirements
+- [testing-mocking](rules/testing-mocking.md) — Mock services and integrations
+
+### Design Patterns
+
+- [patterns-use-case](rules/patterns-use-case.md) — One use case per file
+- [patterns-domain-events](rules/patterns-domain-events.md) — Domain event publishing
+- [patterns-domain-services](rules/patterns-domain-services.md) — Domain service encapsulation
+- [patterns-dependency-injection](rules/patterns-dependency-injection.md) — Constructor injection
 
 ### CI/CD
 
-- [ci-check-failures](rules/ci-check-failures.md) - Handling CI failures
-- [ci-type-check-first](rules/ci-type-check-first.md) - Type-check before tests
-- [ci-git-workflow](rules/ci-git-workflow.md) - Git and CI workflow
-
-### Patterns
-
-- [patterns-dependency-injection](rules/patterns-dependency-injection.md) - DI patterns
-- [patterns-factory-pattern](rules/patterns-factory-pattern.md) - Factory pattern
-- [patterns-workflow-triggers](rules/patterns-workflow-triggers.md) - Workflow implementation
-- [patterns-app-store](rules/patterns-app-store.md) - App store integration patterns
-- [patterns-trigger-dev](rules/patterns-trigger-dev.md) - Trigger.dev task implementation
+- [ci-type-check-first](rules/ci-type-check-first.md) — Type-check before tests
+- [ci-git-workflow](rules/ci-git-workflow.md) — Git and CI workflow
 
 ### Culture
 
-- [culture-accountability](rules/culture-accountability.md) - Engineering accountability
-- [culture-leverage-ai](rules/culture-leverage-ai.md) - AI tooling practices
+- [culture-accountability](rules/culture-accountability.md) — Engineering accountability
+- [culture-leverage-ai](rules/culture-leverage-ai.md) — AI tooling practices
 
 ### Reference
 
-- [reference-file-locations](rules/reference-file-locations.md) - Key file paths
-- [reference-local-dev](rules/reference-local-dev.md) - Local development setup
+- [reference-file-locations](rules/reference-file-locations.md) — Key file paths
+- [reference-local-dev](rules/reference-local-dev.md) — Local development setup

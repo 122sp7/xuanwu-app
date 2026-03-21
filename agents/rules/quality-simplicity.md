@@ -1,43 +1,44 @@
 ---
-title: Prioritize Clarity Over Cleverness
+title: Keep Code Simple
 impact: HIGH
-impactDescription: Reduces cognitive load and improves maintainability
+impactDescription: Reduces cognitive load and maintenance burden
 tags: quality, simplicity, readability
 ---
 
-## Prioritize Clarity Over Cleverness
+## Keep Code Simple
 
 **Impact: HIGH**
 
-The goal is code that is easy to read and understand quickly, not elegant complexity. Simple systems reduce the cognitive load for every engineer.
+Prefer straightforward solutions over clever abstractions. If a simpler approach handles the requirement, use it. Over-engineering adds maintenance burden without proportional value.
 
-**Questions to ask yourself:**
-- Am I actually solving the problem at hand?
-- Am I thinking too much about possible future use cases?
-- Have I considered at least 1 other alternative for solving this? How does it compare?
-
-**Incorrect (clever but hard to understand):**
+**Incorrect (unnecessary abstraction):**
 
 ```typescript
-// Clever one-liner that's hard to parse
-const result = data.reduce((a, b) => ({...a, [b.id]: (a[b.id] || []).concat(b)}), {});
-```
+class RepositoryFactoryProviderSingleton {
+  private static instance: RepositoryFactoryProviderSingleton;
+  private factories: Map<string, () => unknown> = new Map();
 
-**Correct (clear and readable):**
-
-```typescript
-// Clear, step-by-step approach
-const groupedById: Record<string, Item[]> = {};
-
-for (const item of data) {
-  if (!groupedById[item.id]) {
-    groupedById[item.id] = [];
+  static getInstance() {
+    if (!this.instance) this.instance = new RepositoryFactoryProviderSingleton();
+    return this.instance;
   }
-  groupedById[item.id].push(item);
+
+  register<T>(key: string, factory: () => T) { this.factories.set(key, factory); }
+  resolve<T>(key: string): T { return this.factories.get(key)!() as T; }
 }
 ```
 
-**Important note:**
-Simple doesn't mean lacking in features. Just because our goal is to create simple systems, this doesn't mean they should feel anemic and lacking obvious functionality.
+**Correct (direct, readable implementation):**
 
-Reference: [Cal.com Engineering Blog](https://cal.com/blog/engineering-in-2026-and-beyond)
+```typescript
+// If you only need one repository implementation, just use it directly
+import { TaskFirebaseRepository } from "../infrastructure/firebase/TaskFirebaseRepository";
+
+const taskRepo = new TaskFirebaseRepository();
+```
+
+**Guidelines:**
+- Don't add abstractions until you have a concrete second use case
+- Prefer composition over inheritance
+- A 10-line function is almost always better than a 5-class hierarchy
+- If you need to write a comment explaining what clever code does, rewrite the code instead

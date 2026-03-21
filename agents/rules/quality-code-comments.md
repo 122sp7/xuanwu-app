@@ -1,51 +1,44 @@
 ---
-title: Code Comment Guidelines
+title: Comment Guidelines
 impact: MEDIUM
-impactDescription: Excessive comments add noise; missing comments hurt maintainability
-tags: comments, documentation, readability
+impactDescription: Reduces noise and improves code readability
+tags: quality, comments, documentation
 ---
 
-# Code Comment Guidelines
+## Comment Guidelines
 
-## General Principle
+**Impact: MEDIUM**
 
-Keep comments limited and avoid obvious ones. Comments should explain "why" not "what" - the code itself should be clear enough to explain what it does.
+Write code that is self-documenting through clear naming. Use comments only when they add information that the code itself cannot convey — the *why*, not the *what*.
 
-## When to Comment
-
-- Business decisions or domain logic that isn't obvious from the code
-- Workarounds or hacks with explanation of why they're needed
-- Non-obvious performance optimizations
-- Important security considerations
-- Troubleshooting context (e.g., why a particular approach was chosen after hitting issues)
-
-If none of these apply, skip the comment entirely. The function name, parameters, and return type should speak for themselves.
-
-## When NOT to Comment
+**Incorrect (commenting the obvious):**
 
 ```typescript
-// ❌ Bad - Obvious comment
-// Get the user
-const user = await getUser(userId);
+// Get the task
+const task = await taskRepo.findById(id);
 
-// ❌ Bad - Restating the code
-// Loop through bookings
-for (const booking of bookings) {
-  // Process booking
-  processBooking(booking);
+// Check if task exists
+if (!task) {
+  // Return error
+  return { success: false, error: new DomainError("not-found") };
 }
 ```
 
-## Good Examples
+**Correct (comment explains WHY, not WHAT):**
 
 ```typescript
-// ✅ Good - Explains why, not what
-// We need to fetch availability before slots because the timezone
-// conversion depends on the user's configured availability rules
-const availability = await getAvailability(userId);
-const slots = convertToSlots(availability, timezone);
+const task = await taskRepo.findById(id);
+if (!task) {
+  return { success: false, error: new DomainError("not-found") };
+}
 
-// ✅ Good - Documents a non-obvious constraint
-// Google Calendar API has a 2500 event limit per sync request
-const BATCH_SIZE = 2500;
+// Schedule items derived from finance context may be stale if the finance
+// snapshot hasn't been refreshed since the last billing cycle.
+const items = await deriveScheduleItems(workspace, financeSnapshot);
 ```
+
+**When comments are useful:**
+- Business rules that aren't obvious from code
+- Workarounds for known framework issues (with issue links)
+- Module-level documentation in `README.md` or `index.ts`
+- Complex derivation logic in domain services
