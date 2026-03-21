@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: domain/port
  * Purpose: Persistence and lookup contract for namespace records.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

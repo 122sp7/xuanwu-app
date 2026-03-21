@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: domain/entity
  * Purpose: Canonical namespace entity — named scope for multi-tenant resource addressing.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

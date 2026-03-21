@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: domain/value-object
  * Purpose: Metadata value object for tracing and idempotent event handling.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

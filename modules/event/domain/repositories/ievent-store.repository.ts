@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: domain/port
  * Purpose: Source-of-truth persistence contract for domain events.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

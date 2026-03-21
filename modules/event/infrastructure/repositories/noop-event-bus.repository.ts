@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: infrastructure/repository
  * Purpose: No-op event bus adapter used by scaffold/tests before real transport integration.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

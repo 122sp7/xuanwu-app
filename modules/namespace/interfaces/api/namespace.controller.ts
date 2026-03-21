@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: interfaces/api
  * Purpose: HTTP/controller facade delegating all namespace actions to the application layer.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

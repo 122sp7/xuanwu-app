@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: application/use-case
  * Purpose: Write-side orchestration for registering a new namespace slug.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

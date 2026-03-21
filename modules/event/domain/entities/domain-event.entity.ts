@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: domain/entity
  * Purpose: Canonical domain event entity for capture, storage, and dispatch.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

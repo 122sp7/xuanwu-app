@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: WorkspaceWikiTab
+ * Module: workspace
  * Purpose: workspace-level wiki and knowledge hub — wiki pages list + RAG document health.
  * Responsibilities: wiki page list/search/filter + knowledge document KPIs + doc list with
  *   version history. Stub create actions until wiki domain is ready.

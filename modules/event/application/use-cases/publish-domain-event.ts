@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: application/use-case
  * Purpose: Write-side orchestration for event capture, persistence, and dispatch.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

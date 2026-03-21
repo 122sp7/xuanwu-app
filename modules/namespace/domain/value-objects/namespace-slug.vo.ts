@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: domain/value-object
  * Purpose: Immutable slug value object — validates and normalises namespace identifiers.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

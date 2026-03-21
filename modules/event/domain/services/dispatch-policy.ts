@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: domain/service
  * Purpose: Pure dispatch-policy rules — determines retry eligibility and outbox strategy
  *          without any infrastructure or SDK dependency.

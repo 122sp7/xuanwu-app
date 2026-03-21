@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: domain/service
  * Purpose: Pure slug-validation helper — derives a safe slug candidate from a raw display name.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

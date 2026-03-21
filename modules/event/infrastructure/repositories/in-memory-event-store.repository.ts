@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: infrastructure/repository
  * Purpose: In-memory adapter for event store contract in local development and tests.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

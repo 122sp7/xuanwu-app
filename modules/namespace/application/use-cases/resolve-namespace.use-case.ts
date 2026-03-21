@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: application/use-case
  * Purpose: Read-side orchestration for resolving a slug to its Namespace record.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

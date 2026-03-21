@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: application/use-case
  * Purpose: Read-side orchestration for aggregate event timeline retrieval.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

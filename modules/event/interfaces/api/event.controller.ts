@@ -1,5 +1,5 @@
 /**
- * Module: event-core
+ * Module: event
  * Layer: interfaces/api
  * Purpose: Transport/controller facade delegating all actions to application use-cases.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure

@@ -1,5 +1,5 @@
 /**
- * Module: namespace-core
+ * Module: namespace
  * Layer: infrastructure/repository
  * Purpose: In-memory adapter for namespace repository — local development and tests.
  * Dependency Direction: interfaces -> application -> domain <- infrastructure
