@@ -442,7 +442,7 @@ def classify_taxonomy(text_excerpt: str) -> str:
 
 ```
 來源類型：wiki page / knowledge document
-所有者模組：modules/wiki / modules/knowledge
+所有者模組：modules/wiki
 租戶可見性：organizationId + workspaceId（可選）
 
 處理：
@@ -503,15 +503,15 @@ Retrieval：
 
 ---
 
-## 8. `core/wiki-core` 開發指引
+## 8. `modules/wiki` 開發指引
 
-> 本節專門對象：實作或加入 `core/wiki-core` 域層的工程師。
-> 如果您只是使用 `@/core/wiki-core` export，請參考第 7 節並閱讀 wiki-contract.md。
+> 本節專門對象：實作或加入 `modules/wiki` 域層的工程師。
+> 如果您只是使用 `@/modules/wiki` export，請參考第 7 節並閱讀 wiki-contract.md。
 
 ### 8.1 專案目錄結構與依賴方向
 
 ```
-core/wiki-core/
+modules/wiki/
 ├── domain/                   ← 純 TypeScript，無任何框架 / SDK import
 │   ├── entities/
 │   │   ├── wiki-document.entity.ts              # WikiDocument class
@@ -561,7 +561,7 @@ infrastructure (persistence / repositories)
 ```
 
 > ❗ 禁止 domain 直接 import infrastructure，禁止 application 直接 import UI 元件。
-> 禁止 `core/wiki-core` import `@/modules/*`。
+> 禁止 `modules/wiki` import `@/modules/*`。
 
 ### 8.2 新増 Domain Entity / Value Object
 
@@ -569,14 +569,14 @@ infrastructure (persistence / repositories)
 
 ```bash
 # 確認沒有 modules/* 依賴
-npx grep -r "from '@/modules" core/wiki-core/
+npx grep -r "from '@/modules" modules/wiki/
 # 應輸出空白
 ```
 
 **新增 value object 範例**
 
 ```typescript
-// core/wiki-core/domain/value-objects/my-concept.vo.ts
+// modules/wiki/domain/value-objects/my-concept.vo.ts
 
 export class MyConcept {
   constructor(public readonly value: string) {
@@ -632,7 +632,7 @@ export class CreateWikiDocumentUseCase {
 > 以下為 TypeScript 端相同合約的 Next.js server-side 適配器實作指引。
 
 ```typescript
-// core/wiki-core/infrastructure/repositories/openai-embedding.repository.ts
+// modules/wiki/infrastructure/repositories/openai-embedding.repository.ts
 import OpenAI from 'openai'
 import type { IEmbeddingRepository, EmbedTextDTO } from '../../domain/repositories/iembedding.repository'
 import type { Embedding } from '../../domain/value-objects/embedding.vo'
@@ -681,7 +681,7 @@ npm run lint          # ESLint + TypeScript 檢查
 npm run build         # 完整 Next.js 編譯合成
 ```
 
-任何更動 `core/wiki-core` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/core/knowledge-core` shim 與 `@/modules/knowledge` shim 仍正常運作。
+任何更動 `modules/wiki` 公開 export 後，必須過 `npm run build` 檢查，以確保 `@/modules/wiki` public API 仍正常運作。
 
 ### 8.6 接管 `modules/knowledge` shim
 
@@ -689,7 +689,7 @@ npm run build         # 完整 Next.js 編譯合成
 
 ```typescript
 // modules/knowledge/domain/index.ts 和 application/index.ts
-export * from '@/core/wiki-core'
+export * from '@/modules/wiki'
 ```
 
 UI 啟用 `@/modules/knowledge` 為實際引用路徑直到 `modules/wiki` 建立並接管。

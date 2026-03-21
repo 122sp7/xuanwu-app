@@ -17,7 +17,7 @@ description: Target architecture for the namespace-core domain — canonical nam
 
 目前 Namespace Core 已具備最小可運作的命名空間骨架，作為後續 URL 路由與多租戶資源定址的基礎：
 
-- **Namespace 實體**：`core/namespace-core/domain/entities/namespace.entity.ts`
+- **Namespace 實體**：`modules/namespace/domain/entities/namespace.entity.ts`
   - 功能：id、slug、kind（organization / workspace）、ownerAccountId、organizationId、status
 - **NamespaceSlug 值物件**：slug 格式驗證（3-63 字元，小寫英數字加連字號）
 - **slug-policy domain service**：純函式 — `deriveSlugCandidate`、`isValidSlug`
@@ -65,13 +65,13 @@ description: Target architecture for the namespace-core domain — canonical nam
 ```
 modules/organization/ 或 modules/workspace/
     ↓ (呼叫 RegisterNamespaceUseCase on create)
-core/namespace-core/interfaces/api/
+modules/namespace/interfaces/api/
     ↓
-core/namespace-core/application/use-cases/
+modules/namespace/application/use-cases/
     ↓
-core/namespace-core/domain/
+modules/namespace/domain/
     ↑
-core/namespace-core/infrastructure/
+modules/namespace/infrastructure/
 ```
 
 ### 2.2 Namespace 生命週期
@@ -151,7 +151,7 @@ isValidSlug('-bad-')    // → false
 ## 5. 模組結構（目標）
 
 ```
-core/namespace-core/
+modules/namespace/
 ├── domain/
 │   ├── entities/
 │   │   └── namespace.entity.ts           # Namespace class

@@ -7,7 +7,7 @@ description: Implementation contract for the Namespace Core domain — canonical
 
 ## Purpose
 
-This contract defines `core/namespace-core` as the **命名空間基礎** for xuanwu-app:
+This contract defines `modules/namespace` as the **命名空間基礎** for xuanwu-app:
 
 - a uniform model for registering and validating organization-level and workspace-level slugs
 - the resolution boundary for translating slugs to internal Namespace records
@@ -18,13 +18,13 @@ This contract defines `core/namespace-core` as the **命名空間基礎** for xu
 
 | Concern | Owner |
 | --- | --- |
-| Namespace entity | `core/namespace-core/domain/entities` |
-| NamespaceSlug value object | `core/namespace-core/domain/value-objects` |
-| Slug policy (pure) | `core/namespace-core/domain/services` |
-| Namespace repository port | `core/namespace-core/domain/repositories/INamespaceRepository` |
-| Register use-case | `core/namespace-core/application/use-cases/RegisterNamespaceUseCase` |
-| Resolve use-case | `core/namespace-core/application/use-cases/ResolveNamespaceUseCase` |
-| In-memory adapter | `core/namespace-core/infrastructure/repositories/InMemoryNamespaceRepository` |
+| Namespace entity | `modules/namespace/domain/entities` |
+| NamespaceSlug value object | `modules/namespace/domain/value-objects` |
+| Slug policy (pure) | `modules/namespace/domain/services` |
+| Namespace repository port | `modules/namespace/domain/repositories/INamespaceRepository` |
+| Register use-case | `modules/namespace/application/use-cases/RegisterNamespaceUseCase` |
+| Resolve use-case | `modules/namespace/application/use-cases/ResolveNamespaceUseCase` |
+| In-memory adapter | `modules/namespace/infrastructure/repositories/InMemoryNamespaceRepository` |
 
 ## Bounded contexts
 
