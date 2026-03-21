@@ -1,17 +1,68 @@
-# MDDD Architecture — Refactoring Guide
+# MDDD Architecture — Module-Driven Domain Design
 
-## Architecture: MDDD + Hexagonal (Ports & Adapters)
+## Architecture Overview
 
 ```
-Dependency Direction:
-  UI → Application → Domain ← Infrastructure
+apps/          → composition layer (Next.js routes, layouts, shell)
+packages/      → executable units with strict package boundaries
+modules/       → conceptual domain definitions (no business logic)
 ```
+
+### Dependency Direction
+
+```
+UI → Application → Domain ← Infrastructure
+```
+
+---
+
+## Layer Descriptions
+
+### `apps/`  (Composition Layer)
+Routes, layouts, and page entrypoints. Composes packages and wires modules together.  
+**Rule**: No business logic. Import only from `packages/*`.
+
+### `packages/`  (Executable Layer)
+The only place for runnable code. Each package has a clear single responsibility, a `README.md`, and exports only through `index.ts`.  
+**Rule**: No circular dependencies. No direct imports from `modules/*`. See [`packages/README.md`](packages/README.md).
+
+### `modules/`  (Conceptual Layer)
+Domain definitions: contracts, entities, ports, and bounded context documentation.  
+**Rule**: No implementations. Each module describes what a capability _is_, not how it works.
+
+---
+
+## Package Catalogue
+
+### Shared Packages
+
+| Package | Path | Alias | Description |
+|---------|------|-------|-------------|
+| `shared-types` | `packages/shared-types/` | `@shared-types` | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
+| `shared-utils` | `packages/shared-utils/` | `@shared-utils` | Pure utility functions, app-wide constants |
+| `shared-validators` | `packages/shared-validators/` | `@shared-validators` | Zod schemas for cross-cutting input validation |
+| `shared-hooks` | `packages/shared-hooks/` | `@shared-hooks` | Cross-cutting React hooks, Zustand app store |
+
+### Integration Packages
+
+| Package | Path | Alias | Description |
+|---------|------|-------|-------------|
+| `integration-firebase` | `packages/integration-firebase/` | `@integration-firebase` | Firebase SDK (Auth, Firestore, Storage, Functions, etc.) |
+| `integration-upstash` | `packages/integration-upstash/` | `@integration-upstash` | Upstash (Redis, Vector, QStash, Workflow) |
+| `integration-http` | `packages/integration-http/` | `@integration-http` | Axios HTTP client for external APIs |
+
+### UI Packages
+
+| Package | Path | Alias | Description |
+|---------|------|-------|-------------|
+| `ui-shadcn` | `packages/ui-shadcn/` | `@ui-shadcn` | shadcn/ui component library (Radix primitives) |
+| `ui-vis` | `packages/ui-vis/` | `@ui-vis` | vis.js visualization components |
 
 ---
 
 ## Module Structure
 
-Each feature module (`modules/<feature>/`) follows the same strict layering:
+Each feature module (`modules/<feature>/`) follows strict hexagonal layering:
 
 ```
 modules/<feature>/
@@ -26,14 +77,14 @@ modules/<feature>/
 │       └── (mappers: Firestore ↔ Domain — validate enum fields before mapping)
 ├── interfaces/
 │   ├── _actions/            # Next.js "use server" Server Actions (thin adapters)
-│   ├── hooks/               # "use client" React hooks (identity token-refresh hook)
-│   └── queries/             # Read query wrappers (callable from React components/hooks)
+│   ├── hooks/               # "use client" React hooks
+│   └── queries/             # Read query wrappers callable from React components
 └── index.ts                 # Public API (barrel export)
 ```
 
 ---
 
-## Implemented Modules (Fully Complete)
+## Implemented Modules
 
 | Module | Sub-Domains | Firebase Adapter | Notes |
 |--------|-------------|-----------------|-------|
@@ -43,7 +94,11 @@ modules/<feature>/
 | `finance` | Claim lifecycle stages | FirebaseFinanceRepository | Domain stage-transition rules in entity |
 | `organization` | Core (create/update/delete), Members, Teams, Partners, Policy | FirebaseOrganizationRepository | All sub-domains fully implemented |
 | `notification` | Dispatch, MarkRead, MarkAllRead | FirebaseNotificationRepository | Single side-effect outlet pattern |
-| `task` | CreateTask, UpdateStatus, DeleteTask | TaskRepoImpl | Example module |
+| `task` | CreateTask, UpdateStatus, DeleteTask | FirebaseTaskRepository | MDDD example module |
+| `wiki` | Pages, RAG, Knowledge | DefaultWorkspaceKnowledgeRepository | Full knowledge domain |
+| `event` | Domain events | FirebaseEventRepository | Event-driven backbone |
+| `namespace` | Namespace management | FirebaseNamespaceRepository | Multi-tenancy |
+| `schedule` | MDDD flow, assignments, projections | FirebaseMdddScheduleRepository + many | Full MDDD workflow |
 
 ---
 
@@ -54,7 +109,7 @@ modules/<feature>/
 - ✅ Zero external dependencies (no Firebase, no React, no Next.js)
 - ✅ Repository **interfaces** (ports) defined here, NOT implementations
 - ❌ No `import` from infrastructure, application, or UI layers
-- ❌ No cross-module domain imports (organization no longer imports from account domain)
+- ❌ No cross-module domain imports
 
 ### Application Layer (`application/use-cases/`)
 - ✅ Orchestrates domain entities + repository ports
@@ -66,26 +121,50 @@ modules/<feature>/
 ### Infrastructure Layer (`infrastructure/firebase/`)
 - ✅ Implements domain repository interfaces (the Adapter)
 - ✅ Contains all Firebase SDK usage
-- ✅ Includes Firestore ↔ Domain mappers with **enum field validation** (no silent coercion)
-- ✅ Wallet credit/debit uses Firestore **transactions** (atomic balance enforcement — balance never negative)
+- ✅ Includes Firestore ↔ Domain mappers with **enum field validation**
+- ✅ Wallet credit/debit uses Firestore **transactions** (atomic balance enforcement)
 - ❌ Must NOT be imported by domain or application layers
 
 ### Interface Layer (`interfaces/`)
 - **`_actions/`** — Next.js `"use server"` Server Actions: thin wrappers, no business logic
-- **`hooks/`** — `"use client"` React hooks (e.g. `useTokenRefreshListener` — [S6] Party 3)
-- **`queries/`** — Read query wrappers for real-time subscriptions, callable from React components
+- **`hooks/`** — `"use client"` React hooks
+- **`queries/`** — Read query wrappers for real-time subscriptions
 
 ---
 
-## Shared Kernel (`shared/`)
+## Package Naming Conventions
 
-| Path | Contents |
-|------|----------|
-| `shared/types/index.ts` | `CommandResult`, `CommandSuccess`, `CommandFailure`, `DomainError`, `Timestamp`, factory helpers |
-| `shared/validators/index.ts` | Zod schemas for input validation |
-| `shared/hooks/useStore.ts` | Zustand app store |
-| `shared/constants/index.ts` | App-wide constants |
-| `shared/utils/index.ts` | Pure utility functions |
+| Pattern | Examples |
+|---------|---------|
+| `<domain>-core` | `task-core`, `wiki-core`, `identity-core` |
+| `<domain>-service` | `task-service`, `wiki-service` |
+| `integration-*` | `integration-firebase`, `integration-upstash` |
+| `shared-*` | `shared-types`, `shared-utils`, `shared-validators` |
+| `ui-*` | `ui-shadcn`, `ui-vis` |
+
+---
+
+## Import Rules
+
+```typescript
+// ✅ Use package aliases
+import { CommandResult, commandSuccess } from "@shared-types";
+import { Button, Dialog } from "@ui-shadcn";
+import { getFirebaseFirestore } from "@integration-firebase";
+import { redis } from "@integration-upstash";
+
+// ❌ Forbidden — use the package alias instead
+import { CommandResult } from "@/shared/types";          // → @shared-types
+import { Button } from "@/ui/shadcn/ui/button";         // → @ui-shadcn
+import { getFirebaseFirestore } from "@/libs/firebase"; // → @integration-firebase
+import { redis } from "@/libs/upstash";                 // → @integration-upstash
+```
+
+### Forbidden Import Patterns
+- Circular dependencies between packages
+- Direct `modules/*` imports from `apps/*` (use the module's `index.ts`)
+- Direct internal imports from other packages (`@/ui/shadcn/ui/button` instead of `@ui-shadcn`)
+- Shared "dumping grounds" — every file must belong to a clearly named package
 
 ---
 
@@ -99,9 +178,7 @@ Party 2 (IER CRITICAL_LANE) ── routes role:changed / policy:changed events
 Party 3 (Frontend Hook)     ── onSnapshot → getIdToken(forceRefresh=true)
 ```
 
-- **Party 1 use cases**: `EmitTokenRefreshSignalUseCase` + `AssignAccountRoleUseCase` + `RevokeAccountRoleUseCase` + policy use cases
-- **Party 1 port**: `TokenRefreshRepository` (domain) → `FirebaseTokenRefreshRepository` (infra)
-- **Party 3**: `useTokenRefreshListener(accountId)` — import from `@/modules/identity/interfaces/hooks/useTokenRefreshListener`
+- **Party 3**: `useTokenRefreshListener(accountId)` — import from `@/modules/identity`
 - Mount once per authenticated session in shell layout
 
 ---
@@ -118,15 +195,40 @@ Every use case and server action returns `CommandResult`:
 { success: false, error: { code: string, message: string, context?: object } }
 ```
 
-Usage in UI:
-```ts
-const result = await createOrganization({ organizationName, ownerId, ownerName, ownerEmail });
-if (!result.success) {
-  toast({ variant: "destructive", description: result.error.message });
-  return;
-}
-// result.aggregateId = new org ID
+Import from `@shared-types`:
+```typescript
+import { type CommandResult, commandSuccess, commandFailureFrom } from "@shared-types";
 ```
+
+---
+
+## Migration Status (VSA → MDDD)
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Complete | `packages/` directory created with all legacy root packages |
+| Phase 2 | ✅ Complete | `shared/`, `infrastructure/`, `interfaces/` become backward-compat shims |
+| Phase 3 | 🔄 In Progress | Apps adopt `@package-name` imports; modules keep only definitions |
+| Phase 4 | ⏳ Pending | Delete legacy root folders (`libs/`, `shared/`, `interfaces/`, `infrastructure/`, `ui/`) |
+
+### Legacy Folders (Backward Compatibility Only)
+
+The following root-level folders are **deprecated** and exist only for backward compatibility during migration. Migrate all new code to `packages/`:
+
+| Folder | Target Package | Status |
+|--------|---------------|--------|
+| `shared/types/` | `@shared-types` | Shim → `packages/shared-types` |
+| `shared/utils/` | `@shared-utils` | Shim → `packages/shared-utils` |
+| `shared/constants/` | `@shared-utils` | Shim → `packages/shared-utils` |
+| `shared/validators/` | `@shared-validators` | Shim → `packages/shared-validators` |
+| `shared/hooks/` | `@shared-hooks` | Shim → `packages/shared-hooks` |
+| `infrastructure/firebase/` | `@integration-firebase` | Shim → `packages/integration-firebase` |
+| `infrastructure/upstash/` | `@integration-upstash` | Shim → `packages/integration-upstash` |
+| `infrastructure/axios/` | `@integration-http` | Future migration |
+| `libs/firebase/` | `@integration-firebase` | Internal to package |
+| `libs/upstash/` | `@integration-upstash` | Internal to package |
+| `ui/shadcn/` | `@ui-shadcn` | Internal to package |
+| `ui/vis/` | `@ui-vis` | Internal to package |
 
 ---
 
@@ -135,12 +237,14 @@ if (!result.success) {
 - [x] Domain layer has zero external dependencies
 - [x] All data access goes through repository interfaces (ports)
 - [x] UI does not contain business logic
-- [x] Firebase only exists in `infrastructure/firebase/` directories
+- [x] Firebase only exists in `infrastructure/firebase/` directories (within modules)
 - [x] Use-cases are framework-agnostic (pure TypeScript)
-- [x] No feature-to-feature domain coupling (each module has independent domain types)
+- [x] No feature-to-feature domain coupling
 - [x] `CommandResult` contract used consistently across all use cases
 - [x] Wallet operations use Firestore transactions (atomic balance enforcement)
 - [x] Token refresh signal emitted after all role/policy changes [S6]
 - [x] TypeScript strict mode: zero errors
 - [x] ESLint: zero warnings/errors
 - [x] Next.js build: passes
+- [x] `packages/` layer created with proper `README.md` and `index.ts` for each package
+- [x] TypeScript path aliases configured for all packages in `tsconfig.json`

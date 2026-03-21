@@ -25,6 +25,33 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@shared-types": [
+        "./packages/shared-types/index.ts"
+      ],
+      "@shared-utils": [
+        "./packages/shared-utils/index.ts"
+      ],
+      "@shared-validators": [
+        "./packages/shared-validators/index.ts"
+      ],
+      "@shared-hooks": [
+        "./packages/shared-hooks/index.ts"
+      ],
+      "@integration-firebase": [
+        "./packages/integration-firebase/index.ts"
+      ],
+      "@integration-upstash": [
+        "./packages/integration-upstash/index.ts"
+      ],
+      "@integration-http": [
+        "./packages/integration-http/index.ts"
+      ],
+      "@ui-shadcn": [
+        "./packages/ui-shadcn/index.ts"
+      ],
+      "@ui-vis": [
+        "./packages/ui-vis/index.ts"
       ]
     }
   },

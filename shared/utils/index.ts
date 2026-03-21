@@ -1,7 +1,6 @@
-export function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
-export function generateId(): string {
-  return crypto.randomUUID();
-}
+/**
+ * @deprecated Import from "@shared-utils" instead.
+ * This file is kept for backward compatibility during MDDD migration.
+ * @see packages/shared-utils/index.ts
+ */
+export * from "@shared-utils";
