@@ -4,7 +4,7 @@
  * No React, no Firebase, no UI framework.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
 import type { TokenRefreshRepository } from "@/modules/identity/domain/repositories/TokenRefreshRepository";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";

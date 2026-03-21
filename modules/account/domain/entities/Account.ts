@@ -2,7 +2,7 @@
  * Account Domain Entities — pure TypeScript, zero framework dependencies.
  */
 
-import type { Timestamp } from "@/shared/types";
+import type { Timestamp } from "@shared-types";
 
 export type AccountType = "user" | "organization";
 export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";

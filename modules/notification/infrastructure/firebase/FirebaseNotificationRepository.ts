@@ -15,7 +15,7 @@ import {
   limit as fbLimit,
   serverTimestamp,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
 import type {
   NotificationEntity,

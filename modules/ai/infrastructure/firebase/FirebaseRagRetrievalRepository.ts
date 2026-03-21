@@ -1,6 +1,6 @@
 import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 
 import type { RagRetrievedChunk } from "../../domain/entities/RagQuery";
 import type {

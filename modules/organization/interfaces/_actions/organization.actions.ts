@@ -5,7 +5,7 @@
  * Covers: org lifecycle (create, update settings, delete).
  */
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import {
   CreateOrganizationUseCase,
   CreateOrganizationWithTeamUseCase,

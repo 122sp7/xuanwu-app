@@ -16,7 +16,7 @@ import {
   where,
   serverTimestamp,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
 import type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 

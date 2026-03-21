@@ -72,3 +72,7 @@ export * from "@/ui/shadcn/ui/table";
 // ── Hooks ─────────────────────────────────────────────────────────────────
 export * from "@/ui/shadcn/hooks/use-mobile";
 export * from "@/ui/shadcn/hooks/use-toast";
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+// cn() — class-name merging utility (clsx + tailwind-merge)
+export { cn } from "@/libs/utils";

@@ -3,7 +3,7 @@
  * No React, no Firebase, no UI framework.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountRepository } from "../../domain/repositories/AccountRepository";
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
 

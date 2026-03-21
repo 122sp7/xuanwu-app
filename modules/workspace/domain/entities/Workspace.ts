@@ -2,7 +2,7 @@
  * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
  */
 
-import type { Timestamp } from "@/shared/types";
+import type { Timestamp } from "@shared-types";
 
 export type WorkspaceLifecycleState = "preparatory" | "active" | "stopped";
 

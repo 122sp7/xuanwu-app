@@ -10,7 +10,7 @@ import {
   setDoc,
   onSnapshot,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
 import type { TokenRefreshSignal } from "../../domain/entities/TokenRefreshSignal";
 

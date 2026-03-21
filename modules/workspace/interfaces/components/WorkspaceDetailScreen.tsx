@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace";
-import { formatDate } from "@/shared/utils";
+import { formatDate } from "@shared-utils";
 import {
   Avatar,
   AvatarFallback,

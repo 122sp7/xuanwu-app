@@ -14,7 +14,7 @@ import {
   onFirebaseAuthStateChanged,
   signOutFirebase,
   type User,
-} from "@/libs/firebase";
+} from "@integration-firebase";
 import {
   AuthContext,
   type AuthAction,

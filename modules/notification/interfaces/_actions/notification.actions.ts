@@ -4,7 +4,7 @@
  * Notification Server Actions — thin adapter to use cases.
  */
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import {
   DispatchNotificationUseCase,
   MarkNotificationReadUseCase,

@@ -19,7 +19,7 @@ import {
 } from "@/ui/shadcn/ui/card";
 import { Input } from "@/ui/shadcn/ui/input";
 import { Label } from "@/ui/shadcn/ui/label";
-import { getFirebaseStorage } from "@/infrastructure/firebase";
+import { getFirebaseStorage } from "@integration-firebase";
 
 interface WorkspaceFilesTabProps {
   readonly workspace: WorkspaceEntity;
