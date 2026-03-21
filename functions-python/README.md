@@ -10,7 +10,7 @@ taxonomy, chunking, embedding, and other heavy background responsibilities that 
 the Next.js request/response path.
 
 Canonical ADR governance and migration decisions now live in
-`libs/firebase/functions-python/docs/adr/README.md` and the ADR files in that directory. Treat those
+`functions-python/docs/adr/README.md` and the ADR files in that directory. Treat those
 documents as the source of truth for runtime boundaries, dependency policy, structure, and
 replacement planning for the retired `libs/firebase/functions` codebase.
 

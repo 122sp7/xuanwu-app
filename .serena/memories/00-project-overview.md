@@ -28,11 +28,8 @@
 | `app/` | Next.js App Router: layouts, route groups, providers |
 | `core/` | Cross-cutting bounded-context cores (event-core, knowledge-core, namespace-core) |
 | `modules/` | 17 feature modules — see 02-module-index |
-| `infrastructure/` | Shared adapters: axios, firebase, upstash |
-| `interfaces/` | graphql/, rest/ entrypoints |
-| `shared/` | Pure cross-cutting: types, validators, hooks, constants, utils |
-| `ui/` | Reusable UI: shadcn/, vis/ |
-| `libs/` | Utility integrations: date-fns, dragdrop, firebase, react-markdown, remark-gfm, superjson, tanstack, upstash, uuid, vis, xstate, zod, zustand + utils.ts |
+| `packages/` | Stable public boundary layer: 21 TypeScript packages with @alias paths |
+| `functions-python/` | Python Firebase Functions worker runtime (RAG ingestion, Document AI) |
 | `docs/` | Architecture decisions, designs, contracts (see 06-docs-index) |
 | `assets/`, `public/` | Static assets |
 
@@ -52,7 +49,7 @@
 
 ## Python Cloud Functions
 
-- Location: `libs/firebase/functions-python/`
+- Location: `functions-python/`
 - Runtime: Python with Firebase Functions v2
 - Domains: `rag_ingestion` (full MDDD), `document_ai` (full MDDD)
 - Deploy: `npm run deploy:functions:python`

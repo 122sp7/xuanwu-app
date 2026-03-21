@@ -15,7 +15,7 @@ This contract is the authoritative implementation reference for the upload-to-wo
 | --- | --- |
 | Upload registration and browser-facing orchestration | `modules/file` and Next.js interfaces |
 | Retrieval orchestration and answer generation | `modules/ai` |
-| Parsing, chunking, embedding, and lifecycle write-back | `libs/firebase/functions-python` |
+| Parsing, chunking, embedding, and lifecycle write-back | `functions-python` |
 
 ## Canonical upload request
 

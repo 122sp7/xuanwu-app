@@ -30,8 +30,8 @@
 - `libs/superjson/`, `libs/uuid/`, `libs/zod/`, `libs/zustand/`, `libs/date-fns/`
 
 ## Python Cloud Functions integration
-- Python functions live under `libs/firebase/functions-python/`
-- Runtime docs and ADRs live under `libs/firebase/functions-python/docs/adr/`
+- Python functions live under `functions-python/`
+- Runtime docs and ADRs live under `functions-python/docs/adr/`
 - Deploy via `npm run deploy:functions:python`
 
 ## Caution

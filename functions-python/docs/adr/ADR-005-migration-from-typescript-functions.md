@@ -1,4 +1,4 @@
-# ADR 005: 從 `libs/firebase/functions` 遷移到 `libs/firebase/functions-python`
+# ADR 005: 從 `libs/firebase/functions` 遷移到 `functions-python`
 
 ## 狀態 (Status)
 **Accepted**
@@ -8,7 +8,7 @@
 在遷移開始時，倉庫中曾同時存在：
 
 - `libs/firebase/functions` 是既有的 TypeScript Firebase Functions codebase
-- `libs/firebase/functions-python` 是新的 Python codebase
+- `functions-python` 是新的 Python codebase
 
 兩者同時存在於 `firebase.json`，代表遷移起點是**雙 codebase 共存**。
 
@@ -20,7 +20,7 @@
 
 ## 決策 (Decision)
 
-`libs/firebase/functions-python` 將作為 **document ingestion / worker runtime 的長期替代者**，並以**分階段遷移**取代 `libs/firebase/functions` 中的重型文件處理責任。
+`functions-python` 將作為 **document ingestion / worker runtime 的長期替代者**，並以**分階段遷移**取代 `libs/firebase/functions` 中的重型文件處理責任。
 
 ## 設計細節 (Design)
 

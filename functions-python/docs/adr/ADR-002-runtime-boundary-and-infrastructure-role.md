@@ -8,7 +8,7 @@
 目前倉庫同時存在兩個 Firebase Functions codebase：
 
 - `libs/firebase/functions`（TypeScript）
-- `libs/firebase/functions-python`（Python）
+- `functions-python`（Python）
 
 若沒有明確定義 `functions-python` 的定位，後續很容易發生以下問題：
 
@@ -19,7 +19,7 @@
 
 ## 決策 (Decision)
 
-`libs/firebase/functions-python` 被定義為：
+`functions-python` 被定義為：
 
 - **Firebase worker runtime**
 - **文件 ingestion / parsing / taxonomy / chunking / embedding 的基礎設施**
