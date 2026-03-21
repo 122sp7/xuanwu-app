@@ -4,23 +4,25 @@
  * Module: workspace
  * Purpose: workspace-level wiki and knowledge hub — wiki pages list + RAG document health.
  * Responsibilities: wiki page list/search/filter + knowledge document KPIs + doc list with
- *   version history. Stub create actions until wiki domain is ready.
+ *   version history + document upload, retry, and archive actions.
  * Constraints: UI components only — no business logic.
  */
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ArchiveIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   FileTextIcon,
   FilterIcon,
+  Loader2Icon,
   LockIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
   UploadIcon,
 } from "lucide-react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { toast } from "sonner";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
@@ -28,9 +30,11 @@ import type { RagDocumentRecord } from "@/modules/file";
 import { getWorkspaceRagDocuments } from "@/modules/file";
 import { archiveRagDocument } from "@/modules/file";
 import { resolveFileOrganizationId } from "@/modules/file";
+import { uploadInitFile, uploadCompleteFile } from "@/modules/file";
 import type { WorkspaceKnowledgeSummary } from "@/modules/wiki";
 import { getWorkspaceKnowledgeSummary } from "@/modules/wiki";
 import { retryDocumentProcessing } from "@/modules/wiki/interfaces/_actions/wiki-document.actions";
+import { getFirebaseStorage } from "@integration-firebase";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -91,6 +95,10 @@ const STUB_PAGES: WikiPage[] = [];
 
 type StatusFilter = RagDocumentRecord["status"] | "all";
 
+/** Accepted file extensions and MIME types per wiki.md §5.4.3. */
+const RAG_ACCEPTED_FILE_TYPES =
+  ".pdf,.docx,.doc,.html,.htm,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/html,text/plain,text/markdown";
+
 const EMPTY_SUMMARY: WorkspaceKnowledgeSummary = {
   registeredAssetCount: 0,
   readyAssetCount: 0,
@@ -141,12 +149,6 @@ function formatDate(iso?: string): string {
     }).format(new Date(iso));
   } catch {
     return iso;
-  }
-}
-
-function stubAction(name: string) {
-  if (process.env.NODE_ENV !== "production") {
-    console.warn(`[WorkspaceWikiTab] Stub invoked: ${name} — not yet implemented.`);
   }
 }
 
@@ -498,13 +500,103 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
     });
   }, [organizationId, workspace.id, loadKnowledgeData]);
 
-  const handleUploadVersion = useCallback((versionGroupId: string) => {
-    stubAction(`upload-version:${versionGroupId}`);
+  // ── Document upload flow ──────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const versionFileInputRef = useRef<HTMLInputElement>(null);
+  const pendingVersionGroupId = useRef<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUploadFile = useCallback(async (file: File) => {
+    setIsUploading(true);
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        toast.error("上傳初始化失敗，請稍後再試。");
+        return;
+      }
+
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        toast.error("上傳完成失敗，請稍後再試。");
+        return;
+      }
+
+      toast.success(`已上傳「${file.name}」，文件狀態：${completeResult.data.ragDocumentStatus}`);
+      await loadKnowledgeData();
+    } catch {
+      toast.error("上傳文件時發生錯誤，請稍後再試。");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [organizationId, workspace.id, workspace.accountId, loadKnowledgeData]);
+
+  const triggerUpload = useCallback(() => {
+    fileInputRef.current?.click();
   }, []);
+
+  const handleUploadVersion = useCallback((versionGroupId: string) => {
+    pendingVersionGroupId.current = versionGroupId;
+    versionFileInputRef.current?.click();
+  }, []);
+
+  const onFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0];
+    if (nextFile) {
+      void handleUploadFile(nextFile);
+    }
+    event.currentTarget.value = "";
+  }, [handleUploadFile]);
+
+  const onVersionFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0];
+    if (nextFile) {
+      void handleUploadFile(nextFile);
+    }
+    event.currentTarget.value = "";
+    pendingVersionGroupId.current = null;
+  }, [handleUploadFile]);
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+
+      {/* Hidden file inputs for document upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={RAG_ACCEPTED_FILE_TYPES}
+        className="hidden"
+        onChange={onFileInputChange}
+      />
+      <input
+        ref={versionFileInputRef}
+        type="file"
+        accept={RAG_ACCEPTED_FILE_TYPES}
+        className="hidden"
+        onChange={onVersionFileInputChange}
+      />
 
       {/* ═══════════════════════════════════════════════════════════════
           Wiki Pages section
@@ -707,10 +799,14 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
                 variant="outline"
                 size="sm"
                 className="h-7 gap-1 text-xs"
-                onClick={() => stubAction("upload-first-doc")}
-                disabled={ragLoadState === "loading"}
+                onClick={triggerUpload}
+                disabled={ragLoadState === "loading" || isUploading}
               >
-                <UploadIcon className="size-3" />
+                {isUploading ? (
+                  <Loader2Icon className="size-3 animate-spin" />
+                ) : (
+                  <UploadIcon className="size-3" />
+                )}
                 上傳文件
               </Button>
             </div>
@@ -784,9 +880,14 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
                   variant="outline"
                   size="sm"
                   className="gap-1 text-xs"
-                  onClick={() => stubAction("upload-first-doc")}
+                  onClick={triggerUpload}
+                  disabled={isUploading}
                 >
-                  <UploadIcon className="size-3" />
+                  {isUploading ? (
+                    <Loader2Icon className="size-3 animate-spin" />
+                  ) : (
+                    <UploadIcon className="size-3" />
+                  )}
                   上傳第一份文件
                 </Button>
               </div>
@@ -809,7 +910,7 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
                   onRetry={handleRetry}
                   onArchive={handleArchive}
                   onUploadVersion={handleUploadVersion}
-                  actionsDisabled={isRetrying || isArchiving}
+                  actionsDisabled={isRetrying || isArchiving || isUploading}
                 />
               ))}
           </CardContent>

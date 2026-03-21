@@ -50,9 +50,11 @@
 
 ### UI/UX
 
-- WorkspaceWikiTab 提供「上傳文件」按鈕
+- WorkspaceWikiTab 提供「上傳文件」及「上傳第一份文件」按鈕，觸發完整上傳流程（init → Storage → complete + RAG registration）
+- DocumentRow 提供「上傳新版」按鈕，以版本升級方式上傳新檔案
 - WikiWorkspaceDocView 提供文件列表 + 連結至 `/workspace/{id}?tab=Files`
 - 上傳後即時在文件列表中顯示（status badge 標示為 uploaded/processing/ready/failed）
+- 上傳中顯示 loading spinner，所有 action 按鈕於上傳期間停用
 
 ---
 
