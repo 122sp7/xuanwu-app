@@ -17,7 +17,7 @@ description: Target architecture for the event-core domain — canonical domain 
 
 目前 Event Core 已具備最小可運作的領域事件基礎骨架，作為後續全系統事件驅動設計的入口：
 
-- **DomainEvent 實體**：`core/event-core/domain/entities/domain-event.entity.ts`
+- **DomainEvent 實體**：`modules/event/domain/entities/domain-event.entity.ts`
   - 功能：事件 id、名稱、聚合類型、聚合 id、occurredAt、payload、metadata、派送狀態
 - **EventMetadata 值物件**：關聯 id、causation id、actor id、組織 / 工作區追蹤欄位
 - **Repository ports**：`IEventStoreRepository`（持久化）+ `IEventBusRepository`（派送）
@@ -67,13 +67,13 @@ description: Target architecture for the event-core domain — canonical domain 
 ```
 app/(shell)/ 或 modules/*
     ↓ (invoke server actions / use-cases)
-core/event-core/interfaces/api/
+modules/event/interfaces/api/
     ↓
-core/event-core/application/use-cases/
+modules/event/application/use-cases/
     ↓
-core/event-core/domain/
+modules/event/domain/
     ↑
-core/event-core/infrastructure/
+modules/event/infrastructure/
 ```
 
 ### 2.2 事件生命週期
@@ -174,7 +174,7 @@ nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: new Date() }, { maxRetries: 3
 ### 4.3 Infrastructure 配置
 
 ```typescript
-// core/event-core/infrastructure/persistence/config.ts
+// modules/event/infrastructure/persistence/config.ts
 EVENT_CORE_CONFIG = {
   DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 },
   STORE:    { TABLE: 'domain_events' },
@@ -186,7 +186,7 @@ EVENT_CORE_CONFIG = {
 ## 5. 模組結構（目標）
 
 ```
-core/event-core/
+modules/event/
 ├── domain/
 │   ├── entities/
 │   │   └── domain-event.entity.ts     # DomainEvent class + DomainEventPayload

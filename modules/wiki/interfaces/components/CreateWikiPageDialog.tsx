@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from '@/ui/shadcn/ui/select'
 import { Textarea } from '@/ui/shadcn/ui/textarea'
-import type { WikiPageScope } from '@/core/wiki-core'
+import type { WikiPageScope } from '@/modules/wiki'
 import { createWikiPage } from '../_actions/wiki-page.actions'
 
 interface CreateWikiPageDialogProps {

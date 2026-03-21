@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm'
 import { Badge } from '@/ui/shadcn/ui/badge'
 import { Button } from '@/ui/shadcn/ui/button'
 import { Separator } from '@/ui/shadcn/ui/separator'
-import type { WikiPage, WikiPageScope } from '@/core/wiki-core'
+import type { WikiPage, WikiPageScope } from '@/modules/wiki'
 
 const SCOPE_ICON: Record<WikiPageScope, React.ReactNode> = {
   organization: <BuildingIcon className="size-3" />,

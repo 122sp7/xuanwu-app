@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * Module: WorkspaceWikiTab
+ * Module: workspace
  * Purpose: workspace-level wiki and knowledge hub — wiki pages list + RAG document health.
  * Responsibilities: wiki page list/search/filter + knowledge document KPIs + doc list with
  *   version history. Stub create actions until wiki domain is ready.
- * Constraints: knowledge doc health imports come from @/modules/knowledge (temporary shim)
- *   until the wiki module fully absorbs those types. UI components only — no business logic.
+ * Constraints: UI components only — no business logic.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,8 +25,8 @@ import {
 import type { WorkspaceEntity } from "@/modules/workspace";
 import type { RagDocumentRecord } from "@/modules/file";
 import { getWorkspaceRagDocuments } from "@/modules/file";
-import type { WorkspaceKnowledgeSummary } from "@/modules/knowledge";
-import { getWorkspaceKnowledgeSummary } from "@/modules/knowledge";
+import type { WorkspaceKnowledgeSummary } from "@/modules/wiki";
+import { getWorkspaceKnowledgeSummary } from "@/modules/wiki";
 import { Badge } from "@/ui/shadcn/ui/badge";
 import { Button } from "@/ui/shadcn/ui/button";
 import {

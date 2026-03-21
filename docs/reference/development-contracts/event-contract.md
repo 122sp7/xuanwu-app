@@ -7,7 +7,7 @@ description: Implementation contract for the Event Core domain — canonical dom
 
 ## Purpose
 
-This contract defines `core/event-core` as the **領域事件基礎** for xuanwu-app:
+This contract defines `modules/event` as the **領域事件基礎** for xuanwu-app:
 
 - a unified model for capturing and persisting domain events from any module
 - the dispatch boundary for transporting events to consumers (event bus, projections)
@@ -18,15 +18,15 @@ This contract defines `core/event-core` as the **領域事件基礎** for xuanwu
 
 | Concern | Owner |
 | --- | --- |
-| DomainEvent entity | `core/event-core/domain/entities` |
-| EventMetadata value object | `core/event-core/domain/value-objects` |
-| Dispatch policy (pure) | `core/event-core/domain/services` |
-| Event store port | `core/event-core/domain/repositories/IEventStoreRepository` |
-| Event bus port | `core/event-core/domain/repositories/IEventBusRepository` |
-| Publish use-case | `core/event-core/application/use-cases/PublishDomainEventUseCase` |
-| List use-case | `core/event-core/application/use-cases/ListEventsByAggregateUseCase` |
-| In-memory adapter | `core/event-core/infrastructure/repositories/InMemoryEventStoreRepository` |
-| Noop bus adapter | `core/event-core/infrastructure/repositories/NoopEventBusRepository` |
+| DomainEvent entity | `modules/event/domain/entities` |
+| EventMetadata value object | `modules/event/domain/value-objects` |
+| Dispatch policy (pure) | `modules/event/domain/services` |
+| Event store port | `modules/event/domain/repositories/IEventStoreRepository` |
+| Event bus port | `modules/event/domain/repositories/IEventBusRepository` |
+| Publish use-case | `modules/event/application/use-cases/PublishDomainEventUseCase` |
+| List use-case | `modules/event/application/use-cases/ListEventsByAggregateUseCase` |
+| In-memory adapter | `modules/event/infrastructure/repositories/InMemoryEventStoreRepository` |
+| Noop bus adapter | `modules/event/infrastructure/repositories/NoopEventBusRepository` |
 
 ## Bounded contexts
 

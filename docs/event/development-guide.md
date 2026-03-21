@@ -7,7 +7,7 @@ description: Developer guide for contributing to event-core — publishing domai
 
 > **文件版本**：v1.0.0
 > **最後更新**：2026-03-20
-> **目標讀者**：參與 `core/event-core` 實作或在各模組中發布領域事件的工程師
+> **目標讀者**：參與 `modules/event` 實作或在各模組中發布領域事件的工程師
 
 ---
 
@@ -24,7 +24,7 @@ description: Developer guide for contributing to event-core — publishing domai
 ## 1. 模組結構
 
 ```
-core/event-core/
+modules/event/
 ├── domain/
 │   ├── entities/
 │   │   └── domain-event.entity.ts       # DomainEvent class
@@ -75,7 +75,7 @@ infrastructure (adapters)
 
 ```typescript
 // modules/task/application/use-cases/assign-task.use-case.ts
-import { PublishDomainEventUseCase } from '@/core/event-core'
+import { PublishDomainEventUseCase } from '@/modules/event'
 import type { ITaskRepository } from '../domain/repositories/itask.repository'
 
 export class AssignTaskUseCase {
@@ -125,8 +125,8 @@ export class AssignTaskUseCase {
 
 ```typescript
 // modules/{module}/infrastructure/firebase/FirebaseEventStoreRepository.ts
-import type { IEventStoreRepository } from '@/core/event-core'
-import { DomainEvent } from '@/core/event-core'
+import type { IEventStoreRepository } from '@/modules/event'
+import { DomainEvent } from '@/modules/event'
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore'
 
 export class FirebaseEventStoreRepository implements IEventStoreRepository {
@@ -206,8 +206,8 @@ export class FirebaseEventStoreRepository implements IEventStoreRepository {
 dispatch policy 是 domain/services 的純函式，可在任何地方直接 import 使用：
 
 ```typescript
-import { shouldRetry, nextRetryDelayMs } from '@/core/event-core'
-import { EVENT_CORE_CONFIG } from '@/core/event-core/infrastructure/persistence/config'
+import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
+import { EVENT_CORE_CONFIG } from '@/modules/event/infrastructure/persistence/config'
 
 const policy = { maxRetries: EVENT_CORE_CONFIG.DISPATCH.RETRY_LIMIT, baseDelayMs: 500 }
 
@@ -229,7 +229,7 @@ import {
   InMemoryEventStoreRepository,
   NoopEventBusRepository,
   PublishDomainEventUseCase,
-} from '@/core/event-core'
+} from '@/modules/event'
 
 describe('AssignTaskUseCase', () => {
   it('publishes Task.Task.Assigned event', async () => {
@@ -249,7 +249,7 @@ describe('AssignTaskUseCase', () => {
 ### 5.2 驗證 domain service 純函式
 
 ```typescript
-import { shouldRetry, nextRetryDelayMs } from '@/core/event-core'
+import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
 
 describe('dispatchPolicy', () => {
   const policy = { maxRetries: 3, baseDelayMs: 500 }
