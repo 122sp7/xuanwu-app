@@ -14,6 +14,7 @@
     "deploy:apphosting": "npx firebase deploy --only apphosting",
     "deploy:functions": "npx firebase deploy --only functions:functions-python",
     "deploy:functions:python": "npx firebase deploy --only functions:functions-python",
+    "deploy:functions:llama": "npx firebase deploy --only functions:functions-llama-pipeline",
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",
     "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
