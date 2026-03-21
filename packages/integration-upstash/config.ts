@@ -16,6 +16,10 @@ export const upstashConfig = {
     url: process.env.UPSTASH_VECTOR_REST_URL,
     token: process.env.UPSTASH_VECTOR_REST_TOKEN,
   },
+  search: {
+    url: process.env.UPSTASH_SEARCH_REST_URL,
+    token: process.env.UPSTASH_SEARCH_REST_TOKEN,
+  },
   qstash: {
     token: process.env.QSTASH_TOKEN,
     currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
