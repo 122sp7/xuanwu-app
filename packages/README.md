@@ -29,7 +29,7 @@ Inspired by **Cal.com** (`packages/@calcom/*`) and **Plane** (`packages/@plane/*
 | `@shared-constants` | `shared-constants/` | `APP_NAME`, `PAGINATION_DEFAULTS` |
 | `@shared-hooks` | `shared-hooks/` | `useAppStore` (Zustand global store) |
 | `@integration-firebase` | `integration-firebase/` | Firebase client SDK (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-upstash` | `integration-upstash/` | Upstash Redis, Vector, QStash, Workflow, Box |
+| `@integration-upstash` | `integration-upstash/` | Upstash Redis, Vector, Search, QStash, Workflow, Box |
 | `@integration-http` | `integration-http/` | Axios HTTP client with interceptors |
 | `@api-contracts` | `api-contracts/` | REST route registry + GraphQL schema |
 | `@ui-shadcn` | `ui-shadcn/` | shadcn/ui components, `cn()` utility, hooks |
