@@ -6,7 +6,7 @@ firebase-admin>=6.5.0,<7.0.0
 
 # Document AI：這部分目前版本號有衝突，可以暫時不寫，讓系統自動選
 google-cloud-documentai<3.0.0
-google-cloud-documentai-toolbox>=0.15.0a0
+google-cloud-documentai-toolbox
 
 # 其他 AI 套件：如果不寫版本，建議至少加上大版本限制 (例如 <2.0.0)
 google-cloud-aiplatform<2.0.0
