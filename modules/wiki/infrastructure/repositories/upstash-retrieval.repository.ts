@@ -8,36 +8,13 @@
 import type { Index } from '@upstash/vector'
 import type { Redis } from '@upstash/redis'
 
-import { WikiDocument } from '../../domain/entities/wiki-document.entity'
+import type { WikiDocument } from '../../domain/entities/wiki-document.entity'
 import type { IRetrievalRepository, RetrievalHit } from '../../domain/repositories/iretrieval.repository'
-import { Taxonomy } from '../../domain/value-objects/taxonomy.vo'
-
-/** Metadata stored alongside each vector in the Upstash Vector index. */
-interface WikiVectorMetadata {
-  [key: string]: unknown
-  documentId: string
-  organizationId: string
-  workspaceId: string | null
-  title: string
-  category: string
-  scope: string
-}
-
-const REDIS_DOC_PREFIX = 'wiki:doc:'
-
-/** Shape of the serialised document stored in Redis. */
-interface WikiDocumentRecord {
-  id: string
-  title: string
-  content: string
-  status: string
-  createdAt: string
-  organizationId: string
-  workspaceId: string | null
-  taxonomy: { category: string; tags: string[]; namespace: string }
-  scope: string
-  parentPageId: string | null
-}
+import {
+  type WikiVectorMetadata,
+  REDIS_DOC_PREFIX,
+  hydrateWikiDocument,
+} from './upstash-shared'
 
 export class UpstashRetrievalRepository implements IRetrievalRepository {
   constructor(
@@ -93,22 +70,6 @@ export class UpstashRetrievalRepository implements IRetrievalRepository {
   private async hydrateOne(id: string): Promise<WikiDocument | null> {
     const raw = await this.redis.get<string>(`${REDIS_DOC_PREFIX}${id}`)
     if (!raw) return null
-    return UpstashRetrievalRepository.hydrate(raw)
-  }
-
-  private static hydrate(raw: string): WikiDocument {
-    const data: WikiDocumentRecord = typeof raw === 'string' ? JSON.parse(raw) : raw
-    return new WikiDocument(
-      data.id,
-      data.title,
-      data.content,
-      data.status as WikiDocument['status'],
-      new Date(data.createdAt),
-      data.organizationId,
-      data.workspaceId,
-      new Taxonomy(data.taxonomy.category, data.taxonomy.tags, data.taxonomy.namespace),
-      data.scope as WikiDocument['scope'],
-      data.parentPageId,
-    )
+    return hydrateWikiDocument(raw)
   }
 }

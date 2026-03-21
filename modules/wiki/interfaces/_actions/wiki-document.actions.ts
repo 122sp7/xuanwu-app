@@ -127,7 +127,11 @@ export interface DocumentAiResult {
  *   const fn = functionsApi.httpsCallable(getFirebaseFunctions(), 'process_document_with_ai')
  *   const result = await fn({ contentBase64, fileName, mimeType })
  *
- * This server action wraps the callable for use from Server Components/Actions.
+ * Note: `httpsCallable` uses the Firebase client SDK which requires initialisation of
+ * the client app. In a Server Action context this works when the Firebase client app
+ * is initialised server-side (as configured in `@integration-firebase/client`).
+ * For environments where only Admin SDK is available, replace the call below with
+ * an Admin SDK HTTP request to the Cloud Function endpoint.
  */
 export async function callDocumentAi(dto: CallDocumentAiDTO): Promise<DocumentAiResult> {
   try {
@@ -138,10 +142,10 @@ export async function callDocumentAi(dto: CallDocumentAiDTO): Promise<DocumentAi
       return { ok: false, error: 'fileName is required' }
     }
 
-    // Dynamic import to avoid pulling Firebase client SDK into non-browser Server Actions.
-    // The httpsCallable approach requires a browser environment; for pure server-side calls
-    // use the Firebase Admin SDK instead. This action provides the contract — the actual
-    // invocation strategy depends on the deployment environment.
+    // Dynamic import to avoid eagerly pulling Firebase client SDK into the server bundle.
+    // The Firebase client app is initialised server-side in `@integration-firebase/client`,
+    // so `httpsCallable` works in this Server Action context. If you need a pure Admin-SDK
+    // path (e.g. from a standalone script), replace this with an Admin SDK HTTP call.
     const { getFirebaseFunctions, functionsApi } = await import(
       '@integration-firebase/functions'
     )
