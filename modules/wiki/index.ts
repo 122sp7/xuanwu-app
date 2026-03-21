@@ -59,11 +59,23 @@ export type { SearchWikiDocumentsDTO } from './application'
 export { InMemoryWikiPageRepository } from './infrastructure/repositories'
 export { InMemoryWikiDocumentRepository } from './infrastructure/repositories'
 export { UpstashWikiDocumentRepository } from './infrastructure/repositories'
+export { UpstashRetrievalRepository } from './infrastructure/repositories'
 export { OpenAIEmbeddingRepository } from './infrastructure/repositories'
 export { DefaultWorkspaceKnowledgeRepository } from './infrastructure/default/DefaultWorkspaceKnowledgeRepository'
 
 // ── Interfaces: actions ───────────────────────────────────────────────────────
 export { createWikiPage, archiveWikiPage, updateWikiPage } from './interfaces/_actions/wiki-page.actions'
+export {
+  uploadWikiDocument,
+  deleteWikiDocument,
+  callDocumentAi,
+  embedWikiDocument,
+} from './interfaces/_actions/wiki-document.actions'
+export type {
+  UploadWikiDocumentDTO,
+  CallDocumentAiDTO,
+  DocumentAiResult,
+} from './interfaces/_actions/wiki-document.actions'
 
 // ── Interfaces: queries ───────────────────────────────────────────────────────
 export {

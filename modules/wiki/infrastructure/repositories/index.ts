@@ -6,6 +6,7 @@
  */
 
 export { UpstashWikiDocumentRepository } from './upstash-wiki-document.repository'
+export { UpstashRetrievalRepository } from './upstash-retrieval.repository'
 export { InMemoryWikiDocumentRepository } from './in-memory-wiki-document.repository'
 export { InMemoryWikiPageRepository } from './in-memory-wiki-page.repository'
 export { OpenAIEmbeddingRepository } from './openai-embedding.repository'
