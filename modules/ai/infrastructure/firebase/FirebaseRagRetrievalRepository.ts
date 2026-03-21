@@ -67,10 +67,14 @@ export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
     // Organization-only scope is reserved for deliberate cross-workspace discovery flows;
     // it broadens collection-group scans across every workspace in the organization and
     // should therefore be treated as the higher-cost, broader-recall mode.
+    //
+    // isLatest filter excludes stale document versions per the wiki development contract
+    // (docs/reference/development-contracts/wiki-contract.md §Required query filters).
     const documentsQuery = query(
       collectionGroup(this.db, "documents"),
       where("organizationId", "==", input.organizationId),
       where("status", "==", "ready"),
+      where("isLatest", "==", true),
       ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
       ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
       limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
