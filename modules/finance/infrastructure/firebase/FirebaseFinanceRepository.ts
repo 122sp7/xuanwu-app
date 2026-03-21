@@ -10,7 +10,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 import type { FinanceRepository } from "../../domain/repositories/FinanceRepository";
 import type {
   FinanceAggregateEntity,

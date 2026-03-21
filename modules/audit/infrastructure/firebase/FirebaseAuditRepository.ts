@@ -7,7 +7,7 @@ import {
   where,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
 

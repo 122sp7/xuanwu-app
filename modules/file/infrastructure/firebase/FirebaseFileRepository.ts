@@ -9,7 +9,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 
 import type { File } from "../../domain/entities/File";
 import type { FileVersion } from "../../domain/entities/FileVersion";

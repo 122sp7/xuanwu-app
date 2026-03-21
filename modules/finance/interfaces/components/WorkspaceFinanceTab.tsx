@@ -9,8 +9,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
-import { Badge } from "@/ui/shadcn/ui/badge";
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { getFinanceByWorkspaceId } from "../queries/finance.queries";
 
 function formatCurrency(amount: number) {

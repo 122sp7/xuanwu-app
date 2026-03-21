@@ -5,21 +5,21 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace";
-import { formatDate } from "@/shared/utils";
+import { formatDate } from "@shared-utils";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/ui/shadcn/ui/avatar";
-import { Badge } from "@/ui/shadcn/ui/badge";
-import { Button } from "@/ui/shadcn/ui/button";
+} from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -27,17 +27,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/shadcn/ui/dialog";
-import { Input } from "@/ui/shadcn/ui/input";
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/ui/shadcn/ui/select";
-import { Separator } from "@/ui/shadcn/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/shadcn/ui/tabs";
+} from "@ui-shadcn/ui/select";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 import { WorkspaceAcceptanceTab } from "@/modules/acceptance";
 import { WorkspaceAuditTab } from "@/modules/audit";
 import { WorkspaceFilesTab } from "@/modules/file";

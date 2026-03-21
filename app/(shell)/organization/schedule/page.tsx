@@ -19,7 +19,7 @@ import { getWorkspaceSchedule } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
 import { listWorkspaceScheduleMdddFlowProjections } from "@/modules/schedule/interfaces/queries/schedule-mddd.queries";
 import type { ScheduleMdddFlowProjection } from "@/modules/schedule/domain/mddd/value-objects/Projection";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { isOrganizationAccount } from "../_utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────

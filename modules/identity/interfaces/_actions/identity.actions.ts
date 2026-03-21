@@ -5,7 +5,7 @@
  * Responsibilities: call use cases, NO business logic.
  */
 
-import { commandFailureFrom, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import {
   SignInUseCase,
   SignInAnonymouslyUseCase,

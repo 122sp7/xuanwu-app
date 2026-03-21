@@ -1,4 +1,4 @@
-import { commandFailure, commandSuccess, type CommandResult } from "@/shared/types";
+import { commandFailure, commandSuccess, type CommandResult } from "@shared-types";
 import {
   transitionRequestStatus,
   transitionTaskStatus,

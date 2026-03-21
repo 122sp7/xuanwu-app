@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { getOrganizationMembers } from "@/modules/organization";
-import { Badge } from "@/ui/shadcn/ui/badge";
+import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/ui/shadcn/ui/card";
+} from "@ui-shadcn/ui/card";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationMembersPage() {

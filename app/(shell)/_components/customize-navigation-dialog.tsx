@@ -11,19 +11,19 @@
 import { GripVertical } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/ui/shadcn/ui/button";
-import { Checkbox } from "@/ui/shadcn/ui/checkbox";
+import { Button } from "@ui-shadcn/ui/button";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/ui/shadcn/ui/dialog";
-import { Input } from "@/ui/shadcn/ui/input";
-import { Label } from "@/ui/shadcn/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/ui/shadcn/ui/radio-group";
-import { Separator } from "@/ui/shadcn/ui/separator";
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { RadioGroup, RadioGroupItem } from "@ui-shadcn/ui/radio-group";
+import { Separator } from "@ui-shadcn/ui/separator";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

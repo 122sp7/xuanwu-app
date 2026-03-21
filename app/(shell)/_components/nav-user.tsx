@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/ui/shadcn/ui/button";
+import { Button } from "@ui-shadcn/ui/button";
 
 interface NavUserProps {
   name: string;

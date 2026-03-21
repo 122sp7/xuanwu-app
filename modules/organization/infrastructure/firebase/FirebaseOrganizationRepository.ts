@@ -22,7 +22,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase/client";
 import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
 import type {
   OrganizationEntity,
