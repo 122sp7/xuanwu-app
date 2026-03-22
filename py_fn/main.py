@@ -13,6 +13,12 @@ py_fn — Firebase Functions (Python) 入口檔
 """
 
 import logging
+import sys
+from pathlib import Path
+
+SRC_ROOT = Path(__file__).resolve().parent / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 # ── Firebase Admin SDK 初始化（app/__init__.py 之中）──────────────────────
 import app  # noqa: F401  — 副作用：呼叫 firebase_admin.initialize_app()
