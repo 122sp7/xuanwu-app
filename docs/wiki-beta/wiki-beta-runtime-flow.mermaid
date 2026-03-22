@@ -1,0 +1,135 @@
+# Wiki-Beta Runtime and Data Flow
+
+```mermaid
+flowchart LR
+  subgraph RT["Runtime Boundary"]
+    direction TB
+    subgraph NX["Next.js Runtime"]
+      APP["app/(shell)/wiki-beta/page.tsx"]
+      MOD["modules/wiki-beta<br/>interfaces/components + queries"]
+      APP --> MOD
+    end
+
+    subgraph FN["Firebase Functions Runtime"]
+      PY["py_fn<br/>Callable handlers"]
+      RAG["rag_query"]
+      REIDX["rag_reindex_document"]
+      PY --> RAG
+      PY --> REIDX
+    end
+
+    MOD -->|"httpsCallable: rag_query"| PY
+    MOD -->|"httpsCallable: rag_reindex_document"| PY
+    RAG -->|"retrieve + answer"| OUT1["RAG answer + citations"]
+    REIDX -->|"re-ingest from json_gcs_uri"| OUT2["RAG status refresh"]
+    OUT1 --> MOD
+    OUT2 --> MOD
+  end
+
+  subgraph DM["Account Data Model (Firestore)"]
+    direction TB
+    A["accounts/{accountId}"]
+    M["members/{userId}"]
+    T["teams/{teamId}"]
+    S["spaces/{spaceId}"]
+    F["files/{fileId}"]
+    D["documents/{documentId}"]
+    P["pages/{pageId}"]
+    C["chunks/{chunkId}"]
+    V["vectors/{vectorId}"]
+    Q["rag_queries/{queryId}"]
+    ANS["rag_answers/{answerId}"]
+
+    A --> M
+    A --> T
+    A --> S
+    A --> F
+    A --> D
+    A --> P
+    A --> C
+    A --> V
+    A --> Q
+    A --> ANS
+
+    F --> D
+    D --> C
+    C --> V
+    S --> P
+    S --> D
+    D -. "Document to Page (manual curation)" .-> P
+  end
+
+  subgraph PIPE["RAG Ingestion + Query Pipeline"]
+    direction TB
+    U["Upload File"] --> ST["Storage (file)"]
+    ST --> FR["Create File Record"]
+    FR --> PF["Parse File"]
+    PF --> CD["Create Document"]
+    CD --> CH["Chunk Document"]
+    CH --> CC["Create Chunks"]
+    CC --> EM["Embedding"]
+    EM --> CV["Create Vectors"]
+    CV --> RS["RAG Search"]
+    RS --> RA["Answer"]
+  end
+
+  FR --> F
+  CD --> D
+  CC --> C
+  CV --> V
+  RS --> Q
+  RA --> ANS
+  Q --> RAG
+  V --> RAG
+```
+
+## Field Summary
+
+- accounts/{accountId}
+  - name
+  - type (personal | organization)
+  - ownerId
+- accounts/{accountId}/spaces/{spaceId}
+  - name
+  - description
+  - visibility
+- accounts/{accountId}/files/{fileId}
+  - filename
+  - storagePath
+  - mimeType
+  - size
+  - uploadedBy
+  - status (uploaded | parsed | chunked | embedded)
+  - createdAt
+- accounts/{accountId}/documents/{documentId}
+  - fileId
+  - title
+  - text
+  - metadata
+  - spaceId
+  - createdAt
+- accounts/{accountId}/chunks/{chunkId}
+  - documentId
+  - text
+  - order
+  - tokenCount
+- accounts/{accountId}/vectors/{vectorId}
+  - chunkId
+  - embedding
+  - indexId
+- accounts/{accountId}/pages/{pageId}
+  - title
+  - content
+  - spaceId
+  - linkedDocuments[]
+- accounts/{accountId}/rag_queries/{queryId}
+  - query
+  - userId
+  - createdAt
+
+## Notes
+
+- app/(shell)/wiki-beta is the route orchestrator.
+- modules/wiki-beta owns UI composition and query adapters.
+- py_fn owns callable execution for RAG query and document reindex.
+- wiki-beta and wiki must remain isolated by lint import boundaries.
