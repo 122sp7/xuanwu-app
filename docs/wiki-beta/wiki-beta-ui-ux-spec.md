@@ -12,6 +12,12 @@
 - workspace 只作為篩選視角，不改變 account 為主的資料邊界。
 - 降低認知負擔：將操作集中在 /wiki-beta/documents，RAG 查詢集中在 /wiki-beta/rag-query。
 
+### 1.1 現況校正（2026-03）
+
+- 目前畫面以 Documents 為主操作頁，包含 Upload File 卡與 Documents 檢視卡。
+- 側邊欄已移除 Workspace Context 下拉區塊。
+- 本文件後續設計以目前畫面為基準，增量加入「Documents 右側 + 快捷建立」。
+
 ## 2. 資訊架構（IA）
 
 Wiki-Beta 左側導覽保留：
@@ -19,7 +25,7 @@ Wiki-Beta 左側導覽保留：
 - 知識總覽
 - RAG Query
 - RAG Reindex
-- Documents
+- Documents（含右側 `+` 快捷建立）
 - Workspaces（摺疊列表）
 
 不在 UI 暴露：
@@ -48,6 +54,13 @@ Wiki-Beta 左側導覽保留：
 2. 輸入 query + top_k。
 3. 檢查 answer、citations、cache、hits。
 
+### 任務 D：快速建立頁面 / 資料庫（Notion-like）
+
+1. 在側邊欄 Wiki-Beta 區塊找到 Documents 項。
+2. 點擊 Documents 右側 `+`。
+3. 在彈出選單選擇「新增頁面」或「新增資料庫」。
+4. 完成建立後，導向新建內容（或保持在 Documents 並顯示成功提示）。
+
 ## 4. 頁面與區塊規格
 
 ### 4.1 /wiki-beta（知識總覽）
@@ -66,6 +79,21 @@ Wiki-Beta 左側導覽保留：
   - 工具列：返回、刷新
   - Upload 卡：拖曳區 + 選檔 + 上傳按鈕
   - Documents 卡：列表、統計、重整按鈕
+
+### 4.5 Documents 右側 `+`（快捷建立）
+
+- 位置：側邊欄 `Documents` 導航項右側。
+- 互動：點擊後開啟輕量選單（popover/menu）。
+- 選單項目：
+  - 新增頁面
+  - 新增資料庫
+- 行為：
+  - 建立時帶入目前 account 範圍。
+  - 若目前有 workspace 視角，優先帶入該 workspace；無則建立在 account 層。
+  - 建立成功後應有可見回饋（toast）與導頁策略。
+- 視覺語意：
+  - `+` 為次要操作，不取代 Documents 主入口。
+  - hover 顯示、鍵盤可聚焦，符合可近用性。
 
 ### 4.3 /wiki-beta/rag-query
 
@@ -98,6 +126,10 @@ Wiki-Beta 左側導覽保留：
 - 重整按鈕：
   - 無 json_gcs_uri 時 disabled。
   - 執行中單筆 loading，不阻斷其他列檢視。
+- Documents `+`：
+  - 點擊顯示「新增頁面 / 新增資料庫」選單。
+  - 選單可 Esc 關閉，支援鍵盤上下選擇與 Enter 觸發。
+  - 失敗時顯示錯誤提示，不可靜默失敗。
 
 ## 6. 文字版網頁圖（Wireframe）
 
@@ -109,7 +141,7 @@ Wiki-Beta 左側導覽保留：
 |          | - 知識總覽                 | [搜尋] [語言] [主題] [通知] [用戶]           |
 |          | - RAG Query                +-------------------------------------------+
 |          | - RAG Reindex              | Wiki Beta                                 |
-|          | - Documents (active)       | Documents                                 |
+|          | - Documents (active)   [+] | Documents                                 |
 |          | - Workspaces (expand)      | 檢視 account-scoped documents ...         |
 +---------------------------------------+-------------------------------------------+
 | [返回 Wiki Beta] [刷新文件]                                                      |
@@ -130,6 +162,13 @@ Wiki-Beta 左側導覽保留：
 | [filename] [status] [rag] [pages] [uploadedAt] [action: 手動重整/僅檢視]       |
 | [filename] [status] [rag] [pages] [uploadedAt] [action: 手動重整/僅檢視]       |
 +-----------------------------------------------------------------------------------+
+
+Documents 右側 [+] 點擊後：
+
++-------------------------+
+| 新增頁面                |
+| 新增資料庫              |
++-------------------------+
 ```
 
 ### 6.2 Mobile：/wiki-beta/documents
@@ -206,6 +245,7 @@ Wiki-Beta 左側導覽保留：
 - Drop zone、按鈕、輸入欄位需可鍵盤操作。
 - icon 按鈕需有 aria-label。
 - 狀態文字（processing/ready/error）不可只用顏色區分，需有文字標示。
+- Documents `+` 選單需可鍵盤全操作（Tab、Arrow、Enter、Esc）。
 
 ## 10. 驗收要點
 
@@ -213,4 +253,5 @@ Wiki-Beta 左側導覽保留：
 - 預設為 account 全覽，不帶 workspaceId 也可見資料。
 - 帶 workspaceId 後可正確篩選。
 - RAG Query 與 RAG Reindex 流程可用。
+- Documents 右側 `+` 可開啟並建立「頁面 / 資料庫」。
 - Console 無錯誤；關鍵操作有清楚回饋。

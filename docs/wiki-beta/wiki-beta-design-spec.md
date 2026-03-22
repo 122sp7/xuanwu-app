@@ -77,6 +77,21 @@
 - console 不得有初始化必填參數錯誤
 - 需可在 Playwright MCP 中重現與驗證
 
+### F6 Documents 右側 `+` 快捷建立（Notion-like，planned）
+
+- 位置：側邊欄 Wiki-Beta `Documents` 項右側。
+- 點擊行為：開啟選單，提供兩個建立入口：
+  - 新增頁面
+  - 新增資料庫
+- 範圍規則：
+  - 必須在 account scope 下建立。
+  - 若存在 workspace 視角，建立流程可帶入 workspace 預設值。
+- 成功回饋：
+  - 顯示成功提示。
+  - 導向新建項目或刷新對應列表。
+- 失敗回饋：
+  - 顯示錯誤提示，不可靜默失敗。
+
 ## 5. 資料模型規格
 
 目前 canonical 主集合：
@@ -103,7 +118,7 @@ Wiki-Beta 側邊欄保留：
 - 知識總覽
 - RAG Query
 - RAG Reindex
-- Documents
+- Documents（含右側 `+` 快捷建立，planned）
 - Workspaces 摺疊列表
 
 移除：
@@ -125,4 +140,5 @@ Wiki-Beta 側邊欄保留：
 - A3：workspaceId 篩選能正確生效
 - A4：RAG Reindex 可成功觸發
 - A5：RAG Query 可回應且含 citations
-- A6：console 無 error
+- A6：Documents 右側 `+` 可建立頁面/資料庫（planned 上線後驗收）
+- A7：console 無 error

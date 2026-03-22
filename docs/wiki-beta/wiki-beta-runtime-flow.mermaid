@@ -8,8 +8,10 @@ flowchart LR
       APP["app/(shell)/wiki-beta/page.tsx"]
       MOD["modules/wiki-beta<br/>interfaces/components + application use-cases"]
       DOCSUI["/wiki-beta/documents<br/>Drag & Drop Upload + Docs List + Reindex"]
+      DOCSPLUS["Sidebar: Documents +<br/>Quick Create (Page / Database) (planned)"]
       APP --> MOD
       MOD --> DOCSUI
+      MOD --> DOCSPLUS
     end
 
     subgraph FN["Firebase Functions Runtime"]
@@ -27,6 +29,7 @@ flowchart LR
     REIDX -->|"re-ingest from json_gcs_uri"| OUT2["RAG status refresh"]
     DOCSUI -->|"account-wide read (default)"| OUT3["accounts/{accountId}/documents"]
     DOCSUI -->|"workspace filter (optional)"| OUT4["?workspaceId=..."]
+    DOCSPLUS -->|"create page/database in account scope"| OUT5["accounts/{accountId}/pages | databases (planned)"]
     OUT1 --> MOD
     OUT2 --> MOD
   end
@@ -44,7 +47,7 @@ flowchart LR
       PKB["Knowledge Base"]
       PK1["Spaces"]
       PK2["Pages"]
-      PK3["Documents"]
+      PK3["Documents (+ planned)"]
       PK4["Vector Index"]
       PK5["RAG"]
       PK6["AI Tools"]
@@ -72,7 +75,7 @@ flowchart LR
       OKB["Knowledge Base"]
       OK1["Spaces"]
       OK2["Pages"]
-      OK3["Documents"]
+      OK3["Documents (+ planned)"]
       OK4["Vector Index"]
       OK5["RAG"]
       OK6["AI Tools"]
@@ -158,6 +161,7 @@ flowchart LR
 - Phase 2: storage-trigger ingestion requires account binding (`metadata.account_id` or `uploads/{accountId}/...`).
 - Phase 3 (current): Firestore reads/writes and RAG retrieval are account-scoped only.
 - Phase 4 (current): `/wiki-beta/documents` reaches `/dev-tools` parity for upload/list/reindex workflow, with account-wide default list + optional workspace filter.
+- Phase 5 (planned): Sidebar `Documents +` quick create for page/database (Notion-like entry).
 
 ## Field Summary
 
@@ -193,6 +197,7 @@ flowchart LR
 - py_fn owns callable execution for RAG query and document reindex.
 - `/wiki-beta/documents` is the product entry for upload/list/reindex, aligned with `/dev-tools` workflow.
 - Documents page defaults to account-wide visibility; workspace view is an explicit filter (`workspaceId`).
+- Documents sidebar right-side `+` is planned for quick create (page/database) and follows account/workspace scope rules.
 - Namespace is a background capability (scope/slug model), not a standalone UI entry.
 - wiki-beta and wiki must remain isolated by lint import boundaries.
 - In topology, "Workspace ..." and "Workspace n" are illustrative for 1..n workspaces, not fixed counts.
