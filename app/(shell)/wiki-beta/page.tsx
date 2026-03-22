@@ -9,6 +9,7 @@ export default function WikiBetaPage() {
   const router = useRouter();
 
   const routeItems = [
+    { href: "/wiki-beta/pages", label: "Pages" },
     { href: "/wiki-beta/rag-query", label: "RAG Query" },
     { href: "/wiki-beta/documents", label: "Documents" },
   ] as const;

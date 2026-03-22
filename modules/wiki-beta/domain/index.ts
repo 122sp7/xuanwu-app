@@ -10,5 +10,13 @@ export type {
   WikiBetaWorkspaceKnowledgeNode,
   WikiBetaWorkspaceRef,
 } from "./entities/wiki-beta.types";
+export type {
+  CreateWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
+} from "./entities/wiki-beta-page.types";
 
-export type { WikiBetaKnowledgeRepository, WikiBetaWorkspaceRepository } from "./repositories/wiki-beta.repositories";
+export type { WikiBetaKnowledgeRepository, WikiBetaPageRepository, WikiBetaWorkspaceRepository } from "./repositories/wiki-beta.repositories";
