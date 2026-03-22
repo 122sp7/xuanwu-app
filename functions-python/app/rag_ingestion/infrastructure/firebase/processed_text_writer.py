@@ -59,6 +59,10 @@ class ProcessedTextWriter:
         """Save extracted text (and optional structured JSON) to Storage and patch
         the Firestore document.
 
+        When ``structured_json`` is provided, a companion ``.json`` file is written
+        alongside the ``.txt`` archive.  JSON write failures are logged as warnings
+        but do **not** block the pipeline — structured JSON persistence is best-effort.
+
         Returns the Storage path of the saved text file.
         """
         base_path = (
