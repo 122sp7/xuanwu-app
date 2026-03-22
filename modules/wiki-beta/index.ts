@@ -1,4 +1,7 @@
 export type {
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
   CreateWikiBetaPageInput,
   MoveWikiBetaPageInput,
   RenameWikiBetaPageInput,
@@ -7,6 +10,11 @@ export type {
   WikiBetaAccountType,
   WikiBetaCitation,
   WikiBetaKnowledgeItemNode,
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
   WikiBetaPage,
   WikiBetaPageStatus,
   WikiBetaPageTreeNode,
@@ -17,11 +25,21 @@ export type {
   WikiBetaWorkspaceRef,
 } from "./domain";
 
-export type { WikiBetaKnowledgeRepository, WikiBetaPageRepository, WikiBetaWorkspaceRepository } from "./domain";
+export type {
+  WikiBetaKnowledgeRepository,
+  WikiBetaLibraryRepository,
+  WikiBetaPageRepository,
+  WikiBetaWorkspaceRepository,
+} from "./domain";
 
 export {
+  addWikiBetaLibraryField,
   buildWikiBetaKnowledgeTree,
+  createWikiBetaLibrary,
+  createWikiBetaLibraryRow,
   createWikiBetaPage,
+  getWikiBetaLibrarySnapshot,
+  listWikiBetaLibraries,
   listWikiBetaPagesTree,
   listWikiBetaParsedDocuments,
   moveWikiBetaPage,
@@ -32,8 +50,10 @@ export {
 
 export {
   FirebaseWikiBetaKnowledgeRepository,
+  FirebaseWikiBetaPageRepository,
+  InMemoryWikiBetaLibraryRepository,
   InMemoryWikiBetaPageRepository,
   FirebaseWikiBetaWorkspaceRepository,
 } from "./infrastructure";
 
-export { WikiBetaHubView, WikiBetaPagesTreeView, WikiBetaRagTestView } from "./interfaces";
+export { WikiBetaHubView, WikiBetaLibrariesView, WikiBetaPagesTreeView, WikiBetaRagTestView } from "./interfaces";

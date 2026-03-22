@@ -18,5 +18,20 @@ export type {
   WikiBetaPageStatus,
   WikiBetaPageTreeNode,
 } from "./entities/wiki-beta-page.types";
+export type {
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
+} from "./entities/wiki-beta-library.types";
 
-export type { WikiBetaKnowledgeRepository, WikiBetaPageRepository, WikiBetaWorkspaceRepository } from "./repositories/wiki-beta.repositories";
+export type {
+  WikiBetaKnowledgeRepository,
+  WikiBetaLibraryRepository,
+  WikiBetaPageRepository,
+  WikiBetaWorkspaceRepository,
+} from "./repositories/wiki-beta.repositories";

@@ -5,6 +5,11 @@ import type {
   WikiBetaWorkspaceRef,
 } from "../entities/wiki-beta.types";
 import type { WikiBetaPage as WikiBetaPageEntity } from "../entities/wiki-beta-page.types";
+import type {
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryRow,
+} from "../entities/wiki-beta-library.types";
 
 export interface WikiBetaKnowledgeRepository {
   runRagQuery(query: string, accountId: string, topK: number): Promise<WikiBetaRagQueryResult>;
@@ -21,4 +26,14 @@ export interface WikiBetaPageRepository {
   findById(accountId: string, pageId: string): Promise<WikiBetaPageEntity | null>;
   create(page: WikiBetaPageEntity): Promise<void>;
   update(page: WikiBetaPageEntity): Promise<void>;
+}
+
+export interface WikiBetaLibraryRepository {
+  listByAccountId(accountId: string): Promise<WikiBetaLibrary[]>;
+  findById(accountId: string, libraryId: string): Promise<WikiBetaLibrary | null>;
+  create(library: WikiBetaLibrary): Promise<void>;
+  createField(accountId: string, field: WikiBetaLibraryField): Promise<void>;
+  listFields(accountId: string, libraryId: string): Promise<WikiBetaLibraryField[]>;
+  createRow(accountId: string, row: WikiBetaLibraryRow): Promise<void>;
+  listRows(accountId: string, libraryId: string): Promise<WikiBetaLibraryRow[]>;
 }

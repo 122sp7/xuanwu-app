@@ -47,7 +47,7 @@ export interface WikiBetaWorkspaceRef {
 }
 
 export interface WikiBetaKnowledgeItemNode {
-  key: "spaces" | "pages" | "documents" | "vector-index" | "rag" | "ai-tools";
+  key: "spaces" | "pages" | "libraries" | "documents" | "vector-index" | "rag" | "ai-tools";
   label: string;
   href: string;
   enabled: boolean;

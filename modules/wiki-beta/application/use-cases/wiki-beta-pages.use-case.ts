@@ -13,9 +13,9 @@ import type {
   WikiBetaPageTreeNode,
 } from "../../domain/entities/wiki-beta-page.types";
 import type { WikiBetaPageRepository } from "../../domain/repositories/wiki-beta.repositories";
-import { InMemoryWikiBetaPageRepository } from "../../infrastructure";
+import { FirebaseWikiBetaPageRepository } from "../../infrastructure";
 
-const defaultPageRepository: WikiBetaPageRepository = new InMemoryWikiBetaPageRepository();
+const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
 const defaultEventPublisher = new PublishDomainEventUseCase(
   new InMemoryEventStoreRepository(),
   new NoopEventBusRepository(),
