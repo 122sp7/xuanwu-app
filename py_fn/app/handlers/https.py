@@ -165,6 +165,10 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 chunk_count=rag.chunk_count,
                 vector_count=rag.vector_count,
                 embedding_model=rag.embedding_model,
+                raw_chars=rag.raw_chars,
+                normalized_chars=rag.normalized_chars,
+                normalization_version=rag.normalization_version,
+                language_hint=rag.language_hint,
             )
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)

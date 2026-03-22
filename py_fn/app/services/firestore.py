@@ -147,6 +147,10 @@ def mark_rag_ready(
     chunk_count: int,
     vector_count: int,
     embedding_model: str,
+    raw_chars: int = 0,
+    normalized_chars: int = 0,
+    normalization_version: str = "v1",
+    language_hint: str = "unknown",
 ) -> None:
     """標記 RAG ingestion 完成（ready）。"""
     db = fb_firestore.client()
@@ -158,6 +162,10 @@ def mark_rag_ready(
             "chunk_count": chunk_count,
             "vector_count": vector_count,
             "embedding_model": embedding_model,
+            "raw_chars": raw_chars,
+            "normalized_chars": normalized_chars,
+            "normalization_version": normalization_version,
+            "language_hint": language_hint,
             "indexed_at": datetime.now(UTC),
         }
     }

@@ -8,7 +8,18 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle, FileText, Trash2, Code2, ExternalLink } from "lucide-react";
+import {
+  FlaskConical,
+  FileUp,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+} from "lucide-react";
 
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
@@ -33,6 +44,14 @@ interface DocRecord {
   page_count?: number;
   json_gcs_uri?: string;
   error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
 }
 
 type Status = "idle" | "uploading" | "waiting" | "done" | "error";
@@ -52,6 +71,110 @@ const ACCEPTED_MIME: Record<string, string> = {
 
 const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
 
+function formatDateTime(value: Date | null): string {
+  if (!value) return "—";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+function deriveJsonUri(gcsUri: string): string {
+  if (!gcsUri.startsWith("gs://")) return "";
+  const withoutPrefix = gcsUri.slice(5);
+  const firstSlash = withoutPrefix.indexOf("/");
+  if (firstSlash < 0) return "";
+
+  const bucket = withoutPrefix.slice(0, firstSlash);
+  const objectPath = withoutPrefix.slice(firstSlash + 1);
+  if (!objectPath.startsWith("uploads/")) return "";
+
+  const relativePath = objectPath.slice("uploads/".length);
+  const dotIndex = relativePath.lastIndexOf(".");
+  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
+  return `gs://${bucket}/files/${stem}.json`;
+}
+
+function mapSnapshotDoc(doc: any): DocRecord {
+  const data = doc.data() as any;
+  const source = data?.source || {};
+  const parsed = data?.parsed || {};
+  const rag = data?.rag || {};
+  const err = data?.error || {};
+
+  return {
+    id: doc.id,
+    status: data?.status || "unknown",
+    filename: source.filename || doc.id,
+    gcs_uri: source.gcs_uri || "",
+    uploaded_at: source.uploaded_at?.toDate?.() ?? null,
+    page_count: parsed.page_count,
+    json_gcs_uri: parsed.json_gcs_uri || deriveJsonUri(source.gcs_uri || ""),
+    error_message: err.message,
+    rag_status: rag.status || "",
+    rag_chunk_count: rag.chunk_count,
+    rag_vector_count: rag.vector_count,
+    rag_raw_chars: rag.raw_chars,
+    rag_normalized_chars: rag.normalized_chars,
+    rag_normalization_version: rag.normalization_version,
+    rag_language_hint: rag.language_hint,
+    rag_error: rag.error,
+  };
+}
+
+function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> 完成
+      </span>
+    );
+  }
+  if (status === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> 處理中
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={errorMessage}
+      >
+        <XCircle className="size-3" /> 錯誤
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
+}
+
+function RagBadge({ status, error }: { status?: string; error?: string }) {
+  if (status === "ready") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> RAG Ready
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={error}
+      >
+        <XCircle className="size-3" /> RAG Error
+      </span>
+    );
+  }
+  if (status) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> {status}
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+
 // ── Page component ─────────────────────────────────────────────────────────
 
 export default function DevToolsPage() {
@@ -70,6 +193,11 @@ export default function DevToolsPage() {
   // Firestore 監聽器 unsubscribe 函數
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const unsubscribeListRef = useRef<(() => void) | null>(null);
+
+  function closeJsonPreview() {
+    setSelectedDocId(null);
+    setJsonContent(null);
+  }
 
   function appendLog(msg: string) {
     setLogs((prev) => [...prev, `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`]);
@@ -207,22 +335,7 @@ export default function DevToolsPage() {
       const db = getFirebaseFirestore();
       const colRef = firestoreApi.collection(db, PARSED_RESULTS_COLLECTION);
       unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
-        const docs: DocRecord[] = snapshot.docs.map((doc) => {
-          const d = doc.data() as any;
-          const src = d?.source || {};
-          const parsed = d?.parsed || {};
-          const err = d?.error || {};
-          return {
-            id: doc.id,
-            status: d?.status || "unknown",
-            filename: src.filename || doc.id,
-            gcs_uri: src.gcs_uri || "",
-            uploaded_at: src.uploaded_at?.toDate?.() ?? null,
-            page_count: parsed.page_count,
-            json_gcs_uri: parsed.json_gcs_uri,
-            error_message: err.message,
-          };
-        });
+        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
         // 最新上傳在最上面
         docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
         setAllDocs(docs);
@@ -257,8 +370,7 @@ export default function DevToolsPage() {
   async function handleViewJson(doc: DocRecord) {
     if (!doc.json_gcs_uri) return;
     if (selectedDocId === doc.id && jsonContent !== null) {
-      setSelectedDocId(null);
-      setJsonContent(null);
+      closeJsonPreview();
       return;
     }
     setSelectedDocId(doc.id);
@@ -296,8 +408,7 @@ export default function DevToolsPage() {
       await firestoreApi.deleteDoc(firestoreApi.doc(db, PARSED_RESULTS_COLLECTION, doc.id));
       // 若正在預覽此文件，清除預覽
       if (selectedDocId === doc.id) {
-        setSelectedDocId(null);
-        setJsonContent(null);
+        closeJsonPreview();
       }
     } catch (err: unknown) {
       alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
@@ -308,6 +419,18 @@ export default function DevToolsPage() {
 
   const isLoading = status === "uploading" || status === "waiting";
   const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : null;
+
+  function formatNormalizationRatio(doc: DocRecord): string {
+    const raw = doc.rag_raw_chars ?? 0;
+    const normalized = doc.rag_normalized_chars ?? 0;
+    if (raw <= 0 || normalized <= 0) return "—";
+    const ratio = (normalized / raw) * 100;
+    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -323,6 +446,25 @@ export default function DevToolsPage() {
           </p>
         </div>
       </div>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
 
       {/* ── File picker ────────────────────────────────────────────── */}
       <section className="space-y-3">
@@ -431,11 +573,13 @@ export default function DevToolsPage() {
           </p>
         ) : (
           <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/40">
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
@@ -455,32 +599,16 @@ export default function DevToolsPage() {
                       {doc.filename}
                     </td>
                     <td className="px-4 py-2.5">
-                      {doc.status === "completed" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                          <CheckCircle2 className="size-3" /> 完成
-                        </span>
-                      )}
-                      {doc.status === "processing" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-                          <Loader2 className="size-3 animate-spin" /> 處理中
-                        </span>
-                      )}
-                      {doc.status === "error" && (
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-                          title={doc.error_message}
-                        >
-                          <XCircle className="size-3" /> 錯誤
-                        </span>
-                      )}
+                      <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
                     </td>
                     <td className="px-4 py-2.5 text-xs">
                       {doc.page_count != null ? doc.page_count : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {doc.uploaded_at
-                        ? doc.uploaded_at.toLocaleString("zh-TW", { hour12: false })
-                        : "—"}
+                      {formatDateTime(doc.uploaded_at)}
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1">
@@ -520,7 +648,8 @@ export default function DevToolsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
 
             {/* ── JSON 預覽面板 ──────────────────────────────────── */}
             {selectedDocId && (
@@ -529,16 +658,21 @@ export default function DevToolsPage() {
                   <div className="flex items-center gap-2 text-xs text-green-400">
                     <Code2 className="size-3.5" />
                     <span className="font-mono">
-                      {allDocs.find((d) => d.id === selectedDocId)?.filename ?? selectedDocId} — JSON
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
                     </span>
                   </div>
                   <button
-                    onClick={() => { setSelectedDocId(null); setJsonContent(null); }}
+                    onClick={closeJsonPreview}
                     className="text-white/30 hover:text-white/70 transition text-xs"
                   >
                     ✕ 關閉
                   </button>
                 </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
                 <div className="max-h-80 overflow-y-auto p-4">
                   {jsonLoading ? (
                     <div className="flex items-center gap-2 text-green-400/60 text-xs">
@@ -570,11 +704,16 @@ export default function DevToolsPage() {
           </p>
         ) : (
           <div className="overflow-hidden rounded-xl border border-emerald-500/20">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1100px] text-sm">
               <thead>
                 <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
                 </tr>
@@ -586,6 +725,18 @@ export default function DevToolsPage() {
                       {doc.filename}
                     </td>
                     <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs">
+                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_chunk_count ?? 0).toLocaleString()} / {(doc.rag_vector_count ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {formatNormalizationRatio(doc)}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_normalization_version || "—").toUpperCase()} / {(doc.rag_language_hint || "—").toUpperCase()}
+                    </td>
                     <td className="px-4 py-2.5 text-xs max-w-[320px]">
                       {doc.json_gcs_uri ? (
                         <button
@@ -600,14 +751,13 @@ export default function DevToolsPage() {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {doc.uploaded_at
-                        ? doc.uploaded_at.toLocaleString("zh-TW", { hour12: false })
-                        : "—"}
+                      {formatDateTime(doc.uploaded_at)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
       </section>

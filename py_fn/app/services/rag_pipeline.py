@@ -34,12 +34,30 @@ class RagIngestionResult:
     chunk_count: int
     vector_count: int
     embedding_model: str
+    raw_chars: int
+    normalized_chars: int
+    normalization_version: str
+    language_hint: str
+
+
+def detect_language_hint(text: str) -> str:
+    """粗略語系判斷：cjk / latin / mixed。"""
+    cjk_count = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
+    latin_count = len(re.findall(r"[A-Za-z]", text))
+    if cjk_count > latin_count * 1.2:
+        return "cjk"
+    if latin_count > cjk_count * 1.2:
+        return "latin"
+    return "mixed"
 
 
 def clean_text(raw_text: str) -> str:
-    """Step 1: 最小清洗，保留段落。"""
+    """Step 1: Normalization v2，保留段落與可引用性。"""
     text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
+    text = text.replace("\u3000", " ")
     text = re.sub(r"[\t ]+", " ", text)
+    text = re.sub(r"\n[\t ]+", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -88,14 +106,27 @@ def ingest_document_for_rag(
     page_count: int,
 ) -> RagIngestionResult:
     """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
-    normalized = clean_text(text)
+    raw_chars = len(text or "")
+    normalized = clean_text(text or "")
+    normalized_chars = len(normalized)
+    normalization_version = "v2"
+    language_hint = detect_language_hint(normalized)
+
     base_chunks = chunk_text(
         normalized,
         chunk_size=RAG_CHUNK_SIZE_CHARS,
         overlap=RAG_CHUNK_OVERLAP_CHARS,
     )
     if not base_chunks:
-        return RagIngestionResult(chunk_count=0, vector_count=0, embedding_model=OPENAI_EMBEDDING_MODEL)
+        return RagIngestionResult(
+            chunk_count=0,
+            vector_count=0,
+            embedding_model=OPENAI_EMBEDDING_MODEL,
+            raw_chars=raw_chars,
+            normalized_chars=normalized_chars,
+            normalization_version=normalization_version,
+            language_hint=language_hint,
+        )
 
     texts = [item["text"] for item in base_chunks]
     vectors = embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
@@ -122,6 +153,10 @@ def ingest_document_for_rag(
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
                     "text": chunk["text"],
+                    "raw_chars": raw_chars,
+                    "normalized_chars": normalized_chars,
+                    "normalization_version": normalization_version,
+                    "language_hint": language_hint,
                     "indexed_at": now_iso,
                 },
             }
@@ -133,6 +168,10 @@ def ingest_document_for_rag(
         chunk_count=len(base_chunks),
         vector_count=len(payload),
         embedding_model=OPENAI_EMBEDDING_MODEL,
+        raw_chars=raw_chars,
+        normalized_chars=normalized_chars,
+        normalization_version=normalization_version,
+        language_hint=language_hint,
     )
 
 
