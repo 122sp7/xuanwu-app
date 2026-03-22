@@ -84,3 +84,49 @@ def process_document_bytes(
         page_count=len(document.pages),
         mime_type=mime_type,
     )
+
+
+def process_document_gcs(
+    gcs_uri: str,
+    mime_type: str = "application/pdf",
+    processor_name: str = DOCAI_PROCESSOR_NAME,
+) -> ParsedDocument:
+    """
+    從 GCS URI 提供的檔案，使用 Document AI 同步解析。
+
+    Document AI 直接從 GCS 讀取，不需要下載到記憶體。
+
+    Args:
+        gcs_uri:        GCS 檔案路徑，格式為 gs://bucket-name/path/to/file。
+        mime_type:      文件的 MIME 類型，預設 application/pdf。
+        processor_name: Document AI processor 的完整資源名稱；
+                        預設讀取 config.DOCAI_PROCESSOR_NAME。
+
+    Returns:
+        ParsedDocument: 包含 text / page_count / mime_type。
+
+    Raises:
+        google.api_core.exceptions.GoogleAPICallError: API 呼叫失敗時。
+    """
+    client = _get_client()
+
+    gcs_document = documentai.GcsDocument(gcs_uri=gcs_uri, mime_type=mime_type)
+    request = documentai.ProcessRequest(
+        name=processor_name,
+        gcs_document=gcs_document,
+    )
+
+    logger.info("DocumentAI: processing GCS document (uri=%s, mime=%s)", gcs_uri, mime_type)
+    response = client.process_document(request=request)
+    document = response.document
+
+    logger.info(
+        "DocumentAI: done — %d pages, %d chars",
+        len(document.pages),
+        len(document.text),
+    )
+    return ParsedDocument(
+        text=document.text,
+        page_count=len(document.pages),
+        mime_type=mime_type,
+    )
