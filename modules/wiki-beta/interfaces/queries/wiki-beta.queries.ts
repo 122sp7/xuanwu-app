@@ -32,13 +32,6 @@ export interface WikiBetaParsedDocument {
   uploadedAt: Date | null;
 }
 
-export type WikiBetaDocumentReadPath = "accounts/{accountId}/documents" | "parsed_documents";
-
-export interface WikiBetaParsedDocumentListResult {
-  documents: WikiBetaParsedDocument[];
-  readPath: WikiBetaDocumentReadPath;
-}
-
 export interface WikiBetaReindexInput {
   accountId: string;
   docId: string;
@@ -106,7 +99,7 @@ export async function runWikiBetaRagQuery(
   const cache = data.cache === "hit" ? "hit" : "miss";
   const vectorHits = typeof data.vector_hits === "number" ? data.vector_hits : 0;
   const searchHits = typeof data.search_hits === "number" ? data.search_hits : 0;
-  const accountScope = typeof data.account_scope === "string" ? data.account_scope : "global";
+  const accountScope = typeof data.account_scope === "string" ? data.account_scope : accountId;
 
   return { answer, citations, cache, vectorHits, searchHits, accountScope };
 }
@@ -137,37 +130,19 @@ function sortByUploadedAtDesc(documents: WikiBetaParsedDocument[]): WikiBetaPars
 export async function listWikiBetaParsedDocuments(
   accountId: string,
   limitCount = 20,
-): Promise<WikiBetaParsedDocumentListResult> {
+): Promise<WikiBetaParsedDocument[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
   const db = getFirebaseFirestore();
-  let docs: WikiBetaParsedDocument[] = [];
-
-  if (accountId) {
-    const accountRef = firestoreApi.collection(db, "accounts", accountId, "documents");
-    const accountQuery = firestoreApi.query(accountRef, firestoreApi.limit(limitCount));
-    const accountSnap = await firestoreApi.getDocs(accountQuery);
-    docs = accountSnap.docs.map((item) => {
-      const data = (item.data() ?? {}) as Record<string, any>;
-      return mapToParsedDocument(item.id, data);
-    });
-  }
-
-  if (docs.length > 0) {
-    return {
-      documents: sortByUploadedAtDesc(docs),
-      readPath: "accounts/{accountId}/documents",
-    };
-  }
-
-  const legacyRef = firestoreApi.collection(db, "parsed_documents");
-  const legacyQuery = firestoreApi.query(legacyRef, firestoreApi.limit(limitCount));
-  const legacySnap = await firestoreApi.getDocs(legacyQuery);
-  const legacyDocs = legacySnap.docs.map((item) => {
+  const accountRef = firestoreApi.collection(db, "accounts", accountId, "documents");
+  const accountQuery = firestoreApi.query(accountRef, firestoreApi.limit(limitCount));
+  const accountSnap = await firestoreApi.getDocs(accountQuery);
+  const docs = accountSnap.docs.map((item) => {
     const data = (item.data() ?? {}) as Record<string, any>;
     return mapToParsedDocument(item.id, data);
   });
 
-  return {
-    documents: sortByUploadedAtDesc(legacyDocs),
-    readPath: "parsed_documents",
-  };
+  return sortByUploadedAtDesc(docs);
 }

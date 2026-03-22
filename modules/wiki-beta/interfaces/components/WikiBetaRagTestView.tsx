@@ -14,7 +14,6 @@ import {
   reindexWikiBetaDocument,
   runWikiBetaRagQuery,
   type WikiBetaCitation,
-  type WikiBetaDocumentReadPath,
   type WikiBetaParsedDocument,
 } from "../queries/wiki-beta.queries";
 
@@ -39,10 +38,9 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
   const [cacheMode, setCacheMode] = useState<"hit" | "miss">("miss");
   const [vectorHits, setVectorHits] = useState(0);
   const [searchHits, setSearchHits] = useState(0);
-  const [accountScope, setAccountScope] = useState("global");
+  const [accountScope, setAccountScope] = useState("(未查詢)");
 
   const [docs, setDocs] = useState<WikiBetaParsedDocument[]>([]);
-  const [readPath, setReadPath] = useState<WikiBetaDocumentReadPath>("accounts/{accountId}/documents");
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [reindexingId, setReindexingId] = useState<string | null>(null);
 
@@ -50,8 +48,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
     setLoadingDocs(true);
     try {
       const result = await listWikiBetaParsedDocuments(activeAccountId, 25);
-      setDocs(result.documents);
-      setReadPath(result.readPath);
+      setDocs(result);
     } catch (error) {
       console.error(error);
       toast.error("讀取文件列表失敗");
@@ -193,7 +190,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
         <CardHeader>
           <CardTitle>文件重整測試</CardTitle>
           <CardDescription>
-            account: {activeAccountId || "(未選擇)"} / readPath: {readPath} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
+            account: {activeAccountId || "(未選擇)"} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
           </CardDescription>
         </CardHeader>
         <CardContent>

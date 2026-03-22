@@ -51,6 +51,34 @@ def _mime_from_path(object_path: str) -> str | None:
     return _MIME_MAP.get(ext)
 
 
+def _extract_account_id(
+    object_path: str,
+    event_metadata: dict | None,
+) -> str | None:
+    """Best-effort account scope binding for storage-triggered uploads.
+
+    Priority:
+    1) custom metadata field `account_id`
+    2) path convention: uploads/{accountId}/...
+    3) fallback: None (reject write)
+    """
+    if isinstance(event_metadata, dict):
+        from_meta = str(event_metadata.get("account_id", "")).strip()
+        if from_meta:
+            return from_meta
+
+    prefix = f"{WATCH_PREFIX}"
+    if object_path.startswith(prefix):
+        remainder = object_path[len(prefix):]
+        # uploads/{accountId}/file.pdf
+        if "/" in remainder:
+            candidate = remainder.split("/", 1)[0].strip()
+            if candidate:
+                return candidate
+
+    return None
+
+
 def handle_object_finalized(
     event: storage_fn.CloudEvent[storage_fn.StorageObjectData],
 ) -> None:
@@ -80,6 +108,11 @@ def handle_object_finalized(
         logger.info("GCS: skip %s (unsupported file type)", object_path)
         return
 
+    account_id = _extract_account_id(object_path, data.metadata)
+    if not account_id:
+        logger.error("GCS: missing account_id for %s, skipping", object_path)
+        return
+
     # doc_id = GCS 物件名稱（去掉 prefix 和副檔名）當作 Firestore 文件 ID
     filename = os.path.basename(object_path)
     doc_id, _ = os.path.splitext(filename)
@@ -95,7 +128,7 @@ def handle_object_finalized(
             filename=filename,
             size_bytes=size_bytes,
             mime_type=mime_type,
-            account_id=None,
+            account_id=account_id,
         )
     except Exception as exc:
         logger.exception("Failed to init document %s: %s", doc_id, exc)
@@ -111,6 +144,7 @@ def handle_object_finalized(
         json_object_path = parsed_json_path(object_path)
         json_data = {
             "doc_id": doc_id,
+            "account_id": account_id,
             "source_gcs_uri": gcs_uri,
             "filename": filename,
             "page_count": parsed.page_count,
@@ -129,7 +163,7 @@ def handle_object_finalized(
             json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
-            account_id=None,
+            account_id=account_id,
         )
 
         # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
@@ -141,6 +175,7 @@ def handle_object_finalized(
                 json_gcs_uri=json_gcs_uri,
                 text=parsed.text,
                 page_count=parsed.page_count,
+                account_id=account_id,
             )
             mark_rag_ready(
                 doc_id=doc_id,
@@ -152,13 +187,13 @@ def handle_object_finalized(
                 normalized_chars=rag.normalized_chars,
                 normalization_version=rag.normalization_version,
                 language_hint=rag.language_hint,
-                account_id=None,
+                account_id=account_id,
             )
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            record_rag_error(doc_id, str(rag_exc)[:200], account_id=None)
+            record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
 
         logger.info("✓ Done: doc_id=%s (%d pages, %d ms) → %s", doc_id, parsed.page_count, extraction_ms, json_gcs_uri)
     except Exception as exc:
         logger.exception("Document AI failed for %s: %s", doc_id, exc)
-        record_error(doc_id, str(exc)[:200], account_id=None)
+        record_error(doc_id, str(exc)[:200], account_id=account_id)

@@ -13,7 +13,7 @@ HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
 Document AI 會直接從 GCS 讀取檔案，無須下載到 Python 函數記憶體。
 結果會保存為：
     - GCS: files/.../*.json（完整解析）
-    - Firestore: parsed_documents/{doc_id}（索引）
+    - Firestore: accounts/{account_id}/documents/{doc_id}（索引）
 
 回應格式（立即返回）：
     {
@@ -79,7 +79,12 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
         https_fn.HttpsError: 缺少必填欄位時。
     """
     data: dict = req.data or {}
-    account_id = str(data.get("account_id", "")).strip() or None
+    account_id = str(data.get("account_id", "")).strip()
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
 
     gcs_uri: str = data.get("gcs_uri", "").strip()
     if not gcs_uri or not gcs_uri.startswith("gs://"):
@@ -148,7 +153,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             object_path=json_object_path,
             data={
                 "doc_id": doc_id,
-                "account_id": account_id or "",
+                "account_id": account_id,
                 "source_gcs_uri": gcs_uri,
                 "filename": filename,
                 "page_count": parsed.page_count,
@@ -205,7 +210,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
     # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
     return {
-        "account_scope": account_id or "legacy",
+        "account_scope": account_id,
         "doc_id": doc_id,
         "status": "processing",  # 前端應監聽 Firestore 的實際狀態
     }
@@ -215,7 +220,12 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：RAG 查詢（Step 7）。"""
     data: dict = req.data or {}
     query = str(data.get("query", "")).strip()
-    account_id = str(data.get("account_id", "")).strip() or None
+    account_id = str(data.get("account_id", "")).strip()
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
     if not query:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
@@ -235,7 +245,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         "cache": result.get("cache", "miss"),
         "vector_hits": result.get("vector_hits", 0),
         "search_hits": result.get("search_hits", 0),
-        "account_scope": result.get("account_scope", "global"),
+        "account_scope": result.get("account_scope", account_id),
     }
 
 
@@ -243,11 +253,17 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
     data: dict = req.data or {}
 
-    account_id = str(data.get("account_id", "")).strip() or None
+    account_id = str(data.get("account_id", "")).strip()
     doc_id = str(data.get("doc_id", "")).strip()
     json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
     source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
     filename = str(data.get("filename", "")).strip() or doc_id
+
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
 
     if not doc_id:
         raise https_fn.HttpsError(
@@ -280,8 +296,6 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             filename = str(parsed_payload.get("filename", "")).strip() or doc_id
         if page_count <= 0:
             page_count = int(parsed_payload.get("page_count", 0) or 0)
-        if not account_id:
-            account_id = str(parsed_payload.get("account_id", "")).strip() or None
 
         rag = ingest_document_for_rag(
             doc_id=doc_id,
@@ -307,7 +321,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
         )
 
         return {
-            "account_scope": account_id or "global",
+            "account_scope": account_id,
             "doc_id": doc_id,
             "status": "ready",
             "chunk_count": rag.chunk_count,

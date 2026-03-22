@@ -121,9 +121,12 @@ def ingest_document_for_rag(
     json_gcs_uri: str,
     text: str,
     page_count: int,
-    account_id: str | None = None,
+    account_id: str,
 ) -> RagIngestionResult:
     """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
+    if not account_id:
+        raise ValueError("account_id is required")
+
     raw_chars = len(text or "")
     normalized = clean_text(text or "")
     normalized_chars = len(normalized)
@@ -168,7 +171,7 @@ def ingest_document_for_rag(
                     "filename": filename,
                     "source_gcs_uri": source_gcs_uri,
                     "json_gcs_uri": json_gcs_uri,
-                    "account_id": account_id or "",
+                    "account_id": account_id,
                     "page_count": page_count,
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
@@ -194,7 +197,7 @@ def ingest_document_for_rag(
                 "filename": filename,
                 "chunk_count": len(base_chunks),
                 "vector_count": len(payload),
-                "account_id": account_id or "",
+                "account_id": account_id,
                 "embedding_model": OPENAI_EMBEDDING_MODEL,
                 "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
                 "normalization_version": normalization_version,
@@ -218,25 +221,25 @@ def ingest_document_for_rag(
     )
 
 
-def _match_account(metadata: dict[str, Any], account_id: str | None) -> bool:
-    if not account_id:
-        return True
+def _match_account(metadata: dict[str, Any], account_id: str) -> bool:
     return str(metadata.get("account_id", "")).strip() == account_id
 
 
 def answer_rag_query(
     query: str,
     top_k: int | None = None,
-    account_id: str | None = None,
+    account_id: str = "",
 ) -> dict[str, Any]:
     """Step 7: query embedding -> vector retrieval -> LLM answer。"""
     q = query.strip()
     if not q:
         return {"answer": "", "citations": []}
+    if not account_id:
+        raise ValueError("account_id is required")
 
     actual_top_k = top_k if top_k and top_k > 0 else RAG_QUERY_TOP_K
 
-    scope_key = account_id or "global"
+    scope_key = account_id
     cache_key_base = f"{scope_key}|{q}|{actual_top_k}|{OPENAI_EMBEDDING_MODEL}|{OPENAI_EMBEDDING_DIMENSIONS}"
     cache_key = f"{RAG_REDIS_PREFIX}:query:{hashlib.sha256(cache_key_base.encode('utf-8')).hexdigest()}"
 

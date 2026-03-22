@@ -22,10 +22,6 @@ DOCAI_PROCESSOR_NAME: str = (
 DOCAI_LOCATION: str = "asia-southeast1"
 DOCAI_API_ENDPOINT: str = "asia-southeast1-documentai.googleapis.com"
 
-# ── Firestore ────────────────────────────────────────────────────────────────
-# 解析結果寫入的 collection 路徑（{docId} 由呼叫端填入）
-PARSED_RESULTS_COLLECTION: str = "parsed_documents"
-
 # ── OpenAI (Embeddings / LLM) ───────────────────────────────────────────────
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_EMBEDDING_MODEL: str = os.environ.get(

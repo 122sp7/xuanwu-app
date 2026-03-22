@@ -21,6 +21,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+import { useApp } from "@/app/providers/app-provider";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
@@ -61,8 +62,6 @@ type Status = "idle" | "uploading" | "waiting" | "done" | "error";
 
 const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
 const WATCH_PATH = "uploads/";
-const PARSED_RESULTS_COLLECTION = "parsed_documents";
-
 const ACCEPTED_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
   "image/tiff": ".tif / .tiff",
@@ -179,6 +178,9 @@ function RagBadge({ status, error }: { status?: string; error?: string }) {
 // ── Page component ─────────────────────────────────────────────────────────
 
 export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -215,20 +217,24 @@ export default function DevToolsPage() {
     if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
   }
 
-  function buildUuidUploadPath(file: File): { uploadPath: string; docId: string } {
+  function buildUuidUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {
     const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
     const docId = crypto.randomUUID();
     return {
-      uploadPath: `${WATCH_PATH}${docId}${ext}`,
+      uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`,
       docId,
     };
   }
 
   // 監聽 Firestore 文件狀態變化
   function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
     try {
       const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, PARSED_RESULTS_COLLECTION, docId);
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
 
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
@@ -286,6 +292,11 @@ export default function DevToolsPage() {
 
   async function handleUploadAndParse() {
     if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
 
     setStatus("uploading");
     setResult(null);
@@ -295,7 +306,7 @@ export default function DevToolsPage() {
     try {
       // ── Step 1: Upload to GCS ────────────────────────────────────────
       const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(selectedFile);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
       const fileRef = storageApi.ref(storage, uploadPath);
 
       appendLog(`GCS path: gs://${UPLOAD_BUCKET}/${uploadPath}`);
@@ -333,9 +344,14 @@ export default function DevToolsPage() {
 
   // 監聽所有已上傳文件列表
   useEffect(() => {
+    if (!activeAccountId) {
+      setAllDocs([]);
+      return;
+    }
+
     try {
       const db = getFirebaseFirestore();
-      const colRef = firestoreApi.collection(db, PARSED_RESULTS_COLLECTION);
+      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
       unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
         const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
         // 最新上傳在最上面
@@ -346,7 +362,7 @@ export default function DevToolsPage() {
     return () => {
       unsubscribeListRef.current?.();
     };
-  }, []);
+  }, [activeAccountId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -407,7 +423,10 @@ export default function DevToolsPage() {
         try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_) {}
       }
       // 刪除 Firestore 記錄
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, PARSED_RESULTS_COLLECTION, doc.id));
+      if (!activeAccountId) {
+        throw new Error("缺少 active account");
+      }
+      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
       // 若正在預覽此文件，清除預覽
       if (selectedDocId === doc.id) {
         closeJsonPreview();
@@ -421,12 +440,17 @@ export default function DevToolsPage() {
 
   async function handleManualProcess(doc: DocRecord) {
     if (!doc.json_gcs_uri) return;
+    if (!activeAccountId) {
+      alert("缺少 active account，無法手動整理");
+      return;
+    }
     setReindexingId(doc.id);
     appendLog(`🧹 手動整理開始：${doc.id}`);
     try {
       const functions = getFirebaseFunctions("asia-southeast1");
       const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
       await callable({
+        account_id: activeAccountId,
         doc_id: doc.id,
         json_gcs_uri: doc.json_gcs_uri,
         source_gcs_uri: doc.gcs_uri,
