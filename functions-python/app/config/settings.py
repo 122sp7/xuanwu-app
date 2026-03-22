@@ -2,7 +2,8 @@ import os
 from dataclasses import dataclass
 
 # Processor IDs for the three Google Document AI processors deployed in asia-southeast1.
-# These values are the canonical defaults; override via env vars in production.
+# These are the canonical defaults for GCP project 65970295651 (asia-southeast1 region).
+# Override via env vars in production.  See functions-python/.env.example for details.
 _DEFAULT_OCR_EXTRACTOR_PROCESSOR_ID = "1516a32299c1709e"   # extracts full text
 _DEFAULT_OCR_CLASSIFIER_PROCESSOR_ID = "17f1013111dec644"  # classifies document type
 _DEFAULT_OCR_SPLITTER_PROCESSOR_ID = "ba69ac6cf5650371"    # splits multi-document PDFs

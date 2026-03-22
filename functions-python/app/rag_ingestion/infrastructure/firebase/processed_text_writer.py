@@ -108,7 +108,8 @@ class ProcessedTextWriter:
             except Exception as error:
                 # JSON write failure is non-fatal — log and continue.
                 logger.warning(
-                    "Failed to write structured JSON for document %s: %s",
+                    "Failed to write structured JSON to %s for document %s: %s",
+                    json_path,
                     document_id,
                     error,
                 )
