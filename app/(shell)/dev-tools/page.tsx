@@ -424,7 +424,7 @@ export default function DevToolsPage() {
     setReindexingId(doc.id);
     appendLog(`🧹 手動整理開始：${doc.id}`);
     try {
-      const functions = getFirebaseFunctions();
+      const functions = getFirebaseFunctions("asia-southeast1");
       const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
       await callable({
         doc_id: doc.id,
