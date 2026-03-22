@@ -95,6 +95,7 @@ def handle_object_finalized(
             filename=filename,
             size_bytes=size_bytes,
             mime_type=mime_type,
+            account_id=None,
         )
     except Exception as exc:
         logger.exception("Failed to init document %s: %s", doc_id, exc)
@@ -128,6 +129,7 @@ def handle_object_finalized(
             json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
+            account_id=None,
         )
 
         # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
@@ -150,12 +152,13 @@ def handle_object_finalized(
                 normalized_chars=rag.normalized_chars,
                 normalization_version=rag.normalization_version,
                 language_hint=rag.language_hint,
+                account_id=None,
             )
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            record_rag_error(doc_id, str(rag_exc)[:200])
+            record_rag_error(doc_id, str(rag_exc)[:200], account_id=None)
 
         logger.info("✓ Done: doc_id=%s (%d pages, %d ms) → %s", doc_id, parsed.page_count, extraction_ms, json_gcs_uri)
     except Exception as exc:
         logger.exception("Document AI failed for %s: %s", doc_id, exc)
-        record_error(doc_id, str(exc)[:200])
+        record_error(doc_id, str(exc)[:200], account_id=None)

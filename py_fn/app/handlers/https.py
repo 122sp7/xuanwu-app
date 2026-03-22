@@ -79,6 +79,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
         https_fn.HttpsError: 缺少必填欄位時。
     """
     data: dict = req.data or {}
+    account_id = str(data.get("account_id", "")).strip() or None
 
     gcs_uri: str = data.get("gcs_uri", "").strip()
     if not gcs_uri or not gcs_uri.startswith("gs://"):
@@ -122,6 +123,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             filename=filename,
             size_bytes=int(size_bytes),
             mime_type=mime_type,
+            account_id=account_id,
         )
     except Exception as exc:
         logger.exception("Failed to init document %s: %s", doc_id, exc)
@@ -146,6 +148,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             object_path=json_object_path,
             data={
                 "doc_id": doc_id,
+                "account_id": account_id or "",
                 "source_gcs_uri": gcs_uri,
                 "filename": filename,
                 "page_count": parsed.page_count,
@@ -159,6 +162,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
+            account_id=account_id,
         )
 
         # Step 5/6: RAG ingestion（embed + vector + ready）
@@ -170,6 +174,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 json_gcs_uri=json_gcs_uri,
                 text=parsed.text,
                 page_count=parsed.page_count,
+                account_id=account_id,
             )
             mark_rag_ready(
                 doc_id=doc_id,
@@ -181,10 +186,11 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 normalized_chars=rag.normalized_chars,
                 normalization_version=rag.normalization_version,
                 language_hint=rag.language_hint,
+                account_id=account_id,
             )
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            record_rag_error(doc_id, str(rag_exc)[:200])
+            record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
 
         logger.info(
             "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
@@ -195,10 +201,11 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
         )
     except Exception as exc:
         logger.exception("parse_document failed for %s: %s", doc_id, exc)
-        record_error(doc_id, str(exc)[:200])
+        record_error(doc_id, str(exc)[:200], account_id=account_id)
 
     # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
     return {
+        "account_scope": account_id or "legacy",
         "doc_id": doc_id,
         "status": "processing",  # 前端應監聽 Firestore 的實際狀態
     }
@@ -208,6 +215,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：RAG 查詢（Step 7）。"""
     data: dict = req.data or {}
     query = str(data.get("query", "")).strip()
+    account_id = str(data.get("account_id", "")).strip() or None
     if not query:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
@@ -220,13 +228,14 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     except Exception:
         top_k_int = None
 
-    result = answer_rag_query(query=query, top_k=top_k_int)
+    result = answer_rag_query(query=query, top_k=top_k_int, account_id=account_id)
     return {
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),
         "cache": result.get("cache", "miss"),
         "vector_hits": result.get("vector_hits", 0),
         "search_hits": result.get("search_hits", 0),
+        "account_scope": result.get("account_scope", "global"),
     }
 
 
@@ -234,6 +243,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
     data: dict = req.data or {}
 
+    account_id = str(data.get("account_id", "")).strip() or None
     doc_id = str(data.get("doc_id", "")).strip()
     json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
     source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
@@ -270,6 +280,8 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             filename = str(parsed_payload.get("filename", "")).strip() or doc_id
         if page_count <= 0:
             page_count = int(parsed_payload.get("page_count", 0) or 0)
+        if not account_id:
+            account_id = str(parsed_payload.get("account_id", "")).strip() or None
 
         rag = ingest_document_for_rag(
             doc_id=doc_id,
@@ -278,6 +290,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             json_gcs_uri=json_gcs_uri,
             text=text,
             page_count=page_count,
+            account_id=account_id,
         )
 
         mark_rag_ready(
@@ -290,9 +303,11 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             normalized_chars=rag.normalized_chars,
             normalization_version=rag.normalization_version,
             language_hint=rag.language_hint,
+            account_id=account_id,
         )
 
         return {
+            "account_scope": account_id or "global",
             "doc_id": doc_id,
             "status": "ready",
             "chunk_count": rag.chunk_count,
@@ -304,7 +319,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
         }
     except Exception as exc:
         logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
-        record_rag_error(doc_id, str(exc)[:200])
+        record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INTERNAL,
             f"rag_reindex_document 失敗：{str(exc)[:200]}",

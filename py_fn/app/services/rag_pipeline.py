@@ -121,6 +121,7 @@ def ingest_document_for_rag(
     json_gcs_uri: str,
     text: str,
     page_count: int,
+    account_id: str | None = None,
 ) -> RagIngestionResult:
     """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
     raw_chars = len(text or "")
@@ -167,6 +168,7 @@ def ingest_document_for_rag(
                     "filename": filename,
                     "source_gcs_uri": source_gcs_uri,
                     "json_gcs_uri": json_gcs_uri,
+                    "account_id": account_id or "",
                     "page_count": page_count,
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
@@ -192,6 +194,7 @@ def ingest_document_for_rag(
                 "filename": filename,
                 "chunk_count": len(base_chunks),
                 "vector_count": len(payload),
+                "account_id": account_id or "",
                 "embedding_model": OPENAI_EMBEDDING_MODEL,
                 "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
                 "normalization_version": normalization_version,
@@ -215,7 +218,17 @@ def ingest_document_for_rag(
     )
 
 
-def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
+def _match_account(metadata: dict[str, Any], account_id: str | None) -> bool:
+    if not account_id:
+        return True
+    return str(metadata.get("account_id", "")).strip() == account_id
+
+
+def answer_rag_query(
+    query: str,
+    top_k: int | None = None,
+    account_id: str | None = None,
+) -> dict[str, Any]:
     """Step 7: query embedding -> vector retrieval -> LLM answer。"""
     q = query.strip()
     if not q:
@@ -223,7 +236,8 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
 
     actual_top_k = top_k if top_k and top_k > 0 else RAG_QUERY_TOP_K
 
-    cache_key_base = f"{q}|{actual_top_k}|{OPENAI_EMBEDDING_MODEL}|{OPENAI_EMBEDDING_DIMENSIONS}"
+    scope_key = account_id or "global"
+    cache_key_base = f"{scope_key}|{q}|{actual_top_k}|{OPENAI_EMBEDDING_MODEL}|{OPENAI_EMBEDDING_DIMENSIONS}"
     cache_key = f"{RAG_REDIS_PREFIX}:query:{hashlib.sha256(cache_key_base.encode('utf-8')).hexdigest()}"
 
     try:
@@ -235,6 +249,7 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
                 "cache": "hit",
                 "vector_hits": int(cached.get("vector_hits") or 0),
                 "search_hits": int(cached.get("search_hits") or 0),
+                "account_scope": cached.get("account_scope") or scope_key,
             }
     except Exception as exc:
         logger.warning("redis query cache read failed: %s", exc)
@@ -251,6 +266,8 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         metadata = hit.get("metadata") if isinstance(hit, dict) else None
         if not isinstance(metadata, dict):
             continue
+        if not _match_account(metadata, account_id):
+            continue
         snippet = str(metadata.get("text", "")).strip()
         if not snippet:
             continue
@@ -266,6 +283,7 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
                 "score": hit.get("score") if isinstance(hit, dict) else None,
                 "filename": metadata.get("filename"),
                 "json_gcs_uri": metadata.get("json_gcs_uri"),
+                "account_id": metadata.get("account_id") or "",
             }
         )
 
@@ -281,6 +299,8 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         contexts.append(snippet)
 
         metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        if not _match_account(metadata, account_id):
+            continue
         citations.append(
             {
                 "provider": "search",
@@ -290,6 +310,7 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
                 "filename": metadata.get("filename"),
                 "json_gcs_uri": metadata.get("json_gcs_uri"),
                 "search_id": item.get("id"),
+                "account_id": metadata.get("account_id") or "",
             }
         )
 
@@ -298,6 +319,7 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         return {
             "answer": "找不到足夠的相關內容。",
             "citations": [],
+            "account_scope": scope_key,
         }
 
     answer = chat_complete(
@@ -320,6 +342,7 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         "cache": "miss",
         "vector_hits": len(hits),
         "search_hits": len(search_hits),
+        "account_scope": scope_key,
     }
 
     try:

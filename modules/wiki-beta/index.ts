@@ -5,7 +5,9 @@ export {
   reindexWikiBetaDocument,
   runWikiBetaRagQuery,
   type WikiBetaCitation,
+  type WikiBetaDocumentReadPath,
   type WikiBetaParsedDocument,
+  type WikiBetaParsedDocumentListResult,
   type WikiBetaRagQueryResult,
   type WikiBetaReindexInput,
 } from "./interfaces/queries/wiki-beta.queries";

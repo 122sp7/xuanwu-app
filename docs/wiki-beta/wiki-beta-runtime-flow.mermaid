@@ -18,8 +18,8 @@ flowchart LR
       PY --> REIDX
     end
 
-    MOD -->|"httpsCallable: rag_query"| PY
-    MOD -->|"httpsCallable: rag_reindex_document"| PY
+    MOD -->|"httpsCallable: rag_query(account_id, query, top_k)"| PY
+    MOD -->|"httpsCallable: rag_reindex_document(account_id, doc_id, json_gcs_uri, ...)"| PY
     RAG -->|"retrieve + answer"| OUT1["RAG answer + citations"]
     REIDX -->|"re-ingest from json_gcs_uri"| OUT2["RAG status refresh"]
     OUT1 --> MOD
@@ -59,6 +59,8 @@ flowchart LR
     D -. "Document to Page (manual curation)" .-> P
   end
 
+  LEG["parsed_documents (legacy, phase-1 fallback only)"]
+
   subgraph PIPE["RAG Ingestion + Query Pipeline"]
     direction TB
     U["Upload File"] --> ST["Storage (file)"]
@@ -81,7 +83,16 @@ flowchart LR
   RA --> ANS
   Q --> RAG
   V --> RAG
+  MOD -. "phase-1 fallback read only" .-> LEG
 ```
+
+## Migration Phases
+
+- Phase 1: Next.js wiki-beta reads `accounts/{accountId}/documents` first, and falls back to `parsed_documents` only when account-scope has no records.
+- Phase 2: callable payload includes `account_id`; vector metadata and retrieval are account-scoped.
+- Phase 3 (current): py_fn callable writes to `accounts/{accountId}/documents` when `account_id` exists; storage-triggered path remains legacy-scoped.
+- Phase 4: remove fallback read path and complete storage-trigger account binding.
+- Phase Gate: fallback is read-only compatibility; all new writes must target account-scoped collections.
 
 ## Field Summary
 

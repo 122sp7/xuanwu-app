@@ -44,12 +44,21 @@ from app.config import PARSED_RESULTS_COLLECTION
 logger = logging.getLogger(__name__)
 
 
+def _document_ref(doc_id: str, account_id: str | None = None):
+    """Resolve document ref by phase: account-scoped first when account_id exists."""
+    db = fb_firestore.client()
+    if account_id:
+        return db.collection("accounts").document(account_id).collection("documents").document(doc_id)
+    return db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+
+
 def init_document(
     doc_id: str,
     gcs_uri: str,
     filename: str,
     size_bytes: int,
     mime_type: str,
+    account_id: str | None = None,
 ) -> None:
     """
     初始化 Firestore document，標記為 processing 狀態。
@@ -63,12 +72,12 @@ def init_document(
         size_bytes:  文件大小（位元組）。
         mime_type:   MIME 類型。
     """
-    db = fb_firestore.client()
-    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+    ref = _document_ref(doc_id, account_id)
 
     payload = {
         "id": doc_id,
         "status": "processing",
+        "account_id": account_id or "",
         "source": {
             "gcs_uri": gcs_uri,
             "filename": filename,
@@ -79,7 +88,11 @@ def init_document(
     }
 
     ref.set(payload)
-    logger.info("Firestore: init document %s → status=processing", doc_id)
+    logger.info(
+        "Firestore: init document %s (scope=%s) → status=processing",
+        doc_id,
+        account_id or "legacy",
+    )
 
 
 def update_parsed(
@@ -87,6 +100,7 @@ def update_parsed(
     json_gcs_uri: str,
     page_count: int,
     extraction_ms: int = 0,
+    account_id: str | None = None,
 ) -> None:
     """
     更新 document 的解析結果索引，標記為 completed 狀態。
@@ -100,11 +114,11 @@ def update_parsed(
         page_count:     頁數。
         extraction_ms:  解析耗時（毫秒），非必填。
     """
-    db = fb_firestore.client()
-    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+    ref = _document_ref(doc_id, account_id)
 
     payload = {
         "status": "completed",
+        "account_id": account_id or "",
         "parsed": {
             "json_gcs_uri": json_gcs_uri,
             "page_count": page_count,
@@ -114,10 +128,15 @@ def update_parsed(
     }
 
     ref.update(payload)
-    logger.info("Firestore: updated document %s → status=completed (%d pages)", doc_id, page_count)
+    logger.info(
+        "Firestore: updated document %s (scope=%s) → status=completed (%d pages)",
+        doc_id,
+        account_id or "legacy",
+        page_count,
+    )
 
 
-def record_error(doc_id: str, message: str) -> None:
+def record_error(doc_id: str, message: str, account_id: str | None = None) -> None:
     """
     記錄解析錯誤，標記為 error 狀態。
 
@@ -127,11 +146,11 @@ def record_error(doc_id: str, message: str) -> None:
         doc_id:  文件識別碼。
         message: 錯誤訊息。
     """
-    db = fb_firestore.client()
-    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+    ref = _document_ref(doc_id, account_id)
 
     payload = {
         "status": "error",
+        "account_id": account_id or "",
         "error": {
             "message": message,
             "timestamp": datetime.now(UTC),
@@ -139,7 +158,12 @@ def record_error(doc_id: str, message: str) -> None:
     }
 
     ref.update(payload)
-    logger.error("Firestore: recorded error for document %s: %s", doc_id, message)
+    logger.error(
+        "Firestore: recorded error for document %s (scope=%s): %s",
+        doc_id,
+        account_id or "legacy",
+        message,
+    )
 
 
 def mark_rag_ready(
@@ -152,12 +176,13 @@ def mark_rag_ready(
     normalized_chars: int = 0,
     normalization_version: str = "v1",
     language_hint: str = "unknown",
+    account_id: str | None = None,
 ) -> None:
     """標記 RAG ingestion 完成（ready）。"""
-    db = fb_firestore.client()
-    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+    ref = _document_ref(doc_id, account_id)
 
     payload = {
+        "account_id": account_id or "",
         "rag": {
             "status": "ready",
             "chunk_count": chunk_count,
@@ -173,19 +198,20 @@ def mark_rag_ready(
     }
     ref.update(payload)
     logger.info(
-        "Firestore: marked RAG ready for %s (chunks=%d, vectors=%d)",
+        "Firestore: marked RAG ready for %s (scope=%s, chunks=%d, vectors=%d)",
         doc_id,
+        account_id or "legacy",
         chunk_count,
         vector_count,
     )
 
 
-def record_rag_error(doc_id: str, message: str) -> None:
+def record_rag_error(doc_id: str, message: str, account_id: str | None = None) -> None:
     """記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
-    db = fb_firestore.client()
-    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+    ref = _document_ref(doc_id, account_id)
 
     payload = {
+        "account_id": account_id or "",
         "rag": {
             "status": "error",
             "error": message,
@@ -193,4 +219,9 @@ def record_rag_error(doc_id: str, message: str) -> None:
         }
     }
     ref.update(payload)
-    logger.error("Firestore: recorded RAG error for document %s: %s", doc_id, message)
+    logger.error(
+        "Firestore: recorded RAG error for document %s (scope=%s): %s",
+        doc_id,
+        account_id or "legacy",
+        message,
+    )

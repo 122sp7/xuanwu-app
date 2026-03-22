@@ -14,6 +14,7 @@ import {
   reindexWikiBetaDocument,
   runWikiBetaRagQuery,
   type WikiBetaCitation,
+  type WikiBetaDocumentReadPath,
   type WikiBetaParsedDocument,
 } from "../queries/wiki-beta.queries";
 
@@ -38,19 +39,22 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
   const [cacheMode, setCacheMode] = useState<"hit" | "miss">("miss");
   const [vectorHits, setVectorHits] = useState(0);
   const [searchHits, setSearchHits] = useState(0);
+  const [accountScope, setAccountScope] = useState("global");
 
   const [docs, setDocs] = useState<WikiBetaParsedDocument[]>([]);
+  const [readPath, setReadPath] = useState<WikiBetaDocumentReadPath>("accounts/{accountId}/documents");
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [reindexingId, setReindexingId] = useState<string | null>(null);
 
   const loadDocs = useCallback(async () => {
     setLoadingDocs(true);
     try {
-      const data = await listWikiBetaParsedDocuments(activeAccountId, 25);
-      setDocs(data);
+      const result = await listWikiBetaParsedDocuments(activeAccountId, 25);
+      setDocs(result.documents);
+      setReadPath(result.readPath);
     } catch (error) {
       console.error(error);
-      toast.error("讀取 parsed_documents 失敗");
+      toast.error("讀取文件列表失敗");
     } finally {
       setLoadingDocs(false);
     }
@@ -69,14 +73,19 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
 
     setLoadingAnswer(true);
     try {
+      if (!activeAccountId) {
+        toast.error("目前沒有 active account，無法執行 RAG 查詢");
+        return;
+      }
       const parsedTopK = Number(topK);
       const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
-      const result = await runWikiBetaRagQuery(q, safeTopK);
+      const result = await runWikiBetaRagQuery(q, activeAccountId, safeTopK);
       setAnswer(result.answer);
       setCitations(result.citations);
       setCacheMode(result.cache);
       setVectorHits(result.vectorHits);
       setSearchHits(result.searchHits);
+      setAccountScope(result.accountScope);
     } catch (error) {
       console.error(error);
       toast.error("呼叫 rag_query 失敗");
@@ -94,6 +103,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
     setReindexingId(doc.id);
     try {
       await reindexWikiBetaDocument({
+        accountId: activeAccountId,
         docId: doc.id,
         jsonGcsUri: doc.jsonGcsUri,
         sourceGcsUri: doc.sourceGcsUri,
@@ -152,6 +162,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
             <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "尚未查詢"}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full border border-border/60 px-2 py-1">cache: {cacheMode}</span>
+              <span className="rounded-full border border-border/60 px-2 py-1">scope: {accountScope}</span>
               <span className="rounded-full border border-border/60 px-2 py-1">vector hits: {vectorHits}</span>
               <span className="rounded-full border border-border/60 px-2 py-1">search hits: {searchHits}</span>
             </div>
@@ -182,7 +193,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
         <CardHeader>
           <CardTitle>文件重整測試</CardTitle>
           <CardDescription>
-            account: {activeAccountId || "(未選擇)"} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
+            account: {activeAccountId || "(未選擇)"} / readPath: {readPath} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -204,7 +215,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => void handleReindex(doc)}
-                    disabled={reindexingId === doc.id || !doc.jsonGcsUri}
+                    disabled={reindexingId === doc.id || !doc.jsonGcsUri || !activeAccountId}
                   >
                     {reindexingId === doc.id ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                     手動重整

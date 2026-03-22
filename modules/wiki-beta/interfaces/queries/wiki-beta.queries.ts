@@ -18,6 +18,7 @@ export interface WikiBetaRagQueryResult {
   cache: "hit" | "miss";
   vectorHits: number;
   searchHits: number;
+  accountScope: string;
 }
 
 export interface WikiBetaParsedDocument {
@@ -31,7 +32,15 @@ export interface WikiBetaParsedDocument {
   uploadedAt: Date | null;
 }
 
+export type WikiBetaDocumentReadPath = "accounts/{accountId}/documents" | "parsed_documents";
+
+export interface WikiBetaParsedDocumentListResult {
+  documents: WikiBetaParsedDocument[];
+  readPath: WikiBetaDocumentReadPath;
+}
+
 export interface WikiBetaReindexInput {
+  accountId: string;
   docId: string;
   jsonGcsUri: string;
   sourceGcsUri: string;
@@ -82,10 +91,14 @@ function mapToParsedDocument(id: string, data: Record<string, any>): WikiBetaPar
   };
 }
 
-export async function runWikiBetaRagQuery(query: string, topK = 4): Promise<WikiBetaRagQueryResult> {
+export async function runWikiBetaRagQuery(
+  query: string,
+  accountId: string,
+  topK = 4,
+): Promise<WikiBetaRagQueryResult> {
   const functions = getFirebaseFunctions("asia-southeast1");
   const callable = functionsApi.httpsCallable(functions, "rag_query");
-  const result = await callable({ query, top_k: topK });
+  const result = await callable({ query, top_k: topK, account_id: accountId });
   const data = (result.data ?? {}) as Record<string, unknown>;
 
   const answer = typeof data.answer === "string" ? data.answer : "";
@@ -93,14 +106,16 @@ export async function runWikiBetaRagQuery(query: string, topK = 4): Promise<Wiki
   const cache = data.cache === "hit" ? "hit" : "miss";
   const vectorHits = typeof data.vector_hits === "number" ? data.vector_hits : 0;
   const searchHits = typeof data.search_hits === "number" ? data.search_hits : 0;
+  const accountScope = typeof data.account_scope === "string" ? data.account_scope : "global";
 
-  return { answer, citations, cache, vectorHits, searchHits };
+  return { answer, citations, cache, vectorHits, searchHits, accountScope };
 }
 
 export async function reindexWikiBetaDocument(input: WikiBetaReindexInput): Promise<void> {
   const functions = getFirebaseFunctions("asia-southeast1");
   const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
   await callable({
+    account_id: input.accountId,
     doc_id: input.docId,
     json_gcs_uri: input.jsonGcsUri,
     source_gcs_uri: input.sourceGcsUri,
@@ -109,7 +124,20 @@ export async function reindexWikiBetaDocument(input: WikiBetaReindexInput): Prom
   });
 }
 
-export async function listWikiBetaParsedDocuments(accountId: string, limitCount = 20): Promise<WikiBetaParsedDocument[]> {
+function sortByUploadedAtDesc(documents: WikiBetaParsedDocument[]): WikiBetaParsedDocument[] {
+  const copied = [...documents];
+  copied.sort((a, b) => {
+    const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
+    const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
+    return bt - at;
+  });
+  return copied;
+}
+
+export async function listWikiBetaParsedDocuments(
+  accountId: string,
+  limitCount = 20,
+): Promise<WikiBetaParsedDocumentListResult> {
   const db = getFirebaseFirestore();
   let docs: WikiBetaParsedDocument[] = [];
 
@@ -123,21 +151,23 @@ export async function listWikiBetaParsedDocuments(accountId: string, limitCount 
     });
   }
 
-  if (docs.length === 0) {
-    const legacyRef = firestoreApi.collection(db, "parsed_documents");
-    const legacyQuery = firestoreApi.query(legacyRef, firestoreApi.limit(limitCount));
-    const legacySnap = await firestoreApi.getDocs(legacyQuery);
-    docs = legacySnap.docs.map((item) => {
-      const data = (item.data() ?? {}) as Record<string, any>;
-      return mapToParsedDocument(item.id, data);
-    });
+  if (docs.length > 0) {
+    return {
+      documents: sortByUploadedAtDesc(docs),
+      readPath: "accounts/{accountId}/documents",
+    };
   }
 
-  docs.sort((a, b) => {
-    const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
-    const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
-    return bt - at;
+  const legacyRef = firestoreApi.collection(db, "parsed_documents");
+  const legacyQuery = firestoreApi.query(legacyRef, firestoreApi.limit(limitCount));
+  const legacySnap = await firestoreApi.getDocs(legacyQuery);
+  const legacyDocs = legacySnap.docs.map((item) => {
+    const data = (item.data() ?? {}) as Record<string, any>;
+    return mapToParsedDocument(item.id, data);
   });
 
-  return docs;
+  return {
+    documents: sortByUploadedAtDesc(legacyDocs),
+    readPath: "parsed_documents",
+  };
 }
