@@ -19,4 +19,4 @@ openai>=1.40.0,<2.0.0
 # Upstash official Python SDKs
 upstash-vector>=0.8.0,<1.0.0
 upstash-redis>=1.0.0,<2.0.0
-upstash-qstash>=2.0.0,<3.0.0
+qstash>=3.0.0,<4.0.0

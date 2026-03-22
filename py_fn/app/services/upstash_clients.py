@@ -78,10 +78,10 @@ def get_qstash_client() -> Any:
     """取得 QStash 官方 SDK client（單例）。"""
     global _QSTASH_CLIENT
     if _QSTASH_CLIENT is None:
-        mod = _import_module("upstash_qstash", "pip install upstash-qstash")
-        client_cls = getattr(mod, "Client", None) or getattr(mod, "QStash", None)
+        mod = _import_module("qstash", "pip install qstash")
+        client_cls = getattr(mod, "QStash", None)
         if client_cls is None:
-            raise UpstashSdkError("upstash_qstash.Client/QStash not found")
+            raise UpstashSdkError("qstash.QStash not found")
 
         # 新舊 SDK 參數名稱兼容
         kwargs: dict[str, Any] = {
