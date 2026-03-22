@@ -8,7 +8,7 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle, FileText } from "lucide-react";
 
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
@@ -21,7 +21,17 @@ interface ParseResult {
   doc_id: string;
   status: "processing" | "completed" | "error";
   page_count?: number;
-  text_preview?: string;
+  json_gcs_uri?: string;
+  error_message?: string;
+}
+
+interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
   error_message?: string;
 }
 
@@ -51,9 +61,11 @@ export default function DevToolsPage() {
   const [result, setResult] = useState<ParseResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
 
   // Firestore 監聽器 unsubscribe 函數
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const unsubscribeListRef = useRef<(() => void) | null>(null);
 
   function appendLog(msg: string) {
     setLogs((prev) => [...prev, `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`]);
@@ -96,7 +108,7 @@ export default function DevToolsPage() {
             doc_id: docId,
             status: "completed",
             page_count: parsed.page_count || 0,
-            text_preview: parsed.text?.slice(0, 200) || "",
+            json_gcs_uri: parsed.json_gcs_uri || "",
           };
           setResult(result);
           setStatus("done");
@@ -192,6 +204,37 @@ export default function DevToolsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // 監聽所有已上傳文件列表
+  useEffect(() => {
+    try {
+      const db = getFirebaseFirestore();
+      const colRef = firestoreApi.collection(db, PARSED_RESULTS_COLLECTION);
+      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
+        const docs: DocRecord[] = snapshot.docs.map((doc) => {
+          const d = doc.data() as any;
+          const src = d?.source || {};
+          const parsed = d?.parsed || {};
+          const err = d?.error || {};
+          return {
+            id: doc.id,
+            status: d?.status || "unknown",
+            filename: src.filename || doc.id,
+            uploaded_at: src.uploaded_at?.toDate?.() ?? null,
+            page_count: parsed.page_count,
+            json_gcs_uri: parsed.json_gcs_uri,
+            error_message: err.message,
+          };
+        });
+        // 最新上傳在最上面
+        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
+        setAllDocs(docs);
+      });
+    } catch (_) {}
+    return () => {
+      unsubscribeListRef.current?.();
+    };
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -285,13 +328,9 @@ export default function DevToolsPage() {
                 <dd className="font-mono text-xs">{result.doc_id}</dd>
                 <dt className="text-muted-foreground">page_count</dt>
                 <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
               </dl>
-              <div>
-                <p className="mb-1 text-xs text-muted-foreground">text_preview（前 200 字）</p>
-                <pre className="max-h-40 overflow-y-auto rounded-lg bg-muted p-3 text-xs leading-relaxed whitespace-pre-wrap break-words">
-                  {result.text_preview || "（空）"}
-                </pre>
-              </div>
             </div>
           )}
           {status === "error" && (
@@ -314,6 +353,76 @@ export default function DevToolsPage() {
           </div>
         </section>
       )}
+
+      {/* ── 已上傳檔案列表 ──────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border/60">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allDocs.map((doc, i) => (
+                  <tr
+                    key={doc.id}
+                    className={`border-b border-border/40 last:border-0 ${
+                      i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                    }`}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[200px] truncate" title={doc.filename}>
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {doc.status === "completed" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                          <CheckCircle2 className="size-3" /> 完成
+                        </span>
+                      )}
+                      {doc.status === "processing" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+                          <Loader2 className="size-3 animate-spin" /> 處理中
+                        </span>
+                      )}
+                      {doc.status === "error" && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+                          title={doc.error_message}
+                        >
+                          <XCircle className="size-3" /> 錯誤
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs">
+                      {doc.page_count != null ? doc.page_count : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      {doc.uploaded_at
+                        ? doc.uploaded_at.toLocaleString("zh-TW", { hour12: false })
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* ── Console log ────────────────────────────────────────────── */}
       {logs.length > 0 && (
