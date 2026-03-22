@@ -93,11 +93,8 @@ def load_settings() -> AppSettings:
     project_id = _required_env("DOCUMENTAI_PROJECT_ID")
     location = _optional_env("DOCUMENTAI_LOCATION", "asia-southeast1")
 
-    # Allow individual env vars; fall back to the shared legacy var, then to hardcoded defaults.
-    legacy_processor_id = os.getenv("DOCUMENTAI_PROCESSOR_ID", "")
     ocr_extractor_processor_id = (
         os.getenv("DOCUMENTAI_OCR_EXTRACTOR_PROCESSOR_ID")
-        or legacy_processor_id
         or _DEFAULT_OCR_EXTRACTOR_PROCESSOR_ID
     )
     ocr_classifier_processor_id = (
