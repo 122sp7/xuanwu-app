@@ -31,6 +31,9 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: "1:65970295651:web:e97e482f1444afbdc93956"
 
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: "G-CJYNJP5J86"
+
   # --- Web Push (VAPID) ---
   - variable: NEXT_PUBLIC_VAPID_PUBLIC_KEY
     value: "BGnZm6Y1hqYG-N-hMnwWuJiEEM9LDO85L69kLqggG9IimGXGjrQpfxhmU9f0DCU_S4G2Ujb9_etDZHWzSpGk0co"
@@ -59,6 +62,9 @@ env:
 
   - variable: DOCAI_EXTRACTOR_PROCESSOR_ID
     value: "86a3e4af9c5bba38"
+
+  - variable: DOCAI_SPLITTER_PROCESSOR_ID
+    value: "ba69ac6cf5650371"
 
   - variable: DOCAI_HTTP_TIMEOUT_MS
     value: "45000"
