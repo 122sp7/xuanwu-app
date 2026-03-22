@@ -32,6 +32,10 @@ import json
 
 from firebase_functions import https_fn
 
+from app.config import (
+    RAG_QUERY_RATE_LIMIT_MAX,
+    RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
+)
 from app.services.documentai import process_document_gcs
 from app.services.firestore import (
     init_document,
@@ -42,6 +46,7 @@ from app.services.firestore import (
 )
 from app.services.rag_pipeline import answer_rag_query, ingest_document_for_rag
 from app.services.storage import download_bytes, parsed_json_path, upload_json
+from app.services.upstash_clients import redis_fixed_window_allow
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +245,23 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     except Exception:
         top_k_int = None
 
+    limit_key = f"rag:rl:{account_id}"
+    try:
+        allowed, remaining = redis_fixed_window_allow(
+            key=limit_key,
+            max_requests=RAG_QUERY_RATE_LIMIT_MAX,
+            window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("rag_query rate-limit skipped: %s", exc)
+        allowed, remaining = True, -1
+
+    if not allowed:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED,
+            "RAG query rate limit exceeded, please try again later.",
+        )
+
     result = answer_rag_query(query=query, top_k=top_k_int, account_id=account_id)
     return {
         "answer": result.get("answer", ""),
@@ -248,6 +270,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         "vector_hits": result.get("vector_hits", 0),
         "search_hits": result.get("search_hits", 0),
         "account_scope": result.get("account_scope", account_id),
+        "rate_limit_remaining": remaining,
     }
 
 

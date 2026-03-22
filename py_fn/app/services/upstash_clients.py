@@ -244,6 +244,25 @@ def redis_set_json(key: str, value: dict[str, Any], ttl_seconds: int = 0) -> Non
     client.set(key, payload)
 
 
+def redis_fixed_window_allow(
+    key: str,
+    max_requests: int,
+    window_seconds: int,
+) -> tuple[bool, int]:
+    """固定窗限流：回傳 (allowed, remaining)。"""
+    if max_requests <= 0 or window_seconds <= 0:
+        return True, max_requests
+
+    client = get_redis_client()
+    current = int(client.incr(key) or 0)
+    if current == 1:
+        client.expire(key, window_seconds)
+
+    allowed = current <= max_requests
+    remaining = max(0, max_requests - current)
+    return allowed, remaining
+
+
 def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
     """
     以 Upstash Search REST 進行補充檢索（best effort）。

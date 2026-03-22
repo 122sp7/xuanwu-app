@@ -277,6 +277,7 @@ def answer_rag_query(
         raise ValueError("account_id is required")
 
     actual_top_k = top_k if top_k and top_k > 0 else RAG_QUERY_TOP_K
+    retrieval_top_k = min(max(actual_top_k * 4, actual_top_k), 40)
 
     scope_key = account_id
     cache_key_base = f"{scope_key}|{q}|{actual_top_k}|{OPENAI_EMBEDDING_MODEL}|{OPENAI_EMBEDDING_DIMENSIONS}"
@@ -297,8 +298,8 @@ def answer_rag_query(
         logger.warning("redis query cache read failed: %s", exc)
 
     query_vector = embed_text(q, model=OPENAI_EMBEDDING_MODEL)
-    hits = query_vectors(query_vector, top_k=actual_top_k, include_metadata=True)
-    search_hits = query_search_documents(q, top_k=actual_top_k)
+    hits = query_vectors(query_vector, top_k=retrieval_top_k, include_metadata=True)
+    search_hits = query_search_documents(q, top_k=retrieval_top_k)
 
     contexts: list[str] = []
     citations: list[dict[str, Any]] = []
@@ -377,6 +378,7 @@ def answer_rag_query(
             "debug": {
                 "vector_candidates": raw_vector_hits,
                 "search_candidates": raw_search_hits,
+                "retrieval_top_k": retrieval_top_k,
                 "reason": "no-context-after-scope-or-text-filter",
             },
         }
@@ -409,7 +411,7 @@ def answer_rag_query(
     except Exception as exc:
         logger.warning("redis query cache write failed: %s", exc)
 
-    if QSTASH_RAG_AUDIT_URL:
+    if QSTASH_RAG_AUDIT_URL.startswith("http://") or QSTASH_RAG_AUDIT_URL.startswith("https://"):
         try:
             publish_qstash_json(
                 url=QSTASH_RAG_AUDIT_URL,

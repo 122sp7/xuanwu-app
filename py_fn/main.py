@@ -42,10 +42,12 @@ set_global_options(
         "UPSTASH_REDIS_REST_TOKEN",
         "UPSTASH_SEARCH_REST_URL",
         "UPSTASH_SEARCH_REST_TOKEN",
+        "UPSTASH_SEARCH_INDEX",
         "QSTASH_URL",
         "QSTASH_TOKEN",
         "QSTASH_CURRENT_SIGNING_KEY",
         "QSTASH_NEXT_SIGNING_KEY",
+        "QSTASH_RAG_AUDIT_URL",
     ],
 )
 
