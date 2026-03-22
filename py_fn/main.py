@@ -34,6 +34,7 @@ logging.basicConfig(level=logging.INFO)
 set_global_options(
     region=SupportedRegion.ASIA_SOUTHEAST1,
     max_instances=10,
+    secrets=["OPENAI_API_KEY"],
 )
 
 # ── Cloud Storage 觸發器 ──────────────────────────────────────────────────────
