@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, Plus, Settings, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, FlaskConical, Plus, Settings, Users } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -169,6 +169,11 @@ export function AppRail({
       label: "Organization",
       icon: <Users className="size-[18px]" />,
       show: isOrganizationAccount,
+    },
+    {
+      href: "/dev-tools",
+      label: "Dev Tools",
+      icon: <FlaskConical className="size-[18px]" />,
     },
   ];
 

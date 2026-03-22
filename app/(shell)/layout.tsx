@@ -29,6 +29,7 @@ const routeTitles: Record<string, string> = {
   "/wiki": "Wiki",
   "/ai-chat": "AI Chat",
   "/settings": "Personal Settings",
+  "/dev-tools": "Dev Tools",
 };
 
 /** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
