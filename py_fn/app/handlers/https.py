@@ -224,6 +224,9 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     return {
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),
+        "cache": result.get("cache", "miss"),
+        "vector_hits": result.get("vector_hits", 0),
+        "search_hits": result.get("search_hits", 0),
     }
 
 

@@ -31,6 +31,9 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
   const [loadingAnswer, setLoadingAnswer] = useState(false);
   const [answer, setAnswer] = useState("");
   const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
+  const [cacheMode, setCacheMode] = useState<"hit" | "miss">("miss");
+  const [vectorHits, setVectorHits] = useState(0);
+  const [searchHits, setSearchHits] = useState(0);
 
   const [docs, setDocs] = useState<WikiBetaParsedDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
@@ -67,6 +70,9 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
       const result = await runWikiBetaRagQuery(q, safeTopK);
       setAnswer(result.answer);
       setCitations(result.citations);
+      setCacheMode(result.cache);
+      setVectorHits(result.vectorHits);
+      setSearchHits(result.searchHits);
     } catch (error) {
       console.error(error);
       toast.error("呼叫 rag_query 失敗");
@@ -140,6 +146,11 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
           <div className="rounded-md border border-border/60 bg-muted/20 p-3">
             <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Answer</p>
             <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "尚未查詢"}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border/60 px-2 py-1">cache: {cacheMode}</span>
+              <span className="rounded-full border border-border/60 px-2 py-1">vector hits: {vectorHits}</span>
+              <span className="rounded-full border border-border/60 px-2 py-1">search hits: {searchHits}</span>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -149,7 +160,12 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
             ) : (
               citations.map((citation, index) => (
                 <div key={`${citation.doc_id ?? "doc"}-${index}`} className="rounded-md border border-border/60 p-3">
-                  <p className="text-sm font-medium text-foreground">{citation.filename || citation.doc_id || "未命名文件"}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{citation.filename || citation.doc_id || "未命名文件"}</p>
+                    <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                      {citation.provider || "unknown"}
+                    </span>
+                  </div>
                   <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{citation.text || "(無節錄)"}</p>
                 </div>
               ))

@@ -2,8 +2,12 @@ import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functi
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 
 export interface WikiBetaCitation {
+  provider?: "vector" | "search";
+  chunk_id?: string;
   doc_id?: string;
   filename?: string;
+  json_gcs_uri?: string;
+  search_id?: string;
   score?: number;
   text?: string;
 }
@@ -11,6 +15,9 @@ export interface WikiBetaCitation {
 export interface WikiBetaRagQueryResult {
   answer: string;
   citations: WikiBetaCitation[];
+  cache: "hit" | "miss";
+  vectorHits: number;
+  searchHits: number;
 }
 
 export interface WikiBetaParsedDocument {
@@ -49,8 +56,11 @@ export async function runWikiBetaRagQuery(query: string, topK = 4): Promise<Wiki
 
   const answer = typeof data.answer === "string" ? data.answer : "";
   const citations = Array.isArray(data.citations) ? (data.citations as WikiBetaCitation[]) : [];
+  const cache = data.cache === "hit" ? "hit" : "miss";
+  const vectorHits = typeof data.vector_hits === "number" ? data.vector_hits : 0;
+  const searchHits = typeof data.search_hits === "number" ? data.search_hits : 0;
 
-  return { answer, citations };
+  return { answer, citations, cache, vectorHits, searchHits };
 }
 
 export async function reindexWikiBetaDocument(input: WikiBetaReindexInput): Promise<void> {

@@ -233,6 +233,8 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
                 "answer": cached.get("answer", ""),
                 "citations": cached.get("citations", []),
                 "cache": "hit",
+                "vector_hits": int(cached.get("vector_hits") or 0),
+                "search_hits": int(cached.get("search_hits") or 0),
             }
     except Exception as exc:
         logger.warning("redis query cache read failed: %s", exc)
@@ -316,6 +318,8 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         "answer": answer,
         "citations": citations,
         "cache": "miss",
+        "vector_hits": len(hits),
+        "search_hits": len(search_hits),
     }
 
     try:
