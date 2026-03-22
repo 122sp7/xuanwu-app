@@ -12,3 +12,6 @@ google-cloud-firestore<3.0.0
 
 # GCS helper used by the storage service layer
 google-cloud-storage<3.0.0
+
+# OpenAI SDK for embeddings and LLM calls
+openai>=1.40.0,<2.0.0
