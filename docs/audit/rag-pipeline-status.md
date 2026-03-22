@@ -455,13 +455,17 @@
 
 ### P1（流程修正）
 - [x] **Layer 2**：修正 `callDocumentAi` server action 參數名稱（snake_case → camelCase）+ 補上缺失的 `workspaceId` 欄位
-- [x] **Cloud Functions region**：修正 `getFirebaseFunctions()` 預設 region 從 `asia-east1` → `us-central1`，與 functions-python 部署區域一致
+- [x] **Cloud Functions region**：所有 functions-python 函式改為 `asia-east1`（匹配 Firestore location），`getFirebaseFunctions()` 預設同步更新
 - [x] **部署清理**：移除 `firebase.json` 中已刪除的 `functions-llama-pipeline` codebase 參照，移除 `package.json` 中 `deploy:functions:llama` 腳本
+- [x] **Document AI config 簡化**：移除 `settings.py` 中 legacy `DOCUMENTAI_PROCESSOR_ID` fallback，新增 `functions-python/.env.example`
+- [x] **apphosting.yaml 清理**：移除未使用的 `DOCAI_*` 環境變數（Next.js 不直接呼叫 Document AI），新增 `NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION=asia-east1`
 
 ### P1（部署清理 — 需手動操作）
-- [ ] **刪除殘留 Cloud Function**：`processDocument`（asia-east1）仍殘留在 GCP Console，需手動刪除：
+- [ ] **刪除殘留 Cloud Function**：舊的 `us-central1` 函式在部署新 `asia-east1` 版本後仍殘留，需手動刪除：
   ```bash
-  npx firebase functions:delete processDocument --region asia-east1
+  npx firebase functions:delete process_document_with_ai --region us-central1
+  npx firebase functions:delete process_uploaded_rag_document --region us-central1
+  npx firebase functions:delete process_uploaded_rag_document_on_create --region us-central1
   ```
 
 ### P2（品質提升）

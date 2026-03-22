@@ -22,7 +22,7 @@ export function getFirebaseFunctions(regionOrCustomDomain?: string): Functions {
   if (!_functions) {
     _functions = getFunctions(
       firebaseClientApp,
-      regionOrCustomDomain ?? process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "us-central1"
+      regionOrCustomDomain ?? process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1"
     );
     if (process.env.NODE_ENV === "development") {
       const emulatorHost =

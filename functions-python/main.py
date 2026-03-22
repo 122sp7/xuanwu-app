@@ -11,12 +11,12 @@ from app.rag_ingestion.interfaces.callables.process_uploaded_rag_document import
 )
 
 
-@https_fn.on_call()
+@https_fn.on_call(region="asia-east1")
 def process_document_with_ai(req: https_fn.CallableRequest):
     return handle_process_document_with_ai(req)
 
 
-@https_fn.on_call()
+@https_fn.on_call(region="asia-east1")
 def process_uploaded_rag_document(req: https_fn.CallableRequest):
     return handle_process_uploaded_rag_document(req)
 
@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 @firestore_fn.on_document_created(
-    document="knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}"
+    document="knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}",
+    region="asia-east1",
 )
 def process_uploaded_rag_document_on_create(event: firestore_fn.Event[firestore_fn.DocumentSnapshot]):
     snapshot = event.data
