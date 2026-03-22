@@ -12,6 +12,8 @@ RAG pipeline service — 1~7 步驟最小可用實作。
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -20,14 +22,24 @@ from typing import Any
 from app.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
+    RAG_DOC_CACHE_TTL_SECONDS,
     RAG_CHUNK_OVERLAP_CHARS,
     RAG_CHUNK_SIZE_CHARS,
+    RAG_QUERY_CACHE_TTL_SECONDS,
     RAG_QUERY_TOP_K,
+    RAG_REDIS_PREFIX,
     RAG_VECTOR_NAMESPACE,
 )
 from app.services.embeddings import embed_text, embed_texts
 from app.services.llm import chat_complete
-from app.services.upstash_clients import query_vectors, upsert_vectors
+from app.services.upstash_clients import (
+    query_vectors,
+    redis_get_json,
+    redis_set_json,
+    upsert_vectors,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -168,6 +180,26 @@ def ingest_document_for_rag(
 
     upsert_vectors(payload)
 
+    # 文件索引摘要寫入 Redis，方便後續檢視與治理。
+    try:
+        redis_set_json(
+            key=f"{RAG_REDIS_PREFIX}:doc:{doc_id}:latest",
+            value={
+                "doc_id": doc_id,
+                "filename": filename,
+                "chunk_count": len(base_chunks),
+                "vector_count": len(payload),
+                "embedding_model": OPENAI_EMBEDDING_MODEL,
+                "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
+                "normalization_version": normalization_version,
+                "language_hint": language_hint,
+                "indexed_at": now_iso,
+            },
+            ttl_seconds=RAG_DOC_CACHE_TTL_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("redis doc summary write failed for %s: %s", doc_id, exc)
+
     return RagIngestionResult(
         chunk_count=len(base_chunks),
         vector_count=len(payload),
@@ -187,6 +219,21 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         return {"answer": "", "citations": []}
 
     actual_top_k = top_k if top_k and top_k > 0 else RAG_QUERY_TOP_K
+
+    cache_key_base = f"{q}|{actual_top_k}|{OPENAI_EMBEDDING_MODEL}|{OPENAI_EMBEDDING_DIMENSIONS}"
+    cache_key = f"{RAG_REDIS_PREFIX}:query:{hashlib.sha256(cache_key_base.encode('utf-8')).hexdigest()}"
+
+    try:
+        cached = redis_get_json(cache_key)
+        if cached and isinstance(cached.get("answer"), str):
+            return {
+                "answer": cached.get("answer", ""),
+                "citations": cached.get("citations", []),
+                "cache": "hit",
+            }
+    except Exception as exc:
+        logger.warning("redis query cache read failed: %s", exc)
+
     query_vector = embed_text(q, model=OPENAI_EMBEDDING_MODEL)
     hits = query_vectors(query_vector, top_k=actual_top_k, include_metadata=True)
 
@@ -232,7 +279,15 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         temperature=0.1,
     )
 
-    return {
+    result = {
         "answer": answer,
         "citations": citations,
+        "cache": "miss",
     }
+
+    try:
+        redis_set_json(cache_key, result, ttl_seconds=RAG_QUERY_CACHE_TTL_SECONDS)
+    except Exception as exc:
+        logger.warning("redis query cache write failed: %s", exc)
+
+    return result
