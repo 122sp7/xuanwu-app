@@ -32,6 +32,7 @@ import json
 
 from firebase_functions import https_fn
 
+from application.rag import execute_rag_query
 from app.config import (
     RAG_QUERY_RATE_LIMIT_MAX,
     RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
@@ -44,7 +45,7 @@ from app.services.firestore import (
     record_rag_error,
     update_parsed,
 )
-from app.services.rag_pipeline import answer_rag_query, ingest_document_for_rag
+from app.services.rag_pipeline import ingest_document_for_rag
 from app.services.storage import download_bytes, parsed_json_path, upload_json
 from app.services.upstash_clients import redis_fixed_window_allow
 
@@ -262,8 +263,8 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
             "RAG query rate limit exceeded, please try again later.",
         )
 
-    result = answer_rag_query(query=query, top_k=top_k_int, account_id=account_id)
-    return {
+    result = execute_rag_query(query=query, top_k=top_k_int, account_scope=account_id)
+    response = {
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),
         "cache": result.get("cache", "miss"),
@@ -272,6 +273,9 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         "account_scope": result.get("account_scope", account_id),
         "rate_limit_remaining": remaining,
     }
+    if isinstance(result.get("debug"), dict):
+        response["debug"] = result["debug"]
+    return response
 
 
 def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
