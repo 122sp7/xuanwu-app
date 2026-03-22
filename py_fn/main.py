@@ -21,7 +21,11 @@ from firebase_functions import https_fn, storage_fn
 from firebase_functions.options import SupportedRegion, set_global_options
 
 from app.config import UPLOAD_BUCKET, GCP_REGION
-from app.handlers.https import handle_parse_document, handle_rag_query
+from app.handlers.https import (
+    handle_parse_document,
+    handle_rag_query,
+    handle_rag_reindex_document,
+)
 from app.handlers.storage import handle_object_finalized
 
 # ── 全域選項 ─────────────────────────────────────────────────────────────────
@@ -54,3 +58,9 @@ def parse_document(req: https_fn.CallableRequest) -> dict:
 def rag_query(req: https_fn.CallableRequest) -> dict:
     """RAG 檢索 + 生成查詢。"""
     return handle_rag_query(req)
+
+
+@https_fn.on_call()
+def rag_reindex_document(req: https_fn.CallableRequest) -> dict:
+    """手動重新整理文件（normalization + ingestion）。"""
+    return handle_rag_reindex_document(req)

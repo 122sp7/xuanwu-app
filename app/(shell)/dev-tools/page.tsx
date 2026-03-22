@@ -23,6 +23,7 @@ import {
 
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
 
 // ── 型別 ─────────────────────────────────────────────────────────────────────
@@ -189,6 +190,7 @@ export default function DevToolsPage() {
   const [jsonContent, setJsonContent] = useState<string | null>(null);
   const [jsonLoading, setJsonLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
 
   // Firestore 監聽器 unsubscribe 函數
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -414,6 +416,30 @@ export default function DevToolsPage() {
       alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleManualProcess(doc: DocRecord) {
+    if (!doc.json_gcs_uri) return;
+    setReindexingId(doc.id);
+    appendLog(`🧹 手動整理開始：${doc.id}`);
+    try {
+      const functions = getFirebaseFunctions();
+      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
+      await callable({
+        doc_id: doc.id,
+        json_gcs_uri: doc.json_gcs_uri,
+        source_gcs_uri: doc.gcs_uri,
+        filename: doc.filename,
+        page_count: doc.page_count ?? 0,
+      });
+      appendLog(`✅ 手動整理完成：${doc.id}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 手動整理失敗：${msg}`);
+      alert(`手動整理失敗：${msg}`);
+    } finally {
+      setReindexingId(null);
     }
   }
 
@@ -739,13 +765,28 @@ export default function DevToolsPage() {
                     </td>
                     <td className="px-4 py-2.5 text-xs max-w-[320px]">
                       {doc.json_gcs_uri ? (
-                        <button
-                          onClick={() => handleViewJson(doc)}
-                          className="font-mono text-left truncate text-primary hover:underline"
-                          title={doc.json_gcs_uri}
-                        >
-                          {doc.json_gcs_uri}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewJson(doc)}
+                            className="font-mono text-left truncate text-primary hover:underline"
+                            title={doc.json_gcs_uri}
+                          >
+                            {doc.json_gcs_uri}
+                          </button>
+                          <button
+                            onClick={() => handleManualProcess(doc)}
+                            disabled={reindexingId === doc.id}
+                            title="手動整理（Normalization + RAG）"
+                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          >
+                            {reindexingId === doc.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <FlaskConical className="size-3" />
+                            )}
+                            手動整理
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

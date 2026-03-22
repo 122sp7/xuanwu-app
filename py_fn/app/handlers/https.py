@@ -27,6 +27,7 @@ Document AI 會直接從 GCS 讀取檔案，無須下載到 Python 函數記憶�
 import logging
 import os
 import time
+import json
 
 from firebase_functions import https_fn
 
@@ -39,9 +40,19 @@ from app.services.firestore import (
     update_parsed,
 )
 from app.services.rag_pipeline import answer_rag_query, ingest_document_for_rag
-from app.services.storage import parsed_json_path, upload_json
+from app.services.storage import download_bytes, parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
+    if not gs_uri.startswith("gs://"):
+        raise ValueError("gcs uri must start with gs://")
+    path_part = gs_uri.split("gs://", 1)[1]
+    if "/" not in path_part:
+        raise ValueError("gcs uri must include object path")
+    bucket_name, object_path = path_part.split("/", 1)
+    return bucket_name, object_path
 
 
 def handle_parse_document(req: https_fn.CallableRequest) -> dict:
@@ -213,3 +224,83 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),
     }
+
+
+def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
+    """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
+    data: dict = req.data or {}
+
+    doc_id = str(data.get("doc_id", "")).strip()
+    json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
+    source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
+    filename = str(data.get("filename", "")).strip() or doc_id
+
+    if not doc_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "doc_id 為必填欄位",
+        )
+    if not json_gcs_uri:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "json_gcs_uri 為必填欄位",
+        )
+
+    try:
+        page_count = int(data.get("page_count", 0) or 0)
+    except Exception:
+        page_count = 0
+
+    try:
+        bucket_name, object_path = _parse_gs_uri(json_gcs_uri)
+        json_bytes = download_bytes(bucket_name=bucket_name, object_path=object_path)
+        parsed_payload = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
+
+        text = str(parsed_payload.get("text", "")).strip()
+        if not text:
+            raise ValueError("json 內容缺少 text")
+
+        if not source_gcs_uri:
+            source_gcs_uri = str(parsed_payload.get("source_gcs_uri", "")).strip()
+        if not filename:
+            filename = str(parsed_payload.get("filename", "")).strip() or doc_id
+        if page_count <= 0:
+            page_count = int(parsed_payload.get("page_count", 0) or 0)
+
+        rag = ingest_document_for_rag(
+            doc_id=doc_id,
+            filename=filename,
+            source_gcs_uri=source_gcs_uri,
+            json_gcs_uri=json_gcs_uri,
+            text=text,
+            page_count=page_count,
+        )
+
+        mark_rag_ready(
+            doc_id=doc_id,
+            chunk_count=rag.chunk_count,
+            vector_count=rag.vector_count,
+            embedding_model=rag.embedding_model,
+            raw_chars=rag.raw_chars,
+            normalized_chars=rag.normalized_chars,
+            normalization_version=rag.normalization_version,
+            language_hint=rag.language_hint,
+        )
+
+        return {
+            "doc_id": doc_id,
+            "status": "ready",
+            "chunk_count": rag.chunk_count,
+            "vector_count": rag.vector_count,
+            "raw_chars": rag.raw_chars,
+            "normalized_chars": rag.normalized_chars,
+            "normalization_version": rag.normalization_version,
+            "language_hint": rag.language_hint,
+        }
+    except Exception as exc:
+        logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
+        record_rag_error(doc_id, str(exc)[:200])
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            f"rag_reindex_document 失敗：{str(exc)[:200]}",
+        ) from exc
