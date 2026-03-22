@@ -5,16 +5,17 @@ HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
 
 請求格式：
     {
-        "gcs_uri": "gs://my-bucket/uploads/my-doc.pdf"
+        "gcs_uri": "gs://my-bucket/uploads/my-doc.pdf",
+        "size_bytes": 102400  # 選填
     }
 
 Document AI 會直接從 GCS 讀取檔案，無須下載到 Python 函數記憶體。
 結果自動保存至 Firestore（完整 lifecycle）。
 
-回應格式：
+回應格式（立即返回）：
     {
         "doc_id": "my-doc",
-        "status": "processing"  // 実際的解析在後台進行
+        "status": "processing"  // 實際解析在後台進行（通醫 2-5 秒）
     }
 
 前端應監聽 Firestore 文件狀態變化以追蹤進度。
@@ -42,7 +43,8 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     Args:
         req.data: {
             "gcs_uri": "gs://bucket/path/file.pdf",  # 必填
-            "mime_type": "application/pdf"            # 選填；如果省略則由副檔名推測
+            "mime_type": "application/pdf",           # 選填；如果省略則由副檔名推測
+            "size_bytes": 102400                       # 選填
         }
 
     Returns:
@@ -87,12 +89,10 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
             )
 
+    size_bytes = data.get("size_bytes", 0)
     logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
 
     # ── 初始化 Firestore document ───────────────────────────────────────────
-    # 不取 size，因為 gcs_uri 是外部傳入，我們無法在這時取得 size
-    # 前端上傳時應該已知道 size，可定義前端負責傳送
-    size_bytes = data.get("size_bytes", 0)
     try:
         init_document(
             doc_id=doc_id,
@@ -108,35 +108,27 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             "Failed to initialize document",
         ) from exc
 
-    # ── 非同步解析（在背景進行，不 wait） ───────────────────────────────────
-    # 立即回覆前端，詳細解析由 on_document_parsed 更新
-    def _parse_async():
-        """後台任務：解析文件、更新 Firestore。"""
-        start_time = time.time()
-        try:
-            parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
-            extraction_ms = int((time.time() - start_time) * 1000)
+    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
+    start_time = time.time()
+    try:
+        parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        extraction_ms = int((time.time() - start_time) * 1000)
 
-            update_parsed(
-                doc_id=doc_id,
-                text=parsed.text,
-                page_count=parsed.page_count,
-                extraction_ms=extraction_ms,
-            )
+        update_parsed(
+            doc_id=doc_id,
+            text=parsed.text,
+            page_count=parsed.page_count,
+            extraction_ms=extraction_ms,
+        )
 
-            logger.info("✓ async parse done: doc_id=%s (%d pages, %d ms)", 
-                       doc_id, parsed.page_count, extraction_ms)
-        except Exception as exc:
-            logger.exception("async parse failed for %s: %s", doc_id, exc)
-            record_error(doc_id, str(exc)[:200])
+        logger.info("✓ parse_document done: doc_id=%s (%d pages, %d ms)",
+                   doc_id, parsed.page_count, extraction_ms)
+    except Exception as exc:
+        logger.exception("parse_document failed for %s: %s", doc_id, exc)
+        record_error(doc_id, str(exc)[:200])
 
-    # 啟動後台任務（但不阻塞回應）
-    # 注意：Firebase Functions 環境可能不支援 threading；
-    # 實務上通常立即呼叫 parse，前端監聽 Firestore 變化
-    # 為了簡化，這裡直接同步呼叫（保持相容性）
-    _parse_async()
-
+    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
     return {
         "doc_id": doc_id,
-        "status": "processing",
+        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
     }

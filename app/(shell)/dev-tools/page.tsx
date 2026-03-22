@@ -3,31 +3,35 @@
 /**
  * Module: dev-tools page — /dev-tools
  * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 取得 GCS URI → 呼叫 parse_document with URI
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
  * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
  */
 
-import { useRef, useState } from "react";
-import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { Button } from "@ui-shadcn/ui/button";
 
 // ── 型別 ─────────────────────────────────────────────────────────────────────
 
 interface ParseResult {
   doc_id: string;
-  page_count: number;
-  text_preview: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  text_preview?: string;
+  error_message?: string;
 }
 
-type Status = "idle" | "uploading" | "parsing" | "done" | "error";
+type Status = "idle" | "uploading" | "waiting" | "done" | "error";
 
 // ── 常數 ─────────────────────────────────────────────────────────────────────
 
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app"; // Firebase Storage bucket
-const WATCH_PATH = "uploads/"; // GCS folder path
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const WATCH_PATH = "uploads/";
+const PARSED_RESULTS_COLLECTION = "parsed_documents";
 
 const ACCEPTED_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
@@ -48,6 +52,9 @@ export default function DevToolsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
 
+  // Firestore 監聽器 unsubscribe 函數
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+
   function appendLog(msg: string) {
     setLogs((prev) => [...prev, `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`]);
   }
@@ -60,6 +67,66 @@ export default function DevToolsPage() {
     setStatus("idle");
     setLogs([]);
     if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  // 監聽 Firestore 文件狀態變化
+  function watchDocument(docId: string) {
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, PARSED_RESULTS_COLLECTION, docId);
+
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          appendLog("等待 Firestore 初始化…");
+          return;
+        }
+
+        const data = snapshot.data() as any;
+        const docStatus = data?.status || "unknown";
+
+        appendLog(`Firestore update: status=${docStatus}`);
+
+        if (docStatus === "completed") {
+          const parsed = data?.parsed || {};
+          const result: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: parsed.page_count || 0,
+            text_preview: parsed.text?.slice(0, 200) || "",
+          };
+          setResult(result);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${parsed.page_count} 頁`);
+
+          // 取消監聽
+          if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+          }
+        } else if (docStatus === "error") {
+          const error = data?.error || {};
+          const msg = error.message || "未知錯誤";
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+
+          // 取消監聽
+          if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+          }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
+    }
   }
 
   async function handleUploadAndParse() {
@@ -83,20 +150,25 @@ export default function DevToolsPage() {
 
       // ── Step 2: Call parse_document with GCS URI ───────────────────
       const gcsUri = `gs://${UPLOAD_BUCKET}/${uploadPath}`;
-      setStatus("parsing");
-      appendLog("🔍 呼叫 parse_document (asia-southeast1)…");
+      setStatus("waiting");
+      appendLog("🔍 呼叫 parse_document callable…");
 
       const fns = getFirebaseFunctions("asia-southeast1");
       const parseDocument = functionsApi.httpsCallable<
-        { gcs_uri: string },
-        ParseResult
+        { gcs_uri: string; size_bytes?: number },
+        { doc_id: string; status: string }
       >(fns, "parse_document");
 
-      const response = await parseDocument({ gcs_uri: gcsUri });
+      const response = await parseDocument({
+        gcs_uri: gcsUri,
+        size_bytes: selectedFile.size,
+      });
 
-      appendLog("✅ 解析完成");
-      setResult(response.data);
-      setStatus("done");
+      const docId = response.data.doc_id;
+      appendLog(`📝 doc_id=${docId}, 開始監聽 Firestore…`);
+
+      // ── Step 3: Watch Firestore for status updates ──────────────────
+      watchDocument(docId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       appendLog(`❌ 錯誤：${msg}`);
@@ -106,6 +178,12 @@ export default function DevToolsPage() {
   }
 
   function reset() {
+    // 取消 Firestore 監聽
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
     setSelectedFile(null);
     setResult(null);
     setErrorMsg(null);
@@ -114,7 +192,16 @@ export default function DevToolsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  const isLoading = status === "uploading" || status === "parsing";
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, []);
+
+  const isLoading = status === "uploading" || status === "waiting";
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -126,7 +213,7 @@ export default function DevToolsPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
           <p className="text-xs text-muted-foreground">
-            py_fn · parse_document（GCS URI）· Document AI · asia-southeast1
+            py_fn · parse_document · Document AI · Firestore 實時監聽
           </p>
         </div>
       </div>
@@ -173,7 +260,7 @@ export default function DevToolsPage() {
             ) : (
               <FlaskConical className="size-4" />
             )}
-            {status === "uploading" ? "上傳中…" : status === "parsing" ? "解析中…" : "上傳 & 呼叫"}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
           </Button>
           <Button variant="outline" onClick={reset} disabled={isLoading}>
             重置
@@ -213,6 +300,18 @@ export default function DevToolsPage() {
               <span>{errorMsg}</span>
             </div>
           )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
         </section>
       )}
 
