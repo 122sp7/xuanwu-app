@@ -219,3 +219,40 @@ flowchart LR
 - Module isolation boundary:
   - `wiki-beta` and `wiki` remain separate bounded contexts
   - cross-module access must go through public barrels and lint boundaries
+
+## Allowed Interfaces (Only)
+
+- Next.js -> py_fn:
+  - `httpsCallable("rag_query")`
+  - `httpsCallable("rag_reindex_document")`
+- Next.js -> Firestore (read-side / UI-side):
+  - account-scoped reads from `accounts/{accountId}/...`
+- py_fn -> Firestore (worker-side):
+  - account-scoped writes/updates for RAG pipeline outputs
+
+## Forbidden Crossings
+
+- Do not move parse/chunk/embed execution into Next.js runtime.
+- Do not let py_fn own browser-facing page/session/streaming UI responsibilities.
+- Do not access `wiki` internals from `wiki-beta` (or inverse) via deep relative paths.
+- Do not perform non-account-scoped reads/writes (no global fallback collections).
+
+## Ownership Matrix
+
+| Concern | Owner | Non-owner Rule |
+|---|---|---|
+| Route + page composition | Next.js `app/(shell)/wiki-beta` | py_fn must not render/compose pages |
+| UI components + state | `modules/wiki-beta/interfaces` | py_fn must stay UI-agnostic |
+| Use-case orchestration | `modules/wiki-beta/application` | keep orchestration out of page files |
+| RAG callable execution | py_fn | Next.js only invokes callable |
+| Reindex callable execution | py_fn | Next.js only invokes callable |
+| Firestore account scope policy | both runtimes (enforced) | any non-scoped path is invalid |
+| Cross-module imports | module barrels only | no `wiki-beta` <-> `wiki` deep imports |
+
+## Implementation Checklist (Per Change)
+
+- Confirm the change belongs to one owner in the matrix above.
+- If crossing runtime boundary, use only the allowed interfaces.
+- Verify account scope is explicit in payload and storage path.
+- Verify `wiki-beta` boundaries are preserved by lint/import rules.
+- Update this document when ownership or interfaces change.
