@@ -43,9 +43,6 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "predeploy": [
-        "python -m compileall -q \"$RESOURCE_DIR\""
-      ],
       "source": "py_fn"
     }
   ],
