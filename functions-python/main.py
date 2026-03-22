@@ -37,11 +37,11 @@ def check_rag_pipeline_config(req: https_fn.CallableRequest):
 
     ensure_firebase_app()
 
-    doc_ai_project_id = os.getenv("DOCUMENTAI_PROJECT_ID", "")
-    doc_ai_location = os.getenv("DOCUMENTAI_LOCATION", "asia-southeast1")
-    extractor_id = os.getenv("DOCUMENTAI_OCR_EXTRACTOR_PROCESSOR_ID", "1516a32299c1709e")
-    classifier_id = os.getenv("DOCUMENTAI_OCR_CLASSIFIER_PROCESSOR_ID", "17f1013111dec644")
-    splitter_id = os.getenv("DOCUMENTAI_OCR_SPLITTER_PROCESSOR_ID", "ba69ac6cf5650371")
+    doc_ai_project_id = os.getenv("DOCUMENTAI_PROJECT_ID") or "65970295651"
+    doc_ai_location = os.getenv("DOCUMENTAI_LOCATION") or "asia-southeast1"
+    extractor_id = os.getenv("DOCUMENTAI_OCR_EXTRACTOR_PROCESSOR_ID") or "1516a32299c1709e"
+    classifier_id = os.getenv("DOCUMENTAI_OCR_CLASSIFIER_PROCESSOR_ID") or "17f1013111dec644"
+    splitter_id = os.getenv("DOCUMENTAI_OCR_SPLITTER_PROCESSOR_ID") or "ba69ac6cf5650371"
     openai_key = os.getenv("OPENAI_API_KEY", "")
     storage_bucket = (
         os.getenv("FIREBASE_STORAGE_BUCKET")
@@ -51,27 +51,27 @@ def check_rag_pipeline_config(req: https_fn.CallableRequest):
     )
     gcp_project = os.getenv("GOOGLE_CLOUD_PROJECT", os.getenv("GCLOUD_PROJECT", ""))
 
-    doc_ai_enabled = bool(doc_ai_project_id)
+    doc_ai_enabled = True  # Always enabled — hardcoded defaults
+    env_override = bool(os.getenv("DOCUMENTAI_PROJECT_ID"))
     openai_enabled = bool(openai_key)
     ocr_extractor_resource = (
         f"projects/{doc_ai_project_id}/locations/{doc_ai_location}/processors/{extractor_id}"
-        if doc_ai_enabled
-        else None
     )
 
     config = {
         "documentAiEnabled": doc_ai_enabled,
-        "documentAiProjectId": doc_ai_project_id or "(NOT SET)",
+        "documentAiProjectId": doc_ai_project_id,
+        "documentAiProjectIdSource": "env" if env_override else "hardcoded",
         "documentAiLocation": doc_ai_location,
         "ocrExtractorProcessorId": extractor_id,
         "ocrExtractorResource": ocr_extractor_resource,
-        "ocrClassifierProcessorId": classifier_id,
-        "ocrSplitterProcessorId": splitter_id,
+        "ocrClassifierProcessorId": classifier_id + " (SKIPPED — OCR-only mode)",
+        "ocrSplitterProcessorId": splitter_id + " (SKIPPED — OCR-only mode)",
         "openAiEnabled": openai_enabled,
         "openAiKeySet": bool(openai_key),
         "storageBucket": storage_bucket or "(NOT SET)",
         "gcpProject": gcp_project or "(NOT SET)",
-        "parserMode": "DocumentAiRagParser (OCR)" if doc_ai_enabled else "PassthroughRagParser (no OCR)",
+        "parserMode": "DocumentAiRagParser (OCR-only — hardcoded)",
         "embedderMode": "OpenAiEmbedder" if openai_enabled else "DeterministicRagEmbedder (scaffold)",
     }
 
@@ -101,7 +101,7 @@ def process_uploaded_rag_document_on_create(event: firestore_fn.Event[firestore_
         org_id,
         ws_id,
         data.get("status"),
-        os.getenv("DOCUMENTAI_PROJECT_ID", "(NOT SET)"),
+        os.getenv("DOCUMENTAI_PROJECT_ID") or "65970295651 (hardcoded)",
         sorted(data.keys()),
     )
 

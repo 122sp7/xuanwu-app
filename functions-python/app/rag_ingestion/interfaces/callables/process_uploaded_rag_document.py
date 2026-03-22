@@ -64,36 +64,41 @@ def _optional_string(data: dict[str, Any], key: str) -> str | None:
 
 
 def _is_document_ai_enabled() -> bool:
-    """Return True when at least DOCUMENTAI_PROJECT_ID is configured."""
-    return bool(os.getenv("DOCUMENTAI_PROJECT_ID"))
+    """Always True — Document AI config uses hardcoded defaults (project 65970295651).
+
+    Env vars still override if present but are no longer required.
+    """
+    return True
 
 
 def _build_use_case() -> ProcessUploadedDocumentUseCase:
     storage_reader = _get_storage_reader()
 
-    if _is_document_ai_enabled():
-        from app.config.settings import load_document_ai_settings
+    # ── OCR-only mode ──────────────────────────────────────────────────────
+    # Step 1: confirm Document AI OCR Extractor works end-to-end.
+    # Classifier/Splitter processors are intentionally skipped until OCR is
+    # verified in production.  Use SimpleRagTaxonomyClassifier instead.
+    from app.config.settings import load_document_ai_settings
 
-        try:
-            doc_ai_settings = load_document_ai_settings()
-            logger.info(
-                "Document AI enabled — OCR Extractor: %s, Classifier: %s, Splitter: %s",
-                doc_ai_settings.ocr_extractor_processor_id,
-                doc_ai_settings.ocr_classifier_processor_id,
-                doc_ai_settings.ocr_splitter_processor_id,
-            )
-            parser = DocumentAiRagParser(doc_ai_settings, storage_reader)
-            taxonomy_classifier = DocumentAiTaxonomyClassifier(doc_ai_settings)
-        except Exception as error:
-            logger.warning(
-                "Document AI unavailable (%s); falling back to passthrough parser.", error
-            )
-            parser = PassthroughRagParser()
-            taxonomy_classifier = SimpleRagTaxonomyClassifier()
-    else:
-        logger.info("DOCUMENTAI_PROJECT_ID not set — using PassthroughRagParser (no structured JSON)")
+    try:
+        doc_ai_settings = load_document_ai_settings()
+        logger.info(
+            "Document AI OCR-only mode — project: %s, location: %s, "
+            "OCR Extractor: %s  (classifier/splitter SKIPPED)",
+            doc_ai_settings.project_id,
+            doc_ai_settings.location,
+            doc_ai_settings.ocr_extractor_processor_id,
+        )
+        parser = DocumentAiRagParser(doc_ai_settings, storage_reader)
+    except Exception as error:
+        logger.warning(
+            "Document AI unavailable (%s); falling back to passthrough parser.", error
+        )
         parser = PassthroughRagParser()
-        taxonomy_classifier = SimpleRagTaxonomyClassifier()
+
+    # Intentionally use simple classifier — skip Document AI Classifier until
+    # OCR Extractor is confirmed working in production.
+    taxonomy_classifier = SimpleRagTaxonomyClassifier()
 
     # Use OpenAI embedder when OPENAI_API_KEY is available; fall back to deterministic scaffold.
     embedder: DeterministicRagEmbedder | OpenAiEmbedder

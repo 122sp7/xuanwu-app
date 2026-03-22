@@ -1,9 +1,10 @@
 import os
 from dataclasses import dataclass
 
-# Processor IDs for the three Google Document AI processors deployed in asia-southeast1.
-# These are the canonical defaults for GCP project 65970295651 (asia-southeast1 region).
-# Override via env vars in production.  See functions-python/.env.example for details.
+# ── Hardcoded Document AI defaults (GCP project 65970295651 / asia-southeast1) ──
+# These are canonical values that ALWAYS work.  Env vars override if present.
+_DEFAULT_DOCUMENTAI_PROJECT_ID = "65970295651"
+_DEFAULT_DOCUMENTAI_LOCATION = "asia-southeast1"
 _DEFAULT_OCR_EXTRACTOR_PROCESSOR_ID = "1516a32299c1709e"   # extracts full text
 _DEFAULT_OCR_CLASSIFIER_PROCESSOR_ID = "17f1013111dec644"  # classifies document type
 _DEFAULT_OCR_SPLITTER_PROCESSOR_ID = "ba69ac6cf5650371"    # splits multi-document PDFs
@@ -101,9 +102,13 @@ def _optional_env(name: str, default: str) -> str:
 
 
 def load_document_ai_settings() -> DocumentAiSettings:
-    """Load Document AI settings independently — does NOT require OpenAI configuration."""
-    project_id = _required_env("DOCUMENTAI_PROJECT_ID")
-    location = _optional_env("DOCUMENTAI_LOCATION", "asia-southeast1")
+    """Load Document AI settings — hardcoded defaults; env vars override if present.
+
+    Unlike the previous version, this NEVER raises for missing env vars because
+    the canonical project / processor IDs are compiled into the binary.
+    """
+    project_id = os.getenv("DOCUMENTAI_PROJECT_ID") or _DEFAULT_DOCUMENTAI_PROJECT_ID
+    location = os.getenv("DOCUMENTAI_LOCATION") or _DEFAULT_DOCUMENTAI_LOCATION
 
     return DocumentAiSettings(
         project_id=project_id,
