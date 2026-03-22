@@ -6,7 +6,7 @@ flowchart LR
     direction TB
     subgraph NX["Next.js Runtime"]
       APP["app/(shell)/wiki-beta/page.tsx"]
-      MOD["modules/wiki-beta<br/>interfaces/components + queries"]
+      MOD["modules/wiki-beta<br/>interfaces/components + application use-cases"]
       APP --> MOD
     end
 
@@ -24,6 +24,70 @@ flowchart LR
     REIDX -->|"re-ingest from json_gcs_uri"| OUT2["RAG status refresh"]
     OUT1 --> MOD
     OUT2 --> MOD
+  end
+
+  subgraph NAV["Account Navigation Topology (UI)"]
+    direction TB
+    AC["Account"]
+
+    subgraph PER["Personal Branch"]
+      direction TB
+      PERROOT["Personal"]
+      PERWS["Workspaces"]
+      PWSX["Workspace ..."]
+      PWSN["Workspace n"]
+      PKB["Knowledge Base"]
+      PK1["Spaces"]
+      PK2["Pages"]
+      PK3["Documents"]
+      PK4["Vector Index"]
+      PK5["RAG"]
+      PK6["AI Tools"]
+      PERROOT --> PERWS
+      PERWS --> PWSX
+      PERWS --> PWSN
+      PWSX --> PKB
+      PWSN --> PKB
+      PKB --> PK1
+      PKB --> PK2
+      PKB --> PK3
+      PKB --> PK4
+      PKB --> PK5
+      PKB --> PK6
+    end
+
+    subgraph ORG["Organization Branch"]
+      direction TB
+      ORGROOT["Organization"]
+      OM["Members"]
+      OT["Teams (Permission)"]
+      OWS["Workspaces"]
+      OWSX["Workspace ..."]
+      OWSN["Workspace n"]
+      OKB["Knowledge Base"]
+      OK1["Spaces"]
+      OK2["Pages"]
+      OK3["Documents"]
+      OK4["Vector Index"]
+      OK5["RAG"]
+      OK6["AI Tools"]
+      ORGROOT --> OM
+      ORGROOT --> OT
+      ORGROOT --> OWS
+      OWS --> OWSX
+      OWS --> OWSN
+      OWSX --> OKB
+      OWSN --> OKB
+      OKB --> OK1
+      OKB --> OK2
+      OKB --> OK3
+      OKB --> OK4
+      OKB --> OK5
+      OKB --> OK6
+    end
+
+    AC --> PERROOT
+    AC --> ORGROOT
   end
 
   subgraph DM["Account Data Model (Firestore)"]
@@ -136,6 +200,22 @@ flowchart LR
 ## Notes
 
 - app/(shell)/wiki-beta is the route orchestrator.
-- modules/wiki-beta owns UI composition and query adapters.
+- modules/wiki-beta owns UI composition and application orchestration.
 - py_fn owns callable execution for RAG query and document reindex.
 - wiki-beta and wiki must remain isolated by lint import boundaries.
+- In topology, "Workspace ..." and "Workspace n" are illustrative for 1..n workspaces, not fixed counts.
+
+## Runtime Boundary Contract
+
+- Next.js Runtime owns:
+  - route orchestrator and shell navigation integration
+  - interfaces/components and application use-cases
+  - account-scoped query orchestration and UI state
+- Firebase Functions Runtime (py_fn) owns:
+  - callable execution for `rag_query` and `rag_reindex_document`
+  - retrieval, reindex processing, and worker-side execution details
+- Firestore boundary:
+  - all reads/writes are account-scoped (`accounts/{accountId}/...`)
+- Module isolation boundary:
+  - `wiki-beta` and `wiki` remain separate bounded contexts
+  - cross-module access must go through public barrels and lint boundaries
