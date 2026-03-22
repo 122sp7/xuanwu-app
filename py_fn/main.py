@@ -27,7 +27,7 @@ from firebase_functions import https_fn, storage_fn
 from firebase_functions.options import SupportedRegion, set_global_options
 
 from core.config import UPLOAD_BUCKET, GCP_REGION
-from interface.handler import (
+from interface.handlers import (
     handle_object_finalized,
     handle_parse_document,
     handle_rag_query,
