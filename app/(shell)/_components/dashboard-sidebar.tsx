@@ -399,7 +399,7 @@ export function DashboardSidebar({
                 </p>
                 {(
                   [
-                    { href: "/wiki-beta", label: "測試中樞" },
+                    { href: "/wiki-beta", label: "知識總覽" },
                     { href: "/wiki-beta/rag-query", label: "RAG Query" },
                     { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
                     { href: "/wiki-beta/documents", label: "Documents" },

@@ -137,7 +137,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={onBack}>返回中樞</Button>
+        <Button variant="outline" onClick={onBack}>返回 Wiki Beta</Button>
         {showDocsSection ? (
           <Button variant="outline" onClick={() => void loadDocs()} disabled={loadingDocs}>
             {loadingDocs ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}刷新文件
@@ -148,8 +148,8 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       {showQueryCard ? (
       <Card>
         <CardHeader>
-          <CardTitle>RAG Query 測試</CardTitle>
-          <CardDescription>直接呼叫 py_fn rag_query callable 驗證回答與引用來源。</CardDescription>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>直接呼叫 py_fn rag_query callable，取得回答與引用來源。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
@@ -208,7 +208,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       {showDocsSection ? (
       <Card>
         <CardHeader>
-          <CardTitle>{showDocumentsCard ? "Documents 檢視" : "文件重整測試"}</CardTitle>
+          <CardTitle>{showDocumentsCard ? "Documents 檢視" : "文件重整"}</CardTitle>
           <CardDescription>
             account: {activeAccountId || "(未選擇)"}
             {workspaceId ? ` / workspace: ${workspaceId}` : ""}

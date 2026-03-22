@@ -197,7 +197,7 @@ export function WikiBetaHubView({ onGoRagTest }: WikiBetaHubViewProps) {
         onClick={onGoRagTest}
         className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
       >
-        進入 RAG 測試
+        前往 RAG Query
       </button>
     </section>
   );

@@ -19,7 +19,7 @@ export default function WikiBetaPage() {
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Platform</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Wiki Beta</h1>
-        <p className="text-sm text-muted-foreground">平行驗證中的 wiki-beta 入口，專注打通 py_fn callable 與 RAG 工作流。</p>
+        <p className="text-sm text-muted-foreground">wiki-beta 入口，專注 account-scoped 知識流程與 py_fn callable 協作。</p>
       </header>
 
       <nav className="flex items-center gap-2" aria-label="Wiki Beta sections">
