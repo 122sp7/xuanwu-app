@@ -13,9 +13,11 @@ import {
   listWikiBetaParsedDocuments,
   reindexWikiBetaDocument,
   runWikiBetaRagQuery,
-  type WikiBetaCitation,
-  type WikiBetaParsedDocument,
-} from "../queries/wiki-beta.queries";
+} from "../../application";
+import type {
+  WikiBetaCitation,
+  WikiBetaParsedDocument,
+} from "../../domain";
 
 interface WikiBetaRagTestViewProps {
   readonly onBack: () => void;

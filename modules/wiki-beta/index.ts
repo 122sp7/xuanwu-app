@@ -1,11 +1,28 @@
-export { WikiBetaHubView } from "./interfaces/components/WikiBetaHubView";
-export { WikiBetaRagTestView } from "./interfaces/components/WikiBetaRagTestView";
+export type {
+  WikiBetaAccountKnowledgeNode,
+  WikiBetaAccountSeed,
+  WikiBetaAccountType,
+  WikiBetaCitation,
+  WikiBetaKnowledgeItemNode,
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+  WikiBetaWorkspaceKnowledgeNode,
+  WikiBetaWorkspaceRef,
+} from "./domain";
+
+export type { WikiBetaKnowledgeRepository, WikiBetaWorkspaceRepository } from "./domain";
+
 export {
+  buildWikiBetaKnowledgeTree,
   listWikiBetaParsedDocuments,
   reindexWikiBetaDocument,
   runWikiBetaRagQuery,
-  type WikiBetaCitation,
-  type WikiBetaParsedDocument,
-  type WikiBetaRagQueryResult,
-  type WikiBetaReindexInput,
-} from "./interfaces/queries/wiki-beta.queries";
+} from "./application";
+
+export {
+  FirebaseWikiBetaKnowledgeRepository,
+  FirebaseWikiBetaWorkspaceRepository,
+} from "./infrastructure";
+
+export { WikiBetaHubView, WikiBetaRagTestView } from "./interfaces";

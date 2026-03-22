@@ -1,0 +1,57 @@
+import type {
+  WikiBetaAccountKnowledgeNode,
+  WikiBetaAccountSeed,
+  WikiBetaKnowledgeItemNode,
+  WikiBetaWorkspaceKnowledgeNode,
+} from "../../domain/entities/wiki-beta.types";
+import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/wiki-beta.repositories";
+import { FirebaseWikiBetaWorkspaceRepository } from "../../infrastructure";
+
+const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
+
+function buildKnowledgeBaseItems(workspaceId: string): WikiBetaKnowledgeItemNode[] {
+  return [
+    { key: "spaces", label: "Spaces", href: `/workspace/${workspaceId}`, enabled: true },
+    { key: "pages", label: "Pages", href: "/wiki", enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/wiki-beta", enabled: false },
+    { key: "rag", label: "RAG", href: "/wiki-beta", enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiBetaWorkspaceKnowledgeNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}`,
+    knowledgeBaseItems: buildKnowledgeBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiBetaKnowledgeTree(
+  seeds: WikiBetaAccountSeed[],
+  workspaceRepository: WikiBetaWorkspaceRepository = defaultWorkspaceRepository,
+): Promise<WikiBetaAccountKnowledgeNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiBetaAccountKnowledgeNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
