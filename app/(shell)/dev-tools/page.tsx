@@ -3,6 +3,7 @@
 /**
  * Module: dev-tools page — /dev-tools
  * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 取得 GCS URI → 呼叫 parse_document with URI
  * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
  */
 
@@ -10,11 +11,8 @@ import { useRef, useState } from "react";
 import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { Button } from "@ui-shadcn/ui/button";
-
-// ── 常數 ─────────────────────────────────────────────────────────────────────
-
-// 無需硬編碼 URL，改用 getFirebaseFunctions 搭配 region
 
 // ── 型別 ─────────────────────────────────────────────────────────────────────
 
@@ -28,6 +26,9 @@ type Status = "idle" | "uploading" | "parsing" | "done" | "error";
 
 // ── 常數 ─────────────────────────────────────────────────────────────────────
 
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app"; // Firebase Storage bucket
+const WATCH_PATH = "uploads/"; // GCS folder path
+
 const ACCEPTED_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
   "image/tiff": ".tif / .tiff",
@@ -36,21 +37,6 @@ const ACCEPTED_MIME: Record<string, string> = {
 };
 
 const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-// ── 工具函式 ──────────────────────────────────────────────────────────────────
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      // 去掉 "data:<mime>;base64," 前綴
-      resolve(dataUrl.split(",")[1] ?? "");
-    };
-    reader.onerror = () => reject(new Error("FileReader failed"));
-    reader.readAsDataURL(file);
-  });
-}
 
 // ── Page component ─────────────────────────────────────────────────────────
 
@@ -63,7 +49,7 @@ export default function DevToolsPage() {
   const [logs, setLogs] = useState<string[]>([]);
 
   function appendLog(msg: string) {
-    setLogs((prev) => [...prev, `[${new Date().toISOString()}] ${msg}`]);
+    setLogs((prev) => [...prev, `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`]);
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -76,34 +62,39 @@ export default function DevToolsPage() {
     if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
   }
 
-  async function handleParseViaCallable() {
+  async function handleUploadAndParse() {
     if (!selectedFile) return;
 
     setStatus("uploading");
     setResult(null);
     setErrorMsg(null);
-    appendLog("將檔案轉為 base64…");
+    appendLog("📤 上傳檔案到 Cloud Storage…");
 
     try {
-      const b64 = await fileToBase64(selectedFile);
-      appendLog(`base64 完成，長度 ${b64.length} chars`);
+      // ── Step 1: Upload to GCS ────────────────────────────────────────
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const uploadPath = `${WATCH_PATH}${Date.now()}-${selectedFile.name}`;
+      const fileRef = storageApi.ref(storage, uploadPath);
 
+      appendLog(`GCS path: gs://${UPLOAD_BUCKET}/${uploadPath}`);
+
+      await storageApi.uploadBytes(fileRef, selectedFile);
+      appendLog(`✅ 上傳完成`);
+
+      // ── Step 2: Call parse_document with GCS URI ───────────────────
+      const gcsUri = `gs://${UPLOAD_BUCKET}/${uploadPath}`;
       setStatus("parsing");
-      appendLog("呼叫 parse_document (asia-southeast1)…");
+      appendLog("🔍 呼叫 parse_document (asia-southeast1)…");
 
-      // 使用已初始化的 Firebase Functions instance
       const fns = getFirebaseFunctions("asia-southeast1");
       const parseDocument = functionsApi.httpsCallable<
-        { content_b64: string; mime_type: string },
+        { gcs_uri: string },
         ParseResult
       >(fns, "parse_document");
 
-      const response = await parseDocument({
-        content_b64: b64,
-        mime_type: selectedFile.type,
-      });
+      const response = await parseDocument({ gcs_uri: gcsUri });
 
-      appendLog("✅ 收到回應");
+      appendLog("✅ 解析完成");
       setResult(response.data);
       setStatus("done");
     } catch (err: unknown) {
@@ -135,7 +126,7 @@ export default function DevToolsPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
           <p className="text-xs text-muted-foreground">
-            py_fn · parse_document (Document AI · asia-southeast1)
+            py_fn · parse_document（GCS URI）· Document AI · asia-southeast1
           </p>
         </div>
       </div>
@@ -169,11 +160,11 @@ export default function DevToolsPage() {
       {/* ── Actions ────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行解析
+          2. 執行上傳 & 解析
         </h2>
         <div className="flex gap-3">
           <Button
-            onClick={handleParseViaCallable}
+            onClick={handleUploadAndParse}
             disabled={!selectedFile || isLoading}
             className="gap-2"
           >
@@ -182,7 +173,7 @@ export default function DevToolsPage() {
             ) : (
               <FlaskConical className="size-4" />
             )}
-            {status === "uploading" ? "準備中…" : status === "parsing" ? "解析中…" : "呼叫 parse_document"}
+            {status === "uploading" ? "上傳中…" : status === "parsing" ? "解析中…" : "上傳 & 呼叫"}
           </Button>
           <Button variant="outline" onClick={reset} disabled={isLoading}>
             重置

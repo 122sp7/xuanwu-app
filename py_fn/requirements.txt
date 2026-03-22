@@ -7,5 +7,8 @@ firebase-admin>=6.5.0,<7.0.0
 # Google Cloud Document AI - synchronous & async document processing
 google-cloud-documentai<3.0.0
 
+# Google Cloud Firestore - explicit dependency for type hints & features
+google-cloud-firestore<3.0.0
+
 # GCS helper used by the storage service layer
 google-cloud-storage<3.0.0
