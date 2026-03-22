@@ -9,12 +9,14 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import {
   CustomizeNavigationDialog,
   readNavPreferences,
@@ -127,6 +129,8 @@ export function DashboardSidebar({
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
+  const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
@@ -246,6 +250,54 @@ export function DashboardSidebar({
 
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
+
+  async function handleWikiBetaQuickCreate(kind: "page" | "database") {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+
+    setCreatingKind(kind);
+    try {
+      const db = getFirebaseFirestore();
+      const collectionName = kind === "page" ? "pages" : "databases";
+      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
+
+      const payload: Record<string, unknown> = {
+        title: baseTitle,
+        kind,
+        accountId,
+        createdAt: firestoreApi.serverTimestamp(),
+        updatedAt: firestoreApi.serverTimestamp(),
+      };
+
+      if (activeWorkspaceId) {
+        payload.spaceId = activeWorkspaceId;
+      }
+
+      if (kind === "database") {
+        payload.template = "task-governance";
+        payload.metadata = {
+          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
+          description: "任務依賴與技能門檻分類模板",
+        };
+      }
+
+      await firestoreApi.addDoc(
+        firestoreApi.collection(db, "accounts", accountId, collectionName),
+        payload,
+      );
+
+      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
+      setWikiBetaQuickCreateOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
 
   return (
     <>
@@ -439,7 +491,6 @@ export function DashboardSidebar({
                     { href: "/wiki-beta", label: "知識總覽" },
                     { href: "/wiki-beta/rag-query", label: "RAG Query" },
                     { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
-                    { href: "/wiki-beta/documents", label: "Documents" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -458,6 +509,54 @@ export function DashboardSidebar({
                     </Link>
                   );
                 })}
+
+                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                  <Link
+                    href="/wiki-beta/documents"
+                    aria-current={isActiveRoute("/wiki-beta/documents") ? "page" : undefined}
+                    className={`flex-1 ${
+                      isActiveRoute("/wiki-beta/documents")
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Documents
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setWikiBetaQuickCreateOpen((prev) => !prev);
+                    }}
+                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
+                    aria-label="快速新增頁面或資料庫"
+                    title="快速新增"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+
+                  {wikiBetaQuickCreateOpen ? (
+                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiBetaQuickCreate("page")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiBetaQuickCreate("database")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="my-1.5 border-t border-border/40" />
 

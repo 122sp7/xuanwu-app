@@ -92,11 +92,30 @@
 - 失敗回饋：
   - 顯示錯誤提示，不可靜默失敗。
 
+### F7 任務分類與門檻治理（planned）
+
+- 當 account 下 documents / vectors 增長後，提供 page/database 作為分類與管理層。
+- 任務模型需支援：
+  - 任務本體（tasks）
+  - 任務依賴（task_dependencies）
+  - 技能定義（skills）
+  - 任務技能門檻（task_skill_thresholds）
+- 任務執行與指派需能檢查門檻是否達標（例如技能等級、必備技能集合）。
+
 ## 5. 資料模型規格
 
 目前 canonical 主集合：
 
 - accounts/{accountId}/documents/{documentId}
+
+planned 管理層集合（依 runtime-flow）：
+
+- accounts/{accountId}/pages/{pageId}
+- accounts/{accountId}/databases/{databaseId}
+- accounts/{accountId}/tasks/{taskId}
+- accounts/{accountId}/task_dependencies/{dependencyId}
+- accounts/{accountId}/skills/{skillId}
+- accounts/{accountId}/task_skill_thresholds/{thresholdId}
 
 核心欄位：
 

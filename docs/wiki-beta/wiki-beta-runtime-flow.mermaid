@@ -107,6 +107,11 @@ flowchart LR
     F["files/{fileId} (planned)"]
     D["documents/{documentId}"]
     P["pages/{pageId} (planned)"]
+    DB["databases/{databaseId} (planned)"]
+    TK["tasks/{taskId} (planned)"]
+    TD["task_dependencies/{dependencyId} (planned)"]
+    SK["skills/{skillId} (planned)"]
+    TS["task_skill_thresholds/{thresholdId} (planned)"]
     C["chunks/{chunkId} (planned)"]
     V["vectors/{vectorId} (planned in Firestore)\nactual index: Upstash"]
     Q["rag_queries/{queryId} (planned)"]
@@ -118,6 +123,11 @@ flowchart LR
     A --> F
     A --> D
     A --> P
+    A --> DB
+    A --> TK
+    A --> TD
+    A --> SK
+    A --> TS
     A --> C
     A --> V
     A --> Q
@@ -127,6 +137,10 @@ flowchart LR
     D --> C
     C --> V
     S --> P
+    DB --> TK
+    TK --> TD
+    SK --> TS
+    TK --> TS
     S --> D
     D -. "Document to Page (manual curation)" .-> P
   end
@@ -162,6 +176,7 @@ flowchart LR
 - Phase 3 (current): Firestore reads/writes and RAG retrieval are account-scoped only.
 - Phase 4 (current): `/wiki-beta/documents` reaches `/dev-tools` parity for upload/list/reindex workflow, with account-wide default list + optional workspace filter.
 - Phase 5 (planned): Sidebar `Documents +` quick create for page/database (Notion-like entry).
+- Phase 6 (planned): task/database classification model with dependency graph and skill-threshold gating.
 
 ## Field Summary
 
@@ -187,6 +202,11 @@ flowchart LR
 - accounts/{accountId}/chunks/{chunkId}
 - accounts/{accountId}/vectors/{vectorId}
 - accounts/{accountId}/pages/{pageId}
+- accounts/{accountId}/databases/{databaseId}
+- accounts/{accountId}/tasks/{taskId}
+- accounts/{accountId}/task_dependencies/{dependencyId}
+- accounts/{accountId}/skills/{skillId}
+- accounts/{accountId}/task_skill_thresholds/{thresholdId}
 - accounts/{accountId}/rag_queries/{queryId}
 - accounts/{accountId}/rag_answers/{answerId}
 
@@ -198,6 +218,7 @@ flowchart LR
 - `/wiki-beta/documents` is the product entry for upload/list/reindex, aligned with `/dev-tools` workflow.
 - Documents page defaults to account-wide visibility; workspace view is an explicit filter (`workspaceId`).
 - Documents sidebar right-side `+` is planned for quick create (page/database) and follows account/workspace scope rules.
+- For large account datasets, page/database layer is used for classification; tasks can declare dependencies and required skill thresholds.
 - Namespace is a background capability (scope/slug model), not a standalone UI entry.
 - wiki-beta and wiki must remain isolated by lint import boundaries.
 - In topology, "Workspace ..." and "Workspace n" are illustrative for 1..n workspaces, not fixed counts.
