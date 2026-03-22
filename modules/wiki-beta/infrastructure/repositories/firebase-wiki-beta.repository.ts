@@ -6,6 +6,7 @@ import type {
   WikiBetaWorkspaceRepository,
 } from "../../domain/repositories/wiki-beta.repositories";
 import type {
+  WikiBetaCitation,
   WikiBetaParsedDocument,
   WikiBetaRagQueryResult,
   WikiBetaReindexInput,
@@ -13,13 +14,50 @@ import type {
 } from "../../domain/entities/wiki-beta.types";
 import { getWorkspacesForAccount } from "@/modules/workspace";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  if (isRecord(value)) {
+    return value;
+  }
+  return {};
+}
+
 function toDateOrNull(value: unknown): Date | null {
-  if (!value || typeof value !== "object") return null;
-  const maybeTimestamp = value as { toDate?: () => Date };
-  if (typeof maybeTimestamp.toDate === "function") {
-    return maybeTimestamp.toDate();
+  if (!isRecord(value)) return null;
+  const maybeToDate = value.toDate;
+  if (typeof maybeToDate === "function") {
+    const converted = maybeToDate();
+    if (converted instanceof Date) {
+      return converted;
+    }
   }
   return null;
+}
+
+function toCitations(value: unknown): WikiBetaCitation[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => {
+    if (!isRecord(item)) {
+      return {};
+    }
+
+    return {
+      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
+      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
+      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
+      filename: typeof item.filename === "string" ? item.filename : undefined,
+      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
+      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
+      score: typeof item.score === "number" ? item.score : undefined,
+      text: typeof item.text === "string" ? item.text : undefined,
+    };
+  });
 }
 
 function toNumberOrDefault(value: unknown, fallback = 0): number {
@@ -27,10 +65,10 @@ function toNumberOrDefault(value: unknown, fallback = 0): number {
 }
 
 function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiBetaParsedDocument {
-  const source = (data.source ?? {}) as Record<string, unknown>;
-  const parsed = (data.parsed ?? {}) as Record<string, unknown>;
-  const rag = (data.rag ?? {}) as Record<string, unknown>;
-  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
 
   const filenameFromSource = typeof source.filename === "string" ? source.filename : "";
   const filenameFromDoc = typeof data.title === "string" ? data.title : "";
@@ -74,11 +112,11 @@ export class FirebaseWikiBetaKnowledgeRepository implements WikiBetaKnowledgeRep
     const functions = getFirebaseFunctions("asia-southeast1");
     const callable = functionsApi.httpsCallable(functions, "rag_query");
     const result = await callable({ query, top_k: topK, account_id: accountId });
-    const data = (result.data ?? {}) as Record<string, unknown>;
+    const data = objectOrEmpty(result.data);
 
     return {
       answer: typeof data.answer === "string" ? data.answer : "",
-      citations: Array.isArray(data.citations) ? (data.citations as WikiBetaRagQueryResult["citations"]) : [],
+      citations: toCitations(data.citations),
       cache: data.cache === "hit" ? "hit" : "miss",
       vectorHits: typeof data.vector_hits === "number" ? data.vector_hits : 0,
       searchHits: typeof data.search_hits === "number" ? data.search_hits : 0,
@@ -109,7 +147,7 @@ export class FirebaseWikiBetaKnowledgeRepository implements WikiBetaKnowledgeRep
     const accountQuery = firestoreApi.query(accountRef, firestoreApi.limit(limitCount));
     const accountSnap = await firestoreApi.getDocs(accountQuery);
     const docs = accountSnap.docs.map((item) => {
-      const data = (item.data() ?? {}) as Record<string, unknown>;
+      const data = objectOrEmpty(item.data());
       return mapToParsedDocument(item.id, data);
     });
 

@@ -4,7 +4,7 @@ import type {
   WikiBetaReindexInput,
   WikiBetaWorkspaceRef,
 } from "../entities/wiki-beta.types";
-import type { WikiBetaPage as WikiBetaPageEntity } from "../entities/wiki-beta-page.types";
+import type { WikiBetaPage } from "../entities/wiki-beta-page.types";
 import type {
   WikiBetaLibrary,
   WikiBetaLibraryField,
@@ -22,10 +22,10 @@ export interface WikiBetaWorkspaceRepository {
 }
 
 export interface WikiBetaPageRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaPageEntity[]>;
-  findById(accountId: string, pageId: string): Promise<WikiBetaPageEntity | null>;
-  create(page: WikiBetaPageEntity): Promise<void>;
-  update(page: WikiBetaPageEntity): Promise<void>;
+  listByAccountId(accountId: string): Promise<WikiBetaPage[]>;
+  findById(accountId: string, pageId: string): Promise<WikiBetaPage | null>;
+  create(page: WikiBetaPage): Promise<void>;
+  update(page: WikiBetaPage): Promise<void>;
 }
 
 export interface WikiBetaLibraryRepository {
