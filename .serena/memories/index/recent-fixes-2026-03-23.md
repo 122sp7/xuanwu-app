@@ -1,0 +1,5 @@
+- py_fn deploy blocker fixed: Python function signatures in `py_fn/app/services/firestore.py` had required params after default params.
+- Signature rule captured: keep required `account_id` before defaulted args (e.g., `update_parsed`, `mark_rag_ready`).
+- Registration flow fix: `app/(public)/page.tsx` now seeds Firestore account doc right after successful register.
+- Validation done: file-level type/errors check passed for modified public page.
+- Operational result: `npm run deploy:functions:py-fn` completed successfully after signature fix.

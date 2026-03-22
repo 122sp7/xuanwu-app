@@ -1,0 +1,4 @@
+- 2026-03-23: Root cause for "register success but no Firestore account doc" = `RegisterUseCase` only creates Firebase Auth user; it does NOT persist `accounts/{uid}`.
+- Fix applied in `app/(public)/page.tsx`: after `registerUseCase.execute(...)` success, call `CreateUserAccountUseCase.execute(result.aggregateId, name, email)`.
+- Effect: registration now writes user profile to Firestore `accounts/{uid}` so app/account subscriptions can hydrate correctly.
+- Note: `py_fn` Firestore service edits are unrelated to user registration flow.
