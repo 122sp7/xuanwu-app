@@ -56,7 +56,6 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
   - `@shared-constants`
   - `@shared-hooks`
   - `@integration-firebase`
-  - `@integration-upstash`
   - `@integration-http`
   - `@api-contracts`
   - `@ui-shadcn`

@@ -31,7 +31,6 @@
       "@shared-hooks": ["./packages/shared-hooks/index.ts"],
       "@integration-firebase": ["./packages/integration-firebase/index.ts"],
       "@integration-firebase/*": ["./packages/integration-firebase/*"],
-      "@integration-upstash": ["./packages/integration-upstash/index.ts"],
       "@integration-http": ["./packages/integration-http/index.ts"],
       "@api-contracts": ["./packages/api-contracts/index.ts"],
       "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],

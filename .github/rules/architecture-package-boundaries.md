@@ -43,5 +43,4 @@ import { z } from "@lib-zod";                                        // ✅
 ```typescript
 import { Button } from "@ui-shadcn/ui/button";                // ✅ Sub-module import
 import { useAppStore } from "@shared-hooks";                   // ✅ Direct barrel
-import { vectorClient } from "@integration-upstash";           // ✅ Direct barrel
 ```

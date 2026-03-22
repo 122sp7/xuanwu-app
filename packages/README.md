@@ -29,7 +29,6 @@ Inspired by **Cal.com** (`packages/@calcom/*`) and **Plane** (`packages/@plane/*
 | `@shared-constants` | `shared-constants/` | `APP_NAME`, `PAGINATION_DEFAULTS` |
 | `@shared-hooks` | `shared-hooks/` | `useAppStore` (Zustand global store) |
 | `@integration-firebase` | `integration-firebase/` | Firebase client SDK (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-upstash` | `integration-upstash/` | Upstash Redis, Vector, QStash, Workflow, Box |
 | `@integration-http` | `integration-http/` | Axios HTTP client with interceptors |
 | `@api-contracts` | `api-contracts/` | REST route registry + GraphQL schema |
 | `@ui-shadcn` | `ui-shadcn/` | shadcn/ui components, `cn()` utility, hooks |
@@ -85,12 +84,11 @@ import { format } from "@lib-date-fns";
 |-------|-----------|------|-----|
 | 1 | Domain types, utils, validators, constants, hooks | `shared/*` | `packages/shared-*` |
 | 2 | Firebase client SDK | `libs/firebase/` + `infrastructure/firebase/` | `packages/integration-firebase/` |
-| 3 | Upstash services | `libs/upstash/` + `infrastructure/upstash/` | `packages/integration-upstash/` |
-| 4 | HTTP client | `infrastructure/axios/` | `packages/integration-http/` |
-| 5 | API contracts | `interfaces/rest/` + `interfaces/graphql/` | `packages/api-contracts/` |
-| 6 | shadcn components + cn() | `ui/shadcn/` + `libs/utils.ts` | `packages/ui-shadcn/` |
-| 7 | Vis.js components | `ui/vis/` | `packages/ui-vis/` |
-| 8 | Library wrappers | `libs/*` | `packages/lib-*` |
+| 3 | HTTP client | `infrastructure/axios/` | `packages/integration-http/` |
+| 4 | API contracts | `interfaces/rest/` + `interfaces/graphql/` | `packages/api-contracts/` |
+| 5 | shadcn components + cn() | `ui/shadcn/` + `libs/utils.ts` | `packages/ui-shadcn/` |
+| 6 | Vis.js components | `ui/vis/` | `packages/ui-vis/` |
+| 7 | Library wrappers | `libs/*` | `packages/lib-*` |
 | — | Python worker runtime | `libs/firebase/functions-python/` | `functions-python/` (root) |
 
 > **Note:** `functions-python/` is a Python Firebase Functions codebase and is **not** a TypeScript

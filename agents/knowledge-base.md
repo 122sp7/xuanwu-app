@@ -108,7 +108,6 @@ import type { CommandResult } from "@/shared/types";
 | `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
 | `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
 | `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-upstash` | integration-upstash | Upstash Redis, Vector, QStash, Workflow, Box |
 | `@integration-http` | integration-http | Axios HTTP client with interceptors |
 | `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
 | `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
@@ -131,7 +130,7 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 | Blocked Pattern | Replacement |
 |----------------|-------------|
 | `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-upstash`, `@integration-http` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
 | `@/libs/*` | `@lib-*` or `@integration-*` |
 | `@/ui/shadcn/*` | `@ui-shadcn/*` |
 | `@/ui/vis*` | `@ui-vis` |
@@ -150,7 +149,6 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 | State (global) | Zustand | 5.0.12 |
 | State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
 | AI | Genkit + Google GenAI | 1.30.1 |
-| Cache / Queue | Upstash (Redis, Vector, QStash, Workflow, Box) | Various |
 | Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
 | Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
 | Date Handling | date-fns | 4 |
