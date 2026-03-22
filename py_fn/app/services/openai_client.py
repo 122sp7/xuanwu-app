@@ -4,7 +4,7 @@ OpenAI client service — 提供 embeddings / LLM 共用 client。
 
 from openai import OpenAI
 
-from app.config import OPENAI_API_KEY
+from app.config import OPENAI_API_KEY, OPENAI_MAX_RETRIES, OPENAI_TIMEOUT_SECONDS
 
 _client: OpenAI | None = None
 
@@ -20,5 +20,9 @@ def get_openai_client() -> OpenAI:
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is not set")
     if _client is None:
-        _client = OpenAI(api_key=OPENAI_API_KEY)
+        _client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            timeout=OPENAI_TIMEOUT_SECONDS,
+            max_retries=OPENAI_MAX_RETRIES,
+        )
     return _client

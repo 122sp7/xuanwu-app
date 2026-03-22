@@ -24,9 +24,9 @@ def parsed_json_path(upload_object_path: str) -> str:
     """
     將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
 
-    規則：
+        規則：
             - 去掉 uploads/ 前綴，換成 files/ 前綴
-      - 副檔名替換為 .json
+            - 副檔名替換為 .json
 
     範例：
                 uploads/org/ws/file.pdf  →  files/org/ws/file.json
@@ -52,7 +52,8 @@ def upload_json(bucket_name: str, object_path: str, data: dict) -> str:
     bucket = fb_storage.bucket(bucket_name)
     blob = bucket.blob(object_path)
 
-    json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+    # 緊湊序列化可降低 CPU 與儲存傳輸成本。
+    json_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     blob.upload_from_string(json_bytes, content_type="application/json")
 
     uri = f"gs://{bucket_name}/{object_path}"
