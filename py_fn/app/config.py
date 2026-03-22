@@ -8,9 +8,11 @@ import os
 GCP_PROJECT: str = "65970295651"
 GCP_REGION: str = os.environ.get("FUNCTION_REGION", "asia-southeast1")
 
-# ── Cloud Storage ────────────────────────────────────────────────────────────
-# 上傳等待 Document AI 處理的暫存 bucket
-UPLOAD_BUCKET: str = os.environ.get("UPLOAD_BUCKET", f"{GCP_PROJECT}.appspot.com")
+# -- Cloud Storage ----------------------------------------
+# Firebase Storage bucket (from firebase.json storage.bucket)
+UPLOAD_BUCKET: str = os.environ.get(
+    "UPLOAD_BUCKET", "xuanwu-i-00708880-4e2d8.firebasestorage.app"
+)
 
 # ── Document AI ──────────────────────────────────────────────────────────────
 # 格式： projects/{project}/locations/{location}/processors/{processor_id}
