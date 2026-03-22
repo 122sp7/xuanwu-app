@@ -16,7 +16,7 @@
         "MDB_MCP_CONNECTION_STRING": "${input:MDB_MCP_CONNECTION_STRING}"
       }
     },
-    "oraios/serena": {
+    "serena": {
       "type": "stdio",
       "command": "uvx",
       "args": [
