@@ -34,7 +34,19 @@ logging.basicConfig(level=logging.INFO)
 set_global_options(
     region=SupportedRegion.ASIA_SOUTHEAST1,
     max_instances=10,
-    secrets=["OPENAI_API_KEY"],
+    secrets=[
+        "OPENAI_API_KEY",
+        "UPSTASH_VECTOR_REST_URL",
+        "UPSTASH_VECTOR_REST_TOKEN",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "UPSTASH_SEARCH_REST_URL",
+        "UPSTASH_SEARCH_REST_TOKEN",
+        "QSTASH_URL",
+        "QSTASH_TOKEN",
+        "QSTASH_CURRENT_SIGNING_KEY",
+        "QSTASH_NEXT_SIGNING_KEY",
+    ],
 )
 
 # ── Cloud Storage 觸發器 ──────────────────────────────────────────────────────
