@@ -21,6 +21,7 @@ export interface WikiBetaRagQueryResult {
 export interface WikiBetaParsedDocument {
   id: string;
   filename: string;
+  workspaceId: string;
   sourceGcsUri: string;
   jsonGcsUri: string;
   pageCount: number;

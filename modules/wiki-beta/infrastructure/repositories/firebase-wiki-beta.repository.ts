@@ -40,10 +40,13 @@ function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiBet
   const sourceGcsFromMeta = typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : "";
   const jsonGcsFromParsed = typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "";
   const jsonGcsFromMeta = typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : "";
+  const workspaceIdFromDoc = typeof data.spaceId === "string" ? data.spaceId : "";
+  const workspaceIdFromMeta = typeof metadata.space_id === "string" ? metadata.space_id : "";
 
   return {
     id,
     filename: filenameFromSource || filenameFromDoc || filenameFromMeta || id,
+    workspaceId: workspaceIdFromDoc || workspaceIdFromMeta,
     sourceGcsUri: sourceGcsFromSource || sourceGcsFromMeta,
     jsonGcsUri: jsonGcsFromParsed || jsonGcsFromMeta,
     pageCount:

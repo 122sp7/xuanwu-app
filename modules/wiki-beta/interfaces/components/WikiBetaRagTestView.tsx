@@ -22,6 +22,7 @@ import type {
 interface WikiBetaRagTestViewProps {
   readonly onBack: () => void;
   readonly mode?: "all" | "query" | "reindex" | "documents";
+  readonly workspaceId?: string;
 }
 
 function formatDate(value: Date | null): string {
@@ -29,7 +30,7 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("zh-TW", { hour12: false });
 }
 
-export function WikiBetaRagTestView({ onBack, mode = "all" }: WikiBetaRagTestViewProps) {
+export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiBetaRagTestViewProps) {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
   const showQueryCard = mode === "all" || mode === "query";
@@ -124,7 +125,14 @@ export function WikiBetaRagTestView({ onBack, mode = "all" }: WikiBetaRagTestVie
     }
   }
 
-  const readyCount = useMemo(() => docs.filter((item) => item.ragStatus === "ready").length, [docs]);
+  const filteredDocs = useMemo(() => {
+    if (!workspaceId) return docs;
+    return docs.filter((item) => item.workspaceId === workspaceId);
+  }, [docs, workspaceId]);
+  const filteredReadyCount = useMemo(
+    () => filteredDocs.filter((item) => item.ragStatus === "ready").length,
+    [filteredDocs],
+  );
 
   return (
     <div className="space-y-4">
@@ -202,17 +210,21 @@ export function WikiBetaRagTestView({ onBack, mode = "all" }: WikiBetaRagTestVie
         <CardHeader>
           <CardTitle>{showDocumentsCard ? "Documents 檢視" : "文件重整測試"}</CardTitle>
           <CardDescription>
-            account: {activeAccountId || "(未選擇)"} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
+            account: {activeAccountId || "(未選擇)"}
+            {workspaceId ? ` / workspace: ${workspaceId}` : ""}
+            {` / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loadingDocs ? (
             <p className="text-sm text-muted-foreground">讀取中...</p>
-          ) : docs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前沒有可用文件。</p>
+          ) : filteredDocs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {workspaceId ? "此工作區目前沒有可用文件。" : "目前沒有可用文件。"}
+            </p>
           ) : (
             <div className="space-y-2">
-              {docs.map((doc) => (
+              {filteredDocs.map((doc) => (
                 <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 p-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{doc.filename}</p>
