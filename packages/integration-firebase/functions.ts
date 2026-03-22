@@ -24,12 +24,10 @@ export function getFirebaseFunctions(regionOrCustomDomain?: string): Functions {
       firebaseClientApp,
       regionOrCustomDomain ?? process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1"
     );
-    if (process.env.NODE_ENV === "development") {
-      const emulatorHost =
-        process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_HOST ?? "localhost";
-      const emulatorPort = Number(
-        process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? "5001"
-      );
+    // 只有在明確設定 emulator host 時才連接，否則直接用雲端
+    if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_HOST) {
+      const emulatorHost = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_HOST;
+      const emulatorPort = Number(process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? "5001");
       connectFunctionsEmulator(_functions, emulatorHost, emulatorPort);
     }
   }

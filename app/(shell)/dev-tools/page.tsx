@@ -12,6 +12,10 @@ import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle } from "lucide-rea
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
 
+// ── 常數 ─────────────────────────────────────────────────────────────────────
+
+// 無需硬編碼 URL，改用 getFirebaseFunctions 搭配 region
+
 // ── 型別 ─────────────────────────────────────────────────────────────────────
 
 interface ParseResult {
@@ -87,6 +91,7 @@ export default function DevToolsPage() {
       setStatus("parsing");
       appendLog("呼叫 parse_document (asia-southeast1)…");
 
+      // 使用已初始化的 Firebase Functions instance
       const fns = getFirebaseFunctions("asia-southeast1");
       const parseDocument = functionsApi.httpsCallable<
         { content_b64: string; mime_type: string },
