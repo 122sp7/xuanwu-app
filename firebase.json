@@ -28,6 +28,25 @@
         "python -m compileall -q \"$RESOURCE_DIR\""
       ],
       "source": "functions-python"
+    },
+    {
+      "codebase": "py-fn",
+      "runtime": "python312",
+      "ignore": [
+        "venv",
+        ".venv",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "python -m compileall -q \"$RESOURCE_DIR\""
+      ],
+      "source": "py_fn"
     }
   ],
   "apphosting": {

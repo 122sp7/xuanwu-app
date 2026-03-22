@@ -28,7 +28,7 @@ from app.handlers.storage import handle_object_finalized
 logging.basicConfig(level=logging.INFO)
 
 set_global_options(
-    region=SupportedRegion.ASIA_EAST1,
+    region=SupportedRegion.ASIA_SOUTHEAST1,
     max_instances=10,
 )
 
