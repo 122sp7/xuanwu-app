@@ -263,6 +263,59 @@ export async function retryDocumentProcessing(
   }
 }
 
+// ── Check RAG Pipeline Config (diagnostic) ──────────────────────────────────
+
+export interface RagPipelineConfigResult {
+  ok: boolean
+  config?: {
+    documentAiEnabled: boolean
+    documentAiProjectId: string
+    documentAiLocation: string
+    ocrExtractorProcessorId: string
+    ocrExtractorResource: string | null
+    ocrClassifierProcessorId: string
+    ocrSplitterProcessorId: string
+    openAiEnabled: boolean
+    openAiKeySet: boolean
+    storageBucket: string
+    gcpProject: string
+    parserMode: string
+    embedderMode: string
+  }
+  error?: string
+}
+
+/**
+ * Calls the `check_rag_pipeline_config` Cloud Function to report the current
+ * environment-variable and adapter state of the deployed RAG ingestion worker.
+ *
+ * Use this to diagnose why Document AI may not be called:
+ * - If `documentAiEnabled` is false → DOCUMENTAI_PROJECT_ID not set
+ * - If `parserMode` shows "PassthroughRagParser" → no OCR will happen
+ * - Check `ocrExtractorResource` matches your GCP Document AI processor
+ */
+export async function checkRagPipelineConfig(): Promise<RagPipelineConfigResult> {
+  try {
+    const { getFirebaseFunctions, functionsApi } = await import(
+      '@integration-firebase/functions'
+    )
+
+    const functions = getFirebaseFunctions()
+    const callable = functionsApi.httpsCallable(functions, 'check_rag_pipeline_config')
+    const response = await callable({})
+
+    return {
+      ok: true,
+      config: response.data as RagPipelineConfigResult['config'],
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Config check failed',
+    }
+  }
+}
+
 // ── Embed Wiki Document (Next.js-side, lightweight) ─────────────────────────
 
 /**

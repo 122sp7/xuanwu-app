@@ -5,7 +5,7 @@ from typing import Any
 from firebase_functions import https_fn
 
 from app.bootstrap.firebase import ensure_firebase_app
-from app.config.settings import MissingEnvironmentVariableError, load_settings
+from app.config.settings import MissingEnvironmentVariableError, load_document_ai_settings
 from app.document_ai.application.use_cases.process_document_with_ai import (
     ProcessDocumentWithAiUseCase,
 )
@@ -67,14 +67,14 @@ def handle_process_document_with_ai(req: https_fn.CallableRequest):
         ) from error
 
     try:
-        settings = load_settings()
+        settings = load_document_ai_settings()
     except MissingEnvironmentVariableError as error:
         raise https_fn.HttpsError(
             code=https_fn.FunctionsErrorCode.FAILED_PRECONDITION,
             message=str(error),
         ) from error
     use_case = ProcessDocumentWithAiUseCase(
-        processor=GoogleCloudDocumentAiProcessor(settings.document_ai),
+        processor=GoogleCloudDocumentAiProcessor(settings),
         audit_log_repository=FirebaseDocumentAiAuditLogRepository(),
     )
 
