@@ -11,13 +11,14 @@
 
 import Link from "next/link";
 import { BookOpen, Bot, Building2, FlaskConical, Plus, Settings, Users } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { createOrganization } from "@/modules/organization";
+import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -52,6 +53,8 @@ interface AppRailProps {
   readonly isOrganizationAccount: boolean;
   readonly onSelectPersonal: () => void;
   readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
   readonly onOrganizationCreated?: (account: AccountEntity) => void;
   readonly onSignOut: () => void;
 }
@@ -93,6 +96,8 @@ export function AppRail({
   isOrganizationAccount,
   onSelectPersonal,
   onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
   onOrganizationCreated,
   onSignOut,
 }: AppRailProps) {
@@ -101,6 +106,25 @@ export function AppRail({
   const [orgName, setOrgName] = useState("");
   const [orgError, setOrgError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
+
+  useEffect(() => {
+    async function loadWorkspaces() {
+      const accountId = activeAccount?.id;
+      if (!accountId) {
+        setWorkspaces([]);
+        return;
+      }
+      try {
+        const workspaceList = await getWorkspacesForAccount(accountId);
+        setWorkspaces(workspaceList);
+      } catch {
+        setWorkspaces([]);
+      }
+    }
+
+    void loadWorkspaces();
+  }, [activeAccount?.id]);
 
   function resetDialog() {
     setOrgName("");
@@ -187,6 +211,19 @@ export function AppRail({
 
   const visibleRailItems = railItems.filter((item) => item.show !== false);
 
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  function buildWikiBetaWorkspaceHref(workspaceId: string): string {
+    if (pathname.startsWith("/wiki-beta")) {
+      const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+    }
+    return `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
+  }
+
   const accountName = activeAccount?.name ?? user?.name ?? "—";
   const accentColour = getAccountColour(accountName);
 
@@ -263,6 +300,65 @@ export function AppRail({
         <nav className="flex flex-col items-center gap-0.5" aria-label="Top-level navigation">
           {visibleRailItems.map((item) => {
             const active = isActive(item.href);
+
+            if (item.href === "/wiki-beta") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="Wiki Beta: 切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">Wiki Beta: 切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onSelectWorkspace(null);
+                        router.push("/wiki-beta");
+                      }}
+                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
+                    >
+                      Wiki Beta 首頁
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWikiBetaWorkspaceHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
             return (
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>

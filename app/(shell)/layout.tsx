@@ -132,6 +132,10 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
   }
 
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
   useEffect(() => {
     if (!appState.accountsHydrated || !appState.activeAccount) {
       return;
@@ -163,6 +167,8 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           isOrganizationAccount={showAccountManagement}
           onSelectPersonal={handleSelectPersonal}
           onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
           onOrganizationCreated={handleOrganizationCreated}
           onSignOut={() => {
             void handleLogout();
@@ -171,8 +177,10 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         <DashboardSidebar
           pathname={pathname}
           activeAccount={appState.activeAccount}
+          activeWorkspaceId={appState.activeWorkspaceId}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

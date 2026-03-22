@@ -9,6 +9,7 @@
  */
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -24,8 +25,10 @@ import {
 interface DashboardSidebarProps {
   readonly pathname: string;
   readonly activeAccount: ActiveAccount | null;
+  readonly activeWorkspaceId: string | null;
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
 const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
@@ -117,9 +120,12 @@ function isActiveOrganizationAccount(
 export function DashboardSidebar({
   pathname,
   activeAccount,
+  activeWorkspaceId,
   collapsed,
   onToggleCollapsed,
+  onSelectWorkspace,
 }: DashboardSidebarProps) {
+  const router = useRouter();
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
@@ -185,6 +191,23 @@ export function DashboardSidebar({
     return [currentId, ...stored.filter((id) => id !== currentId)];
   }, [activeAccount?.id, pathname]);
 
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (typeof window === "undefined" || !pathname.startsWith("/wiki-beta")) {
+      return;
+    }
+
+    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
+    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(searchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+
   const recentWorkspaceLinks = useMemo(() => {
     return recentWorkspaceIds
       .map((workspaceId) => {
@@ -200,15 +223,28 @@ export function DashboardSidebar({
     ? recentWorkspaceLinks
     : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
 
+  function buildWorkspaceContextHref(workspaceId: string): string {
+    if (pathname.startsWith("/wiki-beta")) {
+      const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+    }
+    return `/workspace/${workspaceId}`;
+  }
+
   const allWorkspaceLinks = useMemo(() => {
     return Object.values(workspacesById)
       .map((workspace) => ({
         id: workspace.id,
         name: workspace.name,
-        href: `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspace.id)}`,
+        href: buildWorkspaceContextHref(workspace.id),
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById]);
+  }, [workspacesById, pathname]);
+
+  const activeWorkspaceName = useMemo(() => {
+    if (!activeWorkspaceId) return "未選擇";
+    return workspacesById[activeWorkspaceId]?.name ?? activeWorkspaceId;
+  }, [activeWorkspaceId, workspacesById]);
 
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
@@ -306,8 +342,11 @@ export function DashboardSidebar({
                         <Link
                           key={ws.id}
                           href={ws.href}
+                          onClick={() => {
+                            onSelectWorkspace(ws.id);
+                          }}
                           className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            isActiveRoute(ws.href)
+                            activeWorkspaceId === ws.id || isActiveRoute(ws.href)
                               ? "bg-primary/10 text-primary"
                               : "text-foreground/80 hover:bg-muted hover:text-foreground"
                           }`}
@@ -425,6 +464,36 @@ export function DashboardSidebar({
 
                 <div className="my-1.5 border-t border-border/40" />
 
+                <div className="space-y-1.5 rounded-md border border-border/50 bg-muted/20 p-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                    Workspace Context
+                  </p>
+                  <p className="truncate text-xs text-foreground" title={activeWorkspaceName}>
+                    目前: {activeWorkspaceName}
+                  </p>
+                  <select
+                    value={activeWorkspaceId ?? ""}
+                    onChange={(event) => {
+                      const selected = event.target.value || null;
+                      onSelectWorkspace(selected);
+                      if (selected) {
+                        router.push(buildWorkspaceContextHref(selected));
+                      }
+                    }}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                    aria-label="切換工作區上下文"
+                  >
+                    <option value="">請選擇工作區</option>
+                    {allWorkspaceLinks.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="my-1.5 border-t border-border/40" />
+
                 <button
                   type="button"
                   onClick={() => {
@@ -443,11 +512,14 @@ export function DashboardSidebar({
                       <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
                     ) : (
                       allWorkspaceLinks.map((workspace) => {
-                        const active = pathname.startsWith("/wiki-beta/documents");
+                        const active = activeWorkspaceId === workspace.id;
                         return (
                           <Link
                             key={workspace.id}
                             href={workspace.href}
+                            onClick={() => {
+                              onSelectWorkspace(workspace.id);
+                            }}
                             aria-current={active ? "page" : undefined}
                             className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
                               active

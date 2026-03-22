@@ -24,6 +24,8 @@ export interface AppState {
   bootstrapPhase: "idle" | "seeded" | "hydrated";
   /** Currently selected account (personal user account or an organization). */
   activeAccount: ActiveAccount | null;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
 }
 
 export type AppAction =
@@ -40,6 +42,7 @@ export type AppAction =
       };
     }
   | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
   | { type: "RESET_STATE" };
 
 export interface AppContextValue {

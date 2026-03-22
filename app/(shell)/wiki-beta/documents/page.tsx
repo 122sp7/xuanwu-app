@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { useApp } from "@/app/providers/app-provider";
 import { WikiBetaRagTestView } from "@/modules/wiki-beta";
 
 export default function WikiBetaDocumentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const {
+    state: { activeWorkspaceId },
+  } = useApp();
+  const workspaceId = searchParams.get("workspaceId")?.trim() || activeWorkspaceId || "";
 
   return (
     <div className="space-y-4">

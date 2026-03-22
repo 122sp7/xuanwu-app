@@ -28,12 +28,18 @@ import { useAuth } from "./auth-provider";
 // ─── Initial State ────────────────────────────────────────────────────────────
 
 const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
+const LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX = "xuanwu_last_active_workspace:";
+
+function getWorkspaceStorageKey(accountId: string) {
+  return `${LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX}${accountId}`;
+}
 
 const initialState: AppState = {
   accounts: {},
   accountsHydrated: false,
   bootstrapPhase: "idle",
   activeAccount: null,
+  activeWorkspaceId: null,
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -83,6 +89,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         accountsHydrated: false,
         bootstrapPhase: "seeded",
         activeAccount: action.payload.user,
+        activeWorkspaceId: null,
       };
     case "SET_ACCOUNTS": {
       const { accounts, user, preferredActiveAccountId } = action.payload;
@@ -96,7 +103,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
     }
     case "SET_ACTIVE_ACCOUNT":
       if (state.activeAccount?.id === action.payload?.id) return state;
-      return { ...state, activeAccount: action.payload };
+      return { ...state, activeAccount: action.payload, activeWorkspaceId: null };
+    case "SET_ACTIVE_WORKSPACE":
+      if (state.activeWorkspaceId === action.payload) return state;
+      return { ...state, activeWorkspaceId: action.payload };
     case "RESET_STATE":
       return initialState;
     default:
@@ -147,6 +157,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
   }, [state.activeAccount?.id, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
+      return;
+    }
+
+    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
+  }, [state.activeAccount?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) return;
+
+    const storageKey = getWorkspaceStorageKey(activeAccountId);
+    if (!state.activeWorkspaceId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
+  }, [state.activeAccount?.id, state.activeWorkspaceId]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
