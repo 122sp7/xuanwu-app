@@ -104,6 +104,7 @@ class ProcessedTextWriter:
                 )
                 json_blob.metadata = blob_metadata
                 json_blob.patch()
+                logger.info("Wrote structured JSON (%d bytes) to %s", len(structured_json), json_path)
             except Exception as error:
                 # JSON write failure is non-fatal — log and continue.
                 logger.warning(
@@ -111,6 +112,8 @@ class ProcessedTextWriter:
                     document_id,
                     error,
                 )
+        else:
+            logger.info("No structured JSON for document %s (parser did not produce it)", document_id)
 
         # ── 3. Update Firestore document record ─────────────────────────────────────
         now = datetime.now(timezone.utc)

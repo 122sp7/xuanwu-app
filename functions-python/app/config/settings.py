@@ -99,22 +99,31 @@ def _optional_env(name: str, default: str) -> str:
     return os.getenv(name) or default
 
 
-def load_settings() -> AppSettings:
+def load_document_ai_settings() -> DocumentAiSettings:
+    """Load Document AI settings independently — does NOT require OpenAI configuration."""
     project_id = _required_env("DOCUMENTAI_PROJECT_ID")
     location = _optional_env("DOCUMENTAI_LOCATION", "asia-southeast1")
 
-    ocr_extractor_processor_id = (
-        os.getenv("DOCUMENTAI_OCR_EXTRACTOR_PROCESSOR_ID")
-        or _DEFAULT_OCR_EXTRACTOR_PROCESSOR_ID
+    return DocumentAiSettings(
+        project_id=project_id,
+        location=location,
+        ocr_extractor_processor_id=(
+            os.getenv("DOCUMENTAI_OCR_EXTRACTOR_PROCESSOR_ID")
+            or _DEFAULT_OCR_EXTRACTOR_PROCESSOR_ID
+        ),
+        ocr_classifier_processor_id=(
+            os.getenv("DOCUMENTAI_OCR_CLASSIFIER_PROCESSOR_ID")
+            or _DEFAULT_OCR_CLASSIFIER_PROCESSOR_ID
+        ),
+        ocr_splitter_processor_id=(
+            os.getenv("DOCUMENTAI_OCR_SPLITTER_PROCESSOR_ID")
+            or _DEFAULT_OCR_SPLITTER_PROCESSOR_ID
+        ),
     )
-    ocr_classifier_processor_id = (
-        os.getenv("DOCUMENTAI_OCR_CLASSIFIER_PROCESSOR_ID")
-        or _DEFAULT_OCR_CLASSIFIER_PROCESSOR_ID
-    )
-    ocr_splitter_processor_id = (
-        os.getenv("DOCUMENTAI_OCR_SPLITTER_PROCESSOR_ID")
-        or _DEFAULT_OCR_SPLITTER_PROCESSOR_ID
-    )
+
+
+def load_settings() -> AppSettings:
+    doc_ai = load_document_ai_settings()
 
     openai_api_key = _required_env("OPENAI_API_KEY")
     openai_model = _optional_env("OPENAI_EMBEDDING_MODEL", _DEFAULT_OPENAI_EMBEDDING_MODEL)
@@ -126,13 +135,7 @@ def load_settings() -> AppSettings:
     )
 
     return AppSettings(
-        document_ai=DocumentAiSettings(
-            project_id=project_id,
-            location=location,
-            ocr_extractor_processor_id=ocr_extractor_processor_id,
-            ocr_classifier_processor_id=ocr_classifier_processor_id,
-            ocr_splitter_processor_id=ocr_splitter_processor_id,
-        ),
+        document_ai=doc_ai,
         openai=OpenAiSettings(
             api_key=openai_api_key,
             model=openai_model,

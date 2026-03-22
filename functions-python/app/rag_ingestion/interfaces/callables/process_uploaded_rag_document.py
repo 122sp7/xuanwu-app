@@ -72,18 +72,18 @@ def _build_use_case() -> ProcessUploadedDocumentUseCase:
     storage_reader = _get_storage_reader()
 
     if _is_document_ai_enabled():
-        from app.config.settings import load_settings
+        from app.config.settings import load_document_ai_settings
 
         try:
-            settings = load_settings()
+            doc_ai_settings = load_document_ai_settings()
             logger.info(
                 "Document AI enabled — OCR Extractor: %s, Classifier: %s, Splitter: %s",
-                settings.document_ai.ocr_extractor_processor_id,
-                settings.document_ai.ocr_classifier_processor_id,
-                settings.document_ai.ocr_splitter_processor_id,
+                doc_ai_settings.ocr_extractor_processor_id,
+                doc_ai_settings.ocr_classifier_processor_id,
+                doc_ai_settings.ocr_splitter_processor_id,
             )
-            parser = DocumentAiRagParser(settings.document_ai, storage_reader)
-            taxonomy_classifier = DocumentAiTaxonomyClassifier(settings.document_ai)
+            parser = DocumentAiRagParser(doc_ai_settings, storage_reader)
+            taxonomy_classifier = DocumentAiTaxonomyClassifier(doc_ai_settings)
         except Exception as error:
             logger.warning(
                 "Document AI unavailable (%s); falling back to passthrough parser.", error
@@ -91,6 +91,7 @@ def _build_use_case() -> ProcessUploadedDocumentUseCase:
             parser = PassthroughRagParser()
             taxonomy_classifier = SimpleRagTaxonomyClassifier()
     else:
+        logger.info("DOCUMENTAI_PROJECT_ID not set — using PassthroughRagParser (no structured JSON)")
         parser = PassthroughRagParser()
         taxonomy_classifier = SimpleRagTaxonomyClassifier()
 

@@ -4,6 +4,8 @@ Reads binary content from Firebase Storage and sends it to the Google Document A
 OCR Extractor processor to produce clean extracted text and structured JSON for
 downstream chunking and knowledge modeling.
 """
+import logging
+
 from google.cloud import documentai
 from google.protobuf.json_format import MessageToJson
 
@@ -11,6 +13,8 @@ from app.config.settings import DocumentAiSettings
 from app.rag_ingestion.domain.entities import ProcessUploadedDocumentCommand, RagParseResult
 from app.rag_ingestion.domain.ports import RagParserPort
 from app.rag_ingestion.infrastructure.firebase.storage_reader import FirebaseStorageReader
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentAiRagParser(RagParserPort):
@@ -44,8 +48,16 @@ class DocumentAiRagParser(RagParserPort):
         except RuntimeError:
             # If binary read fails, fall back to raw_text (e.g. plain-text uploads).
             if command.raw_text.strip():
+                logger.info("Storage read failed for %s; using raw_text fallback (no structured JSON)", command.storage_path)
                 return RagParseResult(text=command.raw_text)
             raise
+
+        logger.info(
+            "Sending %d bytes (%s) to Document AI OCR Extractor: %s",
+            len(content_bytes),
+            command.mime_type,
+            self._settings.ocr_extractor_resource,
+        )
 
         request = documentai.ProcessRequest(
             name=self._settings.ocr_extractor_resource,
@@ -61,11 +73,20 @@ class DocumentAiRagParser(RagParserPort):
 
         if not extracted_text and command.raw_text.strip():
             # Document AI returned nothing; fall back to any raw text we already have.
+            logger.warning("Document AI returned empty text for %s; using raw_text fallback", command.storage_path)
             return RagParseResult(text=command.raw_text)
 
         # Serialize the full Document AI response to JSON for structured storage.
         # This preserves pages, entities, tables, and other metadata for knowledge modeling.
         structured_json = MessageToJson(documentai.Document.pb(document))
+
+        logger.info(
+            "Document AI parsed %s: %d chars text, %d pages, %d chars JSON",
+            command.storage_path,
+            len(extracted_text),
+            len(document.pages),
+            len(structured_json) if structured_json else 0,
+        )
 
         return RagParseResult(
             text=extracted_text,

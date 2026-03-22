@@ -144,6 +144,113 @@ def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
     ]
 
 
-def test_rag_document_status_transitions_include_archived_terminal_state() -> None:
+def test_structured_json_passed_to_text_writer() -> None:
+    """When the parser produces structured_json, the use case passes it to the text writer."""
+
+    class JsonProducingParser:
+        def parse(self, command: ProcessUploadedDocumentCommand) -> RagParseResult:
+            return RagParseResult(
+                text=command.raw_text,
+                structured_json='{"pages": [{"pageNumber": 1}]}',
+                page_count=1,
+            )
+
+    class SpyTextWriter:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def write(
+            self,
+            *,
+            document_id: str,
+            organization_id: str,
+            workspace_id: str,
+            extracted_text: str,
+            chunk_count: int,
+            taxonomy: str,
+            structured_json: str | None = None,
+        ) -> str:
+            self.calls.append({
+                "document_id": document_id,
+                "structured_json": structured_json,
+            })
+            return f"organizations/{organization_id}/workspaces/{workspace_id}/extracted/{document_id}.txt"
+
+    repository = SpyRepository()
+    spy_writer = SpyTextWriter()
+    use_case = ProcessUploadedDocumentUseCase(
+        parser=JsonProducingParser(),
+        chunker=StubChunker(),
+        taxonomy_classifier=StubTaxonomyClassifier(),
+        embedder=StubEmbedder(),
+        document_repository=repository,
+        text_writer=spy_writer,
+    )
+
+    use_case.execute(
+        ProcessUploadedDocumentCommand(
+            document_id="doc-json",
+            organization_id="org-1",
+            workspace_id="workspace-1",
+            title="Report",
+            source_file_name="report.pdf",
+            mime_type="application/pdf",
+            storage_path="organizations/org-1/workspaces/workspace-1/files/doc-json/report.pdf",
+            raw_text="Report content for testing structured JSON output",
+        )
+    )
+
+    assert len(spy_writer.calls) == 1
+    assert spy_writer.calls[0]["document_id"] == "doc-json"
+    assert spy_writer.calls[0]["structured_json"] == '{"pages": [{"pageNumber": 1}]}'
+
+
+def test_passthrough_parser_produces_no_structured_json() -> None:
+    """PassthroughRagParser returns None for structured_json (no Document AI call)."""
+
+    class SpyTextWriter:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def write(
+            self,
+            *,
+            document_id: str,
+            organization_id: str,
+            workspace_id: str,
+            extracted_text: str,
+            chunk_count: int,
+            taxonomy: str,
+            structured_json: str | None = None,
+        ) -> str:
+            self.calls.append({"structured_json": structured_json})
+            return f"organizations/{organization_id}/workspaces/{workspace_id}/extracted/{document_id}.txt"
+
+    repository = SpyRepository()
+    spy_writer = SpyTextWriter()
+    use_case = ProcessUploadedDocumentUseCase(
+        parser=StubParser(),
+        chunker=StubChunker(),
+        taxonomy_classifier=StubTaxonomyClassifier(),
+        embedder=StubEmbedder(),
+        document_repository=repository,
+        text_writer=spy_writer,
+    )
+
+    use_case.execute(
+        ProcessUploadedDocumentCommand(
+            document_id="doc-plain",
+            organization_id="org-1",
+            workspace_id="workspace-1",
+            title="Note",
+            source_file_name="note.txt",
+            mime_type="text/plain",
+            storage_path="organizations/org-1/workspaces/workspace-1/files/doc-plain/note.txt",
+            raw_text="Plain text note without Document AI processing",
+        )
+    )
+
+    assert len(spy_writer.calls) == 1
+    assert spy_writer.calls[0]["structured_json"] is None
     assert can_transition_status("ready", "archived") is True
     assert can_transition_status("archived", "processing") is False
