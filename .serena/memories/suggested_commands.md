@@ -1,0 +1,13 @@
+- Install deps: `npm install`
+- Dev server: `npm run dev`
+- Build: `npm run build`
+- Lint: `npm run lint`
+- Start production server: `npm run start`
+- Firebase deploy shortcuts:
+  - `npm run deploy:functions:python`
+  - `npm run deploy:rules`
+  - `npm run deploy:firebase`
+- Windows utility commands commonly used:
+  - `Get-ChildItem`, `Get-Location`, `Set-Location`
+  - `Select-String` (or `rg` when available)
+  - `git status`, `git diff`, `git add`, `git commit`

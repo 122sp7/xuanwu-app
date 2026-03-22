@@ -1,0 +1,6 @@
+- TypeScript-first, explicit types for public APIs.
+- Keep domain layer framework-free (no Firebase/React/browser SDK in domain).
+- Prefer thin interfaces/adapters; business workflows in application use-cases.
+- Use package aliases from `tsconfig.json`; do not use blocked legacy import families.
+- Keep changes focused; avoid unrelated refactors.
+- Follow existing project wording and MDDD terminology in docs and code comments.
