@@ -2,8 +2,15 @@
 Embeddings service — 封裝 OpenAI embedding 呼叫。
 """
 
-from app.config import OPENAI_EMBEDDING_MODEL
+from app.config import OPENAI_EMBEDDING_DIMENSIONS, OPENAI_EMBEDDING_MODEL
 from app.services.openai_client import get_openai_client
+
+
+def _build_embedding_kwargs(model_name: str) -> dict:
+    kwargs = {"model": model_name}
+    if OPENAI_EMBEDDING_DIMENSIONS > 0 and model_name.startswith("text-embedding-3"):
+        kwargs["dimensions"] = OPENAI_EMBEDDING_DIMENSIONS
+    return kwargs
 
 
 def embed_text(text: str, model: str | None = None) -> list[float]:
@@ -18,8 +25,9 @@ def embed_text(text: str, model: str | None = None) -> list[float]:
         list[float]: embedding 向量。
     """
     client = get_openai_client()
+    model_name = model or OPENAI_EMBEDDING_MODEL
     resp = client.embeddings.create(
-        model=model or OPENAI_EMBEDDING_MODEL,
+        **_build_embedding_kwargs(model_name),
         input=text,
     )
     return resp.data[0].embedding
@@ -40,8 +48,9 @@ def embed_texts(texts: list[str], model: str | None = None) -> list[list[float]]
         return []
 
     client = get_openai_client()
+    model_name = model or OPENAI_EMBEDDING_MODEL
     resp = client.embeddings.create(
-        model=model or OPENAI_EMBEDDING_MODEL,
+        **_build_embedding_kwargs(model_name),
         input=texts,
     )
     return [item.embedding for item in resp.data]

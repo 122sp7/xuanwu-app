@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.config import (
+    OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
     RAG_CHUNK_OVERLAP_CHARS,
     RAG_CHUNK_SIZE_CHARS,
@@ -34,6 +35,7 @@ class RagIngestionResult:
     chunk_count: int
     vector_count: int
     embedding_model: str
+    embedding_dimensions: int
     raw_chars: int
     normalized_chars: int
     normalization_version: str
@@ -122,6 +124,7 @@ def ingest_document_for_rag(
             chunk_count=0,
             vector_count=0,
             embedding_model=OPENAI_EMBEDDING_MODEL,
+            embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
             raw_chars=raw_chars,
             normalized_chars=normalized_chars,
             normalization_version=normalization_version,
@@ -153,6 +156,7 @@ def ingest_document_for_rag(
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
                     "text": chunk["text"],
+                    "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
                     "raw_chars": raw_chars,
                     "normalized_chars": normalized_chars,
                     "normalization_version": normalization_version,
@@ -168,6 +172,7 @@ def ingest_document_for_rag(
         chunk_count=len(base_chunks),
         vector_count=len(payload),
         embedding_model=OPENAI_EMBEDDING_MODEL,
+        embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
         raw_chars=raw_chars,
         normalized_chars=normalized_chars,
         normalization_version=normalization_version,

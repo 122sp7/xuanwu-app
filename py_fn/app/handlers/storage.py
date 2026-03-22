@@ -145,6 +145,7 @@ def handle_object_finalized(
                 chunk_count=rag.chunk_count,
                 vector_count=rag.vector_count,
                 embedding_model=rag.embedding_model,
+                embedding_dimensions=rag.embedding_dimensions,
                 raw_chars=rag.raw_chars,
                 normalized_chars=rag.normalized_chars,
                 normalization_version=rag.normalization_version,
