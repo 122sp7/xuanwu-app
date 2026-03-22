@@ -490,7 +490,6 @@ export function DashboardSidebar({
                   [
                     { href: "/wiki-beta", label: "知識總覽" },
                     { href: "/wiki-beta/rag-query", label: "RAG Query" },
-                    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);

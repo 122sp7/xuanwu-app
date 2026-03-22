@@ -29,7 +29,6 @@ const routeTitles: Record<string, string> = {
   "/wiki": "Wiki",
   "/wiki-beta": "Wiki Beta",
   "/wiki-beta/rag-query": "Wiki Beta · RAG Query",
-  "/wiki-beta/rag-reindex": "Wiki Beta · RAG Reindex",
   "/wiki-beta/documents": "Wiki Beta · Documents",
   "/ai-chat": "AI Chat",
   "/settings": "Personal Settings",

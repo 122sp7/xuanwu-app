@@ -10,7 +10,6 @@ export default function WikiBetaPage() {
 
   const routeItems = [
     { href: "/wiki-beta/rag-query", label: "RAG Query" },
-    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
     { href: "/wiki-beta/documents", label: "Documents" },
   ] as const;
 
