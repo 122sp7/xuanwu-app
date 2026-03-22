@@ -19,6 +19,8 @@ import {
   RegisterUseCase,
   SendPasswordResetEmailUseCase,
 } from "@/modules/identity/application/use-cases/identity.use-cases";
+import { CreateUserAccountUseCase } from "@/modules/account/application/use-cases/account.use-cases";
+import { FirebaseAccountRepository } from "@/modules/account/infrastructure/firebase/FirebaseAccountRepository";
 import {
   createDevDemoUser,
   isDevDemoCredential,
@@ -41,14 +43,22 @@ export default function PublicPage() {
   const [resetSent, setResetSent] = useState(false);
   const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
 
-  const { signInUseCase, signInAnonymouslyUseCase, registerUseCase, sendPasswordResetEmailUseCase } =
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
     useMemo(() => {
       const identityRepo = new FirebaseIdentityRepository();
+      const accountRepo = new FirebaseAccountRepository();
       return {
         signInUseCase: new SignInUseCase(identityRepo),
         signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
         registerUseCase: new RegisterUseCase(identityRepo),
         sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
+        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
       };
     }, []);
 
@@ -76,6 +86,18 @@ export default function PublicPage() {
 
       if (!result.success) {
         setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
       }
     } finally {
       setIsLoading(false);

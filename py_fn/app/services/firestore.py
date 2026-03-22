@@ -101,8 +101,8 @@ def update_parsed(
     doc_id: str,
     json_gcs_uri: str,
     page_count: int,
-    extraction_ms: int = 0,
     account_id: str,
+    extraction_ms: int = 0,
 ) -> None:
     """
     更新 document 的解析結果索引，標記為 completed 狀態。
@@ -173,12 +173,12 @@ def mark_rag_ready(
     chunk_count: int,
     vector_count: int,
     embedding_model: str,
+    account_id: str,
     embedding_dimensions: int = 0,
     raw_chars: int = 0,
     normalized_chars: int = 0,
     normalization_version: str = "v1",
     language_hint: str = "unknown",
-    account_id: str,
 ) -> None:
     """標記 RAG ingestion 完成（ready）。"""
     ref = _document_ref(doc_id, account_id)
