@@ -23,6 +23,19 @@ interface WikiBetaLibrariesViewProps {
 
 const FIELD_TYPES: WikiBetaLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseFieldType(value: string): WikiBetaLibraryFieldType {
+  if (value === "title") return "title";
+  if (value === "text") return "text";
+  if (value === "number") return "number";
+  if (value === "select") return "select";
+  if (value === "relation") return "relation";
+  return "text";
+}
+
 export function WikiBetaLibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,7 +130,11 @@ export function WikiBetaLibrariesView({ accountId, workspaceId }: WikiBetaLibrar
   const handleCreateRow = useCallback(async () => {
     if (!selectedLibraryId) return;
     try {
-      const values = JSON.parse(rowJson) as Record<string, unknown>;
+      const parsed = JSON.parse(rowJson);
+      if (!isRecord(parsed)) {
+        throw new Error("row JSON must be an object");
+      }
+      const values = parsed;
       await createWikiBetaLibraryRow({
         accountId,
         libraryId: selectedLibraryId,
@@ -230,7 +247,7 @@ export function WikiBetaLibrariesView({ accountId, workspaceId }: WikiBetaLibrar
           <div className="flex flex-wrap gap-2">
             <select
               value={fieldType}
-              onChange={(event) => setFieldType(event.target.value as WikiBetaLibraryFieldType)}
+              onChange={(event) => setFieldType(parseFieldType(event.target.value))}
               className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
             >
               {FIELD_TYPES.map((type) => (

@@ -3,11 +3,18 @@ import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firest
 import type { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
 import type { WikiBetaPageRepository } from "../../domain/repositories/wiki-beta.repositories";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function toDateOrNow(value: unknown): Date {
-  if (value && typeof value === "object") {
-    const maybeTimestamp = value as { toDate?: () => Date };
-    if (typeof maybeTimestamp.toDate === "function") {
-      return maybeTimestamp.toDate();
+  if (isRecord(value)) {
+    const maybeToDate = value.toDate;
+    if (typeof maybeToDate === "function") {
+      const converted = maybeToDate();
+      if (converted instanceof Date) {
+        return converted;
+      }
     }
   }
   if (value instanceof Date) {
@@ -51,7 +58,8 @@ export class FirebaseWikiBetaPageRepository implements WikiBetaPageRepository {
     const snap = await firestoreApi.getDocs(ref);
 
     const pages = snap.docs.map((docSnap) => {
-      const data = (docSnap.data() ?? {}) as Record<string, unknown>;
+      const raw = docSnap.data();
+      const data = isRecord(raw) ? raw : {};
       return mapToPage(docSnap.id, accountId, data);
     });
 
@@ -72,7 +80,8 @@ export class FirebaseWikiBetaPageRepository implements WikiBetaPageRepository {
     if (!snap.exists()) {
       return null;
     }
-    const data = (snap.data() ?? {}) as Record<string, unknown>;
+    const raw = snap.data();
+    const data = isRecord(raw) ? raw : {};
     return mapToPage(snap.id, accountId, data);
   }
 
