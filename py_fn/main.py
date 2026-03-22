@@ -26,13 +26,13 @@ import app  # noqa: F401  — 副作用：呼叫 firebase_admin.initialize_app()
 from firebase_functions import https_fn, storage_fn
 from firebase_functions.options import SupportedRegion, set_global_options
 
-from app.config import UPLOAD_BUCKET, GCP_REGION
-from app.handlers.https import (
+from core.config import UPLOAD_BUCKET, GCP_REGION
+from interface.handler import (
+    handle_object_finalized,
     handle_parse_document,
     handle_rag_query,
     handle_rag_reindex_document,
 )
-from app.handlers.storage import handle_object_finalized
 
 # ── 全域選項 ─────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
