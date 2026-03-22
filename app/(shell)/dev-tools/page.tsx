@@ -8,7 +8,7 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle, FileText, Eye, Trash2, Code2, ExternalLink } from "lucide-react";
+import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle, FileText, Trash2, Code2, ExternalLink } from "lucide-react";
 
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
@@ -307,6 +307,7 @@ export default function DevToolsPage() {
   }
 
   const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -551,6 +552,62 @@ export default function DevToolsPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* ── 已解析檔案列表（status=completed）──────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="size-4 text-emerald-600" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已解析檔案（{parsedDocs.length}）
+          </h2>
+        </div>
+        {parsedDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無解析完成檔案
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-emerald-500/20">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedDocs.map((doc, i) => (
+                  <tr key={`parsed-${doc.id}`} className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
+                      {doc.json_gcs_uri ? (
+                        <button
+                          onClick={() => handleViewJson(doc)}
+                          className="font-mono text-left truncate text-primary hover:underline"
+                          title={doc.json_gcs_uri}
+                        >
+                          {doc.json_gcs_uri}
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {doc.uploaded_at
+                        ? doc.uploaded_at.toLocaleString("zh-TW", { hour12: false })
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
