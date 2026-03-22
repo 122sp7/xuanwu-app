@@ -14,7 +14,8 @@ export function WikiBetaHubView({ onGoRagTest }: WikiBetaHubViewProps) {
       <div className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span className="rounded-full border border-border/60 px-2 py-1">callable: rag_query</span>
         <span className="rounded-full border border-border/60 px-2 py-1">callable: rag_reindex_document</span>
-        <span className="rounded-full border border-border/60 px-2 py-1">collection: parsed_documents</span>
+        <span className="rounded-full border border-border/60 px-2 py-1">{"collection: accounts/{accountId}/documents"}</span>
+        <span className="rounded-full border border-border/60 px-2 py-1">fallback: parsed_documents</span>
       </div>
 
       <button

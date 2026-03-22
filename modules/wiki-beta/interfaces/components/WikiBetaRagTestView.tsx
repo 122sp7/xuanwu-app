@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { useApp } from "@/app/providers/app-provider";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
@@ -26,6 +27,9 @@ function formatDate(value: Date | null): string {
 }
 
 export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState("4");
   const [loadingAnswer, setLoadingAnswer] = useState(false);
@@ -42,7 +46,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
   const loadDocs = useCallback(async () => {
     setLoadingDocs(true);
     try {
-      const data = await listWikiBetaParsedDocuments(25);
+      const data = await listWikiBetaParsedDocuments(activeAccountId, 25);
       setDocs(data);
     } catch (error) {
       console.error(error);
@@ -50,7 +54,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
     } finally {
       setLoadingDocs(false);
     }
-  }, []);
+  }, [activeAccountId]);
 
   useEffect(() => {
     void loadDocs();
@@ -178,7 +182,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
         <CardHeader>
           <CardTitle>文件重整測試</CardTitle>
           <CardDescription>
-            parsed_documents: {docs.length} 筆，RAG ready: {readyCount} 筆。
+            account: {activeAccountId || "(未選擇)"} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
           </CardDescription>
         </CardHeader>
         <CardContent>

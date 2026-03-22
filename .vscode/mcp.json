@@ -1,5 +1,17 @@
 {
 	"servers": {
+    "mongodb": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-mcp-server@latest",
+        "--readOnly"
+      ],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "${input:MDB_MCP_CONNECTION_STRING}"
+      }
+    },
 		"oraios/serena": {
 			"type": "stdio",
 			"command": "uvx",

@@ -48,6 +48,40 @@ function toDateOrNull(value: unknown): Date | null {
   return null;
 }
 
+function toNumberOrDefault(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function mapToParsedDocument(id: string, data: Record<string, any>): WikiBetaParsedDocument {
+  const source = (data.source ?? {}) as Record<string, any>;
+  const parsed = (data.parsed ?? {}) as Record<string, any>;
+  const rag = (data.rag ?? {}) as Record<string, any>;
+  const metadata = (data.metadata ?? {}) as Record<string, any>;
+
+  const filenameFromSource = typeof source.filename === "string" ? source.filename : "";
+  const filenameFromDoc = typeof data.title === "string" ? data.title : "";
+  const filenameFromMeta = typeof metadata.filename === "string" ? metadata.filename : "";
+
+  const sourceGcsFromSource = typeof source.gcs_uri === "string" ? source.gcs_uri : "";
+  const sourceGcsFromMeta = typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : "";
+  const jsonGcsFromParsed = typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "";
+  const jsonGcsFromMeta = typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : "";
+
+  return {
+    id,
+    filename: filenameFromSource || filenameFromDoc || filenameFromMeta || id,
+    sourceGcsUri: sourceGcsFromSource || sourceGcsFromMeta,
+    jsonGcsUri: jsonGcsFromParsed || jsonGcsFromMeta,
+    pageCount:
+      toNumberOrDefault(parsed.page_count) ||
+      toNumberOrDefault(metadata.page_count) ||
+      toNumberOrDefault(data.pageCount),
+    status: typeof data.status === "string" ? data.status : "unknown",
+    ragStatus: typeof rag.status === "string" ? rag.status : "",
+    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
+  };
+}
+
 export async function runWikiBetaRagQuery(query: string, topK = 4): Promise<WikiBetaRagQueryResult> {
   const functions = getFirebaseFunctions("asia-southeast1");
   const callable = functionsApi.httpsCallable(functions, "rag_query");
@@ -75,29 +109,29 @@ export async function reindexWikiBetaDocument(input: WikiBetaReindexInput): Prom
   });
 }
 
-export async function listWikiBetaParsedDocuments(limitCount = 20): Promise<WikiBetaParsedDocument[]> {
+export async function listWikiBetaParsedDocuments(accountId: string, limitCount = 20): Promise<WikiBetaParsedDocument[]> {
   const db = getFirebaseFirestore();
-  const ref = firestoreApi.collection(db, "parsed_documents");
-  const q = firestoreApi.query(ref, firestoreApi.limit(limitCount));
-  const snap = await firestoreApi.getDocs(q);
+  let docs: WikiBetaParsedDocument[] = [];
 
-  const docs = snap.docs.map((item) => {
-    const data = (item.data() ?? {}) as Record<string, any>;
-    const source = (data.source ?? {}) as Record<string, any>;
-    const parsed = (data.parsed ?? {}) as Record<string, any>;
-    const rag = (data.rag ?? {}) as Record<string, any>;
+  if (accountId) {
+    const accountRef = firestoreApi.collection(db, "accounts", accountId, "documents");
+    const accountQuery = firestoreApi.query(accountRef, firestoreApi.limit(limitCount));
+    const accountSnap = await firestoreApi.getDocs(accountQuery);
+    docs = accountSnap.docs.map((item) => {
+      const data = (item.data() ?? {}) as Record<string, any>;
+      return mapToParsedDocument(item.id, data);
+    });
+  }
 
-    return {
-      id: item.id,
-      filename: typeof source.filename === "string" ? source.filename : item.id,
-      sourceGcsUri: typeof source.gcs_uri === "string" ? source.gcs_uri : "",
-      jsonGcsUri: typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "",
-      pageCount: typeof parsed.page_count === "number" ? parsed.page_count : 0,
-      status: typeof data.status === "string" ? data.status : "unknown",
-      ragStatus: typeof rag.status === "string" ? rag.status : "",
-      uploadedAt: toDateOrNull(source.uploaded_at),
-    } satisfies WikiBetaParsedDocument;
-  });
+  if (docs.length === 0) {
+    const legacyRef = firestoreApi.collection(db, "parsed_documents");
+    const legacyQuery = firestoreApi.query(legacyRef, firestoreApi.limit(limitCount));
+    const legacySnap = await firestoreApi.getDocs(legacyQuery);
+    docs = legacySnap.docs.map((item) => {
+      const data = (item.data() ?? {}) as Record<string, any>;
+      return mapToParsedDocument(item.id, data);
+    });
+  }
 
   docs.sort((a, b) => {
     const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
