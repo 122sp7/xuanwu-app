@@ -1,6 +1,5 @@
 {
 	"servers": {
-		
 		"oraios/serena": {
 			"type": "stdio",
 			"command": "uvx",
@@ -36,6 +35,14 @@
 			],
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.3.6"
+		},
+		"pydantic/mcp-run-python": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"mcp-run-python",
+				"stdio"
+			]
 		}
 	},
 	"inputs": [
