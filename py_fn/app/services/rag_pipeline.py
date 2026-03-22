@@ -293,6 +293,10 @@ def answer_rag_query(
     for item in search_hits:
         if not isinstance(item, dict):
             continue
+        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        if not _match_account(metadata, account_id):
+            continue
+
         snippet = str(item.get("text", "")).strip()
         if not snippet:
             continue
@@ -301,9 +305,6 @@ def answer_rag_query(
         seen_snippets.add(snippet)
         contexts.append(snippet)
 
-        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-        if not _match_account(metadata, account_id):
-            continue
         citations.append(
             {
                 "provider": "search",
@@ -316,6 +317,9 @@ def answer_rag_query(
                 "account_id": metadata.get("account_id") or "",
             }
         )
+
+    vector_hit_count = len([c for c in citations if c.get("provider") == "vector"])
+    search_hit_count = len([c for c in citations if c.get("provider") == "search"])
 
     context_block = "\n\n---\n\n".join(contexts[:actual_top_k])
     if not context_block:
@@ -343,8 +347,8 @@ def answer_rag_query(
         "answer": answer,
         "citations": citations,
         "cache": "miss",
-        "vector_hits": len(hits),
-        "search_hits": len(search_hits),
+        "vector_hits": vector_hit_count,
+        "search_hits": search_hit_count,
         "account_scope": scope_key,
     }
 
@@ -362,8 +366,8 @@ def answer_rag_query(
                     "query": q,
                     "top_k": actual_top_k,
                     "citation_count": len(citations),
-                    "vector_hits": len(hits),
-                    "search_hits": len(search_hits),
+                    "vector_hits": vector_hit_count,
+                    "search_hits": search_hit_count,
                     "cached": False,
                 },
             )

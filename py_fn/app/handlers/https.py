@@ -6,6 +6,7 @@ HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
 
 請求格式：
     {
+        "account_id": "acc-123",
         "gcs_uri": "gs://my-bucket/uploads/my-doc.pdf",
         "size_bytes": 102400  # 選填
     }
@@ -64,6 +65,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
     Args:
         req.data: {
+            "account_id": "acc-123",                # 必填
             "gcs_uri": "gs://bucket/path/file.pdf",  # 必填
             "mime_type": "application/pdf",           # 選填；如果省略則由副檔名推測
             "size_bytes": 102400                       # 選填
