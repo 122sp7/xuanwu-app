@@ -41,6 +41,7 @@ yarn-error.log*
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
 .venv/
 venv/
 .pytest_cache/
