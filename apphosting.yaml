@@ -57,12 +57,15 @@ env:
   - variable: DOCAI_LOCATION
     value: "asia-southeast1"
 
+  # Processor type: Classifier
   - variable: DOCAI_CLASSIFIER_PROCESSOR_ID
     value: "94f84cf3b653b085"
 
+  # Processor type: Extractor
   - variable: DOCAI_EXTRACTOR_PROCESSOR_ID
     value: "86a3e4af9c5bba38"
 
+  # Processor type: Splitter
   - variable: DOCAI_SPLITTER_PROCESSOR_ID
     value: "ba69ac6cf5650371"
 
