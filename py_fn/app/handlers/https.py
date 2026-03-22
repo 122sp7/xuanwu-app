@@ -12,7 +12,7 @@ HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
 
 Document AI 會直接從 GCS 讀取檔案，無須下載到 Python 函數記憶體。
 結果會保存為：
-    - GCS: parsed/.../*.json（完整解析）
+    - GCS: files/.../*.json（完整解析）
     - Firestore: parsed_documents/{doc_id}（索引）
 
 回應格式（立即返回）：

@@ -4,7 +4,7 @@ Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上
 用法：
     from app.services.storage import download_bytes, upload_json
     data = download_bytes(bucket_name="my-bucket", object_path="uploads/doc.pdf")
-    uri  = upload_json(bucket_name="my-bucket", object_path="parsed/doc.json", data={...})
+    uri  = upload_json(bucket_name="my-bucket", object_path="files/doc.json", data={...})
 """
 
 import json
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # 上傳檔案路徑前綴 → 解析結果前綴
 _UPLOAD_PREFIX = "uploads/"
-_PARSED_PREFIX = "parsed/"
+_FILES_PREFIX = "files/"
 
 
 def parsed_json_path(upload_object_path: str) -> str:
@@ -25,16 +25,16 @@ def parsed_json_path(upload_object_path: str) -> str:
     將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
 
     規則：
-      - 去掉 uploads/ 前綴，換成 parsed/ 前綴
+            - 去掉 uploads/ 前綴，換成 files/ 前綴
       - 副檔名替換為 .json
 
     範例：
-        uploads/org/ws/file.pdf  →  parsed/org/ws/file.json
-        uploads/doc.png          →  parsed/doc.json
+                uploads/org/ws/file.pdf  →  files/org/ws/file.json
+                uploads/doc.png          →  files/doc.json
     """
     relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
     base, _ = os.path.splitext(relative)
-    return f"{_PARSED_PREFIX}{base}.json"
+        return f"{_FILES_PREFIX}{base}.json"
 
 
 def upload_json(bucket_name: str, object_path: str, data: dict) -> str:
@@ -43,11 +43,11 @@ def upload_json(bucket_name: str, object_path: str, data: dict) -> str:
 
     Args:
         bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
-        object_path: bucket 內的目標路徑，例如 parsed/org/ws/file.json
+        object_path: bucket 內的目標路徑，例如 files/org/ws/file.json
         data:        要序列化的資料，必須可 JSON 序列化。
 
     Returns:
-        str: gs:// 完整 URI，例如 gs://bucket/parsed/org/ws/file.json
+        str: gs:// 完整 URI，例如 gs://bucket/files/org/ws/file.json
     """
     bucket = fb_storage.bucket(bucket_name)
     blob = bucket.blob(object_path)

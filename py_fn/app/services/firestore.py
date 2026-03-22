@@ -2,7 +2,7 @@
 Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
 
 Firestore 只存輕量索引（供 /dev-tools 列出已上傳檔案），
-解析全文以 JSON 格式存回 GCS 的對應路徑（parsed/ 前綴）。
+解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
 
 Document Schema:
     {
@@ -16,7 +16,7 @@ Document Schema:
             "mime_type": "application/pdf"
         },
         "parsed": {
-            "json_gcs_uri": "gs://bucket/parsed/file.json",   // 全文 JSON 位置
+            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
             "page_count": 5,
             "parsed_at": "2026-03-22T...",
             "extraction_ms": 1234
@@ -96,7 +96,7 @@ def update_parsed(
 
     Args:
         doc_id:         文件識別碼。
-        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/parsed/file.json
+        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
         page_count:     頁數。
         extraction_ms:  解析耗時（毫秒），非必填。
     """
