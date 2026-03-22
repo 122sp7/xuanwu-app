@@ -77,9 +77,10 @@ def _build_use_case() -> ProcessUploadedDocumentUseCase:
         try:
             settings = load_settings()
             logger.info(
-                "Document AI enabled — OCR Extractor: %s, Classifier: %s",
+                "Document AI enabled — OCR Extractor: %s, Classifier: %s, Splitter: %s",
                 settings.document_ai.ocr_extractor_processor_id,
                 settings.document_ai.ocr_classifier_processor_id,
+                settings.document_ai.ocr_splitter_processor_id,
             )
             parser = DocumentAiRagParser(settings.document_ai, storage_reader)
             taxonomy_classifier = DocumentAiTaxonomyClassifier(settings.document_ai)

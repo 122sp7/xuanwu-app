@@ -5,13 +5,14 @@ from app.rag_ingestion.domain.entities import (
     ProcessUploadedDocumentCommand,
     RagChunk,
     RagChunkDraft,
+    RagParseResult,
     can_transition_status,
 )
 
 
 class StubParser:
-    def parse(self, command: ProcessUploadedDocumentCommand) -> str:
-        return command.raw_text
+    def parse(self, command: ProcessUploadedDocumentCommand) -> RagParseResult:
+        return RagParseResult(text=command.raw_text)
 
 
 class StubChunker:
@@ -106,7 +107,7 @@ def test_process_uploaded_document_marks_ready_with_chunks() -> None:
 
 def test_process_uploaded_document_marks_failed_when_parser_raises() -> None:
     class FailingParser:
-        def parse(self, command: ProcessUploadedDocumentCommand) -> str:
+        def parse(self, command: ProcessUploadedDocumentCommand) -> RagParseResult:
             raise RuntimeError("parser exploded")
 
     repository = SpyRepository()

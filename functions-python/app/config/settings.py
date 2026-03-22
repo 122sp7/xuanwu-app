@@ -1,10 +1,11 @@
 import os
 from dataclasses import dataclass
 
-# Processor IDs for the two Google Document AI processors deployed in asia-southeast1.
+# Processor IDs for the three Google Document AI processors deployed in asia-southeast1.
 # These values are the canonical defaults; override via env vars in production.
 _DEFAULT_OCR_EXTRACTOR_PROCESSOR_ID = "1516a32299c1709e"
 _DEFAULT_OCR_CLASSIFIER_PROCESSOR_ID = "17f1013111dec644"
+_DEFAULT_OCR_SPLITTER_PROCESSOR_ID = "ba69ac6cf5650371"
 
 # OpenAI embedding defaults aligned with wiki-core domain contracts.
 # Model: text-embedding-3-small; dimensions: 1536; max batch size: 20.
@@ -25,6 +26,8 @@ class DocumentAiSettings:
     ocr_extractor_processor_id: str
     # OCR Classifier processor — classifies document type (invoice, contract, policy, …)
     ocr_classifier_processor_id: str
+    # OCR Splitter processor — splits multi-document PDFs into logical sub-documents
+    ocr_splitter_processor_id: str
 
     @property
     def ocr_extractor_resource(self) -> str:
@@ -38,6 +41,13 @@ class DocumentAiSettings:
         return (
             f"projects/{self.project_id}/locations/{self.location}"
             f"/processors/{self.ocr_classifier_processor_id}"
+        )
+
+    @property
+    def ocr_splitter_resource(self) -> str:
+        return (
+            f"projects/{self.project_id}/locations/{self.location}"
+            f"/processors/{self.ocr_splitter_processor_id}"
         )
 
     # Backward-compatible property for existing `process_document_with_ai` callable
@@ -101,6 +111,10 @@ def load_settings() -> AppSettings:
         os.getenv("DOCUMENTAI_OCR_CLASSIFIER_PROCESSOR_ID")
         or _DEFAULT_OCR_CLASSIFIER_PROCESSOR_ID
     )
+    ocr_splitter_processor_id = (
+        os.getenv("DOCUMENTAI_OCR_SPLITTER_PROCESSOR_ID")
+        or _DEFAULT_OCR_SPLITTER_PROCESSOR_ID
+    )
 
     openai_api_key = _required_env("OPENAI_API_KEY")
     openai_model = _optional_env("OPENAI_EMBEDDING_MODEL", _DEFAULT_OPENAI_EMBEDDING_MODEL)
@@ -117,6 +131,7 @@ def load_settings() -> AppSettings:
             location=location,
             ocr_extractor_processor_id=ocr_extractor_processor_id,
             ocr_classifier_processor_id=ocr_classifier_processor_id,
+            ocr_splitter_processor_id=ocr_splitter_processor_id,
         ),
         openai=OpenAiSettings(
             api_key=openai_api_key,

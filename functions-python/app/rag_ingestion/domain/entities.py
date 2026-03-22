@@ -47,6 +47,17 @@ class ProcessUploadedDocumentCommand:
 
 
 @dataclass(frozen=True)
+class RagParseResult:
+    """Result from a RAG parser — plain text plus optional structured JSON from Document AI."""
+
+    text: str
+    # Structured JSON from Document AI (pages, entities, tables, etc.)
+    # None when using passthrough parser or when Document AI JSON is unavailable.
+    structured_json: str | None = None
+    page_count: int = 0
+
+
+@dataclass(frozen=True)
 class ProcessUploadedDocumentResult:
     document_id: str
     status: RagDocumentStatus

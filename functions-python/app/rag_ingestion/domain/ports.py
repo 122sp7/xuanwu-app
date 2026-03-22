@@ -1,10 +1,10 @@
 from typing import Protocol
 
-from .entities import ProcessUploadedDocumentCommand, RagChunk, RagChunkDraft
+from .entities import ProcessUploadedDocumentCommand, RagChunk, RagChunkDraft, RagParseResult
 
 
 class RagParserPort(Protocol):
-    def parse(self, command: ProcessUploadedDocumentCommand) -> str: ...
+    def parse(self, command: ProcessUploadedDocumentCommand) -> RagParseResult: ...
 
 
 class RagChunkerPort(Protocol):
@@ -42,7 +42,7 @@ class RagDocumentRepositoryPort(Protocol):
 
 
 class ProcessedTextWriterPort(Protocol):
-    """Optional port — persists extracted text to Storage and patches Firestore metadata."""
+    """Optional port — persists extracted text and structured JSON to Storage and patches Firestore metadata."""
 
     def write(
         self,
@@ -53,6 +53,7 @@ class ProcessedTextWriterPort(Protocol):
         extracted_text: str,
         chunk_count: int,
         taxonomy: str,
+        structured_json: str | None = None,
     ) -> str:
         """Returns the Storage path of the saved text file."""
         ...

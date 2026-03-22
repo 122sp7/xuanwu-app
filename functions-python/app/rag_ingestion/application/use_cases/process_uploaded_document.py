@@ -38,7 +38,8 @@ class ProcessUploadedDocumentUseCase:
         )
 
         try:
-            parsed_text = self._parser.parse(command).strip()
+            parse_result = self._parser.parse(command)
+            parsed_text = parse_result.text.strip()
             normalized_text = " ".join(parsed_text.split())
             taxonomy = self._taxonomy_classifier.classify(
                 normalized_text,
@@ -77,7 +78,7 @@ class ProcessUploadedDocumentUseCase:
                 chunks,
             )
 
-            # Optional: persist extracted text to Storage and patch Firestore metadata.
+            # Optional: persist extracted text (+ structured JSON) to Storage and patch Firestore.
             if self._text_writer is not None:
                 self._text_writer.write(
                     document_id=command.document_id,
@@ -86,6 +87,7 @@ class ProcessUploadedDocumentUseCase:
                     extracted_text=parsed_text,
                     chunk_count=len(chunks),
                     taxonomy=taxonomy,
+                    structured_json=parse_result.structured_json,
                 )
 
             return ProcessUploadedDocumentResult(

@@ -105,6 +105,8 @@ function toRagDocumentRecord(
       typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
     extractedTextStoragePath:
       typeof data.extractedTextStoragePath === "string" ? data.extractedTextStoragePath : undefined,
+    extractedJsonStoragePath:
+      typeof data.extractedJsonStoragePath === "string" ? data.extractedJsonStoragePath : undefined,
     expiresAtISO:
       typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",

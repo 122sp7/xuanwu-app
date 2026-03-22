@@ -67,6 +67,8 @@ export interface RagDocumentRecord {
   readonly indexedAtISO?: string;
   /** Storage path of the extracted text written by the ingestion worker. */
   readonly extractedTextStoragePath?: string;
+  /** Storage path of the structured Document AI JSON written by the ingestion worker. */
+  readonly extractedJsonStoragePath?: string;
   /** ISO-8601 expiry timestamp; the document is auto-archived when reached. */
   readonly expiresAtISO?: string;
   readonly createdAtISO: string;
