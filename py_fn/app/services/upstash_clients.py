@@ -7,6 +7,8 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+from urllib import error as urlerror
+from urllib import request as urlrequest
 from typing import Any
 
 from app.config import (
@@ -16,6 +18,9 @@ from app.config import (
     QSTASH_URL,
     UPSTASH_REDIS_REST_TOKEN,
     UPSTASH_REDIS_REST_URL,
+    UPSTASH_SEARCH_REST_TOKEN,
+    UPSTASH_SEARCH_REST_URL,
+    UPSTASH_SEARCH_TIMEOUT_SECONDS,
     UPSTASH_VECTOR_REST_TOKEN,
     UPSTASH_VECTOR_REST_URL,
 )
@@ -216,3 +221,147 @@ def redis_set_json(key: str, value: dict[str, Any], ttl_seconds: int = 0) -> Non
             raise
 
     client.set(key, payload)
+
+
+def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
+    """
+    以 Upstash Search REST 進行補充檢索（best effort）。
+
+    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
+    """
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return []
+
+    if not query.strip() or top_k <= 0:
+        return []
+
+    endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
+    body_candidates = [
+        {"query": query, "topK": top_k},
+        {"query": query, "top_k": top_k},
+        {"q": query, "limit": top_k},
+    ]
+    path_candidates = ["/query", "/search"]
+
+    for path in path_candidates:
+        url = f"{endpoint_base}{path}"
+        for body in body_candidates:
+            raw = None
+            try:
+                req = urlrequest.Request(
+                    url=url,
+                    method="POST",
+                    headers={
+                        "Authorization": f"Bearer {UPSTASH_SEARCH_REST_TOKEN}",
+                        "Content-Type": "application/json",
+                    },
+                    data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                )
+                with urlrequest.urlopen(req, timeout=UPSTASH_SEARCH_TIMEOUT_SECONDS) as resp:
+                    raw = resp.read().decode("utf-8", errors="ignore")
+            except urlerror.HTTPError as exc:
+                logger.debug("query_search_documents http error: %s %s", url, exc)
+                continue
+            except Exception as exc:
+                logger.debug("query_search_documents request failed: %s", exc)
+                continue
+
+            if not raw:
+                continue
+
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                logger.debug("query_search_documents invalid json from %s", url)
+                continue
+
+            candidates = []
+            if isinstance(payload, dict):
+                candidates = (
+                    payload.get("result")
+                    or payload.get("matches")
+                    or payload.get("hits")
+                    or payload.get("data")
+                    or []
+                )
+            elif isinstance(payload, list):
+                candidates = payload
+
+            if not isinstance(candidates, list):
+                continue
+
+            normalized: list[dict[str, Any]] = []
+            for item in candidates:
+                if isinstance(item, dict):
+                    metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                    text = str(
+                        item.get("text")
+                        or metadata.get("text")
+                        or item.get("content")
+                        or ""
+                    ).strip()
+                    if not text:
+                        continue
+                    normalized.append(
+                        {
+                            "id": item.get("id"),
+                            "score": item.get("score"),
+                            "text": text,
+                            "metadata": metadata,
+                            "source": "upstash-search",
+                        }
+                    )
+            if normalized:
+                return normalized
+
+    return []
+
+
+def publish_qstash_json(url: str, body: dict[str, Any], delay: str | None = None) -> bool:
+    """透過 QStash 投遞 JSON 訊息（best effort）。"""
+    target_url = url.strip()
+    if not target_url:
+        return False
+
+    try:
+        client = get_qstash_client()
+    except Exception as exc:
+        logger.debug("publish_qstash_json skip: %s", exc)
+        return False
+
+    try:
+        kwargs: dict[str, Any] = {
+            "url": target_url,
+            "body": body,
+        }
+        if delay:
+            kwargs["delay"] = delay
+
+        publish_json = getattr(client, "publish_json", None)
+        if callable(publish_json):
+            publish_json(**kwargs)
+            return True
+
+        publish = getattr(client, "publish", None)
+        if callable(publish):
+            publish(**kwargs)
+            return True
+
+        return False
+    except TypeError:
+        try:
+            publish_json = getattr(client, "publish_json", None)
+            if callable(publish_json):
+                publish_json(target_url, body)
+                return True
+            publish = getattr(client, "publish", None)
+            if callable(publish):
+                publish(target_url, body)
+                return True
+            return False
+        except Exception:
+            logger.debug("publish_qstash_json fallback failed", exc_info=True)
+            return False
+    except Exception:
+        logger.debug("publish_qstash_json failed", exc_info=True)
+        return False

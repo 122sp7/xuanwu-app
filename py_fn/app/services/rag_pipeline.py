@@ -22,6 +22,7 @@ from typing import Any
 from app.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
+    QSTASH_RAG_AUDIT_URL,
     RAG_DOC_CACHE_TTL_SECONDS,
     RAG_CHUNK_OVERLAP_CHARS,
     RAG_CHUNK_SIZE_CHARS,
@@ -33,6 +34,8 @@ from app.config import (
 from app.services.embeddings import embed_text, embed_texts
 from app.services.llm import chat_complete
 from app.services.upstash_clients import (
+    publish_qstash_json,
+    query_search_documents,
     query_vectors,
     redis_get_json,
     redis_set_json,
@@ -236,9 +239,11 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
 
     query_vector = embed_text(q, model=OPENAI_EMBEDDING_MODEL)
     hits = query_vectors(query_vector, top_k=actual_top_k, include_metadata=True)
+    search_hits = query_search_documents(q, top_k=actual_top_k)
 
     contexts: list[str] = []
     citations: list[dict[str, Any]] = []
+    seen_snippets: set[str] = set()
 
     for hit in hits:
         metadata = hit.get("metadata") if isinstance(hit, dict) else None
@@ -247,14 +252,42 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         snippet = str(metadata.get("text", "")).strip()
         if not snippet:
             continue
+        if snippet in seen_snippets:
+            continue
+        seen_snippets.add(snippet)
         contexts.append(snippet)
         citations.append(
             {
+                "provider": "vector",
                 "doc_id": metadata.get("doc_id"),
                 "chunk_id": metadata.get("chunk_id"),
                 "score": hit.get("score") if isinstance(hit, dict) else None,
                 "filename": metadata.get("filename"),
                 "json_gcs_uri": metadata.get("json_gcs_uri"),
+            }
+        )
+
+    for item in search_hits:
+        if not isinstance(item, dict):
+            continue
+        snippet = str(item.get("text", "")).strip()
+        if not snippet:
+            continue
+        if snippet in seen_snippets:
+            continue
+        seen_snippets.add(snippet)
+        contexts.append(snippet)
+
+        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        citations.append(
+            {
+                "provider": "search",
+                "doc_id": metadata.get("doc_id"),
+                "chunk_id": metadata.get("chunk_id"),
+                "score": item.get("score"),
+                "filename": metadata.get("filename"),
+                "json_gcs_uri": metadata.get("json_gcs_uri"),
+                "search_id": item.get("id"),
             }
         )
 
@@ -289,5 +322,22 @@ def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
         redis_set_json(cache_key, result, ttl_seconds=RAG_QUERY_CACHE_TTL_SECONDS)
     except Exception as exc:
         logger.warning("redis query cache write failed: %s", exc)
+
+    if QSTASH_RAG_AUDIT_URL:
+        try:
+            publish_qstash_json(
+                url=QSTASH_RAG_AUDIT_URL,
+                body={
+                    "event": "rag.query.completed",
+                    "query": q,
+                    "top_k": actual_top_k,
+                    "citation_count": len(citations),
+                    "vector_hits": len(hits),
+                    "search_hits": len(search_hits),
+                    "cached": False,
+                },
+            )
+        except Exception as exc:
+            logger.debug("qstash publish skipped: %s", exc)
 
     return result
