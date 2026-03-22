@@ -59,11 +59,25 @@ interface WikiBetaLiveDocument extends WikiBetaParsedDocument {
   readonly isClientPending?: boolean;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  if (isRecord(value)) {
+    return value;
+  }
+  return {};
+}
+
 function toDateOrNull(value: unknown): Date | null {
-  if (!value || typeof value !== "object") return null;
-  const maybeTimestamp = value as { toDate?: () => Date };
-  if (typeof maybeTimestamp.toDate === "function") {
-    return maybeTimestamp.toDate();
+  if (!isRecord(value)) return null;
+  const maybeToDate = value.toDate;
+  if (typeof maybeToDate === "function") {
+    const converted = maybeToDate();
+    if (converted instanceof Date) {
+      return converted;
+    }
   }
   return null;
 }
@@ -73,11 +87,11 @@ function toNumberOrDefault(value: unknown, fallback = 0): number {
 }
 
 function mapToLiveDocument(id: string, data: Record<string, unknown>): WikiBetaLiveDocument {
-  const source = (data.source ?? {}) as Record<string, unknown>;
-  const parsed = (data.parsed ?? {}) as Record<string, unknown>;
-  const rag = (data.rag ?? {}) as Record<string, unknown>;
-  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
-  const error = (data.error ?? {}) as Record<string, unknown>;
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
+  const error = objectOrEmpty(data.error);
 
   const filenameFromSource = typeof source.filename === "string" ? source.filename : "";
   const filenameFromDoc = typeof data.title === "string" ? data.title : "";
@@ -220,7 +234,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       const db = getFirebaseFirestore();
       const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
       const snap = await firestoreApi.getDocs(colRef);
-      const mapped = snap.docs.map((item) => mapToLiveDocument(item.id, (item.data() ?? {}) as Record<string, unknown>));
+      const mapped = snap.docs.map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())));
       setDocs(sortByUploadedDesc(mapped));
       setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
       appendLog(`手動刷新文件列表：${mapped.length} 筆`);
@@ -246,7 +260,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
     const unsubscribe = firestoreApi.onSnapshot(
       colRef,
       (snapshot) => {
-        const mapped = snapshot.docs.map((item) => mapToLiveDocument(item.id, (item.data() ?? {}) as Record<string, unknown>));
+        const mapped = snapshot.docs.map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())));
         setDocs(sortByUploadedDesc(mapped));
         setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
         setLoadingDocs(false);

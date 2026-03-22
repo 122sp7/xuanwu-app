@@ -4,16 +4,16 @@ import hashlib
 import logging
 from typing import Any
 
-from app.config import (
+from core.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
     QSTASH_RAG_AUDIT_URL,
     RAG_QUERY_CACHE_TTL_SECONDS,
     RAG_REDIS_PREFIX,
 )
-from app.services.embeddings import embed_text
-from app.services.llm import chat_complete
-from app.services.upstash_clients import (
+from infrastructure.external.openai.embeddings import embed_text
+from infrastructure.external.openai.llm import chat_complete
+from infrastructure.external.upstash.clients import (
     publish_qstash_json,
     query_search_documents,
     query_vectors,

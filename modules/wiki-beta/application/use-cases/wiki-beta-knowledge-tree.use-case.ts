@@ -12,7 +12,8 @@ const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWiki
 function buildKnowledgeBaseItems(workspaceId: string): WikiBetaKnowledgeItemNode[] {
   return [
     { key: "spaces", label: "Spaces", href: `/workspace/${workspaceId}`, enabled: true },
-    { key: "pages", label: "Pages", href: "/wiki", enabled: true },
+    { key: "pages", label: "Pages", href: "/wiki-beta/pages", enabled: true },
+    { key: "libraries", label: "Libraries", href: "/wiki-beta/libraries", enabled: true },
     { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
     { key: "vector-index", label: "Vector Index", href: "/wiki-beta", enabled: false },
     { key: "rag", label: "RAG", href: "/wiki-beta", enabled: true },

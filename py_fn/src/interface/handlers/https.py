@@ -33,21 +33,21 @@ import json
 from firebase_functions import https_fn
 
 from application.rag import execute_rag_query
-from app.config import (
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+from core.config import (
     RAG_QUERY_RATE_LIMIT_MAX,
     RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
 )
-from app.services.documentai import process_document_gcs
-from app.services.firestore import (
+from infrastructure.external.documentai.client import process_document_gcs
+from infrastructure.external.upstash.clients import redis_fixed_window_allow
+from infrastructure.persistence.firestore.document_repository import (
     init_document,
     mark_rag_ready,
     record_error,
     record_rag_error,
     update_parsed,
 )
-from app.services.rag_pipeline import ingest_document_for_rag
-from app.services.storage import download_bytes, parsed_json_path, upload_json
-from app.services.upstash_clients import redis_fixed_window_allow
+from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
 

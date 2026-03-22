@@ -2,7 +2,7 @@
 Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上傳物件。
 
 用法：
-    from app.services.storage import download_bytes, upload_json
+    from infrastructure.persistence.storage.client import download_bytes, upload_json
     data = download_bytes(bucket_name="my-bucket", object_path="uploads/doc.pdf")
     uri  = upload_json(bucket_name="my-bucket", object_path="files/doc.json", data={...})
 """

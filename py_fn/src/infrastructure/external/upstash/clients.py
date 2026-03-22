@@ -11,7 +11,7 @@ from urllib import error as urlerror
 from urllib import request as urlrequest
 from typing import Any
 
-from app.config import (
+from core.config import (
     QSTASH_CURRENT_SIGNING_KEY,
     QSTASH_NEXT_SIGNING_KEY,
     QSTASH_TOKEN,

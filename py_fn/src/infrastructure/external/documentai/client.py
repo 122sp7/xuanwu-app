@@ -2,7 +2,7 @@
 Document AI 服務層 — 封裝 google-cloud-documentai 的 process_document 呼叫。
 
 用法：
-    from app.services.documentai import process_document_bytes
+    from infrastructure.external.documentai.client import process_document_bytes
     result = process_document_bytes(content=pdf_bytes, mime_type="application/pdf")
     print(result.text)
 """
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from google.cloud import documentai_v1 as documentai
 
-from app.config import DOCAI_API_ENDPOINT, DOCAI_PROCESSOR_NAME
+from core.config import DOCAI_API_ENDPOINT, DOCAI_PROCESSOR_NAME
 
 logger = logging.getLogger(__name__)
 

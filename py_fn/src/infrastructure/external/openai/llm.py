@@ -4,8 +4,8 @@ LLM service — 封裝 OpenAI chat completion 呼叫。
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from app.config import OPENAI_LLM_MODEL
-from app.services.openai_client import get_openai_client
+from core.config import OPENAI_LLM_MODEL
+from infrastructure.external.openai.client import get_openai_client
 
 
 def chat_complete(

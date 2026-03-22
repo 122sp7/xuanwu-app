@@ -20,14 +20,14 @@ SRC_ROOT = Path(__file__).resolve().parent / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-# ── Firebase Admin SDK 初始化（app/__init__.py 之中）──────────────────────
-import app  # noqa: F401  — 副作用：呼叫 firebase_admin.initialize_app()
+# ── Firebase Admin SDK 初始化（app/bootstrap 之中）──────────────────────
+import app.bootstrap  # noqa: F401  — 副作用：呼叫 firebase_admin.initialize_app()
 
 from firebase_functions import https_fn, storage_fn
 from firebase_functions.options import SupportedRegion, set_global_options
 
 from core.config import UPLOAD_BUCKET, GCP_REGION
-from interface.handler import (
+from interface.handlers import (
     handle_object_finalized,
     handle_parse_document,
     handle_rag_query,
