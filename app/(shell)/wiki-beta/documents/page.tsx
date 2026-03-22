@@ -12,7 +12,7 @@ export default function WikiBetaDocumentsPage() {
   const {
     state: { activeWorkspaceId },
   } = useApp();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || activeWorkspaceId || "";
+  const workspaceId = searchParams.get("workspaceId")?.trim() || "";
 
   return (
     <div className="space-y-4">
@@ -25,6 +25,13 @@ export default function WikiBetaDocumentsPage() {
             <span className="rounded-full border border-border/60 px-2 py-1">workspace: {workspaceId}</span>
             <Link href="/wiki-beta/documents" className="text-primary hover:underline">
               清除篩選
+            </Link>
+          </div>
+        ) : activeWorkspaceId ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border/60 px-2 py-1">目前顯示：全部 workspace</span>
+            <Link href={`/wiki-beta/documents?workspaceId=${encodeURIComponent(activeWorkspaceId)}`} className="text-primary hover:underline">
+              改看目前工作區
             </Link>
           </div>
         ) : null}

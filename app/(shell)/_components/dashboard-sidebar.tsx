@@ -9,7 +9,6 @@
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -125,7 +124,6 @@ export function DashboardSidebar({
   onToggleCollapsed,
   onSelectWorkspace,
 }: DashboardSidebarProps) {
-  const router = useRouter();
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
@@ -439,7 +437,6 @@ export function DashboardSidebar({
                 {(
                   [
                     { href: "/wiki-beta", label: "知識總覽" },
-                    { href: "/wiki-beta/namespaces", label: "Namespace" },
                     { href: "/wiki-beta/rag-query", label: "RAG Query" },
                     { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
                     { href: "/wiki-beta/documents", label: "Documents" },
@@ -461,36 +458,6 @@ export function DashboardSidebar({
                     </Link>
                   );
                 })}
-
-                <div className="my-1.5 border-t border-border/40" />
-
-                <div className="space-y-1.5 rounded-md border border-border/50 bg-muted/20 p-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                    Workspace Context
-                  </p>
-                  <p className="truncate text-xs text-foreground" title={activeWorkspaceName}>
-                    目前: {activeWorkspaceName}
-                  </p>
-                  <select
-                    value={activeWorkspaceId ?? ""}
-                    onChange={(event) => {
-                      const selected = event.target.value || null;
-                      onSelectWorkspace(selected);
-                      if (selected) {
-                        router.push(buildWorkspaceContextHref(selected));
-                      }
-                    }}
-                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-                    aria-label="切換工作區上下文"
-                  >
-                    <option value="">請選擇工作區</option>
-                    {allWorkspaceLinks.map((workspace) => (
-                      <option key={workspace.id} value={workspace.id}>
-                        {workspace.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
                 <div className="my-1.5 border-t border-border/40" />
 

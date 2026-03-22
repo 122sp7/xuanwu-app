@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FileUp, Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
@@ -24,6 +25,17 @@ interface WikiBetaRagTestViewProps {
   readonly mode?: "all" | "query" | "reindex" | "documents";
   readonly workspaceId?: string;
 }
+
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const WATCH_PATH = "uploads/";
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+
+const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
 
 function formatDate(value: Date | null): string {
   if (!value) return "-";
@@ -51,8 +63,18 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
   const [docs, setDocs] = useState<WikiBetaParsedDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [reindexingId, setReindexingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const loadDocs = useCallback(async () => {
+    if (!activeAccountId) {
+      setDocs([]);
+      setLoadingDocs(false);
+      return;
+    }
+
     setLoadingDocs(true);
     try {
       const result = await listWikiBetaParsedDocuments(activeAccountId, 25);
@@ -122,6 +144,60 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       toast.error("觸發 rag_reindex_document 失敗");
     } finally {
       setReindexingId(null);
+    }
+  }
+
+  function buildUploadPath(accountId: string, file: File): string {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    return `${WATCH_PATH}${accountId}/${crypto.randomUUID()}${ext}`;
+  }
+
+  function handleFileChange(file: File | null) {
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    if (!(file.type in ACCEPTED_MIME)) {
+      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) {
+      toast.error("請先選擇檔案");
+      return;
+    }
+    if (!activeAccountId) {
+      toast.error("目前沒有 active account，無法上傳");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const uploadPath = buildUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+
+      await storageApi.uploadBytes(fileRef, selectedFile, {
+        customMetadata: {
+          account_id: activeAccountId,
+          ...(workspaceId ? { workspace_id: workspaceId } : {}),
+        },
+      });
+
+      toast.success("上傳成功，背景已開始解析與入庫");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await loadDocs();
+    } catch (error) {
+      console.error(error);
+      toast.error("上傳失敗");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -200,6 +276,67 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
                 </div>
               ))
             )}
+          </div>
+        </CardContent>
+      </Card>
+      ) : null}
+
+      {showDocsSection ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload File</CardTitle>
+          <CardDescription>
+            拖曳或選擇檔案上傳到 account scope
+            {workspaceId ? `（workspace: ${workspaceId}）` : "（全部 workspace 可見）"}。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              handleFileChange(event.dataTransfer.files?.[0] ?? null);
+            }}
+            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
+              dragging
+                ? "border-primary/60 bg-primary/10"
+                : "border-border/70 bg-muted/10 hover:border-primary/40"
+            }`}
+          >
+            <FileUp className="size-7 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
+              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={Object.keys(ACCEPTED_MIME).join(",")}
+              className="sr-only"
+              onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+            />
+          </label>
+
+          <div className="flex items-center gap-2">
+            <Button onClick={() => void handleUpload()} disabled={uploading || !selectedFile || !activeAccountId}>
+              {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {uploading ? "上傳中..." : "上傳並啟動解析"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              disabled={uploading}
+            >
+              清除
+            </Button>
           </div>
         </CardContent>
       </Card>

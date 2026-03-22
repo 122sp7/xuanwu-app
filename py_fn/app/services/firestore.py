@@ -56,6 +56,7 @@ def init_document(
     size_bytes: int,
     mime_type: str,
     account_id: str,
+    workspace_id: str = "",
 ) -> None:
     """
     初始化 Firestore document，標記為 processing 狀態。
@@ -83,6 +84,10 @@ def init_document(
             "mime_type": mime_type,
         },
     }
+
+    if workspace_id:
+        payload["spaceId"] = workspace_id
+        payload["metadata"] = {"space_id": workspace_id}
 
     ref.set(payload)
     logger.info(

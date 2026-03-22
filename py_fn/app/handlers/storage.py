@@ -79,6 +79,13 @@ def _extract_account_id(
     return None
 
 
+def _extract_workspace_id(event_metadata: dict | None) -> str | None:
+    if not isinstance(event_metadata, dict):
+        return None
+    workspace_id = str(event_metadata.get("workspace_id", "")).strip()
+    return workspace_id or None
+
+
 def handle_object_finalized(
     event: storage_fn.CloudEvent[storage_fn.StorageObjectData],
 ) -> None:
@@ -112,6 +119,7 @@ def handle_object_finalized(
     if not account_id:
         logger.error("GCS: missing account_id for %s, skipping", object_path)
         return
+    workspace_id = _extract_workspace_id(data.metadata)
 
     # doc_id = GCS 物件名稱（去掉 prefix 和副檔名）當作 Firestore 文件 ID
     filename = os.path.basename(object_path)
@@ -129,6 +137,7 @@ def handle_object_finalized(
             size_bytes=size_bytes,
             mime_type=mime_type,
             account_id=account_id,
+            workspace_id=workspace_id or "",
         )
     except Exception as exc:
         logger.exception("Failed to init document %s: %s", doc_id, exc)
@@ -145,6 +154,7 @@ def handle_object_finalized(
         json_data = {
             "doc_id": doc_id,
             "account_id": account_id,
+            "workspace_id": workspace_id,
             "source_gcs_uri": gcs_uri,
             "filename": filename,
             "page_count": parsed.page_count,
