@@ -1,0 +1,4 @@
+- Playwright MCP standard flow in VS Code: run npm run dev first -> confirm local app is reachable (e.g., http://localhost:3000) -> start browser -> navigate target URL -> perform visual/interaction checks -> capture console/network errors when behavior mismatches.
+- Test login account (long-term, user-provided): test@demo.com
+- Test login password (long-term, user-provided): 123456
+- Usage note: this credential is for testing environments only.
