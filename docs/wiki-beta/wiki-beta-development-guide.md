@@ -1,5 +1,11 @@
 # Wiki-Beta 開發指南
 
+## 文件一致性（單一真實來源）
+
+- 本文件與設計規格、使用手冊，皆以 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](docs/wiki-beta/wiki-beta-runtime-flow.mermaid) 為準。
+- 若文字敘述與 runtime-flow 圖不一致，優先修正文檔文字，使其回到 runtime-flow 的語意。
+- 任何對 runtime boundary、資料流、資料模型的調整，必須同步更新三份文件。
+
 ## 目的
 
 本文件定義 /wiki-beta 的開發方式，目標是讓 Wiki-Beta 具備與 /dev-tools 同等級的文件操作能力，並遵守既有 runtime boundary：
@@ -114,3 +120,4 @@ Namespace 在 wiki-beta 視角為背景能力：
 - RAG reindex 可正常觸發
 - 無 accountId required 類型的初始化錯誤
 - 無跨 wiki / wiki-beta 邊界 import 違規
+- 與 runtime-flow 文件一致（流程、命名、狀態）

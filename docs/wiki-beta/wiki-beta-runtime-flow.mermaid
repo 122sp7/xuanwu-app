@@ -7,7 +7,9 @@ flowchart LR
     subgraph NX["Next.js Runtime"]
       APP["app/(shell)/wiki-beta/page.tsx"]
       MOD["modules/wiki-beta<br/>interfaces/components + application use-cases"]
+      DOCSUI["/wiki-beta/documents<br/>Drag & Drop Upload + Docs List + Reindex"]
       APP --> MOD
+      MOD --> DOCSUI
     end
 
     subgraph FN["Firebase Functions Runtime"]
@@ -20,8 +22,11 @@ flowchart LR
 
     MOD -->|"httpsCallable: rag_query(account_id, query, top_k)"| PY
     MOD -->|"httpsCallable: rag_reindex_document(account_id, doc_id, json_gcs_uri, ...)"| PY
+    DOCSUI -->|"uploadBytes(file, customMetadata:{account_id, workspace_id?})"| STAPI["Firebase Storage API"]
     RAG -->|"retrieve + answer"| OUT1["RAG answer + citations"]
     REIDX -->|"re-ingest from json_gcs_uri"| OUT2["RAG status refresh"]
+    DOCSUI -->|"account-wide read (default)"| OUT3["accounts/{accountId}/documents"]
+    DOCSUI -->|"workspace filter (optional)"| OUT4["?workspaceId=..."]
     OUT1 --> MOD
     OUT2 --> MOD
   end
@@ -96,13 +101,13 @@ flowchart LR
     M["members/{userId}"]
     T["teams/{teamId}"]
     S["spaces/{spaceId}"]
-    F["files/{fileId}"]
+    F["files/{fileId} (planned)"]
     D["documents/{documentId}"]
-    P["pages/{pageId}"]
-    C["chunks/{chunkId}"]
-    V["vectors/{vectorId}"]
-    Q["rag_queries/{queryId}"]
-    ANS["rag_answers/{answerId}"]
+    P["pages/{pageId} (planned)"]
+    C["chunks/{chunkId} (planned)"]
+    V["vectors/{vectorId} (planned in Firestore)\nactual index: Upstash"]
+    Q["rag_queries/{queryId} (planned)"]
+    ANS["rag_answers/{answerId} (planned)"]
 
     A --> M
     A --> T
@@ -125,14 +130,14 @@ flowchart LR
 
   subgraph PIPE["RAG Ingestion + Query Pipeline"]
     direction TB
-    U["Upload File"] --> ST["Storage (file)"]
-    ST --> FR["Create File Record"]
+    U["Upload File (UI)"] --> ST["Storage (file)"]
+    ST --> FR["Create/Init Document Index"]
     FR --> PF["Parse File"]
-    PF --> CD["Create Document"]
+    PF --> CD["Update Document (parsed)"]
     CD --> CH["Chunk Document"]
-    CH --> CC["Create Chunks"]
+    CH --> CC["Create Chunks (vector payload)"]
     CC --> EM["Embedding"]
-    EM --> CV["Create Vectors"]
+    EM --> CV["Create Vectors (Upstash)"]
     CV --> RS["RAG Search"]
     RS --> RA["Answer"]
   end
@@ -152,6 +157,7 @@ flowchart LR
 - Phase 1: callable payload requires `account_id`.
 - Phase 2: storage-trigger ingestion requires account binding (`metadata.account_id` or `uploads/{accountId}/...`).
 - Phase 3 (current): Firestore reads/writes and RAG retrieval are account-scoped only.
+- Phase 4 (current): `/wiki-beta/documents` reaches `/dev-tools` parity for upload/list/reindex workflow, with account-wide default list + optional workspace filter.
 
 ## Field Summary
 
@@ -163,45 +169,31 @@ flowchart LR
   - name
   - description
   - visibility
-- accounts/{accountId}/files/{fileId}
-  - filename
-  - storagePath
-  - mimeType
-  - size
-  - uploadedBy
-  - status (uploaded | parsed | chunked | embedded)
-  - createdAt
 - accounts/{accountId}/documents/{documentId}
-  - fileId
-  - title
-  - text
-  - metadata
-  - spaceId
-  - createdAt
+  - status
+  - source.{gcs_uri, filename, size_bytes, uploaded_at, mime_type}
+  - parsed.{json_gcs_uri, page_count, parsed_at, extraction_ms}
+  - rag.{status, chunk_count, vector_count, indexed_at, error?}
+  - spaceId (optional; from upload metadata.workspace_id)
+  - metadata.space_id (optional)
+
+### Planned Collections (Not Canonical Yet)
+
+- accounts/{accountId}/files/{fileId}
 - accounts/{accountId}/chunks/{chunkId}
-  - documentId
-  - text
-  - order
-  - tokenCount
 - accounts/{accountId}/vectors/{vectorId}
-  - chunkId
-  - embedding
-  - indexId
 - accounts/{accountId}/pages/{pageId}
-  - title
-  - content
-  - spaceId
-  - linkedDocuments[]
 - accounts/{accountId}/rag_queries/{queryId}
-  - query
-  - userId
-  - createdAt
+- accounts/{accountId}/rag_answers/{answerId}
 
 ## Notes
 
 - app/(shell)/wiki-beta is the route orchestrator.
 - modules/wiki-beta owns UI composition and application orchestration.
 - py_fn owns callable execution for RAG query and document reindex.
+- `/wiki-beta/documents` is the product entry for upload/list/reindex, aligned with `/dev-tools` workflow.
+- Documents page defaults to account-wide visibility; workspace view is an explicit filter (`workspaceId`).
+- Namespace is a background capability (scope/slug model), not a standalone UI entry.
 - wiki-beta and wiki must remain isolated by lint import boundaries.
 - In topology, "Workspace ..." and "Workspace n" are illustrative for 1..n workspaces, not fixed counts.
 
@@ -225,8 +217,11 @@ flowchart LR
 - Next.js -> py_fn:
   - `httpsCallable("rag_query")`
   - `httpsCallable("rag_reindex_document")`
+- Next.js -> Storage:
+  - `uploadBytes(file, metadata.customMetadata)`
 - Next.js -> Firestore (read-side / UI-side):
   - account-scoped reads from `accounts/{accountId}/...`
+  - optional workspace filtering through document fields (`spaceId`/`metadata.space_id`)
 - py_fn -> Firestore (worker-side):
   - account-scoped writes/updates for RAG pipeline outputs
 

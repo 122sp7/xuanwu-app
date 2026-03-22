@@ -1,5 +1,10 @@
 # Wiki-Beta 使用手冊
 
+## 0. 文件一致性（單一真實來源）
+
+- 本手冊流程與詞彙，對齊 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](docs/wiki-beta/wiki-beta-runtime-flow.mermaid)。
+- 若畫面行為與手冊描述不一致，請先以 runtime-flow 判斷預期，再回補手冊內容。
+
 ## 1. 適用對象
 
 - 產品使用者

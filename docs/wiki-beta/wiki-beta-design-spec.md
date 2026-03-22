@@ -1,5 +1,11 @@
 # Wiki-Beta 設計規格
 
+## 0. 文件一致性（單一真實來源）
+
+- 本設計規格以 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](docs/wiki-beta/wiki-beta-runtime-flow.mermaid) 為單一真實來源。
+- 所有章節（Runtime Boundary、Data Model、Pipeline）不得與 runtime-flow 圖相衝突。
+- 若發現差異，先更新本規格與使用手冊，再補充實作計畫。
+
 ## 1. 文件資訊
 
 - 系統：Wiki-Beta
