@@ -8,9 +8,8 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle, FileText } from "lucide-react";
+import { FlaskConical, FileUp, Loader2, CheckCircle2, XCircle, AlertCircle, FileText, Eye, Trash2, Code2, ExternalLink } from "lucide-react";
 
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { Button } from "@ui-shadcn/ui/button";
@@ -29,6 +28,7 @@ interface DocRecord {
   id: string;
   status: "processing" | "completed" | "error" | string;
   filename: string;
+  gcs_uri: string;
   uploaded_at: Date | null;
   page_count?: number;
   json_gcs_uri?: string;
@@ -62,6 +62,10 @@ export default function DevToolsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [jsonContent, setJsonContent] = useState<string | null>(null);
+  const [jsonLoading, setJsonLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Firestore 監聽器 unsubscribe 函數
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -79,6 +83,15 @@ export default function DevToolsPage() {
     setStatus("idle");
     setLogs([]);
     if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(file: File): { uploadPath: string; docId: string } {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return {
+      uploadPath: `${WATCH_PATH}${docId}${ext}`,
+      docId,
+    };
   }
 
   // 監聽 Firestore 文件狀態變化
@@ -152,34 +165,18 @@ export default function DevToolsPage() {
     try {
       // ── Step 1: Upload to GCS ────────────────────────────────────────
       const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const uploadPath = `${WATCH_PATH}${Date.now()}-${selectedFile.name}`;
+      const { uploadPath, docId } = buildUuidUploadPath(selectedFile);
       const fileRef = storageApi.ref(storage, uploadPath);
 
       appendLog(`GCS path: gs://${UPLOAD_BUCKET}/${uploadPath}`);
+      appendLog(`doc_id(uuid): ${docId}`);
 
       await storageApi.uploadBytes(fileRef, selectedFile);
       appendLog(`✅ 上傳完成`);
 
-      // ── Step 2: Call parse_document with GCS URI ───────────────────
-      const gcsUri = `gs://${UPLOAD_BUCKET}/${uploadPath}`;
+      // ── Step 2: Watch Firestore for status updates ──────────────────
       setStatus("waiting");
-      appendLog("🔍 呼叫 parse_document callable…");
-
-      const fns = getFirebaseFunctions("asia-southeast1");
-      const parseDocument = functionsApi.httpsCallable<
-        { gcs_uri: string; size_bytes?: number },
-        { doc_id: string; status: string }
-      >(fns, "parse_document");
-
-      const response = await parseDocument({
-        gcs_uri: gcsUri,
-        size_bytes: selectedFile.size,
-      });
-
-      const docId = response.data.doc_id;
-      appendLog(`📝 doc_id=${docId}, 開始監聽 Firestore…`);
-
-      // ── Step 3: Watch Firestore for status updates ──────────────────
+      appendLog("🔍 已觸發 Storage pipeline，開始監聽 Firestore…");
       watchDocument(docId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -219,6 +216,7 @@ export default function DevToolsPage() {
             id: doc.id,
             status: d?.status || "unknown",
             filename: src.filename || doc.id,
+            gcs_uri: src.gcs_uri || "",
             uploaded_at: src.uploaded_at?.toDate?.() ?? null,
             page_count: parsed.page_count,
             json_gcs_uri: parsed.json_gcs_uri,
@@ -243,6 +241,70 @@ export default function DevToolsPage() {
       }
     };
   }, []);
+
+  async function handleViewOriginal(doc: DocRecord) {
+    if (!doc.gcs_uri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const fileRef = storageApi.ref(storage, doc.gcs_uri);
+      const url = await storageApi.getDownloadURL(fileRef);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function handleViewJson(doc: DocRecord) {
+    if (!doc.json_gcs_uri) return;
+    if (selectedDocId === doc.id && jsonContent !== null) {
+      setSelectedDocId(null);
+      setJsonContent(null);
+      return;
+    }
+    setSelectedDocId(doc.id);
+    setJsonContent(null);
+    setJsonLoading(true);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
+      const url = await storageApi.getDownloadURL(jsonRef);
+      const res = await fetch(url);
+      const text = await res.text();
+      setJsonContent(text);
+    } catch (err: unknown) {
+      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setJsonLoading(false);
+    }
+  }
+
+  async function handleDeleteDoc(doc: DocRecord) {
+    if (!window.confirm(`確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`)) return;
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const db = getFirebaseFirestore();
+      // 刪除 GCS 原始檔案
+      if (doc.gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_) {}
+      }
+      // 刪除 GCS JSON
+      if (doc.json_gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_) {}
+      }
+      // 刪除 Firestore 記錄
+      await firestoreApi.deleteDoc(firestoreApi.doc(db, PARSED_RESULTS_COLLECTION, doc.id));
+      // 若正在預覽此文件，清除預覽
+      if (selectedDocId === doc.id) {
+        setSelectedDocId(null);
+        setJsonContent(null);
+      }
+    } catch (err: unknown) {
+      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const isLoading = status === "uploading" || status === "waiting";
 
@@ -367,7 +429,7 @@ export default function DevToolsPage() {
             尚無上傳記錄
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border/60">
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/40">
@@ -375,17 +437,20 @@ export default function DevToolsPage() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {allDocs.map((doc, i) => (
                   <tr
                     key={doc.id}
-                    className={`border-b border-border/40 last:border-0 ${
-                      i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                    className={`border-b border-border/40 last:border-0 transition-colors ${
+                      selectedDocId === doc.id
+                        ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                        : i % 2 === 0 ? "bg-background" : "bg-muted/20"
                     }`}
                   >
-                    <td className="px-4 py-2.5 font-mono text-xs max-w-[200px] truncate" title={doc.filename}>
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
                       {doc.filename}
                     </td>
                     <td className="px-4 py-2.5">
@@ -411,15 +476,81 @@ export default function DevToolsPage() {
                     <td className="px-4 py-2.5 text-xs">
                       {doc.page_count != null ? doc.page_count : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
                       {doc.uploaded_at
                         ? doc.uploaded_at.toLocaleString("zh-TW", { hour12: false })
                         : "—"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* 查看原始檔案 */}
+                        <button
+                          onClick={() => handleViewOriginal(doc)}
+                          disabled={!doc.gcs_uri}
+                          title="查看原始檔案"
+                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </button>
+                        {/* 查看 JSON */}
+                        <button
+                          onClick={() => handleViewJson(doc)}
+                          disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                          title="查看 JSON 解析結果"
+                          className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                            selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <Code2 className="size-3.5" />
+                        </button>
+                        {/* 刪除 */}
+                        <button
+                          onClick={() => handleDeleteDoc(doc)}
+                          disabled={deletingId === doc.id}
+                          title="刪除"
+                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                        >
+                          {deletingId === doc.id
+                            ? <Loader2 className="size-3.5 animate-spin" />
+                            : <Trash2 className="size-3.5" />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {/* ── JSON 預覽面板 ──────────────────────────────────── */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {allDocs.find((d) => d.id === selectedDocId)?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedDocId(null); setJsonContent(null); }}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>

@@ -1,7 +1,8 @@
 """
 HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
 
-接受 GCS 檔案路徑，直接呼叫 Document AI（無記憶體複製），結果存入 Firestore。
+接受 GCS 檔案路徑，直接呼叫 Document AI（無記憶體複製），
+解析全文寫回 GCS JSON，Firestore 僅存索引。
 
 請求格式：
     {
@@ -10,7 +11,9 @@ HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
     }
 
 Document AI 會直接從 GCS 讀取檔案，無須下載到 Python 函數記憶體。
-結果自動保存至 Firestore（完整 lifecycle）。
+結果會保存為：
+    - GCS: parsed/.../*.json（完整解析）
+    - Firestore: parsed_documents/{doc_id}（索引）
 
 回應格式（立即返回）：
     {
@@ -29,6 +32,7 @@ from firebase_functions import https_fn
 
 from app.services.documentai import process_document_gcs
 from app.services.firestore import init_document, record_error, update_parsed
+from app.services.storage import parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
 
@@ -108,21 +112,44 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             "Failed to initialize document",
         ) from exc
 
+    # 解析 gs://bucket/path，取得 bucket 與 object_path
+    bucket_name, object_path = path_part.split("/", 1)
+
     # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
     start_time = time.time()
     try:
         parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
         extraction_ms = int((time.time() - start_time) * 1000)
 
+        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
+        json_object_path = parsed_json_path(object_path)
+        json_gcs_uri = upload_json(
+            bucket_name=bucket_name,
+            object_path=json_object_path,
+            data={
+                "doc_id": doc_id,
+                "source_gcs_uri": gcs_uri,
+                "filename": filename,
+                "page_count": parsed.page_count,
+                "extraction_ms": extraction_ms,
+                "text": parsed.text,
+            },
+        )
+
         update_parsed(
             doc_id=doc_id,
-            text=parsed.text,
+            json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
         )
 
-        logger.info("✓ parse_document done: doc_id=%s (%d pages, %d ms)",
-                   doc_id, parsed.page_count, extraction_ms)
+        logger.info(
+            "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
+            doc_id,
+            parsed.page_count,
+            extraction_ms,
+            json_gcs_uri,
+        )
     except Exception as exc:
         logger.exception("parse_document failed for %s: %s", doc_id, exc)
         record_error(doc_id, str(exc)[:200])
