@@ -1,1 +1,0 @@
-"""Output ports — repository interfaces."""

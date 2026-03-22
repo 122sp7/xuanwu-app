@@ -1,13 +1,5 @@
 """
-RAG pipeline service — 1~7 步驟最小可用實作。
-
-1. clean text
-2. chunk
-3. metadata
-4. embeddings
-5. vector upsert
-6. mark ready
-7. query retrieval + LLM answer
+RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
 """
 
 from __future__ import annotations
@@ -18,8 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from application.rag import execute_rag_query
-from app.config import (
+from core.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
     RAG_DOC_CACHE_TTL_SECONDS,
@@ -28,8 +19,8 @@ from app.config import (
     RAG_REDIS_PREFIX,
     RAG_VECTOR_NAMESPACE,
 )
-from app.services.embeddings import embed_texts
-from app.services.upstash_clients import (
+from infrastructure.external.openai.embeddings import embed_texts
+from infrastructure.external.upstash.clients import (
     redis_set_json,
     upsert_vectors,
 )
@@ -211,12 +202,3 @@ def ingest_document_for_rag(
         normalization_version=normalization_version,
         language_hint=language_hint,
     )
-
-
-def answer_rag_query(
-    query: str,
-    top_k: int | None = None,
-    account_id: str = "",
-) -> dict[str, Any]:
-    """Backward-compatible wrapper; orchestration now lives in application layer."""
-    return execute_rag_query(query=query, top_k=top_k, account_scope=account_id)

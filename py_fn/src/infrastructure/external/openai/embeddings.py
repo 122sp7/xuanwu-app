@@ -2,8 +2,8 @@
 Embeddings service — 封裝 OpenAI embedding 呼叫。
 """
 
-from app.config import OPENAI_EMBEDDING_DIMENSIONS, OPENAI_EMBEDDING_MODEL
-from app.services.openai_client import get_openai_client
+from core.config import OPENAI_EMBEDDING_DIMENSIONS, OPENAI_EMBEDDING_MODEL
+from infrastructure.external.openai.client import get_openai_client
 
 
 def _build_embedding_kwargs(model_name: str) -> dict:
