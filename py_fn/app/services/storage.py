@@ -24,17 +24,17 @@ def parsed_json_path(upload_object_path: str) -> str:
     """
     將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
 
-        規則：
-            - 去掉 uploads/ 前綴，換成 files/ 前綴
-            - 副檔名替換為 .json
+    規則：
+      - 去掉 uploads/ 前綴，換成 files/ 前綴
+      - 副檔名替換為 .json
 
     範例：
-                uploads/org/ws/file.pdf  →  files/org/ws/file.json
-                uploads/doc.png          →  files/doc.json
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.json
+        uploads/doc.png          ->  files/doc.json
     """
     relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
     base, _ = os.path.splitext(relative)
-        return f"{_FILES_PREFIX}{base}.json"
+    return f"{_FILES_PREFIX}{base}.json"
 
 
 def upload_json(bucket_name: str, object_path: str, data: dict) -> str:

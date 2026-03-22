@@ -31,7 +31,14 @@ import time
 from firebase_functions import https_fn
 
 from app.services.documentai import process_document_gcs
-from app.services.firestore import init_document, record_error, update_parsed
+from app.services.firestore import (
+    init_document,
+    mark_rag_ready,
+    record_error,
+    record_rag_error,
+    update_parsed,
+)
+from app.services.rag_pipeline import answer_rag_query, ingest_document_for_rag
 from app.services.storage import parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
@@ -143,6 +150,26 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             extraction_ms=extraction_ms,
         )
 
+        # Step 5/6: RAG ingestion（embed + vector + ready）
+        try:
+            rag = ingest_document_for_rag(
+                doc_id=doc_id,
+                filename=filename,
+                source_gcs_uri=gcs_uri,
+                json_gcs_uri=json_gcs_uri,
+                text=parsed.text,
+                page_count=parsed.page_count,
+            )
+            mark_rag_ready(
+                doc_id=doc_id,
+                chunk_count=rag.chunk_count,
+                vector_count=rag.vector_count,
+                embedding_model=rag.embedding_model,
+            )
+        except Exception as rag_exc:
+            logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
+            record_rag_error(doc_id, str(rag_exc)[:200])
+
         logger.info(
             "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
             doc_id,
@@ -158,4 +185,27 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     return {
         "doc_id": doc_id,
         "status": "processing",  # 前端應監聽 Firestore 的實際狀態
+    }
+
+
+def handle_rag_query(req: https_fn.CallableRequest) -> dict:
+    """HTTPS Callable：RAG 查詢（Step 7）。"""
+    data: dict = req.data or {}
+    query = str(data.get("query", "")).strip()
+    if not query:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "query 為必填欄位",
+        )
+
+    top_k = data.get("top_k")
+    try:
+        top_k_int = int(top_k) if top_k is not None else None
+    except Exception:
+        top_k_int = None
+
+    result = answer_rag_query(query=query, top_k=top_k_int)
+    return {
+        "answer": result.get("answer", ""),
+        "citations": result.get("citations", []),
     }

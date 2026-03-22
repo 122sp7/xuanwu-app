@@ -20,7 +20,14 @@ import time
 from firebase_functions import storage_fn
 
 from app.services.documentai import process_document_gcs
-from app.services.firestore import init_document, record_error, update_parsed
+from app.services.firestore import (
+    init_document,
+    mark_rag_ready,
+    record_error,
+    record_rag_error,
+    update_parsed,
+)
+from app.services.rag_pipeline import ingest_document_for_rag
 from app.services.storage import parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
@@ -122,6 +129,26 @@ def handle_object_finalized(
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
         )
+
+        # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
+        try:
+            rag = ingest_document_for_rag(
+                doc_id=doc_id,
+                filename=filename,
+                source_gcs_uri=gcs_uri,
+                json_gcs_uri=json_gcs_uri,
+                text=parsed.text,
+                page_count=parsed.page_count,
+            )
+            mark_rag_ready(
+                doc_id=doc_id,
+                chunk_count=rag.chunk_count,
+                vector_count=rag.vector_count,
+                embedding_model=rag.embedding_model,
+            )
+        except Exception as rag_exc:
+            logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
+            record_rag_error(doc_id, str(rag_exc)[:200])
 
         logger.info("✓ Done: doc_id=%s (%d pages, %d ms) → %s", doc_id, parsed.page_count, extraction_ms, json_gcs_uri)
     except Exception as exc:

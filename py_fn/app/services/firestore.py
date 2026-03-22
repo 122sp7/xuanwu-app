@@ -140,3 +140,47 @@ def record_error(doc_id: str, message: str) -> None:
 
     ref.update(payload)
     logger.error("Firestore: recorded error for document %s: %s", doc_id, message)
+
+
+def mark_rag_ready(
+    doc_id: str,
+    chunk_count: int,
+    vector_count: int,
+    embedding_model: str,
+) -> None:
+    """標記 RAG ingestion 完成（ready）。"""
+    db = fb_firestore.client()
+    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+
+    payload = {
+        "rag": {
+            "status": "ready",
+            "chunk_count": chunk_count,
+            "vector_count": vector_count,
+            "embedding_model": embedding_model,
+            "indexed_at": datetime.now(UTC),
+        }
+    }
+    ref.update(payload)
+    logger.info(
+        "Firestore: marked RAG ready for %s (chunks=%d, vectors=%d)",
+        doc_id,
+        chunk_count,
+        vector_count,
+    )
+
+
+def record_rag_error(doc_id: str, message: str) -> None:
+    """記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
+    db = fb_firestore.client()
+    ref = db.collection(PARSED_RESULTS_COLLECTION).document(doc_id)
+
+    payload = {
+        "rag": {
+            "status": "error",
+            "error": message,
+            "timestamp": datetime.now(UTC),
+        }
+    }
+    ref.update(payload)
+    logger.error("Firestore: recorded RAG error for document %s: %s", doc_id, message)

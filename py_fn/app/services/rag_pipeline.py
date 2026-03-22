@@ -1,0 +1,194 @@
+"""
+RAG pipeline service — 1~7 步驟最小可用實作。
+
+1. clean text
+2. chunk
+3. metadata
+4. embeddings
+5. vector upsert
+6. mark ready
+7. query retrieval + LLM answer
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+from app.config import (
+    OPENAI_EMBEDDING_MODEL,
+    RAG_CHUNK_OVERLAP_CHARS,
+    RAG_CHUNK_SIZE_CHARS,
+    RAG_QUERY_TOP_K,
+    RAG_VECTOR_NAMESPACE,
+)
+from app.services.embeddings import embed_text, embed_texts
+from app.services.llm import chat_complete
+from app.services.upstash_clients import query_vectors, upsert_vectors
+
+
+@dataclass
+class RagIngestionResult:
+    chunk_count: int
+    vector_count: int
+    embedding_model: str
+
+
+def clean_text(raw_text: str) -> str:
+    """Step 1: 最小清洗，保留段落。"""
+    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[\t ]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def chunk_text(text: str, chunk_size: int, overlap: int) -> list[dict[str, Any]]:
+    """Step 2 + Step 3: 分塊並建立 chunk metadata。"""
+    if not text:
+        return []
+
+    if chunk_size <= 0:
+        chunk_size = 1200
+    if overlap < 0:
+        overlap = 0
+    if overlap >= chunk_size:
+        overlap = max(0, chunk_size // 4)
+
+    chunks: list[dict[str, Any]] = []
+    start = 0
+    text_len = len(text)
+
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        content = text[start:end].strip()
+        if content:
+            chunks.append(
+                {
+                    "text": content,
+                    "char_start": start,
+                    "char_end": end,
+                }
+            )
+        if end >= text_len:
+            break
+        start = end - overlap
+
+    return chunks
+
+
+def ingest_document_for_rag(
+    *,
+    doc_id: str,
+    filename: str,
+    source_gcs_uri: str,
+    json_gcs_uri: str,
+    text: str,
+    page_count: int,
+) -> RagIngestionResult:
+    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
+    normalized = clean_text(text)
+    base_chunks = chunk_text(
+        normalized,
+        chunk_size=RAG_CHUNK_SIZE_CHARS,
+        overlap=RAG_CHUNK_OVERLAP_CHARS,
+    )
+    if not base_chunks:
+        return RagIngestionResult(chunk_count=0, vector_count=0, embedding_model=OPENAI_EMBEDDING_MODEL)
+
+    texts = [item["text"] for item in base_chunks]
+    vectors = embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
+
+    now_iso = datetime.now(UTC).isoformat()
+    payload: list[dict[str, Any]] = []
+
+    for i, (chunk, vec) in enumerate(zip(base_chunks, vectors)):
+        chunk_id = f"{doc_id}:{i:04d}"
+        payload.append(
+            {
+                "id": chunk_id,
+                "vector": vec,
+                "metadata": {
+                    "namespace": RAG_VECTOR_NAMESPACE,
+                    "doc_id": doc_id,
+                    "chunk_id": chunk_id,
+                    "chunk_index": i,
+                    "chunk_count": len(base_chunks),
+                    "filename": filename,
+                    "source_gcs_uri": source_gcs_uri,
+                    "json_gcs_uri": json_gcs_uri,
+                    "page_count": page_count,
+                    "char_start": chunk["char_start"],
+                    "char_end": chunk["char_end"],
+                    "text": chunk["text"],
+                    "indexed_at": now_iso,
+                },
+            }
+        )
+
+    upsert_vectors(payload)
+
+    return RagIngestionResult(
+        chunk_count=len(base_chunks),
+        vector_count=len(payload),
+        embedding_model=OPENAI_EMBEDDING_MODEL,
+    )
+
+
+def answer_rag_query(query: str, top_k: int | None = None) -> dict[str, Any]:
+    """Step 7: query embedding -> vector retrieval -> LLM answer。"""
+    q = query.strip()
+    if not q:
+        return {"answer": "", "citations": []}
+
+    actual_top_k = top_k if top_k and top_k > 0 else RAG_QUERY_TOP_K
+    query_vector = embed_text(q, model=OPENAI_EMBEDDING_MODEL)
+    hits = query_vectors(query_vector, top_k=actual_top_k, include_metadata=True)
+
+    contexts: list[str] = []
+    citations: list[dict[str, Any]] = []
+
+    for hit in hits:
+        metadata = hit.get("metadata") if isinstance(hit, dict) else None
+        if not isinstance(metadata, dict):
+            continue
+        snippet = str(metadata.get("text", "")).strip()
+        if not snippet:
+            continue
+        contexts.append(snippet)
+        citations.append(
+            {
+                "doc_id": metadata.get("doc_id"),
+                "chunk_id": metadata.get("chunk_id"),
+                "score": hit.get("score") if isinstance(hit, dict) else None,
+                "filename": metadata.get("filename"),
+                "json_gcs_uri": metadata.get("json_gcs_uri"),
+            }
+        )
+
+    context_block = "\n\n---\n\n".join(contexts[:actual_top_k])
+    if not context_block:
+        return {
+            "answer": "找不到足夠的相關內容。",
+            "citations": [],
+        }
+
+    answer = chat_complete(
+        messages=[
+            {
+                "role": "system",
+                "content": "你是 RAG 助手，只能依據提供的 context 回答，若不足請明確說明。",
+            },
+            {
+                "role": "user",
+                "content": f"問題：{q}\n\nContext:\n{context_block}",
+            },
+        ],
+        temperature=0.1,
+    )
+
+    return {
+        "answer": answer,
+        "citations": citations,
+    }
