@@ -13,6 +13,7 @@ RAG pipeline service — 1~7 步驟最小可用實作。
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -221,8 +222,46 @@ def ingest_document_for_rag(
     )
 
 
+def _normalize_metadata(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {}
+    return {}
+
+
 def _match_account(metadata: dict[str, Any], account_id: str) -> bool:
-    return str(metadata.get("account_id", "")).strip() == account_id
+    candidates = (
+        metadata.get("account_id"),
+        metadata.get("accountId"),
+        metadata.get("account"),
+        metadata.get("account_scope"),
+        metadata.get("namespace"),
+    )
+    return any(str(value or "").strip() == account_id for value in candidates)
+
+
+def _extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
+    candidates = (
+        metadata.get("text"),
+        metadata.get("chunk_text"),
+        metadata.get("content"),
+        hit.get("text"),
+        hit.get("content"),
+    )
+    for candidate in candidates:
+        snippet = str(candidate or "").strip()
+        if snippet:
+            return snippet
+    return ""
 
 
 def answer_rag_query(
@@ -265,13 +304,18 @@ def answer_rag_query(
     citations: list[dict[str, Any]] = []
     seen_snippets: set[str] = set()
 
+    raw_vector_hits = len(hits)
+    raw_search_hits = len(search_hits)
+
     for hit in hits:
-        metadata = hit.get("metadata") if isinstance(hit, dict) else None
-        if not isinstance(metadata, dict):
+        if not isinstance(hit, dict):
+            continue
+        metadata = _normalize_metadata(hit.get("metadata"))
+        if not metadata:
             continue
         if not _match_account(metadata, account_id):
             continue
-        snippet = str(metadata.get("text", "")).strip()
+        snippet = _extract_snippet(hit, metadata)
         if not snippet:
             continue
         if snippet in seen_snippets:
@@ -293,11 +337,11 @@ def answer_rag_query(
     for item in search_hits:
         if not isinstance(item, dict):
             continue
-        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        metadata = _normalize_metadata(item.get("metadata"))
         if not _match_account(metadata, account_id):
             continue
 
-        snippet = str(item.get("text", "")).strip()
+        snippet = _extract_snippet(item, metadata)
         if not snippet:
             continue
         if snippet in seen_snippets:
@@ -326,7 +370,15 @@ def answer_rag_query(
         return {
             "answer": "找不到足夠的相關內容。",
             "citations": [],
+            "cache": "miss",
+            "vector_hits": raw_vector_hits,
+            "search_hits": raw_search_hits,
             "account_scope": scope_key,
+            "debug": {
+                "vector_candidates": raw_vector_hits,
+                "search_candidates": raw_search_hits,
+                "reason": "no-context-after-scope-or-text-filter",
+            },
         }
 
     answer = chat_complete(

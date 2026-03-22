@@ -20,6 +20,7 @@ from app.config import (
     UPSTASH_REDIS_REST_URL,
     UPSTASH_SEARCH_REST_TOKEN,
     UPSTASH_SEARCH_REST_URL,
+    UPSTASH_SEARCH_INDEX,
     UPSTASH_SEARCH_TIMEOUT_SECONDS,
     UPSTASH_VECTOR_REST_TOKEN,
     UPSTASH_VECTOR_REST_URL,
@@ -28,6 +29,7 @@ from app.config import (
 _VECTOR_INDEX: Any | None = None
 _REDIS_CLIENT: Any | None = None
 _QSTASH_CLIENT: Any | None = None
+_SEARCH_INDEX: Any | None = None
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +112,25 @@ def get_qstash_client() -> Any:
             _QSTASH_CLIENT = client_cls(token=_require(QSTASH_TOKEN, "QSTASH_TOKEN"))
 
     return _QSTASH_CLIENT
+
+
+def get_search_index() -> Any:
+    """取得 Upstash Search 官方 SDK index（單例）。"""
+    global _SEARCH_INDEX
+    if _SEARCH_INDEX is None:
+        mod = _import_module("upstash_search", "pip install upstash-search")
+        search_cls = getattr(mod, "Search", None)
+        if search_cls is None:
+            raise UpstashSdkError("upstash_search.Search not found")
+
+        index_name = UPSTASH_SEARCH_INDEX or "default"
+        client = search_cls(
+            url=_require(UPSTASH_SEARCH_REST_URL, "UPSTASH_SEARCH_REST_URL"),
+            token=_require(UPSTASH_SEARCH_REST_TOKEN, "UPSTASH_SEARCH_REST_TOKEN"),
+            allow_telemetry=False,
+        )
+        _SEARCH_INDEX = client.index(index_name)
+    return _SEARCH_INDEX
 
 
 def upsert_vectors(items: list[dict[str, Any]]) -> Any:
@@ -234,6 +255,61 @@ def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
 
     if not query.strip() or top_k <= 0:
         return []
+
+    # Prefer official SDK first; fallback to REST probing for compatibility.
+    try:
+        index = get_search_index()
+        result = index.search(query=query, limit=top_k)
+        normalized: list[dict[str, Any]] = []
+
+        if isinstance(result, list):
+            items = result
+        elif isinstance(result, dict):
+            items = (
+                result.get("result")
+                or result.get("matches")
+                or result.get("hits")
+                or result.get("data")
+                or []
+            )
+        else:
+            items = getattr(result, "results", None) or getattr(result, "data", None) or []
+
+        if isinstance(items, list):
+            for item in items:
+                if not isinstance(item, dict):
+                    try:
+                        item = dict(item)
+                    except Exception:
+                        continue
+
+                metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                content = item.get("content") if isinstance(item.get("content"), dict) else {}
+                text = str(
+                    item.get("text")
+                    or content.get("text")
+                    or content.get("content")
+                    or metadata.get("text")
+                    or item.get("content")
+                    or ""
+                ).strip()
+                if not text:
+                    continue
+
+                normalized.append(
+                    {
+                        "id": item.get("id"),
+                        "score": item.get("score"),
+                        "text": text,
+                        "metadata": metadata,
+                        "source": "upstash-search-sdk",
+                    }
+                )
+
+        if normalized:
+            return normalized
+    except Exception as exc:
+        logger.debug("query_search_documents sdk path failed, fallback to REST: %s", exc)
 
     endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
     body_candidates = [

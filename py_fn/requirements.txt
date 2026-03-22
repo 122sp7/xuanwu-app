@@ -19,4 +19,5 @@ openai>=1.40.0,<2.0.0
 # Upstash Python SDKs (Vector/Redis used in RAG; QStash used for async audit event)
 upstash-vector>=0.8.0,<1.0.0
 upstash-redis>=1.0.0,<2.0.0
+upstash-search>=0.1.1,<1.0.0
 qstash>=3.0.0,<4.0.0
