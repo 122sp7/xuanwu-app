@@ -50,6 +50,47 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── Wiki / Wiki-Beta isolation boundaries ───────────────────────────────
+  {
+    files: ["modules/wiki/**/*.{ts,tsx}", "app/(shell)/wiki/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/modules/wiki-beta", "@/modules/wiki-beta/*"],
+              message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta。",
+            },
+            {
+              group: ["@/app/(shell)/wiki-beta", "@/app/(shell)/wiki-beta/*"],
+              message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta route。",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["modules/wiki-beta/**/*.{ts,tsx}", "app/(shell)/wiki-beta/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/modules/wiki", "@/modules/wiki/*"],
+              message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki。",
+            },
+            {
+              group: ["@/app/(shell)/wiki", "@/app/(shell)/wiki/*"],
+              message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki route。",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

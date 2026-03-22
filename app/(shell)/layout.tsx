@@ -27,6 +27,7 @@ const routeTitles: Record<string, string> = {
   "/organization": "Organization Governance",
   "/workspace": "Workspace Hub",
   "/wiki": "Wiki",
+  "/wiki-beta": "Wiki Beta",
   "/ai-chat": "AI Chat",
   "/settings": "Personal Settings",
   "/dev-tools": "Dev Tools",

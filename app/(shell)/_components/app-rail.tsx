@@ -160,6 +160,11 @@ export function AppRail({
       icon: <BookOpen className="size-[18px]" />,
     },
     {
+      href: "/wiki-beta",
+      label: "Wiki Beta",
+      icon: <BookOpen className="size-[18px]" />,
+    },
+    {
       href: "/ai-chat",
       label: "AI Chat",
       icon: <Bot className="size-[18px]" />,
