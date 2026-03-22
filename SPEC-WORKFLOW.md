@@ -4,19 +4,19 @@ This workflow is **opt-in**. Use it when explicitly requested by saying "use spe
 
 ## Design Documents
 
-The `specs/` folder contains design documents for features in development.
+Design documents for features in development live under `docs/design/` (or in a feature subdirectory under `docs/`).
 
 Each spec follows this structure:
 
 ```
-specs/{feature}/
+docs/design/{feature}/
 ├── CLAUDE.md           # Feature-specific instructions (read this first)
 ├── design.md           # The specification
 ├── implementation.md   # Current status and what's done
 ├── decisions.md        # Why decisions were made
 ├── prompts.md          # Reusable prompts
 ├── future-work.md      # What's deferred
-└── docs/               # Documentation with screenshots
+└── screenshots/        # Documentation screenshots
 ```
 
 **Workflow:**
@@ -31,9 +31,9 @@ specs/{feature}/
 
 ## When Implementing Features (Spec Mode)
 
-1. **Check for design doc** in `specs/` — if it exists, follow it
+1. **Check for design doc** in `docs/design/` — if it exists, follow it
 2. **If no spec exists** — ask if you should create one first
-3. **Look at existing patterns** — find similar code and follow conventions
+3. **Look at existing patterns** — find similar code and follow conventions (see [`agents/knowledge-base.md`](agents/knowledge-base.md))
 4. **Update implementation.md** — mark what's done after each piece
 5. **Update decisions.md** — when choosing between approaches
 
@@ -43,7 +43,7 @@ specs/{feature}/
 
 When user asks to build a new feature:
 
-1. Copy the template: `cp -r specs/_templates specs/{feature-name}`
+1. Create the directory: `mkdir -p docs/design/{feature-name}`
 2. Explore the codebase to understand existing patterns
 3. Write `design.md` with technical spec
 4. Write `CLAUDE.md` with feature-specific instructions
@@ -60,11 +60,11 @@ When user asks to build a new feature:
 ## Status: in-progress
 
 ## Completed
-- [x] Database schema
-- [x] Migration file
+- [x] Domain entities and repository interface
+- [x] Firebase repository implementation
 
 ## In Progress
-- tRPC endpoints
+- Server Actions
 
 ## Next Steps
 1. UI components
@@ -72,28 +72,28 @@ When user asks to build a new feature:
 
 ## Session Notes
 ### 2024-01-15
-- Done: Added schema, created migration
-- Next: Implement tRPC router
+- Done: Added domain entities, created Firebase repo
+- Next: Implement Server Actions
 ```
 
 ### decisions.md — When choosing between approaches:
 
 ```markdown
-## ADR-001: Use Separate Table for Custom Locations
+## ADR-001: Use Firestore Sub-Collection for Chunks
 
 ### Context
-Need to store user-defined locations.
+Need to store document chunks for RAG retrieval.
 
 ### Options
-1. JSON field — simpler, but harder to query
-2. Separate table — more flexible, better indexing
+1. Single `chunks` top-level collection — simpler queries, harder access control
+2. Sub-collection under `documents` — better scoping, follows existing pattern
 
 ### Decision
-Separate table for better querying.
+Sub-collection for better scoping and consistency with the existing data model.
 
 ### Consequences
-- Need migration
-- Need new tRPC router
+- Queries must specify the parent document path
+- Access rules inherit from the parent document
 ```
 
 ---
@@ -101,5 +101,5 @@ Separate table for better querying.
 ## Don't (When Using Spec-Driven Development)
 
 - Don't implement features without checking for a design doc first
-- Don't skip updating implementation.md after completing work
-- Don't make architectural decisions without recording them in decisions.md
+- Don't skip updating `implementation.md` after completing work
+- Don't make architectural decisions without recording them in `decisions.md`
