@@ -23,9 +23,11 @@ export { RegisterNamespaceUseCase } from './application/use-cases/register-names
 export type { RegisterNamespaceDTO } from './application/use-cases/register-namespace.use-case'
 export { ResolveNamespaceUseCase } from './application/use-cases/resolve-namespace.use-case'
 export type { ResolveNamespaceDTO } from './application/use-cases/resolve-namespace.use-case'
+export { ListNamespacesByOrganizationUseCase } from './application/use-cases/list-namespaces-by-organization.use-case'
+export type { ListNamespacesByOrganizationDTO } from './application/use-cases/list-namespaces-by-organization.use-case'
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
 export { InMemoryNamespaceRepository } from './infrastructure/repositories/in-memory-namespace.repository'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
-export { NamespaceController } from './interfaces/api/namespace.controller'
+export { NamespaceController, NamespacePrototypeView } from './interfaces'
