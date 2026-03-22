@@ -19,16 +19,16 @@ import time
 
 from firebase_functions import storage_fn
 
-from app.services.documentai import process_document_gcs
-from app.services.firestore import (
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+from infrastructure.external.documentai.client import process_document_gcs
+from infrastructure.persistence.firestore.document_repository import (
     init_document,
     mark_rag_ready,
     record_error,
     record_rag_error,
     update_parsed,
 )
-from app.services.rag_pipeline import ingest_document_for_rag
-from app.services.storage import parsed_json_path, upload_json
+from infrastructure.persistence.storage.client import parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
 

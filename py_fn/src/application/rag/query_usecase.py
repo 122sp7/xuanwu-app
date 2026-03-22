@@ -4,7 +4,7 @@ import logging
 import json
 from typing import Any
 
-from app.config import RAG_QUERY_TOP_K
+from core.config import RAG_QUERY_TOP_K
 from domain.rag import RagCitation, RagQueryInput, RagQueryResult
 from infrastructure.rag import (
     build_query_cache_key,

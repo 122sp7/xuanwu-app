@@ -4,7 +4,7 @@ OpenAI client service — 提供 embeddings / LLM 共用 client。
 
 from openai import OpenAI
 
-from app.config import OPENAI_API_KEY, OPENAI_MAX_RETRIES, OPENAI_TIMEOUT_SECONDS
+from core.config import OPENAI_API_KEY, OPENAI_MAX_RETRIES, OPENAI_TIMEOUT_SECONDS
 
 _client: OpenAI | None = None
 
