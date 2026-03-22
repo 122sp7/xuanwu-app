@@ -45,10 +45,10 @@ class DocumentAiRagParser(RagParserPort):
         # Download binary content from Storage.
         try:
             content_bytes = self._storage_reader.read_bytes(command.storage_path)
-        except RuntimeError:
+        except RuntimeError as exc:
             # If binary read fails, fall back to raw_text (e.g. plain-text uploads).
             if command.raw_text.strip():
-                logger.info("Storage read failed for %s; using raw_text fallback (no structured JSON)", command.storage_path)
+                logger.info("Storage read failed for %s (%s); using raw_text fallback (no structured JSON)", command.storage_path, exc)
                 return RagParseResult(text=command.raw_text)
             raise
 
