@@ -1,25 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { WikiBetaHubView, WikiBetaRagTestView } from "@/modules/wiki-beta";
-
-type WikiBetaMainView = "hub" | "rag-test";
-
-const tabs = [
-  { key: "hub" as const, label: "測試中樞" },
-  { key: "rag-test" as const, label: "RAG / Reindex" },
-];
+import { WikiBetaHubView } from "@/modules/wiki-beta";
 
 export default function WikiBetaPage() {
-  const [view, setView] = useState<WikiBetaMainView>("hub");
+  const router = useRouter();
 
-  const content = useMemo(() => {
-    if (view === "rag-test") {
-      return <WikiBetaRagTestView onBack={() => setView("hub")} />;
-    }
-    return <WikiBetaHubView onGoRagTest={() => setView("rag-test")} />;
-  }, [view]);
+  const routeItems = [
+    { href: "/wiki-beta/rag-query", label: "RAG Query" },
+    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
+    { href: "/wiki-beta/documents", label: "Documents" },
+  ] as const;
 
   return (
     <div className="space-y-4">
@@ -29,27 +22,19 @@ export default function WikiBetaPage() {
         <p className="text-sm text-muted-foreground">平行驗證中的 wiki-beta 入口，專注打通 py_fn callable 與 RAG 工作流。</p>
       </header>
 
-      <nav className="flex items-center gap-2" aria-label="Wiki Beta tabs">
-        {tabs.map((tab) => {
-          const active = view === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setView(tab.key)}
-              className={`rounded-full border px-3 py-1 text-sm font-medium transition ${
-                active
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+      <nav className="flex items-center gap-2" aria-label="Wiki Beta sections">
+        {routeItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="rounded-full border border-border/60 bg-background px-3 py-1 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+          >
+            {item.label}
+          </Link>
+        ))}
       </nav>
 
-      {content}
+      <WikiBetaHubView onGoRagTest={() => router.push("/wiki-beta/rag-query")} />
     </div>
   );
 }

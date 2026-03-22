@@ -21,6 +21,7 @@ import type {
 
 interface WikiBetaRagTestViewProps {
   readonly onBack: () => void;
+  readonly mode?: "all" | "query" | "reindex" | "documents";
 }
 
 function formatDate(value: Date | null): string {
@@ -28,9 +29,13 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("zh-TW", { hour12: false });
 }
 
-export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
+export function WikiBetaRagTestView({ onBack, mode = "all" }: WikiBetaRagTestViewProps) {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
+  const showQueryCard = mode === "all" || mode === "query";
+  const showReindexCard = mode === "all" || mode === "reindex";
+  const showDocumentsCard = mode === "documents";
+  const showDocsSection = showReindexCard || showDocumentsCard;
 
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState("4");
@@ -125,11 +130,14 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Button variant="outline" onClick={onBack}>返回中樞</Button>
-        <Button variant="outline" onClick={() => void loadDocs()} disabled={loadingDocs}>
-          {loadingDocs ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}刷新文件
-        </Button>
+        {showDocsSection ? (
+          <Button variant="outline" onClick={() => void loadDocs()} disabled={loadingDocs}>
+            {loadingDocs ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}刷新文件
+          </Button>
+        ) : null}
       </div>
 
+      {showQueryCard ? (
       <Card>
         <CardHeader>
           <CardTitle>RAG Query 測試</CardTitle>
@@ -187,10 +195,12 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
           </div>
         </CardContent>
       </Card>
+      ) : null}
 
+      {showDocsSection ? (
       <Card>
         <CardHeader>
-          <CardTitle>文件重整測試</CardTitle>
+          <CardTitle>{showDocumentsCard ? "Documents 檢視" : "文件重整測試"}</CardTitle>
           <CardDescription>
             account: {activeAccountId || "(未選擇)"} / docs: {docs.length} 筆 / RAG ready: {readyCount} 筆。
           </CardDescription>
@@ -214,10 +224,15 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => void handleReindex(doc)}
-                    disabled={reindexingId === doc.id || !doc.jsonGcsUri || !activeAccountId}
+                    disabled={
+                      showDocumentsCard ||
+                      reindexingId === doc.id ||
+                      !doc.jsonGcsUri ||
+                      !activeAccountId
+                    }
                   >
                     {reindexingId === doc.id ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                    手動重整
+                    {showDocumentsCard ? "僅檢視" : "手動重整"}
                   </Button>
                 </div>
               ))}
@@ -225,6 +240,7 @@ export function WikiBetaRagTestView({ onBack }: WikiBetaRagTestViewProps) {
           )}
         </CardContent>
       </Card>
+      ) : null}
     </div>
   );
 }

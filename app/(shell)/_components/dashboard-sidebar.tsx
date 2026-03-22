@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
@@ -122,6 +122,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
@@ -198,6 +199,16 @@ export function DashboardSidebar({
   const visibleRecentWorkspaceLinks = isExpanded
     ? recentWorkspaceLinks
     : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(() => {
+    return Object.values(workspacesById)
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        href: `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspace.id)}`,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [workspacesById]);
 
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
@@ -389,6 +400,9 @@ export function DashboardSidebar({
                 {(
                   [
                     { href: "/wiki-beta", label: "測試中樞" },
+                    { href: "/wiki-beta/rag-query", label: "RAG Query" },
+                    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
+                    { href: "/wiki-beta/documents", label: "Documents" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -407,6 +421,47 @@ export function DashboardSidebar({
                     </Link>
                   );
                 })}
+
+                <div className="my-1.5 border-t border-border/40" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsWikiBetaWorkspacesExpanded((prev) => !prev);
+                  }}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-expanded={isWikiBetaWorkspacesExpanded}
+                >
+                  <span>Workspaces</span>
+                  {isWikiBetaWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                </button>
+
+                {isWikiBetaWorkspacesExpanded && (
+                  <div className="space-y-0.5 pl-2">
+                    {allWorkspaceLinks.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+                    ) : (
+                      allWorkspaceLinks.map((workspace) => {
+                        const active = pathname.startsWith("/wiki-beta/documents");
+                        return (
+                          <Link
+                            key={workspace.id}
+                            href={workspace.href}
+                            aria-current={active ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              active
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                            title={workspace.name}
+                          >
+                            <span className="truncate">{workspace.name}</span>
+                          </Link>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </nav>
             )}
 
