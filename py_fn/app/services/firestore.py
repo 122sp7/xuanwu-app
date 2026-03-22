@@ -1,6 +1,9 @@
 """
 Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
 
+Firestore 只存輕量索引（供 /dev-tools 列出已上傳檔案），
+解析全文以 JSON 格式存回 GCS 的對應路徑（parsed/ 前綴）。
+
 Document Schema:
     {
         "id": "doc-abc123",
@@ -13,7 +16,7 @@ Document Schema:
             "mime_type": "application/pdf"
         },
         "parsed": {
-            "text": "...",
+            "json_gcs_uri": "gs://bucket/parsed/file.json",   // 全文 JSON 位置
             "page_count": 5,
             "parsed_at": "2026-03-22T...",
             "extraction_ms": 1234
@@ -26,7 +29,7 @@ Document Schema:
 
 用法：
     init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
-    update_parsed(doc_id, text, page_count, extraction_ms)
+    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
     record_error(doc_id, message)
 """
 
@@ -81,18 +84,19 @@ def init_document(
 
 def update_parsed(
     doc_id: str,
-    text: str,
+    json_gcs_uri: str,
     page_count: int,
     extraction_ms: int = 0,
 ) -> None:
     """
-    更新 document 的解析結果，標記為 completed 狀態。
+    更新 document 的解析結果索引，標記為 completed 狀態。
 
-    在 Document AI 解析完成後呼叫。
+    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
+    Firestore 只保留輕量索引供前端列表使用。
 
     Args:
         doc_id:         文件識別碼。
-        text:           全文內容。
+        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/parsed/file.json
         page_count:     頁數。
         extraction_ms:  解析耗時（毫秒），非必填。
     """
@@ -102,7 +106,7 @@ def update_parsed(
     payload = {
         "status": "completed",
         "parsed": {
-            "text": text,
+            "json_gcs_uri": json_gcs_uri,
             "page_count": page_count,
             "parsed_at": datetime.now(UTC),
             "extraction_ms": extraction_ms,
