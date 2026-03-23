@@ -11,6 +11,7 @@
  */
 
 import type { ReactNode } from "react";
+import { Toaster } from "@ui-shadcn/ui/sonner";
 import { AuthProvider } from "./auth-provider";
 import { AppProvider } from "./app-provider";
 
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <AppProvider>{children}</AppProvider>
+      <Toaster richColors closeButton />
     </AuthProvider>
   );
 }
