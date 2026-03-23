@@ -1,5 +1,7 @@
 # File Module MDDD + Hexagonal Implementation Plan
 
+> **開發狀態**：🚧 Developing — 積極開發中
+
 **核心原則：檔案模組只擁有檔案生命週期、版本、授權快照與保留策略的業務規則，account / workspace / organization 只提供身分、協作情境與治理政策，所有存取判斷一律經由 file application use case 透過 ports 解算。**
 
 ---

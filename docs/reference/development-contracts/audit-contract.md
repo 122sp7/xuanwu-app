@@ -1,9 +1,12 @@
 ---
 title: Audit development contract
 description: Implementation contract for append-only audit queries, source boundaries, and future audit ingestion rules.
+status: "🏗️ Midway"
 ---
 
 # Audit development contract
+
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ## Scope
 

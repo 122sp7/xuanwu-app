@@ -1,9 +1,12 @@
 ---
 title: Event Core development contract
 description: Implementation contract for the Event Core domain — canonical domain event capture, persistence, dispatch, aggregate correlation, and outbox pattern.
+status: "🚧 Developing"
 ---
 
 # Event Core development contract
+
+> **開發狀態**：🚧 Developing — 積極開發中
 
 ## Purpose
 

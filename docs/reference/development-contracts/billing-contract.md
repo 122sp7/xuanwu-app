@@ -1,9 +1,12 @@
 ---
 title: Billing development contract
 description: Implementation contract for billing record queries and the future invoice, settlement, and refund boundaries required for enterprise billing work.
+status: "📅 Planned"
 ---
 
 # Billing development contract
+
+> **開發狀態**：📅 Planned — 已規劃，尚未開始實作
 
 ## Scope
 

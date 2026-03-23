@@ -1,5 +1,7 @@
 # Billing Module
 
+> **開發狀態**：📅 Planned — 已規劃，尚未開始實作
+
 ## Purpose
 
 The billing module owns billing records, invoice and settlement workflows, refund handling, and future credit or adjustment ledgers. It is a high-risk domain and requires explicit contracts before write-side expansion.

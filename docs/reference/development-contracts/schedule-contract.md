@@ -1,9 +1,12 @@
 ---
 title: Schedule development contract
 description: Full MDDD contract for bidirectional request-fulfillment scheduling with intelligent task-skill matching.
+status: "🏗️ Midway"
 ---
 
 # Schedule development contract
+
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ## Purpose
 

@@ -1,9 +1,12 @@
 ---
 title: Daily development contract
 description: Development contract for Workspace Daily and Organization Daily, covering the current digest boundary, target write-side model, and Instagram-inspired feed rules.
+status: "🏗️ Midway"
 ---
 
 # Daily development contract
+
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ## Purpose
 

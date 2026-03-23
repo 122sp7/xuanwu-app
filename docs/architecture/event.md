@@ -1,6 +1,7 @@
 ---
 title: Event Core architecture
 description: Target architecture for the event-core domain — canonical domain event capture, persistence, dispatch, and aggregate correlation in Xuanwu MDDD.
+status: "🚧 Developing"
 ---
 
 # Event Core 領域事件架構規範
@@ -10,6 +11,7 @@ description: Target architecture for the event-core domain — canonical domain 
 > **版本**：v1.0.0
 > **最後更新**：2026-03-20
 > **維護責任方**：Event Core Owner / 平台架構委員會
+> **開發狀態**：🚧 Developing — 積極開發中
 
 ---
 

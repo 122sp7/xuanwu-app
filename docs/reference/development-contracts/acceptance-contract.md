@@ -1,9 +1,12 @@
 ---
 title: Acceptance development contract
 description: Implementation contract for derived workspace acceptance gates and the rules that future approval flows must preserve.
+status: "🏗️ Midway"
 ---
 
 # Acceptance development contract
+
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ## Scope
 

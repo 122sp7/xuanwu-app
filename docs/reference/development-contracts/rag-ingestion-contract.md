@@ -1,9 +1,12 @@
 ---
 title: RAG ingestion development contract
 description: Authoritative cross-runtime contract for RAG upload registration, worker execution, lifecycle transitions, and acceptance gates.
+status: "🚧 Developing"
 ---
 
 # RAG ingestion development contract
+
+> **開發狀態**：🚧 Developing — 積極開發中
 
 ## Scope
 

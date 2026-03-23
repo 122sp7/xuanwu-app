@@ -1,9 +1,12 @@
 ---
 title: Parser development contract
 description: Implementation contract for parser module inputs, summary outputs, future parser job ownership, and acceptance rules.
+status: "🏗️ Midway"
 ---
 
 # Parser development contract
+
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ## Scope
 

@@ -1,6 +1,7 @@
 ---
 title: Schedule architecture
 description: Target MDDD architecture for the bidirectional resource-request scheduling system, including the currently shipped scope, domain model, Firestore data model, state machines, and event-driven design.
+status: "🏗️ Midway"
 ---
 
 # 排程模組架構規範
@@ -10,6 +11,7 @@ description: Target MDDD architecture for the bidirectional resource-request sch
 > **版本**：v1.2.0
 > **最後更新**：2026-03-20
 > **維護責任方**：Schedule Module Owner / 平台架構委員會
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ---
 
