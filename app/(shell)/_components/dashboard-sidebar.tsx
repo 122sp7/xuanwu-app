@@ -9,6 +9,7 @@
  */
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -46,6 +47,22 @@ const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
 
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
 const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+const WORKSPACE_TAB_ITEMS = [
+  { value: "Overview", label: "Overview" },
+  { value: "Members", label: "Members" },
+  { value: "Tasks", label: "Tasks" },
+  { value: "QA", label: "QA" },
+  { value: "Acceptance", label: "Acceptance" },
+  { value: "Finance", label: "Finance" },
+  { value: "Issues", label: "Issues" },
+  { value: "Daily", label: "Daily" },
+  { value: "Files", label: "Files" },
+  { value: "Wiki", label: "Wiki" },
+  { value: "Schedule", label: "Schedule" },
+  { value: "Document Parser", label: "Document Parser" },
+  { value: "Audit", label: "Audit" },
+] as const;
 
 function getStorageKey(accountId: string) {
   return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
@@ -134,6 +151,7 @@ export function DashboardSidebar({
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   function toggleCollapsed() {
     onToggleCollapsed();
@@ -364,46 +382,76 @@ export function DashboardSidebar({
 
             {section === "workspace" && (
               <>
-                {showRecentWorkspaces && (
+                {getWorkspaceIdFromPath(pathname) ? (
+                  // ── Workspace detail: tab navigation ──────────────────
                   <div className="space-y-0.5">
                     <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      最近工作區
+                      Workspace
                     </p>
-                    {visibleRecentWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                        尚無最近開啟的工作區。
-                      </p>
-                    ) : (
-                      visibleRecentWorkspaceLinks.map((ws) => (
+                    {WORKSPACE_TAB_ITEMS.map((item) => {
+                      const activeTab = searchParams.get("tab") ?? "Overview";
+                      const isActive = activeTab === item.value;
+                      return (
                         <Link
-                          key={ws.id}
-                          href={ws.href}
-                          onClick={() => {
-                            onSelectWorkspace(ws.id);
-                          }}
+                          key={item.value}
+                          href={`/workspace/${getWorkspaceIdFromPath(pathname)}?tab=${encodeURIComponent(item.value)}`}
+                          aria-current={isActive ? "page" : undefined}
                           className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                            isActive
                               ? "bg-primary/10 text-primary"
-                              : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
                           }`}
-                          title={ws.name}
                         >
-                          <span className="truncate">{ws.name}</span>
+                          {item.label}
                         </Link>
-                      ))
-                    )}
-                    {hasOverflow && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsExpanded((prev) => !prev);
-                        }}
-                        className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                      >
-                        {isExpanded ? "收起" : "顯示更多"}
-                      </button>
-                    )}
+                      );
+                    })}
                   </div>
+                ) : (
+                  // ── Workspace hub: show recent workspaces ──────────────
+                  <>
+                    {showRecentWorkspaces && (
+                      <div className="space-y-0.5">
+                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                          最近工作區
+                        </p>
+                        {visibleRecentWorkspaceLinks.length === 0 ? (
+                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                            尚無最近開啟的工作區。
+                          </p>
+                        ) : (
+                          visibleRecentWorkspaceLinks.map((ws) => (
+                            <Link
+                              key={ws.id}
+                              href={ws.href}
+                              onClick={() => {
+                                onSelectWorkspace(ws.id);
+                              }}
+                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                              }`}
+                              title={ws.name}
+                            >
+                              <span className="truncate">{ws.name}</span>
+                            </Link>
+                          ))
+                        )}
+                        {hasOverflow && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExpanded((prev) => !prev);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {isExpanded ? "收起" : "顯示更多"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
