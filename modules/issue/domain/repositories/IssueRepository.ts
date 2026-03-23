@@ -1,12 +1,12 @@
-import type {
-  CreateWorkspaceIssueInput,
-  UpdateWorkspaceIssueInput,
-  WorkspaceIssueEntity,
-} from "../entities/Issue";
+import type { IssueEntity, CreateIssueInput, UpdateIssueInput } from "../entities/Issue";
+import type { IssueLifecycleStatus } from "../value-objects/issue-state";
 
 export interface IssueRepository {
-  create(input: CreateWorkspaceIssueInput): Promise<WorkspaceIssueEntity>;
-  update(issueId: string, input: UpdateWorkspaceIssueInput): Promise<WorkspaceIssueEntity | null>;
+  create(input: CreateIssueInput): Promise<IssueEntity>;
+  update(issueId: string, input: UpdateIssueInput): Promise<IssueEntity | null>;
   delete(issueId: string): Promise<void>;
-  findByWorkspaceId(workspaceId: string): Promise<WorkspaceIssueEntity[]>;
+  findById(issueId: string): Promise<IssueEntity | null>;
+  findByWorkspaceId(workspaceId: string): Promise<IssueEntity[]>;
+  /** Persists a lifecycle status transition; stamps resolvedAtISO when to==="resolved". */
+  transitionStatus(issueId: string, to: IssueLifecycleStatus, nowISO: string): Promise<IssueEntity | null>;
 }

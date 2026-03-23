@@ -1,15 +1,7 @@
-import type { FinanceAggregateEntity } from "../../domain/entities/Finance";
-import { FirebaseFinanceRepository } from "../../infrastructure/firebase/FirebaseFinanceRepository";
+import type { Invoice } from "../../domain/entities/Invoice";
+import { ListInvoicesUseCase } from "../../application/use-cases/finance.use-cases";
+import { FirebaseInvoiceRepository } from "../../infrastructure/firebase/FirebaseFinanceRepository";
 
-const financeRepo = new FirebaseFinanceRepository();
-
-export async function getFinanceByWorkspaceId(
-  workspaceId: string,
-): Promise<FinanceAggregateEntity | null> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return null;
-  }
-
-  return financeRepo.findByWorkspaceId(normalizedWorkspaceId);
+export async function getInvoices(workspaceId: string): Promise<Invoice[]> {
+  return new ListInvoicesUseCase(new FirebaseInvoiceRepository()).execute(workspaceId);
 }

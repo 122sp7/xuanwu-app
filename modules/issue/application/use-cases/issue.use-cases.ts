@@ -1,87 +1,98 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type {
-  CreateWorkspaceIssueInput,
-  UpdateWorkspaceIssueInput,
-  WorkspaceIssueEntity,
-} from "../../domain/entities/Issue";
 import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import type { IssueEntity, CreateIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
+import { canTransitionIssue, type IssueLifecycleStatus } from "../../domain/value-objects/issue-state";
 
-export class CreateWorkspaceIssueUseCase {
+export class CreateIssueUseCase {
   constructor(private readonly issueRepository: IssueRepository) {}
 
-  async execute(input: CreateWorkspaceIssueInput): Promise<CommandResult> {
+  async execute(input: CreateIssueInput): Promise<CommandResult> {
+    const tenantId = input.tenantId.trim();
+    const teamId = input.teamId.trim();
     const workspaceId = input.workspaceId.trim();
     const title = input.title.trim();
+    const relatedId = input.relatedId.trim();
 
-    if (!workspaceId) {
-      return commandFailureFrom("ISSUE_WORKSPACE_REQUIRED", "Workspace is required.");
-    }
-
-    if (!title) {
-      return commandFailureFrom("ISSUE_TITLE_REQUIRED", "Issue title is required.");
-    }
+    if (!tenantId) return commandFailureFrom("ISSUE_TENANT_REQUIRED", "Tenant is required.");
+    if (!teamId) return commandFailureFrom("ISSUE_TEAM_REQUIRED", "Team is required.");
+    if (!workspaceId) return commandFailureFrom("ISSUE_WORKSPACE_REQUIRED", "Workspace is required.");
+    if (!title) return commandFailureFrom("ISSUE_TITLE_REQUIRED", "Issue title is required.");
+    if (!relatedId) return commandFailureFrom("ISSUE_RELATED_REQUIRED", "relatedId is required.");
 
     const issue = await this.issueRepository.create({
       ...input,
+      tenantId,
+      teamId,
       workspaceId,
       title,
+      relatedId,
     });
-
     return commandSuccess(issue.id, Date.now());
   }
 }
 
-export class UpdateWorkspaceIssueUseCase {
+export class UpdateIssueUseCase {
   constructor(private readonly issueRepository: IssueRepository) {}
 
-  async execute(issueId: string, input: UpdateWorkspaceIssueInput): Promise<CommandResult> {
-    const normalizedIssueId = issueId.trim();
-    if (!normalizedIssueId) {
-      return commandFailureFrom("ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
+  async execute(issueId: string, input: UpdateIssueInput): Promise<CommandResult> {
+    const normalizedId = issueId.trim();
+    if (!normalizedId) return commandFailureFrom("ISSUE_ID_REQUIRED", "Issue id is required.");
 
     const nextTitle = typeof input.title === "string" ? input.title.trim() : undefined;
     if (typeof nextTitle === "string" && !nextTitle) {
       return commandFailureFrom("ISSUE_TITLE_REQUIRED", "Issue title is required.");
     }
 
-    const updatedIssue = await this.issueRepository.update(normalizedIssueId, {
+    const updated = await this.issueRepository.update(normalizedId, {
       ...input,
       ...(typeof nextTitle === "string" ? { title: nextTitle } : {}),
     });
-
-    if (!updatedIssue) {
-      return commandFailureFrom("ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    return commandSuccess(updatedIssue.id, Date.now());
+    if (!updated) return commandFailureFrom("ISSUE_NOT_FOUND", "Issue not found.");
+    return commandSuccess(updated.id, Date.now());
   }
 }
 
-export class DeleteWorkspaceIssueUseCase {
+export class DeleteIssueUseCase {
   constructor(private readonly issueRepository: IssueRepository) {}
 
   async execute(issueId: string): Promise<CommandResult> {
-    const normalizedIssueId = issueId.trim();
-    if (!normalizedIssueId) {
-      return commandFailureFrom("ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    await this.issueRepository.delete(normalizedIssueId);
-    return commandSuccess(normalizedIssueId, Date.now());
+    const normalizedId = issueId.trim();
+    if (!normalizedId) return commandFailureFrom("ISSUE_ID_REQUIRED", "Issue id is required.");
+    await this.issueRepository.delete(normalizedId);
+    return commandSuccess(normalizedId, Date.now());
   }
 }
 
-export class ListWorkspaceIssuesUseCase {
+export class TransitionIssueStatusUseCase {
   constructor(private readonly issueRepository: IssueRepository) {}
 
-  async execute(workspaceId: string): Promise<WorkspaceIssueEntity[]> {
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedWorkspaceId) {
-      return [];
+  async execute(issueId: string, to: IssueLifecycleStatus): Promise<CommandResult> {
+    const normalizedId = issueId.trim();
+    if (!normalizedId) return commandFailureFrom("ISSUE_ID_REQUIRED", "Issue id is required.");
+
+    const issue = await this.issueRepository.findById(normalizedId);
+    if (!issue) return commandFailureFrom("ISSUE_NOT_FOUND", "Issue not found.");
+
+    if (!canTransitionIssue(issue.status, to)) {
+      return commandFailureFrom(
+        "ISSUE_INVALID_TRANSITION",
+        `Cannot transition from "${issue.status}" to "${to}".`,
+      );
     }
 
-    return this.issueRepository.findByWorkspaceId(normalizedWorkspaceId);
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(normalizedId, to, nowISO);
+    if (!updated) return commandFailureFrom("ISSUE_NOT_FOUND", "Issue not found after transition.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ListIssuesUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(workspaceId: string): Promise<IssueEntity[]> {
+    const normalizedId = workspaceId.trim();
+    if (!normalizedId) return [];
+    return this.issueRepository.findByWorkspaceId(normalizedId);
   }
 }

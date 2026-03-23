@@ -1,54 +1,51 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type {
-  CreateWorkspaceTaskInput,
-  UpdateWorkspaceTaskInput,
-} from "../../domain/entities/Task";
+import type { TaskLifecycleStatus } from "../../domain/value-objects/task-state";
+import type { CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
 import {
-  CreateWorkspaceTaskUseCase,
-  DeleteWorkspaceTaskUseCase,
-  UpdateWorkspaceTaskUseCase,
+  CreateTaskUseCase,
+  DeleteTaskUseCase,
+  TransitionTaskStatusUseCase,
+  UpdateTaskUseCase,
 } from "../../application/use-cases/task.use-cases";
 import { FirebaseTaskRepository } from "../../infrastructure/firebase/FirebaseTaskRepository";
 
-const taskRepository = new FirebaseTaskRepository();
-const createWorkspaceTaskUseCase = new CreateWorkspaceTaskUseCase(taskRepository);
-const updateWorkspaceTaskUseCase = new UpdateWorkspaceTaskUseCase(taskRepository);
-const deleteWorkspaceTaskUseCase = new DeleteWorkspaceTaskUseCase(taskRepository);
+function makeRepo() {
+  return new FirebaseTaskRepository();
+}
 
-export async function createWorkspaceTask(input: CreateWorkspaceTaskInput): Promise<CommandResult> {
+export async function createTask(input: CreateTaskInput): Promise<CommandResult> {
   try {
-    return await createWorkspaceTaskUseCase.execute(input);
-  } catch (error) {
-    return commandFailureFrom(
-      "TASK_CREATE_FAILED",
-      error instanceof Error ? error.message : "Unexpected task create error",
-    );
+    return await new CreateTaskUseCase(makeRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export async function updateWorkspaceTask(
+export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<CommandResult> {
+  try {
+    return await new UpdateTaskUseCase(makeRepo()).execute(taskId, input);
+  } catch (err) {
+    return commandFailureFrom("TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteTask(taskId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteTaskUseCase(makeRepo()).execute(taskId);
+  } catch (err) {
+    return commandFailureFrom("TASK_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function transitionTaskStatus(
   taskId: string,
-  input: UpdateWorkspaceTaskInput,
+  to: TaskLifecycleStatus,
 ): Promise<CommandResult> {
   try {
-    return await updateWorkspaceTaskUseCase.execute(taskId, input);
-  } catch (error) {
-    return commandFailureFrom(
-      "TASK_UPDATE_FAILED",
-      error instanceof Error ? error.message : "Unexpected task update error",
-    );
-  }
-}
-
-export async function deleteWorkspaceTask(taskId: string): Promise<CommandResult> {
-  try {
-    return await deleteWorkspaceTaskUseCase.execute(taskId);
-  } catch (error) {
-    return commandFailureFrom(
-      "TASK_DELETE_FAILED",
-      error instanceof Error ? error.message : "Unexpected task delete error",
-    );
+    return await new TransitionTaskStatusUseCase(makeRepo()).execute(taskId, to);
+  } catch (err) {
+    return commandFailureFrom("TASK_TRANSITION_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }

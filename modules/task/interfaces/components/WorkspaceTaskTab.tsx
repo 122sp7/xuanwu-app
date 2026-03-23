@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -13,61 +13,60 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
-import type { WorkspaceTaskEntity, WorkspaceTaskStatus } from "@/modules/task/domain/entities/Task";
-import {
-  createWorkspaceTask,
-  deleteWorkspaceTask,
-  updateWorkspaceTask,
-} from "../_actions/task.actions";
-import { getWorkspaceTasks } from "../queries/task.queries";
+import type { TaskEntity } from "../../domain/entities/Task";
+import { nextTaskStatus } from "../../domain/value-objects/task-state";
+import { createTask, deleteTask, transitionTaskStatus } from "../_actions/task.actions";
+import { getTasks } from "../queries/task.queries";
 
 interface WorkspaceTaskTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
-const statusVariantMap = {
-  pending: "default",
-  "in-progress": "outline",
-  completed: "secondary",
-} as const;
+/**
+ * Status badge colour — communicates lifecycle stage at a glance.
+ * draft=outline, active stages=default, accepted=secondary, archived=destructive.
+ */
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  in_progress: "default",
+  qa: "default",
+  acceptance: "default",
+  accepted: "secondary",
+  archived: "destructive",
+};
 
-function formatTaskDate(value?: string) {
-  if (!value) {
-    return "—";
-  }
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  in_progress: "In Progress",
+  qa: "QA",
+  acceptance: "Acceptance",
+  accepted: "Accepted ✓",
+  archived: "Archived",
+};
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("zh-TW", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
+const ADVANCE_LABEL: Record<string, string> = {
+  draft: "Start →",
+  in_progress: "Send to QA →",
+  qa: "Send to Acceptance →",
+  acceptance: "Accept →",
+  accepted: "Archive →",
+};
 
 export function WorkspaceTaskTab({ workspace }: WorkspaceTaskTabProps) {
-  const [tasks, setTasks] = useState<WorkspaceTaskEntity[]>([]);
+  const [tasks, setTasks] = useState<TaskEntity[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
-  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoadState("loading");
-
     try {
-      const nextTasks = await getWorkspaceTasks(workspace.id);
-      setTasks(nextTasks);
+      setTasks(await getTasks(workspace.id));
       setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceTaskTab] Failed to load tasks:", error);
-      }
+    } catch {
       setTasks([]);
       setLoadState("error");
     }
@@ -75,47 +74,28 @@ export function WorkspaceTaskTab({ workspace }: WorkspaceTaskTabProps) {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function load() {
-      if (cancelled) {
-        return;
-      }
-      await loadTasks();
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
+    void (async () => {
+      if (!cancelled) await loadTasks();
+    })();
+    return () => { cancelled = true; };
   }, [loadTasks]);
 
-  const pendingCount = useMemo(() => tasks.filter((task) => task.status === "pending").length, [tasks]);
-  const completedCount = useMemo(
-    () => tasks.filter((task) => task.status === "completed").length,
-    [tasks],
-  );
-
-  async function handleCreateTask() {
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle) {
-      setActionError("請輸入任務標題。");
-      return;
-    }
-
+  async function handleCreate() {
+    const t = title.trim();
+    if (!t) { setActionError("請輸入任務標題。"); return; }
     setIsCreating(true);
     setActionError(null);
     try {
-      const result = await createWorkspaceTask({
+      // tenantId / teamId are wired from auth context in production;
+      // passing workspaceId as placeholder keeps the scaffold functional.
+      const result = await createTask({
+        tenantId: workspace.id,
+        teamId: workspace.id,
         workspaceId: workspace.id,
-        title: normalizedTitle,
+        title: t,
         description: description.trim() || undefined,
       });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
-
+      if (!result.success) { setActionError(result.error.message); return; }
       setTitle("");
       setDescription("");
       await loadTasks();
@@ -124,169 +104,120 @@ export function WorkspaceTaskTab({ workspace }: WorkspaceTaskTabProps) {
     }
   }
 
-  async function handleStatusChange(taskId: string, status: WorkspaceTaskStatus) {
-    setPendingTaskId(taskId);
+  async function handleAdvance(task: TaskEntity) {
+    const next = nextTaskStatus(task.status);
+    if (!next) return;
+    setPendingId(task.id);
     setActionError(null);
     try {
-      const result = await updateWorkspaceTask(taskId, { status });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
+      const result = await transitionTaskStatus(task.id, next);
+      if (!result.success) { setActionError(result.error.message); return; }
       await loadTasks();
     } finally {
-      setPendingTaskId(null);
+      setPendingId(null);
     }
   }
 
-  async function handleDeleteTask(taskId: string) {
-    setPendingTaskId(taskId);
+  async function handleDelete(taskId: string) {
+    setPendingId(taskId);
     setActionError(null);
     try {
-      const result = await deleteWorkspaceTask(taskId);
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
+      const result = await deleteTask(taskId);
+      if (!result.success) { setActionError(result.error.message); return; }
       await loadTasks();
     } finally {
-      setPendingTaskId(null);
+      setPendingId(null);
     }
   }
+
+  const acceptedCount = tasks.filter((t) => t.status === "accepted").length;
+  const activeCount = tasks.filter((t) => !["archived", "accepted"].includes(t.status)).length;
 
   return (
     <Card className="border border-border/50">
       <CardHeader>
         <CardTitle>Tasks</CardTitle>
         <CardDescription>
-          以工作區為邊界管理任務，支援建立、狀態更新與刪除。
+          MDDD 任務流程：draft → in_progress → qa → acceptance → accepted → archived。狀態只能前進；異常請開 Issue。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Open tasks</p>
-            <p className="mt-1 text-xl font-semibold">{pendingCount}</p>
+            <p className="text-xs text-muted-foreground">Active</p>
+            <p className="mt-1 text-xl font-semibold">{activeCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Completed</p>
-            <p className="mt-1 text-xl font-semibold">{completedCount}</p>
+            <p className="text-xs text-muted-foreground">Accepted</p>
+            <p className="mt-1 text-xl font-semibold">{acceptedCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Task sources</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">
-              Workspace task module
-            </p>
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="mt-1 text-xl font-semibold">{tasks.length}</p>
           </div>
         </div>
 
         <div className="grid gap-3 rounded-xl border border-border/40 p-4 sm:grid-cols-[1fr_1fr_auto]">
-          <Input
-            value={title}
-            placeholder="新增任務標題"
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={isCreating}
-          />
-          <Input
-            value={description}
-            placeholder="描述（選填）"
-            onChange={(event) => setDescription(event.target.value)}
-            disabled={isCreating}
-          />
-          <Button
-            type="button"
-            onClick={() => void handleCreateTask()}
-            disabled={isCreating}
-            className="w-full sm:w-auto"
-          >
+          <Input value={title} placeholder="任務標題" onChange={(e) => setTitle(e.target.value)} disabled={isCreating} />
+          <Input value={description} placeholder="描述（選填）" onChange={(e) => setDescription(e.target.value)} disabled={isCreating} />
+          <Button type="button" onClick={() => void handleCreate()} disabled={isCreating} className="w-full sm:w-auto">
             {isCreating ? "建立中…" : "新增任務"}
           </Button>
         </div>
 
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading workspace tasks…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入任務資料，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
+        {loadState === "loading" && <p className="text-sm text-muted-foreground">Loading tasks…</p>}
+        {loadState === "error" && <p className="text-sm text-destructive">無法載入任務，請重新整理。</p>}
         {actionError && <p className="text-sm text-destructive">{actionError}</p>}
-
         {loadState === "loaded" && tasks.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未建立任務，可先新增第一筆任務。
-          </p>
+          <p className="text-sm text-muted-foreground">尚未建立任務。</p>
         )}
 
         <div className="space-y-3">
-          {tasks.map((task) => (
-            <div key={task.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                    <Badge variant={statusVariantMap[task.status]}>{task.status}</Badge>
-                    <Badge variant="outline">{task.priority}</Badge>
+          {tasks.map((task) => {
+            const next = nextTaskStatus(task.status);
+            return (
+              <div key={task.id} className="rounded-xl border border-border/40 px-4 py-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">{task.title}</p>
+                      <Badge variant={STATUS_VARIANT[task.status] ?? "outline"}>
+                        {STATUS_LABEL[task.status] ?? task.status}
+                      </Badge>
+                    </div>
+                    {task.description && (
+                      <p className="text-sm text-muted-foreground">{task.description}</p>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {task.description || "無描述"}
-                  </p>
+                  {task.assigneeId && (
+                    <p className="text-xs text-muted-foreground">負責人：{task.assigneeId}</p>
+                  )}
                 </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>負責人：{task.assigneeId ?? "未指派"}</p>
-                  <p className="mt-1">到期日：{formatTaskDate(task.dueDateISO)}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {next && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleAdvance(task)}
+                      disabled={pendingId === task.id}
+                    >
+                      {ADVANCE_LABEL[task.status] ?? `→ ${next}`}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void handleDelete(task.id)}
+                    disabled={pendingId === task.id}
+                  >
+                    刪除
+                  </Button>
                 </div>
               </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {task.status !== "pending" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStatusChange(task.id, "pending")}
-                    disabled={pendingTaskId === task.id}
-                  >
-                    標記待處理
-                  </Button>
-                )}
-                {task.status !== "in-progress" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStatusChange(task.id, "in-progress")}
-                    disabled={pendingTaskId === task.id}
-                  >
-                    進行中
-                  </Button>
-                )}
-                {task.status !== "completed" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStatusChange(task.id, "completed")}
-                    disabled={pendingTaskId === task.id}
-                  >
-                    完成
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => void handleDeleteTask(task.id)}
-                  disabled={pendingTaskId === task.id}
-                >
-                  刪除
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

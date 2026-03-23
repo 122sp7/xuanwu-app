@@ -1,15 +1,7 @@
-import type { WorkspaceQualityCheckEntity } from "../../domain/entities/QualityCheck";
-import { ListWorkspaceQualityChecksUseCase } from "../../application/use-cases/quality-check.use-cases";
-import { FirebaseQualityCheckRepository } from "../../infrastructure/firebase/FirebaseQualityCheckRepository";
+import type { TestCaseEntity } from "../../domain/entities/TestCase";
+import { ListTestCasesUseCase } from "../../application/use-cases/test-case.use-cases";
+import { FirebaseTestCaseRepository } from "../../infrastructure/firebase/FirebaseTestCaseRepository";
 
-function createQualityCheckQueryUseCase() {
-  const qualityCheckRepository = new FirebaseQualityCheckRepository();
-  return new ListWorkspaceQualityChecksUseCase(qualityCheckRepository);
-}
-
-export async function getWorkspaceQualityChecks(
-  workspaceId: string,
-): Promise<WorkspaceQualityCheckEntity[]> {
-  const listWorkspaceQualityChecksUseCase = createQualityCheckQueryUseCase();
-  return listWorkspaceQualityChecksUseCase.execute(workspaceId);
+export async function getTestCases(workspaceId: string): Promise<TestCaseEntity[]> {
+  return new ListTestCasesUseCase(new FirebaseTestCaseRepository()).execute(workspaceId);
 }

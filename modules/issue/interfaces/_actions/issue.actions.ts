@@ -1,62 +1,51 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import type {
-  CreateWorkspaceIssueInput,
-  UpdateWorkspaceIssueInput,
-} from "../../domain/entities/Issue";
+import type { CreateIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
+import type { IssueLifecycleStatus } from "../../domain/value-objects/issue-state";
 import {
-  CreateWorkspaceIssueUseCase,
-  DeleteWorkspaceIssueUseCase,
-  UpdateWorkspaceIssueUseCase,
+  CreateIssueUseCase,
+  DeleteIssueUseCase,
+  TransitionIssueStatusUseCase,
+  UpdateIssueUseCase,
 } from "../../application/use-cases/issue.use-cases";
 import { FirebaseIssueRepository } from "../../infrastructure/firebase/FirebaseIssueRepository";
 
-function createIssueUseCases() {
-  const issueRepository = new FirebaseIssueRepository();
-  return {
-    createWorkspaceIssueUseCase: new CreateWorkspaceIssueUseCase(issueRepository),
-    updateWorkspaceIssueUseCase: new UpdateWorkspaceIssueUseCase(issueRepository),
-    deleteWorkspaceIssueUseCase: new DeleteWorkspaceIssueUseCase(issueRepository),
-  };
+function makeRepo() {
+  return new FirebaseIssueRepository();
 }
 
-export async function createWorkspaceIssue(input: CreateWorkspaceIssueInput): Promise<CommandResult> {
+export async function createIssue(input: CreateIssueInput): Promise<CommandResult> {
   try {
-    const { createWorkspaceIssueUseCase } = createIssueUseCases();
-    return await createWorkspaceIssueUseCase.execute(input);
-  } catch (error) {
-    return commandFailureFrom(
-      "ISSUE_CREATE_FAILED",
-      error instanceof Error ? error.message : "Unexpected issue create error",
-    );
+    return await new CreateIssueUseCase(makeRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("ISSUE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export async function updateWorkspaceIssue(
+export async function updateIssue(issueId: string, input: UpdateIssueInput): Promise<CommandResult> {
+  try {
+    return await new UpdateIssueUseCase(makeRepo()).execute(issueId, input);
+  } catch (err) {
+    return commandFailureFrom("ISSUE_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteIssueUseCase(makeRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("ISSUE_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function transitionIssueStatus(
   issueId: string,
-  input: UpdateWorkspaceIssueInput,
+  to: IssueLifecycleStatus,
 ): Promise<CommandResult> {
   try {
-    const { updateWorkspaceIssueUseCase } = createIssueUseCases();
-    return await updateWorkspaceIssueUseCase.execute(issueId, input);
-  } catch (error) {
-    return commandFailureFrom(
-      "ISSUE_UPDATE_FAILED",
-      error instanceof Error ? error.message : "Unexpected issue update error",
-    );
-  }
-}
-
-export async function deleteWorkspaceIssue(issueId: string): Promise<CommandResult> {
-  try {
-    const { deleteWorkspaceIssueUseCase } = createIssueUseCases();
-    return await deleteWorkspaceIssueUseCase.execute(issueId);
-  } catch (error) {
-    return commandFailureFrom(
-      "ISSUE_DELETE_FAILED",
-      error instanceof Error ? error.message : "Unexpected issue delete error",
-    );
+    return await new TransitionIssueStatusUseCase(makeRepo()).execute(issueId, to);
+  } catch (err) {
+    return commandFailureFrom("ISSUE_TRANSITION_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
