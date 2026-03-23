@@ -1,0 +1,36 @@
+%% Xuanwu auth state machine
+%% Purpose: describe the client auth lifecycle implemented by AuthProvider and shell guard
+%% Scope: auth state transitions only
+
+stateDiagram-v2
+    [*] --> Initializing
+
+    Initializing --> Authenticated: onAuthStateChanged(user)
+    Initializing --> ResolveSignedOut: onAuthStateChanged(null)
+    Initializing --> ResolveSignedOut: Firebase init failed
+    Initializing --> Unauthenticated: bootstrap timeout
+
+    ResolveSignedOut --> Authenticated: local dev demo session exists
+    ResolveSignedOut --> Unauthenticated: no demo session
+
+    Authenticated --> Authenticated: UPDATE_DISPLAY_NAME
+    Authenticated --> Authenticated: TOKEN_REFRESH_SIGNAL\ngetIdToken(true)
+    Authenticated --> Unauthenticated: onAuthStateChanged(null)
+    Authenticated --> SigningOut: logout requested
+
+    SigningOut --> Unauthenticated: signOut success
+    SigningOut --> Unauthenticated: signOut failed\nforce local unauthenticated state
+
+    Unauthenticated --> Authenticated: onAuthStateChanged(user)
+    Unauthenticated --> Authenticated: local dev demo sign-in
+
+    note right of Initializing
+      Source of truth:
+      Firebase auth listener
+      plus 6s bootstrap timeout fallback
+    end note
+
+    note right of ResolveSignedOut
+      resolveSignedOutStatePayload()
+      checks local dev demo session
+    end note

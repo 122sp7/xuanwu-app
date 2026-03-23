@@ -1,0 +1,51 @@
+%% Xuanwu Next.js App Router structure
+%% Purpose: map the current app/ route hierarchy and route groups
+%% Scope: routing structure only; complements interaction and system hierarchy diagrams
+
+flowchart TB
+    App["app/"]
+    App --> RootLayout["layout.tsx\nRoot providers + document shell"]
+    App --> PublicGroup["(public)"]
+    App --> ShellGroup["(shell)"]
+
+    PublicGroup --> PublicPage["page.tsx\nRoute: /"]
+
+    ShellGroup --> ShellLayout["layout.tsx\nAuthenticated shell frame"]
+    ShellGroup --> Dashboard["dashboard/page.tsx\n/dashboard"]
+    ShellGroup --> WorkspaceHub["workspace/page.tsx\n/workspace"]
+    ShellGroup --> WorkspaceDetail["workspace/[workspaceId]/page.tsx\n/workspace/:workspaceId"]
+    ShellGroup --> AIChat["ai-chat/page.tsx\n/ai-chat"]
+    ShellGroup --> WikiBeta["wiki-beta/page.tsx\n/wiki-beta"]
+    ShellGroup --> DevTools["dev-tools/page.tsx\n/dev-tools"]
+    ShellGroup --> Settings["settings/"]
+    ShellGroup --> Organization["organization/"]
+
+    WikiBeta --> WikiPages["pages/page.tsx\n/wiki-beta/pages"]
+    WikiBeta --> WikiDocuments["documents/page.tsx\n/wiki-beta/documents"]
+    WikiBeta --> WikiLibraries["libraries/page.tsx\n/wiki-beta/libraries"]
+    WikiBeta --> WikiNamespaces["namespaces/page.tsx\n/wiki-beta/namespaces"]
+    WikiBeta --> WikiRagQuery["rag-query/page.tsx\n/wiki-beta/rag-query"]
+    WikiBeta --> WikiRagReindex["rag-reindex/page.tsx\n/wiki-beta/rag-reindex"]
+
+    Settings --> SettingsIndex["page.tsx\n/settings"]
+    Settings --> SettingsGeneral["general/page.tsx\n/settings/general"]
+    Settings --> SettingsProfile["profile/page.tsx\n/settings/profile"]
+    Settings --> SettingsNotifications["notifications/page.tsx\n/settings/notifications"]
+
+    Organization --> OrgIndex["page.tsx\n/organization"]
+    Organization --> OrgMembers["members/page.tsx\n/organization/members"]
+    Organization --> OrgTeams["teams/page.tsx\n/organization/teams"]
+    Organization --> OrgPermissions["permissions/page.tsx\n/organization/permissions"]
+    Organization --> OrgWorkspaces["workspaces/page.tsx\n/organization/workspaces"]
+    Organization --> OrgSchedule["schedule/page.tsx\n/organization/schedule"]
+    Organization --> OrgDaily["daily/page.tsx\n/organization/daily"]
+    Organization --> OrgKnowledge["knowledge/page.tsx\n/organization/knowledge"]
+    Organization --> OrgAudit["audit/page.tsx\n/organization/audit"]
+
+    classDef root fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef group fill:#115e59,stroke:#0f766e,color:#ffffff,stroke-width:1.6px;
+    classDef route fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
+
+    class App,RootLayout root;
+    class PublicGroup,ShellGroup,WikiBeta,Settings,Organization,ShellLayout group;
+    class PublicPage,Dashboard,WorkspaceHub,WorkspaceDetail,AIChat,DevTools,WikiPages,WikiDocuments,WikiLibraries,WikiNamespaces,WikiRagQuery,WikiRagReindex,SettingsIndex,SettingsGeneral,SettingsProfile,SettingsNotifications,OrgIndex,OrgMembers,OrgTeams,OrgPermissions,OrgWorkspaces,OrgSchedule,OrgDaily,OrgKnowledge,OrgAudit route;

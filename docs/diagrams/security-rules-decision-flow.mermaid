@@ -1,0 +1,45 @@
+%% Xuanwu security rules decision flow
+%% Purpose: describe the target production decision path for Firestore authorization
+%% Scope: authorization decisions only; complements API flow and collection path diagrams
+
+flowchart TD
+    Request["Incoming Firestore Request"] --> Mode{"Environment Mode"}
+    Mode -- Development now --> DevBypass["Current root rules are permissive\nallow read, write: if true"]
+    Mode -- Target production --> Op{"Operation"}
+
+    Op --> Auth{"request.auth exists?"}
+    Auth -- No --> DenyAuth["DENY\nUnauthenticated"]
+    Auth -- Yes --> Scope{"Tenant / Scope matches?\norganizationId / accountId / workspaceId"}
+
+    Scope -- No --> DenyScope["DENY\nCross-tenant or cross-workspace"]
+    Scope -- Yes --> Role{"Has org/workspace role?"}
+
+    Role -- No --> DenyRole["DENY\nNo membership or insufficient role"]
+    Role -- Yes --> Policy{"Explicit policy deny?"}
+
+    Policy -- Yes --> DenyPolicy["DENY\nPolicy deny overrides allow"]
+    Policy -- No --> Resource{"Resource-specific access control?\nvisibility / accessControl / owner"}
+
+    Resource -- Fail --> DenyResource["DENY\nResource ACL / visibility failed"]
+    Resource -- Pass --> Mutation{"Write / Admin action?"}
+
+    Mutation -- No --> AllowRead["ALLOW read"]
+    Mutation -- Yes --> Capability{"Role permits mutation?\nowner / admin / member / viewer"}
+
+    Capability -- No --> DenyWrite["DENY\nMutation not permitted"]
+    Capability -- Yes --> FinalCheck{"Additional constraints?\nlegal hold / retention / immutable fields"}
+
+    FinalCheck -- Fail --> DenyConstraint["DENY\nConstraint violation"]
+    FinalCheck -- Pass --> AllowWrite["ALLOW write"]
+
+    classDef start fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef decision fill:#7c2d12,stroke:#9a3412,color:#ffffff,stroke-width:1.6px;
+    classDef allow fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1.2px;
+    classDef deny fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
+    classDef note fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
+
+    class Request start;
+    class Mode,Op,Auth,Scope,Role,Policy,Resource,Mutation,Capability,FinalCheck decision;
+    class AllowRead,AllowWrite allow;
+    class DenyAuth,DenyScope,DenyRole,DenyPolicy,DenyResource,DenyWrite,DenyConstraint deny;
+    class DevBypass note;
