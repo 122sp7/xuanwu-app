@@ -58,8 +58,7 @@ export {
 
 export {
   WikiBetaOverview,
-  WikiBetaPagesView,
-  WikiBetaLibrariesTableView,
-  WikiBetaDocumentsView,
-  WikiBetaRagQueryView,
+  WikiBetaLibrariesView,
+  WikiBetaPagesTreeView,
+  WikiBetaRagTestView,
 } from "./interfaces";
