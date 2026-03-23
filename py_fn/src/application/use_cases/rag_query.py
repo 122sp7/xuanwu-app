@@ -5,18 +5,9 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from application.runtime.dependencies import RagQueryGateway, get_rag_query_gateway
 from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
-from domain.rag import RagCitation, RagQueryInput, RagQueryResult
-from infrastructure.rag import (
-    build_query_cache_key,
-    generate_answer,
-    get_query_cache,
-    publish_query_audit,
-    query_search,
-    query_vector,
-    save_query_cache,
-    to_query_vector,
-)
+from domain.value_objects import RagCitation, RagQueryInput, RagQueryResult
 
 logger = logging.getLogger(__name__)
 
@@ -180,8 +171,11 @@ def execute_rag_query(
     taxonomy_filters: list[str] | tuple[str, ...] | None,
     max_age_days: int | None,
     require_ready: bool,
+    gateway: RagQueryGateway | None = None,
 ) -> dict:
     """Application use case for RAG query orchestration."""
+    gateway = gateway or get_rag_query_gateway()
+
     request = RagQueryInput.from_raw(
         query=query,
         account_scope=account_scope,
@@ -207,7 +201,7 @@ def execute_rag_query(
             "require_ready": request.require_ready,
         }
 
-    cache_key = build_query_cache_key(
+    cache_key = gateway.build_query_cache_key(
         account_scope=request.account_scope,
         query=(
             f"workspace={request.workspace_scope};"
@@ -219,7 +213,7 @@ def execute_rag_query(
         top_k=request.top_k,
     )
     try:
-        cached = get_query_cache(cache_key)
+        cached = gateway.get_query_cache(cache_key)
         if cached and isinstance(cached.get("answer"), str):
             return {
                 "answer": cached.get("answer", ""),
@@ -234,9 +228,9 @@ def execute_rag_query(
         logger.warning("redis query cache read failed: %s", exc)
 
     retrieval_top_k = request.retrieval_top_k()
-    vector = to_query_vector(request.query)
-    vector_hits_raw = query_vector(vector, top_k=retrieval_top_k)
-    search_hits_raw = query_search(request.query, top_k=retrieval_top_k)
+    vector = gateway.to_query_vector(request.query)
+    vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
+    search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
 
     contexts: list[str] = []
     citations: list[RagCitation] = []
@@ -366,7 +360,7 @@ def execute_rag_query(
             },
         ).to_dict()
 
-    answer = generate_answer(query=request.query, context_block=context_block)
+    answer = gateway.generate_answer(query=request.query, context_block=context_block)
     result = RagQueryResult(
         answer=answer,
         citations=tuple(citations),
@@ -381,11 +375,11 @@ def execute_rag_query(
     ).to_dict()
 
     try:
-        save_query_cache(cache_key, result)
+        gateway.save_query_cache(cache_key, result)
     except Exception as exc:
         logger.warning("redis query cache write failed: %s", exc)
 
-    publish_query_audit(
+    gateway.publish_query_audit(
         query=request.query,
         top_k=request.top_k,
         citation_count=len(citations),

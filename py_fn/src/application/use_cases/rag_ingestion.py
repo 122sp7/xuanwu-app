@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from application.runtime.dependencies import RagIngestionGateway, get_rag_ingestion_gateway
 from core.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
@@ -18,12 +19,6 @@ from core.config import (
     RAG_CHUNK_SIZE_CHARS,
     RAG_REDIS_PREFIX,
     RAG_VECTOR_NAMESPACE,
-)
-from infrastructure.external.openai.embeddings import embed_texts
-from infrastructure.external.upstash.clients import (
-    redis_set_json,
-    upsert_search_documents,
-    upsert_vectors,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,8 +103,11 @@ def ingest_document_for_rag(
     account_id: str,
     workspace_id: str,
     taxonomy: str = "general",
+    gateway: RagIngestionGateway | None = None,
 ) -> RagIngestionResult:
     """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
+    gateway = gateway or get_rag_ingestion_gateway()
+
     if not account_id:
         raise ValueError("account_id is required")
     if not workspace_id:
@@ -139,7 +137,7 @@ def ingest_document_for_rag(
         )
 
     texts = [item["text"] for item in base_chunks]
-    vectors = embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
+    vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
 
     now_iso = datetime.now(UTC).isoformat()
     payload: list[dict[str, Any]] = []
@@ -182,7 +180,7 @@ def ingest_document_for_rag(
             }
         )
 
-    upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
+    gateway.upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
 
     # Best effort: keep Upstash Search in sync with vector chunks.
     try:
@@ -199,13 +197,13 @@ def ingest_document_for_rag(
             }
             for item in payload
         ]
-        upsert_search_documents(search_docs)
+        gateway.upsert_search_documents(search_docs)
     except Exception as exc:
         logger.warning("search index upsert skipped for %s: %s", doc_id, exc)
 
     # 文件索引摘要寫入 Redis，方便後續檢視與治理。
     try:
-        redis_set_json(
+        gateway.redis_set_json(
             key=f"{RAG_REDIS_PREFIX}:doc:{doc_id}:latest",
             value={
                 "doc_id": doc_id,

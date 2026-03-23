@@ -20,16 +20,8 @@ from typing import Any
 
 from firebase_functions import storage_fn
 
+from application.runtime.dependencies import get_document_pipeline_gateway
 from application.use_cases.rag_ingestion import ingest_document_for_rag
-from infrastructure.external.documentai.client import process_document_gcs
-from infrastructure.persistence.firestore.document_repository import (
-    init_document,
-    mark_rag_ready,
-    record_error,
-    record_rag_error,
-    update_parsed,
-)
-from infrastructure.persistence.storage.client import parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +107,7 @@ def handle_object_finalized(
     - 初始化 → Document AI 解析 → 更新 Firestore
     - 異常時記錄至 Firestore。
     """
+    runtime = get_document_pipeline_gateway()
     data = event.data
     if data is None:
         logger.warning("storage event missing data, skipping")
@@ -153,7 +146,7 @@ def handle_object_finalized(
 
     # ── Step 1: 初始化 Firestore document ──────────────────────────────────
     try:
-        init_document(
+        runtime.init_document(
             doc_id=doc_id,
             gcs_uri=gcs_uri,
             filename=display_filename,
@@ -169,11 +162,11 @@ def handle_object_finalized(
     # ── Step 2: Document AI 解析 ──────────────────────────────────────────
     start_time = time.time()
     try:
-        parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
         extraction_ms = int((time.time() - start_time) * 1000)
 
         # ── Step 3: 將解析全文寫回 GCS（files/ 前綴，同目錄結構）──────────
-        json_object_path = parsed_json_path(object_path)
+        json_object_path = runtime.parsed_json_path(object_path)
         json_data = {
             "doc_id": doc_id,
             "account_id": account_id,
@@ -186,14 +179,14 @@ def handle_object_finalized(
             "extraction_ms": extraction_ms,
             "text": parsed.text,
         }
-        json_gcs_uri = upload_json(
+        json_gcs_uri = runtime.upload_json(
             bucket_name=bucket_name,
             object_path=json_object_path,
             data=json_data,
         )
 
         # ── Step 4: 更新 Firestore 索引（只存 metadata，不存全文）─────────
-        update_parsed(
+        runtime.update_parsed(
             doc_id=doc_id,
             json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
@@ -213,7 +206,7 @@ def handle_object_finalized(
                 account_id=account_id,
                 workspace_id=workspace_id,
             )
-            mark_rag_ready(
+            runtime.mark_rag_ready(
                 doc_id=doc_id,
                 chunk_count=rag.chunk_count,
                 vector_count=rag.vector_count,
@@ -227,9 +220,9 @@ def handle_object_finalized(
             )
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
+            runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
 
         logger.info("✓ Done: doc_id=%s (%d pages, %d ms) → %s", doc_id, parsed.page_count, extraction_ms, json_gcs_uri)
     except Exception as exc:
         logger.exception("Document AI failed for %s: %s", doc_id, exc)
-        record_error(doc_id, str(exc)[:200], account_id=account_id)
+        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)

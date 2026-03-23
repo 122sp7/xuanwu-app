@@ -34,7 +34,8 @@ from typing import Any
 from firebase_functions import https_fn
 import firebase_admin.firestore as fb_firestore
 
-from application.rag import execute_rag_query
+from application.use_cases import execute_rag_query
+from application.runtime.dependencies import get_document_pipeline_gateway
 from application.use_cases.rag_ingestion import ingest_document_for_rag
 from core.config import (
     RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
@@ -42,16 +43,6 @@ from core.config import (
     RAG_QUERY_RATE_LIMIT_MAX,
     RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
 )
-from infrastructure.external.documentai.client import process_document_gcs
-from infrastructure.external.upstash.clients import redis_fixed_window_allow
-from infrastructure.persistence.firestore.document_repository import (
-    init_document,
-    mark_rag_ready,
-    record_error,
-    record_rag_error,
-    update_parsed,
-)
-from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +158,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     Raises:
         https_fn.HttpsError: 缺少必填欄位時。
     """
+    runtime = get_document_pipeline_gateway()
     data: dict = req.data or {}
     account_id = str(data.get("account_id", "")).strip()
     workspace_id = str(data.get("workspace_id", "")).strip()
@@ -222,7 +214,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
     # ── 初始化 Firestore document ───────────────────────────────────────────
     try:
-        init_document(
+        runtime.init_document(
             doc_id=doc_id,
             gcs_uri=gcs_uri,
             filename=filename,
@@ -244,12 +236,12 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
     start_time = time.time()
     try:
-        parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
         extraction_ms = int((time.time() - start_time) * 1000)
 
         # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
-        json_object_path = parsed_json_path(object_path)
-        json_gcs_uri = upload_json(
+        json_object_path = runtime.parsed_json_path(object_path)
+        json_gcs_uri = runtime.upload_json(
             bucket_name=bucket_name,
             object_path=json_object_path,
             data={
@@ -266,7 +258,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             },
         )
 
-        update_parsed(
+        runtime.update_parsed(
             doc_id=doc_id,
             json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
@@ -286,7 +278,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 account_id=account_id,
                 workspace_id=workspace_id,
             )
-            mark_rag_ready(
+            runtime.mark_rag_ready(
                 doc_id=doc_id,
                 chunk_count=rag.chunk_count,
                 vector_count=rag.vector_count,
@@ -300,7 +292,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             )
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
+            runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
 
         logger.info(
             "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
@@ -311,7 +303,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
         )
     except Exception as exc:
         logger.exception("parse_document failed for %s: %s", doc_id, exc)
-        record_error(doc_id, str(exc)[:200], account_id=account_id)
+        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
 
     # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
     return {
@@ -323,6 +315,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
 def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：RAG 查詢（Step 7）。"""
+    runtime = get_document_pipeline_gateway()
     uid = _extract_auth_uid(req)
     if not uid:
         raise https_fn.HttpsError(
@@ -369,7 +362,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
 
     limit_key = f"rag:rl:{account_id}"
     try:
-        allowed, remaining = redis_fixed_window_allow(
+        allowed, remaining = runtime.redis_fixed_window_allow(
             key=limit_key,
             max_requests=RAG_QUERY_RATE_LIMIT_MAX,
             window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
@@ -413,6 +406,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
 
 def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
+    runtime = get_document_pipeline_gateway()
     data: dict = req.data or {}
 
     account_id = str(data.get("account_id", "")).strip()
@@ -451,7 +445,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
 
     try:
         bucket_name, object_path = _parse_gs_uri(json_gcs_uri)
-        json_bytes = download_bytes(bucket_name=bucket_name, object_path=object_path)
+        json_bytes = runtime.download_bytes(bucket_name=bucket_name, object_path=object_path)
         parsed_payload = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
 
         text = str(parsed_payload.get("text", "")).strip()
@@ -490,7 +484,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             workspace_id=workspace_id,
         )
 
-        mark_rag_ready(
+        runtime.mark_rag_ready(
             doc_id=doc_id,
             chunk_count=rag.chunk_count,
             vector_count=rag.vector_count,
@@ -516,7 +510,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
         }
     except Exception as exc:
         logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
-        record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
+        runtime.record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INTERNAL,
             f"rag_reindex_document 失敗：{str(exc)[:200]}",

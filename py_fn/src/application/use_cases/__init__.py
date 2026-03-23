@@ -1,5 +1,6 @@
 """Application use cases."""
 
+from application.use_cases.rag_query import execute_rag_query
 from application.use_cases.rag_ingestion import (
     RagIngestionResult,
     clean_text,
@@ -9,6 +10,7 @@ from application.use_cases.rag_ingestion import (
 )
 
 __all__ = [
+    "execute_rag_query",
     "RagIngestionResult",
     "clean_text",
     "chunk_text",

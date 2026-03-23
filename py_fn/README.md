@@ -1,235 +1,162 @@
-# 一、依賴方向（Clean Architecture / DDD）
+# py_fn 架構規範（路徑級依賴版）
 
-你的這個分層是標準 **Clean Architecture**，依賴只能往內層。
+這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
+例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
 
-## 依賴規則（最重要）
+## 1. 全域依賴方向
 
-```
-interface  -> application -> domain
+```text
+interface -> application -> domain
 infrastructure -> application -> domain
-app -> interface / application / infrastructure
-core -> 所有人都可以依賴
-domain -> 不能依賴任何外層
+app -> interface / application / infrastructure / core
+core -> all layers
+domain -> only core
 ```
 
-換句話說：
+## 2. 目錄基準（含子資料夾）
 
+```text
+py_fn/src
+├─ app
+│  ├─ config
+│  ├─ bootstrap
+│  ├─ container
+│  └─ settings
+├─ application
+│  ├─ use_cases
+│  ├─ dto
+│  ├─ services
+│  ├─ ports
+│  │  ├─ input
+│  │  └─ output
+│  └─ mappers
+├─ domain
+│  ├─ entities
+│  ├─ value_objects
+│  ├─ repositories
+│  ├─ services
+│  ├─ events
+│  └─ exceptions
+├─ infrastructure
+│  ├─ persistence
+│  │  ├─ firestore
+│  │  ├─ storage
+│  │  └─ vector
+│  ├─ external
+│  │  ├─ openai
+│  │  ├─ genkit
+│  │  └─ http
+│  ├─ repositories
+│  ├─ config
+│  └─ logging
+├─ interface
+│  ├─ controllers
+│  ├─ middleware
+│  ├─ handlers
+│  ├─ schemas
+│  └─ routes
+└─ core
+        ├─ utils
+        ├─ types
+        ├─ constants
+        ├─ exceptions
+        └─ security
 ```
-┌─────────────┐
-│  interface  │
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│ application │
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│   domain    │
-└─────────────┘
 
-infrastructure → application / domain
-app → 負責組裝所有東西
-core → 共用工具
+## 3. 同名資料夾的判讀規則
+
+- services 只看名稱會誤判，必須看完整路徑
+       - domain/services 是核心業務規則
+       - application/services 是應用層編排
+       - infrastructure 下若有 service 類檔案，只能是技術 adapter，不是業務規則
+- repositories 也一樣
+       - domain/repositories 是介面（contracts）
+       - infrastructure/repositories 是實作（implementations）
+- config 也一樣
+       - app/config 是啟動與組裝配置
+       - infrastructure/config 是技術配置
+       - core/constants 才是跨層可共用常量
+
+## 4. 路徑級依賴矩陣（最重要）
+
+| From 路徑 | Allowed To Import |
+| --- | --- |
+| interface/routes | interface/controllers, interface/handlers, core |
+| interface/controllers | application/use_cases, application/dto, domain, core |
+| interface/handlers | application/use_cases, application/ports/input, core |
+| interface/middleware | core |
+| interface/schemas | core, 同層 schema 模組 |
+| application/use_cases | domain, application/ports/output, application/dto, core |
+| application/services | domain, application/ports/output, core |
+| application/mappers | application/dto, domain, core |
+| application/ports/input | domain, core |
+| application/ports/output | domain, core |
+| domain/entities | domain/value_objects, core |
+| domain/value_objects | core |
+| domain/services | domain/entities, domain/value_objects, domain/repositories, core |
+| domain/repositories | domain/entities, domain/value_objects, core |
+| domain/events | domain/entities, core |
+| domain/exceptions | core |
+| infrastructure/repositories | domain/repositories, domain/entities, infrastructure/persistence, core |
+| infrastructure/persistence | domain/entities, domain/value_objects, core |
+| infrastructure/external | application/ports/output, domain, core |
+| infrastructure/config | core |
+| infrastructure/logging | core |
+| app/bootstrap | app/config, app/container, infrastructure, application, interface, core |
+| app/container | infrastructure, application, domain, core |
+| app/settings | core |
+| core/* | 不可依賴任何外層 |
+
+## 5. 明確禁止規則
+
+- domain 不可 import application/interface/infrastructure/app
+- application 不可 import infrastructure 實作
+- interface 不可直接 import infrastructure（除非經 app 組裝注入後由 application port 提供）
+- infrastructure 不可主導業務流程（流程應在 application/use_cases）
+
+## 6. 標準依賴流
+
+```text
+route -> controller/handler -> use case -> domain -> repository interface
+                                                                                                                                                                                       ^
+                                                                                                                                                                                       |
+                                                                                                                 repository implementation (infrastructure)
 ```
 
----
+## 7. import 範例
 
-# 二、各層允許依賴表
+### interface controller
 
-這個很重要，實務上用這張表就不會亂掉。
-
-| Layer          | 可以依賴                      |
-| -------------- | ------------------------- |
-| interface      | application, domain, core |
-| application    | domain, core              |
-| domain         | core                      |
-| infrastructure | application, domain, core |
-| app            | 全部                        |
-| core           | 不依賴任何層                    |
-
----
-
-# 三、實際 import 範例
-
-### Controller
-
-```
-interface/controllers/user_controller.py
-
+```python
 from application.use_cases.create_user import CreateUserUseCase
 from interface.schemas.user_schema import CreateUserRequest
 ```
 
-### UseCase
+### application use case
 
-```
-application/use_cases/create_user.py
-
+```python
 from domain.repositories.user_repository import UserRepository
 from domain.entities.user import User
 ```
 
-### Repository Implementation
+### infrastructure repository implementation
 
-```
-infrastructure/repositories/firestore_user_repository.py
-
+```python
 from domain.repositories.user_repository import UserRepository
 from infrastructure.persistence.firestore.client import FirestoreClient
 ```
 
-### Bootstrap / DI
+### app container
 
-```
-app/container/container.py
-
+```python
 from infrastructure.repositories.firestore_user_repository import FirestoreUserRepository
 from application.use_cases.create_user import CreateUserUseCase
 ```
 
-**依賴流向**
+## 8. PR 檢查清單
 
-```
-Controller → UseCase → Domain → Repository Interface
-                               ↑
-                      Repository Implementation
-```
-
-這就是典型 **Ports & Adapters / Hexagonal Architecture**
-
----
-
-# 四、README.md（幫你整理完整）
-
-以下是一份可以直接放專案的 README.md
-
-````markdown
-# py_fn Notes
-
-## Architecture
-
-This project follows Clean Architecture + DDD layering.
-
-```
-interface → application → domain
-infrastructure → application → domain
-app → dependency injection / bootstrap
-core → shared utilities
-```
-
-### Layer Responsibilities
-
-| Layer | Responsibility |
-|------|----------------|
-| interface | HTTP / Firebase Functions handlers, controllers, middleware |
-| application | Use cases, DTOs, application services |
-| domain | Entities, value objects, repository interfaces, domain logic |
-| infrastructure | Firestore, Storage, Vector DB, external APIs |
-| app | Dependency injection, bootstrap, config |
-| core | Shared utilities, constants, exceptions |
-
-### Dependency Rules
-
-- interface can depend on application and domain
-- application can depend on domain
-- infrastructure can depend on application and domain
-- domain must not depend on other layers
-- core can be used by all layers
-- app wires everything together
-
----
-
-## Current Runtime
-
-This runtime currently uses Firebase Functions + Upstash Vector/Redis/QStash for the wiki-beta RAG path.
-
----
-
-## Future: Upstash Workflow
-
-When we move to a workflow-orchestrated pipeline (multi-step, retryable, long-running tasks), install these packages:
-
-```bash
-pip install fastapi uvicorn upstash-workflow
-```
-
-Use this only when workflow endpoints are actually introduced.
-
----
-
-## Why Not Install Now
-
-- Keep dependencies minimal (Occam's razor).
-- Avoid unused runtime surface in Firebase Functions.
-- Add only when workflow serve endpoints are implemented.
-
----
-
-## High-Level Flow
-
-```
-HTTP Request
-    ↓
-Interface (Controller / Handler)
-    ↓
-Application (Use Case)
-    ↓
-Domain (Entity / Logic)
-    ↓
-Repository Interface
-    ↓
-Infrastructure (Firestore / Vector / APIs)
-```
-
----
-
-## Folder Structure
-
-```
-py_fn/src
-├─ app
-├─ application
-├─ domain
-├─ infrastructure
-├─ interface
-├─ core
-```
-
----
-
-## Design Principles
-
-- Clean Architecture
-- Dependency Inversion
-- DDD (Domain Driven Design)
-- Ports and Adapters
-- Minimal Dependencies
-- Serverless Friendly
-````
-
----
-
-# 五、最後給你一個超重要觀念
-
-這種架構的核心不是資料夾，而是**依賴方向**：
-
-```
-外層可以依賴內層
-內層不能依賴外層
-Domain 永遠在最中心
-```
-
-記住這張圖就不會亂：
-
-```
-        interface
-           ↓
-      application
-           ↓
-          domain
-           ↑
-    infrastructure
-           
-app 負責組裝全部
-core 全部共用
-```
+- 是否用完整路徑判讀層級，而不是只看資料夾名稱
+- domain 是否只依賴 core
+- use case 是否只依賴抽象（ports/repository interface）
+- infrastructure 是否只做技術實作
+- app 是否是唯一組裝與注入入口
