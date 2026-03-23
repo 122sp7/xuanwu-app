@@ -323,6 +323,13 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
 def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：RAG 查詢（Step 7）。"""
+    uid = _extract_auth_uid(req)
+    if not uid:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            "需先登入才能執行 RAG 查詢",
+        )
+
     data: dict = req.data or {}
     query = str(data.get("query", "")).strip()
     account_id = str(data.get("account_id", "")).strip()
@@ -341,13 +348,6 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             "workspace_id 為必填欄位",
-        )
-
-    uid = _extract_auth_uid(req)
-    if not uid:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            "需先登入才能執行 RAG 查詢",
         )
 
     _assert_account_access(uid, account_id)

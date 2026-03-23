@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
+import { getFirebaseAuth } from "@integration-firebase";
 import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { Button } from "@ui-shadcn/ui/button";
@@ -370,6 +371,10 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
 
     setLoadingAnswer(true);
     try {
+      if (!getFirebaseAuth().currentUser) {
+        toast.error("請先以真實帳號登入才能執行 RAG 查詢");
+        return;
+      }
       if (!activeAccountId) {
         toast.error("目前沒有 active account，無法執行 RAG 查詢");
         return;
