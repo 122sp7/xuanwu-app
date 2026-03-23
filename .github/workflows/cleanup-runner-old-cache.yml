@@ -1,12 +1,61 @@
 name: Cleanup Old Caches
 on:
   push:
+
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v4
+      - name: Delete caches older than 24 hours
+        uses: actions/github-script@v7
         with:
-          path: ~/.cache
-          key: cleanup-${{ github.run_id }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const retentionDays = 1;
+            const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+            let page = 1;
+            let deletedCount = 0;
+            let totalStale = 0;
+
+            while (true) {
+              const response = await github.request("GET /repos/{owner}/{repo}/actions/caches", {
+                owner,
+                repo,
+                page,
+                per_page: 100,
+              });
+
+              const caches = response.data.actions_caches ?? [];
+              if (caches.length === 0) {
+                break;
+              }
+
+              for (const cache of caches) {
+                if (!cache.created_at) {
+                  continue;
+                }
+
+                const createdAt = Date.parse(cache.created_at);
+                if (Number.isNaN(createdAt) || createdAt >= cutoff) {
+                  continue;
+                }
+
+                totalStale += 1;
+                core.info(`Deleting cache ${cache.id} (${cache.key}) created at ${cache.created_at}`);
+                await github.request("DELETE /repos/{owner}/{repo}/actions/caches/{cache_id}", {
+                  owner,
+                  repo,
+                  cache_id: cache.id,
+                });
+                deletedCount += 1;
+              }
+
+              page += 1;
+            }
+
+            core.info(`Deleted ${deletedCount} stale cache(s) older than 24 hours. Found ${totalStale} eligible cache(s).`);
