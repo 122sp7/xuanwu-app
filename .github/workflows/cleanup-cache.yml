@@ -1,0 +1,18 @@
+name: Cleanup Old Caches
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete caches older than 3 days
+        run: |
+          gh cache list --limit 1000 --json id,createdAt |
+          jq -r '.[] | select((now - (.createdAt | fromdate)) > 259200) | .id' |
+          xargs -r -I {} gh cache delete {}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
