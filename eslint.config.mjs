@@ -1,11 +1,80 @@
 import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
  
+const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const typescriptFileGlobs = ["**/*.{ts,tsx}"];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    files: sourceFileGlobs,
+    plugins: {
+      jsdoc,
+    },
+    settings: {
+      jsdoc: {
+        mode: "typescript",
+      },
+    },
+    rules: {
+      "jsdoc/check-alignment": "warn",
+      "jsdoc/check-syntax": "warn",
+      "jsdoc/check-tag-names": "warn",
+      "jsdoc/no-blank-blocks": "warn",
+    },
+  },
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/naming-convention": [
+        "warn",
+        {
+          selector: "typeLike",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "typeParameter",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "variable",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"],
+        },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow",
+        },
+        {
+          selector: "parameter",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "enumMember",
+          format: ["PascalCase", "UPPER_CASE"],
+        },
+      ],
+    },
+  },
   {
     rules: {
       "@typescript-eslint/no-unused-vars": [
@@ -94,6 +163,7 @@ const eslintConfig = defineConfig([
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    ".agents/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
