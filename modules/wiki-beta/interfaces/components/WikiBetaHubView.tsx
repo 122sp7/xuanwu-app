@@ -2,16 +2,52 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { BookOpen, Database, FileText, Loader2, MessageSquare } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
 import { buildWikiBetaKnowledgeTree } from "../../application";
 import type {
   WikiBetaAccountKnowledgeNode,
   WikiBetaAccountSeed,
   WikiBetaKnowledgeItemNode,
 } from "../../domain";
+
+const QUICK_ACCESS = [
+  {
+    href: "/wiki-beta/pages",
+    title: "Pages",
+    description: "管理層級式頁面與知識結構。",
+    icon: FileText,
+  },
+  {
+    href: "/wiki-beta/libraries",
+    title: "Libraries",
+    description: "維護結構化資料欄位與記錄。",
+    icon: Database,
+  },
+  {
+    href: "/wiki-beta/documents",
+    title: "Documents",
+    description: "追蹤上傳與解析狀態。",
+    icon: BookOpen,
+  },
+  {
+    href: "/wiki-beta/rag-query",
+    title: "RAG Query",
+    description: "以已索引文件進行問答與引用追蹤。",
+    icon: MessageSquare,
+  },
+] as const;
 
 interface WikiBetaHubViewProps {
   readonly onGoRagTest: () => void;
@@ -158,15 +194,99 @@ export function WikiBetaHubView({ onGoRagTest }: WikiBetaHubViewProps) {
     };
   }, [accountSeeds]);
 
+  const activeAccount = knowledgeTree.find((node) => node.isActive);
+  const workspaceCount = activeAccount?.workspaces.length ?? 0;
+
   return (
     <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Wiki Beta</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">Knowledge Base 拓樸（跟 App Rail 帳號脈絡）</h2>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">Knowledge Hub</h2>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          先以最小可用模型對齊 Account → Workspaces → Knowledge Base。可直接點進現有路由，尚未落地的節點保留為 planned。
+          將 Account、Workspaces 與核心知識流程集中在同一個總覽。可直接進入 Pages、Libraries、Documents 與 RAG Query。
         </p>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {activeAccount ? (
+          <>
+            <Badge variant="outline" className="text-xs">
+              {activeAccount.accountType === "personal" ? "個人" : "組織"}
+            </Badge>
+            <span className="text-sm font-medium text-foreground">{activeAccount.accountName}</span>
+            <span className="text-xs text-muted-foreground">· {workspaceCount} 個工作區</span>
+          </>
+        ) : (
+          <span className="text-sm text-muted-foreground">尚未取得有效的 account context。</span>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {QUICK_ACCESS.map((item) => (
+          <Link key={item.href} href={item.href} className="group">
+            <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <item.icon className="size-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{item.title}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-foreground">工作區摘要</p>
+          {activeAccount && workspaceCount > 0 ? (
+            <Badge variant="secondary" className="text-[10px]">
+              {workspaceCount}
+            </Badge>
+          ) : null}
+        </div>
+
+        {loadingTree ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            載入 workspace 摘要中...
+          </div>
+        ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {activeAccount.workspaces.map((workspace) => (
+              <Link key={workspace.workspaceId} href={workspace.href}>
+                <Card className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.knowledgeBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
 
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span className="rounded-full border border-border/60 px-2 py-1">callable: rag_query</span>
