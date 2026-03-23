@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
-import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceEntity } from "@/modules/workspace";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import {
   CustomizeNavigationDialog,
@@ -26,6 +26,8 @@ import {
 interface DashboardSidebarProps {
   readonly pathname: string;
   readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
   readonly activeWorkspaceId: string | null;
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
@@ -119,12 +121,13 @@ function isActiveOrganizationAccount(
 export function DashboardSidebar({
   pathname,
   activeAccount,
+  workspaces,
+  workspacesHydrated,
   activeWorkspaceId,
   collapsed,
   onToggleCollapsed,
   onSelectWorkspace,
 }: DashboardSidebarProps) {
-  const [workspacesById, setWorkspacesById] = useState<Record<string, WorkspaceEntity>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
   const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);
@@ -164,23 +167,10 @@ export function DashboardSidebar({
     trackWorkspaceFromPath(pathname, accountId);
   }, [activeAccount?.id, pathname]);
 
-  // Load workspace names for quick-access links
-  useEffect(() => {
-    async function loadWorkspaces() {
-      const accountId = activeAccount?.id;
-      if (!accountId) {
-        setWorkspacesById({});
-        return;
-      }
-      try {
-        const workspaceList = await getWorkspacesForAccount(accountId);
-        setWorkspacesById(Object.fromEntries(workspaceList.map((ws) => [ws.id, ws])));
-      } catch {
-        setWorkspacesById({});
-      }
-    }
-    void loadWorkspaces();
-  }, [activeAccount?.id]);
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
 
   const recentWorkspaceIds = useMemo(() => {
     const accountId = activeAccount?.id;
@@ -512,7 +502,9 @@ export function DashboardSidebar({
 
                 {isWikiBetaWorkspacesExpanded && (
                   <div className="space-y-0.5 pl-2">
-                    {allWorkspaceLinks.length === 0 ? (
+                    {!workspacesHydrated ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+                    ) : allWorkspaceLinks.length === 0 ? (
                       <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
                     ) : (
                       allWorkspaceLinks.map((workspace) => {

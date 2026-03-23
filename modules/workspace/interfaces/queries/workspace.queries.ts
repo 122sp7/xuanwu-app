@@ -4,12 +4,22 @@
 
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
+import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
+
+const workspaceQueryRepo = new FirebaseWorkspaceQueryRepository();
 
 export async function getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
   const normalizedAccountId = accountId.trim();
   if (!normalizedAccountId) return [];
   const workspaceRepo = new FirebaseWorkspaceRepository();
   return workspaceRepo.findAllByAccountId(normalizedAccountId);
+}
+
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+) {
+  return workspaceQueryRepo.subscribeToWorkspacesForAccount(accountId, onUpdate);
 }
 
 export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {

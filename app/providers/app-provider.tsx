@@ -20,6 +20,10 @@ import {
 
 import { subscribeToAccountsForUser } from "@/modules/account/interfaces/queries/account.queries";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import {
+  subscribeToWorkspacesForAccount,
+  type WorkspaceEntity,
+} from "@/modules/workspace";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";
@@ -40,7 +44,13 @@ const initialState: AppState = {
   bootstrapPhase: "idle",
   activeAccount: null,
   activeWorkspaceId: null,
+  workspaces: {},
+  workspacesHydrated: false,
 };
+
+function toWorkspaceMap(workspaces: WorkspaceEntity[]) {
+  return Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace]));
+}
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
@@ -101,9 +111,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
         activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
       };
     }
+    case "SET_WORKSPACES":
+      return {
+        ...state,
+        workspaces: action.payload.workspaces,
+        workspacesHydrated: action.payload.hydrated,
+      };
     case "SET_ACTIVE_ACCOUNT":
       if (state.activeAccount?.id === action.payload?.id) return state;
-      return { ...state, activeAccount: action.payload, activeWorkspaceId: null };
+      return {
+        ...state,
+        activeAccount: action.payload,
+        activeWorkspaceId: null,
+        workspaces: {},
+        workspacesHydrated: false,
+      };
     case "SET_ACTIVE_WORKSPACE":
       if (state.activeWorkspaceId === action.payload) return state;
       return { ...state, activeWorkspaceId: action.payload };
@@ -183,6 +205,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     window.localStorage.setItem(storageKey, state.activeWorkspaceId);
   }, [state.activeAccount?.id, state.activeWorkspaceId]);
+
+  useEffect(() => {
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: { workspaces: {}, hydrated: true },
+      });
+      return;
+    }
+
+    dispatch({
+      type: "SET_WORKSPACES",
+      payload: { workspaces: {}, hydrated: false },
+    });
+
+    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: {
+          workspaces: toWorkspaceMap(workspaces),
+          hydrated: true,
+        },
+      });
+    });
+
+    return () => unsubscribe();
+  }, [state.activeAccount?.id]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

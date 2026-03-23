@@ -36,7 +36,7 @@ const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "or
 const VALID_LIFECYCLE_STATES = new Set<WorkspaceEntity["lifecycleState"]>(["preparatory", "active", "stopped"]);
 const VALID_VISIBILITY = new Set<WorkspaceEntity["visibility"]>(["visible", "hidden"]);
 
-function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
   const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
     ? (data.accountType as WorkspaceEntity["accountType"])
     : "user";

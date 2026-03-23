@@ -11,6 +11,7 @@
 import { createContext, type Dispatch } from "react";
 
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import type { WorkspaceEntity } from "@/modules/workspace/domain/entities/Workspace";
 import type { AuthUser } from "./auth-context";
 
 export type ActiveAccount = AccountEntity | AuthUser;
@@ -26,6 +27,10 @@ export interface AppState {
   activeAccount: ActiveAccount | null;
   /** Currently selected workspace context under the active account. */
   activeWorkspaceId: string | null;
+  /** Workspaces visible under the active account (single source for shell UI). */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
 }
 
 export type AppAction =
@@ -39,6 +44,13 @@ export type AppAction =
         accounts: Record<string, AccountEntity>;
         user: AuthUser;
         preferredActiveAccountId?: string | null;
+      };
+    }
+  | {
+      type: "SET_WORKSPACES";
+      payload: {
+        workspaces: Record<string, WorkspaceEntity>;
+        hydrated: boolean;
       };
     }
   | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }

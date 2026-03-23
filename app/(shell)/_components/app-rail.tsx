@@ -11,14 +11,14 @@
 
 import Link from "next/link";
 import { BookOpen, Bot, Building2, FlaskConical, Plus, Settings, Users } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { createOrganization } from "@/modules/organization";
-import { getWorkspacesForAccount, type WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceEntity } from "@/modules/workspace";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -50,6 +50,8 @@ interface AppRailProps {
   readonly user: AuthUser | null;
   readonly activeAccount: ActiveAccount | null;
   readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
   readonly isOrganizationAccount: boolean;
   readonly onSelectPersonal: () => void;
   readonly onSelectOrganization: (account: AccountEntity) => void;
@@ -93,6 +95,8 @@ export function AppRail({
   user,
   activeAccount,
   organizationAccounts,
+  workspaces,
+  workspacesHydrated,
   isOrganizationAccount,
   onSelectPersonal,
   onSelectOrganization,
@@ -106,25 +110,6 @@ export function AppRail({
   const [orgName, setOrgName] = useState("");
   const [orgError, setOrgError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
-
-  useEffect(() => {
-    async function loadWorkspaces() {
-      const accountId = activeAccount?.id;
-      if (!accountId) {
-        setWorkspaces([]);
-        return;
-      }
-      try {
-        const workspaceList = await getWorkspacesForAccount(accountId);
-        setWorkspaces(workspaceList);
-      } catch {
-        setWorkspaces([]);
-      }
-    }
-
-    void loadWorkspaces();
-  }, [activeAccount?.id]);
 
   function resetDialog() {
     setOrgName("");
@@ -333,7 +318,9 @@ export function AppRail({
                       Wiki Beta 首頁
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {sortedWorkspaces.length === 0 ? (
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
                       <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
                     ) : (
                       sortedWorkspaces.map((workspace) => (

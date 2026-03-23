@@ -4,12 +4,15 @@ import type {
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMember";
 import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { FirebaseOrganizationRepository } from "@/modules/organization/infrastructure/firebase/FirebaseOrganizationRepository";
 import type {
   MemberReference,
   Team,
 } from "@/modules/organization/domain/entities/Organization";
-import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
 
 const personnelLabels = {
   managerId: "Manager",
@@ -36,9 +39,36 @@ function createFallbackMember(id: string): WorkspaceMemberView {
 }
 
 export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
   private readonly workspaceRepo = new FirebaseWorkspaceRepository();
 
   private readonly organizationRepo = new FirebaseOrganizationRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
 
   async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
     const workspace = await this.workspaceRepo.findById(workspaceId);

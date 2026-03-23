@@ -53,5 +53,6 @@ export {
   getWorkspaceById,
   getWorkspaceByIdForAccount,
   getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
 } from "./interfaces/queries/workspace.queries";
 export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";

@@ -102,6 +102,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 
   const pageTitle = routeTitles[pathname] ?? "Workspace";
   const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
   const showAccountManagement = isOrganizationAccount(appState.activeAccount);
 
   function isActiveRoute(href: string) {
@@ -161,6 +162,8 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           user={authState.user}
           activeAccount={appState.activeAccount}
           organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
           isOrganizationAccount={showAccountManagement}
           onSelectPersonal={handleSelectPersonal}
           onSelectOrganization={handleSelectOrganization}
@@ -174,6 +177,8 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         <DashboardSidebar
           pathname={pathname}
           activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
           activeWorkspaceId={appState.activeWorkspaceId}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
