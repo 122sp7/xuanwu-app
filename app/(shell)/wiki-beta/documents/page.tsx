@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
-import { WikiBetaRagTestView } from "@/modules/wiki-beta";
+import { WikiBetaRag } from "@/modules/wiki-beta";
 
 export default function WikiBetaDocumentsPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function WikiBetaDocumentsPage() {
         <p className="text-sm text-muted-foreground">預設檢視 account-scoped documents；可用 workspaceId 進行視角篩選。</p>
       </header>
 
-      <WikiBetaRagTestView onBack={() => router.push("/wiki-beta")} mode="documents" workspaceId={workspaceId} />
+      <WikiBetaRag onBack={() => router.push("/wiki-beta")} mode="documents" workspaceId={workspaceId} />
     </div>
   );
 }

@@ -33,7 +33,7 @@ import type {
   WikiBetaParsedDocument,
 } from "../../domain";
 
-interface WikiBetaRagTestViewProps {
+interface WikiBetaRagProps {
   readonly onBack: () => void;
   readonly mode?: "all" | "query" | "reindex" | "documents";
   readonly workspaceId?: string;
@@ -236,7 +236,7 @@ function RagBadge({ status, error }: { status: string; error: string }) {
   return <span className="text-xs text-muted-foreground">-</span>;
 }
 
-export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiBetaRagTestViewProps) {
+export function WikiBetaRag({ onBack, mode = "all", workspaceId }: WikiBetaRagProps) {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";

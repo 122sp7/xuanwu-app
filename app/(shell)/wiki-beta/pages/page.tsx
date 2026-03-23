@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { WikiBetaPagesTreeView } from "@/modules/wiki-beta";
+import { WikiBetaPages } from "@/modules/wiki-beta";
 
 export default function WikiBetaPagesPage() {
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function WikiBetaPagesPage() {
       </button>
 
       {accountId ? (
-        <WikiBetaPagesTreeView accountId={accountId} workspaceId={workspaceId} />
+        <WikiBetaPages accountId={accountId} workspaceId={workspaceId} />
       ) : (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未取得 account context，請先登入或切換 account。

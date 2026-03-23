@@ -16,7 +16,7 @@ import type {
   WikiBetaLibraryRow,
 } from "../../domain";
 
-interface WikiBetaLibrariesViewProps {
+interface WikiBetaLibrariesProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -36,7 +36,7 @@ function parseFieldType(value: string): WikiBetaLibraryFieldType {
   return "text";
 }
 
-export function WikiBetaLibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewProps) {
+export function WikiBetaLibraries({ accountId, workspaceId }: WikiBetaLibrariesProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

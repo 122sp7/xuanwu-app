@@ -56,9 +56,4 @@ export {
   FirebaseWikiBetaWorkspaceRepository,
 } from "./infrastructure";
 
-export {
-  WikiBetaOverview,
-  WikiBetaLibrariesView,
-  WikiBetaPagesTreeView,
-  WikiBetaRagTestView,
-} from "./interfaces";
+export { WikiBetaOverview, WikiBetaLibraries, WikiBetaPages, WikiBetaRag } from "./interfaces";

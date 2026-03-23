@@ -11,7 +11,7 @@ import {
 } from "../../application";
 import type { WikiBetaPageTreeNode } from "../../domain";
 
-interface WikiBetaPagesTreeViewProps {
+interface WikiBetaPagesProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -91,7 +91,7 @@ function PageTreeNode({
   );
 }
 
-export function WikiBetaPagesTreeView({ accountId, workspaceId }: WikiBetaPagesTreeViewProps) {
+export function WikiBetaPages({ accountId, workspaceId }: WikiBetaPagesProps) {
   const [title, setTitle] = useState("");
   const [parentPageId, setParentPageId] = useState<string>("");
   const [tree, setTree] = useState<WikiBetaPageTreeNode[]>([]);

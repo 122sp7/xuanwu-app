@@ -40,7 +40,7 @@ const QUICK_ACCESS = [
   },
 ] as const;
 
-export function WikiBetaDashboard() {
+export function WikiBetaOverview() {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const [knowledgeTree, setKnowledgeTree] = useState<WikiBetaAccountKnowledgeNode[]>([]);
@@ -186,4 +186,4 @@ export function WikiBetaDashboard() {
   );
 }
 
-export const WikiBetaOverview = WikiBetaDashboard;
+
