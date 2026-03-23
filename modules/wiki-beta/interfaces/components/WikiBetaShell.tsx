@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import {
   BookOpen,
   ChevronLeft,
@@ -93,10 +93,13 @@ export function WikiBetaShell({
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  function isActive(href: string, exact?: boolean) {
-    if (exact) return pathname === href;
-    return pathname === href || pathname.startsWith(href + "/");
-  }
+  const isActive = useCallback(
+    (href: string, exact?: boolean) => {
+      if (exact) return pathname === href;
+      return pathname === href || pathname.startsWith(href + "/");
+    },
+    [pathname],
+  );
 
   return (
     <TooltipProvider delayDuration={200}>

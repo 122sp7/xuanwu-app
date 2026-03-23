@@ -32,6 +32,14 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -39,6 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@ui-shadcn/ui/dropdown-menu";
 import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
 import {
   Select,
   SelectContent,
@@ -219,6 +228,21 @@ export function WikiBetaPagesView({ accountId, workspaceId }: WikiBetaPagesViewP
   const [newTitle, setNewTitle] = useState("");
   const [newParentId, setNewParentId] = useState<string>("");
 
+  // Dialog state for child page creation
+  const [childDialogOpen, setChildDialogOpen] = useState(false);
+  const [childDialogParentId, setChildDialogParentId] = useState<string | null>(null);
+  const [childDialogTitle, setChildDialogTitle] = useState("");
+
+  // Dialog state for rename
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renamePageId, setRenamePageId] = useState("");
+  const [renameTitle, setRenameTitle] = useState("");
+
+  // Dialog state for move
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [movePageId, setMovePageId] = useState("");
+  const [moveTargetParentId, setMoveTargetParentId] = useState("");
+
   const pageOptions = useMemo(() => flattenPages(tree), [tree]);
   const selectedPage = useMemo(() => {
     function find(nodes: WikiBetaPageTreeNode[]): WikiBetaPageTreeNode | null {
@@ -251,14 +275,21 @@ export function WikiBetaPagesView({ accountId, workspaceId }: WikiBetaPagesViewP
 
   const handleCreate = useCallback(
     async (parentId?: string | null) => {
-      const title = parentId ? window.prompt("子頁標題") : newTitle.trim();
+      if (parentId) {
+        // Open dialog for child page creation
+        setChildDialogParentId(parentId);
+        setChildDialogTitle("");
+        setChildDialogOpen(true);
+        return;
+      }
+      const title = newTitle.trim();
       if (!title) return;
       try {
         await createWikiBetaPage({
           accountId,
           workspaceId,
           title,
-          parentPageId: parentId ?? (newParentId || null),
+          parentPageId: newParentId || null,
         });
         setNewTitle("");
         setNewParentId("");
@@ -270,37 +301,66 @@ export function WikiBetaPagesView({ accountId, workspaceId }: WikiBetaPagesViewP
     [accountId, newParentId, newTitle, refresh, workspaceId],
   );
 
+  const handleChildDialogConfirm = useCallback(async () => {
+    if (!childDialogTitle.trim()) return;
+    try {
+      await createWikiBetaPage({
+        accountId,
+        workspaceId,
+        title: childDialogTitle.trim(),
+        parentPageId: childDialogParentId,
+      });
+      setChildDialogOpen(false);
+      setChildDialogTitle("");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "建立子頁失敗");
+    }
+  }, [accountId, childDialogParentId, childDialogTitle, refresh, workspaceId]);
+
   const handleRename = useCallback(
-    async (pageId: string, currentTitle: string) => {
-      const nextTitle = window.prompt("新的頁面標題", currentTitle);
-      if (!nextTitle?.trim()) return;
-      try {
-        await renameWikiBetaPage({ accountId, pageId, title: nextTitle });
-        await refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "重新命名失敗");
-      }
+    (_pageId: string, currentTitle: string) => {
+      setRenamePageId(_pageId);
+      setRenameTitle(currentTitle);
+      setRenameDialogOpen(true);
     },
-    [accountId, refresh],
+    [],
   );
 
+  const handleRenameConfirm = useCallback(async () => {
+    if (!renameTitle.trim() || !renamePageId) return;
+    try {
+      await renameWikiBetaPage({ accountId, pageId: renamePageId, title: renameTitle.trim() });
+      setRenameDialogOpen(false);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "重新命名失敗");
+    }
+  }, [accountId, renamePageId, renameTitle, refresh]);
+
   const handleMove = useCallback(
-    async (pageId: string, currentParentId: string | null) => {
-      const raw = window.prompt("輸入新的 parent page id，留空代表 root", currentParentId ?? "");
-      if (raw === null) return;
-      try {
-        await moveWikiBetaPage({
-          accountId,
-          pageId,
-          targetParentPageId: raw.trim() || null,
-        });
-        await refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "移動頁面失敗");
-      }
+    (_pageId: string, currentParentId: string | null) => {
+      setMovePageId(_pageId);
+      setMoveTargetParentId(currentParentId ?? "");
+      setMoveDialogOpen(true);
     },
-    [accountId, refresh],
+    [],
   );
+
+  const handleMoveConfirm = useCallback(async () => {
+    if (!movePageId) return;
+    try {
+      await moveWikiBetaPage({
+        accountId,
+        pageId: movePageId,
+        targetParentPageId: moveTargetParentId.trim() || null,
+      });
+      setMoveDialogOpen(false);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "移動頁面失敗");
+    }
+  }, [accountId, movePageId, moveTargetParentId, refresh]);
 
   return (
     <div className="flex h-full min-h-0">
@@ -484,6 +544,93 @@ export function WikiBetaPagesView({ accountId, workspaceId }: WikiBetaPagesViewP
           </div>
         )}
       </div>
+
+      {/* ── Child page creation dialog ── */}
+      <Dialog open={childDialogOpen} onOpenChange={setChildDialogOpen}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>新增子頁</DialogTitle>
+            <DialogDescription>為選取的頁面新增子頁面。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">標題</Label>
+              <Input
+                value={childDialogTitle}
+                onChange={(e) => setChildDialogTitle(e.target.value)}
+                placeholder="子頁標題"
+                className="h-9"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleChildDialogConfirm();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" onClick={() => void handleChildDialogConfirm()} disabled={!childDialogTitle.trim()}>
+              建立
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Rename dialog ── */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>重新命名</DialogTitle>
+            <DialogDescription>輸入新的頁面標題。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">標題</Label>
+              <Input
+                value={renameTitle}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                placeholder="新的頁面標題"
+                className="h-9"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleRenameConfirm();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" onClick={() => void handleRenameConfirm()} disabled={!renameTitle.trim()}>
+              儲存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Move dialog ── */}
+      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>移動頁面</DialogTitle>
+            <DialogDescription>選擇新的父頁面，留空代表移至根層級。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">目標父頁面 ID</Label>
+              <Input
+                value={moveTargetParentId}
+                onChange={(e) => setMoveTargetParentId(e.target.value)}
+                placeholder="留空代表 root"
+                className="h-9"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleMoveConfirm();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" onClick={() => void handleMoveConfirm()}>
+              移動
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
