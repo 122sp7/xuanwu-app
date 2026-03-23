@@ -11,7 +11,7 @@ This page tracks older customization assets that are being replaced by the forma
 
 | Legacy asset | Replacement | Migration status | Notes |
 | --- | --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../.github/agents/qa-subagent.agent.md) | [.github/agents/qa.agent.md](../../../.github/agents/qa.agent.md) | In progress | The new QA stage is part of the formal delivery chain and should replace the old standalone persona once references are updated |
+| [.github/agents/qa-subagent.agent.md](../../../.github/agents/qa-subagent.agent.md) | [.github/agents/qa.agent.md](../../../.github/agents/qa.agent.md) | In progress | The legacy agent is now hidden from picker and model invocation to avoid QA name collisions while contributor-facing references are cleaned up |
 
 ## Migration rules
 

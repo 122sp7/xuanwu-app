@@ -48,4 +48,7 @@ Update all of the following in the same change:
 
 - Check links between docs and customization files.
 - Ensure agent and prompt names match the intended invocation model.
+- Ensure no active custom agents share the same visible name unless the duplication is intentional and documented.
+- Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
+- Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
 - Keep authoritative sources and workflow docs aligned.

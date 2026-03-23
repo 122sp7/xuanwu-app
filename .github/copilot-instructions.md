@@ -16,6 +16,7 @@ Use this file as the Copilot-specific baseline for all work in this repository.
 - For cross-module, cross-runtime, or contract-governed work, plan before implementation.
 - Start formal delivery work with the Planner agent or one of the planning prompts.
 - Treat the implementation plan as the canonical execution contract for the current task.
+- Persist approved plans explicitly when work must survive a chat reset or cross-session handoff.
 - Keep implementation inside the approved scope, non-goals, and validation plan.
 - Update documentation in the same change whenever runtime ownership, boundaries, acceptance gates, or public APIs change.
 
@@ -41,4 +42,5 @@ Use re-entry prompts when a session needs to restart or a stage must be rerun in
 
 - Use the commands listed in [agents/commands.md](../agents/commands.md).
 - At minimum, run the validation that matches the files changed.
+- Use Chat customization diagnostics when a prompt, agent, or instruction does not appear to load or route correctly.
 - Do not mark work complete if the plan's required validation or documentation updates are still pending.

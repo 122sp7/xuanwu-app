@@ -68,7 +68,7 @@ These skills remain authoritative for domain-specific guidance and are reused by
 
 | Asset | Current status | Replacement |
 | --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona pending retirement | [.github/agents/qa.agent.md](../../../.github/agents/qa.agent.md) |
+| [.github/agents/qa-subagent.agent.md](../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../.github/agents/qa.agent.md) |
 
 ## Ownership and update policy
 

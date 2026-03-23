@@ -34,6 +34,7 @@ Use this guide when the formal delivery workflow was interrupted or needs to res
 - Do not restart from Planner unless scope, owner, runtime, or validation requirements changed materially.
 - Do not use QA to infer missing implementation state. Reconstruct the stage first.
 - If the plan cannot be located or no longer reflects the intended scope, rerun planning explicitly instead of guessing.
+- Prefer a durable saved plan reference over chat history when reconstructing delivery state across sessions.
 
 ## Related references
 

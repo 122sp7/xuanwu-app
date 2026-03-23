@@ -1,6 +1,8 @@
 ---
-name: 'QA'
+name: 'QA Legacy'
 description: 'Meticulous QA subagent for test planning, bug hunting, edge-case analysis, and implementation verification.'
+user-invocable: false
+disable-model-invocation: true
 tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'todo']
 ---
 

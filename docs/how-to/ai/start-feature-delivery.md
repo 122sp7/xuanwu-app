@@ -23,6 +23,13 @@ Use the formal delivery flow when one or more of the following are true:
 2. Run `/plan-feature`.
 3. Provide the request, constraints, and any relevant file or document context.
 4. Review the implementation plan before starting implementation.
+5. If the work will span multiple sessions, save the approved plan in a durable location instead of relying on chat history alone.
+
+## Plan persistence
+
+- If you use the built-in Plan agent, VS Code keeps the generated plan in session memory as `plan.md` for the current conversation only.
+- If you use the Xuanwu Planner agent or expect the work to continue in a later session, store the approved plan in a repository document, issue comment, or other durable reference before implementation starts.
+- Reuse that saved plan when invoking `/implement-plan`, `/review-changes`, `/run-qa`, or `/resume-delivery`.
 
 ## Move through the stages
 
