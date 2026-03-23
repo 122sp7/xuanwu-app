@@ -74,9 +74,25 @@ function toDateOrNull(value: unknown): Date | null {
   if (!isRecord(value)) return null;
   const maybeToDate = value.toDate;
   if (typeof maybeToDate === "function") {
-    const converted = maybeToDate();
-    if (converted instanceof Date) {
-      return converted;
+    try {
+      const converted = maybeToDate.call(value);
+      if (converted instanceof Date) {
+        return converted;
+      }
+    } catch {
+      // fallback to toMillis below
+    }
+  }
+
+  const maybeToMillis = value.toMillis;
+  if (typeof maybeToMillis === "function") {
+    try {
+      const millis = maybeToMillis.call(value);
+      if (typeof millis === "number" && Number.isFinite(millis)) {
+        return new Date(millis);
+      }
+    } catch {
+      return null;
     }
   }
   return null;
