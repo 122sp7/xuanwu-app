@@ -18,6 +18,7 @@ import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { createOrganization } from "@/modules/organization";
+import { createWorkspace } from "@/modules/workspace";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
@@ -111,10 +112,49 @@ export function AppRail({
   const [orgError, setOrgError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
   function resetDialog() {
     setOrgName("");
     setOrgError(null);
     setIsCreating(false);
+  }
+
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
   }
 
   async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
@@ -280,6 +320,75 @@ export function AppRail({
         <nav className="flex flex-col items-center gap-0.5" aria-label="Top-level navigation">
           {visibleRailItems.map((item) => {
             const active = isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="Workspace Hub: 切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">Workspace Hub: 切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      Workspace Hub
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
 
             if (item.href === "/wiki-beta") {
               return (
@@ -478,6 +587,60 @@ export function AppRail({
               </Button>
               <Button type="submit" disabled={isCreating || !user}>
                 {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
               </Button>
             </DialogFooter>
           </form>
