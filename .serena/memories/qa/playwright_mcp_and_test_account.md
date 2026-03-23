@@ -1,4 +1,5 @@
 - Playwright MCP standard flow in VS Code: run npm run dev first -> confirm local app is reachable (e.g., http://localhost:3000) -> start browser -> navigate target URL -> perform visual/interaction checks -> capture console/network errors when behavior mismatches.
 - Test login account (long-term, user-provided): test@demo.com
-- Test login password (long-term, user-provided): 123456
+- Test login password: do not persist in Serena long-term memory; request on-demand from the user or use secure local secrets.
+- Latest confirmed test password was provided during a chat session on 2026-03-23 and should not be treated as durable memory.
 - Usage note: this credential is for testing environments only.
