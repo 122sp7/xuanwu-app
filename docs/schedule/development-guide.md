@@ -104,7 +104,7 @@ export interface ScheduleCancellationRepository {
 
 ```typescript
 // application/use-cases/cancel-schedule-request.use-case.ts
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@/shared/types";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { ScheduleCancellationRepository } from "../../domain/repositories/ScheduleCancellationRepository";
 
 export class CancelScheduleRequestUseCase {
@@ -126,7 +126,7 @@ export class CancelScheduleRequestUseCase {
 ```typescript
 // infrastructure/firebase/FirebaseScheduleCancellationRepository.ts
 import { doc, getFirestore, updateDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@/infrastructure/firebase/client";
+import { firebaseClientApp } from "@integration-firebase";
 import type { ScheduleCancellationRepository } from "../../domain/repositories/ScheduleCancellationRepository";
 
 export class FirebaseScheduleCancellationRepository implements ScheduleCancellationRepository {
