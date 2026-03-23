@@ -27,6 +27,7 @@ interface WikiBetaRagReindexViewProps {
 interface ReindexDocument {
   readonly id: string;
   readonly filename: string;
+  readonly workspaceId: string;
   readonly status: string;
   readonly ragStatus: string;
   readonly pageCount: number;
@@ -86,10 +87,13 @@ function mapDoc(id: string, data: Record<string, unknown>): ReindexDocument {
   const jsonGcsUri =
     (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
     (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : "");
+  const workspaceIdFromDoc = typeof data.spaceId === "string" ? data.spaceId : "";
+  const workspaceIdFromMeta = typeof metadata.space_id === "string" ? metadata.space_id : "";
 
   return {
     id,
     filename: resolveFilename(data) || id,
+    workspaceId: workspaceIdFromDoc || workspaceIdFromMeta,
     status: typeof data.status === "string" ? data.status : "unknown",
     ragStatus: typeof rag.status === "string" ? rag.status : "",
     pageCount:
@@ -180,7 +184,7 @@ export function WikiBetaRagReindexView({ onBack, workspaceId }: WikiBetaRagReind
       const snap = await firestoreApi.getDocs(colRef);
       const mapped = snap.docs
         .map((item) => mapDoc(item.id, objectOrEmpty(item.data())))
-        .filter((item) => !effectiveWorkspaceId || item.id.includes(effectiveWorkspaceId));
+        .filter((item) => !effectiveWorkspaceId || item.workspaceId === effectiveWorkspaceId);
       mapped.sort((a, b) => {
         const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
         const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
