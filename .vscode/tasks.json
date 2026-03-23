@@ -2,18 +2,106 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "dev",
+			"type": "shell",
+			"command": "npm run dev",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "app",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
 			"label": "build",
 			"type": "shell",
-			"command": "npm",
-			"args": [
-				"run",
-				"build"
-			],
+			"command": "npm run build",
 			"isBackground": false,
 			"problemMatcher": [
 				"$tsc"
 			],
-			"group": "build"
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "app",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "lint",
+			"type": "shell",
+			"command": "npm run lint",
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "app",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "start",
+			"type": "shell",
+			"command": "npm run start",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "app",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "py:compile",
+			"type": "shell",
+			"command": "python -m compileall -q .",
+			"options": {
+				"cwd": "${workspaceFolder}/py_fn"
+			},
+			"isBackground": false,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "py_fn",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "py:test",
+			"type": "shell",
+			"command": "python -m pytest tests/ -v",
+			"options": {
+				"cwd": "${workspaceFolder}/py_fn"
+			},
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "py_fn",
+				"showReuseMessage": true,
+				"clear": false
+			}
 		}
 	]
 }
