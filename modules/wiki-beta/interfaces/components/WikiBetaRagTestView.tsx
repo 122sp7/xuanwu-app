@@ -102,6 +102,27 @@ function toNumberOrDefault(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (isRecord(error)) {
+    const direct = error.message;
+    if (typeof direct === "string" && direct.trim()) {
+      return direct;
+    }
+    const nested = objectOrEmpty(error.details);
+    const nestedMessage = nested.message;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) {
+      return nestedMessage;
+    }
+  }
+  return "未知錯誤";
+}
+
 function mapToLiveDocument(id: string, data: Record<string, unknown>): WikiBetaLiveDocument {
   const source = objectOrEmpty(data.source);
   const parsed = objectOrEmpty(data.parsed);
@@ -340,9 +361,19 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       }
       const parsedTopK = Number(topK);
       const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
-      const result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
+      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
         requireReady: true,
       });
+
+      // Compatibility fallback: old vectors may miss ready status or freshness fields.
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        appendLog("主要查詢無可用引用，啟用相容模式重試 (require_ready=false, max_age_days=3650)");
+        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
+      }
+
       setAnswer(result.answer);
       setCitations(result.citations);
       setCacheMode(result.cache);
@@ -352,8 +383,9 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       appendLog(`RAG 查詢完成：hits vector=${result.vectorHits}, search=${result.searchHits}`);
     } catch (error) {
       console.error(error);
-      toast.error("呼叫 rag_query 失敗");
-      appendLog("RAG 查詢失敗");
+      const detail = getErrorMessage(error);
+      toast.error(`呼叫 rag_query 失敗：${detail}`);
+      appendLog(`RAG 查詢失敗：${detail}`);
     } finally {
       setLoadingAnswer(false);
     }

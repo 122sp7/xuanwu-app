@@ -22,6 +22,7 @@ from core.config import (
 from infrastructure.external.openai.embeddings import embed_texts
 from infrastructure.external.upstash.clients import (
     redis_set_json,
+    upsert_search_documents,
     upsert_vectors,
 )
 
@@ -179,6 +180,25 @@ def ingest_document_for_rag(
         )
 
     upsert_vectors(payload)
+
+    # Best effort: keep Upstash Search in sync with vector chunks.
+    try:
+        search_docs = [
+            {
+                "id": item["id"],
+                "content": {
+                    "text": item["metadata"].get("text", ""),
+                    "filename": item["metadata"].get("filename", ""),
+                    "doc_id": item["metadata"].get("doc_id", ""),
+                    "taxonomy": item["metadata"].get("taxonomy", ""),
+                },
+                "metadata": item["metadata"],
+            }
+            for item in payload
+        ]
+        upsert_search_documents(search_docs)
+    except Exception as exc:
+        logger.warning("search index upsert skipped for %s: %s", doc_id, exc)
 
     # 文件索引摘要寫入 Redis，方便後續檢視與治理。
     try:

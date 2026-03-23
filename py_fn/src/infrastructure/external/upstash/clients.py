@@ -263,6 +263,45 @@ def redis_fixed_window_allow(
     return allowed, remaining
 
 
+def upsert_search_documents(documents: list[dict[str, Any]]) -> int:
+    """批次寫入 Upstash Search index（best effort，不拋出上層）。"""
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return 0
+
+    if not documents:
+        return 0
+
+    normalized: list[dict[str, Any]] = []
+    for item in documents:
+        if not isinstance(item, dict):
+            continue
+        doc_id = str(item.get("id") or "").strip()
+        if not doc_id:
+            continue
+
+        content = item.get("content") if isinstance(item.get("content"), dict) else {}
+        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        normalized.append({
+            "id": doc_id,
+            "content": content,
+            "metadata": metadata,
+        })
+
+    if not normalized:
+        return 0
+
+    try:
+        index = get_search_index()
+        try:
+            index.upsert(documents=normalized)
+        except TypeError:
+            index.upsert(normalized)
+        return len(normalized)
+    except Exception as exc:
+        logger.warning("upsert_search_documents failed: %s", exc)
+        return 0
+
+
 def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
     """
     以 Upstash Search REST 進行補充檢索（best effort）。
