@@ -17,7 +17,7 @@ description: Developer guide for building Workspace Daily and Organization Daily
 
 1. **架構規範**：`docs/architecture/daily.md`
 2. **開發契約**：`docs/reference/development-contracts/daily-contract.md`
-3. **整體架構指南**：`ARCHITECTURE.md`
+3. **整體架構指南**：`agents/knowledge-base.md`
 
 ---
 

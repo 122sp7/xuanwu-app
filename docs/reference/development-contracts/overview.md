@@ -27,9 +27,9 @@ The repository already contains ADRs, design notes, and a few module plans, but 
 
 The development contracts complement, rather than replace, the existing design corpus:
 
-- RAG lifecycle and runtime ADRs under `/home/runner/work/xuanwu-app/xuanwu-app/docs/adr/`
-- the file-module implementation plan in `/home/runner/work/xuanwu-app/xuanwu-app/modules/file/README.md`
-- the MDDD architecture guide in `/home/runner/work/xuanwu-app/xuanwu-app/ARCHITECTURE.md`
+- RAG lifecycle and runtime ADRs under `docs/adr/`
+- the file-module implementation plan in `modules/file/README.md`
+- the MDDD architecture guide in `agents/knowledge-base.md`
 
 ## Recommended rollout order
 

@@ -64,9 +64,5 @@
 - `firebase.json` — `source` 欄位
 - `packages/README.md` — Migration History 新增條目與說明
 - `docs/adr/ADR-001, ADR-009, ADR-010` — 跨 runtime 邊界引用
-- `docs/reference/development-contracts/overview.md, rag-ingestion-contract.md, wiki-contract.md`
-- `docs/architecture/knowledge.md, wiki.md`
-- `docs/wiki/development-guide.md`
-- `docs/design/rag-implementation-mapping.md`
+- `docs/reference/development-contracts/overview.md, rag-ingestion-contract.md`
 - `py_fn/README.md, AGENT.md, docs/adr/*` — 內部自我引用
-- `.serena/memories/00, 05, 06, 07, INDEX` — AI agent 記憶體

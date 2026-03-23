@@ -8,8 +8,8 @@
 
 ## 文件一致性（單一真實來源）
 
-- 本文件與設計規格、使用手冊皆以 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](../wiki-beta/wiki-beta-runtime-flow.mermaid) 為準。
-- Notion 能力對照詞彙一律以 [docs/wiki-beta/wiki-beta-naming-alignment.md](../wiki-beta/wiki-beta-naming-alignment.md) 為準。
+- 本文件與設計規格、使用手冊皆以 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](./wiki-beta-runtime-flow.mermaid) 為準。
+- Notion 能力對照詞彙一律以 [docs/wiki-beta/wiki-beta-naming-alignment.md](./wiki-beta-naming-alignment.md) 為準。
 - 任何對 runtime boundary、資料模型、命名的調整，必須同步更新本文件、設計規格和使用手冊。
 
 ---
@@ -66,7 +66,7 @@
 
 ## 4. 命名原則
 
-實作時一律使用下表對應詞彙（詳見 [wiki-beta-naming-alignment.md](../wiki-beta/wiki-beta-naming-alignment.md)）：
+實作時一律使用下表對應詞彙（詳見 [wiki-beta-naming-alignment.md](./wiki-beta-naming-alignment.md)）：
 
 | Notion 術語 | Xuanwu UI 術語 | Xuanwu Domain 術語 |
 |---|---|---|

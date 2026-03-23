@@ -17,7 +17,7 @@ description: Developer guide for contributing to the schedule module — module 
 
 1. **架構規範**：`docs/architecture/schedule.md`
 2. **開發契約**：`docs/reference/development-contracts/schedule-contract.md`
-3. **整體架構指南**：`ARCHITECTURE.md`
+3. **整體架構指南**：`agents/knowledge-base.md`
 
 ---
 
@@ -340,7 +340,7 @@ describe("SubmitScheduleRequestUseCase", () => {
 | `docs/architecture/schedule.md` | 架構設計規範（本輪新增） |
 | `docs/reference/development-contracts/schedule-contract.md` | 開發契約與驗收條件 |
 | `modules/schedule/README.md` | 模組邊界與遷移狀態 |
-| `ARCHITECTURE.md` | 整體 MDDD 架構指南 |
+| `agents/knowledge-base.md` | 整體 MDDD 架構指南 |
 | Postiz `apps/orchestrator/src/workflows/post-workflows/` | 排程工作流參考實作 |
 
 ---
