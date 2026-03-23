@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from application.rag.ports import (
+from application.ports.output.gateways import (
     register_document_pipeline_gateway,
     register_rag_ingestion_gateway,
     register_rag_query_gateway,
 )
+from infrastructure.audit.qstash import publish_query_audit
+from infrastructure.cache.rag_query_cache import build_query_cache_key, get_query_cache, save_query_cache
 from infrastructure.external.documentai.client import process_document_gcs
 from infrastructure.external.openai.embeddings import embed_texts
 from infrastructure.external.upstash.clients import (
@@ -23,8 +25,6 @@ from infrastructure.persistence.firestore.document_repository import (
     update_parsed,
 )
 from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
-from infrastructure.rag.audit import publish_query_audit
-from infrastructure.rag.cache import build_query_cache_key, get_query_cache, save_query_cache
 from infrastructure.rag.openai_adapter import generate_answer, to_query_vector
 from infrastructure.rag.upstash_adapter import query_search, query_vector
 

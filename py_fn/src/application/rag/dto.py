@@ -1,15 +1,4 @@
-from __future__ import annotations
+# Re-export from canonical location: application/dto/rag.py
+from application.dto.rag import RagIngestionResult
 
-from dataclasses import dataclass
-
-
-@dataclass
-class RagIngestionResult:
-    chunk_count: int
-    vector_count: int
-    embedding_model: str
-    embedding_dimensions: int
-    raw_chars: int
-    normalized_chars: int
-    normalization_version: str
-    language_hint: str
+__all__ = ["RagIngestionResult"]
