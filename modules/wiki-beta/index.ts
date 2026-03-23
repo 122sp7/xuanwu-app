@@ -59,7 +59,10 @@ export {
 export {
   WikiBetaOverviewView,
   WikiBetaLibrariesView,
+  WikiBetaLibraryTableView,
   WikiBetaPagesView,
+  WikiBetaPagesDnDView,
+  WikiBetaBlockEditorView,
   WikiBetaRagView,
   WikiBetaWorkspaceView,
 } from "./interfaces";

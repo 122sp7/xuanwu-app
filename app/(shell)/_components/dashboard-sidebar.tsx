@@ -710,6 +710,8 @@ export function DashboardSidebar({
                 {(
                   [
                     { href: "/wiki-beta", label: "知識總覽" },
+                    { href: "/wiki-beta/block-editor", label: "區塊編輯器" },
+                    { href: "/wiki-beta/pages-dnd", label: "頁面 (DnD)" },
                     { href: "/wiki-beta/rag-query", label: "RAG Query" },
                   ] as const
                 ).map((item) => {
@@ -777,6 +779,30 @@ export function DashboardSidebar({
                     </div>
                   ) : null}
                 </div>
+
+                {(
+                  [
+                    { href: "/wiki-beta/pages", label: "Pages" },
+                    { href: "/wiki-beta/libraries", label: "Libraries" },
+                    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
 
                 <div className="my-1.5 border-t border-border/40" />
 

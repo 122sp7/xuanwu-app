@@ -16,8 +16,10 @@ import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
 import { AppRail } from "./_components/app-rail";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
 import { HeaderControls } from "./_components/header-controls";
 import { HeaderUserAvatar } from "./_components/header-user-avatar";
 import { ShellGuard } from "./_components/shell-guard";
@@ -85,6 +87,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   const { state: authState, logout } = useAuth();
   const { state: appState, dispatch } = useApp();
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
@@ -156,6 +159,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 
   return (
     <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
       <div className="flex h-screen overflow-hidden bg-background">
         <AppRail
           pathname={pathname}
@@ -201,12 +205,13 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
                   </button>
                 )}
                 <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
                 {/* Global search */}
                 <button
                   type="button"
                   aria-label="全域搜尋"
                   className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => { /* TODO: open global search command palette */ }}
+                  onClick={() => setSearchOpen(true)}
                 >
                   <Search className="size-3 shrink-0" />
                   <span>搜尋…</span>
