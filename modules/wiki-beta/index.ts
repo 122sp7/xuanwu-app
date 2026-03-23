@@ -62,4 +62,15 @@ export {
   WikiBetaPagesView,
   WikiBetaRagView,
   WikiBetaWorkspaceView,
+  BlockEditorView,
+  LibraryTableView,
+  WikiBetaPagesDnDView,
+  useBlockEditorStore,
+} from "./interfaces";
+
+export type {
+  LibraryField,
+  LibraryRow,
+  Block,
+  BlockType,
 } from "./interfaces";

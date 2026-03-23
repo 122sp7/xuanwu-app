@@ -60,6 +60,25 @@ export {
 	getFacetedMinMaxValues,
 } from "@tanstack/react-table";
 
+export type {
+	SortingState,
+	ColumnFiltersState,
+	ColumnDef,
+	Row,
+	Column,
+	Table,
+	HeaderGroup,
+	Header,
+	Cell,
+	RowData,
+	FilterFn,
+	SortingFn,
+	VisibilityState,
+	RowSelectionState,
+	GroupingState,
+	ExpandedState,
+} from "@tanstack/react-table";
+
 // React Virtual
 export {
 	Virtualizer,

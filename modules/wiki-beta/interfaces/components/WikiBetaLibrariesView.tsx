@@ -15,6 +15,8 @@ import type {
   WikiBetaLibraryFieldType,
   WikiBetaLibraryRow,
 } from "../../domain";
+import { LibraryTableView } from "./LibraryTableView";
+import type { LibraryField } from "./LibraryTableView";
 
 interface WikiBetaLibrariesViewProps {
   readonly accountId: string;
@@ -282,17 +284,11 @@ export function WikiBetaLibrariesView({ accountId, workspaceId }: WikiBetaLibrar
 
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Rows Preview</p>
-            {rowsPreview.length === 0 ? (
-              <p className="text-xs text-muted-foreground">尚無資料列</p>
-            ) : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {rowsPreview.slice(0, 5).map((row) => (
-                  <li key={row.id} className="rounded border border-border/60 bg-background px-2 py-1">
-                    {JSON.stringify(row.values)}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <LibraryTableView
+              fields={fieldsPreview as LibraryField[]}
+              rows={rowsPreview}
+              title={selectedLibrary?.name}
+            />
           </div>
         </div>
       </div>

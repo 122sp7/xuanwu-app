@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -18,8 +18,10 @@ import type { AccountEntity } from "@/modules/account/domain/entities/Account";
 import { AccountSwitcher } from "./_components/account-switcher";
 import { AppRail } from "./_components/app-rail";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchPalette, useGlobalSearchShortcut } from "./_components/global-search-palette";
 import { HeaderControls } from "./_components/header-controls";
 import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellBreadcrumbs } from "./_components/shell-breadcrumbs";
 import { ShellGuard } from "./_components/shell-guard";
 
 const routeTitles: Record<string, string> = {
@@ -29,6 +31,10 @@ const routeTitles: Record<string, string> = {
   "/wiki-beta": "Account Wiki-Beta",
   "/wiki-beta/rag-query": "Account Wiki-Beta · RAG 查詢",
   "/wiki-beta/documents": "Account Wiki-Beta · 文件",
+  "/wiki-beta/pages": "Account Wiki-Beta · 頁面",
+  "/wiki-beta/pages-dnd": "Account Wiki-Beta · 頁面樹（拖曳）",
+  "/wiki-beta/libraries": "Account Wiki-Beta · Libraries",
+  "/wiki-beta/block-editor": "Account Wiki-Beta · 區塊編輯器",
   "/ai-chat": "AI 對話",
   "/settings": "個人設定",
   "/dev-tools": "開發工具",
@@ -85,6 +91,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   const { state: authState, logout } = useAuth();
   const { state: appState, dispatch } = useApp();
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
@@ -99,6 +106,9 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       return next;
     });
   }
+
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  useGlobalSearchShortcut(openSearch);
 
   const pageTitle = routeTitles[pathname] ?? "工作區";
   const organizationAccounts = Object.values(appState.accounts ?? {});
@@ -201,12 +211,13 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
                   </button>
                 )}
                 <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <ShellBreadcrumbs pathname={pathname} />
                 {/* Global search */}
                 <button
                   type="button"
                   aria-label="全域搜尋"
                   className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => { /* TODO: open global search command palette */ }}
+                  onClick={() => setSearchOpen(true)}
                 >
                   <Search className="size-3 shrink-0" />
                   <span>搜尋…</span>
@@ -281,6 +292,8 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           <main className="flex-1 overflow-auto p-6">{children}</main>
         </div>
       </div>
+
+      <GlobalSearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </ShellGuard>
   );
 }

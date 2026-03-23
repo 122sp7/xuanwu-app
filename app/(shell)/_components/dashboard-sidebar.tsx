@@ -711,6 +711,9 @@ export function DashboardSidebar({
                   [
                     { href: "/wiki-beta", label: "知識總覽" },
                     { href: "/wiki-beta/rag-query", label: "RAG Query" },
+                    { href: "/wiki-beta/pages", label: "Pages" },
+                    { href: "/wiki-beta/pages-dnd", label: "頁面樹（拖曳）" },
+                    { href: "/wiki-beta/block-editor", label: "區塊編輯器" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);

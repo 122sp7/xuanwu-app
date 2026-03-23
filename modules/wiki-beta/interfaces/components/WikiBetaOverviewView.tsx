@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+import { BookOpen, Building2, Database, Edit3, FileText, FolderKanban, GripVertical, MessageSquare } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -37,6 +37,18 @@ const QUICK_ACCESS = [
     title: "RAG Query",
     description: "知識問答與引用檢視。",
     icon: MessageSquare,
+  },
+  {
+    href: "/wiki-beta/block-editor",
+    title: "區塊編輯器",
+    description: "Notion-like 區塊編輯器，支援 / 指令。",
+    icon: Edit3,
+  },
+  {
+    href: "/wiki-beta/pages-dnd",
+    title: "頁面樹（拖曳）",
+    description: "使用拖曳方式重排與移動頁面。",
+    icon: GripVertical,
   },
 ] as const;
 
