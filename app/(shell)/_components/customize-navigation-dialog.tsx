@@ -92,7 +92,6 @@ const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }
   { id: "qa", tabKey: "QA", fallbackLabel: "QA" },
   { id: "acceptance", tabKey: "Acceptance", fallbackLabel: "Acceptance" },
   { id: "finance", tabKey: "Finance", fallbackLabel: "Finance" },
-  { id: "document-parser", tabKey: "Document Parser", fallbackLabel: "Document Parser" },
   { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
 ];
 
