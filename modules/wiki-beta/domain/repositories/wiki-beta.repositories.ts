@@ -12,7 +12,17 @@ import type {
 } from "../entities/wiki-beta-library.types";
 
 export interface WikiBetaKnowledgeRepository {
-  runRagQuery(query: string, accountId: string, topK: number): Promise<WikiBetaRagQueryResult>;
+  runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options?: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    },
+  ): Promise<WikiBetaRagQueryResult>;
   reindexDocument(input: WikiBetaReindexInput): Promise<void>;
   listParsedDocuments(accountId: string, limitCount: number): Promise<WikiBetaParsedDocument[]>;
 }

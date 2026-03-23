@@ -105,10 +105,14 @@ def ingest_document_for_rag(
     text: str,
     page_count: int,
     account_id: str,
+    workspace_id: str,
+    taxonomy: str = "general",
 ) -> RagIngestionResult:
     """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
     if not account_id:
         raise ValueError("account_id is required")
+    if not workspace_id:
+        raise ValueError("workspace_id is required")
 
     raw_chars = len(text or "")
     normalized = clean_text(text or "")
@@ -155,6 +159,10 @@ def ingest_document_for_rag(
                     "source_gcs_uri": source_gcs_uri,
                     "json_gcs_uri": json_gcs_uri,
                     "account_id": account_id,
+                    "workspace_id": workspace_id,
+                    "taxonomy": taxonomy,
+                    "semantic_class": taxonomy,
+                    "processing_status": "ready",
                     "page_count": page_count,
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
@@ -165,6 +173,7 @@ def ingest_document_for_rag(
                     "normalization_version": normalization_version,
                     "language_hint": language_hint,
                     "indexed_at": now_iso,
+                    "ingestion_pipeline": "rag-v2",
                 },
             }
         )

@@ -13,10 +13,16 @@ const defaultKnowledgeRepository: WikiBetaKnowledgeRepository = new FirebaseWiki
 export async function runWikiBetaRagQuery(
   query: string,
   accountId: string,
+  workspaceId: string,
   topK = 4,
+  options: {
+    taxonomyFilters?: string[];
+    maxAgeDays?: number;
+    requireReady?: boolean;
+  } = {},
   repository: WikiBetaKnowledgeRepository = defaultKnowledgeRepository,
 ): Promise<WikiBetaRagQueryResult> {
-  return repository.runRagQuery(query, accountId, topK);
+  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
 }
 
 export async function reindexWikiBetaDocument(

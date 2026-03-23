@@ -108,10 +108,28 @@ function sortByUploadedAtDesc(documents: WikiBetaParsedDocument[]): WikiBetaPars
 }
 
 export class FirebaseWikiBetaKnowledgeRepository implements WikiBetaKnowledgeRepository {
-  async runRagQuery(query: string, accountId: string, topK: number): Promise<WikiBetaRagQueryResult> {
+  async runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    } = {},
+  ): Promise<WikiBetaRagQueryResult> {
     const functions = getFirebaseFunctions("asia-southeast1");
     const callable = functionsApi.httpsCallable(functions, "rag_query");
-    const result = await callable({ query, top_k: topK, account_id: accountId });
+    const result = await callable({
+      query,
+      top_k: topK,
+      account_id: accountId,
+      workspace_id: workspaceId,
+      taxonomy_filters: options.taxonomyFilters ?? [],
+      max_age_days: options.maxAgeDays,
+      require_ready: options.requireReady,
+    });
     const data = objectOrEmpty(result.data);
 
     return {
@@ -121,6 +139,12 @@ export class FirebaseWikiBetaKnowledgeRepository implements WikiBetaKnowledgeRep
       vectorHits: typeof data.vector_hits === "number" ? data.vector_hits : 0,
       searchHits: typeof data.search_hits === "number" ? data.search_hits : 0,
       accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
+      workspaceScope: typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
+      taxonomyFilters: Array.isArray(data.taxonomy_filters)
+        ? data.taxonomy_filters.filter((value): value is string => typeof value === "string")
+        : undefined,
+      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
+      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
     };
   }
 

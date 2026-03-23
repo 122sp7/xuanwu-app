@@ -120,6 +120,9 @@ def handle_object_finalized(
         logger.error("GCS: missing account_id for %s, skipping", object_path)
         return
     workspace_id = _extract_workspace_id(data.metadata)
+    if not workspace_id:
+        logger.error("GCS: missing workspace_id for %s, skipping", object_path)
+        return
 
     # doc_id = GCS 物件名稱（去掉 prefix 和副檔名）當作 Firestore 文件 ID
     filename = os.path.basename(object_path)
@@ -186,6 +189,7 @@ def handle_object_finalized(
                 text=parsed.text,
                 page_count=parsed.page_count,
                 account_id=account_id,
+                workspace_id=workspace_id,
             )
             mark_rag_ready(
                 doc_id=doc_id,

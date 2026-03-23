@@ -318,9 +318,15 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
         toast.error("目前沒有 active account，無法執行 RAG 查詢");
         return;
       }
+      if (!workspaceId) {
+        toast.error("請先選擇工作區，再執行 RAG 查詢");
+        return;
+      }
       const parsedTopK = Number(topK);
       const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
-      const result = await runWikiBetaRagQuery(q, activeAccountId, safeTopK);
+      const result = await runWikiBetaRagQuery(q, activeAccountId, workspaceId, safeTopK, {
+        requireReady: true,
+      });
       setAnswer(result.answer);
       setCitations(result.citations);
       setCacheMode(result.cache);
@@ -369,6 +375,10 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       toast.error("目前沒有 active account，無法上傳");
       return;
     }
+    if (!workspaceId) {
+      toast.error("請先選擇工作區，再上傳文件");
+      return;
+    }
 
     setUploading(true);
     let pendingDocId = "";
@@ -397,7 +407,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       await storageApi.uploadBytes(fileRef, selectedFile, {
         customMetadata: {
           account_id: activeAccountId,
-          ...(workspaceId ? { workspace_id: workspaceId } : {}),
+          workspace_id: workspaceId,
         },
       });
 
@@ -420,7 +430,6 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
 
   async function handleDelete(doc: WikiBetaLiveDocument) {
     if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法刪除");
       return;
     }
     if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) {

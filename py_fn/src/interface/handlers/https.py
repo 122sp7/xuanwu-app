@@ -29,12 +29,16 @@ import logging
 import os
 import time
 import json
+from typing import Any
 
 from firebase_functions import https_fn
+import firebase_admin.firestore as fb_firestore
 
 from application.rag import execute_rag_query
 from application.use_cases.rag_ingestion import ingest_document_for_rag
 from core.config import (
+    RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+    RAG_QUERY_REQUIRE_READY_STATUS,
     RAG_QUERY_RATE_LIMIT_MAX,
     RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
 )
@@ -50,6 +54,83 @@ from infrastructure.persistence.firestore.document_repository import (
 from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_auth_uid(req: https_fn.CallableRequest) -> str:
+    auth = getattr(req, "auth", None)
+    if auth is None:
+        return ""
+    if isinstance(auth, dict):
+        return str(auth.get("uid", "")).strip()
+    uid = str(getattr(auth, "uid", "")).strip()
+    if uid:
+        return uid
+    token = getattr(auth, "token", None)
+    if isinstance(token, dict):
+        return str(token.get("uid", "")).strip()
+    return ""
+
+
+def _assert_account_access(uid: str, account_id: str) -> None:
+    if uid == account_id:
+        return
+
+    db = fb_firestore.client()
+    snap = db.collection("accounts").document(account_id).get()
+    if not snap.exists:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "account not found or inaccessible",
+        )
+
+    data = snap.to_dict() or {}
+    owner_id = str(data.get("ownerId", "")).strip()
+    member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+    member_set = {str(item or "").strip() for item in member_ids}
+    if owner_id == uid or uid in member_set:
+        return
+
+    raise https_fn.HttpsError(
+        https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+        "you do not have access to this account scope",
+    )
+
+
+def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None:
+    db = fb_firestore.client()
+    snap = db.collection("workspaces").document(workspace_id).get()
+    if not snap.exists:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace not found",
+        )
+
+    data = snap.to_dict() or {}
+    bound_account_id = str(data.get("accountId", "")).strip()
+    if bound_account_id != account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "workspace does not belong to account scope",
+        )
+
+
+def _parse_taxonomy_filters(raw_value: Any) -> list[str]:
+    if not isinstance(raw_value, list):
+        return []
+    return [str(item or "").strip().lower() for item in raw_value if str(item or "").strip()]
+
+
+def _to_bool(raw_value: Any, default_value: bool) -> bool:
+    if isinstance(raw_value, bool):
+        return raw_value
+    raw = str(raw_value or "").strip().lower()
+    if not raw:
+        return default_value
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return default_value
 
 
 def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
@@ -88,10 +169,16 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     """
     data: dict = req.data or {}
     account_id = str(data.get("account_id", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
     if not account_id:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             "account_id 為必填欄位",
+        )
+    if not workspace_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace_id 為必填欄位",
         )
 
     gcs_uri: str = data.get("gcs_uri", "").strip()
@@ -137,6 +224,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             size_bytes=int(size_bytes),
             mime_type=mime_type,
             account_id=account_id,
+            workspace_id=workspace_id,
         )
     except Exception as exc:
         logger.exception("Failed to init document %s: %s", doc_id, exc)
@@ -188,6 +276,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 text=parsed.text,
                 page_count=parsed.page_count,
                 account_id=account_id,
+                workspace_id=workspace_id,
             )
             mark_rag_ready(
                 doc_id=doc_id,
@@ -229,6 +318,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     data: dict = req.data or {}
     query = str(data.get("query", "")).strip()
     account_id = str(data.get("account_id", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
     if not account_id:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
@@ -239,12 +329,35 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             "query 為必填欄位",
         )
+    if not workspace_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace_id 為必填欄位",
+        )
+
+    uid = _extract_auth_uid(req)
+    if not uid:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            "需先登入才能執行 RAG 查詢",
+        )
+
+    _assert_account_access(uid, account_id)
+    _assert_workspace_belongs_account(account_id, workspace_id)
 
     top_k = data.get("top_k")
     try:
         top_k_int = int(top_k) if top_k is not None else None
     except Exception:
         top_k_int = None
+
+    try:
+        max_age_days = int(data.get("max_age_days")) if data.get("max_age_days") is not None else None
+    except Exception:
+        max_age_days = None
+
+    taxonomy_filters = _parse_taxonomy_filters(data.get("taxonomy_filters"))
+    require_ready = _to_bool(data.get("require_ready"), RAG_QUERY_REQUIRE_READY_STATUS)
 
     limit_key = f"rag:rl:{account_id}"
     try:
@@ -263,7 +376,15 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
             "RAG query rate limit exceeded, please try again later.",
         )
 
-    result = execute_rag_query(query=query, top_k=top_k_int, account_scope=account_id)
+    result = execute_rag_query(
+        query=query,
+        top_k=top_k_int,
+        account_scope=account_id,
+        workspace_scope=workspace_id,
+        taxonomy_filters=taxonomy_filters,
+        max_age_days=max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+        require_ready=require_ready,
+    )
     response = {
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),
@@ -271,6 +392,10 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         "vector_hits": result.get("vector_hits", 0),
         "search_hits": result.get("search_hits", 0),
         "account_scope": result.get("account_scope", account_id),
+        "workspace_scope": result.get("workspace_scope", workspace_id),
+        "taxonomy_filters": result.get("taxonomy_filters", taxonomy_filters),
+        "max_age_days": result.get("max_age_days", max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS),
+        "require_ready": result.get("require_ready", require_ready),
         "rate_limit_remaining": remaining,
     }
     if isinstance(result.get("debug"), dict):
@@ -286,6 +411,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     doc_id = str(data.get("doc_id", "")).strip()
     json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
     source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
     filename = str(data.get("filename", "")).strip() or doc_id
 
     if not account_id:
@@ -321,10 +447,19 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
 
         if not source_gcs_uri:
             source_gcs_uri = str(parsed_payload.get("source_gcs_uri", "")).strip()
+        if not workspace_id:
+            workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
+        if not workspace_id:
+            workspace_id = str((parsed_payload.get("metadata") or {}).get("space_id", "")).strip()
         if not filename:
             filename = str(parsed_payload.get("filename", "")).strip() or doc_id
         if page_count <= 0:
             page_count = int(parsed_payload.get("page_count", 0) or 0)
+        if not workspace_id:
+            raise https_fn.HttpsError(
+                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+                "workspace_id 為必填欄位",
+            )
 
         rag = ingest_document_for_rag(
             doc_id=doc_id,
@@ -334,6 +469,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             text=text,
             page_count=page_count,
             account_id=account_id,
+            workspace_id=workspace_id,
         )
 
         mark_rag_ready(

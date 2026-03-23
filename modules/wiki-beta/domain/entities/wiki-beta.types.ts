@@ -7,6 +7,11 @@ export interface WikiBetaCitation {
   search_id?: string;
   score?: number;
   text?: string;
+  account_id?: string;
+  workspace_id?: string;
+  taxonomy?: string;
+  processing_status?: string;
+  indexed_at?: string;
 }
 
 export interface WikiBetaRagQueryResult {
@@ -16,6 +21,10 @@ export interface WikiBetaRagQueryResult {
   vectorHits: number;
   searchHits: number;
   accountScope: string;
+  workspaceScope?: string;
+  taxonomyFilters?: string[];
+  maxAgeDays?: number;
+  requireReady?: boolean;
 }
 
 export interface WikiBetaParsedDocument {
