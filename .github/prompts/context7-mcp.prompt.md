@@ -1,37 +1,51 @@
 ---
-name: Context7 MCP Usage
-description: 使用 Context7 MCP 的常用指令與提示，包含文件抓取與長期上下文管理
-scope: global
+name: context7-mcp
+description: 使用 Context7 MCP 前先核對官方手冊，並以可用工具執行查詢、記憶維護與回報
+agent: agent
+argument-hint: 例如 query=Next.js caching, goals=docs,examples,memory-refresh
 ---
 
-# Context7 MCP Prompt
+# Context7 MCP
 
-## 1️⃣ 啟用 Context7 MCP 記憶與資料抓取
-`context7.use_mcp`  
-啟用 Context7 MCP 服務，允許 AI 助手抓取最新文件、代碼範例與知識庫資料
+## Mission
+執行 Context7 任務前，先檢查對應官方手冊，再用可用 MCP 工具完成查詢與維護。 
 
-## 2️⃣ 更新 Context7 記憶
-`context7.update_memory`  
-重新掃描工作區與 repository，將最新文件與知識庫同步至 MCP 記憶
+## Inputs
+- query: ${input:query:請輸入主題或問題}
+- goals: ${input:goals:docs,examples,memory-refresh}
+- officialDocUrl: ${input:officialDocUrl:請輸入 Context7 官方手冊網址}
 
-## 3️⃣ 總結專案上下文
-`context7.summarize_long_term_memory`  
-整理整個開發階段的上下文、架構決策、資料夾結構與重要設計決策，生成長期記憶
+## Rules
+- 必須先讀官方手冊（`officialDocUrl`）再執行 MCP 操作。
+- 只能呼叫目前可用的 Context7 工具；不可虛構指令。
+- 若工具不可用，回報限制與替代方案。
 
-## 4️⃣ 修剪舊索引與 embeddings
-`context7.prune_index`  
-清理過期向量與無用索引條目，保持索引庫清爽高效
+## Workflow
+1. 讀取官方手冊：確認工具名稱、參數、限制。
+2. 列出可用工具：比對 `goals` 與工具能力。
+3. 執行查詢或記憶任務：逐步輸出結果。
+4. 若需清理/重建：先評估是否有對應工具，否則走替代流程。
+5. 產出結論：包含工具使用明細與限制說明。
 
-## 5️⃣ 重建語義索引
-`context7.rebuild_index`  
-將 Context7 MCP 記憶與索引進行壓縮與重建，確保查詢效率與準確度
+## Output Format
+### Context7 執行結果
+- query: <value>
+- goals: <resolved goals>
+- status: <success | partial | blocked>
 
-## 6️⃣ 完整維護流程（建議固定使用）
-```
-context7.use_mcp
-context7.update_memory
-context7.summarize_long_term_memory
-context7.prune_index
-context7.rebuild_index
-```
-依序執行可維護 Context7 MCP 專案記憶完整性與索引效能
+### 官方手冊核對
+- source: <url>
+- checked_items:
+	- <item>
+	- <item>
+
+### 已執行工具
+- <tool>
+- <tool>
+
+### 結果摘要
+- <key result>
+
+### 限制與替代
+- limitation: <reason>
+- fallback: <action>

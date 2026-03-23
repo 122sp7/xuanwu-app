@@ -1,84 +1,59 @@
 ---
-name: Playwright MCP Diagnostics
-description: 使用 Playwright MCP 進行瀏覽器導覽、交互與診斷以確認問題及重現錯誤
+name: playwright-mcp
+description: 使用 Playwright MCP 前先核對官方手冊，執行可重現的頁面互動、截圖與錯誤診斷
 agent: agent
 tools:
- - playwright/*
-
-argument-hint: 請描述你需要診斷的頁面或流程
+	- playwright/*
+argument-hint: 例如 url=http://localhost:3000 flow=login-and-submit officialDocUrl=https://playwright.dev
 ---
 
-此 prompt 讓 Copilot 使用 **Playwright MCP 伺服器** 控制瀏覽器以進行 *結構化交互、診斷與錯誤定位*。  
-它支援導航頁面、檢查 DOM 或可訪問性樹、抓取控制台或網絡日誌、模擬用戶操作等。
+# Playwright MCP
 
-## 🌐 初始化
-在開始時執行：
-```
+## Mission
+先核對 Playwright 官方手冊，再用 MCP 工具進行穩定且可重現的 UI 診斷流程。
 
-use playwright init
+## Inputs
+- url: ${input:url:請輸入目標網址}
+- flow: ${input:flow:請描述要重現的操作路徑}
+- officialDocUrl: ${input:officialDocUrl:https://playwright.dev}
 
-```
-初始化 Playwright MCP session 並建立與瀏覽器連線。
+## Rules
+- 先讀官方手冊，再開始瀏覽器自動化。
+- 必須記錄每一步動作與對應觀察結果，避免只給結論。
+- 優先輸出可重現步驟、證據（截圖/console/network）與修復建議。
 
-## 📍 頁面導航
-導航至指定頁面：
-```
+## Workflow
+1. 讀官方手冊：確認目前客戶端支援的 Playwright MCP 動作。
+2. 啟動與導航：開啟瀏覽器並前往 `url`。
+3. 依 `flow` 重現問題：逐步操作並記錄結果。
+4. 收集證據：截圖、console、network、DOM/可及性資訊。
+5. 彙整診斷：指出根因、影響範圍、修正優先順序。
 
-use playwright navigate "請輸入目標 URL"
+## Output Format
+### Playwright 診斷結果
+- url: <value>
+- flow: <value>
+- status: <success | partial | blocked>
 
-```
-這讓 AI 控制瀏覽器打開指定網址。
+### 官方手冊核對
+- source: <url>
+- checked_items:
+	- <item>
+	- <item>
 
-## 🧩 檢查頁面結構與狀態
-讀取可訪問性樹（Accessibility Tree）來分析頁面結構：
-```
+### 重現步驟
+1. <step>
+2. <step>
 
-use playwright get_accessibility_tree
+### 證據
+- screenshot: <path or note>
+- console: <summary>
+- network: <summary>
 
-```
-此工具可幫助確認重要元素是否存在與狀態是否正確。
+### 建議修正
+1. <fix>
+2. <fix>
 
-## 🔍 控制台與網絡資訊
-提取瀏覽器控制台日誌以診斷 Javascript 錯誤：
-```
-
-use playwright get_console_logs
-
-```
-讀取網絡請求以分析 API 呼叫或資源加載問題：
-```
-
-use playwright get_network_requests
-
-```
-
-## 🧪 元素查找與交互
-模擬點擊指定元素：
-```
-
-use playwright click "text=元素識別文字"
-
-```
-向指定輸入欄位填入值：
-```
-
-use playwright fill_input "選擇器" with "測試值"
-
-```
-查找特定錯誤文字或狀態元素：
-```
-
-use playwright find_element "text=錯誤文字"
-
-```
-
-## 🛠️ 綜合診斷範例
-例如，要重現登入失敗流程並檢查日誌：
-```
-
-use playwright navigate "[https://example.com/login](https://example.com/login)"
-use playwright fill_input "#user" with "username"
-use playwright fill_input "#pass" with "wrongpassword"
-use playwright click "text=Login"
-use playwright get_console_logs
-use playwright find_element "text=Invalid credentials"
+### 限制與替代
+- limitation: <reason>
+- fallback: <action>

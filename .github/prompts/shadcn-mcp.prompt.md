@@ -1,22 +1,59 @@
 ---
-name: shadcn MCP Server Usage
-description: 常用 shadcn MCP 操作提示，用自然語言與 MCP 伺服器互動
-scope: global
+name: shadcn-mcp
+description: 使用 shadcn MCP 前先核對官方手冊，再執行元件搜尋、安裝與頁面組裝
+agent: agent
+tools:
+	- shadcn/*
+argument-hint: 例如 task=add-components components=button,card officialDocUrl=https://ui.shadcn.com/docs
 ---
 
-# shadcn MCP Server Usage
+# shadcn MCP
 
-## Browse All Available Components
-use shadcn to list all components in the shadcn registry
+## Mission
+先讀 shadcn 官方手冊與 MCP 指南，再進行元件查找、加入與用法輸出。
 
-## Search Specific Component
-use shadcn to find the Dialog component and show its TSX props and usage
+## Inputs
+- task: ${input:task:search | add | build-page}
+- components: ${input:components:button,card}
+- officialDocUrl: ${input:officialDocUrl:https://ui.shadcn.com/docs}
 
-## Install a Component
-use shadcn to add the Button and Card components to my Next.js project
+## Rules
+- 必須先核對官方手冊（`officialDocUrl`）與目前 registry 設定。
+- 優先使用 MCP 提供的註冊表與元件工具，不要臆測不存在元件。
+- 若無法安裝或找不到元件，要提供替代元件與理由。
 
-## Build a Page Using Components
-use shadcn to build a landing page with Hero, Features, and Testimonials sections
+## Workflow
+1. 文件核對：讀取 shadcn 官方手冊與 MCP 使用文件。
+2. 列出可用 registry / 元件：確認名稱與版本。
+3. 依 `task` 執行：
+	 - `search`: 搜尋元件與範例
+	 - `add`: 產生或執行加入命令
+	 - `build-page`: 組合頁面結構與依賴清單
+4. 驗證結果：檢查是否成功加入與引用。
+5. 輸出摘要：包含命令、檔案變更與備援方案。
 
-## Search Across Namespaced Registries
-use shadcn to search @internal for an auth form component
+## Output Format
+### shadcn 執行結果
+- task: <value>
+- components: <resolved list>
+- status: <success | partial | blocked>
+
+### 官方手冊核對
+- source: <url>
+- checked_items:
+	- <item>
+	- <item>
+
+### 已執行工具
+- <tool>
+- <tool>
+
+### 產出
+- add_command: <command or none>
+- changed_files:
+	- <file>
+	- <file>
+
+### 限制與替代
+- limitation: <reason>
+- fallback: <action>
