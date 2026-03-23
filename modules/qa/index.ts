@@ -45,7 +45,7 @@ export {
   CreateTestCaseUseCase,
   DeleteTestCaseUseCase,
   ListTestCasesUseCase,
-} from "./application/use-cases/quality-check.use-cases";
+} from "./application/use-cases/test-case.use-cases";
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
 export { FirebaseTestCaseRepository } from "./infrastructure/firebase/FirebaseTestCaseRepository";

@@ -14,6 +14,7 @@ import {
 
 import { firebaseClientApp } from "@integration-firebase/client";
 import type { AcceptanceRecord, CreateAcceptanceRecordInput } from "../../domain/entities/AcceptanceRecord";
+import type { AcceptanceRecordRepository, AcceptanceRecordTransitionExtra } from "../../domain/repositories/AcceptanceRecordRepository";
 import type { AcceptanceLifecycleStatus } from "../../domain/value-objects/acceptance-state";
 import { ACCEPTANCE_STATUSES } from "../../domain/value-objects/acceptance-state";
 
@@ -40,7 +41,7 @@ function toRecord(id: string, data: Record<string, unknown>): AcceptanceRecord {
   };
 }
 
-export class FirebaseAcceptanceRecordRepository {
+export class FirebaseAcceptanceRecordRepository implements AcceptanceRecordRepository {
   private readonly db = getFirestore(firebaseClientApp);
 
   private get collectionRef() {
@@ -107,7 +108,7 @@ export class FirebaseAcceptanceRecordRepository {
     recordId: string,
     to: AcceptanceLifecycleStatus,
     nowISO: string,
-    extra?: { reviewedBy?: string; signedBy?: string; rejectionReason?: string },
+    extra?: AcceptanceRecordTransitionExtra,
   ): Promise<AcceptanceRecord | null> {
     const ref = doc(this.db, "workspaceAcceptanceRecords", recordId);
     const snap = await getDoc(ref);

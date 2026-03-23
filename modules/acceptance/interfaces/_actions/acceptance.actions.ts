@@ -1,8 +1,7 @@
-"use server";
-
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { CreateAcceptanceRecordInput } from "../../domain/entities/AcceptanceRecord";
 import type { AcceptanceLifecycleStatus } from "../../domain/value-objects/acceptance-state";
+import type { AcceptanceRecordTransitionExtra } from "../../domain/repositories/AcceptanceRecordRepository";
 import {
   CreateAcceptanceRecordUseCase,
   TransitionAcceptanceRecordUseCase,
@@ -24,7 +23,7 @@ export async function createAcceptanceRecord(input: CreateAcceptanceRecordInput)
 export async function transitionAcceptanceRecord(
   recordId: string,
   to: AcceptanceLifecycleStatus,
-  extra?: { reviewedBy?: string; signedBy?: string; rejectionReason?: string },
+  extra?: AcceptanceRecordTransitionExtra,
 ): Promise<CommandResult> {
   try {
     return await new TransitionAcceptanceRecordUseCase(makeRepo()).execute(recordId, to, extra);

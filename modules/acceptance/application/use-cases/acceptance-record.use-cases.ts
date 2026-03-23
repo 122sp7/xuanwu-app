@@ -1,12 +1,10 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { AcceptanceRecord, CreateAcceptanceRecordInput } from "../../domain/entities/AcceptanceRecord";
-import type { FirebaseAcceptanceRecordRepository } from "../../infrastructure/firebase/FirebaseAcceptanceRecordRepository";
+import type { AcceptanceRecordRepository, AcceptanceRecordTransitionExtra } from "../../domain/repositories/AcceptanceRecordRepository";
 import { canTransitionAcceptance, type AcceptanceLifecycleStatus } from "../../domain/value-objects/acceptance-state";
 
-type RecordRepo = FirebaseAcceptanceRecordRepository;
-
 export class CreateAcceptanceRecordUseCase {
-  constructor(private readonly repo: RecordRepo) {}
+  constructor(private readonly repo: AcceptanceRecordRepository) {}
 
   async execute(input: CreateAcceptanceRecordInput): Promise<CommandResult> {
     const tenantId = input.tenantId.trim();
@@ -26,12 +24,12 @@ export class CreateAcceptanceRecordUseCase {
 }
 
 export class TransitionAcceptanceRecordUseCase {
-  constructor(private readonly repo: RecordRepo) {}
+  constructor(private readonly repo: AcceptanceRecordRepository) {}
 
   async execute(
     recordId: string,
     to: AcceptanceLifecycleStatus,
-    extra?: { reviewedBy?: string; signedBy?: string; rejectionReason?: string },
+    extra?: AcceptanceRecordTransitionExtra,
   ): Promise<CommandResult> {
     const normalizedId = recordId.trim();
     if (!normalizedId) return commandFailureFrom("AR_ID_REQUIRED", "Record id is required.");
@@ -54,7 +52,7 @@ export class TransitionAcceptanceRecordUseCase {
 }
 
 export class ListAcceptanceRecordsUseCase {
-  constructor(private readonly repo: RecordRepo) {}
+  constructor(private readonly repo: AcceptanceRecordRepository) {}
 
   async execute(workspaceId: string): Promise<AcceptanceRecord[]> {
     const normalizedId = workspaceId.trim();

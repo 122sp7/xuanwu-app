@@ -28,6 +28,12 @@ export {
   isTerminalAcceptanceStatus,
 } from "./value-objects/acceptance-state";
 
+// ── MDDD Domain: repository port ──────────────────────────────────────────────
+export type {
+  AcceptanceRecordRepository,
+  AcceptanceRecordTransitionExtra,
+} from "./repositories/AcceptanceRecordRepository";
+
 // ── MDDD Domain: events ───────────────────────────────────────────────────────
 export type {
   AcceptanceDomainEvent,

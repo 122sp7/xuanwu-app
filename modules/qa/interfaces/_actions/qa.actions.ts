@@ -5,7 +5,7 @@ import type { CreateTestCaseInput } from "../../domain/entities/TestCase";
 import {
   CreateTestCaseUseCase,
   DeleteTestCaseUseCase,
-} from "../../application/use-cases/quality-check.use-cases";
+} from "../../application/use-cases/test-case.use-cases";
 import { FirebaseTestCaseRepository } from "../../infrastructure/firebase/FirebaseTestCaseRepository";
 
 function makeRepo() {
