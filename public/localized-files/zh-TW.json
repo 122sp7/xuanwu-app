@@ -5,6 +5,43 @@
     "description": "Firebase Hosting i18n rewrites 在地化內容包"
   },
   "workspace": {
+    "groups": {
+      "spaces": "空間",
+      "databases": "資料庫",
+      "workspaceModules": "工作區模組"
+    },
+    "tabLabels": {
+      "Overview": "首頁",
+      "Favorites": "收藏",
+      "Recent": "最近",
+      "Engineering": "工程",
+      "Product": "產品",
+      "Design": "設計",
+      "Docs": "文件",
+      "Wiki": "Wiki",
+      "SOP": "SOP",
+      "Meeting Notes": "會議紀錄",
+      "Tasks": "任務",
+      "Projects": "專案",
+      "Notes": "筆記",
+      "Documents": "文件",
+      "Assets": "資產",
+      "CRM": "CRM",
+      "Roadmap": "路線圖",
+      "Tags": "標籤",
+      "Files": "檔案",
+      "Templates": "模板",
+      "Members": "成員",
+      "Trash": "垃圾桶",
+      "QA": "QA",
+      "Acceptance": "驗收",
+      "Finance": "財務",
+      "Issues": "議題",
+      "Daily": "每日",
+      "Schedule": "排程",
+      "Document Parser": "文件解析",
+      "Audit": "稽核"
+    },
     "navigation": {
       "home": "首頁",
       "favorites": "收藏",

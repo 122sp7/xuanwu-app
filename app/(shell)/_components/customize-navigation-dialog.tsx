@@ -9,7 +9,18 @@
  */
 
 import { GripVertical } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  attachClosestEdge,
+  combine,
+  draggable,
+  DropIndicator,
+  dropTargetForElements,
+  extractClosestEdge,
+  reorder,
+  type Edge,
+} from "@lib-dragdrop";
 
 import { Button } from "@ui-shadcn/ui/button";
 import { Checkbox } from "@ui-shadcn/ui/checkbox";
@@ -22,7 +33,6 @@ import {
 } from "@ui-shadcn/ui/dialog";
 import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
-import { RadioGroup, RadioGroupItem } from "@ui-shadcn/ui/radio-group";
 import { Separator } from "@ui-shadcn/ui/separator";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -32,42 +42,152 @@ export interface NavPreferences {
   pinnedPersonal: string[];
   /** IDs of workspace org-management items that are pinned */
   pinnedWorkspace: string[];
-  /** Workspace item navigation style */
-  workspaceNavStyle: "accordion" | "tabbed";
   /** Whether to show a limited number of workspaces */
   showLimitedWorkspaces: boolean;
   /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
   maxWorkspaces: number;
+  /** Explicit display order of workspace items for sidebar and customize dialog */
+  workspaceOrder: string[];
 }
 
 const STORAGE_KEY = "xuanwu:nav-preferences";
 
-const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["home", "recent-workspaces"],
-  pinnedWorkspace: ["members", "teams", "permissions", "workspaces", "schedule", "daily", "audit"],
-  workspaceNavStyle: "accordion",
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-};
-
 // ── Personal nav items ─────────────────────────────────────────────────────
 
-const PERSONAL_ITEMS: { id: string; label: string }[] = [
-  { id: "home", label: "首頁" },
-  { id: "recent-workspaces", label: "最近工作區" },
+const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
 ];
 
 // ── Workspace / org-management items ──────────────────────────────────────
 
-const WORKSPACE_ITEMS: { id: string; label: string }[] = [
-  { id: "members", label: "成員" },
-  { id: "teams", label: "團隊" },
-  { id: "permissions", label: "權限" },
-  { id: "workspaces", label: "工作區" },
-  { id: "schedule", label: "排程" },
-  { id: "daily", label: "每日" },
-  { id: "audit", label: "稽核" },
+const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
+  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
+  { id: "recent", tabKey: "Recent", fallbackLabel: "Recent" },
+  { id: "favorites", tabKey: "Favorites", fallbackLabel: "Favorites" },
+  { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
+  { id: "docs", tabKey: "Docs", fallbackLabel: "Docs" },
+  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
+  { id: "meeting-notes", tabKey: "Meeting Notes", fallbackLabel: "Meeting Notes" },
+  { id: "sop", tabKey: "SOP", fallbackLabel: "SOP" },
+  { id: "engineering", tabKey: "Engineering", fallbackLabel: "Engineering" },
+  { id: "product", tabKey: "Product", fallbackLabel: "Product" },
+  { id: "design", tabKey: "Design", fallbackLabel: "Design" },
+  { id: "databases", tabKey: "Databases", fallbackLabel: "Databases" },
+  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
+  { id: "projects", tabKey: "Projects", fallbackLabel: "Projects" },
+  { id: "roadmap", tabKey: "Roadmap", fallbackLabel: "Roadmap" },
+  { id: "notes", tabKey: "Notes", fallbackLabel: "Notes" },
+  { id: "documents", tabKey: "Documents", fallbackLabel: "Documents" },
+  { id: "assets", tabKey: "Assets", fallbackLabel: "Assets" },
+  { id: "crm", tabKey: "CRM", fallbackLabel: "CRM" },
+  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
+  { id: "tags", tabKey: "Tags", fallbackLabel: "Tags" },
+  { id: "templates", tabKey: "Templates", fallbackLabel: "Templates" },
+  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
+  { id: "trash", tabKey: "Trash", fallbackLabel: "Trash" },
+  { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
+  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
+  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
+  { id: "issues", tabKey: "Issues", fallbackLabel: "Issues" },
+  { id: "qa", tabKey: "QA", fallbackLabel: "QA" },
+  { id: "acceptance", tabKey: "Acceptance", fallbackLabel: "Acceptance" },
+  { id: "finance", tabKey: "Finance", fallbackLabel: "Finance" },
+  { id: "document-parser", tabKey: "Document Parser", fallbackLabel: "Document Parser" },
+  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
 ];
+
+const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [...WORKSPACE_NAV_ITEMS.map((item) => item.id), ...ORGANIZATION_NAV_ITEMS.map((item) => item.id)],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+
+function normalizePinnedIds(
+  ids: unknown,
+  validSet: Set<string>,
+  fallback: string[],
+) {
+  if (!Array.isArray(ids)) {
+    return fallback;
+  }
+
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+function normalizeWorkspaceOrder(order: unknown) {
+  const fallback = DEFAULT_PREFS.workspaceOrder;
+  if (!Array.isArray(order)) {
+    return fallback;
+  }
+
+  const validOrder = order
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
+
+  const deduped = Array.from(new Set(validOrder));
+  for (const id of fallback) {
+    if (!deduped.includes(id)) {
+      deduped.push(id);
+    }
+  }
+
+  return deduped;
+}
 
 // ── localStorage helpers ───────────────────────────────────────────────────
 
@@ -78,11 +198,19 @@ export function readNavPreferences(): NavPreferences {
     if (!raw) return DEFAULT_PREFS;
     const parsed = JSON.parse(raw) as Partial<NavPreferences>;
     return {
-      pinnedPersonal: Array.isArray(parsed.pinnedPersonal) ? parsed.pinnedPersonal : DEFAULT_PREFS.pinnedPersonal,
-      pinnedWorkspace: Array.isArray(parsed.pinnedWorkspace) ? parsed.pinnedWorkspace : DEFAULT_PREFS.pinnedWorkspace,
-      workspaceNavStyle: parsed.workspaceNavStyle === "tabbed" ? "tabbed" : "accordion",
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: normalizePinnedIds(
+        parsed.pinnedWorkspace,
+        VALID_WORKSPACE_ITEM_IDS,
+        DEFAULT_PREFS.pinnedWorkspace,
+      ),
       showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
       maxWorkspaces: typeof parsed.maxWorkspaces === "number" ? parsed.maxWorkspaces : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
     };
   } catch {
     return DEFAULT_PREFS;
@@ -123,6 +251,112 @@ function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
   );
 }
 
+interface WorkspaceCheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  activeDropEdge: Edge | null;
+  isDropTarget: boolean;
+  onToggle: () => void;
+  onDragOverItem: (targetId: string, edge: Edge | null) => void;
+  onDragLeaveItem: (targetId: string) => void;
+  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
+}
+
+function WorkspaceCheckRow({
+  id,
+  label,
+  checked,
+  activeDropEdge,
+  isDropTarget,
+  onToggle,
+  onDragOverItem,
+  onDragLeaveItem,
+  onReorder,
+}: WorkspaceCheckRowProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    return combine(
+      draggable({
+        element,
+        getInitialData: () => ({
+          type: "workspace-nav-item",
+          itemId: id,
+        }),
+      }),
+      dropTargetForElements({
+        element,
+        canDrop: ({ source }) => {
+          return source.data.type === "workspace-nav-item" && source.data.itemId !== id;
+        },
+        getData: ({ input, element: dropElement }) => {
+          return attachClosestEdge(
+            {
+              type: "workspace-nav-item",
+              itemId: id,
+            },
+            {
+              input,
+              element: dropElement,
+              allowedEdges: ["top", "bottom"],
+            },
+          );
+        },
+        onDragEnter: ({ self }) => {
+          onDragOverItem(id, extractClosestEdge(self.data));
+        },
+        onDrag: ({ self }) => {
+          onDragOverItem(id, extractClosestEdge(self.data));
+        },
+        onDragLeave: () => {
+          onDragLeaveItem(id);
+        },
+        onDrop: ({ source, self }) => {
+          const sourceId = typeof source.data.itemId === "string" ? source.data.itemId : null;
+          if (!sourceId || sourceId === id) {
+            onDragLeaveItem(id);
+            return;
+          }
+          onReorder(sourceId, id, extractClosestEdge(self.data));
+          onDragLeaveItem(id);
+        },
+      }),
+    );
+  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+        <Checkbox
+          id={`nav-check-${id}`}
+          checked={checked}
+          onCheckedChange={onToggle}
+          className="shrink-0"
+        />
+        <Label
+          htmlFor={`nav-check-${id}`}
+          className="cursor-pointer select-none text-sm font-normal"
+        >
+          {label}
+        </Label>
+      </div>
+
+      {isDropTarget && activeDropEdge && (
+        <div className="pointer-events-none absolute inset-x-2">
+          <DropIndicator edge={activeDropEdge} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 interface CustomizeNavigationDialogProps {
@@ -137,6 +371,69 @@ export function CustomizeNavigationDialog({
   onPreferencesChange,
 }: CustomizeNavigationDialogProps) {
   const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
+  const [uiLocale, setUiLocale] = useState<"zh" | "en">("zh");
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") {
+      return;
+    }
+    const language = navigator.language?.toLowerCase() ?? "";
+    setUiLocale(language.startsWith("zh") ? "zh" : "en");
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const localeFile = uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
+    let canceled = false;
+
+    fetch(localeFile)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load locale file: ${res.status}`);
+        }
+        return res.json() as Promise<SidebarLocaleBundle>;
+      })
+      .then((json) => {
+        if (!canceled) {
+          setLocaleBundle(json);
+        }
+      })
+      .catch(() => {
+        if (!canceled) {
+          setLocaleBundle(null);
+        }
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [uiLocale]);
+
+  const text = DIALOG_TEXT[uiLocale];
+
+  const workspaceItemsById = useMemo(
+    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
+    [],
+  );
+
+  const orderedWorkspaceItems = useMemo(() => {
+    return prefs.workspaceOrder
+      .map((id) => workspaceItemsById[id])
+      .filter((item): item is (typeof WORKSPACE_NAV_ITEMS)[number] => item != null);
+  }, [prefs.workspaceOrder, workspaceItemsById]);
+
+  const getWorkspaceLabel = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) => {
+    return localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
+  };
+
+  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) => {
+    return uiLocale === "zh" ? item.zhLabel : item.enLabel;
+  };
 
   function updatePrefs(update: Partial<NavPreferences>) {
     const next = { ...prefs, ...update };
@@ -159,29 +456,43 @@ export function CustomizeNavigationDialog({
     updatePrefs({ pinnedWorkspace: next });
   }
 
+  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
+    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
+    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
+
+    if (startIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
+    const nextOrder = reorder({
+      list: prefs.workspaceOrder,
+      startIndex,
+      finishIndex: destinationIndex,
+    });
+
+    updatePrefs({ workspaceOrder: nextOrder });
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Customize navigation</DialogTitle>
-          <DialogDescription>
-            Selected items will always stay visible in your sidebar. You can still find the others
-            anytime from the More menu. These changes are personal to you and won&apos;t affect
-            anyone else on your workspace.
-          </DialogDescription>
+          <DialogTitle>{text.title}</DialogTitle>
+          <DialogDescription>{text.description}</DialogDescription>
         </DialogHeader>
 
         {/* ── Personal items ─────────────────────────────────────────── */}
         <div className="mt-2 space-y-1">
           <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            個人
+            {text.sectionPersonal}
           </p>
           <div className="rounded-lg border border-border/60 bg-background/50">
             {PERSONAL_ITEMS.map((item) => (
               <CheckRow
                 key={item.id}
                 id={item.id}
-                label={item.label}
+                label={text[item.labelKey]}
                 checked={prefs.pinnedPersonal.includes(item.id)}
                 onToggle={() => {
                   togglePersonal(item.id);
@@ -196,14 +507,45 @@ export function CustomizeNavigationDialog({
         {/* ── Workspace items ────────────────────────────────────────── */}
         <div className="space-y-1">
           <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            工作區
+            {text.sectionWorkspace}
           </p>
           <div className="rounded-lg border border-border/60 bg-background/50">
-            {WORKSPACE_ITEMS.map((item) => (
+            {orderedWorkspaceItems.map((item) => (
+              <WorkspaceCheckRow
+                key={item.id}
+                id={item.id}
+                label={getWorkspaceLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                isDropTarget={dragTarget?.id === item.id}
+                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
+                onToggle={() => {
+                  toggleWorkspace(item.id);
+                }}
+                onDragOverItem={(targetId, edge) => {
+                  setDragTarget({ id: targetId, edge });
+                }}
+                onDragLeaveItem={(targetId) => {
+                  setDragTarget((current) => (current?.id === targetId ? null : current));
+                }}
+                onReorder={reorderWorkspaceItems}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Organization items ──────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionOrganization}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {ORGANIZATION_NAV_ITEMS.map((item) => (
               <CheckRow
                 key={item.id}
                 id={item.id}
-                label={item.label}
+                label={getOrganizationLabel(item)}
                 checked={prefs.pinnedWorkspace.includes(item.id)}
                 onToggle={() => {
                   toggleWorkspace(item.id);
@@ -215,42 +557,11 @@ export function CustomizeNavigationDialog({
 
         <Separator className="my-2" />
 
-        {/* ── Projects / Workspaces section ──────────────────────────── */}
+        {/* ── Display settings ───────────────────────────────────────── */}
         <div className="space-y-3">
           <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            工作區導覽
+            {text.sectionDisplay}
           </p>
-
-          <RadioGroup
-            value={prefs.workspaceNavStyle}
-            onValueChange={(v) => {
-              updatePrefs({ workspaceNavStyle: v as "accordion" | "tabbed" });
-            }}
-            className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3"
-          >
-            <div className="flex items-start gap-3">
-              <RadioGroupItem value="accordion" id="nav-style-accordion" className="mt-0.5" />
-              <div>
-                <Label htmlFor="nav-style-accordion" className="cursor-pointer text-sm font-medium">
-                  Accordion sidebar navigation
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Feature tabs will appear as nested items under workspace and acts as accordion.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <RadioGroupItem value="tabbed" id="nav-style-tabbed" className="mt-0.5" />
-              <div>
-                <Label htmlFor="nav-style-tabbed" className="cursor-pointer text-sm font-medium">
-                  Tabbed Navigation
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Feature tabs will appear as horizontal tabs inside a workspace.
-                </p>
-              </div>
-            </div>
-          </RadioGroup>
 
           {/* Show limited workspaces */}
           <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
@@ -263,13 +574,13 @@ export function CustomizeNavigationDialog({
                 }}
               />
               <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
-                Show limited workspaces on sidebar
+                {text.limitedLabel}
               </Label>
             </div>
             {prefs.showLimitedWorkspaces && (
               <div className="space-y-1.5 pl-7">
                 <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
-                  Enter number of workspaces
+                  {text.limitedInputLabel}
                 </Label>
                 <Input
                   id="nav-max-workspaces"
@@ -298,7 +609,7 @@ export function CustomizeNavigationDialog({
               onOpenChange(false);
             }}
           >
-            完成
+            {text.done}
           </Button>
         </div>
       </DialogContent>

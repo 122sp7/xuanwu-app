@@ -5,6 +5,43 @@
     "description": "Localized content bundle for Firebase Hosting i18n rewrites"
   },
   "workspace": {
+    "groups": {
+      "spaces": "Spaces",
+      "databases": "Databases",
+      "workspaceModules": "Workspace Modules"
+    },
+    "tabLabels": {
+      "Overview": "Home",
+      "Favorites": "Favorites",
+      "Recent": "Recent",
+      "Engineering": "Engineering",
+      "Product": "Product",
+      "Design": "Design",
+      "Docs": "Docs",
+      "Wiki": "Wiki",
+      "SOP": "SOP",
+      "Meeting Notes": "Meeting Notes",
+      "Tasks": "Tasks",
+      "Projects": "Projects",
+      "Notes": "Notes",
+      "Documents": "Documents",
+      "Assets": "Assets",
+      "CRM": "CRM",
+      "Roadmap": "Roadmap",
+      "Tags": "Tags",
+      "Files": "Files",
+      "Templates": "Templates",
+      "Members": "Members",
+      "Trash": "Trash",
+      "QA": "QA",
+      "Acceptance": "Acceptance",
+      "Finance": "Finance",
+      "Issues": "Issues",
+      "Daily": "Daily",
+      "Schedule": "Schedule",
+      "Document Parser": "Document Parser",
+      "Audit": "Audit"
+    },
     "navigation": {
       "home": "Home",
       "favorites": "Favorites",
