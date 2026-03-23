@@ -57,3 +57,11 @@ export {
 } from "./infrastructure";
 
 export { WikiBetaHubView, WikiBetaLibrariesView, WikiBetaPagesTreeView, WikiBetaRagTestView } from "./interfaces";
+
+// Wiki + Notion style components
+export { WikiBetaShell } from "./interfaces";
+export { WikiBetaOverview } from "./interfaces";
+export { WikiBetaPagesView } from "./interfaces";
+export { WikiBetaLibrariesTableView } from "./interfaces";
+export { WikiBetaDocumentsView } from "./interfaces";
+export { WikiBetaRagQueryView } from "./interfaces";
