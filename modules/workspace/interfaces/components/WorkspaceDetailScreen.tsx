@@ -46,11 +46,11 @@ import { WorkspaceDocumentParserTab } from "@/modules/parser";
 import { WorkspaceQATab } from "@/modules/qa";
 import { WorkspaceScheduleTab } from "@/modules/schedule";
 import { WorkspaceTaskTab } from "@/modules/task";
+import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiTab } from "./WorkspaceWikiTab";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 
 const lifecycleBadgeVariant: Record<
@@ -542,7 +542,7 @@ export function WorkspaceDetailScreen({
       case "Files":
         return <WorkspaceFilesTab workspace={workspace} />;
       case "Wiki":
-        return <WorkspaceWikiTab workspace={workspace} />;
+        return <WikiBetaWorkspaceView workspace={workspace} />;
       case "Schedule":
         return <WorkspaceScheduleTab workspace={workspace} />;
       case "Document Parser":

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { WikiBetaLibraries } from "@/modules/wiki-beta";
+import { WikiBetaLibrariesView } from "@/modules/wiki-beta";
 
 export default function WikiBetaLibrariesPage() {
   const router = useRouter();
@@ -33,7 +33,7 @@ export default function WikiBetaLibrariesPage() {
       </button>
 
       {accountId ? (
-        <WikiBetaLibraries accountId={accountId} workspaceId={workspaceId} />
+        <WikiBetaLibrariesView accountId={accountId} workspaceId={workspaceId} />
       ) : (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未取得 account context，請先登入或切換 account。

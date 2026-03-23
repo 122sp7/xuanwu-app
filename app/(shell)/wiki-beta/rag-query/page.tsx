@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WikiBetaRag } from "@/modules/wiki-beta";
+import { WikiBetaRagView } from "@/modules/wiki-beta";
 
 export default function WikiBetaRagQueryPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function WikiBetaRagQueryPage() {
         <p className="text-sm text-muted-foreground">使用 workspace-scoped context 執行 rag_query 並檢視回答與引用。</p>
       </header>
 
-      <WikiBetaRag onBack={() => router.push("/wiki-beta")} mode="query" workspaceId={workspaceId} />
+      <WikiBetaRagView onBack={() => router.push("/wiki-beta")} mode="query" workspaceId={workspaceId} />
     </div>
   );
 }
