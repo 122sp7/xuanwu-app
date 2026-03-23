@@ -56,14 +56,40 @@ py_fn/src
 │  ├─ schemas
 │  └─ routes
 └─ core
-        ├─ utils
-        ├─ types
-        ├─ constants
-        ├─ exceptions
-        └─ security
+   ├─ utils
+   ├─ types
+   ├─ constants
+   ├─ exceptions
+   └─ security
 ```
 
-## 3. 同名資料夾的判讀規則
+## 3. 各層職責摘要
+
+### app
+- 啟動、組裝、注入。
+- 這一層可以依賴所有層，但不承載核心業務規則。
+
+### application
+- 放 use case、application service、ports、DTO、mappers。
+- 負責流程編排，不直接依賴 infrastructure 實作。
+
+### domain
+- 放 entities、value objects、repositories 介面、domain services、events、exceptions。
+- 是最核心的層，必須保持純淨。
+
+### infrastructure
+- 放 Firestore、Storage、Vector、外部 API、repository implementation。
+- 只負責技術實作，不主導業務流程。
+
+### interface
+- 放 controllers、handlers、routes、schemas、middleware。
+- 接外部請求、驗證輸入、呼叫 use case。
+
+### core
+- 放所有層可共用的 utils、types、constants、exceptions、security。
+- core 本身不依賴任何外層。
+
+## 4. 同名資料夾的判讀規則
 
 - services 只看名稱會誤判，必須看完整路徑
        - domain/services 是核心業務規則
@@ -77,7 +103,7 @@ py_fn/src
        - infrastructure/config 是技術配置
        - core/constants 才是跨層可共用常量
 
-## 4. 路徑級依賴矩陣（最重要）
+## 5. 路徑級依賴矩陣（最重要）
 
 | From 路徑 | Allowed To Import |
 | --- | --- |
@@ -107,23 +133,23 @@ py_fn/src
 | app/settings | core |
 | core/* | 不可依賴任何外層 |
 
-## 5. 明確禁止規則
+## 6. 明確禁止規則
 
 - domain 不可 import application/interface/infrastructure/app
 - application 不可 import infrastructure 實作
 - interface 不可直接 import infrastructure（除非經 app 組裝注入後由 application port 提供）
 - infrastructure 不可主導業務流程（流程應在 application/use_cases）
 
-## 6. 標準依賴流
+## 7. 標準依賴流
 
 ```text
 route -> controller/handler -> use case -> domain -> repository interface
-                                                                                                                                                                                       ^
-                                                                                                                                                                                       |
-                                                                                                                 repository implementation (infrastructure)
+                                                     ^
+                                                     |
+                           repository implementation (infrastructure)
 ```
 
-## 7. import 範例
+## 8. import 範例
 
 ### interface controller
 
@@ -153,10 +179,63 @@ from infrastructure.repositories.firestore_user_repository import FirestoreUserR
 from application.use_cases.create_user import CreateUserUseCase
 ```
 
-## 8. PR 檢查清單
+## 9. PR 檢查清單
 
 - 是否用完整路徑判讀層級，而不是只看資料夾名稱
 - domain 是否只依賴 core
 - use case 是否只依賴抽象（ports/repository interface）
 - infrastructure 是否只做技術實作
 - app 是否是唯一組裝與注入入口
+
+## 10. 附錄 A：快速記憶版
+
+如果只想快速判斷，先記這張：
+
+```text
+Controller/Handler -> UseCase -> Domain -> Repository Interface
+                                                                         ^
+                                                                         |
+                                                   Repository Implementation
+                                                                         |
+                                                                Database / API
+```
+
+對應路徑：
+
+```text
+interface/controllers or interface/handlers
+application/use_cases
+domain/entities or domain/services
+domain/repositories
+infrastructure/repositories
+infrastructure/persistence or infrastructure/external
+```
+
+## 11. 附錄 B：高階流程圖
+
+```text
+HTTP Request
+       -> interface (controller / handler)
+       -> application (use case)
+       -> domain (entity / service / repository interface)
+       -> infrastructure (Firestore / Vector / API implementation)
+```
+
+## 12. 附錄 C：典型誤判案例
+
+### services 同名但不同層
+- `application/services/*` 可以編排流程，但不應放純領域規則。
+- `domain/services/*` 才是純領域規則。
+
+### repositories 同名但不同性質
+- `domain/repositories/*` 是介面。
+- `infrastructure/repositories/*` 是實作。
+
+### config 同名但職責不同
+- `app/config/*` 面向啟動與組裝。
+- `infrastructure/config/*` 面向技術設定。
+- 可跨層重用的常量優先放 `core/constants/*`。
+
+## 13. 一句話總結
+
+看完整路徑判斷層級，不看資料夾名稱猜責任。
