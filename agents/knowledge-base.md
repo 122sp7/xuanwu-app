@@ -76,7 +76,7 @@ Not every module has every subdirectory — only what it needs.
 | **qa** | Quality assurance, quality checks | Standard CRUD |
 | **schedule** | Bidirectional resource-request scheduling | Complex MDDD with state machines |
 | **task** | Task management, work items | Standard CRUD |
-| **wiki** | Knowledge base, wiki documents, RAG retrieval | Full persistence + embedding + retrieval |
+| **wiki-beta** | Knowledge base, wiki documents, Pages, Libraries, RAG retrieval | Full persistence + embedding + retrieval |
 | **workspace** | Workspace (project space) management, members | Core organizational unit |
 
 ## Package System (21 Packages)
@@ -190,12 +190,12 @@ The **event** module provides the canonical event bus:
 Inside a module, files use **relative imports** (not the module's own barrel export):
 
 ```typescript
-// ✅ Inside modules/wiki/application/use-cases/create-wiki-document.ts
-import { WikiDocument } from "../../domain/entities/wiki-document.entity";
-import type { IWikiDocumentRepository } from "../../domain/repositories/iwiki-document.repository";
+// ✅ Inside modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
+import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.entity";
+import type { IWikiBetaPageRepository } from "../../domain/repositories/iwiki-beta-page.repository";
 
 // ❌ Do NOT self-import via the barrel
-import { WikiDocument } from "@/modules/wiki";
+import { WikiBetaPage } from "@/modules/wiki-beta";
 ```
 
 ### Cross-Module Imports
@@ -223,4 +223,4 @@ import { publishDomainEvent } from "@/modules/event/application/use-cases/publis
 | Audit Events | audit | any module (sends events) |
 | Domain Events | event | all modules (publish/subscribe) |
 | Namespace Resolution | namespace | all modules (addressing) |
-| Knowledge & RAG | wiki, ai | file (documents), namespace (scoping) |
+| Knowledge & RAG | wiki-beta, ai | file (documents), namespace (scoping) |
