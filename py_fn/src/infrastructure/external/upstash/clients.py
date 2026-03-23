@@ -151,14 +151,14 @@ def _normalize_vector_item(item: Any) -> dict[str, Any]:
 
 
 def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
-        """
-        批次 upsert 向量資料到 Upstash Vector。
+    """
+    批次 upsert 向量資料到 Upstash Vector。
 
-        items 每筆至少包含：
-            - id: str
-            - vector: list[float]
-            - metadata: dict[str, Any]
-        """
+    items 每筆至少包含：
+      - id: str
+      - vector: list[float]
+      - metadata: dict[str, Any]
+    """
     index = get_vector_index()
     sdk_payload = [
         {
