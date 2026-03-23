@@ -240,7 +240,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() || appState.activeWorkspaceId || "";
+  const effectiveWorkspaceId = workspaceId?.trim() || "";
   const showQueryCard = mode === "all" || mode === "query";
   const showDocumentsCard = mode === "documents";
   const showDocsSection = mode === "all" || showDocumentsCard;
@@ -288,12 +288,6 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       setLoadingDocs(false);
       return;
     }
-    if (!effectiveWorkspaceId) {
-      setDocs([]);
-      setLoadingDocs(false);
-      appendLog("未選擇工作區，文件列表已清空");
-      return;
-    }
 
     setLoadingDocs(true);
     try {
@@ -302,7 +296,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       const snap = await firestoreApi.getDocs(colRef);
       const mapped = snap.docs
         .map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())))
-        .filter((item) => item.workspaceId === effectiveWorkspaceId);
+        .filter((item) => !effectiveWorkspaceId || item.workspaceId === effectiveWorkspaceId);
       setDocs(sortByUploadedDesc(mapped));
       setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
       appendLog(`手動刷新文件列表：${mapped.length} 筆`);
@@ -320,11 +314,6 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       setLoadingDocs(false);
       return;
     }
-    if (!effectiveWorkspaceId) {
-      setDocs([]);
-      setLoadingDocs(false);
-      return;
-    }
 
     const db = getFirebaseFirestore();
     const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
@@ -335,7 +324,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       (snapshot) => {
         const mapped = snapshot.docs
           .map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())))
-          .filter((item) => item.workspaceId === effectiveWorkspaceId);
+          .filter((item) => !effectiveWorkspaceId || item.workspaceId === effectiveWorkspaceId);
         setDocs(sortByUploadedDesc(mapped));
         setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
         setLoadingDocs(false);
@@ -454,11 +443,6 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       toast.error("目前沒有 active account，無法上傳");
       return;
     }
-    if (!effectiveWorkspaceId) {
-      toast.error("請先選擇工作區，再上傳文件");
-      return;
-    }
-
     setUploading(true);
     let pendingDocId = "";
     try {
@@ -483,14 +467,18 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       };
       setPendingDocs((prev) => [pendingItem, ...prev.filter((item) => item.id !== docId)]);
 
+      const customMetadata: Record<string, string> = {
+        account_id: activeAccountId,
+        filename: selectedFile.name,
+        original_filename: selectedFile.name,
+        display_name: selectedFile.name,
+      };
+      if (effectiveWorkspaceId) {
+        customMetadata.workspace_id = effectiveWorkspaceId;
+      }
+
       await storageApi.uploadBytes(fileRef, selectedFile, {
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: effectiveWorkspaceId,
-          filename: selectedFile.name,
-          original_filename: selectedFile.name,
-          display_name: selectedFile.name,
-        },
+        customMetadata,
       });
 
       toast.success("上傳成功，背景已開始解析與入庫");
@@ -692,7 +680,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       <Card>
         <CardHeader>
           <CardTitle>Upload File</CardTitle>
-          <CardDescription>拖曳或選擇檔案上傳到目前 workspace scope。</CardDescription>
+          <CardDescription>拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <label
@@ -781,7 +769,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
           <CardTitle>檔案列表 + 解析狀態</CardTitle>
           <CardDescription>
             account: {activeAccountId || "(未選擇)"}
-            {` / workspace: ${effectiveWorkspaceId || "(未選擇)"} / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
+            {` / scope: ${effectiveWorkspaceId ? `workspace:${effectiveWorkspaceId}` : "account 全覽"} / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
           </CardDescription>
         </CardHeader>
         <CardContent>
