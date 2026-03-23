@@ -56,7 +56,7 @@ const WORKSPACE_PRIMARY_LINK_ITEMS = [
 
 const WORKSPACE_SPACE_ITEMS = [
   { value: "Docs", label: "Docs" },
-  { value: "Wiki", label: "Wiki" },
+  { value: "Wiki", label: "WorkSpace Wiki-Beta" },
   { value: "Meeting Notes", label: "Meeting Notes" },
   { value: "SOP", label: "SOP" },
   { value: "Engineering", label: "Engineering" },
@@ -220,7 +220,7 @@ function resolveNavSection(pathname: string): NavSection {
 
 const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki-beta": { label: "Wiki Beta", icon: <BookOpen className="size-3" /> },
+  "wiki-beta": { label: "Account Wiki-Beta", icon: <BookOpen className="size-3" /> },
   "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
   settings: { label: "設定", icon: <Settings className="size-3" /> },
@@ -372,6 +372,10 @@ export function DashboardSidebar({
   }
 
   function tWorkspaceTabWithDevStatus(tab: string, fallback: string) {
+    if (tab === "Wiki") {
+      const status = WORKSPACE_TAB_DEV_STATUS_MAP[tab] ?? "🚧";
+      return `${status} WorkSpace Wiki-Beta`;
+    }
     const status = WORKSPACE_TAB_DEV_STATUS_MAP[tab] ?? "🚧";
     return `${status} ${tWorkspaceTab(tab, fallback)}`;
   }
@@ -784,7 +788,7 @@ export function DashboardSidebar({
             {section === "wiki-beta" && (
               <nav className="space-y-0.5" aria-label="Wiki Beta navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Wiki Beta
+                  Account Wiki-Beta
                 </p>
                 {(
                   [

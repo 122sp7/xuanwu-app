@@ -74,23 +74,6 @@ function getInitial(name: string | undefined | null): string {
   return name?.trim().charAt(0).toUpperCase() || "U";
 }
 
-/** Compact 8px colour strip shown at bottom of the workspace logo tile. */
-function getAccountColour(name: string | undefined | null): string {
-  const palette = [
-    "bg-violet-500",
-    "bg-blue-500",
-    "bg-cyan-500",
-    "bg-teal-500",
-    "bg-green-500",
-    "bg-amber-500",
-    "bg-orange-500",
-    "bg-rose-500",
-  ];
-  if (!name) return palette[0];
-  const idx = [...name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % palette.length;
-  return palette[idx];
-}
-
 export function AppRail({
   pathname,
   user,
@@ -205,7 +188,7 @@ export function AppRail({
     },
     {
       href: "/wiki-beta",
-      label: "Wiki Beta",
+      label: "Account Wiki-Beta",
       icon: <BookOpen className="size-[18px]" />,
     },
     {
@@ -245,7 +228,6 @@ export function AppRail({
   }
 
   const accountName = activeAccount?.name ?? user?.name ?? "—";
-  const accentColour = getAccountColour(accountName);
 
   return (
     <TooltipProvider delayDuration={400}>
@@ -261,14 +243,9 @@ export function AppRail({
                 <button
                   type="button"
                   aria-label="Switch account context"
-                  className="group mb-1 flex size-8 flex-col overflow-hidden rounded-lg border border-border/60 bg-background text-xs font-bold tracking-tight text-foreground shadow-sm transition hover:border-border hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
-                  {/* Logo area */}
-                  <span className="flex flex-1 items-center justify-center text-[13px] font-semibold">
-                    {getInitial(accountName)}
-                  </span>
-                  {/* Colour accent strip at bottom */}
-                  <span className={`h-1 w-full rounded-b-lg ${accentColour}`} />
+                  {getInitial(accountName)}
                 </button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
@@ -399,7 +376,7 @@ export function AppRail({
                         <button
                           type="button"
                           aria-current={active ? "page" : undefined}
-                          aria-label="Wiki Beta: 切換工作區"
+                          aria-label="Account Wiki-Beta: 切換工作區"
                           className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                             active
                               ? "bg-primary/10 text-primary"
@@ -411,7 +388,7 @@ export function AppRail({
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p className="text-xs">Wiki Beta: 切換工作區</p>
+                      <p className="text-xs">Account Wiki-Beta: 切換工作區</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -424,7 +401,7 @@ export function AppRail({
                       }}
                       className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
                     >
-                      Wiki Beta 首頁
+                      Account Wiki-Beta 首頁
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {!workspacesHydrated ? (
