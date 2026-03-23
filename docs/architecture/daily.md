@@ -1,6 +1,7 @@
 ---
 title: Daily architecture
 description: Target architecture for Organization Daily and Workspace Daily, including the current digest baseline and Instagram-inspired value extraction.
+status: "🏗️ Midway"
 ---
 
 # Daily 模組架構規範
@@ -10,6 +11,7 @@ description: Target architecture for Organization Daily and Workspace Daily, inc
 > **版本**：v1.0.0
 > **最後更新**：2026-03-20
 > **維護責任方**：Daily Module Owner / 平台架構委員會
+> **開發狀態**：🏗️ Midway — 開發部分完成
 
 ---
 

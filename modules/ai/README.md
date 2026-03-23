@@ -1,5 +1,7 @@
 # AI Domain
 
+> **開發狀態**：🚧 Developing — 積極開發中
+
 ## 🎯 Purpose
 負責 AI orchestration（RAG），不擁有資料，只組裝 knowledge / taxonomy / retrieval。
 

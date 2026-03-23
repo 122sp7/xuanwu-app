@@ -1,5 +1,7 @@
 # Audit Module
 
+> **開發狀態**：🏗️ Midway — 開發部分完成
+
 ## Purpose
 
 The audit module owns append-only audit visibility for workspace and organization scopes. It should become the stable sink for future audit events emitted by other modules.

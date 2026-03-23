@@ -1,9 +1,12 @@
 ---
 title: Namespace Core development contract
 description: Implementation contract for the Namespace Core domain — canonical named-scope registration, slug validation, collision detection, and resolution for multi-tenant resource addressing.
+status: "🚧 Developing"
 ---
 
 # Namespace Core development contract
+
+> **開發狀態**：🚧 Developing — 積極開發中
 
 ## Purpose
 

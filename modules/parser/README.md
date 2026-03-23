@@ -1,5 +1,7 @@
 # Parser Module
 
+> **開發狀態**：🏗️ Midway — 開發部分完成
+
 ## Purpose
 
 The parser module owns parser readiness, parser-specific summary derivation, and future parser job orchestration. It does not own file storage, workspace identity, or RAG chunk persistence.

@@ -1,5 +1,7 @@
 # Schedule Module
 
+> **開發狀態**：🏗️ Midway — 開發部分完成
+
 ## Purpose
 
 The schedule module owns derived workspace schedule items, workspace request submission, and schedule-specific acknowledgement behavior. It does not own finance lifecycle, workspace lifecycle, or ad hoc UI-only schedule state.

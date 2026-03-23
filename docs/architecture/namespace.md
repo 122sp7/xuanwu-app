@@ -1,6 +1,7 @@
 ---
 title: Namespace Core architecture
 description: Target architecture for the namespace-core domain — canonical named-scope registration, slug validation, and resolution for multi-tenant resource addressing in Xuanwu.
+status: "🚧 Developing"
 ---
 
 # Namespace Core 命名空間架構規範
@@ -10,6 +11,7 @@ description: Target architecture for the namespace-core domain — canonical nam
 > **版本**：v1.0.0
 > **最後更新**：2026-03-20
 > **維護責任方**：Namespace Core Owner / 平台架構委員會
+> **開發狀態**：🚧 Developing — 積極開發中
 
 ---
 
