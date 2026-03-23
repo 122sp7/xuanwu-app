@@ -8,8 +8,7 @@ interface WorkspaceWikiTabProps {
 }
 
 /**
- * Compatibility wrapper for legacy workspace tab usage.
- * Implementation lives in wiki-beta interfaces as WikiBetaWorkspaceView.
+ * Workspace tab entrypoint delegates rendering to wiki-beta owned view.
  */
 export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
   return <WikiBetaWorkspaceView workspace={workspace} />;
