@@ -48,6 +48,16 @@ export const ISSUE_STAGES = ["task", "qa", "acceptance", "finance"] as const sat
 
 // ── Transition table ──────────────────────────────────────────────────────────
 
+/**
+ * Multi-successor transition map for issue lifecycle.
+ *
+ * The retest → fixing back-edge represents the Issue's own fix cycle,
+ * NOT the originating Task/QA/Acceptance status moving backward.
+ * Task status is always forward-only; only the Issue aggregate cycles here.
+ * When an issue is resolved, the Issue domain emits IssueResolvedEvent with
+ * the originating `stage`, which the QA or Acceptance domain handles to
+ * resume its own flow at the correct step.
+ */
 const ISSUE_NEXT: Readonly<Record<IssueLifecycleStatus, readonly IssueLifecycleStatus[]>> = {
   open: ["investigating", "closed"],           // may be immediately closed if duplicate
   investigating: ["fixing", "resolved"],       // resolved directly if no code change needed

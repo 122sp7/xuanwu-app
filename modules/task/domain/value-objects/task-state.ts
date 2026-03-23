@@ -32,7 +32,15 @@ export const TASK_LIFECYCLE_STATUSES = [
 
 // ── Transition table ───────────────────────────────────────────────────────────
 
-/** Maps each status to its single valid successor (null = terminal). */
+/**
+ * Maps each status to its single valid successor (null = terminal).
+ *
+ * The flow is intentionally forward-only.  When a regression is discovered
+ * (e.g. a QA tester finds a defect), the caller MUST open an Issue via the
+ * Issue domain instead of reversing the Task status.  This keeps the Task
+ * state machine linear and auditable, while the Issue domain manages the
+ * separate fix/retest lifecycle.
+ */
 const TASK_NEXT: Readonly<Record<TaskLifecycleStatus, TaskLifecycleStatus | null>> = {
   draft: "in_progress",
   in_progress: "qa",

@@ -13,6 +13,8 @@
  *   Failures trigger an IssueDomainEvent (handled by the Issue domain).
  */
 
+import type { QARunStatus, QATestResult } from "../value-objects/qa-state";
+
 // ── TestCase ──────────────────────────────────────────────────────────────────
 
 export interface TestCaseEntity {
@@ -41,15 +43,14 @@ export interface CreateTestCaseInput {
 
 // ── TestRun ───────────────────────────────────────────────────────────────────
 
-export type QATestRunStatus = "pending" | "in_progress" | "passed" | "failed";
-
 export interface TestRunEntity {
   readonly id: string;
   readonly tenantId: string;
   readonly teamId: string;
   readonly workspaceId: string;
   readonly taskId: string;
-  readonly status: QATestRunStatus;
+  /** Canonical status — defined in qa-state.ts to avoid duplication. */
+  readonly status: QARunStatus;
   /** Result summary per test case. */
   readonly results: readonly TestResultEntry[];
   readonly performedBy: string;
@@ -59,10 +60,9 @@ export interface TestRunEntity {
 
 // ── TestResult (value object embedded in TestRun) ─────────────────────────────
 
-export type QATestResult = "pass" | "fail" | "retest";
-
 export interface TestResultEntry {
   readonly testCaseId: string;
+  /** Verdict — canonical type defined in qa-state.ts to avoid duplication. */
   readonly result: QATestResult;
   /** Optional tester note / defect description. */
   readonly note?: string;

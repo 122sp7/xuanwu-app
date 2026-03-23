@@ -25,13 +25,11 @@ export type {
   TestCaseEntity,
   TestRunEntity,
   TestResultEntry,
-  QATestRunStatus,
-  QATestResult,
   CreateTestCaseInput,
 } from "./domain/entities/TestCase";
 
 // ── MDDD Domain: lifecycle status & state machine ─────────────────────────────
-export type { QARunStatus } from "./domain/value-objects/qa-state";
+export type { QARunStatus, QATestResult } from "./domain/value-objects/qa-state";
 export {
   QA_RUN_STATUSES,
   QA_TEST_RESULTS,

@@ -16,11 +16,17 @@
  *   rejected → reviewing  (client may re-review after issue is resolved)
  *
  * An Issue is raised (via IssueDomainEvent) when acceptance is rejected.
+ * Task status does NOT move backward — regression is handled through Issue domain.
  */
 
-// ── Acceptance status ─────────────────────────────────────────────────────────
+import type { AcceptanceLifecycleStatus } from "../value-objects/acceptance-state";
 
-export type AcceptanceStatus = "pending" | "reviewing" | "accepted" | "rejected";
+/**
+ * Convenience alias — `AcceptanceLifecycleStatus` is the canonical type in value-objects.
+ * `AcceptanceStatus` is kept as a short alias for UI/DTO consumers.
+ * Import `AcceptanceLifecycleStatus` directly from value-objects for state-machine logic.
+ */
+export type AcceptanceStatus = AcceptanceLifecycleStatus;
 
 // ── AcceptanceRecord aggregate ────────────────────────────────────────────────
 
@@ -31,7 +37,7 @@ export interface AcceptanceRecord {
   readonly workspaceId: string;
   /** The Task being formally accepted. */
   readonly taskId: string;
-  readonly status: AcceptanceStatus;
+  readonly status: AcceptanceLifecycleStatus;
   readonly items: readonly AcceptanceLineItem[];
   /** Reviewer / client identifier. */
   readonly reviewedBy?: string;
