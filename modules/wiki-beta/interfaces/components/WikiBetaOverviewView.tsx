@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Database, FileText, MessageSquare } from "lucide-react";
+import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -108,16 +108,28 @@ export function WikiBetaOverviewView() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Account Wiki-Beta Dashboard</CardTitle>
-          <CardDescription>聚合 Pages、Libraries、Documents、RAG Query 的入口與工作區摘要。</CardDescription>
+          <CardDescription>顯示目前 active account 底下的 Wiki-Beta 範圍，並提供 account-level 與 workspace-level 的進入點。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
             <Skeleton className="h-6 w-48" />
           ) : activeAccount ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-              <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-              <span className="text-muted-foreground">· {activeAccount.workspaces.length} 個工作區</span>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki-Beta</span>
+                </div>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
@@ -148,6 +160,7 @@ export function WikiBetaOverviewView() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account，點擊後直接進入該 workspace 的 Wiki-Beta 範圍。</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (

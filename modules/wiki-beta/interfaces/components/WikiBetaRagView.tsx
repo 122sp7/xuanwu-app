@@ -37,6 +37,7 @@ interface WikiBetaRagViewProps {
   readonly onBack: () => void;
   readonly mode?: "all" | "query" | "reindex" | "documents";
   readonly workspaceId?: string;
+  readonly showBackButton?: boolean;
 }
 
 const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
@@ -236,7 +237,12 @@ function RagBadge({ status, error }: { status: string; error: string }) {
   return <span className="text-xs text-muted-foreground">-</span>;
 }
 
-export function WikiBetaRagView({ onBack, mode = "all", workspaceId }: WikiBetaRagViewProps) {
+export function WikiBetaRagView({
+  onBack,
+  mode = "all",
+  workspaceId,
+  showBackButton = true,
+}: WikiBetaRagViewProps) {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";
@@ -608,7 +614,7 @@ export function WikiBetaRagView({ onBack, mode = "all", workspaceId }: WikiBetaR
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button>
+        {showBackButton ? <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button> : null}
         {showDocsSection ? (
           <Button variant="outline" onClick={() => void loadDocs()} disabled={loadingDocs}>
             {loadingDocs ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}刷新文件
@@ -680,7 +686,11 @@ export function WikiBetaRagView({ onBack, mode = "all", workspaceId }: WikiBetaR
       <Card>
         <CardHeader>
           <CardTitle>Upload File</CardTitle>
-          <CardDescription>拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。</CardDescription>
+          <CardDescription>
+            {effectiveWorkspaceId
+              ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
+              : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <label
