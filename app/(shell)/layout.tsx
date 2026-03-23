@@ -23,22 +23,22 @@ import { HeaderUserAvatar } from "./_components/header-user-avatar";
 import { ShellGuard } from "./_components/shell-guard";
 
 const routeTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/organization": "Organization Governance",
-  "/workspace": "Workspace Hub",
+  "/dashboard": "儀表板",
+  "/organization": "組織治理",
+  "/workspace": "工作區中心",
   "/wiki-beta": "Account Wiki-Beta",
-  "/wiki-beta/rag-query": "Account Wiki-Beta · RAG Query",
-  "/wiki-beta/documents": "Account Wiki-Beta · Documents",
-  "/ai-chat": "AI Chat",
-  "/settings": "Personal Settings",
-  "/dev-tools": "Dev Tools",
+  "/wiki-beta/rag-query": "Account Wiki-Beta · RAG 查詢",
+  "/wiki-beta/documents": "Account Wiki-Beta · 文件",
+  "/ai-chat": "AI 對話",
+  "/settings": "個人設定",
+  "/dev-tools": "開發工具",
 };
 
 /** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
 const mobileNavItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/workspace", label: "Workspace" },
-  { href: "/settings", label: "Personal Settings" },
+  { href: "/dashboard", label: "儀表板" },
+  { href: "/workspace", label: "工作區" },
+  { href: "/settings", label: "個人設定" },
 ];
 
 const organizationManagementItems = [
@@ -100,7 +100,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
     });
   }
 
-  const pageTitle = routeTitles[pathname] ?? "Workspace";
+  const pageTitle = routeTitles[pathname] ?? "工作區";
   const organizationAccounts = Object.values(appState.accounts ?? {});
   const accountWorkspaces = Object.values(appState.workspaces ?? {});
   const showAccountManagement = isOrganizationAccount(appState.activeAccount);
@@ -150,7 +150,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
     try {
       await logout();
     } catch {
-      setLogoutError("Sign out failed. Please retry.");
+      setLogoutError("登出失敗，請稍後再試。");
     }
   }
 

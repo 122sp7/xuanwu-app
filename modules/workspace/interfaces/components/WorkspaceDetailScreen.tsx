@@ -52,6 +52,12 @@ import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
 
 const lifecycleBadgeVariant: Record<
   WorkspaceEntity["lifecycleState"],
@@ -61,39 +67,6 @@ const lifecycleBadgeVariant: Record<
   preparatory: "secondary",
   stopped: "outline",
 };
-
-const workspaceTabItems = [
-  "Overview",
-  "Favorites",
-  "Recent",
-  "Engineering",
-  "Product",
-  "Design",
-  "Docs",
-  "SOP",
-  "Meeting Notes",
-  "Members",
-  "Tasks",
-  "Projects",
-  "Notes",
-  "Documents",
-  "Assets",
-  "CRM",
-  "Roadmap",
-  "QA",
-  "Acceptance",
-  "Finance",
-  "Issues",
-  "Daily",
-  "Tags",
-  "Files",
-  "Templates",
-  "Wiki",
-  "Schedule",
-  "Document Parser",
-  "Audit",
-  "Trash",
-] as const;
 
 function getWorkspaceInitials(name: string) {
   const tokens = name
@@ -178,11 +151,12 @@ interface WorkspaceDetailScreenProps {
   readonly initialTab?: string;
 }
 
-function renderWorkspacePlaceholderTab(tab: (typeof workspaceTabItems)[number]) {
+function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
+  const status = getWorkspaceTabStatus(tab);
   return (
     <Card className="border border-border/50">
       <CardHeader>
-        <CardTitle>🚧 {tab}</CardTitle>
+        <CardTitle>{status} {getWorkspaceTabLabel(tab)}</CardTitle>
         <CardDescription>
           此分頁尚在開發中，功能將逐步開放。
         </CardDescription>
@@ -277,7 +251,7 @@ export function WorkspaceDetailScreen({
     ].filter(Boolean);
   }, [workspace]);
 
-  function renderTabContent(tab: (typeof workspaceTabItems)[number]) {
+  function renderTabContent(tab: WorkspaceTabValue) {
     if (!workspace) {
       return null;
     }
@@ -642,10 +616,9 @@ export function WorkspaceDetailScreen({
     }
   }
 
-  const resolvedTab: (typeof workspaceTabItems)[number] =
-    initialTab && (workspaceTabItems as readonly string[]).includes(initialTab)
-      ? (initialTab as (typeof workspaceTabItems)[number])
-      : "Overview";
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
 
   return (
     <div className="space-y-6">
@@ -685,6 +658,9 @@ export function WorkspaceDetailScreen({
 
       {workspace && (
         <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
           {renderTabContent(resolvedTab)}
         </div>
       )}

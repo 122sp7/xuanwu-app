@@ -36,7 +36,7 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label="Open user menu"
+          aria-label="開啟使用者選單"
           className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <Avatar size="sm">
@@ -63,13 +63,13 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
         <DropdownMenuItem asChild>
           <Link href="/settings" className="flex items-center gap-2">
             <Settings className="size-4 shrink-0" />
-            <span>Settings</span>
+            <span>設定</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/settings?tab=preferences" className="flex items-center gap-2">
             <SlidersHorizontal className="size-4 shrink-0" />
-            <span>Preferences</span>
+            <span>偏好設定</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -79,7 +79,7 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
           className="flex items-center gap-2"
         >
           <LogOut className="size-4 shrink-0" />
-          <span>Sign Out</span>
+          <span>登出</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

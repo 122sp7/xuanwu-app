@@ -16,8 +16,8 @@ export default function WikiBetaRagQueryPage() {
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG Query</h1>
-        <p className="text-sm text-muted-foreground">使用 workspace-scoped context 執行 rag_query 並檢視回答與引用。</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
       <WikiBetaRagView onBack={() => router.push("/wiki-beta")} mode="query" workspaceId={workspaceId} />

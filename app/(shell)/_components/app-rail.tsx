@@ -183,7 +183,7 @@ export function AppRail({
   const railItems: RailItem[] = [
     {
       href: "/workspace",
-      label: "Workspace Hub",
+      label: "工作區中心",
       icon: <Building2 className="size-[18px]" />,
     },
     {
@@ -193,18 +193,18 @@ export function AppRail({
     },
     {
       href: "/ai-chat",
-      label: "AI Chat",
+      label: "AI 對話",
       icon: <Bot className="size-[18px]" />,
     },
     {
       href: "/organization",
-      label: "Organization",
+      label: "組織",
       icon: <Users className="size-[18px]" />,
       show: isOrganizationAccount,
     },
     {
       href: "/dev-tools",
-      label: "Dev Tools",
+      label: "開發工具",
       icon: <FlaskConical className="size-[18px]" />,
     },
   ];
@@ -242,7 +242,7 @@ export function AppRail({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Switch account context"
+                  aria-label="切換帳號情境"
                   className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {getInitial(accountName)}
@@ -252,7 +252,7 @@ export function AppRail({
             <TooltipContent side="right" className="max-w-[180px]">
               <p className="text-xs font-medium">{accountName}</p>
               <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "Organization" : "Personal"}
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -294,7 +294,7 @@ export function AppRail({
         <div className="my-2 h-px w-7 bg-border/50" />
 
         {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="Top-level navigation">
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
           {visibleRailItems.map((item) => {
             const active = isActive(item.href);
 
@@ -307,7 +307,7 @@ export function AppRail({
                         <button
                           type="button"
                           aria-current={active ? "page" : undefined}
-                          aria-label="Workspace Hub: 切換工作區"
+                          aria-label="工作區中心：切換工作區"
                           className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                             active
                               ? "bg-primary/10 text-primary"
@@ -319,7 +319,7 @@ export function AppRail({
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p className="text-xs">Workspace Hub: 切換工作區</p>
+                      <p className="text-xs">工作區中心：切換工作區</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -331,7 +331,7 @@ export function AppRail({
                       }}
                       className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
                     >
-                      Workspace Hub
+                      工作區中心
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {!workspacesHydrated ? (
@@ -461,7 +461,7 @@ export function AppRail({
               <Link
                 href={settingsHref}
                 aria-current={isActive(settingsHref) ? "page" : undefined}
-                aria-label="Personal Settings"
+                aria-label="個人設定"
                 className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                   isActive(settingsHref)
                     ? "bg-primary/10 text-primary"
@@ -472,7 +472,7 @@ export function AppRail({
               </Link>
             </TooltipTrigger>
             <TooltipContent side="right">
-              <p className="text-xs">Personal Settings</p>
+              <p className="text-xs">個人設定</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -484,7 +484,7 @@ export function AppRail({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Open user menu"
+                  aria-label="開啟使用者選單"
                   className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   <Avatar size="sm">
@@ -508,7 +508,7 @@ export function AppRail({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-              Sign Out
+              登出
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,0 +1,127 @@
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Favorites",
+  "Recent",
+  "Engineering",
+  "Product",
+  "Design",
+  "Docs",
+  "SOP",
+  "Meeting Notes",
+  "Members",
+  "Tasks",
+  "Projects",
+  "Notes",
+  "Documents",
+  "Assets",
+  "CRM",
+  "Roadmap",
+  "QA",
+  "Acceptance",
+  "Finance",
+  "Issues",
+  "Daily",
+  "Tags",
+  "Files",
+  "Templates",
+  "Wiki",
+  "Schedule",
+  "Document Parser",
+  "Audit",
+  "Trash",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
+  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
+  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
+  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
+  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
+  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
+  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
+  "Meeting Notes": {
+    label: "Meeting Notes",
+    prefId: "meeting-notes",
+    group: "spaces",
+    status: "🚧",
+  },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "databases", status: "✅" },
+  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🚧" },
+  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
+  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
+  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
+  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
+  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
+  QA: { label: "QA", prefId: "qa", group: "modules", status: "✅" },
+  Acceptance: { label: "Acceptance", prefId: "acceptance", group: "modules", status: "✅" },
+  Finance: { label: "Finance", prefId: "finance", group: "modules", status: "✅" },
+  Issues: { label: "Issues", prefId: "issues", group: "modules", status: "✅" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
+  Wiki: {
+    label: "WorkSpace Wiki-Beta",
+    prefId: "wiki",
+    group: "spaces",
+    status: "🏗️",
+  },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  "Document Parser": {
+    label: "Document Parser",
+    prefId: "document-parser",
+    group: "modules",
+    status: "✅",
+  },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview", "Recent", "Favorites"],
+  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
+  databases: ["Tasks", "Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
+  library: ["Files", "Tags", "Templates", "Members", "Trash"],
+  modules: ["Daily", "Schedule", "Issues", "QA", "Acceptance", "Finance", "Document Parser", "Audit"],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
+}

@@ -18,8 +18,8 @@ export default function WikiBetaPagesPage() {
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Pages</h1>
-        <p className="text-sm text-muted-foreground">Notion-like page tree MVP，支援層級建立、重新命名與移動。</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <p className="text-sm text-muted-foreground">頁面樹 MVP，支援層級建立、重新命名與移動。</p>
       </header>
 
       <button
@@ -34,7 +34,7 @@ export default function WikiBetaPagesPage() {
         <WikiBetaPagesView accountId={accountId} workspaceId={workspaceId} />
       ) : (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得 account context，請先登入或切換 account。
+          尚未取得帳號情境，請先登入或切換帳號。
         </p>
       )}
     </div>

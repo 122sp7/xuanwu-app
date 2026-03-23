@@ -96,10 +96,10 @@ export function AccountSwitcher({
     <>
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Account Context
+          帳號情境
         </p>
         <select
-          aria-label="Switch account context"
+          aria-label="切換帳號情境"
           value={activeAccountId ?? ""}
           onChange={(event) => {
             const nextId = event.target.value;
@@ -121,11 +121,11 @@ export function AccountSwitcher({
           className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
         >
           {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name} (Personal)</option>
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
           )}
           {organizationAccounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} (Organization)
+              {account.name}（組織）
             </option>
           ))}
           <option value="__create_organization__">+建立組織</option>

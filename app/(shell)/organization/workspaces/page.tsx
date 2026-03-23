@@ -77,7 +77,7 @@ export default function OrganizationWorkspacesPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">Loading workspaces…</p>
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
           )}
           {loadState === "error" && (
             <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
@@ -108,10 +108,10 @@ export default function OrganizationWorkspacesPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>Files</Link>
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Knowledge`}>Knowledge</Link>
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki-Beta</Link>
                     </Button>
                   </div>
                 </div>

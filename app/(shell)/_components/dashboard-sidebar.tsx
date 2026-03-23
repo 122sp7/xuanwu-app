@@ -16,7 +16,16 @@ import { toast } from "sonner";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/domain/entities/Account";
-import type { WorkspaceEntity } from "@/modules/workspace";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceEntity,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "@/modules/workspace";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import {
   CustomizeNavigationDialog,
@@ -48,116 +57,18 @@ const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
 const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
-const WORKSPACE_PRIMARY_LINK_ITEMS = [
-  { value: "Overview", label: "Home" },
-  { value: "Recent", label: "Recent" },
-  { value: "Favorites", label: "Favorites" },
-] as const;
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
 
-const WORKSPACE_SPACE_ITEMS = [
-  { value: "Docs", label: "Docs" },
-  { value: "Wiki", label: "WorkSpace Wiki-Beta" },
-  { value: "Meeting Notes", label: "Meeting Notes" },
-  { value: "SOP", label: "SOP" },
-  { value: "Engineering", label: "Engineering" },
-  { value: "Product", label: "Product" },
-  { value: "Design", label: "Design" },
-] as const;
-
-const WORKSPACE_DATABASE_ITEMS = [
-  { value: "Tasks", label: "Tasks" },
-  { value: "Projects", label: "Projects" },
-  { value: "Roadmap", label: "Roadmap" },
-  { value: "Notes", label: "Notes" },
-  { value: "Documents", label: "Documents" },
-  { value: "Assets", label: "Assets" },
-  { value: "CRM", label: "CRM" },
-] as const;
-
-const WORKSPACE_LIBRARY_LINK_ITEMS = [
-  { value: "Files", label: "Files" },
-  { value: "Tags", label: "Tags" },
-  { value: "Templates", label: "Templates" },
-  { value: "Members", label: "Members" },
-  { value: "Trash", label: "Trash" },
-] as const;
-
-const WORKSPACE_MODULE_LINK_ITEMS = [
-  { value: "Daily", label: "Daily" },
-  { value: "Schedule", label: "Schedule" },
-  { value: "Issues", label: "Issues" },
-  { value: "QA", label: "QA" },
-  { value: "Acceptance", label: "Acceptance" },
-  { value: "Finance", label: "Finance" },
-  { value: "Document Parser", label: "Document Parser" },
-  { value: "Audit", label: "Audit" },
-] as const;
-
-const WORKSPACE_PREF_ID_MAP: Record<string, string> = {
-  Overview: "home",
-  Favorites: "favorites",
-  Recent: "recent",
-  Engineering: "engineering",
-  Product: "product",
-  Design: "design",
-  Docs: "docs",
-  Wiki: "wiki",
-  SOP: "sop",
-  "Meeting Notes": "meeting-notes",
-  Tasks: "tasks",
-  Projects: "projects",
-  Roadmap: "roadmap",
-  Notes: "notes",
-  Documents: "documents",
-  Assets: "assets",
-  CRM: "crm",
-  Files: "files",
-  Tags: "tags",
-  Templates: "templates",
-  Members: "members",
-  Trash: "trash",
-  Daily: "daily",
-  Schedule: "schedule",
-  Issues: "issues",
-  QA: "qa",
-  Acceptance: "acceptance",
-  Finance: "finance",
-  "Document Parser": "document-parser",
-  Audit: "audit",
-};
-
-const WORKSPACE_TAB_DEV_STATUS_MAP: Record<string, "🚧" | "🏗️" | "✅"> = {
-  Overview: "🏗️",
-  Recent: "🚧",
-  Favorites: "🚧",
-  Engineering: "🚧",
-  Product: "🚧",
-  Design: "🚧",
-  Docs: "🚧",
-  Wiki: "🏗️",
-  SOP: "🚧",
-  "Meeting Notes": "🚧",
-  Tasks: "✅",
-  Projects: "🚧",
-  Roadmap: "🚧",
-  Notes: "🚧",
-  Documents: "🚧",
-  Assets: "🚧",
-  CRM: "🚧",
-  Files: "✅",
-  Tags: "🚧",
-  Templates: "🚧",
-  Members: "✅",
-  Trash: "🚧",
-  Daily: "✅",
-  Schedule: "✅",
-  Issues: "✅",
-  QA: "✅",
-  Acceptance: "✅",
-  Finance: "✅",
-  "Document Parser": "✅",
-  Audit: "✅",
-};
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
 
 interface SidebarLocaleBundle {
   workspace?: {
@@ -361,22 +272,25 @@ export function DashboardSidebar({
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
   const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const activeWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
+    ? rawWorkspaceTab
+    : "Overview";
 
-  function buildWorkspaceTabHref(workspaceId: string, tab: string) {
+  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
     return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
   }
 
-  function tWorkspaceTab(tab: string, fallback: string) {
+  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
     return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
   }
 
-  function tWorkspaceTabWithDevStatus(tab: string, fallback: string) {
+  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
     if (tab === "Wiki") {
-      const status = WORKSPACE_TAB_DEV_STATUS_MAP[tab] ?? "🚧";
+      const status = getWorkspaceTabStatus(tab);
       return `${status} WorkSpace Wiki-Beta`;
     }
-    const status = WORKSPACE_TAB_DEV_STATUS_MAP[tab] ?? "🚧";
+    const status = getWorkspaceTabStatus(tab);
     return `${status} ${tWorkspaceTab(tab, fallback)}`;
   }
 
@@ -385,7 +299,10 @@ export function DashboardSidebar({
   }
 
   function getWorkspacePrefId(tabValue: string) {
-    return WORKSPACE_PREF_ID_MAP[tabValue] ?? tabValue.toLowerCase().replace(/\s+/g, "-");
+    if (isWorkspaceTabValue(tabValue)) {
+      return getWorkspaceTabPrefId(tabValue);
+    }
+    return tabValue.toLowerCase().replace(/\s+/g, "-");
   }
 
   function isWorkspaceItemEnabled(prefId: string) {

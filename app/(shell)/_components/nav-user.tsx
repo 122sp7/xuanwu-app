@@ -30,7 +30,7 @@ export function NavUser({ name, email, onSignOut }: NavUserProps) {
         onClick={onSignOut}
         className="w-full"
       >
-        Sign Out
+        登出
       </Button>
     </div>
   );

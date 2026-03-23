@@ -48,6 +48,18 @@ export {
 export { WorkspaceHubScreen } from "./interfaces/components/WorkspaceHubScreen";
 export { WorkspaceDetailScreen } from "./interfaces/components/WorkspaceDetailScreen";
 export { WorkspaceMembersTab } from "./interfaces/components/WorkspaceMembersTab";
+export {
+  WORKSPACE_TAB_VALUES,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_GROUPS,
+  getWorkspaceTabMeta,
+  getWorkspaceTabStatus,
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "./interfaces/workspace-tabs";
+export type { WorkspaceTabDevStatus, WorkspaceTabGroup, WorkspaceTabValue } from "./interfaces/workspace-tabs";
 export { useWorkspaceHub } from "./interfaces/hooks/useWorkspaceHub";
 export {
   getWorkspaceById,

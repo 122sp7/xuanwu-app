@@ -66,7 +66,7 @@ const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }
   { id: "favorites", tabKey: "Favorites", fallbackLabel: "Favorites" },
   { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
   { id: "docs", tabKey: "Docs", fallbackLabel: "Docs" },
-  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
+  { id: "wiki", tabKey: "Wiki", fallbackLabel: "WorkSpace Wiki-Beta" },
   { id: "meeting-notes", tabKey: "Meeting Notes", fallbackLabel: "Meeting Notes" },
   { id: "sop", tabKey: "SOP", fallbackLabel: "SOP" },
   { id: "engineering", tabKey: "Engineering", fallbackLabel: "Engineering" },

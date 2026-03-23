@@ -21,10 +21,10 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Welcome back, {user?.name ?? "Member"}
+          歡迎回來，{user?.name ?? "成員"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Active context:{" "}
+          目前帳號情境：{" "}
           <span className="font-medium text-foreground">
             {activeAccount?.name ?? "—"}
           </span>
@@ -34,38 +34,38 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Organizations
+            組織數
           </p>
           <p className="mt-2 text-3xl font-bold">{orgCount}</p>
         </div>
         <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Account
+            帳號
           </p>
           <p className="mt-2 text-base font-semibold">{user?.email ?? "—"}</p>
         </div>
         <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Quick Links
+            快速連結
           </p>
           <div className="mt-2 flex flex-col gap-1 text-sm">
             <Link href="/workspace" className="text-primary hover:underline">
-              Workspace Hub
+              工作區中心
             </Link>
             <Link href="/settings" className="text-primary hover:underline">
-              Account Settings
+              帳號設定
             </Link>
             <Link href="/organization" className="text-primary hover:underline">
-              Organizations
+              組織管理
             </Link>
           </div>
         </div>
       </div>
 
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Quick Access</h2>
+        <h2 className="text-base font-semibold">快速入口</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Jump into the authenticated workspace shell and the account areas that shape its context.
+          直接進入已登入的工作區介面與帳號管理區域。
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -73,22 +73,22 @@ export default function DashboardPage() {
             href="/workspace"
             className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
           >
-            Open Workspace Hub
+            開啟工作區中心
           </Link>
           <Link
             href="/organization"
             className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
           >
-            Open Organizations
+            開啟組織管理
           </Link>
           <Link
             href="/settings"
             className="rounded-xl border border-border/40 px-4 py-3 text-sm font-medium transition hover:bg-muted"
           >
-            Open Account Settings
+            開啟帳號設定
           </Link>
           <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-            Active account: {activeAccount?.name ?? "—"}
+            目前帳號：{activeAccount?.name ?? "—"}
           </div>
         </div>
       </section>
