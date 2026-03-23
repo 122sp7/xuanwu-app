@@ -83,12 +83,12 @@ Collection: queryCache
 2. 不允許在 production 以臨時查詢繞過 organization/workspace filter。
 3. index 變更必須附部署步驟與驗證結果。
 
-## 與 functions-python ADR 協作與不衝突規則
+## 與 py_fn ADR 協作與不衝突規則
 
 1. 本 ADR 定義跨 runtime 的索引需求。
-2. `functions-python/docs/adr/ADR-007-firestore-rag-data-model-and-indexing.md` 定義 worker 側資料模型與索引語意。
+2. `py_fn/docs/adr/ADR-007-firestore-rag-data-model-and-indexing.md` 定義 worker 側資料模型與索引語意。
 3. 若命名或欄位有差異，以雙方共同交集為優先：`documents` / `chunks` / `embedding` / `organizationId` / `workspaceId`。
-4. 不得在本 ADR 引入與 functions-python ADR 相衝突的 collection 角色。
+4. 不得在本 ADR 引入與 py_fn ADR 相衝突的 collection 角色。
 
 ## 後果 (Consequences)
 

@@ -29,7 +29,7 @@
 6. 確保所有外部依賴（Firebase / Firestore / Storage / signed URL / notification / audit）只存在 infrastructure。
 
 ### 非目標
-1. 本次方案**不**直接實作完整 Document AI / Parser / RAG ingestion pipeline；那是 parser / functions-python 的責任。
+1. 本次方案**不**直接實作完整 Document AI / Parser / RAG ingestion pipeline；那是 parser / py_fn 的責任。
 2. 本次方案**不**定義新的 UI 視覺設計系統；UI 僅需接正式 query / action。
 3. 本次方案**不**讓 account / workspace / organization 模組去「接管」檔案生命週期。
 4. 本次方案**不**在第一個 PR 就完成全文檢索、DLP、病毒掃描、跨區域複寫。

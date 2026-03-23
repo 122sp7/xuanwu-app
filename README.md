@@ -9,7 +9,7 @@ A Next.js 16 knowledge-management and AI-assisted workspace platform built on Fi
 | Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
 | Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
 | AI / RAG | Google Genkit, Document AI, Upstash Vector |
-| Workers | Python 3.11 Cloud Functions (`functions-python/`) |
+| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
 | Realtime | Upstash Redis, QStash |
 
 ## Project Structure
@@ -19,7 +19,7 @@ xuanwu-app/
 ├── app/              # Next.js App Router pages, layouts, route handlers
 ├── modules/          # 20 MDDD business modules (bounded contexts)
 ├── packages/         # Stable shared packages with TypeScript aliases
-├── functions-python/ # Firebase Python worker runtime (ingestion, parsing, embedding)
+├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
 ├── agents/           # AI agent knowledge base and rules
 └── docs/             # Architecture docs, ADRs, design documents
 ```

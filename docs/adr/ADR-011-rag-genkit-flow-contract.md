@@ -118,10 +118,10 @@ StreamEvent
 - `FLOW_MODEL_PROVIDER_ERROR`
 - `FLOW_STREAM_SERIALIZATION_ERROR`
 
-## 與 functions-python ADR 協作與不衝突規則
+## 與 py_fn ADR 協作與不衝突規則
 
 1. 本 ADR 只定義 query-time Genkit 契約。
-2. functions-python ADR 系列負責 ingestion worker，不負責 Genkit product-facing orchestration。
+2. py_fn ADR 系列負責 ingestion worker，不負責 Genkit product-facing orchestration。
 3. 本 ADR 不得將 Genkit flow 放入 worker runtime 作為 browser 入口。
 4. 若需要 worker 提供離線特徵，應透過 Firestore/事件交接，不直接改寫 worker 角色。
 

@@ -23,9 +23,9 @@ Node dependencies to use:
 - `zod` (UploadRequest validation)
 - `axios` (if trigger worker through HTTP/Callable gateway)
 
-### 1.2 functions-python document parsing side
+### 1.2 py_fn document parsing side
 
-Owner: functions-python
+Owner: py_fn
 
 Place code in these layers (already scaffolded):
 - interfaces: callable payload parsing and request validation
@@ -35,13 +35,13 @@ Place code in these layers (already scaffolded):
 - infrastructure/firebase: Firestore write model and audit logs
 
 Existing anchors:
-- `functions-python/main.py`
-- `functions-python/app/document_ai/interfaces/callables/process_document_with_ai.py`
-- `functions-python/app/document_ai/application/use_cases/process_document_with_ai.py`
-- `functions-python/app/document_ai/domain/entities.py`
-- `functions-python/app/document_ai/domain/ports.py`
-- `functions-python/app/document_ai/infrastructure/google/document_ai_processor.py`
-- `functions-python/app/document_ai/infrastructure/firebase/audit_log_repository.py`
+- `py_fn/main.py`
+- `py_fn/app/document_ai/interfaces/callables/process_document_with_ai.py`
+- `py_fn/app/document_ai/application/use_cases/process_document_with_ai.py`
+- `py_fn/app/document_ai/domain/entities.py`
+- `py_fn/app/document_ai/domain/ports.py`
+- `py_fn/app/document_ai/infrastructure/google/document_ai_processor.py`
+- `py_fn/app/document_ai/infrastructure/firebase/audit_log_repository.py`
 
 Python dependencies to use:
 - `firebase-functions`
@@ -53,13 +53,13 @@ Python dependencies to use:
 - `langchain-text-splitters`
 
 Dependency source:
-- `functions-python/requirements.txt`
+- `py_fn/requirements.txt`
 
 ### 1.3 Recommended ingestion implementation split (direct coding checklist)
 
 1. Upload endpoint (Next.js): validate input, upload raw file, create `documents` metadata with `status=uploaded`.
 2. Worker trigger contract: pass `organizationId`, `workspaceId`, `sourceFileName`, `mimeType`, `contentBase64` (or storage reference in next iteration).
-3. Document AI parse in functions-python adapter.
+3. Document AI parse in py_fn adapter.
 4. Application layer orchestrates normalize -> taxonomy -> chunk.
 5. Persist chunk vectors and document status transitions (`processing` -> `ready`/`failed`).
 6. Keep the current skeleton embedding dimension aligned with `firestore.indexes.json` until a real embedding model is selected; update both together when moving beyond the deterministic scaffold.
@@ -113,7 +113,7 @@ Dependencies to use:
 Source:
 - `package.json`
 
-### 4.2 Already available in functions-python requirements
+### 4.2 Already available in py_fn requirements
 - `firebase-functions`
 - `firebase-admin`
 - `google-cloud-documentai`
@@ -124,7 +124,7 @@ Source:
 - `langchain-text-splitters`
 
 Source:
-- `functions-python/requirements.txt`
+- `py_fn/requirements.txt`
 
 ## 5) Deployment commands for this flow
 
@@ -138,7 +138,7 @@ Source:
 ## 6) Suggested implementation order (small, reviewable slices)
 
 1. Ingestion contract finalization (payload + status lifecycle).
-2. functions-python parse and Firestore write-back completion.
+2. py_fn parse and Firestore write-back completion.
 3. Query use-case path with basic vector retrieval.
 4. Observability (traces/latency/cost) and retry queue.
 5. Optional hybrid retrieval, cache, and feedback loop.

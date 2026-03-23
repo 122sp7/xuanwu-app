@@ -12,8 +12,8 @@ flowchart TD
   classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
 
   subgraph ING[① Ingestion Pipeline - 資料進來]
-    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[functions-python document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[functions-python Embedding 每個 chunk 向量化]:::ingest --> I12[functions-python Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
-    I14 --> I15[functions-python ingestion traces and latency metrics]:::ingest
+    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
+    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
     I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
   end
 
@@ -85,7 +85,7 @@ flowchart TD
 
   subgraph OWN[⑥A Runtime Ownership]
     R1[綠色框 = Next.js 主責節點]:::nxown
-    R2[藍色框 = functions-python 主責節點]:::pyown
+    R2[藍色框 = py_fn 主責節點]:::pyown
   end
 
   subgraph LINKRULE[⑥C 線路規則]

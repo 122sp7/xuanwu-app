@@ -12,7 +12,7 @@
     "deploy:storage:rules": "npx firebase deploy --only storage",
     "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
     "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:functions-python",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
     "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",

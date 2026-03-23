@@ -76,7 +76,7 @@ modules/wiki/
 
 modules/wiki/       ← 知識文件 / RAG pipeline 資料模型 + knowledge summary（已整合）
 modules/ai/           ← Genkit Flow 編排（RAG query pipeline）
-functions-python/  ← Cloud Functions（ingestion worker）
+py_fn/  ← Cloud Functions（ingestion worker）
 ```
 
 ### 2.2 側邊欄知識節點架構
@@ -271,7 +271,7 @@ Embedding（每個 chunk 向量化）
 #### 5.2.2 API 呼叫規範
 
 ```python
-# functions-python/ingestion/embedding.py
+# py_fn/ingestion/embedding.py
 import openai
 
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"

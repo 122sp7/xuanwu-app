@@ -6,4 +6,4 @@
 - ESLint enforces restricted legacy import paths (`@/shared/*`, `@/libs/*`, etc.).
 - Runtime split:
   - Next.js owns product-facing UX/auth/route orchestration.
-  - functions-python owns heavy worker ingestion pipeline and retryable processing.
+  - py_fn owns heavy worker ingestion pipeline and retryable processing.

@@ -11,7 +11,7 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
 
 - Runtime: Next.js 16 App Router on Node.js 24
 - UI stack: React 19, Tailwind CSS, shadcn/ui, Lucide
-- Architecture: MDDD with `app/`, `modules/`, `packages/`, and `functions-python/`
+- Architecture: MDDD with `app/`, `modules/`, `packages/`, and `py_fn/`
 - Package manager: npm
 - Validation commands:
   - `npm install`
@@ -117,7 +117,7 @@ import { updateWorkspaceSettings } from "@/modules/workspace";
 
 - Keep browser-facing product flows in Next.js.
 - Keep heavy background ingestion and worker logic out of the main app runtime.
-- When a change touches ingestion, parsing, chunking, embedding, or retryable worker flows, coordinate with the `functions-python/` runtime instead of moving that logic into `app/` or `modules/`.
+- When a change touches ingestion, parsing, chunking, embedding, or retryable worker flows, coordinate with the `py_fn/` runtime instead of moving that logic into `app/` or `modules/`.
 
 ## Documentation Update Rules
 
@@ -125,7 +125,7 @@ import { updateWorkspaceSettings } from "@/modules/workspace";
 - Common examples:
   - update `packages/README.md` when adding or changing a package alias or package responsibility
   - update a module `README.md` when its scope or public API changes
-  - update `functions-python/README.md` or ADRs when runtime boundaries or ingestion contracts change
+  - update `py_fn/README.md` or ADRs when runtime boundaries or ingestion contracts change
   - update `docs/architecture/*` or `docs/reference/*` when architectural contracts move
 - Keep terminology consistent with the existing MDDD and domain language already used in the repository.
 

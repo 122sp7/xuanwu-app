@@ -2,6 +2,6 @@
 - Purpose: enterprise workspace platform with module-driven domain design (MDDD), wiki/RAG, organization/workspace management, and Firebase-backed workflows.
 - Main runtimes:
   - Next.js app router in `app/` for user-facing UI/API orchestration.
-  - Python Firebase worker in `functions-python/` for ingestion, parsing, chunking, embedding, background processing.
-- Key directories: `app/`, `modules/`, `packages/`, `functions-python/`, `docs/`, `agents/`.
+  - Python Firebase worker in `py_fn/` for ingestion, parsing, chunking, embedding, background processing.
+- Key directories: `app/`, `modules/`, `packages/`, `py_fn/`, `docs/`, `agents/`.
 - Knowledge surface: legacy `/wiki` has been retired from the active app route tree; use `/wiki-beta` as the canonical knowledge route namespace.

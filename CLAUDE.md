@@ -8,7 +8,7 @@ This file gives Claude (and other AI agents) the context needed to work in this 
 
 - Runtime: Next.js 16 App Router, React 19, Firebase, Upstash
 - Architecture: **Module-Driven Domain Design (MDDD)** — 20 bounded-context modules under `modules/`
-- Workers: Python 3.11 Cloud Functions in `functions-python/` (ingestion, parsing, embedding)
+- Workers: Python 3.11 Cloud Functions in `py_fn/` (ingestion, parsing, embedding)
 - Package manager: npm (Node.js 24)
 
 ## Essential Reading
@@ -27,8 +27,8 @@ npm run lint         # ESLint — 0 errors expected (pre-existing warnings OK)
 npm run build        # Next.js production build + type-check
 
 # Python worker
-cd functions-python && python -m compileall -q .
-cd functions-python && python -m pytest tests/ -v
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
 ```
 
 ## Architecture Rules
@@ -59,7 +59,7 @@ import { Button } from "@/ui/shadcn/ui/button";
 
 ### Runtime Boundary
 
-| Next.js owns | `functions-python/` owns |
+| Next.js owns | `py_fn/` owns |
 |---|---|
 | Browser-facing APIs | Ingestion pipeline (parse → clean → taxonomy → chunk → embed) |
 | Upload UX | Document AI processing |

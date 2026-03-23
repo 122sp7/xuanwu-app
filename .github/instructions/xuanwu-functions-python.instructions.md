@@ -1,17 +1,17 @@
 ---
 description: 'Project-specific instructions for the xuanwu-app Firebase Python worker runtime.'
-applyTo: 'functions-python/**/*.py'
+applyTo: 'py_fn/**/*.py'
 ---
 
-# Xuanwu App Functions-Python Instructions
+# Xuanwu App py_fn Instructions
 
-These instructions apply to the `functions-python/` runtime only.
+These instructions apply to the `py_fn/` runtime only.
 
 ## Mission
 
-- Treat `functions-python/` as the Firebase Python worker runtime for ingestion and heavy processing.
+- Treat `py_fn/` as the Firebase Python worker runtime for ingestion and heavy processing.
 - Treat Next.js as the user-facing application edge.
-- Do not turn `functions-python/` into a second product web server.
+- Do not turn `py_fn/` into a second product web server.
 
 ## Architecture Rules
 
@@ -23,7 +23,7 @@ These instructions apply to the `functions-python/` runtime only.
 
 ## Runtime Ownership
 
-### `functions-python` owns
+### `py_fn` owns
 
 - parsing raw files
 - cleaning and normalization
@@ -47,7 +47,7 @@ These instructions apply to the `functions-python/` runtime only.
 ## API Placement Rule
 
 - If the browser or page flow calls it directly, put it in Next.js.
-- If it is background, retryable, heavy, or admin/internal, put it in `functions-python/`.
+- If it is background, retryable, heavy, or admin/internal, put it in `py_fn/`.
 
 ## Ingestion Pipeline Contract
 
@@ -70,11 +70,11 @@ Do not reorder this pipeline without updating the corresponding ADR and runtime 
 - Do not move auth or session logic into this runtime.
 - Do not bypass `application` from `interfaces`.
 - Do not reintroduce legacy `libs/firebase/functions`.
-- Read `functions-python/docs/adr/README.md` and accepted ADRs before changing runtime boundaries.
+- Read `py_fn/docs/adr/README.md` and accepted ADRs before changing runtime boundaries.
 
 ## Validation
 
-- Preferred local validation inside `functions-python/`:
+- Preferred local validation inside `py_fn/`:
   - `python -m compileall -q .`
 - Repository-level validation from the project root:
   - `npm run lint`
@@ -82,6 +82,6 @@ Do not reorder this pipeline without updating the corresponding ADR and runtime 
 
 ## Documentation Update Rules
 
-- Update `functions-python/README.md` when worker responsibilities, setup, or runtime contracts change.
+- Update `py_fn/README.md` when worker responsibilities, setup, or runtime contracts change.
 - Update ADRs when changing ingestion order, runtime ownership, persistence rules, or platform boundaries.
 - Keep terminology aligned with the existing ingestion, taxonomy, chunk, embedding, and document-status vocabulary already used in the repo.

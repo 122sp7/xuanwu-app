@@ -1,6 +1,6 @@
 ---
 name: xuanwu-rag-runtime-boundary
-description: 'Enforce Xuanwu''s RAG runtime split between Next.js and `functions-python`. Use for uploads, ingestion, parser jobs, chunking, embeddings, Firestore `documents` or `chunks`, vector retrieval, and AI query orchestration. Preserves runtime ownership, fixed ingestion order, and organization/workspace boundaries.'
+description: 'Enforce Xuanwu''s RAG runtime split between Next.js and `py_fn`. Use for uploads, ingestion, parser jobs, chunking, embeddings, Firestore `documents` or `chunks`, vector retrieval, and AI query orchestration. Preserves runtime ownership, fixed ingestion order, and organization/workspace boundaries.'
 ---
 
 # Xuanwu RAG Runtime Boundary
@@ -10,15 +10,15 @@ Use this skill when a change touches the end-to-end RAG lifecycle and you need t
 ## When to Use This Skill
 
 - Upload registration and document metadata creation
-- `functions-python` ingestion or reprocess flows
+- `py_fn` ingestion or reprocess flows
 - Parser, normalization, taxonomy, chunking, or embedding work
 - Firestore `documents` and `chunks` schema changes
 - Retrieval, query orchestration, vector search, or answer generation changes
-- Auditing whether logic belongs in Next.js or `functions-python`
+- Auditing whether logic belongs in Next.js or `py_fn`
 
 ## Authoritative Sources
 
-- [functions-python/README.md](../../../functions-python/README.md)
+- [py_fn/README.md](../../../py_fn/README.md)
 - [docs/reference/development-contracts/rag-ingestion-contract.md](../../../docs/reference/development-contracts/rag-ingestion-contract.md)
 - [docs/design/rag-implementation-mapping.md](../../../docs/design/rag-implementation-mapping.md)
 
@@ -26,7 +26,7 @@ Use this skill when a change touches the end-to-end RAG lifecycle and you need t
 
 1. **Decide the owning runtime**
    - **Next.js owns** upload UI, auth, request validation, initial document metadata, retrieval orchestration, prompt assembly, and streaming responses
-   - **`functions-python` owns** parsing, normalization, taxonomy, chunking, embedding generation, chunk persistence, and lifecycle write-back
+   - **`py_fn` owns** parsing, normalization, taxonomy, chunking, embedding generation, chunk persistence, and lifecycle write-back
 
 2. **Preserve the canonical ingestion contract**
    - Keep `organizationId` and `workspaceId` on both documents and chunks
@@ -45,7 +45,7 @@ Use this skill when a change touches the end-to-end RAG lifecycle and you need t
 
 4. **Keep query orchestration in Next.js**
    - User query handling, query embeddings, retrieval orchestration, and answer generation remain in Next.js
-   - `functions-python` should expose worker or admin-safe entrypoints, not product-facing query APIs
+   - `py_fn` should expose worker or admin-safe entrypoints, not product-facing query APIs
 
 5. **Validate the boundary**
    - Check that DTOs, Firestore fields, and worker command fields match the contract
@@ -54,7 +54,7 @@ Use this skill when a change touches the end-to-end RAG lifecycle and you need t
 
 ## Guardrails
 
-- Do not move browser-facing product APIs into `functions-python`.
+- Do not move browser-facing product APIs into `py_fn`.
 - Do not make Next.js perform ingestion-only responsibilities such as chunk generation or embedding persistence inside the request path.
 - Do not break the `organizationId` / `workspaceId` retrieval boundaries.
 - Do not reorder ingestion steps without updating the contract and the runtime documentation together.

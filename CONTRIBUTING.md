@@ -56,8 +56,8 @@ npm run build    # Next.js production build + TypeScript type-check
 For the Python worker:
 
 ```bash
-cd functions-python && python -m compileall -q .
-cd functions-python && python -m pytest tests/ -v
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
 ```
 
 ---

@@ -31,8 +31,8 @@ Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`
 ### Runtime Boundary
 
 - **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`functions-python/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `functions-python/`.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
 
 ## Validation Commands
 
@@ -42,8 +42,8 @@ npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
 npm run build        # Next.js production build + TypeScript type-check
 
 # Python worker
-cd functions-python && python -m compileall -q .
-cd functions-python && python -m pytest tests/ -v
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
 ```
 
 ## Common Patterns

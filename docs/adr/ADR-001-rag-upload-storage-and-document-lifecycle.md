@@ -132,14 +132,14 @@ Next.js query orchestration + Genkit answer generation
 5. Worker runtime: Cloud Functions for Firebase (Python)
 6. Optional cache: Firestore cache 或 Redis/Upstash
 
-### 6. 與 functions-python ADR 協作原則
+### 6. 與 py_fn ADR 協作原則
 
-與 `functions-python/docs/adr` 的協作邊界如下：
+與 `py_fn/docs/adr` 的協作邊界如下：
 
 1. 本目錄 `docs/adr` 是產品層與跨 runtime 的 canonical orchestration 規範。
-2. `functions-python/docs/adr` 是 worker runtime 內部實作與依賴策略的 canonical 規範。
+2. `py_fn/docs/adr` 是 worker runtime 內部實作與依賴策略的 canonical 規範。
 3. 若規則衝突，以「Next.js user-facing 在 app 側、ingestion worker 在 Python 側」作為最高優先邊界，不可互相越界。
-4. 本目錄新增 ADR 必須引用並遵守 functions-python 的 runtime 定位，不可將 Python worker 描述為瀏覽器主入口。
+4. 本目錄新增 ADR 必須引用並遵守 py_fn 的 runtime 定位，不可將 Python worker 描述為瀏覽器主入口。
 
 ## Alternatives Considered
 
