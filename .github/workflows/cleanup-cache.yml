@@ -10,7 +10,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete caches older than 24 hours
+      - name: Delete caches older than 12 hours
         uses: actions/github-script@v7
         with:
           script: |
@@ -59,3 +59,57 @@ jobs:
             }
 
             core.info(`Deleted ${deletedCount} stale cache(s) older than ${retentionHours} hours. Found ${totalStale} eligible cache(s).`);
+
+      - name: Delete workflow runs older than 7 days
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const retentionDays = 7;
+            const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+            let page = 1;
+            let deletedCount = 0;
+            let totalStale = 0;
+
+            while (true) {
+              const response = await github.request("GET /repos/{owner}/{repo}/actions/runs", {
+                owner,
+                repo,
+                page,
+                per_page: 100,
+              });
+
+              const runs = response.data.workflow_runs ?? [];
+              if (runs.length === 0) {
+                break;
+              }
+
+              for (const run of runs) {
+                if (!run.created_at) {
+                  continue;
+                }
+
+                const createdAt = Date.parse(run.created_at);
+                if (Number.isNaN(createdAt) || createdAt >= cutoff) {
+                  continue;
+                }
+
+                if (run.status !== "completed") {
+                  continue;
+                }
+
+                totalStale += 1;
+                core.info(`Deleting workflow run ${run.id} (${run.name}) created at ${run.created_at}`);
+                await github.request("DELETE /repos/{owner}/{repo}/actions/runs/{run_id}", {
+                  owner,
+                  repo,
+                  run_id: run.id,
+                });
+                deletedCount += 1;
+              }
+
+              page += 1;
+            }
+
+            core.info(`Deleted ${deletedCount} workflow run(s) older than ${retentionDays} days. Found ${totalStale} eligible run(s).`);
