@@ -1,0 +1,5 @@
+- Mandatory rule: Memory updates and index updates must be executed via Serena MCP tools only.
+- Execution order when user asks memory/index refresh: (1) read relevant Serena memories, (2) update Serena memory entries, (3) confirm delta summary.
+- URL-first and no-detour rule: if user provides target URL/flow, execute that exact path first; no side exploration unless user approves.
+- Playwright execution rule: for UI tasks, use Playwright MCP for direct action completion, not exploratory diagnostics by default.
+- Post-fix hygiene: after major fixes, perform Serena memory/index refresh in the same turn.
