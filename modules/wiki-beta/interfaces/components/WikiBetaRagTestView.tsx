@@ -197,6 +197,7 @@ function RagBadge({ status, error }: { status: string; error: string }) {
 export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiBetaRagTestViewProps) {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() || appState.activeWorkspaceId || "";
   const showQueryCard = mode === "all" || mode === "query";
   const showDocumentsCard = mode === "documents";
   const showDocsSection = mode === "all" || showDocumentsCard;
@@ -244,13 +245,21 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       setLoadingDocs(false);
       return;
     }
+    if (!effectiveWorkspaceId) {
+      setDocs([]);
+      setLoadingDocs(false);
+      appendLog("未選擇工作區，文件列表已清空");
+      return;
+    }
 
     setLoadingDocs(true);
     try {
       const db = getFirebaseFirestore();
       const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
       const snap = await firestoreApi.getDocs(colRef);
-      const mapped = snap.docs.map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())));
+      const mapped = snap.docs
+        .map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())))
+        .filter((item) => item.workspaceId === effectiveWorkspaceId);
       setDocs(sortByUploadedDesc(mapped));
       setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
       appendLog(`手動刷新文件列表：${mapped.length} 筆`);
@@ -260,10 +269,15 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
     } finally {
       setLoadingDocs(false);
     }
-  }, [activeAccountId, appendLog, sortByUploadedDesc]);
+  }, [activeAccountId, appendLog, effectiveWorkspaceId, sortByUploadedDesc]);
 
   useEffect(() => {
     if (!activeAccountId) {
+      setDocs([]);
+      setLoadingDocs(false);
+      return;
+    }
+    if (!effectiveWorkspaceId) {
       setDocs([]);
       setLoadingDocs(false);
       return;
@@ -276,7 +290,9 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
     const unsubscribe = firestoreApi.onSnapshot(
       colRef,
       (snapshot) => {
-        const mapped = snapshot.docs.map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())));
+        const mapped = snapshot.docs
+          .map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())))
+          .filter((item) => item.workspaceId === effectiveWorkspaceId);
         setDocs(sortByUploadedDesc(mapped));
         setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
         setLoadingDocs(false);
@@ -303,7 +319,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       unsubscribe();
       statusMapRef.current = {};
     };
-  }, [activeAccountId, appendLog, sortByUploadedDesc]);
+  }, [activeAccountId, appendLog, effectiveWorkspaceId, sortByUploadedDesc]);
 
   async function handleAsk() {
     const q = query.trim();
@@ -318,13 +334,13 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
         toast.error("目前沒有 active account，無法執行 RAG 查詢");
         return;
       }
-      if (!workspaceId) {
+      if (!effectiveWorkspaceId) {
         toast.error("請先選擇工作區，再執行 RAG 查詢");
         return;
       }
       const parsedTopK = Number(topK);
       const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
-      const result = await runWikiBetaRagQuery(q, activeAccountId, workspaceId, safeTopK, {
+      const result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
         requireReady: true,
       });
       setAnswer(result.answer);
@@ -375,7 +391,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       toast.error("目前沒有 active account，無法上傳");
       return;
     }
-    if (!workspaceId) {
+    if (!effectiveWorkspaceId) {
       toast.error("請先選擇工作區，再上傳文件");
       return;
     }
@@ -391,7 +407,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       const pendingItem: WikiBetaLiveDocument = {
         id: docId,
         filename: selectedFile.name,
-        workspaceId: workspaceId || "",
+        workspaceId: effectiveWorkspaceId,
         sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`,
         jsonGcsUri: "",
         pageCount: 0,
@@ -407,7 +423,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       await storageApi.uploadBytes(fileRef, selectedFile, {
         customMetadata: {
           account_id: activeAccountId,
-          workspace_id: workspaceId,
+          workspace_id: effectiveWorkspaceId,
         },
       });
 
@@ -513,9 +529,11 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
   }
 
   const filteredDocs = useMemo(() => {
-    const merged = [...pendingDocs, ...docs.filter((doc) => !pendingDocs.some((pending) => pending.id === doc.id))];
+    const merged = [...pendingDocs, ...docs.filter((doc) => !pendingDocs.some((pending) => pending.id === doc.id))].filter(
+      (doc) => !effectiveWorkspaceId || doc.workspaceId === effectiveWorkspaceId,
+    );
     return sortByUploadedDesc(merged);
-  }, [docs, pendingDocs, sortByUploadedDesc]);
+  }, [docs, effectiveWorkspaceId, pendingDocs, sortByUploadedDesc]);
 
   const statusSummary = useMemo(() => {
     return {
@@ -608,7 +626,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
       <Card>
         <CardHeader>
           <CardTitle>Upload File</CardTitle>
-          <CardDescription>拖曳或選擇檔案上傳到 account scope。</CardDescription>
+          <CardDescription>拖曳或選擇檔案上傳到目前 workspace scope。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <label
@@ -697,7 +715,7 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
           <CardTitle>檔案列表 + 解析狀態</CardTitle>
           <CardDescription>
             account: {activeAccountId || "(未選擇)"}
-            {` / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
+            {` / workspace: ${effectiveWorkspaceId || "(未選擇)"} / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
           </CardDescription>
         </CardHeader>
         <CardContent>

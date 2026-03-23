@@ -16,7 +16,7 @@ export default function WikiBetaDocumentsPage() {
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Wiki Beta</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Documents</h1>
-        <p className="text-sm text-muted-foreground">檢視 account-scoped documents 列表與解析狀態。</p>
+        <p className="text-sm text-muted-foreground">檢視 workspace-scoped documents 列表與解析狀態。</p>
       </header>
 
       <WikiBetaRagTestView onBack={() => router.push("/wiki-beta")} mode="documents" workspaceId={workspaceId} />
