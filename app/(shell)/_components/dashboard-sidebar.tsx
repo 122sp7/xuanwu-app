@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
@@ -213,13 +213,16 @@ export function DashboardSidebar({
     ? recentWorkspaceLinks
     : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
 
-  function buildWorkspaceContextHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki-beta")) {
-      const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
-      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-    }
-    return `/workspace/${workspaceId}`;
-  }
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/wiki-beta")) {
+        const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
 
   const allWorkspaceLinks = useMemo(() => {
     return Object.values(workspacesById)
@@ -229,12 +232,7 @@ export function DashboardSidebar({
         href: buildWorkspaceContextHref(workspace.id),
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, pathname]);
-
-  const activeWorkspaceName = useMemo(() => {
-    if (!activeWorkspaceId) return "未選擇";
-    return workspacesById[activeWorkspaceId]?.name ?? activeWorkspaceId;
-  }, [activeWorkspaceId, workspacesById]);
+  }, [workspacesById, buildWorkspaceContextHref]);
 
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
