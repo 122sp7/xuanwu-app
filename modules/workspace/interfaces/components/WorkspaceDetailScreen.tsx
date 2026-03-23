@@ -182,13 +182,13 @@ function renderWorkspacePlaceholderTab(tab: (typeof workspaceTabItems)[number]) 
   return (
     <Card className="border border-border/50">
       <CardHeader>
-        <CardTitle>{tab}</CardTitle>
+        <CardTitle>🚧 {tab}</CardTitle>
         <CardDescription>
-          這個工作區模組功能尚未實施，正在 MDDD 遷移中。
+          此分頁尚在開發中，功能將逐步開放。
         </CardDescription>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        Planned scope: {tab} flow, interaction rules, and data integration.
+        目前僅提供基礎導覽，敬請期待後續版本。
       </CardContent>
     </Card>
   );

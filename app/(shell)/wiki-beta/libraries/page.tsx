@@ -17,7 +17,7 @@ export default function WikiBetaLibrariesPage() {
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Wiki Beta</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Libraries</h1>
         <p className="text-sm text-muted-foreground">
           Notion Database/Data Source 對齊能力的 MVP，產品命名統一為 Libraries。
@@ -29,7 +29,7 @@ export default function WikiBetaLibrariesPage() {
         onClick={() => router.push("/wiki-beta")}
         className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        返回 Wiki Beta
+        返回 Account Wiki-Beta
       </button>
 
       {accountId ? (

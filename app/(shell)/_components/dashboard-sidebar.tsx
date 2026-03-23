@@ -786,7 +786,7 @@ export function DashboardSidebar({
             )}
 
             {section === "wiki-beta" && (
-              <nav className="space-y-0.5" aria-label="Wiki Beta navigation">
+              <nav className="space-y-0.5" aria-label="Account Wiki-Beta navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
                   Account Wiki-Beta
                 </p>

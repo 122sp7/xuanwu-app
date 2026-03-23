@@ -17,7 +17,7 @@ export default function WikiBetaPagesPage() {
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Wiki Beta</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Pages</h1>
         <p className="text-sm text-muted-foreground">Notion-like page tree MVP，支援層級建立、重新命名與移動。</p>
       </header>
@@ -27,7 +27,7 @@ export default function WikiBetaPagesPage() {
         onClick={() => router.push("/wiki-beta")}
         className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        返回 Wiki Beta
+        返回 Account Wiki-Beta
       </button>
 
       {accountId ? (

@@ -107,7 +107,7 @@ export function WikiBetaOverviewView() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Wiki Beta Dashboard</CardTitle>
+          <CardTitle className="text-xl">Account Wiki-Beta Dashboard</CardTitle>
           <CardDescription>聚合 Pages、Libraries、Documents、RAG Query 的入口與工作區摘要。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

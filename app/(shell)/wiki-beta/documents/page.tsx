@@ -13,7 +13,7 @@ export default function WikiBetaDocumentsPage() {
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Wiki Beta</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Documents</h1>
         <p className="text-sm text-muted-foreground">預設檢視 account-scoped documents；可用 workspaceId 進行視角篩選。</p>
       </header>
