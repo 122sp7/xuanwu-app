@@ -1,11 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
+import { useApp } from "@/app/providers/app-provider";
 import { WikiBetaRagTestView } from "@/modules/wiki-beta";
 
 export default function WikiBetaDocumentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const workspaceId = searchParams.get("workspaceId")?.trim() || appState.activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">
@@ -15,7 +19,7 @@ export default function WikiBetaDocumentsPage() {
         <p className="text-sm text-muted-foreground">檢視 account-scoped documents 列表與解析狀態。</p>
       </header>
 
-      <WikiBetaRagTestView onBack={() => router.push("/wiki-beta")} mode="documents" />
+      <WikiBetaRagTestView onBack={() => router.push("/wiki-beta")} mode="documents" workspaceId={workspaceId} />
     </div>
   );
 }
