@@ -25,8 +25,6 @@ import {
 import type { WorkspaceEntity } from "@/modules/workspace";
 import type { RagDocumentRecord } from "@/modules/file";
 import { getWorkspaceRagDocuments } from "@/modules/file";
-import type { WorkspaceKnowledgeSummary } from "@/modules/wiki";
-import { getWorkspaceKnowledgeSummary } from "@/modules/wiki";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -86,6 +84,17 @@ const STUB_PAGES: WikiPage[] = [];
 // ── Knowledge document types & constants ─────────────────────────────────────
 
 type StatusFilter = RagDocumentRecord["status"] | "all";
+
+interface WorkspaceKnowledgeSummary {
+  readonly registeredAssetCount: number;
+  readonly readyAssetCount: number;
+  readonly supportedSourceCount: number;
+  readonly status: "needs-input" | "staged" | "ready";
+  readonly blockedReasons: readonly string[];
+  readonly nextActions: readonly string[];
+  readonly visibleSurface: "workspace-tab-live";
+  readonly contractStatus: "contract-live";
+}
 
 const EMPTY_SUMMARY: WorkspaceKnowledgeSummary = {
   registeredAssetCount: 0,
@@ -383,11 +392,8 @@ export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
     setLoadState("loading");
     setRagLoadState("loading");
     try {
-      const [nextSummary, nextRagDocuments] = await Promise.all([
-        getWorkspaceKnowledgeSummary(workspace),
-        getWorkspaceRagDocuments(workspace),
-      ]);
-      setSummary(nextSummary);
+      const nextRagDocuments = await getWorkspaceRagDocuments(workspace);
+      setSummary(EMPTY_SUMMARY);
       setLoadState("loaded");
       setRagDocuments(nextRagDocuments);
       setRagLoadState("loaded");

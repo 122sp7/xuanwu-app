@@ -89,7 +89,6 @@ type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "organization" | "sett
 function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
   if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
-  if (pathname.startsWith("/wiki")) return "wiki-beta";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (pathname.startsWith("/organization")) return "organization";
   if (pathname.startsWith("/settings")) return "settings";
