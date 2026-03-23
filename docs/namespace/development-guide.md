@@ -17,7 +17,7 @@ description: Developer guide for contributing to namespace-core — registering 
 
 1. **架構規範**：`docs/architecture/namespace.md`
 2. **開發契約**：`docs/reference/development-contracts/namespace-contract.md`
-3. **整體架構指南**：`ARCHITECTURE.md`
+3. **整體架構指南**：`agents/knowledge-base.md`
 
 ---
 
