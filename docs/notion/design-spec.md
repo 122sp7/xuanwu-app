@@ -17,13 +17,13 @@
 
 ## 1. 設計目標
 
-| 代號 | 目標 |
-|---|---|
-| G1 | 以 Notion 核心能力（Page tree、Database、Relation）為對齊基準 |
-| G2 | 所有 Notion 對齊能力都在 account scope 下管理 |
-| G3 | 命名保持 Xuanwu 術語一致，不在 runtime code 暴露 `Notion` 標籤 |
-| G4 | Runtime boundary 保持 Next.js / py_fn 分離 |
-| G5 | Pages 與 Libraries 可獨立演進，不相互耦合 |
+| 代號 | 目標 | 說明 |
+|---|---|---|
+| G1 | Notion 核心能力對齊 | 以 Page tree、Database、Relation 為對齊基準，讓使用者完成相同的知識管理工作流程 |
+| G2 | Account scope 管理 | 所有 Notion 對齊能力都在 `accounts/{accountId}/...` 下管理；禁止 global fallback |
+| G3 | Xuanwu 術語一致 | 不在 runtime code 暴露 `Notion` 標籤；UI 使用 Pages / Libraries |
+| G4 | Runtime boundary 分離 | Next.js 擁有 UI 流程；py_fn 擁有 RAG pipeline |
+| G5 | 獨立演進 | Pages 與 Libraries 可獨立演進，不相互耦合 |
 
 ---
 
@@ -31,14 +31,14 @@
 
 | 能力 | Notion 術語 | Xuanwu UI 術語 | Xuanwu Domain 型別 | 狀態 |
 |---|---|---|---|---|
-| 階層頁面 | Page tree | Pages | `WikiBetaPage` | ✅ 實作中 |
-| 頁面內容區塊 | Blocks | Page Blocks | `WikiBetaPageBlock`（planned） | 🔲 規劃中（Phase 6+，低優先） |
-| 結構化資料表 | Database / Data source | Libraries | `WikiBetaLibrary` | ✅ 實作中 |
-| 資料表欄位 | Properties | Fields | `WikiBetaLibraryField` | ✅ 實作中 |
-| 資料表列 | Pages in database | Records | `WikiBetaLibraryRow` | ✅ 實作中 |
-| 跨資料引用 | Relation | Relation | `relation` field type | ✅ 型別定義 |
-| 頁面中繼資料 | Page properties | Page Metadata | page metadata fields | 🔲 規劃中（Phase 6+，低優先） |
-| 變更訊號 | Webhooks / Events | Sync Signals | Domain Events | ✅ event module |
+| 階層頁面 | Page tree | **Pages** | `WikiBetaPage` | ✅ 實作中 |
+| 頁面內容區塊 | Blocks | **Page Blocks** | `WikiBetaPageBlock`（planned） | 🔲 Phase 6+，低優先 |
+| 結構化資料表 | Database / Data source | **Libraries** | `WikiBetaLibrary` | ✅ 實作中 |
+| 資料表欄位 | Properties | **Fields** | `WikiBetaLibraryField` | ✅ 實作中 |
+| 資料表列 | Pages in database | **Records** | `WikiBetaLibraryRow` | ✅ 實作中 |
+| 跨資料引用 | Relation | **Relation** | `relation` field type | ✅ 型別定義 |
+| 頁面中繼資料 | Page properties | **Page Metadata** | page metadata fields | 🔲 Phase 6+，低優先 |
+| 變更訊號 | Webhooks / Events | **Sync Signals** | Domain Events | ✅ event module |
 
 ---
 
@@ -46,21 +46,26 @@
 
 ### 3.1 Next.js 擁有
 
-- 路由與頁面結構：`app/(shell)/wiki-beta/pages`, `app/(shell)/wiki-beta/libraries`
-- Pages 與 Libraries 的 UI 互動流程
-- Application use-case 協調
-- Documents 快速建立入口（側邊欄 `+`，planned）
+| 職責 | 位置 |
+|---|---|
+| 路由與頁面結構 | `app/(shell)/wiki-beta/pages`, `app/(shell)/wiki-beta/libraries` |
+| Pages / Libraries UI 互動 | `modules/wiki-beta/interfaces/components/` |
+| Application use-case 協調 | `modules/wiki-beta/application/` |
+| Documents 快速建立入口（`+`，planned） | 側邊欄 Server Action |
 
 ### 3.2 py_fn 擁有
 
-- Storage trigger ingestion（parse → chunk → embed）
-- `rag_query` callable 執行
-- `rag_reindex_document` callable 執行
+| 職責 | 說明 |
+|---|---|
+| Storage trigger ingestion | parse → clean → taxonomy → chunk → embed |
+| `rag_query` callable | RAG 問答執行 |
+| `rag_reindex_document` callable | 單文件重整執行 |
 
 ### 3.3 Firestore 邊界
 
 - 所有集合必須在 `accounts/{accountId}/...` 路徑下。
-- workspace 視角透過欄位篩選，不另開頂層集合。
+- workspace 視角透過欄位篩選（`workspaceId`），不另開頂層集合。
+- **強制規則**：不可直接查詢 `/pages`、`/databases` 等頂層路徑。
 
 ---
 
@@ -70,63 +75,58 @@
 
 **路由**：`/wiki-beta/pages`
 
-| 操作 | Use-case | 描述 |
+| 操作 | Use-case | 業務規則 |
 |---|---|---|
-| 建立頁面 | `createWikiBetaPage` | 建立根頁面或子頁面，slug 自動去重 |
-| 更名頁面 | `renameWikiBetaPage` | 更新 title 與 slug |
-| 移動頁面 | `moveWikiBetaPage` | 變更 parentPageId，含循環偵測 |
-| 讀取樹狀結構 | `listWikiBetaPagesTree` | 遞迴排序，依 order + title |
+| 建立頁面 | `createWikiBetaPage` | title 必填（≤120 字元）；同 parent 下 slug 自動去重 |
+| 更名頁面 | `renameWikiBetaPage` | 更新 title 與 slug；slug 去重規則同建立 |
+| 移動頁面 | `moveWikiBetaPage` | 變更 `parentPageId`；**含循環偵測**：頁面不可成為自己的子孫 |
+| 讀取樹狀結構 | `listWikiBetaPagesTree` | 遞迴排序，依 `order` + `title` |
 
-**業務規則**：
-- 頁面 title 最長 120 字元。
-- 同一 parent 下 slug 不可重複。
-- 移動操作禁止形成循環（頁面不可成為自己的子孫）。
-- 狀態：`active` | `archived`（封存不顯示於樹）。
+**狀態**：`active`（顯示於樹）| `archived`（封存，不顯示於樹）
+
+**存取模式**（Firestore 查詢設計）：
+- 讀取 account 下所有 active 頁面：`where accountId == X AND status == "active"`
+- 讀取特定 parent 下子頁面：`where parentPageId == Y AND accountId == X`
 
 ### F2 Libraries（結構化資料表）
 
 **路由**：`/wiki-beta/libraries`
 
-| 操作 | Use-case | 描述 |
+| 操作 | Use-case | 業務規則 |
 |---|---|---|
-| 建立 Library | `createWikiBetaLibrary` | 建立新資料表，slug 自動去重 |
-| 新增欄位 | `addWikiBetaLibraryField` | 新增型別化欄位 |
-| 新增記錄 | `createWikiBetaLibraryRow` | 建立新列，驗證必填欄位 |
+| 建立 Library | `createWikiBetaLibrary` | name 必填（≤80 字元）；slug 自動去重 |
+| 新增欄位 | `addWikiBetaLibraryField` | field key 自動 normalize（lowercase、underscore、英數）；同 library 內 key 不可重複 |
+| 新增記錄 | `createWikiBetaLibraryRow` | 所有 `required: true` 欄位必須提供值 |
 | 讀取 Library | `getWikiBetaLibrarySnapshot` | 回傳 library + fields + rows |
 
 **欄位型別**：
 
-| 型別 | 說明 |
-|---|---|
-| `title` | 標題文字（必要主欄位） |
-| `text` | 多行文字 |
-| `number` | 數字 |
-| `select` | 單選，可定義 options |
-| `relation` | 跨紀錄引用 |
+| 型別 | 說明 | 典型用途 |
+|---|---|---|
+| `title` | 標題文字（必要主欄位） | 任務名稱、文件標題 |
+| `text` | 多行文字 | 說明、備註 |
+| `number` | 數字 | 優先級、評分 |
+| `select` | 單選（可定義 options） | 狀態、類別 |
+| `relation` | 跨記錄引用 | 關聯頁面或其他記錄 ID |
 
-**業務規則**：
-- Library name 最長 80 字元。
-- 欄位 key 自動 normalize（lowercase、underscore、英數）。
-- 同一 library 內 field key 不可重複。
-- 建立 row 時，所有 `required: true` 欄位必須提供值。
+### F3 Documents `+` 快速建立（planned，Phase 5）
 
-### F3 Documents `+` 快速建立（planned）
-
-**位置**：側邊欄 Wiki-Beta 區塊中 `Documents` 項右側的 `+` 按鈕
+**入口**：側邊欄 Wiki-Beta 區塊中 `Documents` 項右側的 `+` 按鈕
 
 **行為**：
-- 點擊後開啟選單，提供「新增頁面」和「新增資料庫」兩個入口。
+- 點擊後開啟 popover 選單，提供「新增頁面」和「新增資料庫」兩個入口。
 - 建立時帶入目前 account scope；若有 workspace 視角則優先帶入。
 - 成功後顯示 toast 並導向新建項目。
-- 失敗後顯示錯誤提示，不可靜默失敗。
+- 失敗後顯示錯誤 toast，不可靜默失敗。
 
 ### F4 RAG 整合
 
-Notion-aligned 功能與 RAG pipeline 的整合點：
+Notion 對齊功能與 RAG pipeline 的整合點：
 
-- Pages 可透過手動流程與 documents 關聯（Document to Page curation，planned）。
-- Libraries 可作為知識分類層，輔助 taxonomy filter。
-- RAG Query 支援 `taxonomyFilters` 參數，可與 Library 分類對齊。
+| 功能 | 描述 | 狀態 |
+|---|---|---|
+| Document to Page curation | 從已解析文件手動建立 Page，保留來源連結 | planned |
+| Library 分類輔助 taxonomy filter | Libraries 作為知識分類層，`rag_query` 支援 `taxonomyFilters` | planned |
 
 ---
 
@@ -136,58 +136,62 @@ Notion-aligned 功能與 RAG pipeline 的整合點：
 
 ```
 accounts/{accountId}/documents/{documentId}
-  status
+  status                    # processing | ready | error
   source.gcs_uri
   source.filename
-  parsed.json_gcs_uri
+  parsed.json_gcs_uri       # 解析完成後存在
   parsed.page_count
-  rag.status
+  rag.status                # pending | indexed | error
   rag.chunk_count
   rag.vector_count
-  spaceId (選填)
-  metadata.space_id (選填)
+  spaceId                   # 選填，workspace 視角欄位
+  metadata.space_id         # 同 spaceId（保留相容）
 ```
 
-### 5.2 Notion 對齊規劃集合（Planned，尚未 canonical）
+### 5.2 Notion 對齊規劃集合（Planned）
 
-> **優先順序說明**：Documents `+` 快速建立（Phase 5）為近期高優先；Page Blocks 與 Page Metadata（Phase 6+）為遠期低優先，待 Pages/Libraries 穩定後再排期。
+> **優先順序**：
+> - **Phase 5（近期高優先）**：Documents `+` 快速建立，需要 pages / databases 集合基本讀寫
+> - **Phase 6+（遠期低優先）**：Page Blocks、Page Metadata，待 Pages / Libraries 穩定後排期
 
 ```
 accounts/{accountId}/pages/{pageId}
   accountId
-  workspaceId (選填)
-  title
-  slug
-  parentPageId (null = root)
+  workspaceId               # 選填
+  title                     # ≤120 字元
+  slug                      # 同 parent 下唯一
+  parentPageId              # null = 根頁面
   order
-  status: "active" | "archived"
+  status                    # "active" | "archived"
   createdAt
   updatedAt
 
 accounts/{accountId}/databases/{databaseId}
   accountId
-  workspaceId (選填)
-  name
-  slug
-  status: "active" | "archived"
+  workspaceId               # 選填
+  name                      # ≤80 字元
+  slug                      # account 下唯一
+  status                    # "active" | "archived"
   createdAt
   updatedAt
 
   fields/{fieldId}
     libraryId
-    key
+    key                     # lowercase、underscore、英數
     label
-    type: "title" | "text" | "number" | "select" | "relation"
+    type                    # "title" | "text" | "number" | "select" | "relation"
     required
-    options (select 型別)
+    options                 # select 型別用
     createdAt
 
   rows/{rowId}
     libraryId
-    values: Record<string, unknown>
+    values                  # Record<fieldKey, unknown>
     createdAt
     updatedAt
 ```
+
+> **注意**：Firestore 儲存路徑使用 `databases`（基礎設施識別）；UI 與 domain code 一律使用 `Libraries` / `WikiBetaLibrary*`。
 
 ---
 
@@ -196,11 +200,15 @@ accounts/{accountId}/databases/{databaseId}
 | 事件名稱 | aggregate type | 觸發條件 | payload 必填欄位 |
 |---|---|---|---|
 | `wiki_beta.page.created` | `wiki-page` | 頁面建立成功 | `accountId`, `workspaceId?`, `parentPageId`, `slug` |
-| `wiki_beta.page.renamed` | `wiki-page` | 頁面更名成功 | `accountId`, `title`, `slug` |
-| `wiki_beta.page.moved` | `wiki-page` | 頁面移動成功 | `accountId`, `fromParentPageId`, `toParentPageId` |
-| `wiki_beta.library.created` | `wiki-library` | Library 建立成功 | `accountId`, `workspaceId?`, `slug` |
-| `wiki_beta.library.field_added` | `wiki-library` | 欄位新增成功 | `accountId`, `fieldKey`, `fieldType` |
-| `wiki_beta.library.row_created` | `wiki-library` | 記錄建立成功 | `accountId`, `rowId`, `fields` |
+| `wiki_beta.page.renamed` | `wiki-page` | 頁面更名成功 | `accountId`, `pageId`, `title`, `slug` |
+| `wiki_beta.page.moved` | `wiki-page` | 頁面移動成功 | `accountId`, `pageId`, `fromParentPageId`, `toParentPageId` |
+| `wiki_beta.library.created` | `wiki-library` | Library 建立成功 | `accountId`, `workspaceId?`, `libraryId`, `slug` |
+| `wiki_beta.library.field_added` | `wiki-library` | 欄位新增成功 | `accountId`, `libraryId`, `fieldKey`, `fieldType` |
+| `wiki_beta.library.row_created` | `wiki-library` | 記錄建立成功 | `accountId`, `libraryId`, `rowId`, `fields` |
+
+**事件消費原則**：事件為 signal-first（最終一致）。消費者收到事件後自行 fetch 最新狀態，不依賴事件 payload 中的完整資料。
+
+> **最終一致性注意事項**：消費者在收到事件後立即讀取 Firestore，偶有可能因寫入尚未傳播而讀到舊資料。建議在讀取失敗或資料不一致時實作 retry（例如：延遲 200ms 後重試一次）。若業務邏輯對一致性有嚴格需求，改用 Firestore `onSnapshot` 直接監聽文件變更。
 
 ---
 
@@ -208,36 +216,37 @@ accounts/{accountId}/databases/{databaseId}
 
 | 類別 | 需求 |
 |---|---|
-| 安全性 | account scope 為必填，禁止 global fallback |
-| 可維護性 | page 薄協調，use-case 集中業務邏輯 |
-| 可測試性 | use-case 可在 in-memory repository 下完整測試 |
+| 安全性 | `accountId` 為必填；禁止 global fallback 查詢 |
+| 可維護性 | page 薄協調，use-case 集中業務邏輯；domain code 不直接 import Firebase SDK |
+| 可測試性 | use-case 可在 in-memory repository 下完整測試；不依賴 Firebase SDK |
 | 隔離性 | `wiki-beta` ↔ `wiki` 模組 import boundary 嚴格隔離 |
-| 一致性 | 命名對照表是唯一詞彙標準 |
+| 一致性 | 命名對照表是唯一詞彙標準；不可在相同文件中混用 Notion 術語與 Xuanwu 術語 |
+| 效能 | Pages 樹狀讀取 P95 < 1s（account 下 ≤1000 頁）；Library snapshot 讀取 P95 < 2s |
 
 ---
 
 ## 8. 路由與導覽規格
 
-| 路徑 | 功能 |
-|---|---|
-| `/wiki-beta` | 知識總覽 |
-| `/wiki-beta/pages` | Pages 樹狀管理（建立、更名、移動）|
-| `/wiki-beta/libraries` | Libraries 管理（建立、新增欄位、新增記錄）|
-| `/wiki-beta/documents` | 文件上傳、列表、RAG 重整 |
-| `/wiki-beta/rag-query` | RAG 問答查詢 |
-| `/wiki-beta/rag-reindex` | 手動重整文件 |
+| 路徑 | 功能 | 狀態 |
+|---|---|---|
+| `/wiki-beta` | 知識總覽 | ✅ 現有 |
+| `/wiki-beta/pages` | Pages 樹狀管理（建立、更名、移動） | ✅ 實作中 |
+| `/wiki-beta/libraries` | Libraries 管理（建立、新增欄位、新增記錄） | ✅ 實作中 |
+| `/wiki-beta/documents` | 文件上傳、列表、RAG 重整 | ✅ 現有 |
+| `/wiki-beta/rag-query` | RAG 問答查詢 | ✅ 現有 |
+| `/wiki-beta/rag-reindex` | 手動重整文件 | ✅ 現有 |
 
 ---
 
 ## 9. 驗收標準
 
-| 代號 | 標準 |
-|---|---|
-| A1 | `/wiki-beta/pages` 可建立根頁面與子頁面 |
-| A2 | 頁面更名後 slug 自動更新且不重複 |
-| A3 | 移動頁面時循環偵測正確阻擋非法移動 |
-| A4 | `/wiki-beta/libraries` 可建立 Library 並新增欄位 |
-| A5 | 建立 row 時必填欄位驗證正確 |
-| A6 | Domain events 在每次操作後正確發布 |
-| A7 | 所有操作是 account-scoped，無 global collection 存取 |
-| A8 | `npm run lint` 與 `npm run build` 通過，無 error |
+| 代號 | 標準 | 測試方式 |
+|---|---|---|
+| A1 | `/wiki-beta/pages` 可建立根頁面與子頁面 | Playwright MCP |
+| A2 | 頁面更名後 slug 自動更新且同層不重複 | Unit test + Playwright MCP |
+| A3 | 移動頁面時循環偵測正確阻擋非法移動 | Unit test |
+| A4 | `/wiki-beta/libraries` 可建立 Library 並新增欄位 | Playwright MCP |
+| A5 | 建立 row 時必填欄位驗證正確，缺少必填欄位時顯示明確錯誤 | Unit test + Playwright MCP |
+| A6 | Domain events 在每次操作後正確發布，payload 包含必填欄位 | Unit test |
+| A7 | 所有操作是 account-scoped，無 global collection 存取 | Code review + lint rule |
+| A8 | `npm run lint` 與 `npm run build` 通過，無 error | CI |

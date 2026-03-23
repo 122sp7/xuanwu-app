@@ -16,23 +16,27 @@
 
 ## 1. 前置閱讀
 
-開始實作前，請先閱讀：
+開始實作前，請先閱讀（按順序）：
 
-1. **架構規範**：`docs/architecture/wiki.md`
-2. **命名對照**：`docs/wiki-beta/wiki-beta-naming-alignment.md`
-3. **Runtime 流程圖**：`docs/wiki-beta/wiki-beta-runtime-flow.mermaid`
-4. **開發契約**：`docs/reference/development-contracts/wiki-contract.md`
-5. **整體 MDDD 規範**：`CLAUDE.md`
+| 優先 | 文件 | 說明 |
+|---|---|---|
+| 1 | `docs/architecture/wiki.md` | 架構規範 |
+| 2 | `docs/wiki-beta/wiki-beta-naming-alignment.md` | **命名對照**（所有術語依此為準） |
+| 3 | `docs/wiki-beta/wiki-beta-runtime-flow.mermaid` | Runtime 流程圖 |
+| 4 | `docs/reference/development-contracts/wiki-contract.md` | 開發契約 |
+| 5 | `CLAUDE.md` | 整體 MDDD 規範 |
 
 ---
 
 ## 2. 目的
 
-本指南定義 Xuanwu 專案如何對齊 Notion 核心能力，並在 `modules/wiki-beta` 的 MDDD 邊界內安全地實作。對齊 Notion 的目標並非複製 Notion，而是讓使用者在 Xuanwu 內可以完成相同的知識管理工作流程：
+本指南定義 Xuanwu 專案如何對齊 Notion 核心能力，並在 `modules/wiki-beta` 的 MDDD 邊界內安全地實作。
 
-- 以層級頁面（Pages）組織資訊
-- 以結構化資料表（Libraries）管理記錄
-- 以 RAG 查詢整合 AI 知識
+**對齊 Notion 的目標**：讓使用者在 Xuanwu 內完成相同的知識管理工作流程，而非複製 Notion：
+
+- 以**層級頁面（Pages）**組織資訊
+- 以**結構化資料表（Libraries）**管理記錄
+- 以 **RAG 查詢**整合 AI 知識
 
 ---
 
@@ -53,15 +57,17 @@
 
 ### 禁止跨越
 
-- 不可在 Next.js runtime 執行 parse/chunk/embed。
-- 不可讓 py_fn 擁有任何 UI 渲染或 session 邏輯。
-- 不可在 `modules/wiki-beta` 內部直接引用 `modules/wiki`（反向亦然）。
+| 禁止行為 | 理由 |
+|---|---|
+| Next.js 執行 parse/chunk/embed | 計算密集，屬 py_fn 職責 |
+| py_fn 擁有 UI 渲染或 session 邏輯 | 違反 runtime boundary |
+| `modules/wiki-beta` 直接引用 `modules/wiki`（反向亦然） | 違反 module import boundary |
 
 ---
 
 ## 4. 命名原則
 
-實作時一律使用下表對應詞彙：
+實作時一律使用下表對應詞彙（詳見 [wiki-beta-naming-alignment.md](../wiki-beta/wiki-beta-naming-alignment.md)）：
 
 | Notion 術語 | Xuanwu UI 術語 | Xuanwu Domain 術語 |
 |---|---|---|
@@ -69,8 +75,10 @@
 | Database / Data source | Libraries | `WikiBetaLibrary` |
 | Properties（欄位） | Fields | `WikiBetaLibraryField` |
 | Pages in database（行） | Records | `WikiBetaLibraryRow` |
-| Relation | Relation | relation field type |
+| Relation | Relation | `relation` field type |
 | Page properties | Page Metadata | page metadata fields |
+
+**嚴格規則**：
 
 - 不可在 runtime code identifier 中直接使用 `Notion`。
 - UI 文案一律使用 `Pages` 和 `Libraries`，不可混用 `database`、`table`、`collection`。
@@ -87,7 +95,7 @@ modules/wiki-beta/
 │   │   ├── wiki-beta-library.types.ts    # WikiBetaLibrary, WikiBetaLibraryField, WikiBetaLibraryRow
 │   │   └── wiki-beta.types.ts            # RAG, Documents, KnowledgeTree
 │   └── repositories/
-│       └── wiki-beta.repositories.ts     # Repository interfaces
+│       └── wiki-beta.repositories.ts     # Repository interfaces（不依賴 Firebase SDK）
 ├── application/
 │   └── use-cases/
 │       ├── wiki-beta-pages.use-case.ts       # CRUD + tree + cycle guard
@@ -98,8 +106,8 @@ modules/wiki-beta/
 │   └── repositories/
 │       ├── firebase-wiki-beta-page.repository.ts
 │       ├── firebase-wiki-beta.repository.ts
-│       ├── in-memory-wiki-beta-page.repository.ts
-│       └── in-memory-wiki-beta-library.repository.ts
+│       ├── in-memory-wiki-beta-page.repository.ts    # Unit test 用
+│       └── in-memory-wiki-beta-library.repository.ts # Unit test 用
 └── interfaces/
     └── components/
         ├── WikiBetaPagesTreeView.tsx   # 頁面樹 UI
@@ -107,28 +115,41 @@ modules/wiki-beta/
         └── WikiBetaHubView.tsx
 ```
 
+**關鍵原則**：
+- `domain/` 不可 import Firebase SDK 或任何框架。
+- `application/` 依賴 `domain/repositories/` 介面，由 constructor 注入實作。
+- `infrastructure/` 提供 Firebase 實作；`in-memory` 實作供 unit test 使用。
+
 ---
 
 ## 6. Pages 功能開發流程
 
 ### 6.1 建立頁面（Create Page）
 
-**Use-case**：`createWikiBetaPage(input)`
+**Use-case**：`createWikiBetaPage(input, repo)`
 
 ```typescript
 import { createWikiBetaPage } from "@/modules/wiki-beta";
 
+// ✅ 根頁面
 const page = await createWikiBetaPage({
   accountId: "acc_123",
-  workspaceId: "ws_456",  // 選填
   title: "我的第一頁",
-  parentPageId: null,      // null = 根頁面
-});
+  parentPageId: null,         // null = 根頁面
+  workspaceId: "ws_456",      // 選填
+}, pageRepository);
+
+// ✅ 子頁面
+const subPage = await createWikiBetaPage({
+  accountId: "acc_123",
+  title: "子頁面",
+  parentPageId: page.id,      // 指向父頁面
+}, pageRepository);
 ```
 
-**限制**：
+**業務規則**：
 - `title` 必填，最長 120 字元。
-- `parentPageId` 必須是同一 account 下存在的頁面。
+- `parentPageId` 必須是同一 account 下存在的頁面（或 `null`）。
 - 同層 slug 自動去重（`page-title`, `page-title-2`, ...）。
 
 ### 6.2 更名頁面（Rename Page）
@@ -140,7 +161,8 @@ await renameWikiBetaPage({
   accountId: "acc_123",
   pageId: "page_abc",
   title: "新標題",
-});
+}, pageRepository);
+// slug 自動更新並去重
 ```
 
 ### 6.3 移動頁面（Move Page）
@@ -152,19 +174,29 @@ await moveWikiBetaPage({
   accountId: "acc_123",
   pageId: "page_child",
   targetParentPageId: "page_parent", // null = 提升為根頁面
-});
+}, pageRepository);
 ```
 
-**限制**：
-- 禁止形成循環（頁面不可移到自己的子孫下）。
+**循環偵測**（必須實作）：
+```typescript
+// 禁止形成循環：page 不可移動到自己的子孫下
+// 以下為偽代碼，實際實作請參考 wiki-beta-pages.use-case.ts 中的 detectCycle() 函式
+if (await isDescendant(pageId, targetParentPageId, repo)) {
+  // isDescendant: 遞迴找到 targetParentPageId 的所有祖先，若包含 pageId 則回傳 true
+  throw new Error("CYCLE_DETECTED: 頁面不可成為自己的子孫");
+}
+```
 
 ### 6.4 讀取頁面樹
 
 ```typescript
 import { listWikiBetaPagesTree } from "@/modules/wiki-beta";
 
-const tree = await listWikiBetaPagesTree("acc_123", "ws_456");
-// 回傳 WikiBetaPageTreeNode[]，已遞迴排序
+const tree = await listWikiBetaPagesTree({
+  accountId: "acc_123",
+  workspaceId: "ws_456",  // 選填
+}, pageRepository);
+// 回傳 WikiBetaPageTreeNode[]，已遞迴排序（依 order + title）
 ```
 
 ---
@@ -180,7 +212,7 @@ const library = await createWikiBetaLibrary({
   accountId: "acc_123",
   workspaceId: "ws_456",  // 選填
   name: "任務追蹤",
-});
+}, libraryRepository);
 ```
 
 ### 7.2 新增欄位（Field）
@@ -190,6 +222,7 @@ const library = await createWikiBetaLibrary({
 ```typescript
 import { addWikiBetaLibraryField } from "@/modules/wiki-beta";
 
+// select 欄位
 await addWikiBetaLibraryField({
   accountId: "acc_123",
   libraryId: "lib_xyz",
@@ -198,8 +231,20 @@ await addWikiBetaLibraryField({
   type: "select",
   required: true,
   options: ["待處理", "進行中", "完成"],
-});
+}, libraryRepository);
+
+// text 欄位
+await addWikiBetaLibraryField({
+  accountId: "acc_123",
+  libraryId: "lib_xyz",
+  key: "description",
+  label: "說明",
+  type: "text",
+  required: false,
+}, libraryRepository);
 ```
+
+**欄位 key 規則**：自動 normalize（lowercase、underscore、英數），同 library 內不可重複。
 
 ### 7.3 新增記錄（Row）
 
@@ -210,55 +255,70 @@ await createWikiBetaLibraryRow({
   accountId: "acc_123",
   libraryId: "lib_xyz",
   values: {
-    title: "修復登入 Bug",
-    status: "進行中",
+    title: "修復登入 Bug",    // required: true，必須提供
+    status: "進行中",         // required: true，必須提供
+    description: "...",      // required: false，可選
   },
-});
+}, libraryRepository);
+// 若缺少 required 欄位，拋出 REQUIRED_FIELD_MISSING 錯誤
 ```
 
 ---
 
 ## 8. 資料範圍原則
 
-- 所有讀寫必須是 `accounts/{accountId}/...` 範圍。
-- `workspaceId` 為選填篩選視角，不改變 account 主範圍。
-- Pages 集合：`accounts/{accountId}/pages/{pageId}`（planned，目前由 in-memory/firebase repository 抽象）。
-- Libraries 集合：`accounts/{accountId}/databases/{databaseId}`（planned；Firestore 路徑使用 `databases` 作為儲存層識別，UI 與 domain code 一律使用 `Libraries`/`WikiBetaLibrary*`，請勿在應用層混用兩個詞彙）。
-- 嚴禁 global fallback collection。
+| 規則 | 說明 |
+|---|---|
+| 強制 account scope | 所有讀寫必須是 `accounts/{accountId}/...` 範圍 |
+| workspace 只是篩選 | `workspaceId` 為選填篩選視角，不改變 account 主範圍 |
+| Pages 集合 | `accounts/{accountId}/pages/{pageId}` |
+| Libraries 集合 | `accounts/{accountId}/databases/{databaseId}`（儲存層識別）；UI / domain code 一律用 `Libraries` / `WikiBetaLibrary*` |
+| 禁止 global fallback | 不可查詢 `/pages`、`/databases` 等頂層路徑 |
 
 ---
 
 ## 9. Domain 事件
 
-Pages 與 Libraries 操作會發布以下 domain events：
+Pages 與 Libraries 操作後，透過 `modules/event` 發布以下 domain events：
 
-| 事件 | 觸發時機 |
-|---|---|
-| `wiki_beta.page.created` | 建立頁面成功 |
-| `wiki_beta.page.renamed` | 更名頁面成功 |
-| `wiki_beta.page.moved` | 移動頁面成功 |
-| `wiki_beta.library.created` | 建立 Library 成功 |
-| `wiki_beta.library.field_added` | 新增欄位成功 |
-| `wiki_beta.library.row_created` | 新增記錄成功 |
+| 事件 | 觸發時機 | 消費注意 |
+|---|---|---|
+| `wiki_beta.page.created` | 建立頁面成功 | 消費者自行 fetch 最新頁面狀態 |
+| `wiki_beta.page.renamed` | 更名頁面成功 | 消費者自行 fetch 最新頁面狀態 |
+| `wiki_beta.page.moved` | 移動頁面成功 | 消費者自行 fetch 最新頁面樹 |
+| `wiki_beta.library.created` | 建立 Library 成功 | 消費者自行 fetch 最新 Library 列表 |
+| `wiki_beta.library.field_added` | 新增欄位成功 | 消費者自行 fetch 最新 Library snapshot |
+| `wiki_beta.library.row_created` | 新增記錄成功 | 消費者自行 fetch 最新 Library snapshot |
+
+**原則**：事件為 signal-first（最終一致）。消費者收到事件後自行 fetch 最新狀態，不依賴事件 payload 中的完整資料。
+
+> **最終一致性注意事項**：消費者收到事件後立即讀取 Firestore，偶有可能因寫入尚未傳播而讀到舊資料。建議實作 retry（延遲 200ms 後重試一次）。若業務邏輯對一致性有嚴格需求，改用 Firestore `onSnapshot` 直接監聽文件變更。
 
 ---
 
 ## 10. 測試策略
 
-- **Unit tests**：針對 use-case 使用 `InMemoryWikiBetaPageRepository` / `InMemoryWikiBetaLibraryRepository`。
-- **不可**在 unit test 直接依賴 Firebase SDK；repository 必須注入。
-- **Integration tests**：透過 Playwright MCP 驗證 `/wiki-beta/pages` 與 `/wiki-beta/libraries` 頁面流程。
+| 層次 | 測試方式 | 範圍 |
+|---|---|---|
+| Unit test | `InMemoryWikiBetaPageRepository` / `InMemoryWikiBetaLibraryRepository` | use-case 業務邏輯（slug 去重、循環偵測、必填驗證） |
+| Unit test | Jest + domain type mocks | domain event 發布驗證 |
+| Integration test | Playwright MCP | `/wiki-beta/pages`、`/wiki-beta/libraries` UI 流程 |
+
+**規則**：
+- Unit test **不可**直接依賴 Firebase SDK；repository 必須透過 interface 注入。
+- 循環偵測與 slug 去重必須有 unit test 覆蓋。
+- Integration test 至少覆蓋：建立 page、建立 library + 新增欄位 + 新增 record。
 
 ---
 
 ## 11. 開發步驟總覽
 
-1. **定義能力映射**：先確認對應 Notion 哪一能力，查閱命名對照表。
-2. **更新 domain types**：在 `domain/entities/` 擴充或新增型別。
-3. **更新 repository interface**：在 `domain/repositories/wiki-beta.repositories.ts` 定義新方法。
-4. **實作 use-case**：在 `application/use-cases/` 建立業務邏輯，repo 注入。
-5. **實作 infrastructure adapter**：在 `infrastructure/repositories/` 實作 Firebase 版本。
-6. **實作 UI**：在 `interfaces/components/` 實作 React 元件，page 只做薄協調。
+1. **定義能力映射**：確認對應 Notion 哪一能力，查閱命名對照表確認術語。
+2. **更新 domain types**：在 `domain/entities/` 擴充或新增型別；domain 不 import Firebase。
+3. **更新 repository interface**：在 `domain/repositories/wiki-beta.repositories.ts` 定義新方法簽名。
+4. **實作 use-case**：在 `application/use-cases/` 建立業務邏輯，repo 由外部注入。
+5. **實作 infrastructure adapter**：在 `infrastructure/repositories/` 實作 Firebase 版本與 in-memory 版本。
+6. **實作 UI**：在`interfaces/components/` 實作 React 元件，定義完整狀態（idle/loading/error/empty/populated）。
 7. **加入 Server Action**（必要時）：在 `interfaces/_actions/` 建立 `"use server"` 入口。
 8. **驗證**：
    - `npm run lint` — 0 errors
@@ -267,11 +327,25 @@ Pages 與 Libraries 操作會發布以下 domain events：
 
 ---
 
-## 12. 驗收清單
+## 12. 常見錯誤（Anti-patterns）
 
-- [ ] 命名對齊：UI 文案使用 Pages / Libraries，domain code 使用 `WikiBetaPage*` / `WikiBetaLibrary*`。
-- [ ] 無跨 `wiki-beta` ↔ `wiki` 邊界的 deep import。
-- [ ] 所有讀寫是 `accounts/{accountId}/...` 範圍。
-- [ ] Use-case 測試可在 in-memory repository 下執行。
-- [ ] `npm run lint` 和 `npm run build` 通過。
-- [ ] 設計規格與使用手冊同步更新。
+| Anti-pattern | 正確做法 |
+|---|---|
+| use-case 內直接 `import { getFirestore }` | use-case 只依賴 repository interface；Firebase 在 infrastructure 層 |
+| UI 文案使用「資料庫」或「Database」 | 一律使用「資料庫」（可接受中文）或 `Libraries`；不使用 `Database` |
+| 在 `modules/wiki-beta` 內 import `modules/wiki` | 違反 module boundary；使用 event module 間接通訊 |
+| 循環偵測後直接 throw 沒有錯誤訊息 | 拋出包含 `CYCLE_DETECTED` 代碼與可讀訊息的錯誤 |
+| Unit test 直接 new Firebase repo | 使用 `InMemoryWikiBetaPageRepository` 讓 test 不依賴網路 |
+
+---
+
+## 13. 驗收清單
+
+- [ ] 命名對齊：UI 文案使用 Pages / Libraries，domain code 使用 `WikiBetaPage*` / `WikiBetaLibrary*`
+- [ ] 無跨 `wiki-beta` ↔ `wiki` 邊界的 deep import
+- [ ] 所有讀寫是 `accounts/{accountId}/...` 範圍
+- [ ] 循環偵測 unit test 通過（包含正常移動與非法移動兩種情況）
+- [ ] 必填欄位驗證 unit test 通過
+- [ ] Use-case 測試可在 in-memory repository 下執行，不依賴 Firebase
+- [ ] `npm run lint` 和 `npm run build` 通過
+- [ ] 設計規格與使用手冊同步更新
