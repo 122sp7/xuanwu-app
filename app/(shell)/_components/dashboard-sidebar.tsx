@@ -48,17 +48,46 @@ const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
 const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
-const WORKSPACE_TAB_ITEMS = [
-  { value: "Overview", label: "Overview" },
-  { value: "Members", label: "Members" },
+const WORKSPACE_PRIMARY_LINK_ITEMS = [
+  { value: "Overview", label: "Home" },
+  { value: "Favorites", label: "Favorites" },
+  { value: "Recent", label: "Recent" },
+] as const;
+
+const WORKSPACE_SPACE_ITEMS = [
+  { value: "Engineering", label: "Engineering" },
+  { value: "Product", label: "Product" },
+  { value: "Design", label: "Design" },
+  { value: "Docs", label: "Docs" },
+  { value: "Wiki", label: "Wiki" },
+  { value: "SOP", label: "SOP" },
+  { value: "Meeting Notes", label: "Meeting Notes" },
+] as const;
+
+const WORKSPACE_DATABASE_ITEMS = [
   { value: "Tasks", label: "Tasks" },
+  { value: "Projects", label: "Projects" },
+  { value: "Notes", label: "Notes" },
+  { value: "Documents", label: "Documents" },
+  { value: "Assets", label: "Assets" },
+  { value: "CRM", label: "CRM" },
+  { value: "Roadmap", label: "Roadmap" },
+] as const;
+
+const WORKSPACE_LIBRARY_LINK_ITEMS = [
+  { value: "Tags", label: "Tags" },
+  { value: "Files", label: "Files" },
+  { value: "Templates", label: "Templates" },
+  { value: "Members", label: "Members" },
+  { value: "Trash", label: "Trash" },
+] as const;
+
+const WORKSPACE_MODULE_LINK_ITEMS = [
   { value: "QA", label: "QA" },
   { value: "Acceptance", label: "Acceptance" },
   { value: "Finance", label: "Finance" },
   { value: "Issues", label: "Issues" },
   { value: "Daily", label: "Daily" },
-  { value: "Files", label: "Files" },
-  { value: "Wiki", label: "Wiki" },
   { value: "Schedule", label: "Schedule" },
   { value: "Document Parser", label: "Document Parser" },
   { value: "Audit", label: "Audit" },
@@ -149,6 +178,9 @@ export function DashboardSidebar({
   const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
   const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
+  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
+  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const searchParams = useSearchParams();
@@ -254,6 +286,12 @@ export function DashboardSidebar({
 
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const activeWorkspaceTab = searchParams.get("tab") ?? "Overview";
+
+  function buildWorkspaceTabHref(workspaceId: string, tab: string) {
+    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  }
 
   async function handleWikiBetaQuickCreate(kind: "page" | "database") {
     const accountId = activeAccount?.id ?? "";
@@ -382,31 +420,158 @@ export function DashboardSidebar({
 
             {section === "workspace" && (
               <>
-                {getWorkspaceIdFromPath(pathname) ? (
-                  // ── Workspace detail: tab navigation ──────────────────
-                  <div className="space-y-0.5">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      Workspace
-                    </p>
-                    {WORKSPACE_TAB_ITEMS.map((item) => {
-                      const activeTab = searchParams.get("tab") ?? "Overview";
-                      const isActive = activeTab === item.value;
-                      return (
-                        <Link
-                          key={item.value}
-                          href={`/workspace/${getWorkspaceIdFromPath(pathname)}?tab=${encodeURIComponent(item.value)}`}
-                          aria-current={isActive ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            isActive
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
+                {workspacePathId ? (
+                  <nav className="space-y-3" aria-label="Workspace navigation">
+                    <div className="space-y-0.5">
+                      {WORKSPACE_PRIMARY_LINK_ITEMS.map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsWorkspaceSpacesExpanded((prev) => !prev);
+                        }}
+                        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        aria-expanded={isWorkspaceSpacesExpanded}
+                      >
+                        <span>Spaces</span>
+                        {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                      </button>
+
+                      {isWorkspaceSpacesExpanded && (
+                        <div className="space-y-0.5 pl-2">
+                          {WORKSPACE_SPACE_ITEMS.map((item) => {
+                            const isActive = activeWorkspaceTab === item.value;
+                            return (
+                              <Link
+                                key={item.value}
+                                href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                aria-current={isActive ? "page" : undefined}
+                                className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                  isActive
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsWorkspaceDatabasesExpanded((prev) => !prev);
+                        }}
+                        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        aria-expanded={isWorkspaceDatabasesExpanded}
+                      >
+                        <span>Databases</span>
+                        {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                      </button>
+
+                      {isWorkspaceDatabasesExpanded && (
+                        <div className="space-y-0.5 pl-2">
+                          {WORKSPACE_DATABASE_ITEMS.map((item) => {
+                            const isActive = activeWorkspaceTab === item.value;
+                            return (
+                              <Link
+                                key={item.value}
+                                href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                aria-current={isActive ? "page" : undefined}
+                                className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                  isActive
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {WORKSPACE_LIBRARY_LINK_ITEMS.map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    <div className="my-1.5 border-t border-border/40" />
+
+                    <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsWorkspaceModulesExpanded((prev) => !prev);
+                        }}
+                        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        aria-expanded={isWorkspaceModulesExpanded}
+                      >
+                        <span>Workspace Modules</span>
+                        {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                      </button>
+
+                      {isWorkspaceModulesExpanded && (
+                        <div className="space-y-0.5 pl-2">
+                          {WORKSPACE_MODULE_LINK_ITEMS.map((item) => {
+                            const isActive = activeWorkspaceTab === item.value;
+                            return (
+                              <Link
+                                key={item.value}
+                                href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                aria-current={isActive ? "page" : undefined}
+                                className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                  isActive
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </nav>
                 ) : (
                   // ── Workspace hub: show recent workspaces ──────────────
                   <>
