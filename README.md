@@ -70,6 +70,13 @@ See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architec
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## AI Delivery Workflow
+
+This repository includes a formal Copilot delivery workflow for non-trivial changes.
+
+- Start here: [docs/how-to/ai/start-feature-delivery.md](docs/how-to/ai/start-feature-delivery.md)
+- Customizations index: [docs/reference/ai/customizations-index.md](docs/reference/ai/customizations-index.md)
+
 ## Code of Conduct
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

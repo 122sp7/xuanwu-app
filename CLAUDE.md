@@ -98,6 +98,17 @@ export class MyUseCase {
 
 When spec-driven development is requested, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
 
+## Copilot Delivery Workflow
+
+The repository also ships a formal Copilot delivery chain for complex work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use [`.github/copilot-instructions.md`](.github/copilot-instructions.md) as the Copilot-specific baseline and [`docs/reference/ai/handoff-matrix.md`](docs/reference/ai/handoff-matrix.md) for stage transitions and recovery paths.
+
 ## Permissions Model
 
 See [`PERMISSIONS.md`](PERMISSIONS.md) for the role/permission model used in this project.

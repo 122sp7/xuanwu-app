@@ -105,3 +105,11 @@ This project follows **Module-Driven Domain Design (MDDD)**. Before making chang
 ## Spec-Driven Development
 
 For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/how-to/ai/start-feature-delivery.md`](docs/how-to/ai/start-feature-delivery.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
