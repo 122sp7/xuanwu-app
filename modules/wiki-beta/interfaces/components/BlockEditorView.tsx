@@ -348,8 +348,9 @@ export function BlockEditorView({ pageId, initialBlocks }: BlockEditorViewProps)
       { id: "blk_seed", type: "paragraph" as BlockType, content: "", sortOrder: 0 },
     ];
     initPage(pageId, seed);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId]);
+    // initPage is a stable Zustand action; pageId is the only reactive dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageId, initPage]);
 
   function getSlashFilter(blockId: string): string {
     const block = blocks.find((b) => b.id === blockId);

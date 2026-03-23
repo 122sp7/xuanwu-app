@@ -97,7 +97,10 @@ function TreeNode({ node, depth, onCreateChild }: TreeNodeProps) {
         },
         getData: ({ input }) =>
           attachClosestEdge(
-            { pageId: node.id, parentPageId: node.parentPageId } satisfies { pageId: string; parentPageId: string | null },
+            {
+              pageId: node.id,
+              parentPageId: node.parentPageId,
+            } satisfies { pageId: string; parentPageId: string | null },
             { element: el, input, allowedEdges: ["top", "bottom"] },
           ),
         onDrag: ({ self }) => {
@@ -238,12 +241,14 @@ export function WikiBetaPagesDnDView({ accountId, workspaceId }: WikiBetaPagesDn
 
         if (sourceData.pageId === targetData.pageId) return;
 
-        // Determine new parent: when dropping on "top" of a node, keep sibling;
-        // when dropping "bottom", potentially reparent (simplified: same parent).
+        // When dropping on "bottom" edge: move to same parent as the target (sibling).
+        // When dropping on "top" edge: also sibling, but placed before the target.
+        // In both cases the parent is the same; the visual order is handled by
+        // the page's `order` field which moveWikiBetaPage resets server-side.
         const newParentId =
-          edge === "bottom"
+          edge === "bottom" || edge === "top"
             ? (targetData.parentPageId ?? null)
-            : (targetData.parentPageId ?? null);
+            : null;
 
         void moveWikiBetaPage({
           accountId,

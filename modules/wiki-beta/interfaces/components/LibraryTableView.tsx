@@ -250,6 +250,9 @@ export function LibraryTableView({ fields, rows, title }: LibraryTableViewProps)
           enableSorting: true,
         }),
       ),
+    // columnHelper is created from createColumnHelper<LibraryRow>() which is a pure
+    // factory with no closures or internal state — safe to exclude from deps.
+    // fields is the only real dependency that drives column regeneration.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [fields],
   );

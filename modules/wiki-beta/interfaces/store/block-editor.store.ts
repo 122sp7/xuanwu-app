@@ -78,6 +78,9 @@ export interface BlockEditorState {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function generateId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `blk_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  }
   return `blk_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
 }
 
