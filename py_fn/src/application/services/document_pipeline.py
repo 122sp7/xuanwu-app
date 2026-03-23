@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from application.ports.output.gateways import DocumentPipelineGateway, get_document_pipeline_gateway
+from domain.repositories import DocumentPipelineGateway, get_document_pipeline_gateway
 
 
 def get_document_pipeline() -> DocumentPipelineGateway:

@@ -107,6 +107,7 @@ py_fn/src
 
 ### 目前 py_fn 的落點範例
 - `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
+- `domain/repositories/rag.py`: `RagQueryGateway`, `RagIngestionGateway`, `DocumentPipelineGateway`
 - `application/dto/rag.py`: `RagIngestionResult`
 - `infrastructure/external/documentai/client.py`: `ParsedDocument`
 
