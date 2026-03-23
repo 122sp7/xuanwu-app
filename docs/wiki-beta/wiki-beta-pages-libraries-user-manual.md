@@ -8,7 +8,7 @@
 
 ## 0. 文件一致性
 
-本手冊流程與詞彙對齊 [docs/wiki-beta/wiki-beta-naming-alignment.md](../wiki-beta/wiki-beta-naming-alignment.md)。若畫面行為與手冊描述不一致，請先以 runtime-flow 判斷預期，再回補手冊內容。
+本手冊流程與詞彙對齊 [docs/wiki-beta/wiki-beta-naming-alignment.md](./wiki-beta-naming-alignment.md)。若畫面行為與手冊描述不一致，請先以 runtime-flow 判斷預期，再回補手冊內容。
 
 ---
 

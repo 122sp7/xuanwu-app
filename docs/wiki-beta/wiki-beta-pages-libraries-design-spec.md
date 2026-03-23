@@ -9,8 +9,8 @@
 
 ## 0. 文件一致性（單一真實來源）
 
-- 本設計規格以 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](../wiki-beta/wiki-beta-runtime-flow.mermaid) 為單一真實來源。
-- Notion 能力命名以 [docs/wiki-beta/wiki-beta-naming-alignment.md](../wiki-beta/wiki-beta-naming-alignment.md) 為準。
+- 本設計規格以 [docs/wiki-beta/wiki-beta-runtime-flow.mermaid](./wiki-beta-runtime-flow.mermaid) 為單一真實來源。
+- Notion 能力命名以 [docs/wiki-beta/wiki-beta-naming-alignment.md](./wiki-beta-naming-alignment.md) 為準。
 - 若發現與 runtime-flow 圖不一致，先更新本規格，再補充實作計畫。
 
 ---
