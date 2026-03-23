@@ -1,5 +1,4 @@
 name: Cleanup Old Caches
-
 on:
   schedule:
     - cron: '0 3 * * *'
