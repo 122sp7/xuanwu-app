@@ -16,16 +16,18 @@ import {
 } from "../../domain/services/derive-schedule-items";
 
 function toScheduleFinanceSnapshot(
-  financeEntity: Awaited<ReturnType<FirebaseFinanceRepository["findByWorkspaceId"]>>,
+  invoices: Awaited<ReturnType<FirebaseFinanceRepository["findByWorkspaceId"]>>,
 ): WorkspaceFinanceScheduleSnapshot | null {
-  if (!financeEntity) {
+  if (!invoices || invoices.length === 0) {
     return null;
   }
 
+  // Use the most recent invoice as the representative snapshot.
+  const latest = invoices[0];
   return {
-    stage: financeEntity.stage,
-    paymentTermStartAtISO: financeEntity.paymentTermStartAtISO,
-    paymentReceivedAtISO: financeEntity.paymentReceivedAtISO,
+    stage: latest.status,
+    paymentTermStartAtISO: latest.submittedAtISO ?? null,
+    paymentReceivedAtISO: latest.paidAtISO ?? null,
   };
 }
 
@@ -68,7 +70,7 @@ export class FirebaseWorkspaceScheduleRepository implements ScheduleRepository {
     }
 
     const workspace = workspaceResult.value;
-    const finance = financeResult.status === "fulfilled" ? financeResult.value : null;
+  const finance = financeResult.status === "fulfilled" ? (financeResult.value ?? []) : [];
 
     const snapshotSource = toScheduleSnapshotSource(
       workspace,
