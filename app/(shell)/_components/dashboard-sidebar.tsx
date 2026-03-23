@@ -84,12 +84,12 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
 
 // ── Section helpers ──────────────────────────────────────────────────────────
 
-type NavSection = "workspace" | "wiki" | "wiki-beta" | "ai-chat" | "organization" | "settings" | "other";
+type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "organization" | "settings" | "other";
 
 function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
   if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
-  if (pathname.startsWith("/wiki")) return "wiki";
+  if (pathname.startsWith("/wiki")) return "wiki-beta";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (pathname.startsWith("/organization")) return "organization";
   if (pathname.startsWith("/settings")) return "settings";
@@ -100,7 +100,6 @@ function resolveNavSection(pathname: string): NavSection {
 
 const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  wiki: { label: "Wiki", icon: <BookOpen className="size-3" /> },
   "wiki-beta": { label: "Wiki Beta", icon: <BookOpen className="size-3" /> },
   "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
@@ -420,65 +419,6 @@ export function DashboardSidebar({
                   </div>
                 )}
               </>
-            )}
-
-            {section === "wiki" && (
-              <nav className="space-y-0.5" aria-label="Wiki navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  知識庫
-                </p>
-                {(
-                  [
-                    { href: "/wiki", label: "知識中樞" },
-                    { href: "/organization/knowledge", label: "組織知識庫" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="my-1.5 border-t border-border/40" />
-
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  頁面
-                </p>
-                {(
-                  [
-                    { href: "/wiki/shared", label: "共用頁面" },
-                    { href: "/wiki/private", label: "私人頁面" },
-                    { href: "/wiki/archive", label: "封存" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
             )}
 
             {section === "wiki-beta" && (

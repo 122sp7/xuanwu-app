@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 
 /**
  * Module: organization/knowledge page
- * Purpose: redirect to the consolidated knowledge hub at /wiki.
+ * Purpose: redirect to the consolidated knowledge hub at /wiki-beta.
  * Knowledge management is centralised in the Wiki section.
  */
 export default function OrganizationKnowledgePage() {
-  redirect("/wiki");
+  redirect("/wiki-beta");
 }
