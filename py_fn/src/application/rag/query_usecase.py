@@ -43,7 +43,6 @@ def _match_account(metadata: dict[str, Any], account_scope: str) -> bool:
         metadata.get("accountId"),
         metadata.get("account"),
         metadata.get("account_scope"),
-        metadata.get("namespace"),
     )
     return any(str(value or "").strip() == account_scope for value in candidates)
 
@@ -123,8 +122,27 @@ def _match_taxonomy(metadata: dict[str, Any], taxonomy_filters: tuple[str, ...])
     return bool(candidates.intersection(normalized_filters))
 
 
+def _extract_text_candidate(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+
+    if isinstance(value, dict):
+        candidates = (
+            value.get("text"),
+            value.get("content"),
+            value.get("chunk_text"),
+        )
+        for candidate in candidates:
+            snippet = str(candidate or "").strip()
+            if snippet:
+                return snippet
+
+    return ""
+
+
 def _extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
     candidates = (
+        hit.get("data"),
         metadata.get("text"),
         metadata.get("chunk_text"),
         metadata.get("content"),
@@ -132,7 +150,7 @@ def _extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
         hit.get("content"),
     )
     for candidate in candidates:
-        snippet = str(candidate or "").strip()
+        snippet = _extract_text_candidate(candidate)
         if snippet:
             return snippet
     return ""

@@ -133,6 +133,23 @@ def get_search_index() -> Any:
     return _SEARCH_INDEX
 
 
+def _normalize_vector_item(item: Any) -> dict[str, Any]:
+    if isinstance(item, dict):
+        return {
+            "id": item.get("id"),
+            "score": item.get("score"),
+            "metadata": item.get("metadata"),
+            "data": item.get("data"),
+        }
+
+    return {
+        "id": getattr(item, "id", None),
+        "score": getattr(item, "score", None),
+        "metadata": getattr(item, "metadata", None),
+        "data": getattr(item, "data", None),
+    }
+
+
 def upsert_vectors(items: list[dict[str, Any]]) -> Any:
     """
     批次 upsert 向量資料到 Upstash Vector。
@@ -143,55 +160,69 @@ def upsert_vectors(items: list[dict[str, Any]]) -> Any:
       - metadata: dict[str, Any]
     """
     index = get_vector_index()
+    sdk_payload = [
+        {
+            "id": item["id"],
+            "vector": item["vector"],
+            "metadata": item.get("metadata", {}),
+            "data": item.get("data"),
+        }
+        for item in items
+    ]
     tuples_payload = [
         (item["id"], item["vector"], item.get("metadata", {}))
         for item in items
     ]
 
     try:
-        return index.upsert(vectors=tuples_payload)
+        return index.upsert(vectors=sdk_payload)
     except TypeError:
         try:
-            return index.upsert(tuples_payload)
+            return index.upsert(sdk_payload)
         except TypeError:
-            return index.upsert(items)
+            try:
+                return index.upsert(tuples_payload)
+            except TypeError:
+                return index.upsert(items)
 
 
 def query_vectors(
     vector: list[float],
     top_k: int,
     include_metadata: bool = True,
+    include_data: bool = True,
 ) -> list[dict[str, Any]]:
     """查詢 Upstash Vector，統一輸出為 list[dict]。"""
     index = get_vector_index()
 
     try:
-        result = index.query(vector=vector, top_k=top_k, include_metadata=include_metadata)
+        result = index.query(
+            vector=vector,
+            top_k=top_k,
+            include_metadata=include_metadata,
+            include_data=include_data,
+        )
     except TypeError:
         try:
-            result = index.query(vector, top_k=top_k)
+            result = index.query(
+                vector,
+                top_k=top_k,
+                include_metadata=include_metadata,
+                include_data=include_data,
+            )
         except TypeError:
-            result = index.query(data=vector, top_k=top_k)
+            result = index.query(vector=vector, top_k=top_k)
 
     if isinstance(result, list):
-        return [dict(item) if isinstance(item, dict) else {"raw": item} for item in result]
+        return [_normalize_vector_item(item) for item in result]
 
     if isinstance(result, dict):
         candidates = result.get("result") or result.get("matches") or result.get("data") or []
         if isinstance(candidates, list):
-            return [dict(item) if isinstance(item, dict) else {"raw": item} for item in candidates]
+            return [_normalize_vector_item(item) for item in candidates]
 
     if hasattr(result, "data") and isinstance(result.data, list):
-        parsed: list[dict[str, Any]] = []
-        for item in result.data:
-            parsed.append(
-                {
-                    "id": getattr(item, "id", None),
-                    "score": getattr(item, "score", None),
-                    "metadata": getattr(item, "metadata", None),
-                }
-            )
-        return parsed
+        return [_normalize_vector_item(item) for item in result.data]
 
     return []
 

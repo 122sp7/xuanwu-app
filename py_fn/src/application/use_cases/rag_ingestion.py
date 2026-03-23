@@ -150,6 +150,7 @@ def ingest_document_for_rag(
             {
                 "id": chunk_id,
                 "vector": vec,
+                "data": chunk["text"],
                 "metadata": {
                     "namespace": RAG_VECTOR_NAMESPACE,
                     "doc_id": doc_id,
