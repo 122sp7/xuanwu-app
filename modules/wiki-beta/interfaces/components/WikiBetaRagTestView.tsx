@@ -17,7 +17,8 @@ import {
 import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getFirebaseAuth } from "@integration-firebase";
+import { useAuth } from "@/app/providers/auth-provider";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
 import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { Button } from "@ui-shadcn/ui/button";
@@ -237,6 +238,7 @@ function RagBadge({ status, error }: { status: string; error: string }) {
 
 export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiBetaRagTestViewProps) {
   const { state: appState } = useApp();
+  const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";
   const effectiveWorkspaceId = workspaceId?.trim() || appState.activeWorkspaceId || "";
   const showQueryCard = mode === "all" || mode === "query";
@@ -371,8 +373,13 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
 
     setLoadingAnswer(true);
     try {
-      if (!getFirebaseAuth().currentUser) {
+      if (authState.status !== "authenticated") {
         toast.error("請先以真實帳號登入才能執行 RAG 查詢");
+        return;
+      }
+      // Dev-demo users have app "authenticated" status but no real Firebase session and cannot call Cloud Functions
+      if (authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
+        toast.error("請先以真實帳號登入才能執行 RAG 查詢（Dev-demo 帳號無法使用此功能）");
         return;
       }
       if (!activeAccountId) {
