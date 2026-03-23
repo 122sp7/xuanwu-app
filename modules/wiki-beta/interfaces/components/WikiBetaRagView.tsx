@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,7 +9,6 @@ import {
   FileUp,
   Loader2,
   Pencil,
-  RefreshCw,
   Search,
   Trash2,
   XCircle,
@@ -25,13 +24,10 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
 import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  runWikiBetaRagQuery,
-} from "../../application";
-import type {
-  WikiBetaCitation,
-  WikiBetaParsedDocument,
-} from "../../domain";
+import { runWikiBetaRagQuery } from "../../application";
+import type { WikiBetaCitation } from "../../domain";
+import type { WikiBetaLiveDocument } from "../hooks/useDocumentsSnapshot";
+import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
 
 interface WikiBetaRagViewProps {
   readonly onBack: () => void;
@@ -56,12 +52,6 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("zh-TW", { hour12: false });
 }
 
-interface WikiBetaLiveDocument extends WikiBetaParsedDocument {
-  readonly errorMessage: string;
-  readonly ragError: string;
-  readonly isClientPending?: boolean;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -71,38 +61,6 @@ function objectOrEmpty(value: unknown): Record<string, unknown> {
     return value;
   }
   return {};
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  const maybeToDate = value.toDate;
-  if (typeof maybeToDate === "function") {
-    try {
-      const converted = maybeToDate.call(value);
-      if (converted instanceof Date) {
-        return converted;
-      }
-    } catch {
-      // fallback to toMillis below
-    }
-  }
-
-  const maybeToMillis = value.toMillis;
-  if (typeof maybeToMillis === "function") {
-    try {
-      const millis = maybeToMillis.call(value);
-      if (typeof millis === "number" && Number.isFinite(millis)) {
-        return new Date(millis);
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function toNumberOrDefault(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 function getErrorMessage(error: unknown): string {
