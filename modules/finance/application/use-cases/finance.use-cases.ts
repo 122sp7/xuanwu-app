@@ -1,101 +1,82 @@
 /**
- * Finance Use Cases — pure business workflows.
+ * Module: finance
+ * Layer: application/use-cases
+ * Purpose: Invoice lifecycle use-cases.
+ *
+ * Replaces old SubmitClaimUseCase / AdvanceFinanceStageUseCase / RecordPaymentReceivedUseCase.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { FinanceRepository } from "../../domain/repositories/FinanceRepository";
-import type { FinanceClaimLineItem } from "../../domain/entities/Finance";
-import { canAdvanceStage, nextStage, calculateTotalClaim } from "../../domain/entities/Finance";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IInvoiceRepository, CreateInvoiceEntityInput } from "../../domain/repositories/FinanceRepository";
+import type { Invoice } from "../../domain/entities/Invoice";
+import { canTransitionInvoice, nextInvoiceStatus, isInvoiceMutable } from "../../domain/value-objects/invoice-state";
 
-export class SubmitClaimUseCase {
-  constructor(private readonly financeRepo: FinanceRepository) {}
+export class CreateInvoiceUseCase {
+  constructor(private readonly invoiceRepository: IInvoiceRepository) {}
 
-  async execute(
-    workspaceId: string,
-    lineItems: FinanceClaimLineItem[],
-  ): Promise<CommandResult> {
-    try {
-      const finance = await this.financeRepo.findByWorkspaceId(workspaceId);
-      if (!finance) {
-        return commandFailureFrom("FINANCE_NOT_FOUND", `Finance aggregate for workspace ${workspaceId} not found`);
-      }
-      if (finance.stage !== "claim-preparation") {
-        return commandFailureFrom("FINANCE_INVALID_STAGE", `Cannot submit claim from stage: ${finance.stage}`);
-      }
-      if (lineItems.length === 0) {
-        return commandFailureFrom("FINANCE_EMPTY_CLAIM", "Cannot submit an empty claim");
-      }
-      const totalAmount = calculateTotalClaim(lineItems);
-      if (totalAmount <= 0) {
-        return commandFailureFrom("FINANCE_INVALID_AMOUNT", "Claim total must be positive");
-      }
-      await this.financeRepo.submitClaim(workspaceId, lineItems);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SUBMIT_CLAIM_FAILED",
-        err instanceof Error ? err.message : "Failed to submit claim",
-      );
-    }
+  async execute(input: CreateInvoiceEntityInput): Promise<CommandResult> {
+    const tenantId = input.tenantId.trim();
+    const teamId = input.teamId.trim();
+    const workspaceId = input.workspaceId.trim();
+
+    if (!tenantId) return commandFailureFrom("INV_TENANT_REQUIRED", "Tenant is required.");
+    if (!teamId) return commandFailureFrom("INV_TEAM_REQUIRED", "Team is required.");
+    if (!workspaceId) return commandFailureFrom("INV_WORKSPACE_REQUIRED", "Workspace is required.");
+
+    const invoice = await this.invoiceRepository.create({ ...input, tenantId, teamId, workspaceId });
+    return commandSuccess(invoice.id, Date.now());
   }
 }
 
-export class AdvanceFinanceStageUseCase {
-  constructor(private readonly financeRepo: FinanceRepository) {}
+export class AdvanceInvoiceUseCase {
+  constructor(private readonly invoiceRepository: IInvoiceRepository) {}
 
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const finance = await this.financeRepo.findByWorkspaceId(workspaceId);
-      if (!finance) {
-        return commandFailureFrom("FINANCE_NOT_FOUND", `Finance aggregate not found`);
-      }
-      if (!canAdvanceStage(finance.stage)) {
-        return commandFailureFrom(
-          "FINANCE_STAGE_TERMINAL",
-          `Cannot advance from terminal stage: ${finance.stage}`,
-        );
-      }
-      const next = nextStage(finance.stage);
-      await this.financeRepo.advanceStage(workspaceId, next);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ADVANCE_STAGE_FAILED",
-        err instanceof Error ? err.message : "Failed to advance finance stage",
-      );
+  async execute(invoiceId: string): Promise<CommandResult> {
+    const normalizedId = invoiceId.trim();
+    if (!normalizedId) return commandFailureFrom("INV_ID_REQUIRED", "Invoice id is required.");
+
+    const invoice = await this.invoiceRepository.findById(normalizedId);
+    if (!invoice) return commandFailureFrom("INV_NOT_FOUND", "Invoice not found.");
+
+    const next = nextInvoiceStatus(invoice.status);
+    if (!next) {
+      return commandFailureFrom("INV_TERMINAL", `Invoice is already at terminal status: ${invoice.status}.`);
     }
+    if (!canTransitionInvoice(invoice.status, next)) {
+      return commandFailureFrom("INV_INVALID_TRANSITION", `Cannot advance from "${invoice.status}".`);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(normalizedId, next, nowISO);
+    if (!updated) return commandFailureFrom("INV_NOT_FOUND", "Invoice not found after transition.");
+    return commandSuccess(updated.id, Date.now());
   }
 }
 
-export class RecordPaymentReceivedUseCase {
-  constructor(private readonly financeRepo: FinanceRepository) {}
+export class DeleteInvoiceUseCase {
+  constructor(private readonly invoiceRepository: IInvoiceRepository) {}
 
-  async execute(
-    workspaceId: string,
-    amount: number,
-    receivedAt: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("FINANCE_INVALID_AMOUNT", "Payment amount must be positive");
-      }
-      const finance = await this.financeRepo.findByWorkspaceId(workspaceId);
-      if (!finance) {
-        return commandFailureFrom("FINANCE_NOT_FOUND", "Finance aggregate not found");
-      }
-      if (finance.stage !== "payment-term") {
-        return commandFailureFrom(
-          "FINANCE_INVALID_STAGE",
-          `Cannot record payment from stage: ${finance.stage}`,
-        );
-      }
-      await this.financeRepo.recordPaymentReceived(workspaceId, amount, receivedAt);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RECORD_PAYMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to record payment",
-      );
+  async execute(invoiceId: string): Promise<CommandResult> {
+    const normalizedId = invoiceId.trim();
+    if (!normalizedId) return commandFailureFrom("INV_ID_REQUIRED", "Invoice id is required.");
+
+    const invoice = await this.invoiceRepository.findById(normalizedId);
+    if (!invoice) return commandFailureFrom("INV_NOT_FOUND", "Invoice not found.");
+    if (!isInvoiceMutable(invoice.status)) {
+      return commandFailureFrom("INV_NOT_MUTABLE", "Only draft invoices can be deleted.");
     }
+
+    await this.invoiceRepository.delete(normalizedId);
+    return commandSuccess(normalizedId, Date.now());
+  }
+}
+
+export class ListInvoicesUseCase {
+  constructor(private readonly invoiceRepository: IInvoiceRepository) {}
+
+  async execute(workspaceId: string): Promise<Invoice[]> {
+    const normalizedId = workspaceId.trim();
+    if (!normalizedId) return [];
+    return this.invoiceRepository.findByWorkspaceId(normalizedId);
   }
 }

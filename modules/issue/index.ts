@@ -1,27 +1,7 @@
-export { WorkspaceIssueTab } from "./interfaces/components/WorkspaceIssueTab";
-export type {
-  WorkspaceIssueEntity,
-  WorkspaceIssueSeverity,
-  WorkspaceIssueStatus,
-  CreateWorkspaceIssueInput,
-  UpdateWorkspaceIssueInput,
-} from "./domain/entities/Issue";
-export type { IssueRepository } from "./domain/repositories/IssueRepository";
-export {
-  CreateWorkspaceIssueUseCase,
-  UpdateWorkspaceIssueUseCase,
-  DeleteWorkspaceIssueUseCase,
-  ListWorkspaceIssuesUseCase,
-} from "./application/use-cases/issue.use-cases";
-export { FirebaseIssueRepository } from "./infrastructure/firebase/FirebaseIssueRepository";
-export {
-  createWorkspaceIssue,
-  updateWorkspaceIssue,
-  deleteWorkspaceIssue,
-} from "./interfaces/_actions/issue.actions";
-export { getWorkspaceIssues } from "./interfaces/queries/issue.queries";
+// ── Domain: entity ────────────────────────────────────────────────────────────
+export type { IssueEntity, CreateIssueInput, UpdateIssueInput } from "./domain/entities/Issue";
 
-// ── MDDD Domain: lifecycle status & state machine ─────────────────────────────
+// ── Domain: lifecycle status, stage & state machine ──────────────────────────
 export type { IssueLifecycleStatus, IssueStage } from "./domain/value-objects/issue-state";
 export {
   ISSUE_LIFECYCLE_STATUSES,
@@ -30,7 +10,7 @@ export {
   isTerminalIssueStatus,
 } from "./domain/value-objects/issue-state";
 
-// ── MDDD Domain: events (cross-domain) ───────────────────────────────────────
+// ── Domain: events (cross-domain) ─────────────────────────────────────────────
 export type {
   IssueDomainEvent,
   IssueCreatedEvent,
@@ -40,7 +20,10 @@ export type {
   IssueClosedEvent,
 } from "./domain/events/issue.events";
 
-// ── MDDD Application: DTOs ────────────────────────────────────────────────────
+// ── Domain: repository port ───────────────────────────────────────────────────
+export type { IssueRepository } from "./domain/repositories/IssueRepository";
+
+// ── Application: DTOs ─────────────────────────────────────────────────────────
 export type {
   CreateIssueInputDto,
   UpdateIssueInputDto,
@@ -53,3 +36,24 @@ export {
   IssueLifecycleStatusSchema,
   IssueStageSchema,
 } from "./application/dto/issue.dto";
+
+// ── Application: use-cases ────────────────────────────────────────────────────
+export {
+  CreateIssueUseCase,
+  UpdateIssueUseCase,
+  DeleteIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ListIssuesUseCase,
+} from "./application/use-cases/issue.use-cases";
+
+// ── Infrastructure ────────────────────────────────────────────────────────────
+export { FirebaseIssueRepository } from "./infrastructure/firebase/FirebaseIssueRepository";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export { createIssue, updateIssue, deleteIssue, transitionIssueStatus } from "./interfaces/_actions/issue.actions";
+
+// ── Interfaces: queries ───────────────────────────────────────────────────────
+export { getIssues } from "./interfaces/queries/issue.queries";
+
+// ── Interfaces: UI component ──────────────────────────────────────────────────
+export { WorkspaceIssueTab } from "./interfaces/components/WorkspaceIssueTab";

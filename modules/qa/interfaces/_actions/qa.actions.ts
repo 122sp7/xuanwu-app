@@ -1,64 +1,29 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import type {
-  CreateWorkspaceQualityCheckInput,
-  UpdateWorkspaceQualityCheckInput,
-} from "../../domain/entities/QualityCheck";
+import type { CreateTestCaseInput } from "../../domain/entities/TestCase";
 import {
-  CreateWorkspaceQualityCheckUseCase,
-  DeleteWorkspaceQualityCheckUseCase,
-  UpdateWorkspaceQualityCheckUseCase,
+  CreateTestCaseUseCase,
+  DeleteTestCaseUseCase,
 } from "../../application/use-cases/quality-check.use-cases";
-import { FirebaseQualityCheckRepository } from "../../infrastructure/firebase/FirebaseQualityCheckRepository";
+import { FirebaseTestCaseRepository } from "../../infrastructure/firebase/FirebaseTestCaseRepository";
 
-function createQualityCheckUseCases() {
-  const qualityCheckRepository = new FirebaseQualityCheckRepository();
-  return {
-    createWorkspaceQualityCheckUseCase: new CreateWorkspaceQualityCheckUseCase(qualityCheckRepository),
-    updateWorkspaceQualityCheckUseCase: new UpdateWorkspaceQualityCheckUseCase(qualityCheckRepository),
-    deleteWorkspaceQualityCheckUseCase: new DeleteWorkspaceQualityCheckUseCase(qualityCheckRepository),
-  };
+function makeRepo() {
+  return new FirebaseTestCaseRepository();
 }
 
-export async function createWorkspaceQualityCheck(
-  input: CreateWorkspaceQualityCheckInput,
-): Promise<CommandResult> {
+export async function createTestCase(input: CreateTestCaseInput): Promise<CommandResult> {
   try {
-    const { createWorkspaceQualityCheckUseCase } = createQualityCheckUseCases();
-    return await createWorkspaceQualityCheckUseCase.execute(input);
-  } catch (error) {
-    return commandFailureFrom(
-      "QA_CREATE_FAILED",
-      error instanceof Error ? error.message : "Unexpected QA create error",
-    );
+    return await new CreateTestCaseUseCase(makeRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("TC_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export async function updateWorkspaceQualityCheck(
-  qualityCheckId: string,
-  input: UpdateWorkspaceQualityCheckInput,
-): Promise<CommandResult> {
+export async function deleteTestCase(testCaseId: string): Promise<CommandResult> {
   try {
-    const { updateWorkspaceQualityCheckUseCase } = createQualityCheckUseCases();
-    return await updateWorkspaceQualityCheckUseCase.execute(qualityCheckId, input);
-  } catch (error) {
-    return commandFailureFrom(
-      "QA_UPDATE_FAILED",
-      error instanceof Error ? error.message : "Unexpected QA update error",
-    );
-  }
-}
-
-export async function deleteWorkspaceQualityCheck(qualityCheckId: string): Promise<CommandResult> {
-  try {
-    const { deleteWorkspaceQualityCheckUseCase } = createQualityCheckUseCases();
-    return await deleteWorkspaceQualityCheckUseCase.execute(qualityCheckId);
-  } catch (error) {
-    return commandFailureFrom(
-      "QA_DELETE_FAILED",
-      error instanceof Error ? error.message : "Unexpected QA delete error",
-    );
+    return await new DeleteTestCaseUseCase(makeRepo()).execute(testCaseId);
+  } catch (err) {
+    return commandFailureFrom("TC_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }

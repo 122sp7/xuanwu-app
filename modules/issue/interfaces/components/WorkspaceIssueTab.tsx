@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -13,46 +13,58 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
-import type { WorkspaceIssueEntity, WorkspaceIssueStatus } from "../../domain/entities/Issue";
+import type { IssueEntity } from "../../domain/entities/Issue";
 import {
-  createWorkspaceIssue,
-  deleteWorkspaceIssue,
-  updateWorkspaceIssue,
-} from "../_actions/issue.actions";
-import { getWorkspaceIssues } from "../queries/issue.queries";
+  canTransitionIssue,
+  ISSUE_LIFECYCLE_STATUSES,
+  type IssueLifecycleStatus,
+  type IssueStage,
+} from "../../domain/value-objects/issue-state";
+import { createIssue, deleteIssue, transitionIssueStatus } from "../_actions/issue.actions";
+import { getIssues } from "../queries/issue.queries";
 
 interface WorkspaceIssueTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
-const severityVariantMap = {
-  low: "outline",
-  medium: "secondary",
-  high: "default",
-} as const;
+const STATUS_VARIANT: Record<IssueLifecycleStatus, "default" | "secondary" | "outline" | "destructive"> = {
+  open: "destructive",
+  investigating: "default",
+  fixing: "default",
+  retest: "outline",
+  resolved: "secondary",
+  closed: "secondary",
+};
+
+const STAGE_LABEL: Record<IssueStage, string> = {
+  task: "Task",
+  qa: "QA",
+  acceptance: "Acceptance",
+  finance: "Finance",
+};
+
+/** Returns valid next statuses the user can transition to from `current`. */
+function nextStatuses(current: IssueLifecycleStatus): IssueLifecycleStatus[] {
+  return ISSUE_LIFECYCLE_STATUSES.filter((s) => canTransitionIssue(current, s));
+}
 
 export function WorkspaceIssueTab({ workspace }: WorkspaceIssueTabProps) {
-  const [issues, setIssues] = useState<WorkspaceIssueEntity[]>([]);
+  const [issues, setIssues] = useState<IssueEntity[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [title, setTitle] = useState("");
-  const [detail, setDetail] = useState("");
+  const [description, setDescription] = useState("");
+  const [relatedId, setRelatedId] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [pendingIssueId, setPendingIssueId] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const loadIssues = useCallback(async (options?: { silent?: boolean }) => {
-    if (!options?.silent) {
-      setLoadState("loading");
-    }
-
+  const loadIssues = useCallback(async () => {
+    setLoadState("loading");
     try {
-      const nextIssues = await getWorkspaceIssues(workspace.id);
-      setIssues(nextIssues);
+      setIssues(await getIssues(workspace.id));
       setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceIssueTab] Failed to load issues:", error);
-      }
+    } catch {
       setIssues([]);
       setLoadState("error");
     }
@@ -60,211 +72,162 @@ export function WorkspaceIssueTab({ workspace }: WorkspaceIssueTabProps) {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function load() {
-      if (cancelled) {
-        return;
-      }
-      await loadIssues({ silent: true });
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
+    void (async () => { if (!cancelled) await loadIssues(); })();
+    return () => { cancelled = true; };
   }, [loadIssues]);
 
-  const openCount = useMemo(() => issues.filter((issue) => issue.status !== "resolved").length, [issues]);
-  const resolvedCount = useMemo(
-    () => issues.filter((issue) => issue.status === "resolved").length,
-    [issues],
-  );
-
-  async function handleCreateIssue() {
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle) {
-      setActionError("請輸入 issue 標題。");
-      return;
-    }
-
+  async function handleCreate() {
+    const t = title.trim();
+    if (!t) { setActionError("請輸入 issue 標題。"); return; }
     setIsCreating(true);
     setActionError(null);
     try {
-      const result = await createWorkspaceIssue({
+      const result = await createIssue({
+        tenantId: workspace.id,
+        teamId: workspace.id,
         workspaceId: workspace.id,
-        title: normalizedTitle,
-        detail: detail.trim() || undefined,
+        stage,
+        relatedId: relatedId.trim() || workspace.id,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: "ui",
       });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
-
+      if (!result.success) { setActionError(result.error.message); return; }
       setTitle("");
-      setDetail("");
-      await loadIssues({ silent: true });
+      setDescription("");
+      setRelatedId("");
+      await loadIssues();
     } finally {
       setIsCreating(false);
     }
   }
 
-  async function handleStatusChange(issueId: string, status: WorkspaceIssueStatus) {
-    setPendingIssueId(issueId);
+  async function handleTransition(issueId: string, to: IssueLifecycleStatus) {
+    setPendingId(issueId);
     setActionError(null);
     try {
-      const result = await updateWorkspaceIssue(issueId, { status });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
-      await loadIssues({ silent: true });
+      const result = await transitionIssueStatus(issueId, to);
+      if (!result.success) { setActionError(result.error.message); return; }
+      await loadIssues();
     } finally {
-      setPendingIssueId(null);
+      setPendingId(null);
     }
   }
 
-  async function handleDeleteIssue(issueId: string) {
-    setPendingIssueId(issueId);
+  async function handleDelete(issueId: string) {
+    setPendingId(issueId);
     setActionError(null);
     try {
-      const result = await deleteWorkspaceIssue(issueId);
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
+      const result = await deleteIssue(issueId);
+      if (!result.success) { setActionError(result.error.message); return; }
       await loadIssues();
     } finally {
-      setPendingIssueId(null);
+      setPendingId(null);
     }
   }
+
+  const openCount = issues.filter((i) => i.status === "open").length;
+  const resolvedCount = issues.filter((i) => i.status === "resolved" || i.status === "closed").length;
 
   return (
     <Card className="border border-border/50">
       <CardHeader>
         <CardTitle>Issues</CardTitle>
         <CardDescription>
-          以工作區為邊界管理 issue register，支援建立、狀態更新與刪除。
+          跨域 issue 追蹤：open → investigating → fixing → retest → resolved → closed。異常不回退原始狀態機。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Open issues</p>
+            <p className="text-xs text-muted-foreground">Open</p>
             <p className="mt-1 text-xl font-semibold">{openCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Resolved</p>
+            <p className="text-xs text-muted-foreground">Resolved / Closed</p>
             <p className="mt-1 text-xl font-semibold">{resolvedCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Issue source</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">Workspace issue module</p>
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="mt-1 text-xl font-semibold">{issues.length}</p>
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-xl border border-border/40 p-4 sm:grid-cols-[1fr_1fr_auto]">
-          <Input
-            value={title}
-            placeholder="新增 issue 標題"
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={isCreating}
-          />
-          <Input
-            value={detail}
-            placeholder="描述（選填）"
-            onChange={(event) => setDetail(event.target.value)}
-            disabled={isCreating}
-          />
-          <Button
-            type="button"
-            onClick={() => void handleCreateIssue()}
-            disabled={isCreating}
-            className="w-full sm:w-auto"
-          >
-            {isCreating ? "建立中…" : "新增 issue"}
-          </Button>
+        <div className="space-y-2 rounded-xl border border-border/40 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input value={title} placeholder="Issue 標題" onChange={(e) => setTitle(e.target.value)} disabled={isCreating} />
+            <Input value={description} placeholder="描述（選填）" onChange={(e) => setDescription(e.target.value)} disabled={isCreating} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <Input value={relatedId} placeholder="Related ID（選填）" onChange={(e) => setRelatedId(e.target.value)} disabled={isCreating} />
+            <select
+              value={stage}
+              onChange={(e) => setStage(e.target.value as IssueStage)}
+              disabled={isCreating}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            >
+              <option value="task">task</option>
+              <option value="qa">qa</option>
+              <option value="acceptance">acceptance</option>
+              <option value="finance">finance</option>
+            </select>
+            <Button type="button" onClick={() => void handleCreate()} disabled={isCreating} className="w-full sm:w-auto">
+              {isCreating ? "建立中…" : "新增 issue"}
+            </Button>
+          </div>
         </div>
 
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading issues…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入 issue 資料，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
+        {loadState === "loading" && <p className="text-sm text-muted-foreground">Loading issues…</p>}
+        {loadState === "error" && <p className="text-sm text-destructive">無法載入 issues，請重新整理。</p>}
         {actionError && <p className="text-sm text-destructive">{actionError}</p>}
-
         {loadState === "loaded" && issues.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未建立 issue，可先新增第一筆紀錄。
-          </p>
+          <p className="text-sm text-muted-foreground">尚未建立 issue。</p>
         )}
 
         <div className="space-y-3">
-          {issues.map((issue) => (
-            <div key={issue.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{issue.title}</p>
-                    <Badge variant={severityVariantMap[issue.severity]}>{issue.severity}</Badge>
-                    <Badge variant="outline">{issue.status}</Badge>
+          {issues.map((issue) => {
+            const nexts = nextStatuses(issue.status);
+            return (
+              <div key={issue.id} className="rounded-xl border border-border/40 px-4 py-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">{issue.title}</p>
+                      <Badge variant={STATUS_VARIANT[issue.status]}>{issue.status}</Badge>
+                      <Badge variant="outline">{STAGE_LABEL[issue.stage]}</Badge>
+                    </div>
+                    {issue.description && (
+                      <p className="text-sm text-muted-foreground">{issue.description}</p>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">{issue.detail || "無描述"}</p>
+                  <p className="text-xs text-muted-foreground">relatedId: {issue.relatedId}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Source: {issue.source}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {nexts.map((next) => (
+                    <Button
+                      key={next}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleTransition(issue.id, next)}
+                      disabled={pendingId === issue.id}
+                    >
+                      → {next}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void handleDelete(issue.id)}
+                    disabled={pendingId === issue.id}
+                  >
+                    刪除
+                  </Button>
+                </div>
               </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {issue.status !== "open" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStatusChange(issue.id, "open")}
-                    disabled={pendingIssueId === issue.id}
-                  >
-                    標記 open
-                  </Button>
-                )}
-                {issue.status !== "in-progress" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStatusChange(issue.id, "in-progress")}
-                    disabled={pendingIssueId === issue.id}
-                  >
-                    標記處理中
-                  </Button>
-                )}
-                {issue.status !== "resolved" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStatusChange(issue.id, "resolved")}
-                    disabled={pendingIssueId === issue.id}
-                  >
-                    標記已解決
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => void handleDeleteIssue(issue.id)}
-                  disabled={pendingIssueId === issue.id}
-                >
-                  刪除
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

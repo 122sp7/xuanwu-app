@@ -1,47 +1,38 @@
 "use server";
 
-/**
- * Finance Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { CreateInvoiceEntityInput } from "../../domain/repositories/FinanceRepository";
 import {
-  SubmitClaimUseCase,
-  AdvanceFinanceStageUseCase,
-  RecordPaymentReceivedUseCase,
+  AdvanceInvoiceUseCase,
+  CreateInvoiceUseCase,
+  DeleteInvoiceUseCase,
 } from "../../application/use-cases/finance.use-cases";
-import { FirebaseFinanceRepository } from "../../infrastructure/firebase/FirebaseFinanceRepository";
-import type { FinanceClaimLineItem } from "../../domain/entities/Finance";
+import { FirebaseInvoiceRepository } from "../../infrastructure/firebase/FirebaseFinanceRepository";
 
-const financeRepo = new FirebaseFinanceRepository();
+function makeRepo() {
+  return new FirebaseInvoiceRepository();
+}
 
-export async function submitClaim(
-  workspaceId: string,
-  lineItems: FinanceClaimLineItem[],
-): Promise<CommandResult> {
+export async function createInvoice(input: CreateInvoiceEntityInput): Promise<CommandResult> {
   try {
-    return await new SubmitClaimUseCase(financeRepo).execute(workspaceId, lineItems);
+    return await new CreateInvoiceUseCase(makeRepo()).execute(input);
   } catch (err) {
-    return commandFailureFrom("SUBMIT_CLAIM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    return commandFailureFrom("INV_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export async function advanceFinanceStage(workspaceId: string): Promise<CommandResult> {
+export async function advanceInvoice(invoiceId: string): Promise<CommandResult> {
   try {
-    return await new AdvanceFinanceStageUseCase(financeRepo).execute(workspaceId);
+    return await new AdvanceInvoiceUseCase(makeRepo()).execute(invoiceId);
   } catch (err) {
-    return commandFailureFrom("ADVANCE_STAGE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    return commandFailureFrom("INV_ADVANCE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export async function recordPaymentReceived(
-  workspaceId: string,
-  amount: number,
-  receivedAt: string,
-): Promise<CommandResult> {
+export async function deleteInvoice(invoiceId: string): Promise<CommandResult> {
   try {
-    return await new RecordPaymentReceivedUseCase(financeRepo).execute(workspaceId, amount, receivedAt);
+    return await new DeleteInvoiceUseCase(makeRepo()).execute(invoiceId);
   } catch (err) {
-    return commandFailureFrom("RECORD_PAYMENT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    return commandFailureFrom("INV_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }

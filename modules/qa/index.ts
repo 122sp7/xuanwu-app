@@ -1,26 +1,4 @@
-export { WorkspaceQATab } from "./interfaces/components/WorkspaceQATab";
-export type {
-  WorkspaceQualityCheckEntity,
-  WorkspaceQualityCheckStatus,
-  CreateWorkspaceQualityCheckInput,
-  UpdateWorkspaceQualityCheckInput,
-} from "./domain/entities/QualityCheck";
-export type { QualityCheckRepository } from "./domain/repositories/QualityCheckRepository";
-export {
-  CreateWorkspaceQualityCheckUseCase,
-  UpdateWorkspaceQualityCheckUseCase,
-  DeleteWorkspaceQualityCheckUseCase,
-  ListWorkspaceQualityChecksUseCase,
-} from "./application/use-cases/quality-check.use-cases";
-export { FirebaseQualityCheckRepository } from "./infrastructure/firebase/FirebaseQualityCheckRepository";
-export {
-  createWorkspaceQualityCheck,
-  updateWorkspaceQualityCheck,
-  deleteWorkspaceQualityCheck,
-} from "./interfaces/_actions/qa.actions";
-export { getWorkspaceQualityChecks } from "./interfaces/queries/qa.queries";
-
-// ── MDDD Domain: TestCase / TestRun entities ──────────────────────────────────
+// ── Domain: TestCase / TestRun entities ───────────────────────────────────────
 export type {
   TestCaseEntity,
   TestRunEntity,
@@ -28,7 +6,7 @@ export type {
   CreateTestCaseInput,
 } from "./domain/entities/TestCase";
 
-// ── MDDD Domain: lifecycle status & state machine ─────────────────────────────
+// ── Domain: lifecycle status & state machine ──────────────────────────────────
 export type { QARunStatus, QATestResult } from "./domain/value-objects/qa-state";
 export {
   QA_RUN_STATUSES,
@@ -37,7 +15,7 @@ export {
   isTerminalQARunStatus,
 } from "./domain/value-objects/qa-state";
 
-// ── MDDD Domain: events ───────────────────────────────────────────────────────
+// ── Domain: events ────────────────────────────────────────────────────────────
 export type {
   QADomainEvent,
   TestRunStartedEvent,
@@ -45,7 +23,10 @@ export type {
   TestRunCompletedEvent,
 } from "./domain/events/qa.events";
 
-// ── MDDD Application: DTOs ────────────────────────────────────────────────────
+// ── Domain: repository port ───────────────────────────────────────────────────
+export type { TestCaseRepository } from "./domain/repositories/TestCaseRepository";
+
+// ── Application: DTOs ─────────────────────────────────────────────────────────
 export type {
   CreateTestCaseInputDto,
   StartTestRunInputDto,
@@ -58,3 +39,22 @@ export {
   QARunStatusSchema,
   QATestResultSchema,
 } from "./application/dto/qa.dto";
+
+// ── Application: use-cases ────────────────────────────────────────────────────
+export {
+  CreateTestCaseUseCase,
+  DeleteTestCaseUseCase,
+  ListTestCasesUseCase,
+} from "./application/use-cases/quality-check.use-cases";
+
+// ── Infrastructure ────────────────────────────────────────────────────────────
+export { FirebaseTestCaseRepository } from "./infrastructure/firebase/FirebaseTestCaseRepository";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export { createTestCase, deleteTestCase } from "./interfaces/_actions/qa.actions";
+
+// ── Interfaces: queries ───────────────────────────────────────────────────────
+export { getTestCases } from "./interfaces/queries/qa.queries";
+
+// ── Interfaces: UI component ──────────────────────────────────────────────────
+export { WorkspaceQATab } from "./interfaces/components/WorkspaceQATab";

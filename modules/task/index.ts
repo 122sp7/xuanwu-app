@@ -1,27 +1,7 @@
-export { WorkspaceTaskTab } from "./interfaces/components/WorkspaceTaskTab";
-export type {
-  WorkspaceTaskEntity,
-  WorkspaceTaskStatus,
-  WorkspaceTaskPriority,
-  CreateWorkspaceTaskInput,
-  UpdateWorkspaceTaskInput,
-} from "./domain/entities/Task";
-export type { TaskRepository } from "./domain/repositories/TaskRepository";
-export {
-  CreateWorkspaceTaskUseCase,
-  UpdateWorkspaceTaskUseCase,
-  DeleteWorkspaceTaskUseCase,
-  ListWorkspaceTasksUseCase,
-} from "./application/use-cases/task.use-cases";
-export { FirebaseTaskRepository } from "./infrastructure/firebase/FirebaseTaskRepository";
-export {
-  createWorkspaceTask,
-  updateWorkspaceTask,
-  deleteWorkspaceTask,
-} from "./interfaces/_actions/task.actions";
-export { getWorkspaceTasks } from "./interfaces/queries/task.queries";
+// ── Domain: entity ────────────────────────────────────────────────────────────
+export type { TaskEntity, CreateTaskInput, UpdateTaskInput } from "./domain/entities/Task";
 
-// ── MDDD Domain: lifecycle status & state machine ─────────────────────────────
+// ── Domain: lifecycle status & state machine ──────────────────────────────────
 export type { TaskLifecycleStatus } from "./domain/value-objects/task-state";
 export {
   TASK_LIFECYCLE_STATUSES,
@@ -30,7 +10,7 @@ export {
   isTerminalTaskStatus,
 } from "./domain/value-objects/task-state";
 
-// ── MDDD Domain: events ───────────────────────────────────────────────────────
+// ── Domain: events ────────────────────────────────────────────────────────────
 export type {
   TaskDomainEvent,
   TaskCreatedEvent,
@@ -41,10 +21,13 @@ export type {
   TaskArchivedEvent,
 } from "./domain/events/task.events";
 
-// ── MDDD Application: DTOs ────────────────────────────────────────────────────
+// ── Domain: repository port ───────────────────────────────────────────────────
+export type { TaskRepository } from "./domain/repositories/TaskRepository";
+
+// ── Application: DTOs ─────────────────────────────────────────────────────────
 export type {
-  CreateTaskInput,
-  UpdateTaskInput,
+  CreateTaskInput as CreateTaskInputDto,
+  UpdateTaskInput as UpdateTaskInputDto,
   TransitionTaskStatusInput,
 } from "./application/dto/task.dto";
 export {
@@ -53,3 +36,24 @@ export {
   TransitionTaskStatusInputSchema,
   TaskLifecycleStatusSchema,
 } from "./application/dto/task.dto";
+
+// ── Application: use-cases ────────────────────────────────────────────────────
+export {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  DeleteTaskUseCase,
+  TransitionTaskStatusUseCase,
+  ListTasksUseCase,
+} from "./application/use-cases/task.use-cases";
+
+// ── Infrastructure ────────────────────────────────────────────────────────────
+export { FirebaseTaskRepository } from "./infrastructure/firebase/FirebaseTaskRepository";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export { createTask, updateTask, deleteTask, transitionTaskStatus } from "./interfaces/_actions/task.actions";
+
+// ── Interfaces: queries ───────────────────────────────────────────────────────
+export { getTasks } from "./interfaces/queries/task.queries";
+
+// ── Interfaces: UI component ──────────────────────────────────────────────────
+export { WorkspaceTaskTab } from "./interfaces/components/WorkspaceTaskTab";
