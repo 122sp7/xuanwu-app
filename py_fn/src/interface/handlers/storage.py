@@ -16,6 +16,7 @@ Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
 import logging
 import os
 import time
+from typing import Any
 
 from firebase_functions import storage_fn
 
@@ -86,6 +87,24 @@ def _extract_workspace_id(event_metadata: dict | None) -> str | None:
     return workspace_id or None
 
 
+def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str:
+    candidates: tuple[Any, ...] = ()
+    if isinstance(event_metadata, dict):
+        candidates = (
+            event_metadata.get("filename"),
+            event_metadata.get("original_filename"),
+            event_metadata.get("display_name"),
+            event_metadata.get("originalFileName"),
+        )
+
+    for candidate in candidates:
+        filename = str(candidate or "").strip()
+        if filename:
+            return filename
+
+    return os.path.basename(object_path)
+
+
 def handle_object_finalized(
     event: storage_fn.CloudEvent[storage_fn.StorageObjectData],
 ) -> None:
@@ -124,9 +143,10 @@ def handle_object_finalized(
         logger.error("GCS: missing workspace_id for %s, skipping", object_path)
         return
 
-    # doc_id = GCS 物件名稱（去掉 prefix 和副檔名）當作 Firestore 文件 ID
-    filename = os.path.basename(object_path)
-    doc_id, _ = os.path.splitext(filename)
+    # doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
+    storage_filename = os.path.basename(object_path)
+    display_filename = _extract_display_filename(object_path, data.metadata)
+    doc_id, _ = os.path.splitext(storage_filename)
 
     gcs_uri = f"gs://{bucket_name}/{object_path}"
     logger.info("GCS finalized: %s → doc_id=%s", gcs_uri, doc_id)
@@ -136,7 +156,7 @@ def handle_object_finalized(
         init_document(
             doc_id=doc_id,
             gcs_uri=gcs_uri,
-            filename=filename,
+            filename=display_filename,
             size_bytes=size_bytes,
             mime_type=mime_type,
             account_id=account_id,
@@ -159,7 +179,9 @@ def handle_object_finalized(
             "account_id": account_id,
             "workspace_id": workspace_id,
             "source_gcs_uri": gcs_uri,
-            "filename": filename,
+            "filename": display_filename,
+            "display_name": display_filename,
+            "original_filename": display_filename,
             "page_count": parsed.page_count,
             "extraction_ms": extraction_ms,
             "text": parsed.text,
@@ -183,7 +205,7 @@ def handle_object_finalized(
         try:
             rag = ingest_document_for_rag(
                 doc_id=doc_id,
-                filename=filename,
+                filename=display_filename,
                 source_gcs_uri=gcs_uri,
                 json_gcs_uri=json_gcs_uri,
                 text=parsed.text,

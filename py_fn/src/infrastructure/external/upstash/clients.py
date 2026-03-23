@@ -150,15 +150,15 @@ def _normalize_vector_item(item: Any) -> dict[str, Any]:
     }
 
 
-def upsert_vectors(items: list[dict[str, Any]]) -> Any:
-    """
-    批次 upsert 向量資料到 Upstash Vector。
+def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
+        """
+        批次 upsert 向量資料到 Upstash Vector。
 
-    items 每筆至少包含：
-      - id: str
-      - vector: list[float]
-      - metadata: dict[str, Any]
-    """
+        items 每筆至少包含：
+            - id: str
+            - vector: list[float]
+            - metadata: dict[str, Any]
+        """
     index = get_vector_index()
     sdk_payload = [
         {
@@ -175,15 +175,15 @@ def upsert_vectors(items: list[dict[str, Any]]) -> Any:
     ]
 
     try:
-        return index.upsert(vectors=sdk_payload)
+        return index.upsert(vectors=sdk_payload, namespace=namespace)
     except TypeError:
         try:
-            return index.upsert(sdk_payload)
+            return index.upsert(sdk_payload, namespace=namespace)
         except TypeError:
             try:
-                return index.upsert(tuples_payload)
+                return index.upsert(tuples_payload, namespace=namespace)
             except TypeError:
-                return index.upsert(items)
+                return index.upsert(items, namespace=namespace)
 
 
 def query_vectors(
@@ -191,6 +191,8 @@ def query_vectors(
     top_k: int,
     include_metadata: bool = True,
     include_data: bool = True,
+    namespace: str = "",
+    filter: str = "",
 ) -> list[dict[str, Any]]:
     """查詢 Upstash Vector，統一輸出為 list[dict]。"""
     index = get_vector_index()
@@ -201,6 +203,8 @@ def query_vectors(
             top_k=top_k,
             include_metadata=include_metadata,
             include_data=include_data,
+            namespace=namespace,
+            filter=filter,
         )
     except TypeError:
         try:
@@ -209,9 +213,11 @@ def query_vectors(
                 top_k=top_k,
                 include_metadata=include_metadata,
                 include_data=include_data,
+                namespace=namespace,
+                filter=filter,
             )
         except TypeError:
-            result = index.query(vector=vector, top_k=top_k)
+            result = index.query(vector=vector, top_k=top_k, namespace=namespace)
 
     if isinstance(result, list):
         return [_normalize_vector_item(item) for item in result]

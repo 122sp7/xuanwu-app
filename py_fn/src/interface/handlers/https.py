@@ -188,11 +188,16 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             "gcs_uri 為必填欄位（格式：gs://bucket/path）",
         )
 
-    # 解析 GCS URI 得到檔名，用於 doc_id
-    # gs://bucket/path/to/file.pdf → file
+    # 解析 GCS URI 得到儲存檔名，用於 doc_id。
     path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
-    filename = os.path.basename(path_part)     # "file.pdf"
-    doc_id, ext = os.path.splitext(filename)   # "file", ".pdf"
+    storage_filename = os.path.basename(path_part)     # "file.pdf"
+    doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or storage_filename
+    )
 
     # 推測 MIME 類型
     mime_type = data.get("mime_type", "").strip()
@@ -250,8 +255,11 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             data={
                 "doc_id": doc_id,
                 "account_id": account_id,
+                "workspace_id": workspace_id,
                 "source_gcs_uri": gcs_uri,
                 "filename": filename,
+                "display_name": filename,
+                "original_filename": filename,
                 "page_count": parsed.page_count,
                 "extraction_ms": extraction_ms,
                 "text": parsed.text,
@@ -412,7 +420,12 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
     source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
     workspace_id = str(data.get("workspace_id", "")).strip()
-    filename = str(data.get("filename", "")).strip() or doc_id
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or doc_id
+    )
 
     if not account_id:
         raise https_fn.HttpsError(
@@ -452,7 +465,12 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
         if not workspace_id:
             workspace_id = str((parsed_payload.get("metadata") or {}).get("space_id", "")).strip()
         if not filename:
-            filename = str(parsed_payload.get("filename", "")).strip() or doc_id
+            filename = (
+                str(parsed_payload.get("filename", "")).strip()
+                or str(parsed_payload.get("display_name", "")).strip()
+                or str(parsed_payload.get("original_filename", "")).strip()
+                or doc_id
+            )
         if page_count <= 0:
             page_count = int(parsed_payload.get("page_count", 0) or 0)
         if not workspace_id:

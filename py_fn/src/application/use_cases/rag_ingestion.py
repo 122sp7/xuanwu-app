@@ -152,12 +152,14 @@ def ingest_document_for_rag(
                 "vector": vec,
                 "data": chunk["text"],
                 "metadata": {
-                    "namespace": RAG_VECTOR_NAMESPACE,
+                    "vector_namespace": RAG_VECTOR_NAMESPACE,
                     "doc_id": doc_id,
                     "chunk_id": chunk_id,
                     "chunk_index": i,
                     "chunk_count": len(base_chunks),
                     "filename": filename,
+                    "original_filename": filename,
+                    "display_name": filename,
                     "source_gcs_uri": source_gcs_uri,
                     "json_gcs_uri": json_gcs_uri,
                     "account_id": account_id,
@@ -180,7 +182,7 @@ def ingest_document_for_rag(
             }
         )
 
-    upsert_vectors(payload)
+    upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
 
     # Best effort: keep Upstash Search in sync with vector chunks.
     try:

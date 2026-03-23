@@ -123,16 +123,35 @@ function getErrorMessage(error: unknown): string {
   return "未知錯誤";
 }
 
+function resolveDocumentFilename(data: Record<string, unknown>): string {
+  const source = objectOrEmpty(data.source);
+  const metadata = objectOrEmpty(data.metadata);
+
+  const candidates = [
+    source.filename,
+    source.display_name,
+    data.title,
+    metadata.filename,
+    metadata.display_name,
+    source.original_filename,
+    metadata.original_filename,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return "";
+}
+
 function mapToLiveDocument(id: string, data: Record<string, unknown>): WikiBetaLiveDocument {
   const source = objectOrEmpty(data.source);
   const parsed = objectOrEmpty(data.parsed);
   const rag = objectOrEmpty(data.rag);
   const metadata = objectOrEmpty(data.metadata);
   const error = objectOrEmpty(data.error);
-
-  const filenameFromSource = typeof source.filename === "string" ? source.filename : "";
-  const filenameFromDoc = typeof data.title === "string" ? data.title : "";
-  const filenameFromMeta = typeof metadata.filename === "string" ? metadata.filename : "";
 
   const sourceGcsFromSource = typeof source.gcs_uri === "string" ? source.gcs_uri : "";
   const sourceGcsFromMeta = typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : "";
@@ -143,7 +162,7 @@ function mapToLiveDocument(id: string, data: Record<string, unknown>): WikiBetaL
 
   return {
     id,
-    filename: filenameFromSource || filenameFromDoc || filenameFromMeta || id,
+    filename: resolveDocumentFilename(data) || id,
     workspaceId: workspaceIdFromDoc || workspaceIdFromMeta,
     sourceGcsUri: sourceGcsFromSource || sourceGcsFromMeta,
     jsonGcsUri: jsonGcsFromParsed || jsonGcsFromMeta,
@@ -456,6 +475,9 @@ export function WikiBetaRagTestView({ onBack, mode = "all", workspaceId }: WikiB
         customMetadata: {
           account_id: activeAccountId,
           workspace_id: effectiveWorkspaceId,
+          filename: selectedFile.name,
+          original_filename: selectedFile.name,
+          display_name: selectedFile.name,
         },
       });
 

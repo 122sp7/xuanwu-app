@@ -10,6 +10,7 @@ from core.config import (
     QSTASH_RAG_AUDIT_URL,
     RAG_QUERY_CACHE_TTL_SECONDS,
     RAG_REDIS_PREFIX,
+    RAG_VECTOR_NAMESPACE,
 )
 from infrastructure.external.openai.embeddings import embed_text
 from infrastructure.external.openai.llm import chat_complete
@@ -46,7 +47,13 @@ def to_query_vector(query: str) -> list[float]:
 
 
 def query_vector(vector: list[float], top_k: int) -> list[dict[str, Any]]:
-    return query_vectors(vector, top_k=top_k, include_metadata=True)
+    return query_vectors(
+        vector,
+        top_k=top_k,
+        include_metadata=True,
+        include_data=True,
+        namespace=RAG_VECTOR_NAMESPACE,
+    )
 
 
 def query_search(query: str, top_k: int) -> list[dict[str, Any]]:

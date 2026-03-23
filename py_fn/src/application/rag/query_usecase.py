@@ -156,6 +156,21 @@ def _extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
     return ""
 
 
+def _resolve_filename(metadata: dict[str, Any], fallback: str | None = None) -> str | None:
+    candidates = (
+        metadata.get("filename"),
+        metadata.get("display_name"),
+        metadata.get("original_filename"),
+        metadata.get("title"),
+        fallback,
+    )
+    for value in candidates:
+        name = str(value or "").strip()
+        if name:
+            return name
+    return None
+
+
 def execute_rag_query(
     *,
     query: str,
@@ -267,7 +282,7 @@ def execute_rag_query(
                 doc_id=metadata.get("doc_id"),
                 chunk_id=metadata.get("chunk_id"),
                 score=hit.get("score") if isinstance(hit, dict) else None,
-                filename=metadata.get("filename"),
+                filename=_resolve_filename(metadata),
                 json_gcs_uri=metadata.get("json_gcs_uri"),
                 account_id=metadata.get("account_id") or "",
                 workspace_id=metadata.get("workspace_id") or metadata.get("space_id") or "",
@@ -308,7 +323,7 @@ def execute_rag_query(
                 doc_id=metadata.get("doc_id"),
                 chunk_id=metadata.get("chunk_id"),
                 score=hit.get("score"),
-                filename=metadata.get("filename"),
+                filename=_resolve_filename(metadata),
                 json_gcs_uri=metadata.get("json_gcs_uri"),
                 search_id=hit.get("id"),
                 account_id=metadata.get("account_id") or "",

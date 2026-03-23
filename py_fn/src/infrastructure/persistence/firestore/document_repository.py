@@ -74,20 +74,28 @@ def init_document(
 
     payload = {
         "id": doc_id,
+        "title": filename,
         "status": "processing",
         "account_id": account_id,
         "source": {
             "gcs_uri": gcs_uri,
             "filename": filename,
+            "display_name": filename,
+            "original_filename": filename,
             "size_bytes": size_bytes,
             "uploaded_at": datetime.now(UTC),
             "mime_type": mime_type,
+        },
+        "metadata": {
+            "filename": filename,
+            "display_name": filename,
+            "original_filename": filename,
         },
     }
 
     if workspace_id:
         payload["spaceId"] = workspace_id
-        payload["metadata"] = {"space_id": workspace_id}
+        payload["metadata"]["space_id"] = workspace_id
 
     ref.set(payload)
     logger.info(
