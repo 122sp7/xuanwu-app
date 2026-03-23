@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WikiBetaRagTestView } from "@/modules/wiki-beta";
+import { WikiBetaRagQueryView } from "@/modules/wiki-beta";
 
 export default function WikiBetaRagQueryPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { state: appState } = useApp();
   const workspaceId = searchParams.get("workspaceId")?.trim() || appState.activeWorkspaceId || undefined;
@@ -19,7 +18,7 @@ export default function WikiBetaRagQueryPage() {
         <p className="text-sm text-muted-foreground">使用 workspace-scoped context 執行 rag_query 並檢視回答與引用。</p>
       </header>
 
-      <WikiBetaRagTestView onBack={() => router.push("/wiki-beta")} mode="query" workspaceId={workspaceId} />
+      <WikiBetaRagQueryView workspaceId={workspaceId} />
     </div>
   );
 }

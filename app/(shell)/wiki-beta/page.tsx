@@ -1,12 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
-import { WikiBetaHubView } from "@/modules/wiki-beta";
+import { WikiBetaOverview } from "@/modules/wiki-beta";
 
 export default function WikiBetaPage() {
-  const router = useRouter();
-
   return (
     <div className="space-y-4">
       <header className="space-y-2">
@@ -15,7 +11,7 @@ export default function WikiBetaPage() {
         <p className="text-sm text-muted-foreground">wiki-beta 入口，聚焦 account-scoped 知識流程、工作區脈絡與快速進入各子功能。</p>
       </header>
 
-      <WikiBetaHubView onGoRagTest={() => router.push("/wiki-beta/rag-query")} />
+      <WikiBetaOverview />
     </div>
   );
 }
