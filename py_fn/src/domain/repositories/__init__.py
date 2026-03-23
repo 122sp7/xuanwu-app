@@ -1,4 +1,4 @@
-"""Backward-compatible application-layer re-export of domain repository contracts."""
+"""Domain repository contracts."""
 
 from domain.repositories.rag import (
     DocumentPipelineGateway,

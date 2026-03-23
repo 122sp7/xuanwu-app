@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from application.ports.output.gateways import (
+from domain.repositories import (
     register_document_pipeline_gateway,
     register_rag_ingestion_gateway,
     register_rag_query_gateway,

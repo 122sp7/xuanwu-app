@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from application.dto import RagIngestionResult
-from application.ports.output.gateways import RagIngestionGateway, get_rag_ingestion_gateway
 from core.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
@@ -20,6 +19,7 @@ from core.config import (
     RAG_REDIS_PREFIX,
     RAG_VECTOR_NAMESPACE,
 )
+from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
 
 logger = logging.getLogger(__name__)
 
