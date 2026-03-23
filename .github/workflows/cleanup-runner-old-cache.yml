@@ -1,7 +1,6 @@
 name: Cleanup Old Caches
 on:
-  schedule:
-    - cron: '0 3 * * *'
+  push:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
