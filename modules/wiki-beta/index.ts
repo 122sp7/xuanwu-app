@@ -64,5 +64,9 @@ export {
   WikiBetaPagesDnDView,
   WikiBetaBlockEditorView,
   WikiBetaRagView,
+  WikiBetaRagQueryView,
+  WikiBetaDocumentsView,
   WikiBetaWorkspaceView,
+  useDocumentsSnapshot,
 } from "./interfaces";
+export type { WikiBetaLiveDocument } from "./interfaces";

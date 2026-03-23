@@ -1,12 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
-import { WikiBetaRagView } from "@/modules/wiki-beta";
+import { WikiBetaDocumentsView } from "@/modules/wiki-beta";
 
 export default function WikiBetaDocumentsPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const workspaceId = searchParams.get("workspaceId")?.trim() || undefined;
 
@@ -18,7 +16,7 @@ export default function WikiBetaDocumentsPage() {
         <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
       </header>
 
-      <WikiBetaRagView onBack={() => router.push("/wiki-beta")} mode="documents" workspaceId={workspaceId} />
+      <WikiBetaDocumentsView workspaceId={workspaceId} />
     </div>
   );
 }

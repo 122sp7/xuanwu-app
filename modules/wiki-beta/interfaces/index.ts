@@ -5,4 +5,8 @@ export { WikiBetaPagesView } from "./components/WikiBetaPagesView";
 export { WikiBetaPagesDnDView } from "./components/WikiBetaPagesDnDView";
 export { WikiBetaBlockEditorView } from "./components/WikiBetaBlockEditorView";
 export { WikiBetaRagView } from "./components/WikiBetaRagView";
+export { WikiBetaRagQueryView } from "./components/WikiBetaRagQueryView";
+export { WikiBetaDocumentsView } from "./components/WikiBetaDocumentsView";
 export { WikiBetaWorkspaceView } from "./components/WikiBetaWorkspaceView";
+export { useDocumentsSnapshot } from "./hooks/useDocumentsSnapshot";
+export type { WikiBetaLiveDocument } from "./hooks/useDocumentsSnapshot";
