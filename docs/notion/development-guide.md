@@ -20,10 +20,10 @@
 
 | 優先 | 文件 | 說明 |
 |---|---|---|
-| 1 | `docs/architecture/wiki.md` | 架構規範 |
+| 1 | `docs/wiki-beta/wiki-beta-design-spec.md` | 架構規範 |
 | 2 | `docs/wiki-beta/wiki-beta-naming-alignment.md` | **命名對照**（所有術語依此為準） |
 | 3 | `docs/wiki-beta/wiki-beta-runtime-flow.mermaid` | Runtime 流程圖 |
-| 4 | `docs/reference/development-contracts/wiki-contract.md` | 開發契約 |
+| 4 | `docs/wiki-beta/wiki-beta-development-guide.md` | 開發指南 |
 | 5 | `CLAUDE.md` | 整體 MDDD 規範 |
 
 ---
@@ -61,7 +61,6 @@
 |---|---|
 | Next.js 執行 parse/chunk/embed | 計算密集，屬 py_fn 職責 |
 | py_fn 擁有 UI 渲染或 session 邏輯 | 違反 runtime boundary |
-| `modules/wiki-beta` 直接引用 `modules/wiki`（反向亦然） | 違反 module import boundary |
 
 ---
 
@@ -333,7 +332,6 @@ Pages 與 Libraries 操作後，透過 `modules/event` 發布以下 domain event
 |---|---|
 | use-case 內直接 `import { getFirestore }` | use-case 只依賴 repository interface；Firebase 在 infrastructure 層 |
 | UI 文案使用「資料庫」或「Database」 | 一律使用「資料庫」（可接受中文）或 `Libraries`；不使用 `Database` |
-| 在 `modules/wiki-beta` 內 import `modules/wiki` | 違反 module boundary；使用 event module 間接通訊 |
 | 循環偵測後直接 throw 沒有錯誤訊息 | 拋出包含 `CYCLE_DETECTED` 代碼與可讀訊息的錯誤 |
 | Unit test 直接 new Firebase repo | 使用 `InMemoryWikiBetaPageRepository` 讓 test 不依賴網路 |
 
