@@ -126,7 +126,7 @@ class _FakeDocumentPipelineGateway:
         return b""
 
 
-def test_domain_repository_gateways_are_registered_and_retrieved() -> None:
+def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None:
     rag_query_gateway = _FakeRagQueryGateway()
     rag_ingestion_gateway = _FakeRagIngestionGateway()
     document_pipeline_gateway = _FakeDocumentPipelineGateway()
@@ -140,7 +140,7 @@ def test_domain_repository_gateways_are_registered_and_retrieved() -> None:
     assert get_document_pipeline_gateway() is document_pipeline_gateway
 
 
-def test_application_gateway_shim_reexports_domain_registry_state() -> None:
+def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None:
     from application.ports.output.gateways import (
         get_document_pipeline_gateway as get_document_pipeline_gateway_from_shim,
     )
