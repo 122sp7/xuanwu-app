@@ -4,7 +4,7 @@ Firebase Admin SDK 初始化 — 整個 py_fn 只 initialize_app() 一次，
 """
 
 import firebase_admin
-from infrastructure.runtime.dependencies import register_runtime_dependencies
+from app.container.runtime_dependencies import register_runtime_dependencies
 
 # Cloud Run / Cloud Functions 執行環境使用 ADC（Application Default Credentials）
 # 本機測試時請先執行： gcloud auth application-default login

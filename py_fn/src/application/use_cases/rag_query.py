@@ -5,7 +5,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from application.runtime.dependencies import RagQueryGateway, get_rag_query_gateway
+from application.ports.output.gateways import RagQueryGateway, get_rag_query_gateway
 from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
 from domain.value_objects import RagCitation, RagQueryInput, RagQueryResult
 

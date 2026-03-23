@@ -38,6 +38,8 @@ py_fn/src
 │  ├─ events
 │  └─ exceptions
 ├─ infrastructure
+│  ├─ cache
+│  ├─ audit
 │  ├─ persistence
 │  │  ├─ firestore
 │  │  ├─ storage
@@ -89,12 +91,31 @@ py_fn/src
 - 放所有層可共用的 utils、types、constants、exceptions、security。
 - core 本身不依賴任何外層。
 
-## 4. 同名資料夾的判讀規則
+## 4.1 值物件與 DTO 規劃
+
+### 應放在 domain/value_objects
+- 純資料語意、無基礎設施細節、可被多個 use case 重用。
+- 例如：`RagQueryInput`、`RagCitation`、`RagQueryResult`。
+
+### 應放在 application/dto
+- 某個 use case 的輸入/輸出模型。
+- 例如：`RagIngestionResult` 這種 use case 輸出摘要。
+
+### 不應放進 domain/value_objects
+- 外部服務供應商回傳模型。
+- 例如：`ParsedDocument` 屬於 Document AI adapter 的回傳型別，保留在 infrastructure/external。
+
+### 目前 py_fn 的落點範例
+- `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
+- `application/dto/rag.py`: `RagIngestionResult`
+- `infrastructure/external/documentai/client.py`: `ParsedDocument`
+
+## 4.2 同名資料夾的判讀規則
 
 - services 只看名稱會誤判，必須看完整路徑
        - domain/services 是核心業務規則
        - application/services 是應用層編排
-       - infrastructure 下若有 service 類檔案，只能是技術 adapter，不是業務規則
+       - infrastructure/services 若存在，只能是技術 adapter；若可拆回更明確目錄，優先拆回 cache / audit / external / persistence
 - repositories 也一樣
        - domain/repositories 是介面（contracts）
        - infrastructure/repositories 是實作（implementations）
@@ -124,6 +145,8 @@ py_fn/src
 | domain/events | domain/entities, core |
 | domain/exceptions | core |
 | infrastructure/repositories | domain/repositories, domain/entities, infrastructure/persistence, core |
+| infrastructure/cache | infrastructure/external, core |
+| infrastructure/audit | infrastructure/external, core |
 | infrastructure/persistence | domain/entities, domain/value_objects, core |
 | infrastructure/external | application/ports/output, domain, core |
 | infrastructure/config | core |

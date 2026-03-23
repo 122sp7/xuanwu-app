@@ -20,7 +20,7 @@ from typing import Any
 
 from firebase_functions import storage_fn
 
-from application.runtime.dependencies import get_document_pipeline_gateway
+from application.services.document_pipeline import get_document_pipeline
 from application.use_cases.rag_ingestion import ingest_document_for_rag
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ def handle_object_finalized(
     - 初始化 → Document AI 解析 → 更新 Firestore
     - 異常時記錄至 Firestore。
     """
-    runtime = get_document_pipeline_gateway()
+    runtime = get_document_pipeline()
     data = event.data
     if data is None:
         logger.warning("storage event missing data, skipping")

@@ -34,8 +34,8 @@ from typing import Any
 from firebase_functions import https_fn
 import firebase_admin.firestore as fb_firestore
 
+from application.services.document_pipeline import allow_rag_query_rate_limit, get_document_pipeline
 from application.use_cases import execute_rag_query
-from application.runtime.dependencies import get_document_pipeline_gateway
 from application.use_cases.rag_ingestion import ingest_document_for_rag
 from core.config import (
     RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
@@ -158,7 +158,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     Raises:
         https_fn.HttpsError: 缺少必填欄位時。
     """
-    runtime = get_document_pipeline_gateway()
+    runtime = get_document_pipeline()
     data: dict = req.data or {}
     account_id = str(data.get("account_id", "")).strip()
     workspace_id = str(data.get("workspace_id", "")).strip()
@@ -315,7 +315,6 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
 def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：RAG 查詢（Step 7）。"""
-    runtime = get_document_pipeline_gateway()
     uid = _extract_auth_uid(req)
     if not uid:
         raise https_fn.HttpsError(
@@ -360,10 +359,9 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     taxonomy_filters = _parse_taxonomy_filters(data.get("taxonomy_filters"))
     require_ready = _to_bool(data.get("require_ready"), RAG_QUERY_REQUIRE_READY_STATUS)
 
-    limit_key = f"rag:rl:{account_id}"
     try:
-        allowed, remaining = runtime.redis_fixed_window_allow(
-            key=limit_key,
+        allowed, remaining = allow_rag_query_rate_limit(
+            account_id=account_id,
             max_requests=RAG_QUERY_RATE_LIMIT_MAX,
             window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
         )
@@ -406,7 +404,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
 
 def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
-    runtime = get_document_pipeline_gateway()
+    runtime = get_document_pipeline()
     data: dict = req.data or {}
 
     account_id = str(data.get("account_id", "")).strip()

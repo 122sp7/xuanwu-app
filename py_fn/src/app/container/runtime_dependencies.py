@@ -2,22 +2,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from application.runtime.dependencies import (
+from application.ports.output.gateways import (
     register_document_pipeline_gateway,
     register_rag_ingestion_gateway,
     register_rag_query_gateway,
 )
+from infrastructure.audit.qstash import publish_query_audit
+from infrastructure.cache.rag_query_cache import build_query_cache_key, get_query_cache, save_query_cache
 from infrastructure.external.documentai.client import process_document_gcs
 from infrastructure.external.openai.embeddings import embed_texts
+from infrastructure.external.openai.rag_query import generate_answer, to_query_vector
 from infrastructure.external.upstash.clients import (
-    query_search_documents,
-    query_vectors,
     redis_fixed_window_allow,
-    redis_get_json,
     redis_set_json,
     upsert_search_documents,
     upsert_vectors,
 )
+from infrastructure.external.upstash.rag_query import query_search, query_vector
 from infrastructure.persistence.firestore.document_repository import (
     init_document,
     mark_rag_ready,
@@ -26,12 +27,6 @@ from infrastructure.persistence.firestore.document_repository import (
     update_parsed,
 )
 from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
-from infrastructure.services.rag_query_gateway import (
-    build_query_cache_key,
-    generate_answer,
-    publish_query_audit,
-    to_query_vector,
-)
 
 
 class InfraRagQueryGateway:
@@ -39,24 +34,21 @@ class InfraRagQueryGateway:
         return build_query_cache_key(account_scope=account_scope, query=query, top_k=top_k)
 
     def get_query_cache(self, cache_key: str) -> dict[str, Any] | None:
-        return redis_get_json(cache_key)
+        return get_query_cache(cache_key)
 
     def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None:
-        redis_set_json(cache_key, payload)
+        save_query_cache(cache_key, payload)
 
     def to_query_vector(self, query: str) -> list[float]:
-        return to_query_vector(query)
+        from core.config import OPENAI_EMBEDDING_MODEL
+
+        return to_query_vector(query, model=OPENAI_EMBEDDING_MODEL)
 
     def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]:
-        return query_vectors(
-            vector,
-            top_k=top_k,
-            include_metadata=True,
-            include_data=True,
-        )
+        return query_vector(vector, top_k=top_k)
 
     def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]:
-        return query_search_documents(query, top_k=top_k)
+        return query_search(query, top_k=top_k)
 
     def generate_answer(self, *, query: str, context_block: str) -> str:
         return generate_answer(query=query, context_block=context_block)

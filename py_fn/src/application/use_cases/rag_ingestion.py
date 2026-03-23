@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from application.runtime.dependencies import RagIngestionGateway, get_rag_ingestion_gateway
+from application.dto import RagIngestionResult
+from application.ports.output.gateways import RagIngestionGateway, get_rag_ingestion_gateway
 from core.config import (
     OPENAI_EMBEDDING_DIMENSIONS,
     OPENAI_EMBEDDING_MODEL,
@@ -22,18 +22,6 @@ from core.config import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class RagIngestionResult:
-    chunk_count: int
-    vector_count: int
-    embedding_model: str
-    embedding_dimensions: int
-    raw_chars: int
-    normalized_chars: int
-    normalization_version: str
-    language_hint: str
 
 
 def detect_language_hint(text: str) -> str:
