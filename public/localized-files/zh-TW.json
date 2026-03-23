@@ -1,0 +1,48 @@
+{
+  "locale": "zh-TW",
+  "app": {
+    "name": "玄武工作區",
+    "description": "Firebase Hosting i18n rewrites 在地化內容包"
+  },
+  "workspace": {
+    "navigation": {
+      "home": "首頁",
+      "favorites": "收藏",
+      "recent": "最近",
+      "spaces": "空間",
+      "databases": "資料庫",
+      "tags": "標籤",
+      "files": "檔案",
+      "templates": "模板",
+      "members": "成員",
+      "trash": "垃圾桶"
+    },
+    "spacesItems": [
+      "工程",
+      "產品",
+      "設計",
+      "文件",
+      "Wiki",
+      "SOP",
+      "會議紀錄"
+    ],
+    "databaseItems": [
+      "CRM",
+      "任務",
+      "路線圖",
+      "專案",
+      "筆記",
+      "文件",
+      "資產"
+    ],
+    "rightPane": {
+      "pageTitle": "頁面標題",
+      "pageContent": "頁面內容",
+      "blocks": "區塊"
+    }
+  },
+  "meta": {
+    "version": 1,
+    "updatedAt": "2026-03-23"
+  }
+}

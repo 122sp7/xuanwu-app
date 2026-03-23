@@ -1,0 +1,48 @@
+{
+  "locale": "en",
+  "app": {
+    "name": "Xuanwu Workspace",
+    "description": "Localized content bundle for Firebase Hosting i18n rewrites"
+  },
+  "workspace": {
+    "navigation": {
+      "home": "Home",
+      "favorites": "Favorites",
+      "recent": "Recent",
+      "spaces": "Spaces",
+      "databases": "Databases",
+      "tags": "Tags",
+      "files": "Files",
+      "templates": "Templates",
+      "members": "Members",
+      "trash": "Trash"
+    },
+    "spacesItems": [
+      "Engineering",
+      "Product",
+      "Design",
+      "Docs",
+      "Wiki",
+      "SOP",
+      "Meeting Notes"
+    ],
+    "databaseItems": [
+      "CRM",
+      "Tasks",
+      "Roadmap",
+      "Projects",
+      "Notes",
+      "Documents",
+      "Assets"
+    ],
+    "rightPane": {
+      "pageTitle": "Page Title",
+      "pageContent": "Page Content",
+      "blocks": "Blocks"
+    }
+  },
+  "meta": {
+    "version": 1,
+    "updatedAt": "2026-03-23"
+  }
+}
