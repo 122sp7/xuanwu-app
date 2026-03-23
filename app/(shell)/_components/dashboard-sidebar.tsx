@@ -126,6 +126,39 @@ const WORKSPACE_PREF_ID_MAP: Record<string, string> = {
   Audit: "audit",
 };
 
+const WORKSPACE_TAB_DEV_STATUS_MAP: Record<string, "🚧" | "🏗️" | "✅"> = {
+  Overview: "🏗️",
+  Recent: "🚧",
+  Favorites: "🚧",
+  Engineering: "🚧",
+  Product: "🚧",
+  Design: "🚧",
+  Docs: "🚧",
+  Wiki: "🏗️",
+  SOP: "🚧",
+  "Meeting Notes": "🚧",
+  Tasks: "✅",
+  Projects: "🚧",
+  Roadmap: "🚧",
+  Notes: "🚧",
+  Documents: "🚧",
+  Assets: "🚧",
+  CRM: "🚧",
+  Files: "✅",
+  Tags: "🚧",
+  Templates: "🚧",
+  Members: "✅",
+  Trash: "🚧",
+  Daily: "✅",
+  Schedule: "✅",
+  Issues: "✅",
+  QA: "✅",
+  Acceptance: "✅",
+  Finance: "✅",
+  "Document Parser": "✅",
+  Audit: "✅",
+};
+
 interface SidebarLocaleBundle {
   workspace?: {
     groups?: Record<string, string>;
@@ -338,6 +371,11 @@ export function DashboardSidebar({
     return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
   }
 
+  function tWorkspaceTabWithDevStatus(tab: string, fallback: string) {
+    const status = WORKSPACE_TAB_DEV_STATUS_MAP[tab] ?? "🚧";
+    return `${status} ${tWorkspaceTab(tab, fallback)}`;
+  }
+
   function tWorkspaceGroup(groupKey: string, fallback: string) {
     return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
   }
@@ -536,7 +574,7 @@ export function DashboardSidebar({
                                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
                             }`}
                           >
-                            {tWorkspaceTab(item.value, item.label)}
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
                           </Link>
                         );
                       })}
@@ -574,7 +612,7 @@ export function DashboardSidebar({
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                     }`}
                                   >
-                                    {tWorkspaceTab(item.value, item.label)}
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
                                   </Link>
                                 );
                               })}
@@ -616,7 +654,7 @@ export function DashboardSidebar({
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                     }`}
                                   >
-                                    {tWorkspaceTab(item.value, item.label)}
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
                                   </Link>
                                 );
                               })}
@@ -642,7 +680,7 @@ export function DashboardSidebar({
                                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
                             }`}
                           >
-                            {tWorkspaceTab(item.value, item.label)}
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
                           </Link>
                         );
                       })}
@@ -684,7 +722,7 @@ export function DashboardSidebar({
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                     }`}
                                   >
-                                    {tWorkspaceTab(item.value, item.label)}
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
                                   </Link>
                                 );
                               })}
