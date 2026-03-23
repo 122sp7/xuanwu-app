@@ -16,12 +16,15 @@ import { useBlockEditorStore } from "../store/block-editor.store";
  *
  * Minimal block-based text editor using a Zustand store.
  * Each block is a simple textarea-like div (contentEditable).
- * - Enter: split / add new block after current
- * - Backspace (empty block): merge with previous / delete current
+ * - Enter: add new block after current and focus it
+ * - Backspace (empty block): delete current and focus previous
  * - Drag handle: reorder blocks via pragmatic-drag-and-drop
  */
 export function WikiBetaBlockEditorView() {
-  const { blocks, addBlock, updateBlock, deleteBlock, moveBlock } = useBlockEditorStore();
+  const { blocks, addBlock, updateBlock, deleteBlock, moveBlock, init } = useBlockEditorStore();
+  // focusNextRef encodes the intent:
+  //   "__after:{id}" → focus the block immediately after the one with the given id
+  //   "<id>"         → focus the block with the given id directly
   const focusNextRef = useRef<string | null>(null);
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -29,10 +32,28 @@ export function WikiBetaBlockEditorView() {
     blockRefs.current[id] = el;
   }, []);
 
-  // Focus management
+  // Seed first block on mount (avoids SSR UUID mismatch)
   useEffect(() => {
-    if (focusNextRef.current) {
-      const el = blockRefs.current[focusNextRef.current];
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Focus resolution after every render
+  useEffect(() => {
+    const intent = focusNextRef.current;
+    if (!intent) return;
+
+    let targetId: string | undefined;
+    if (intent.startsWith("__after:")) {
+      const afterId = intent.slice("__after:".length);
+      const idx = blocks.findIndex((b) => b.id === afterId);
+      targetId = blocks[idx + 1]?.id;
+    } else {
+      targetId = intent;
+    }
+
+    if (targetId) {
+      const el = blockRefs.current[targetId];
       if (el) {
         el.focus();
         const range = document.createRange();
@@ -41,8 +62,8 @@ export function WikiBetaBlockEditorView() {
         range.collapse(false);
         sel?.removeAllRanges();
         sel?.addRange(range);
+        focusNextRef.current = null;
       }
-      focusNextRef.current = null;
     }
   });
 
@@ -69,16 +90,11 @@ export function WikiBetaBlockEditorView() {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         addBlock(blockId);
-        const currentIdx = blocks.findIndex((b) => b.id === blockId);
-        if (currentIdx !== -1 && currentIdx + 1 < blocks.length) {
-          focusNextRef.current = blocks[currentIdx + 1].id;
-        } else {
-          focusNextRef.current = "__last__";
-        }
+        // After Zustand updates, focus the block inserted right after blockId.
+        focusNextRef.current = `__after:${blockId}`;
       } else if (event.key === "Backspace") {
         const el = blockRefs.current[blockId];
-        const isEmpty = !el?.textContent;
-        if (isEmpty) {
+        if (!el?.textContent) {
           event.preventDefault();
           const idx = blocks.findIndex((b) => b.id === blockId);
           if (idx > 0) {
@@ -91,13 +107,6 @@ export function WikiBetaBlockEditorView() {
     },
     [addBlock, blocks, deleteBlock],
   );
-
-  // Resolve __last__ after render
-  useEffect(() => {
-    if (focusNextRef.current === "__last__" && blocks.length > 0) {
-      focusNextRef.current = blocks[blocks.length - 1].id;
-    }
-  });
 
   return (
     <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">

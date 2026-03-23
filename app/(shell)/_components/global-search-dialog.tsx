@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Layout, MessageSquare, Settings } from "lucide-react";
+import { FileText, Layout, Settings } from "lucide-react";
 
 import {
   CommandDialog,
@@ -29,7 +29,6 @@ const GROUP_ICONS: Record<string, React.ReactNode> = {
   "導覽": <Layout className="size-4 mr-2 opacity-60" />,
   "Wiki-Beta": <FileText className="size-4 mr-2 opacity-60" />,
   "設定": <Settings className="size-4 mr-2 opacity-60" />,
-  "AI": <MessageSquare className="size-4 mr-2 opacity-60" />,
 };
 
 interface GlobalSearchDialogProps {

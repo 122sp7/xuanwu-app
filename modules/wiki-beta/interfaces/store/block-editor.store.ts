@@ -14,10 +14,19 @@ interface BlockEditorState {
   readonly updateBlock: (id: string, content: string) => void;
   readonly deleteBlock: (id: string) => void;
   readonly moveBlock: (fromIdx: number, toIdx: number) => void;
+  readonly init: () => void;
 }
 
 export const useBlockEditorStore = create<BlockEditorState>((set) => ({
-  blocks: [{ id: uuid(), content: "" }],
+  // Start empty — component calls init() on mount to avoid SSR UUID mismatch.
+  blocks: [],
+
+  init() {
+    set((state) => {
+      if (state.blocks.length > 0) return state;
+      return { blocks: [{ id: uuid(), content: "" }] };
+    });
+  },
 
   addBlock(afterId) {
     set((state) => {
@@ -41,7 +50,7 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
   deleteBlock(id) {
     set((state) => {
       if (state.blocks.length <= 1) {
-        return { blocks: [{ id: state.blocks[0].id, content: "" }] };
+        return { blocks: [{ id: state.blocks[0]?.id ?? uuid(), content: "" }] };
       }
       return { blocks: state.blocks.filter((b) => b.id !== id) };
     });

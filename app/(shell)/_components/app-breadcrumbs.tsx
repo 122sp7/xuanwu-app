@@ -58,7 +58,7 @@ export function AppBreadcrumbs() {
               {crumb.label}
             </Link>
           ) : (
-            <span className="text-foreground font-medium">{crumb.label}</span>
+            <span className="font-medium text-foreground">{crumb.label}</span>
           )}
         </span>
       ))}

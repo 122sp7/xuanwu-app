@@ -74,7 +74,7 @@ export function WikiBetaPagesDnDView({ accountId, workspaceId }: WikiBetaPagesDn
           pageId: draggedId,
           targetParentPageId: targetId,
         }).catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : "move failed");
+          setError(e instanceof Error ? e.message : "移動失敗");
           void refresh();
         });
       },

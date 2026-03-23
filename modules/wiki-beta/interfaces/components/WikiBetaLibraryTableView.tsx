@@ -57,7 +57,7 @@ export function WikiBetaLibraryTableView({ accountId, workspaceId }: LibraryTabl
           setSelectedId(result[0].id);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "failed to load libraries");
+        setError(e instanceof Error ? e.message : "載入 Libraries 失敗");
       } finally {
         setLoading(false);
       }
@@ -80,7 +80,7 @@ export function WikiBetaLibraryTableView({ accountId, workspaceId }: LibraryTabl
           })),
         );
       } catch (e) {
-        setError(e instanceof Error ? e.message : "failed to load rows");
+        setError(e instanceof Error ? e.message : "載入資料列失敗");
       } finally {
         setLoading(false);
       }
