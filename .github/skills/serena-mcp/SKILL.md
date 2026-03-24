@@ -44,6 +44,54 @@ project index, or verifying that `.serena/` is only modified through official Se
 5. **Phase-end update is mandatory** — Every delivery phase must execute the Phase-End Update workflow before
    handing off to the next stage.
 
+## Phase-End Memory Template
+
+Use this markdown template for all `serena/write_memory` calls at phase end:
+
+```markdown
+## Phase: <plan|impl|review|qa>
+## Task: <task-id or short description>
+## Date: <YYYY-MM-DD>
+
+### Scope
+- <item>
+
+### Decisions / Findings
+- <decision or finding>
+
+### Validation / Evidence
+- <validation run or evidence collected>
+
+### Deviations / Risks
+- <deviation from plan or residual risk, or "none">
+
+### Open Questions
+- <question, or "none">
+```
+
+Pass this content as the `content` parameter to `serena/write_memory`.
+
+### Tool call structure
+
+```json
+serena/write_memory: {
+  "name": "workflow/impl-{task-id}",
+  "content": "<markdown from template above>"
+}
+```
+
+```json
+serena/delete_memory: {
+  "name": "workflow/plan-{task-id}"
+}
+```
+
+```json
+serena/activate_project: {
+  "project_name": "xuanwu-app"
+}
+```
+
 ## Phase-End Update Workflow
 
 Execute at the end of every delivery phase (Plan → Implement → Review → QA):

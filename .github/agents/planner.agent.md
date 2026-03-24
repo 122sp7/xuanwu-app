@@ -33,7 +33,7 @@ Turn a delivery request into an implementation plan that later stages can execut
 4. Check whether a development contract governs the workflow.
 5. Produce a formal implementation plan using the required template and schema.
 6. Ensure the plan names validation and documentation work explicitly.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`) with scope, decisions, and open questions; then call `serena/summarize_changes`.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scope, decisions, and open questions; then call `serena/summarize_changes`.
 
 ## Guardrails
 

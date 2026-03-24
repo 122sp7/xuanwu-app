@@ -41,7 +41,7 @@ Evaluate whether the implementation is acceptable before QA starts. Focus on bug
 1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
 2. Read the approved plan and the implementation output.
 3. Evaluate across the five review lenses.
-4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`) with findings, severity, and recommendation; then call `serena/summarize_changes`.
+4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with findings, severity, and recommendation; then call `serena/summarize_changes`.
 
 ## Guardrails
 

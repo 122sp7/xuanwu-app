@@ -33,7 +33,7 @@ Execute the approved implementation plan without expanding scope. Write code, up
 4. Keep changes inside the documented scope and non-goals.
 5. Run the validation named in the plan.
 6. Update the documentation listed in the plan.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
 8. Prepare a concise completion summary for review.
 
 ## Guardrails

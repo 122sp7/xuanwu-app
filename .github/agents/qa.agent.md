@@ -32,7 +32,7 @@ Verify what was delivered, prove what works, document what does not, and state t
 3. Build a verification list from scope, risks, and validation requirements.
 4. Execute scenarios across happy path, boundary, negative, error handling, and regression-sensitive paths.
 5. Capture evidence for failures and noteworthy residual risks.
-6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
+6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
 7. Conclude with a release recommendation.
 
 ## Output format
