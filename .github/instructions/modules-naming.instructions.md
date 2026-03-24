@@ -1,11 +1,11 @@
 ---
 description: 'Naming rules for modules/, module APIs, use cases, repositories, entities, events, and related MDDD assets'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, modules/**/*.md'
+applyTo: 'modules/**/*.md'
 ---
 
 # Modules Naming
 
-Use consistent naming so module ownership and MDDD layer roles remain obvious.
+Use consistent naming in module specifications and architecture docs so ownership and layer roles remain obvious.
 
 ## Naming Table
 
@@ -33,4 +33,4 @@ Use consistent naming so module ownership and MDDD layer roles remain obvious.
 - Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration names
 - Prefer singular bounded-context names unless existing convention is plural
 - Keep renamed modules aligned with their public API names, Firestore collections, and event discriminants
-- Use `@alias` imports for packages, relative imports within same module, `@/modules/<target>/api` for cross-module
+- Keep naming aligned with import-boundary rules defined in `modules-api-boundary.instructions.md`

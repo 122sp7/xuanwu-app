@@ -1,11 +1,11 @@
 ---
 description: 'Architecture rules for creating and refactoring modules/ bounded contexts under Xuanwu MDDD'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, modules/**/*.md'
+applyTo: 'modules/**/*.md'
 ---
 
 # Modules Architecture
 
-Use this instruction when creating, expanding, or restructuring code under `modules/`.
+Use this instruction when designing or restructuring module architecture documents under `modules/`.
 
 ## MDDD Layers
 
@@ -60,6 +60,7 @@ Additional folders are allowed when needed, but do not rename the canonical laye
 - **Cross-module**: Do not reach into another module's internals; use `api/` or event flows
 - **Layers**: Never skip `api/` for cross-module consumption. Do not put business rules in `interfaces/`. Do not import infrastructure into `domain/`
 - **App boundary**: `app/` is route wiring, not business logic
+- **Code-level enforcement**: For source-code dependency edges and cross-module imports, defer to `modules-api-boundary.instructions.md` and `modules-dependency-graph.instructions.md`
 - **File placement**:
   - Events → `domain/events/`
   - Repository interfaces → `domain/repositories/`
@@ -69,5 +70,4 @@ Additional folders are allowed when needed, but do not rename the canonical laye
 
 ## Validation
 
-- `npm run lint`
-- `npm run build`
+- Use validation commands from `agents/commands.md` to keep one canonical command source.

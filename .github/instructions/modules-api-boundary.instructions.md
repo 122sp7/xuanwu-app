@@ -27,5 +27,4 @@ Cross-module interaction must remain explicit and minimal.
 ## Validation
 
 - Re-check all changed imports
-- Run `npm run lint`
-- Run `npm run build` when public types or barrels changed
+- Run validation commands from `agents/commands.md` based on change scope

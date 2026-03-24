@@ -1,11 +1,11 @@
 ---
 description: 'Refactoring workflows for adding, restructuring, splitting, merging, and deleting modules while preserving MDDD boundaries'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, modules/**/*.md'
+applyTo: 'modules/**/*.md'
 ---
 
 # Modules Refactoring
 
-Use this instruction when an agent must add, refactor, split, merge, or delete a module.
+Use this instruction when planning or documenting add/refactor/split/merge/delete operations for modules.
 
 ## Workflow Checklist
 
@@ -41,5 +41,4 @@ Use this instruction when an agent must add, refactor, split, merge, or delete a
 - [ ] Update indexes and dependency guidance
 
 ### Validation
-- [ ] `npm run lint` after imports/boundary changes
-- [ ] `npm run build` after type/routing changes
+- [ ] Use validation commands from `agents/commands.md` and record which ones were run.

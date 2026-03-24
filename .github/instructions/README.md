@@ -38,6 +38,17 @@ Always-on and `applyTo`-scoped instructions that guide code generation, review, 
 
 Each instruction file includes clear examples, best practices, and anti-patterns to guide Copilot behavior and enforce project standards.
 
+## Scope Partition (Noise Control)
+
+Use this partition to avoid overlapping instruction contexts:
+
+- App and package implementation: `xuanwu-app-nextjs-mddd.instructions.md`
+- Module code boundaries: `modules-api-boundary.instructions.md` + `modules-dependency-graph.instructions.md`
+- Module architecture and naming docs: `modules-architecture.instructions.md` + `modules-naming.instructions.md` + `modules-refactoring.instructions.md`
+- Prompt authoring: `prompt.instructions.md`
+- Agent authoring: `agents.instructions.md`
+- Skill authoring: `agent-skills.instructions.md`
+
 ## Related
 
 - [../README.md](../README.md) — Root `.github/` navigation

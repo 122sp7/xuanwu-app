@@ -41,5 +41,4 @@ If a change needs a new edge or direction change, document and justify it in the
 
 - Search changed imports for `@/modules/`
 - Verify no new cross-module internal import paths were introduced
-- Run `npm run lint`
-- Run `npm run build`
+- Run validation commands from `agents/commands.md` based on change scope
