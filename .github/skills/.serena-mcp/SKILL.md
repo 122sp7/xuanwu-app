@@ -1,13 +1,13 @@
 ---
-name: serena-mcp
-description: >
-  每次對話都自動載入的 Serena MCP 整合技能。讓 GitHub Copilot Agent 自主使用
-  Serena MCP 工具來讀取、查詢與更新專案的語意記憶、符號索引與程式碼理解上下文。
-  每當任何開發任務開始前、階段完成後、或需要存取 .serena/ 記憶與索引資料時，
-  皆自動觸發。嚴禁直接操作 .serena/ 目錄內容，所有記憶與索引變更必須透過
-  Serena MCP tools 完成。
+name: serena-mcp-integration
+description: >-
+  Auto-loaded background skill for Serena MCP integration. Enables GitHub Copilot
+  Agent to autonomously use Serena MCP tools for reading, querying, and updating
+  project semantic memory, symbol index, and code understanding context. Triggered
+  before any development task begins, after phase completion, or when .serena/
+  memory and index data need to be accessed. Direct .serena/ file edits are forbidden.
 user-invocable: false
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Serena MCP 整合技能
