@@ -1,24 +1,21 @@
 # Development Reference
 
-Development guides, specifications, contracts, and namespaces for the Xuanwu App platform.
+Development guides, specifications, contracts, and planning for the Xuanwu App platform.
 
 ## Organization
 
-| Subdirectory | Content | Entry |
-| --- | --- | --- |
-| [development/](./development/) | Process guides and code standards | [development/README.md](./development/README.md) |
-| [reference/](./reference/) | AI customization, plans, contracts, template | [reference/ai/customizations-index.md](./reference/ai/customizations-index.md) |
-| [specification/](./specification/) | System specs and development contracts | [specification/README.md](./specification/README.md) |
-| [namespace/](./namespace/) | Namespace definitions and conventions | index.js |
+- [development/](./development/) — Process, branching, code style → [development/README.md](./development/README.md)
+- [reference/](./reference/) — AI customization, plans, contracts → [reference/README.md](./reference/README.md)
+- [specification/](./specification/) — System specs, development contracts → [specification/README.md](./specification/README.md)
+- [namespace/](./namespace/) — Namespace definitions
 
-## Quick Start
+## Quick Navigation
 
-- **To understand development process**: Start with [development/README.md](./development/README.md)
-- **To follow a delivery workflow**: See [reference/ai/customizations-index.md](./reference/ai/customizations-index.md)
-- **To review system specifications**: Read [specification/README.md](./specification/README.md)
-- **For AI customization details**: Check [reference/ai/](./reference/ai/)
+- **Develop**: [development/development-process.md](./development/development-process.md)
+- **Plan**: [reference/ai/implementation-plan-template.md](./reference/ai/implementation-plan-template.md)
+- **Review contracts**: [specification/README.md](./specification/README.md)
 
 ## Related
 
-- [../decision-architecture/README.md](../decision-architecture/README.md) — Architectural decisions and models
-- [../diagrams-events-explanations/diagrams/README.md](../diagrams-events-explanations/diagrams/README.md) — System diagrams
+- [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture & ADRs
+- [../diagrams-events-explanations/README.md](../diagrams-events-explanations/README.md) — Diagrams & explanations
