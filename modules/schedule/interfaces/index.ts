@@ -1,4 +1,7 @@
 export * from "./components/WorkspaceScheduleTab";
+export * from "./components/DispatcherView";
+export * from "./dispatcher/types";
+export * from "./dispatcher/store";
 export * from "./queries/schedule.queries";
 export * from "./queries/schedule-mddd.queries";
 export * from "./queries/schedule-event-types.queries";
