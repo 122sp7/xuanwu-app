@@ -58,6 +58,5 @@ export class UploadInitFileUseCase {
 
 **Guidelines:**
 - Prefer interface types for injected dependencies
-- Wire dependencies at the app root or module `api/` composition entrypoint (for example `modules/<target-domain>/api/index.ts`), not inside the use case
-- For simple modules, function parameter injection (`deps: { repo }`) is sufficient
-- For complex modules (e.g., file with hexagonal ports), use class constructors
+- Wire dependencies at the module `api/` or app composition root, not inside the use case
+- Simple modules: use function parameter injection (`deps: { repo }`); complex modules with hexagonal ports: use class constructors

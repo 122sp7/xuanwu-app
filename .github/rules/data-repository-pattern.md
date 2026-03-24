@@ -60,8 +60,3 @@ export class TaskFirebaseRepository implements TaskRepository {
   }
 }
 ```
-
-**Benefits:**
-- Domain stays testable without Firebase
-- Swap from Firebase to another backend by replacing infrastructure implementations only
-- Business logic is never mixed with persistence code

@@ -51,8 +51,3 @@ npm run deploy:firebase       # Everything
 - App Hosting config is in `apphosting.yaml`
 - Firestore rules are in `firestore.rules`
 - Storage rules are in `storage.rules`
-
-**Useful tips:**
-- The dev server supports Fast Refresh — save a file and see changes instantly
-- ESLint will block legacy import paths (`@/shared/*`, `@/infrastructure/*`, etc.) — use `@alias` paths
-- TypeScript path aliases are defined in `tsconfig.json` — check there for available `@package` imports
