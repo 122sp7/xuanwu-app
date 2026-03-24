@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, GanttChart, MoreHorizontal, Plus, Send, X } from "lucide-react";
+import { FileText, MoreHorizontal, Plus, Send, X } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import type { WorkspaceEntity } from "@/modules/workspace";
@@ -32,7 +32,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@ui-shadcn/ui/alert-dialog";
-import { DispatcherView } from "./DispatcherView";
 
 // ── Request status helpers ────────────────────────────────────────────────────
 
@@ -289,20 +288,6 @@ export function WorkspaceScheduleTab({ workspace }: WorkspaceScheduleTabProps) {
           </ul>
         </div>
       )}
-
-      {/* ── Dispatcher section ── */}
-      <div className="border-t border-border/40 pt-4">
-        <div className="mb-3 flex items-center gap-2">
-          <GanttChart className="h-4 w-4 text-primary" />
-          <h2 className="text-base font-semibold tracking-tight">調度台</h2>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-            今日調度
-          </span>
-        </div>
-        <div style={{ minHeight: "480px" }}>
-          <DispatcherView />
-        </div>
-      </div>
 
       <AlertDialog
         open={confirmingRequestId != null}
