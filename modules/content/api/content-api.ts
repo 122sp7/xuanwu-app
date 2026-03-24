@@ -60,4 +60,20 @@ export class ContentApi {
   ): Promise<ContentBlock | null> {
     return this.blockService.updateBlock({ accountId, blockId, text });
   }
+
+  /** Return all pages for an account. */
+  async listPages(accountId: string): Promise<ContentPage[]> {
+    return this.pageRepo.listByAccountId(accountId);
+  }
+
+  /** Return the page with all its blocks (flat list, ordered). */
+  async getPageStructure(
+    accountId: string,
+    pageId: string,
+  ): Promise<{ page: ContentPage; blocks: ContentBlock[] } | null> {
+    const page = await this.pageRepo.findById(accountId, pageId);
+    if (!page) return null;
+    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
+    return { page, blocks };
+  }
 }

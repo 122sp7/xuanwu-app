@@ -13,3 +13,5 @@ export type {
   ContentAddBlockParams,
   ContentUpdateBlockParams,
 } from "./content-facade";
+
+export { ContentApi } from "./content-api";

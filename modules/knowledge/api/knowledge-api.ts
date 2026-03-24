@@ -15,6 +15,12 @@ import type { Link } from "../domain/entities/link";
 import { LinkExtractorService } from "../application/link-extractor.service";
 import { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
 
+/** Shape of the graph payload defined in APIContract.md */
+export interface GraphDataDTO {
+  nodes: Array<{ id: string; label: string; group: string }>;
+  edges: Array<{ from: string; to: string; type: string }>;
+}
+
 export class KnowledgeApi {
   private readonly graphRepo: InMemoryGraphRepository;
   readonly linkExtractor: LinkExtractorService;
@@ -38,5 +44,20 @@ export class KnowledgeApi {
   /** Return outgoing explicit links from a given source page. */
   async getOutgoingLinks(pageId: string): Promise<Link[]> {
     return this.graphRepo.findLinksBySourceId(pageId);
+  }
+
+  /**
+   * Return a GraphDataDTO summarising the full in-memory graph.
+   * Shape matches the APIContract: `{ nodes: [...], edges: [...] }`.
+   */
+  async getGraphData(): Promise<GraphDataDTO> {
+    const [nodes, links] = await Promise.all([
+      this.graphRepo.listNodes(),
+      this.graphRepo.listLinks(),
+    ]);
+    return {
+      nodes: nodes.map((n) => ({ id: n.id, label: n.label, group: n.type })),
+      edges: links.map((l) => ({ from: l.sourceId, to: l.targetId, type: l.type })),
+    };
   }
 }
