@@ -8,7 +8,8 @@
 
 **Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
 
-- Notion-style 頁面與資料庫管理（Wiki-Beta）
+- 內容頁面與結構化資料庫體驗（Content / UI Layer）
+- 知識關聯與導航視角（Knowledge Graph Layer）
 - 企業級 RAG（Retrieval-Augmented Generation）知識查詢
 - 多工作區協作與組織管理
 - 文件解析、向量化與智慧問答
@@ -17,7 +18,7 @@
 
 | 面向 | 價值 |
 |---|---|
-| **知識管理** | 像 Notion 一樣建立頁面、資料庫，組織企業知識 |
+| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
 | **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
 | **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
 | **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
@@ -57,8 +58,8 @@
 | RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
 | RAG 問答 | 自然語言問答，含引用來源 | `wiki-beta`, `ai` |
 | RAG 重整 | 手動觸發 RAG 重新索引 | `wiki-beta` |
-| Pages | Notion-style 頁面建立與管理 | `wiki-beta` |
-| Libraries | 結構化資料庫（類 Notion Database） | `wiki-beta` |
+| Pages | 區塊式頁面建立與管理 | `wiki-beta` |
+| Libraries | 結構化資料庫管理 | `wiki-beta` |
 
 ### 3.3 AI 功能
 

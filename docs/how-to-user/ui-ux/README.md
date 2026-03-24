@@ -31,7 +31,7 @@
 
 ## 產品願景
 
-Xuanwu App 是一個**知識管理與 AI 輔助的工作區平台**，融合 Notion-style 的頁面編輯體驗與企業級 RAG（Retrieval-Augmented Generation）知識查詢能力。
+Xuanwu App 是一個**知識管理與 AI 輔助的工作區平台**，融合內容編輯與資料庫體驗、知識關聯視角，以及企業級 RAG（Retrieval-Augmented Generation）知識查詢能力。
 
 ### 核心使用流程
 

@@ -35,7 +35,7 @@
 |---|---|---|
 | 上傳知識文件 | `/wiki-beta/documents` | 帳號登入、PDF/TIFF/PNG/JPEG |
 | 對文件做 AI 問答 | `/wiki-beta/rag-query` | 至少一份 `ready` 狀態文件 |
-| 建立 Notion 式頁面 | `/wiki-beta/pages` | 帳號登入 |
+| 建立頁面 | `/wiki-beta/pages` | 帳號登入 |
 | 建立結構化資料庫 | `/wiki-beta/libraries` | 帳號登入 |
 | 管理組織成員 | `/organization/members` | Admin 角色 |
 | 查看稽核記錄 | `/organization/audit` | Admin 角色 |
