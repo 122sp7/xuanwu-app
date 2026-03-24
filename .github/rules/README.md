@@ -1,13 +1,13 @@
-# Xuanwu MDDD Engineering Rules
+# Xuanwu Engineering Rules Index
 
-This directory contains modular, machine-readable engineering rules for the xuanwu-app Module-Driven Domain Design architecture.
+This folder stores machine-readable engineering rules for Xuanwu MDDD delivery.
 
-## Structure
+## Rule organization
 
-Rules are organized by section prefix, as defined in `_sections.md`:
+Rules are grouped by filename prefix defined in `_sections.md`.
 
 | Prefix | Section | Impact |
-|--------|---------|--------|
+| --- | --- | --- |
 | `architecture-` | Architecture | CRITICAL |
 | `quality-` | Code Quality | CRITICAL |
 | `data-` | Data Layer | HIGH |
@@ -19,51 +19,20 @@ Rules are organized by section prefix, as defined in `_sections.md`:
 | `ci-` | CI/CD | HIGH |
 | `reference-` | Reference | LOW |
 
-## Files
+## Core files
 
-- `_sections.md` — Defines all sections, their ordering, and impact levels
-- `_template.md` — Template for creating new rules
-- `{section}-{rule-name}.md` — Individual rule files
+- `_sections.md`: section order and impact model.
+- `_template.md`: base template for new rules.
+- `{section}-{rule-name}.md`: individual rule files.
 
-## Rule Format
+## Authoring flow
 
-Each rule file follows a consistent format with YAML frontmatter:
+1. Copy `_template.md` to a new file with the correct prefix.
+2. Fill frontmatter (`title`, `impact`, `tags`).
+3. Add concise rationale.
+4. Add incorrect and correct examples.
+5. Add a reference when relevant.
 
-```markdown
----
-title: Rule Title Here
-impact: CRITICAL | HIGH | MEDIUM | LOW
-impactDescription: Optional description (e.g., "Prevents architecture erosion")
-tags: tag1, tag2, tag3
----
+## Boundary principle
 
-## Rule Title Here
-
-**Impact: LEVEL (optional description)**
-
-Brief explanation of the rule and why it matters.
-
-**Incorrect (description):**
-\`\`\`typescript
-// Bad code example
-\`\`\`
-
-**Correct (description):**
-\`\`\`typescript
-// Good code example
-\`\`\`
-
-Reference: [Link](https://example.com)
-```
-
-## Adding New Rules
-
-1. Copy `_template.md` to a new file with the appropriate section prefix
-2. Fill in the frontmatter (title, impact, tags)
-3. Write a clear explanation using xuanwu-app examples
-4. Provide incorrect and correct code examples
-5. Add a reference link if applicable
-
-## Core Principles
-
-> The architecture is **module-driven, not layer-driven**. Every business capability is a self-contained module. Modules communicate through each target domain's `api/` boundary, never by reaching into each other's internals. Packages are stable public boundaries for shared concerns.
+Follow module-driven boundaries: modules are isolated bounded contexts, cross-module access goes through target `api/`, and shared concerns go through package aliases.
