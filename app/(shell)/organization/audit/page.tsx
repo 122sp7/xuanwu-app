@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationAuditLogs } from "@/modules/audit";
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/audit";
 import { getWorkspacesForAccount } from "@/modules/workspace";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
@@ -112,6 +112,19 @@ export default function OrganizationAuditPage() {
                 </p>
               </div>
             ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>稽核時間軸</CardTitle>
+          <CardDescription>
+            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditStream logs={auditLogs} height={500} />
         </CardContent>
       </Card>
     </div>

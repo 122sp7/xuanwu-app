@@ -1,416 +1,174 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Send, X } from "lucide-react";
+/**
+ * WorkspaceDailyTab — 工作區施工動態（IG 瀑布流骨架）。
+ * 奧卡姆剃刀：Feed + 浮動發布按鈕 + 極簡撰寫面板。
+ */
+
+import { useRef, useState } from "react";
+import { PenSquare, Send, X } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
-import type {
-  DailyFeedItem,
-  PublishDailyEntryInput,
-  WorkspaceDailyDigestEntity,
-} from "@/modules/daily";
-import { getWorkspaceDailyDigest, getWorkspaceDailyFeed } from "@/modules/daily";
-import { publishDailyEntry } from "@/modules/daily/interfaces/_actions/daily.actions";
+import type { DailyPostType } from "@/modules/daily";
+import { createDailyPost, DailyFeed, DAILY_POST_TYPES } from "@/modules/daily";
 import type { WorkspaceEntity } from "@/modules/workspace";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
 
-const DAILY_ENTRY_TYPE_LABEL: Record<DailyFeedItem["entryType"], string> = {
-  update: "更新",
-  blocker: "阻塞",
-  ask: "協作需求",
-  milestone: "里程碑",
-  signal: "系統訊號",
-  story: "限時動態",
-  highlight: "精選",
-};
-
-const DAILY_VISIBILITY_LABEL: Record<DailyFeedItem["visibility"], string> = {
-  workspace_only: "僅工作區",
-  organization: "組織可見",
-  selected_workspaces: "指定工作區",
-  public_demo: "公開展示",
-};
-
-const WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] = [
-  "workspace_only",
-  "organization",
-];
-const PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] = [
-  "workspace_only",
-];
-
-function formatNotificationTime(timestamp: number) {
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(timestamp));
-  } catch {
-    return "—";
-  }
-}
-
-function formatPublishedAt(iso: string) {
-  const timestamp = Date.parse(iso);
-  if (Number.isNaN(timestamp)) {
-    return "—";
-  }
-
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
 
 interface WorkspaceDailyTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
+// ── 類型標籤 ────────────────────────────────────────────────────────────────
+
+const TYPE_LABEL: Record<DailyPostType, string> = {
+  progress: "進度",
+  issue: "問題",
+  safety: "安全",
+  material: "材料",
+};
+
+const TYPE_ACTIVE_CLASS: Record<DailyPostType, string> = {
+  progress: "bg-green-600 text-white border-green-600",
+  issue: "bg-red-600 text-white border-red-600",
+  safety: "bg-yellow-500 text-white border-yellow-500",
+  material: "bg-blue-600 text-white border-blue-600",
+};
+
+// ── 元件 ────────────────────────────────────────────────────────────────────
+
 export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
   const { state: appState } = useApp();
-  const actorAccountId = appState.activeAccount?.id ?? "";
+  const actor = appState.activeAccount;
 
-  const supportedVisibilities =
-    workspace.accountType === "organization"
-      ? WORKSPACE_DAILY_VISIBILITY_OPTIONS
-      : PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS;
-  const defaultVisibility = supportedVisibilities[0];
+  const actorId = actor?.id ?? "";
+  const actorName = actor?.name ?? "未知";
+  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
+  const actorInitial = actorName.charAt(0).toUpperCase();
 
-  const [digest, setDigest] = useState<WorkspaceDailyDigestEntity | null>(null);
-  const [feed, setFeed] = useState<readonly DailyFeedItem[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [showComposer, setShowComposer] = useState(false);
-  const [entryType, setEntryType] = useState<PublishDailyEntryInput["entryType"]>("update");
-  const [visibility, setVisibility] = useState<PublishDailyEntryInput["visibility"]>(
-    defaultVisibility,
-  );
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  const [body, setBody] = useState("");
+  const [postType, setPostType] = useState<DailyPostType>("progress");
+  const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    async function loadDailyData() {
-      setLoadState("loading");
-
-      try {
-        const [nextDigest, nextFeed] = await Promise.all([
-          getWorkspaceDailyDigest(workspace.id, workspace.accountId),
-          getWorkspaceDailyFeed(workspace.id),
-        ]);
-        if (cancelled) {
-          return;
-        }
-
-        setDigest(nextDigest);
-        setFeed(nextFeed);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceDailyTab] Failed to load daily feed:", error);
-        }
-
-        if (!cancelled) {
-          setDigest(null);
-          setFeed([]);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadDailyData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace.accountId, workspace.id]);
-
-  const dailyNotifications = useMemo(() => digest?.items ?? [], [digest]);
-  const unreadCount = useMemo(() => digest?.summary.unread ?? 0, [digest]);
-
-  async function refreshDailyData() {
-    const [nextDigest, nextFeed] = await Promise.all([
-      getWorkspaceDailyDigest(workspace.id, workspace.accountId),
-      getWorkspaceDailyFeed(workspace.id),
-    ]);
-    setDigest(nextDigest);
-    setFeed(nextFeed);
-    setLoadState("loaded");
+  function openComposer() {
+    setShowComposer(true);
+    // 下一個 tick 後聚焦 textarea
+    setTimeout(() => textareaRef.current?.focus(), 80);
   }
 
-  async function handlePublishEntry() {
-    if (!actorAccountId) {
-      setActionError("找不到目前操作帳戶，請重新整理後再試一次。");
-      return;
-    }
+  function closeComposer() {
+    setShowComposer(false);
+    setActionError(null);
+    setContent("");
+    setPostType("progress");
+  }
 
+  async function handlePost() {
+    if (!actorId || !content.trim()) return;
     setSubmitting(true);
     setActionError(null);
     try {
-      const result = await publishDailyEntry({
-        organizationId: workspace.accountId,
+      const result = await createDailyPost({
+        accountId: workspace.accountId,
         workspaceId: workspace.id,
-        authorId: actorAccountId,
-        entryType,
-        visibility,
-        title,
-        summary,
-        body,
+        content: content.trim(),
+        type: postType,
+        createdBy: { id: actorId, name: actorName, avatarUrl: actorAvatar },
       });
-
       if (!result.success) {
         setActionError(result.error.message);
         return;
       }
-
-      setTitle("");
-      setSummary("");
-      setBody("");
-      setEntryType("update");
-      setVisibility(defaultVisibility);
-      setShowComposer(false);
-      await refreshDailyData();
+      closeComposer();
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>Daily</CardTitle>
-            <CardDescription>
-              目前以 canonical Daily feed 為標準；通知 digest 僅保留為遷移期間的相容對照。
-            </CardDescription>
+    <div className="relative">
+      {/* ── 動態瀑布流 ── */}
+      <DailyFeed scope={{ accountId: workspace.accountId, workspaceId: workspace.id }} />
+
+      {/* ── FAB（右下浮動發布按鈕） ── */}
+      {!showComposer && (
+        <button
+          type="button"
+          aria-label="新增 Daily"
+          onClick={openComposer}
+          className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-foreground shadow-lg text-background hover:bg-foreground/90 active:scale-95 transition-all"
+        >
+          <PenSquare className="h-5 w-5" />
+        </button>
+      )}
+
+      {/* ── 撰寫面板（底部滑出，IG 極簡風） ── */}
+      {showComposer && (
+        <div className="fixed inset-x-0 bottom-0 z-30 max-w-lg mx-auto bg-background border-t border-border shadow-2xl rounded-t-2xl px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-bottom duration-200">
+          {/* 頂部操作列 */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              aria-label="關閉"
+              onClick={closeComposer}
+              className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              disabled={submitting || !content.trim()}
+              onClick={() => void handlePost()}
+              className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-4 text-xs font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {submitting ? "發布中…" : "發布"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowComposer((value) => !value)}
-            className="flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            新增 Daily
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Canonical entries</p>
-            <p className="mt-1 text-xl font-semibold">{feed.length}</p>
+
+          {/* 作者列 + 輸入框 */}
+          <div className="flex items-start gap-2.5">
+            <Avatar className="h-8 w-8 shrink-0 mt-0.5">
+              <AvatarImage src={actorAvatar} alt={actorName} />
+              <AvatarFallback className="text-xs font-bold">{actorInitial}</AvatarFallback>
+            </Avatar>
+            <textarea
+              ref={textareaRef}
+              rows={3}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="分享今天的施工動態…"
+              className="flex-1 resize-none bg-transparent text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
+            />
           </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Digest unread (compat)</p>
-            <p className="mt-1 text-xl font-semibold">{unreadCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Workspace account</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{workspace.accountId}</p>
-          </div>
-        </div>
 
-        {showComposer && (
-          <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  類型
-                </label>
-                <select
-                  value={entryType}
-                  onChange={(event) =>
-                    setEntryType(event.target.value as PublishDailyEntryInput["entryType"])
-                  }
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  {Object.entries(DAILY_ENTRY_TYPE_LABEL).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  可見性
-                </label>
-                <select
-                  value={visibility}
-                  onChange={(event) =>
-                    setVisibility(event.target.value as PublishDailyEntryInput["visibility"])
-                  }
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  {supportedVisibilities.map((value) => (
-                    <option key={value} value={value}>
-                      {DAILY_VISIBILITY_LABEL[value]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                標題 <span className="text-destructive">*</span>
-              </label>
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="今天最值得被看見的更新"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                摘要 <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                rows={2}
-                value={summary}
-                onChange={(event) => setSummary(event.target.value)}
-                placeholder="一句話說清楚目前進展、風險或協作需求。"
-                className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">內文</label>
-              <textarea
-                rows={3}
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                placeholder="補充背景、下一步或需要組織支援的內容。"
-                className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
+          {/* 類型選擇（pill 群組） */}
+          <div className="flex items-center gap-2 flex-wrap pl-10">
+            {DAILY_POST_TYPES.map((t: DailyPostType) => (
               <button
+                key={t}
                 type="button"
-                onClick={() => {
-                  setShowComposer(false);
-                  setActionError(null);
-                }}
-                className="flex h-8 items-center gap-1 rounded-md px-2.5 text-xs text-muted-foreground hover:bg-muted"
+                onClick={() => setPostType(t)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  postType === t
+                    ? TYPE_ACTIVE_CLASS[t]
+                    : "border-border text-muted-foreground hover:border-foreground/40"
+                }`}
               >
-                <X className="h-3 w-3" />
-                取消
+                {TYPE_LABEL[t]}
               </button>
-              <button
-                type="button"
-                disabled={submitting || !title.trim() || !summary.trim()}
-                onClick={() => void handlePublishEntry()}
-                className="flex h-8 items-center gap-1 rounded-md bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-              >
-                <Send className="h-3 w-3" />
-                {submitting ? "發布中…" : "發布 Daily"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {actionError && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-            {actionError}
-          </div>
-        )}
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading daily feed…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入每日動態，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Workspace Daily</h3>
-            <p className="text-xs text-muted-foreground">
-              先以文件定義的 authored entry 為主，再保留 digest 作為相容基線。
-            </p>
+            ))}
           </div>
 
-          {loadState === "loaded" && feed.length === 0 && (
-            <p className="text-sm text-muted-foreground">今天尚未發布新的 Workspace Daily。</p>
-          )}
-
-          {feed.map((entry) => (
-            <div key={entry.entryId} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{entry.title}</p>
-                    <Badge variant="outline">{DAILY_ENTRY_TYPE_LABEL[entry.entryType]}</Badge>
-                    <Badge variant="secondary">{DAILY_VISIBILITY_LABEL[entry.visibility]}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{entry.summary}</p>
-                  {entry.body && <p className="text-sm text-foreground/90">{entry.body}</p>}
-                  <p className="text-xs text-muted-foreground">{formatPublishedAt(entry.publishedAtISO)}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Digest baseline</h3>
-            <p className="text-xs text-muted-foreground">保留既有通知摘要，確保遷移期間仍可對照。</p>
-          </div>
-
-          {loadState === "loaded" && dailyNotifications.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              今天尚未有新的工作區通知或動態紀錄。
-            </p>
-          )}
-
-          {loadState === "loaded" && dailyNotifications.length > 0 && (
-            <div className="space-y-3">
-              {dailyNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="rounded-xl border border-border/40 px-4 py-4"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {notification.title}
-                        </p>
-                        <Badge variant="outline">{notification.type}</Badge>
-                        {!notification.read && <Badge variant="secondary">Unread</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{notification.message}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatNotificationTime(notification.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {actionError && (
+            <p className="text-xs text-destructive pl-10">{actionError}</p>
           )}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

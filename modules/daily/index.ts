@@ -1,38 +1,29 @@
+/**
+ * Daily 模組公開 Barrel
+ *
+ * 外部呼叫端一律透過 interfaces/api/daily-facade 取得 Daily 功能。
+ * 此 barrel 僅作為模組對外的唯一入口，不直接暴露內部實作層（application、infrastructure）。
+ */
+
+// ── 公開 API（施工動態 — DailyPost 系統） ─────────────────────────────────
+export {
+  // Mutations
+  createDailyPost,
+  // Queries
+  getDailyFeed,
+  // Components
+  DailyFeed,
+  DailyPostCard,
+  // Types & constants
+  AttachmentSchema,
+  DAILY_POST_TYPES,
+  DailyPostSchema,
+} from "./interfaces/api/daily-facade";
+
 export type {
-  DailyDigestItem,
-  DailyDigestSummary,
-  WorkspaceDailyDigestEntity,
-  OrganizationDailyDigestEntity,
-} from "./domain/entities/DailyDigest";
-export type {
-  DailyEntry,
-  DailyEntryStatus,
-  DailyEntryType,
-  DailyVisibility,
-  PublishDailyEntryInput,
-} from "./domain/entities/DailyEntry";
-export type { DailyFeedItem } from "./domain/entities/DailyFeed";
-export type { DailyDigestRepository } from "./domain/repositories/DailyDigestRepository";
-export type { DailyEntryRepository } from "./domain/repositories/DailyEntryRepository";
-export type { DailyFeedRepository } from "./domain/repositories/DailyFeedRepository";
-export {
-  GetWorkspaceDailyDigestUseCase,
-  GetOrganizationDailyDigestUseCase,
-} from "./application/use-cases/daily-digest.use-cases";
-export {
-  ListWorkspaceDailyFeedUseCase,
-  ListOrganizationDailyFeedUseCase,
-} from "./application/use-cases/list-daily-feed.use-cases";
-export { PublishDailyEntryUseCase } from "./application/use-cases/publish-daily-entry.use-case";
-export { DefaultDailyDigestRepository } from "./infrastructure/default/DefaultDailyDigestRepository";
-export { FirebaseDailyEntryRepository } from "./infrastructure/firebase/FirebaseDailyEntryRepository";
-export { FirebaseDailyFeedRepository } from "./infrastructure/firebase/FirebaseDailyFeedRepository";
-export {
-  getWorkspaceDailyDigest,
-  getOrganizationDailyDigest,
-} from "./interfaces/queries/daily-digest.queries";
-export {
-  getWorkspaceDailyFeed,
-  getOrganizationDailyFeed,
-} from "./interfaces/queries/daily-feed.queries";
-export { publishDailyEntry } from "./interfaces/_actions/daily.actions";
+  Attachment,
+  CreateDailyPostInput,
+  DailyFeedPage,
+  DailyPost,
+  DailyPostType,
+} from "./interfaces/api/daily-facade";

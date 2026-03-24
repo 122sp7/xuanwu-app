@@ -10,3 +10,13 @@ export {
   getWorkspaceAuditLogs,
 } from "./interfaces/queries/audit.queries";
 export { WorkspaceAuditTab } from "./interfaces/components/WorkspaceAuditTab";
+
+// ── 新增：精簡領域 Schema 與稽核時間軸元件（interfaces 層） ─────────────────
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "./domain/schema";
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./domain/schema";
+export { AuditStream } from "./interfaces/components/AuditStream";
