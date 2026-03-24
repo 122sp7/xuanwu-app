@@ -3,11 +3,6 @@ import type {
   WorkspaceMemberPresence,
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMember";
-import {
-  FirebaseOrganizationRepository,
-  type MemberReference,
-  type Team,
-} from "@/modules/organization";
 import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import {
