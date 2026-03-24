@@ -236,7 +236,7 @@ Would you like to install any of these? (Provide install links)
 ```markdown
 ---
 description: '{DESCRIPTION}'
-model: GPT-4.1
+model: GPT-5.1-Codex-Max
 tools: [{RELEVANT_TOOLS}]
 ---
 
