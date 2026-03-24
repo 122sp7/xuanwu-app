@@ -9,48 +9,55 @@
  * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
  * @author workspace-flow
  * @created 2026-03-24
- * @todo Narrow exports as module stabilises
  */
 
-// ── Facade (write surface) ────────────────────────────────────────────────────
+// ── Facade (write + summary-read surface) ────────────────────────────────────
 
 export { WorkspaceFlowFacade } from "./workspace-flow.facade";
 
 // ── Public contracts ──────────────────────────────────────────────────────────
 
 export type {
+  // Entities
   Task,
   Issue,
   Invoice,
   InvoiceItem,
+  // Value objects
   TaskStatus,
   IssueStatus,
   IssueStage,
   InvoiceStatus,
+  // Summary projections
   TaskSummary,
   IssueSummary,
   InvoiceSummary,
   InvoiceItemSummary,
+  // CRUD / command DTOs
   CreateTaskDto,
+  UpdateTaskDto,
   OpenIssueDto,
+  ResolveIssueDto,
   AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
   TaskQueryDto,
   IssueQueryDto,
   InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
 } from "./contracts";
 
 export {
+  // Value object lists (enum arrays)
   TASK_STATUSES,
-  canTransitionTaskStatus,
-  nextTaskStatus,
-  isTerminalTaskStatus,
   ISSUE_STATUSES,
-  canTransitionIssueStatus,
-  isTerminalIssueStatus,
   ISSUE_STAGES,
   INVOICE_STATUSES,
-  canTransitionInvoiceStatus,
-  isTerminalInvoiceStatus,
+  // Summary projection helpers
   toTaskSummary,
   toIssueSummary,
   toInvoiceSummary,

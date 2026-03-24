@@ -6,14 +6,18 @@
  * @description Server Actions for workspace-flow write operations.
  * @author workspace-flow
  * @created 2026-03-24
- * @todo Add authorization checks per action
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { CreateTaskDto } from "../../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
 import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
 import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
 import { CreateTaskUseCase } from "../../application/use-cases/create-task.use-case";
+import { UpdateTaskUseCase } from "../../application/use-cases/update-task.use-case";
 import { AssignTaskUseCase } from "../../application/use-cases/assign-task.use-case";
 import { SubmitTaskToQaUseCase } from "../../application/use-cases/submit-task-to-qa.use-case";
 import { PassTaskQaUseCase } from "../../application/use-cases/pass-task-qa.use-case";
@@ -25,9 +29,11 @@ import { FixIssueUseCase } from "../../application/use-cases/fix-issue.use-case"
 import { SubmitIssueRetestUseCase } from "../../application/use-cases/submit-issue-retest.use-case";
 import { PassIssueRetestUseCase } from "../../application/use-cases/pass-issue-retest.use-case";
 import { FailIssueRetestUseCase } from "../../application/use-cases/fail-issue-retest.use-case";
+import { ResolveIssueUseCase } from "../../application/use-cases/resolve-issue.use-case";
 import { CloseIssueUseCase } from "../../application/use-cases/close-issue.use-case";
 import { CreateInvoiceUseCase } from "../../application/use-cases/create-invoice.use-case";
 import { AddInvoiceItemUseCase } from "../../application/use-cases/add-invoice-item.use-case";
+import { UpdateInvoiceItemUseCase } from "../../application/use-cases/update-invoice-item.use-case";
 import { RemoveInvoiceItemUseCase } from "../../application/use-cases/remove-invoice-item.use-case";
 import { SubmitInvoiceUseCase } from "../../application/use-cases/submit-invoice.use-case";
 import { ReviewInvoiceUseCase } from "../../application/use-cases/review-invoice.use-case";
@@ -52,6 +58,14 @@ export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
     return await new CreateTaskUseCase(makeTaskRepo()).execute(dto);
   } catch (err) {
     return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+  try {
+    return await new UpdateTaskUseCase(makeTaskRepo()).execute(taskId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
@@ -145,6 +159,14 @@ export async function wfFailIssueRetest(issueId: string): Promise<CommandResult>
   }
 }
 
+export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+  try {
+    return await new ResolveIssueUseCase(makeIssueRepo()).execute(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
 export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
   try {
     return await new CloseIssueUseCase(makeIssueRepo()).execute(issueId);
@@ -171,9 +193,17 @@ export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandR
   }
 }
 
-export async function wfRemoveInvoiceItem(invoiceId: string, itemId: string): Promise<CommandResult> {
+export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
   try {
-    return await new RemoveInvoiceItemUseCase(makeInvoiceRepo()).execute(invoiceId, itemId);
+    return await new UpdateInvoiceItemUseCase(makeInvoiceRepo()).execute(invoiceItemId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await new RemoveInvoiceItemUseCase(makeInvoiceRepo()).execute(dto.invoiceId, dto.invoiceItemId);
   } catch (err) {
     return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }

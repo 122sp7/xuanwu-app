@@ -2,33 +2,39 @@
  * @module workspace-flow/api
  * @file workspace-flow.facade.ts
  * @description Public facade for executing workspace-flow operations from external consumers.
+ *
+ * All CRUD and workflow write operations are exposed exclusively through this class.
+ * List operations return {@link PagedResult} for uniform pagination.
+ * Scalar-get summary operations return the appropriate {@link *Summary} projection.
+ *
  * @author workspace-flow
  * @created 2026-03-24
- * @todo Add authorization / permission checks before delegating to use cases
  */
 
-import type { Task } from "../domain/entities/Task";
-import type { Issue } from "../domain/entities/Issue";
-import type { Invoice } from "../domain/entities/Invoice";
-import type { InvoiceItem } from "../domain/entities/InvoiceItem";
 import type { TaskRepository } from "../domain/repositories/TaskRepository";
 import type { IssueRepository } from "../domain/repositories/IssueRepository";
 import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
+
 import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
+import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
 import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
 import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
 import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
 import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
 import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
+
 import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
 import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
 import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
 import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
 import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
 import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
+import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
 import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
+
 import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
 import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
+import { UpdateInvoiceItemUseCase } from "../application/use-cases/update-invoice-item.use-case";
 import { RemoveInvoiceItemUseCase } from "../application/use-cases/remove-invoice-item.use-case";
 import { SubmitInvoiceUseCase } from "../application/use-cases/submit-invoice.use-case";
 import { ReviewInvoiceUseCase } from "../application/use-cases/review-invoice.use-case";
@@ -36,15 +42,46 @@ import { ApproveInvoiceUseCase } from "../application/use-cases/approve-invoice.
 import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.use-case";
 import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
 import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
+
 import type { CreateTaskDto } from "../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../application/dto/update-task.dto";
 import type { OpenIssueDto } from "../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
 import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+import type { TaskQueryDto } from "../application/dto/task-query.dto";
+import type { IssueQueryDto } from "../application/dto/issue-query.dto";
+import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type {
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+import {
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
 import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
 
 /**
  * WorkspaceFlowFacade
  *
- * Single entry point for all workspace-flow write operations.
+ * Single entry point for all workspace-flow write and read-summary operations.
  * External consumers must construct this with concrete repository implementations.
  *
  * @example
@@ -64,10 +101,14 @@ export class WorkspaceFlowFacade {
     private readonly invoiceRepository: InvoiceRepository,
   ) {}
 
-  // ── Task operations ─────────────────────────────────────────────────────────
+  // ── Task write operations ────────────────────────────────────────────────────
 
   async createTask(dto: CreateTaskDto): Promise<CommandResult> {
     return new CreateTaskUseCase(this.taskRepository).execute(dto);
+  }
+
+  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
   }
 
   async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
@@ -90,15 +131,23 @@ export class WorkspaceFlowFacade {
     return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
   }
 
-  async getTask(taskId: string): Promise<Task | null> {
-    return this.taskRepository.findById(taskId);
+  // ── Task read operations ─────────────────────────────────────────────────────
+
+  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
+    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
+    const assigneeFiltered = query.assigneeId
+      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
+      : filtered;
+    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
   }
 
-  async listTasks(workspaceId: string): Promise<Task[]> {
-    return this.taskRepository.findByWorkspaceId(workspaceId);
+  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
+    const task = await this.taskRepository.findById(taskId);
+    return task ? toTaskSummary(task) : null;
   }
 
-  // ── Issue operations ────────────────────────────────────────────────────────
+  // ── Issue write operations ───────────────────────────────────────────────────
 
   async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
     return new OpenIssueUseCase(this.issueRepository).execute(dto);
@@ -124,15 +173,28 @@ export class WorkspaceFlowFacade {
     return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
   }
 
+  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
+  }
+
   async closeIssue(issueId: string): Promise<CommandResult> {
     return new CloseIssueUseCase(this.issueRepository).execute(issueId);
   }
 
-  async listIssues(taskId: string): Promise<Issue[]> {
-    return this.issueRepository.findByTaskId(taskId);
+  // ── Issue read operations ────────────────────────────────────────────────────
+
+  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
+    const all = await this.issueRepository.findByTaskId(query.taskId);
+    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
+    return toPagedResult(filtered.map(toIssueSummary), pagination);
   }
 
-  // ── Invoice operations ──────────────────────────────────────────────────────
+  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
+    const issue = await this.issueRepository.findById(issueId);
+    return issue ? toIssueSummary(issue) : null;
+  }
+
+  // ── Invoice write operations ─────────────────────────────────────────────────
 
   async createInvoice(workspaceId: string): Promise<CommandResult> {
     return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);
@@ -142,8 +204,12 @@ export class WorkspaceFlowFacade {
     return new AddInvoiceItemUseCase(this.invoiceRepository).execute(dto);
   }
 
-  async removeInvoiceItem(invoiceId: string, itemId: string): Promise<CommandResult> {
-    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(invoiceId, itemId);
+  async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+    return new UpdateInvoiceItemUseCase(this.invoiceRepository).execute(invoiceItemId, dto);
+  }
+
+  async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(dto.invoiceId, dto.invoiceItemId);
   }
 
   async submitInvoice(invoiceId: string): Promise<CommandResult> {
@@ -170,15 +236,16 @@ export class WorkspaceFlowFacade {
     return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
   }
 
-  async getInvoice(invoiceId: string): Promise<Invoice | null> {
-    return this.invoiceRepository.findById(invoiceId);
+  // ── Invoice read operations ──────────────────────────────────────────────────
+
+  async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {
+    const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((inv) => inv.status === query.status) : all;
+    return toPagedResult(filtered.map(toInvoiceSummary), pagination);
   }
 
-  async listInvoices(workspaceId: string): Promise<Invoice[]> {
-    return this.invoiceRepository.findByWorkspaceId(workspaceId);
-  }
-
-  async listInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
-    return this.invoiceRepository.listItems(invoiceId);
+  async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    return invoice ? toInvoiceSummary(invoice) : null;
   }
 }

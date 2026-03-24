@@ -24,6 +24,10 @@ export interface InvoiceRepository {
   transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<Invoice | null>;
   /** Add an item to an invoice and recalculate totalAmount. */
   addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>;
+  /** Retrieve a single invoice item by its id. Returns null if not found. */
+  findItemById(invoiceItemId: string): Promise<InvoiceItem | null>;
+  /** Update the amount of an existing item and recalculate totalAmount. Returns null if not found. */
+  updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>;
   /** Remove an item from an invoice and recalculate totalAmount. */
   removeItem(invoiceItemId: string): Promise<void>;
   /** List all items for an invoice. */

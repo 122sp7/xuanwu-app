@@ -153,6 +153,37 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
     };
   }
 
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
+    if (!snap.exists()) return null;
+    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
+
+    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(amount - oldAmount),
+        updatedAtISO: nowISO,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    const updated = await getDoc(itemRef);
+    if (!updated.exists()) return null;
+    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
+  }
+
   async removeItem(invoiceItemId: string): Promise<void> {
     const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
     const snap = await getDoc(itemRef);
