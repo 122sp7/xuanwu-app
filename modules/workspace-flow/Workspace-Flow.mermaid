@@ -1,88 +1,81 @@
-%% Workspace Flow (derived only from modules/workspace-flow README + types)
-%% Includes: Task main flow, Issue side flow, Invoice finance flow, and guard gates.
+flowchart TB
+  %% ==========================================================
+  %% Workspace Flow
+  %% Source of truth limited to:
+  %% core.ts, examples.ts, firestore.ts, index.ts,
+  %% models.ts, services.ts, transitions.ts, README.md
+  %% ==========================================================
 
-flowchart LR
-	%% ==================== Task ====================
-	subgraph TASK[Task State Machine]
-		direction LR
-		T0([draft]) -->|ASSIGN| T1([in_progress])
-		T1 -->|SUBMIT_QA| T2([qa])
-		T2 --> G1{open issues == 0?}
-		G1 -->|PASS_QA| T3([acceptance])
-		G1 -->|no| I0
+  classDef task fill:#e8f3ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
+  classDef issue fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#0f172a;
+  classDef invoice fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#0f172a;
+  classDef data fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#0f172a;
+  classDef rule fill:#f8fafc,stroke:#64748b,stroke-dasharray: 5 5,color:#334155;
 
-		T3 --> G2{open issues == 0?}
-		G2 -->|APPROVE_ACCEPTANCE| T4([accepted])
-		G2 -->|no| I0
+  subgraph TASK_FLOW [Task State Machine]
+    direction LR
+    task_start((Start)):::rule --> task_draft[draft]:::task
+    task_draft -->|ASSIGN<br/>assignee: UserId| task_in_progress[in_progress]:::task
+    task_in_progress -->|SUBMIT_QA| task_qa[qa]:::task
+    task_qa -->|PASS_QA<br/>guard: no open issues| task_acceptance[acceptance]:::task
+    task_acceptance -->|APPROVE_ACCEPTANCE<br/>guard: no open issues| task_accepted[accepted]:::task
+    task_accepted -->|ARCHIVE<br/>guard: invoice closed or none| task_archived[archived]:::task
+  end
 
-		T4 --> G3{all related invoices closed\nor no invoice?}
-		G3 -->|ARCHIVE| T5([archived])
-		G3 -->|no| W1[(wait finance close)]
-	end
+  subgraph ISSUE_FLOW [Issue State Machine]
+    direction LR
+    issue_start((Start)):::rule --> issue_open[open]:::issue
+    issue_open -->|START| issue_investigating[investigating]:::issue
+    issue_investigating -->|FIX| issue_fixing[fixing]:::issue
+    issue_fixing -->|SUBMIT_RETEST| issue_retest[retest]:::issue
+    issue_retest -->|PASS_RETEST| issue_resolved[resolved]:::issue
+    issue_retest -->|FAIL_RETEST| issue_fixing
+    issue_resolved -->|CLOSE| issue_closed[closed]:::issue
+  end
 
-	%% ==================== Issue ====================
-	subgraph ISSUE[Issue State Machine]
-		direction LR
-		I0([open]) -->|START| I1([investigating])
-		I1 -->|FIX| I2([fixing])
-		I2 -->|SUBMIT_RETEST| I3([retest])
-		I3 -->|PASS_RETEST| I4([resolved])
-		I3 -->|FAIL_RETEST| I2
-		I4 -->|CLOSE| I5([closed])
-	end
+  subgraph INVOICE_FLOW [Invoice State Machine]
+    direction LR
+    invoice_start((Start)):::rule --> invoice_draft[invoice_draft]:::invoice
+    invoice_draft -->|SUBMIT<br/>guard: item_count > 0| invoice_submitted[submitted]:::invoice
+    invoice_submitted -->|REVIEW| invoice_finance_review[finance_review]:::invoice
+    invoice_finance_review -->|APPROVE| invoice_approved[approved]:::invoice
+    invoice_finance_review -->|REJECT<br/>reason: string| invoice_submitted
+    invoice_approved -->|PAY<br/>paid_at: Date| invoice_paid[paid]:::invoice
+    invoice_paid -->|CLOSE| invoice_closed[closed]:::invoice
+  end
 
-	%% ==================== Invoice ====================
-	subgraph INVOICE[Invoice State Machine]
-		direction LR
-		V0([invoice_draft]) --> G4{items > 0?}
-		G4 -->|SUBMIT| V1([submitted])
-		G4 -->|no| W2[(add invoice items)]
-		V1 -->|REVIEW| V2([finance_review])
-		V2 -->|APPROVE| V3([approved])
-		V2 -->|REJECT| V1
-		V3 -->|PAY| V4([paid])
-		V4 -->|CLOSE| V5([closed])
-	end
+  subgraph CROSS_FLOW [Cross-Flow Relations]
+    direction TB
+    open_issue_rule[任何節點發現問題<br/>開 Issue，不回退 Task]:::rule
+    resume_rule[Issue resolved 後<br/>依 Issue.stage 回到原節點繼續]:::rule
+    invoice_item[InvoiceItem<br/>invoice_id + task_id + amount<br/>只允許 accepted Task 加入]:::data
+  end
 
-	%% ==================== Cross-relations ====================
-	T4 -. accepted task eligible .-> J1[[InvoiceItem(task_id, amount)]]
-	J1 -. belongs to .-> V0
+  subgraph STORAGE [Firestore Collections]
+    direction TB
+    tasks_doc[tasks<br/>TaskDoc = Omit<Task, id>]:::data
+    issues_doc[issues<br/>IssueDoc = Omit<Issue, id>]:::data
+    invoices_doc[invoices<br/>InvoiceDoc = Omit<Invoice, id>]:::data
+    invoice_items_doc[invoice_items<br/>InvoiceItemDoc = Omit<InvoiceItem, id>]:::data
+  end
 
-	I5 -. unblock QA gate .-> G1
-	I5 -. unblock Acceptance gate .-> G2
-	V5 -. unblock Archive gate .-> G3
+  task_qa -. open issue<br/>stage: qa .-> issue_open
+  task_acceptance -. open issue<br/>stage: acceptance .-> issue_open
+  invoice_finance_review -. open issue<br/>stage: finance .-> issue_open
 
-	%% ==================== Domain notes ====================
-	N1[Issue.stage records where issue was created:\nqa | acceptance | finance]
-	N2[Task status is forward-only.\nDo not roll back task status on failures.]
-	N3[Task does not own finance status.\nFinance status lives in Invoice.]
+  issue_resolved -. if stage = qa .-> task_qa
+  issue_resolved -. if stage = acceptance .-> task_acceptance
+  issue_resolved -. if stage = finance .-> invoice_finance_review
 
-	I0 -. context .-> N1
-	TASK -. rule .-> N2
-	INVOICE -. rule .-> N3
+  task_accepted -. eligible for billing .-> invoice_item
+  invoice_item -. belongs to .-> invoice_draft
 
-	%% ==================== Legend ====================
-	subgraph LEGEND[Legend]
-		direction TB
-		L1([State])
-		L2{Guard}
-		L3[(Action required)]
-		L4[[Cross-domain relation]]
-	end
+  task_archived -. persisted as .-> tasks_doc
+  issue_closed -. persisted as .-> issues_doc
+  invoice_closed -. persisted as .-> invoices_doc
+  invoice_item -. persisted as .-> invoice_items_doc
 
-	%% ==================== Styling ====================
-	classDef task fill:#e6f0ff,stroke:#1d4ed8,color:#1e3a8a,stroke-width:1.8px;
-	classDef issue fill:#ecfdf3,stroke:#047857,color:#065f46,stroke-width:1.8px;
-	classDef invoice fill:#fff7ed,stroke:#c2410c,color:#9a3412,stroke-width:1.8px;
-	classDef guard fill:#fef9c3,stroke:#a16207,color:#713f12,stroke-width:1.6px;
-	classDef wait fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d,stroke-width:1.6px;
-	classDef xref fill:#f5f3ff,stroke:#6d28d9,color:#4c1d95,stroke-width:1.6px;
-	classDef note fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.2px;
-
-	class T0,T1,T2,T3,T4,T5 task;
-	class I0,I1,I2,I3,I4,I5 issue;
-	class V0,V1,V2,V3,V4,V5 invoice;
-	class G1,G2,G3,G4,L2 guard;
-	class W1,W2,L3 wait;
-	class J1,L4 xref;
-	class N1,N2,N3,L1 note;
+  open_issue_rule -. applies to .-> task_qa
+  open_issue_rule -. applies to .-> task_acceptance
+  open_issue_rule -. applies to .-> invoice_finance_review
+  resume_rule -. explains .-> issue_resolved
