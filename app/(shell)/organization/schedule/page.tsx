@@ -9,13 +9,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  GanttChart,
   List,
   Users,
 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { getWorkspacesForAccount } from "@/modules/workspace";
-import { getWorkspaceSchedule } from "@/modules/schedule";
+import { getWorkspaceSchedule, DispatcherView } from "@/modules/schedule";
 import type { WorkspaceScheduleItem } from "@/modules/schedule";
 import { listWorkspaceScheduleMdddFlowProjections } from "@/modules/schedule/interfaces/queries/schedule-mddd.queries";
 import type { ScheduleMdddFlowProjection } from "@/modules/schedule/domain/mddd/value-objects/Projection";
@@ -24,7 +25,7 @@ import { isOrganizationAccount } from "../_utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type ViewMode = "list" | "calendar";
+type ViewMode = "list" | "calendar" | "dispatcher";
 type StatusTab = "upcoming" | "unconfirmed" | "recurring" | "past" | "cancelled";
 
 const STATUS_TABS: { value: StatusTab; label: string }[] = [
@@ -87,7 +88,11 @@ export default function OrganizationSchedulePage() {
     : null;
 
   const viewMode: ViewMode =
-    searchParams.get("view") === "calendar" ? "calendar" : "list";
+    searchParams.get("view") === "calendar"
+      ? "calendar"
+      : searchParams.get("view") === "dispatcher"
+        ? "dispatcher"
+        : "list";
 
   const activeTab: StatusTab =
     (searchParams.get("status") as StatusTab | null) ?? "upcoming";
@@ -228,11 +233,11 @@ export default function OrganizationSchedulePage() {
   );
 
   // ── URL helpers ─────────────────────────────────────────────────────────────
-  function buildUrl(overrides: { view?: "calendar" | "list"; status?: StatusTab }): string {
+  function buildUrl(overrides: { view?: ViewMode; status?: StatusTab }): string {
     const params = new URLSearchParams();
     const v = overrides.view ?? viewMode;
     const s = overrides.status ?? activeTab;
-    if (v === "calendar") params.set("view", "calendar");
+    if (v !== "list") params.set("view", v);
     if (s !== "upcoming") params.set("status", s);
     const qs = params.toString();
     return qs ? `?${qs}` : "?";
@@ -282,8 +287,44 @@ export default function OrganizationSchedulePage() {
       >
         <CalendarDays className="h-4 w-4" />
       </button>
+      <button
+        type="button"
+        onClick={() => handleViewChange("dispatcher")}
+        className={`rounded-md p-1.5 transition-colors ${
+          viewMode === "dispatcher"
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/50"
+        }`}
+        aria-label="調度台"
+      >
+        <GanttChart className="h-4 w-4" />
+      </button>
     </>
   );
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // DISPATCHER VIEW  (?view=dispatcher)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (viewMode === "dispatcher") {
+    return (
+      <div className="flex flex-col">
+        {/* ── Toolbar ── */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-4 py-2">
+          <div className="flex items-center gap-1.5">
+            <GanttChart className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">調度台</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              今日調度
+            </span>
+          </div>
+          <div className="flex items-center gap-1">{viewIcons}</div>
+        </div>
+        <div className="flex-1 p-4" style={{ minHeight: "520px" }}>
+          <DispatcherView />
+        </div>
+      </div>
+    );
+  }
 
   // ════════════════════════════════════════════════════════════════════════════
   // LIST VIEW
