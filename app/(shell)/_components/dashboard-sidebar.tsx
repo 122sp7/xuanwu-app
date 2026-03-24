@@ -44,12 +44,7 @@ interface DashboardSidebarProps {
   readonly onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
-const ORGANIZATION_MANAGEMENT_ITEMS = [
-  { id: "members", label: "成員", href: "/organization/members" },
-  { id: "teams", label: "團隊", href: "/organization/teams" },
-  { id: "permissions", label: "權限", href: "/organization/permissions" },
-  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
-] as const;
+const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
 
 const ACCOUNT_NAV_ITEMS = [
   { id: "schedule", label: "排程", href: "/organization/schedule" },

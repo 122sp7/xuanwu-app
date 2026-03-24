@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, Users } from "lucide-react";
+import { BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -69,16 +69,6 @@ interface RailItem {
   /** When false the item is hidden; defaults to true */
   show?: boolean;
   isActive?: (pathname: string) => boolean;
-}
-
-const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-function isAccountSectionPath(pathname: string) {
-  return ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function isExactOrChildPath(targetPath: string, pathname: string) {
@@ -197,11 +187,6 @@ export function AppRail({
 
   const railItems: RailItem[] = [
     {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    {
       href: "/wiki-beta",
       label: "Account Wiki-Beta",
       icon: <BookOpen className="size-[18px]" />,
@@ -210,6 +195,27 @@ export function AppRail({
       href: "/ai-chat",
       label: "AI 對話",
       icon: <Bot className="size-[18px]" />,
+    },
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
     },
     {
       href: "/organization/daily",
@@ -231,14 +237,6 @@ export function AppRail({
       icon: <ClipboardList className="size-[18px]" />,
       show: isOrganizationAccount,
       isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization",
-      label: "組織",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) =>
-        currentPathname.startsWith("/organization") && !isAccountSectionPath(currentPathname),
     },
     {
       href: "/dev-tools",
