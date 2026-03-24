@@ -1,25 +1,21 @@
-## Phase: impl
-## Task: workspace-flow full diagram suite
+## Phase: maintenance
+## Task: refresh workspace-flow diagram suite memory
 ## Date: 2026-03-25
 
 ### Scope
-- Created the requested workspace-flow diagram suite under modules/workspace-flow
-- Added canonical filenames for flow, tree, UI, states, sequence, ERD, architecture, permissions, events, and lifecycle views
-- Updated README.md and AGENT.md references to the new diagram set
+- Replace older workspace-flow diagram memory with current canonical state
 
 ### Decisions / Findings
-- Workspace-Flow.mermaid is the canonical flow diagram
-- Workspace-Flow-Tree.mermaid is the canonical structure diagram
-- Workspace-Flow-UI.mermaid models external UI composition that consumes workspace-flow via api only
-- Additional diagrams provide complementary views: states, sequence, ERD, architecture, permissions, events, lifecycle
-- Legacy file Workspace-Flow-Dev.mermaid still exists as an older duplicate and may be removed later if the team wants a single canonical flow filename
+- Canonical diagram set is fixed at 10 files: Workspace-Flow, Tree, UI, States, Sequence, ERD, Architecture, Permissions, Events, Lifecycle.
+- Tree diagram naming and node examples are aligned with AGENT.md target structure (interfaces/contracts/queries/_actions + kebab-case DTO/use-case examples).
+- No legacy Workspace-Tree-Flow naming should be treated as active.
 
 ### Validation / Evidence
-- Mermaid render validation succeeded for State Diagram, Sequence Diagram, and ERD
-- Directory listing confirms the full diagram set exists in modules/workspace-flow
+- Current module root contains AGENT.md, README.md, and all canonical diagram files.
+- AGENT.md and README.md list the same root doc tree.
 
 ### Deviations / Risks
-- Workspace-Flow-Dev.mermaid remains alongside Workspace-Flow.mermaid and can cause naming ambiguity if left undocumented
+- Diagram suite is documentation target-state; implementation directories/files are still planned-state.
 
 ### Open Questions
 - none
