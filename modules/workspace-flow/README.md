@@ -181,6 +181,12 @@ modules/workspace-flow/
 - `interfaces/`：若未來需要本模組內的 action/query contract，可放這裡；產品 UI 仍優先在外部組裝
 - `api/`：唯一公開入口
 
+建議施工順序：
+1. 先做 `domain/` 的 statuses、events、entities、guards、transitions
+2. 再做 `application/` 的 DTO、ports、use cases
+3. 再做 `infrastructure/` 的 Firestore mapping 與 repositories
+4. 最後才做 `api/` 收斂公開 contract
+
 ## 5. 資料模型
 
 ### Task

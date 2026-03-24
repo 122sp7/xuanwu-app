@@ -22,7 +22,11 @@ flowchart TB
 			direction TB
 			public_api[api/]:::api
 			public_api_index[index.ts<br/>only allowed cross-module entry]:::api
+			public_facade[workspace-flow.facade.ts<br/>public facade for external consumers]:::file
+			public_contracts[contracts.ts<br/>public summaries and public DTOs]:::file
 			public_api --> public_api_index
+			public_api --> public_facade
+			public_api --> public_contracts
 		end
 
 		subgraph INTERNAL [Internal Layers]
@@ -64,10 +68,12 @@ flowchart TB
 
 				file_services[ports/TaskService.ts<br/>IssueService.ts<br/>InvoiceService.ts]:::file
 				file_queries[dto/TaskQueryDto.ts<br/>IssueQueryDto.ts<br/>InvoiceQueryDto.ts]:::file
+				file_commands[dto/CreateTaskDto.ts<br/>OpenIssueDto.ts<br/>AddInvoiceItemDto.ts]:::file
 				file_use_cases[use-cases/submit-task-to-qa.use-case.ts<br/>approve-acceptance.use-case.ts<br/>submit-invoice.use-case.ts]:::file
 
 				application_ports --> file_services
 				application_dto --> file_queries
+				application_dto --> file_commands
 				application_use_cases --> file_use_cases
 			end
 
@@ -77,8 +83,10 @@ flowchart TB
 				infra_persistence[persistence/]:::layer
 				infra_repositories[repositories/]:::layer
 				file_firestore[firebase/workspace-flow.collections.ts<br/>COLLECTIONS + document mappings]:::file
+				file_converters[firebase/task.converter.ts<br/>issue.converter.ts<br/>invoice.converter.ts]:::file
 				file_repositories[repositories/FirebaseTaskRepository.ts<br/>FirebaseIssueRepository.ts<br/>FirebaseInvoiceRepository.ts]:::file
 				infra_firebase --> file_firestore
+				infra_firebase --> file_converters
 				infra_repositories --> file_repositories
 			end
 
