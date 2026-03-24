@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -44,15 +44,24 @@ interface DashboardSidebarProps {
   readonly onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
-const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
+const ORGANIZATION_MANAGEMENT_ITEMS = [
   { id: "members", label: "成員", href: "/organization/members" },
   { id: "teams", label: "團隊", href: "/organization/teams" },
   { id: "permissions", label: "權限", href: "/organization/permissions" },
   { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const ACCOUNT_NAV_ITEMS = [
   { id: "schedule", label: "排程", href: "/organization/schedule" },
   { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
   { id: "daily", label: "每日", href: "/organization/daily" },
   { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
 ] as const;
 
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
@@ -117,12 +126,13 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
 
 // ── Section helpers ──────────────────────────────────────────────────────────
 
-type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "organization" | "settings" | "other";
+type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "account" | "organization" | "settings" | "other";
 
 function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
   if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
   if (pathname.startsWith("/organization")) return "organization";
   if (pathname.startsWith("/settings")) return "settings";
   return "other";
@@ -134,6 +144,7 @@ const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode 
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
   "wiki-beta": { label: "Account Wiki-Beta", icon: <BookOpen className="size-3" /> },
   "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
   settings: { label: "設定", icon: <Settings className="size-3" /> },
   other: { label: "導覽", icon: null },
@@ -177,9 +188,14 @@ export function DashboardSidebar({
 
   const showAccountManagement = isActiveOrganizationAccount(activeAccount);
 
-  // Visible org management items filtered by user's nav preferences
-  const visibleAccountManagementItems = useMemo(() => {
-    return ALL_ACCOUNT_MANAGEMENT_ITEMS.filter((item) =>
+  const visibleOrganizationManagementItems = useMemo(() => {
+    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  const visibleAccountItems = useMemo(() => {
+    return ACCOUNT_NAV_ITEMS.filter((item) =>
       navPrefs.pinnedWorkspace.includes(item.id),
     );
   }, [navPrefs.pinnedWorkspace]);
@@ -442,14 +458,48 @@ export function DashboardSidebar({
 
           {/* ── Scrollable nav body ── section-specific ───────────── */}
           <div className="flex-1 overflow-y-auto px-3 py-3">
+            {section === "account" && (
+              <>
+                {showAccountManagement && visibleAccountItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Account navigation">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      Account
+                    </p>
+                    {visibleAccountItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看 Account 選項。
+                  </p>
+                )}
+              </>
+            )}
+
             {section === "organization" && (
               <>
-                {showAccountManagement && visibleAccountManagementItems.length > 0 && (
+                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
                   <nav className="space-y-0.5" aria-label="Organization management">
                     <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      帳戶管理
+                      組織管理
                     </p>
-                    {visibleAccountManagementItems.map((item) => {
+                    {visibleOrganizationManagementItems.map((item) => {
                       const active = isActiveRoute(item.href);
                       return (
                         <Link

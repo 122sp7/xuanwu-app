@@ -27,6 +27,10 @@ import { ShellGuard } from "./_components/shell-guard";
 const routeTitles: Record<string, string> = {
   "/dashboard": "儀表板",
   "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
   "/workspace": "工作區中心",
   "/wiki-beta": "Account Wiki-Beta",
   "/wiki-beta/rag-query": "Account Wiki-Beta · RAG 查詢",

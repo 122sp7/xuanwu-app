@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, FlaskConical, Plus, Settings, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, Users } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -68,6 +68,21 @@ interface RailItem {
   icon: React.ReactNode;
   /** When false the item is hidden; defaults to true */
   show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+function isAccountSectionPath(pathname: string) {
+  return ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 }
 
 function getInitial(name: string | undefined | null): string {
@@ -197,10 +212,33 @@ export function AppRail({
       icon: <Bot className="size-[18px]" />,
     },
     {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
       href: "/organization",
       label: "組織",
       icon: <Users className="size-[18px]" />,
       show: isOrganizationAccount,
+      isActive: (currentPathname) =>
+        currentPathname.startsWith("/organization") && !isAccountSectionPath(currentPathname),
     },
     {
       href: "/dev-tools",
@@ -296,7 +334,7 @@ export function AppRail({
         {/* ── Section nav icons ─────────────────────────────────────── */}
         <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
           {visibleRailItems.map((item) => {
-            const active = isActive(item.href);
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
 
             if (item.href === "/workspace") {
               return (
