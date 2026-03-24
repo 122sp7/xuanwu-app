@@ -4,6 +4,15 @@ This directory is the root index for repository-scoped Copilot, GitHub, and auto
 
 Use this page when you need one stable entry point for `.github/` instead of jumping directly into individual files or folders.
 
+## Scope boundary
+
+Treat `.github/` as the operational source of truth for active customization assets.
+
+- Put live Copilot behavior, workflow entrypoints, applyTo instructions, agents, prompts, skills, and automation wiring here.
+- Put explanatory, governance, onboarding, and maintenance documentation in `docs/`.
+- Do not duplicate full operational content in both places.
+- If a file under `.github/` changes behavior, update the docs-side index or explanation, but keep the operative definition here.
+
 ## Entry order
 
 For AI customization work, read in this order:
@@ -41,6 +50,7 @@ For AI customization work, read in this order:
 
 - Use relative links inside `.github/`.
 - Prefer one canonical entry per folder.
+- Treat `.github/` files as canonical when a docs page describes the same customization asset.
 - Treat placeholder or example syntax as plain text, not live links.
 - When adding or moving a customization file, update this index and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) in the same change if routing changed.
 

@@ -7,6 +7,15 @@ description: Reference index for the Xuanwu Copilot Delivery Suite, including au
 
 This page is the reference inventory for the Xuanwu Copilot Delivery Suite. Use it to understand which customizations are authoritative, which ones are operational entry points, and which older assets are being phased out.
 
+## Scope boundary
+
+This page is the docs-side mirror and explanation layer for AI customization assets.
+
+- Use `.github/` files as the operative source of truth for active behavior.
+- Use this docs page to explain routing, ownership, maintenance policy, and lifecycle status.
+- Do not restate full agent, prompt, instruction, or skill bodies here unless the explanation itself is the point.
+- If docs and `.github/` disagree, `.github/` wins for runtime behavior and this page must be updated.
+
 ## Authoritative baseline
 
 | Asset | Type | Responsibility | Notes |
@@ -76,4 +85,5 @@ These skills remain authoritative for domain-specific guidance and are reused by
 
 - Update this index whenever a delivery agent, planning contract, or operational how-to is added, renamed, or retired.
 - Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
+- Keep explanations and inventories here concise; keep executable or discoverable customization definitions in `.github/`.
 - Treat any undocumented customization as non-authoritative until it is indexed here or intentionally documented elsewhere.
