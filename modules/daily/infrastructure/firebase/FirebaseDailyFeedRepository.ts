@@ -3,7 +3,6 @@ import {
   getDocs,
   getFirestore,
   limit,
-  orderBy,
   query,
   where,
 } from "firebase/firestore";
@@ -21,18 +20,12 @@ const ORGANIZATION_VISIBLE_ENTRY_VISIBILITIES: readonly DailyVisibility[] = [
   "public_demo",
 ];
 
-function requireString(data: Record<string, unknown>, field: string, entryId?: string) {
+function toOptionalString(data: Record<string, unknown>, field: string) {
   const value = data[field];
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(
-      `Daily entry${entryId ? ` ${entryId}` : ""} field ${field} is missing, empty, or not a string.`,
-    );
-  }
-
-  return value;
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
-function toOptionalString(data: Record<string, unknown>, field: string) {
+function toRequiredString(data: Record<string, unknown>, field: string): string | null {
   const value = data[field];
   return typeof value === "string" && value.trim() ? value : null;
 }
@@ -46,25 +39,59 @@ function toStringArray(data: Record<string, unknown>, field: string) {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
-function toDailyEntry(entryId: string, data: Record<string, unknown>): DailyEntry {
+/**
+ * Maps a Firestore document to a DailyEntry.
+ * Returns null (and logs a warning in dev) if any required field is missing,
+ * so a single malformed document never poisons the entire feed query.
+ */
+function toDailyEntry(entryId: string, data: Record<string, unknown>): DailyEntry | null {
+  const organizationId = toRequiredString(data, "organizationId");
+  const workspaceId = toRequiredString(data, "workspaceId");
+  const authorId = toRequiredString(data, "authorId");
+  const entryType = toRequiredString(data, "entryType");
+  const status = toRequiredString(data, "status");
+  const visibility = toRequiredString(data, "visibility");
+  const title = toRequiredString(data, "title");
+  const summary = toRequiredString(data, "summary");
+  const createdAtISO = toRequiredString(data, "createdAtISO");
+  const updatedAtISO = toRequiredString(data, "updatedAtISO");
+
+  if (
+    !organizationId ||
+    !workspaceId ||
+    !authorId ||
+    !entryType ||
+    !status ||
+    !visibility ||
+    !title ||
+    !summary ||
+    !createdAtISO ||
+    !updatedAtISO
+  ) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[FirebaseDailyFeedRepository] Skipping malformed dailyEntry ${entryId}`);
+    }
+    return null;
+  }
+
   return {
     entryId,
-    organizationId: requireString(data, "organizationId", entryId),
-    workspaceId: requireString(data, "workspaceId", entryId),
-    authorId: requireString(data, "authorId", entryId),
-    entryType: requireString(data, "entryType", entryId) as DailyEntry["entryType"],
-    status: requireString(data, "status", entryId) as DailyEntry["status"],
-    visibility: requireString(data, "visibility", entryId) as DailyEntry["visibility"],
-    title: requireString(data, "title", entryId),
-    summary: requireString(data, "summary", entryId),
+    organizationId,
+    workspaceId,
+    authorId,
+    entryType: entryType as DailyEntry["entryType"],
+    status: status as DailyEntry["status"],
+    visibility: visibility as DailyEntry["visibility"],
+    title,
+    summary,
     body: toOptionalString(data, "body"),
     tags: toStringArray(data, "tags"),
     publishedAtISO: toOptionalString(data, "publishedAtISO"),
     expiresAtISO: toOptionalString(data, "expiresAtISO"),
     sourceModule: toOptionalString(data, "sourceModule"),
     sourceEventId: toOptionalString(data, "sourceEventId"),
-    createdAtISO: requireString(data, "createdAtISO", entryId),
-    updatedAtISO: requireString(data, "updatedAtISO", entryId),
+    createdAtISO,
+    updatedAtISO,
   };
 }
 
@@ -108,31 +135,35 @@ export class FirebaseDailyFeedRepository implements DailyFeedRepository {
   }
 
   async listWorkspaceFeed(workspaceId: string): Promise<readonly DailyFeedItem[]> {
+    // Single-field where without orderBy — no composite index required.
+    // Sorting is done client-side on rankScore (publishedAt timestamp).
     const snapshots = await getDocs(
       query(
         collection(this.db, COLLECTION_NAME),
         where("workspaceId", "==", workspaceId),
-        orderBy("publishedAtISO", "desc"),
         limit(this.feedQueryLimit),
       ),
     );
 
     return snapshots.docs
       .map((snapshot) => toDailyEntry(snapshot.id, snapshot.data() as Record<string, unknown>))
+      .filter((entry): entry is DailyEntry => entry !== null)
       .filter((entry) => !isExpired(entry))
-      .map((entry) => toFeedItem(`workspace:${workspaceId}`, entry));
+      .map((entry) => toFeedItem(`workspace:${workspaceId}`, entry))
+      .sort((a, b) => b.rankScore - a.rankScore);
   }
 
   async listOrganizationFeed(
     organizationId: string,
     workspaceIds: readonly string[],
   ): Promise<readonly DailyFeedItem[]> {
+    // Single-field where without orderBy — no composite index required.
+    // Sorting is done client-side on rankScore (publishedAt timestamp).
     const workspaceIdSet = new Set(workspaceIds);
     const snapshots = await getDocs(
       query(
         collection(this.db, COLLECTION_NAME),
         where("organizationId", "==", organizationId),
-        orderBy("publishedAtISO", "desc"),
         limit(this.feedQueryLimit),
       ),
     );
@@ -140,9 +171,11 @@ export class FirebaseDailyFeedRepository implements DailyFeedRepository {
     // An empty workspace list means the caller already scoped to the whole organization.
     return snapshots.docs
       .map((snapshot) => toDailyEntry(snapshot.id, snapshot.data() as Record<string, unknown>))
+      .filter((entry): entry is DailyEntry => entry !== null)
       .filter((entry) => workspaceIdSet.size === 0 || workspaceIdSet.has(entry.workspaceId))
       .filter((entry) => ORGANIZATION_VISIBLE_ENTRY_VISIBILITIES.includes(entry.visibility))
       .filter((entry) => !isExpired(entry))
-      .map((entry) => toFeedItem(`organization:${organizationId}`, entry));
+      .map((entry) => toFeedItem(`organization:${organizationId}`, entry))
+      .sort((a, b) => b.rankScore - a.rankScore);
   }
 }

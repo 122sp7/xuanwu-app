@@ -49,7 +49,8 @@ export default function OrganizationDailyPage() {
   const [digest, setDigest] = useState<OrganizationDailyDigestEntity | null>(null);
   const [feed, setFeed] = useState<readonly DailyFeedItem[]>([]);
   const [workspaces, setWorkspaces] = useState<readonly WorkspaceEntity[]>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [feedLoadState, setFeedLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [digestLoadState, setDigestLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
     if (!activeOrganizationId) {
@@ -59,33 +60,56 @@ export default function OrganizationDailyPage() {
     const organizationId = activeOrganizationId;
     let cancelled = false;
 
-    async function load() {
-      setLoadState("loading");
+    async function loadFeed() {
+      setFeedLoadState("loading");
       try {
         const nextWorkspaces = await getWorkspacesForAccount(organizationId);
         const workspaceIds = nextWorkspaces.map((workspace) => workspace.id);
-        const [nextFeed, nextDigest] = await Promise.all([
-          getOrganizationDailyFeed(organizationId, workspaceIds),
-          getOrganizationDailyDigest(organizationId, workspaceIds),
-        ]);
+        const nextFeed = await getOrganizationDailyFeed(organizationId, workspaceIds);
 
         if (!cancelled) {
           setWorkspaces(nextWorkspaces);
           setFeed(nextFeed);
-          setDigest(nextDigest);
-          setLoadState("loaded");
+          setFeedLoadState("loaded");
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setDigest(null);
           setFeed([]);
           setWorkspaces([]);
-          setLoadState("error");
+          setFeedLoadState("error");
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[OrganizationDailyPage] getOrganizationDailyFeed failed:", err);
+          }
         }
       }
     }
 
-    void load();
+    async function loadDigest() {
+      setDigestLoadState("loading");
+      try {
+        // Re-fetch workspaces independently so digest doesn't block on feed
+        const nextWorkspaces = await getWorkspacesForAccount(organizationId);
+        const workspaceIds = nextWorkspaces.map((workspace) => workspace.id);
+        const nextDigest = await getOrganizationDailyDigest(organizationId, workspaceIds);
+
+        if (!cancelled) {
+          setDigest(nextDigest);
+          setDigestLoadState("loaded");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDigest(null);
+          setDigestLoadState("error");
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[OrganizationDailyPage] getOrganizationDailyDigest failed:", err);
+          }
+        }
+      }
+    }
+
+    // Load feed and digest independently; one failure does not block the other.
+    void loadFeed();
+    void loadDigest();
 
     return () => {
       cancelled = true;
@@ -131,12 +155,14 @@ export default function OrganizationDailyPage() {
         </div>
       </div>
 
-      {loadState === "loading" && (
+      {feedLoadState === "loading" && (
         <p className="text-sm text-muted-foreground">載入 Daily feed 中…</p>
       )}
 
-      {loadState === "error" && (
-        <p className="text-sm text-destructive">讀取組織 Daily 失敗，請稍後重新整理頁面。</p>
+      {feedLoadState === "error" && (
+        <p className="text-sm text-destructive">
+          讀取組織 Daily feed 失敗，請稍後重新整理頁面。
+        </p>
       )}
 
       <Card className="border-border/50">
@@ -145,7 +171,7 @@ export default function OrganizationDailyPage() {
           <CardDescription>依工作區整理 canonical Daily 條目；目前排序仍為 freshness-only。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {loadState === "loaded" && feed.length === 0 && (
+          {feedLoadState === "loaded" && feed.length === 0 && (
             <p className="text-sm text-muted-foreground">今天還沒有新的 Workspace Daily 發布。</p>
           )}
 
@@ -182,10 +208,16 @@ export default function OrganizationDailyPage() {
           <CardDescription>既有通知驅動摘要僅作相容對照，並非目前 Daily 的主標準。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {loadState === "loaded" && digestItems.length === 0 && (
+          {digestLoadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入通知摘要中…</p>
+          )}
+          {digestLoadState === "error" && (
+            <p className="text-sm text-muted-foreground">通知摘要暫時無法讀取。</p>
+          )}
+          {digestLoadState === "loaded" && digestItems.length === 0 && (
             <p className="text-sm text-muted-foreground">今天沒有新的組織通知摘要。</p>
           )}
-          {loadState === "loaded" &&
+          {digestLoadState === "loaded" &&
             digestItems.map((notification) => (
               <div key={notification.id} className="rounded-lg border border-border/40 px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
