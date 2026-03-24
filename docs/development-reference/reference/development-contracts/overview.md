@@ -1,11 +1,11 @@
 ---
 title: Development contracts overview
-description: Authoritative index of development contracts that unblock RAG, parser, schedule, acceptance, billing, and audit implementation.
+description: Authoritative index of contracts that unblock RAG, parser, schedule, acceptance, billing, and audit implementation.
 ---
 
 # Development contracts overview
 
-This index collects the development contracts that are intended to remove implementation ambiguity before broader MDDD slices are added. Each contract names the owning module, the current runtime boundary, the missing write-side or governance boundary, and the acceptance gates required before code should expand.
+Contracts that remove implementation ambiguity. Each contract names: owning module, runtime boundary, missing write-side/governance, and acceptance gates.
 
 ## Current contract set
 
@@ -13,28 +13,28 @@ This index collects the development contracts that are intended to remove implem
 | --- | --- | --- | --- | --- |
 | [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/file` + `modules/ai` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
 | [Parser contract](./parser-contract.md) | 🏗️ Midway | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
-| [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + initial projection on submit + org-level pending dispatch view | Split ownership between derived items, persisted requests, and projection read model — see also [Schedule architecture](../../../decision-architecture/architecture/schedule.md), [Dev guide](../../../development-reference/development/development-process.md), [User manual](../../../how-to-user/user-manual/user-guide.md) |
-| [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification-driven digest baseline evolving toward workspace-authored feed + organization aggregation | Clarifies how Workspace Daily and Organization Daily should grow into explicit feed, interaction, and promotion boundaries — see also [Daily architecture](../../../decision-architecture/architecture/daily.md), [Dev guide](../../../development-reference/development/development-process.md), [User manual](../../../how-to-user/user-manual/user-guide.md) |
+| [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + projection on submit | Split ownership: derived items, persisted requests, projection read model |
+| [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification digest → workspace feed + org aggregation | Clarify feed, interaction, promotion boundaries |
 | [Acceptance contract](./acceptance-contract.md) | 🏗️ Midway | `modules/acceptance` | Derived acceptance gates over workspace snapshot | No explicit rule for future write-side approval or override flows |
 | [Billing contract](./billing-contract.md) | 📅 Planned | `modules/billing` | Read-side billing record model over in-memory data | No canonical contract for invoice, settlement, and refund slices |
 | [Audit contract](./audit-contract.md) | 🏗️ Midway | `modules/audit` | Workspace and organization audit queries over Firebase | No explicit append-only audit write contract |
 | [Event contract](./event-contract.md) | 🚧 Developing | `modules/event` | Domain event capture and dispatch skeleton with in-memory adapters | No Firestore/Pub-Sub adapter or real bus integration |
 | [Namespace contract](./namespace-contract.md) | 🚧 Developing | `modules/namespace` | Named-scope registration and slug resolution with in-memory adapter | No Firestore adapter or URL routing integration |
 
-## Why these contracts exist
+## Why contracts exist
 
-The repository already contains ADRs, design notes, and a few module plans, but several implementation areas still rely on implied boundaries. These contract pages convert those implied boundaries into explicit references so future work can stay inside `UI -> Application -> Domain <- Infrastructure` without re-deciding ownership each time.
+Implementation areas rely on implied boundaries. Contracts convert these into explicit references so teams stay aligned without re-deciding ownership.
 
-## Existing source documents
+## Related sources
 
-The development contracts complement, rather than replace, the existing design corpus:
+- RAG lifecycle and runtime ADRs: `docs/decision-architecture/adr/`
+- MDDD architecture: [agents/knowledge-base.md](../../../../agents/knowledge-base.md)
+- File module plan: [modules/file/README.md](../../../../modules/file/README.md)
 
-- RAG lifecycle and runtime ADRs under `docs/decision-architecture/adr/`
-- the file-module implementation plan in `modules/file/README.md`
-- the MDDD architecture guide in `agents/knowledge-base.md`
+## Rollout order
 
-## Recommended rollout order
+1. RAG ingestion (crosses Next.js + Python boundary)
+2. Parser, schedule, acceptance (snapshot-derived, need extension rules)
+3. Billing, audit (enterprise governance impact)
 
-Start with the RAG ingestion contract because it crosses Next.js and Python runtimes. Then stabilize the parser, schedule, and acceptance contracts because those modules still derive behavior from snapshots and need clearer extension rules before more write-side work lands. Billing and audit should follow because they affect enterprise governance and long-term auditability.
-
-For governance and maintenance rules, see [Development contract governance](../../../diagrams-events-explanations/explanation/development-contract-governance.md).
+See [Development contract governance](../../../diagrams-events-explanations/explanation/development-contract-governance.md) for maintenance rules.

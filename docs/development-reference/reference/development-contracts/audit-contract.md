@@ -10,7 +10,7 @@ status: "🏗️ Midway"
 
 ## Scope
 
-This contract defines the audit module as the append-only read boundary for workspace and organization audit visibility. It also documents the rules that future audit-write integration must follow.
+Audit module: append-only read boundary for workspace and organization audit visibility, plus rules for future write-side integration.
 
 ## Current owner and dependencies
 
@@ -76,9 +76,8 @@ Audit logs are append-only. The relevant workflow is event delivery, not busines
 
 ## Acceptance gates
 
-Before expanding audit integrations, the team should define:
-
-- the canonical audit sink interface,
-- idempotency rules for retried events,
-- retention and redaction policy,
-- and the minimum structured metadata required for enterprise investigations.
+Before expanding integrations, define:
+- Canonical audit sink interface
+- Idempotency rules for retried events
+- Retention and redaction policy
+- Minimum structured metadata for enterprise investigations

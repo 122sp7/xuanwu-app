@@ -10,7 +10,7 @@ status: "🏗️ Midway"
 
 ## Scope
 
-This contract defines the current acceptance module boundary, which is a derived workspace readiness projection, and the constraints that future approval or override flows must satisfy.
+Acceptance module boundary: derived workspace readiness projection and constraints for future approval or override flows.
 
 ## Current owner and dependencies
 
@@ -46,24 +46,23 @@ This contract defines the current acceptance module boundary, which is a derived
 
 | State | Trigger actor | Allowed next states | Notes |
 | --- | --- | --- | --- |
-| `attention` | derived acceptance summary | `ready` | Computed from workspace snapshot |
-| `ready` | derived acceptance summary | `attention` | Also computed from workspace snapshot |
-| `approved` | future explicit acceptance workflow | terminal until a later revoke flow exists | Must not overwrite derived gate status |
+| `attention` | derived summary | `ready` | Computed from workspace snapshot |
+| `ready` | derived summary | `attention` | Computed from workspace snapshot |
+| `approved` | future explicit workflow | terminal (until revoke exists) | Cannot overwrite derived status |
 
-The current module only owns `attention` and `ready` as derived states. `approved` is a future business decision state and must be modeled separately if it is introduced.
+Current module owns `attention` and `ready`. `approved` is future business state, modeled separately.
 
 ## Invariants
 
-1. Acceptance gates remain derived from workspace state until a product decision introduces explicit approval events.
-2. Future manual overrides must not rewrite `WorkspaceEntity` fields to simulate readiness.
-3. Acceptance approval, waiver, or sign-off must become acceptance-owned write records.
-4. The summary remains safe to recompute at any time from workspace input plus any future acceptance-owned overrides.
+1. Gates remain derived from workspace state until explicit approval events are introduced.
+2. Future manual overrides must not rewrite workspace fields to simulate readiness.
+3. Approval, waiver, or sign-off must become acceptance-owned write records.
+4. Summary stays safe to recompute from workspace input + any future overrides.
 
-## Acceptance gates for development
+## Open blockers
 
-Before acceptance write-side work begins, the team should decide:
-
-- whether approval is per gate or per workspace summary,
-- which actor can approve, waive, or reopen a gate,
-- whether approval changes user-visible readiness or only governance state,
-- and where approval audit records are stored.
+Before write-side work begins, decide:
+- Approval scope (per gate or whole summary)?
+- Who can approve / waive / reopen?
+- Does approval affect user-visible readiness?
+- Where are approval records stored?
