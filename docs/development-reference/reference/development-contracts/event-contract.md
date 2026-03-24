@@ -10,12 +10,11 @@ status: "🚧 Developing"
 
 ## Purpose
 
-This contract defines `modules/event` as the **領域事件基礎** for xuanwu-app:
-
-- a unified model for capturing and persisting domain events from any module
-- the dispatch boundary for transporting events to consumers (event bus, projections)
-- the correlation foundation for rebuilding aggregate event timelines
-- the retry/outbox policy layer ensuring at-least-once delivery semantics
+`modules/event` defines:
+- Unified domain event capture + persistence
+- Dispatch boundary → event bus / projections
+- Correlation → aggregate timelines
+- Retry/outbox → at-least-once delivery
 
 ## Current owner and dependencies
 
@@ -45,42 +44,34 @@ This contract defines `modules/event` as the **領域事件基礎** for xuanwu-a
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | yes | UUID v4 — globally unique |
-| `eventName` | `string` | yes | Format: `{Module}.{AggregateType}.{PastTenseAction}` |
-| `aggregateType` | `string` | yes | Aggregate root type, e.g. `WikiDocument`, `Task` |
-| `aggregateId` | `string` | yes | Aggregate root ID |
-| `occurredAt` | `Date` | yes | When the domain fact occurred |
-| `payload` | `DomainEventPayload` | yes | Business data (`Record<string, unknown>`) |
-| `metadata` | `EventMetadata` | no | Tracing and correlation fields |
-| `dispatchedAt` | `Date \| null` | no | Set when successfully dispatched; null = undispatched |
+| `id` | `string` | yes | UUID v4 |
+| `eventName` | `string` | yes | `Module.AggregateType.Action` |
+| `aggregateType` | `string` | yes | e.g. WikiDocument |
+| `aggregateId` | `string` | yes | Root ID |
+| `occurredAt` | `Date` | yes | When event occurred |
+| `payload` | `Record<string, unknown>` | yes | Business data |
+| `metadata` | `EventMetadata?` | no | Tracing fields |
+| `dispatchedAt` | `Date\|null` | no | Dispatch time or null |
 
 ## EventMetadata contract
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `correlationId` | `string?` | Cross-service trace correlation ID |
-| `causationId` | `string?` | ID of upstream event that caused this event |
-| `actorId` | `string?` | accountId of the actor who triggered the event |
-| `organizationId` | `string?` | Multi-tenant org boundary |
-| `workspaceId` | `string?` | Workspace scope; null = org-level |
-| `traceId` | `string?` | Distributed tracing ID (OpenTelemetry) |
+| `correlationId` | `string?` | Cross-service correlation |
+| `causationId` | `string?` | Upstream event ID |
+| `actorId` | `string?` | Actor ID |
+| `organizationId` | `string?` | Org boundary |
+| `workspaceId` | `string?` | Workspace or org-level |
+| `traceId` | `string?` | OpenTelemetry ID |
 
 ## eventName naming convention
 
 ```
-{ModulePrefix}.{AggregateType}.{PastTenseAction}
+Module.AggregateType.Action
 ```
+Examples: `Wiki.Document.Created`, `Task.Task.Assigned`, `Schedule.Request.Submitted`
 
-Examples:
-- `Wiki.WikiDocument.Created`
-- `Task.Task.Assigned`
-- `Schedule.ScheduleRequest.Submitted`
-- `Billing.Invoice.Issued`
-
-Rules:
-- `eventName` must not be empty or whitespace-only.
-- `aggregateType` and `aggregateId` must not be empty.
-- All three are validated in the `DomainEvent` constructor.
+Rules: non-empty, validated in constructor
 
 ## IEventStoreRepository contract
 
@@ -133,19 +124,14 @@ The target implementation uses the outbox pattern:
 4. On success, it calls `markDispatched(id, dispatchedAt)`.
 5. On failure, it applies `dispatchPolicy.shouldRetry` to decide whether to retry or dead-letter.
 
-> **Current state**: the scaffold `PublishDomainEventUseCase` calls `publish` synchronously (no outbox transaction). This must be replaced before production use.
+> **Note**: Current `PublishDomainEventUseCase` is synchronous (no outbox). Must replace before production.
 
 ## Infrastructure configuration contract
 
 ```typescript
-// infrastructure/persistence/config.ts
-EVENT_CORE_CONFIG = {
-  DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 },
-  STORE:    { TABLE: 'domain_events' },
-}
+EVENT_CORE_CONFIG = { DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 } }
 ```
-
-Future adapters must read this config rather than hardcoding values.
+Adapters must read config, not hardcode.
 
 ## Layer ownership
 

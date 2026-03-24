@@ -10,7 +10,7 @@ status: "📅 Planned"
 
 ## Scope
 
-This contract defines the current billing module read model and the target boundaries for future enterprise billing slices. It is intentionally conservative because the module currently exposes a list query over an in-memory repository.
+Current billing module: read-side queries over in-memory data. Target: future invoice, settlement, and refund slices.
 
 ## Current owner and dependencies
 
@@ -30,50 +30,47 @@ This contract defines the current billing module read model and the target bound
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `id` | `string` | Billing record identifier |
-| `organizationId` | `string` | Tenant boundary |
-| `workspaceId` | `string` | Optional workspace boundary |
-| `description` | `string` | Billing line description |
-| `amountCents` | `number` | Monetary value in minor units |
-| `currency` | `USD \| TWD` | Currency code |
-| `status` | `pending \| paid \| failed \| refunded` | Current billing state |
-| `invoiceNumber` | `string` | Optional invoice reference |
-| `dueAtISO` | `string` | Optional due time |
-| `paidAtISO` | `string` | Optional payment time |
-| `createdAtISO` | `string` | Creation timestamp |
-| `updatedAtISO` | `string` | Last update timestamp |
+| `id` | `string` | Record identifier |
+| `organizationId` | `string` | Tenant |
+| `workspaceId` | `string?` | Workspace scope |
+| `description` | `string` | Line description |
+| `amountCents` | `number` | Minor units |
+| `currency` | `USD\|TWD` | Code |
+| `status` | `pending\|paid\|failed\|refunded` | State |
+| `invoiceNumber` | `string?` | Invoice ref |
+| `dueAtISO` | `string?` | Due time |
+| `paidAtISO` | `string?` | Payment time |
+| `createdAtISO` | `string` | Created |
+| `updatedAtISO` | `string` | Updated |
 
-## Target enterprise write-side slices
+## Target write-side slices
 
-Future billing implementation should split at least these aggregates instead of growing `BillingRecord` into a catch-all object:
-
-- invoice issuance
-- payment settlement
-- refund initiation and completion
-- credit or adjustment ledger entries
-- failure classification and retry policy
+- Invoice issuance  
+- Payment settlement
+- Refund workflow
+- Credit/adjustment ledger
+- Failure + retry policy
 
 ## State machine
 
 | State | Trigger actor | Allowed next states | Notes |
 | --- | --- | --- | --- |
-| `pending` | invoice or charge issuance | `paid`, `failed`, `refunded` | `refunded` only if cancellation before capture is supported |
-| `paid` | settlement confirmation | `refunded` | Terminal for successful charge until refund |
-| `failed` | settlement or collection failure | `pending` only through explicit retry or reissue flow | Do not silently reuse failed records |
-| `refunded` | refund workflow | terminal | Preserve source settlement reference |
+| `pending` | Issue | `paid`, `failed`, `refunded` | |
+| `paid` | Settle | `refunded` | Terminal until refund |
+| `failed` | Failure | `pending` only via retry | No silent reuse |
+| `refunded` | Refund | terminal | Preserve src ref |
 
 ## Invariants
 
-1. Money values stay in minor units.
-2. Organization scope is always required, even when workspace scope is present.
-3. Provider webhook payloads must not become the billing domain model.
-4. Every state change needs a timestamp and source reason before the first production write-side slice lands.
+1. Money in minor units only
+2. Organization required; workspace optional
+3. Provider webhooks ≠ domain model
+4. Every state change: timestamp + reason
 
 ## Acceptance gates
 
-Billing implementation should not proceed past read-side prototypes until:
-
-- Firestore or other durable persistence replaces the in-memory adapter,
-- invoice, payment, and refund responsibilities are separate,
-- auditability requirements are defined,
-- and settlement state transitions are reviewed as high-risk business logic.
+Before write-side, complete:
+- Durable persistence (replace in-memory)
+- Invoice/payment/refund split
+- Auditability requirements
+- Settlement state review (high-risk)
