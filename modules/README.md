@@ -138,3 +138,88 @@ modules/*
 1. 保留 Notion × Wiki × NotebookLM 融合方向。
 2. 明確化「融合體驗」與「邊界隔離」可同時成立。
 3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+
+---
+
+## 7. 依「AI 知識平台架構圖」調整後的領域規劃
+
+以 `modules/AI 知識平台架構圖.png` 為準，實作前建議先完成 **9 個領域規劃設計**。
+
+### 7.1 需要先規劃的 9 個領域
+
+| # | 領域 | 主要職責 |
+| --- | --- | --- |
+| 1 | Account | 帳號、身份資料、帳號層級設定 |
+| 2 | Workspace | 工作區生命週期、成員與範圍 |
+| 3 | Content | Page / Block / Database 內容建模與版本 |
+| 4 | Graph | 知識節點關聯、Page Link、拓撲結構 |
+| 5 | Search | 檢索入口、索引策略、結果聚合 |
+| 6 | AI | RAG orchestration、推理流程、回答組裝 |
+| 7 | Collaboration | 協作互動（留言、討論、通知協同） |
+| 8 | Workflow | 任務與流程狀態、跨領域編排 |
+| 9 | Storage | 文件與資產存放、版本與引用關係 |
+
+### 7.2 Shared Packages 對位（圖中的右側）
+
+| Shared Package 能力 | 主要用途 |
+| --- | --- |
+| Firebase | 資料存取、身份與雲端基礎能力 |
+| Genkit | AI flow 編排與模型整合 |
+| Vector DB | 向量儲存與相似度檢索 |
+| Search | 查詢整合與搜尋能力封裝 |
+
+### 7.3 為什麼是 9 個領域
+
+1. 圖中的 Modules (Domains) 已把產品能力拆成可獨立演進的業務邊界。
+2. 若只按 3 層概念切分，協作、流程、儲存容易被混入單一層造成耦合。
+3. 採 9 個領域可維持「前台體驗融合」與「後台邊界隔離」並存。
+
+### 7.4 建議規劃順序
+
+1. 基礎域：Account、Workspace、Storage。
+2. 知識域：Content、Graph、Search。
+3. AI 與協作域：AI、Collaboration、Workflow。
+
+### 7.5 每個領域規劃的最小完成標準
+
+1. 定義 owner 與邊界（輸入、輸出、非職責項）。
+2. 定義 domain invariants 與狀態轉移。
+3. 定義 application use cases 與 DTO 契約。
+4. 定義 infrastructure 適配點，不反向污染 domain。
+5. 能以融合介面組裝，不破壞 `interfaces -> application -> domain <- infrastructure`。
+
+---
+
+## 7. 要實現前需完成的領域規劃設計（建議 6 個）
+
+僅依 `modules/Architecture.md` 的三層融合模型（Content / Graph / AI）來落地，建議先完成 **6 個領域規劃設計**。原因是三層屬於概念分層，實作時仍需把權限、協作、治理獨立成 bounded context，才能維持模組邊界。
+
+| # | 領域規劃設計 | 解決的核心問題 | 建議承載模組群 |
+| --- | --- | --- | --- |
+| 1 | 內容建模域（Content Modeling） | Page / Block / Database 的生命週期與版本如何一致 | `knowledge`, `wiki-beta`, `content` |
+| 2 | 知識關聯域（Knowledge Graph） | Page Link、Tag、關聯導航如何穩定演進 | `graph`, `knowledge`, `search` |
+| 3 | AI 檢索推理域（RAG & Reasoning） | 文件到 embedding、檢索到回答的責任邊界 | `ai`, `file`, `py_fn` |
+| 4 | 租戶與授權域（Tenant & Access） | organization / workspace / member 權限如何約束資料可見性 | `organization`, `workspace`, `identity`, `account` |
+| 5 | 協作互動域（Collaboration） | 討論、通知、任務與事件流如何協同 | `collaboration`, `notification`, `task`, `event` |
+| 6 | 治理驗收域（Governance & Acceptance） | 稽核、驗收門檻、品質與成本治理如何制度化 | `audit`, `acceptance`, `qa`, `billing` |
+
+### 為什麼是 6 個
+
+1. `Architecture.md` 的 3 層是產品能力視角，不是完整實作責任切分。
+2. 若只切 3 層，授權、治理、協作通常會被塞進 UI 或應用層，導致跨模組耦合。
+3. 切成 6 個後，能同時保留「前台融合體驗」與「後台模組邊界」。
+
+### 建議規劃順序
+
+1. 先做 1 + 2：先穩固內容與關聯底座。
+2. 再做 4：先鎖住多租戶與可見性邊界。
+3. 接著做 3：在穩定資料邊界上接 AI。
+4. 最後做 5 + 6：補齊協作流程與治理能力。
+
+### 每個領域規劃的最小完成標準
+
+1. 有明確 owner 與邊界（輸入、輸出、禁止越界責任）。
+2. 有 domain invariants（不可被流程繞過的規則）。
+3. 有 application use cases 與 DTO 契約。
+4. 有 infrastructure 適配責任但不反向污染 domain。
+5. 能在融合 UI 中以 slot 或頁面組裝，且不破壞依賴方向。
