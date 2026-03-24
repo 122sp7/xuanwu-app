@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { monitorForElements } from "@lib-dragdrop";
 
 import { useDispatcherStore, selectUnassignedTasks } from "../dispatcher/store";
@@ -17,7 +18,7 @@ import { MemberRow } from "./dispatcher/MemberRow";
  */
 export function DispatcherView() {
   const members = useDispatcherStore((s) => s.members);
-  const unassigned = useDispatcherStore(selectUnassignedTasks);
+  const unassigned = useDispatcherStore(useShallow(selectUnassignedTasks));
   const setDraggingTask = useDispatcherStore((s) => s.setDraggingTask);
 
   // Global DnD monitor — handles drops that land directly on the monitor
