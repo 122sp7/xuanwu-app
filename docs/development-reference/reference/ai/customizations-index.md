@@ -40,6 +40,7 @@ Use this order when working on customization assets:
 | Asset | Stage | Responsibility | Allowed edits |
 | --- | --- | --- | --- |
 | [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
+| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
 | [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
 | [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
 | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |

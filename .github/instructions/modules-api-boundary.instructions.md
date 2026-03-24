@@ -1,6 +1,6 @@
 ---
 description: 'API-boundary rules for cross-module interaction in modules/ with explicit allowed and forbidden patterns'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, app/**/*.ts, app/**/*.tsx'
+applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
 ---
 
 # Modules API Boundary
@@ -12,6 +12,7 @@ Cross-module interaction must remain explicit and minimal.
 | Pattern | Status | Example |
 | --- | --- | --- |
 | Import via `@/modules/<target>/api` | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
+| Import via target module public boundary | ✅ **Allowed** | `import { publishDomainEvent } from "@/modules/event"` |
 | Import via domain events | ✅ **Allowed** | `import { publishDomainEvent } from "@/modules/event/api"` |
 | Import `<target>/domain/*`, `<target>/application/*`, `<target>/infrastructure/*`, `<target>/interfaces/*` | ❌ **Forbidden** | `import { ContentPage } from "@/modules/content/domain/entities/..."` |
 | Import private repositories or entities | ❌ **Forbidden** | `import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/..."` |

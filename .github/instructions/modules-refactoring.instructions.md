@@ -1,6 +1,6 @@
 ---
 description: 'Refactoring workflows for adding, restructuring, splitting, merging, and deleting modules while preserving MDDD boundaries'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, modules/**/*.md, app/**/*.ts, app/**/*.tsx'
+applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, modules/**/*.md'
 ---
 
 # Modules Refactoring

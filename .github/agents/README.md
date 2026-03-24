@@ -7,6 +7,7 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 | Stage | Agent | File | Purpose |
 | --- | --- | --- | --- |
 | Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
+| Planning (Docs Variant) | Planner Docs Flow | `planner.chat.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
 | Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
 | Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
 | QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
@@ -24,9 +25,10 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 
 1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
 2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-3. **After implementation**: Use `Review Implementation` handoff to Reviewer
-4. **After review**: Use `Run QA` handoff to QA
-5. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
+3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
+4. **After implementation**: Use `Review Implementation` handoff to Reviewer
+5. **After review**: Use `Run QA` handoff to QA
+6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
 
 ## Related References
 

@@ -1,11 +1,11 @@
 ---
 description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
-applyTo: 'app/**/*.ts, app/**/*.tsx, modules/**/*.ts, modules/**/*.tsx, packages/**/*.ts, packages/**/*.tsx, providers/**/*.ts, providers/**/*.tsx, debug/**/*.ts, debug/**/*.tsx'
+applyTo: 'app/**/*.ts, app/**/*.tsx, packages/**/*.ts, packages/**/*.tsx, providers/**/*.ts, providers/**/*.tsx, debug/**/*.ts, debug/**/*.tsx'
 ---
 
 # Xuanwu App Next.js + MDDD Development Instructions
 
-These instructions apply to the main xuanwu-app web application. Use them together with the repository-wide instruction files in `.github/instructions/`.
+These instructions apply to the main xuanwu-app web application outside module-internal architecture rules. Use them together with the repository-wide instruction files in `.github/instructions/`.
 
 ## Project Context
 
@@ -23,14 +23,14 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
 | Layer | Responsibilities |
 | --- | --- |
 | **`app/`** | Routing, layouts, route groups, route handlers, page composition. Use Server Components by default; add `'use client'` only for browser APIs, interactivity, or hooks. Keep providers in `app/providers/`. |
-| **`modules/`** | Vertical business slices. Treat each as isolated; cross-module must use `modules/<target>/api/`. Keep dependency direction: `interfaces -> application -> domain <- infrastructure`. Keep `domain/` framework-free. Business workflows in `application/use-cases/`. UI adapters in `interfaces/` (`_actions/`, `components/`, `hooks/`, `queries/`). Prefer thin Server Actions to use cases returning `CommandResult`. |
+| **`modules/`** | Vertical business slices. For module-internal structure, naming, boundary, and dependency rules, defer to `modules-*.instructions.md` to avoid duplicate guidance. |
 | **`packages/`** | Stable public boundaries with real implementations (no shims). Import via aliases only; no relative paths across packages. |
 
 ## Import Rules
 
 | Rule | Pattern | Examples |
 | --- | --- | --- |
-| **App/Module code** | `@/*` | `pages`, `components`, `hooks` |
+| **App code** | `@/*` | `@/app/(shell)/workspace`, `@/providers/app-provider` |
 | **Shared** | `@shared-*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
 | **Integrations** | `@integration-*` | `@integration-firebase`, `@integration-http` |
 | **API Contracts** | `@api-contracts` | REST/GraphQL schemas |
@@ -40,6 +40,8 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
 **Forbidden legacy patterns**: `@/shared/*`, `@/infrastructure/*`, `@/libs/*`, `@/ui/shadcn/*`, `@/ui/vis*`, `@/interfaces/*`
 
 **Module-internal imports**: Use relative imports (`../`) for same-module files, not the module `api/` boundary.
+
+**Cross-module imports from app**: Use `@/modules/<target>/api` (or the target module public boundary) instead of internal module layer paths.
 
 ## Development Practices
 

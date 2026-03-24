@@ -1,6 +1,6 @@
 ---
 description: 'Dependency-direction guardrails and example module edges for modules/ refactors under Xuanwu MDDD'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, app/**/*.ts, app/**/*.tsx'
+applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
 ---
 
 # Modules Dependency Graph
