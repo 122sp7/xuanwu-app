@@ -1,3 +1,5 @@
+"use server";
+
 /**
  * Module: workspace-planner
  * Layer: interfaces/queries
