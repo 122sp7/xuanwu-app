@@ -5,16 +5,14 @@ description: Reference index for the Xuanwu Copilot Delivery Suite, including pr
 
 # AI customizations index
 
-This page is the reference inventory for the Xuanwu Copilot Delivery Suite. Use it to understand which customizations are primary references, which ones are operational entry points, and which older assets are being phased out.
+This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
 
 ## Scope boundary
 
-This page is the docs-side mirror and explanation layer for AI customization assets.
-
-- Use `.github/` files as the operative source of truth for active behavior.
-- Use this docs page to explain routing, ownership, maintenance policy, and lifecycle status.
-- Do not restate full agent, prompt, instruction, or skill bodies here unless the explanation itself is the point.
-- If docs and `.github/` disagree, `.github/` wins for runtime behavior and this page must be updated.
+- `.github/` is the operational source of truth.
+- This page provides routing, ownership, lifecycle status, and maintenance policy.
+- Avoid duplicating full file bodies from `.github/`.
+- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
 
 ## Baseline references
 
@@ -26,6 +24,15 @@ This page is the docs-side mirror and explanation layer for AI customization ass
 | [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
 | [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
 | [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
+
+## Primary routing
+
+Use this order when working on customization assets:
+
+1. [.github/README.md](../../../../.github/README.md)
+2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
+3. the target folder under `.github/`
+4. the exact target file
 
 ## Delivery workflow agents
 
@@ -83,8 +90,6 @@ This page is the docs-side mirror and explanation layer for AI customization ass
 
 ## Existing specialized skills
 
-These skills remain the main domain-specific guidance assets used by the delivery suite:
-
 - [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
 - [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
 - [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
@@ -98,7 +103,7 @@ These skills remain the main domain-specific guidance assets used by the deliver
 
 ## Ownership and update policy
 
-- Update this index whenever a delivery agent, planning contract, or operational how-to is added, renamed, or retired.
+- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
 - Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
-- Keep explanations and inventories here concise; keep executable or discoverable customization definitions in `.github/`.
-- Treat any undocumented customization as provisional until it is indexed here or intentionally documented elsewhere.
+- Keep this page concise; keep executable definitions in `.github/`.
+- Treat undocumented customization assets as provisional.

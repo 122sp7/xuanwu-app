@@ -1,62 +1,48 @@
 # .github Customization Index
 
-This directory is the root index for repository-scoped Copilot, GitHub, and automation assets.
+This file is the operational index for repository-scoped customization assets.
 
-Use this page when you need one stable starting point for `.github/` instead of jumping directly into individual files or folders.
+## Boundary
 
-## Scope boundary
+- Keep executable customization assets in `.github/`.
+- Keep explanation, governance, and lifecycle context in `docs/`.
+- Do not duplicate full definitions across both locations.
+- If behavior changes in `.github/`, update the docs mirror in the same change.
 
-Treat `.github/` as the operational home for active customization assets.
-
-- Put live Copilot behavior, workflow entrypoints, applyTo instructions, agents, prompts, skills, and automation wiring here.
-- Put explanatory, governance, onboarding, and maintenance documentation in `docs/`.
-- Do not duplicate full operational content in both places.
-- If a file under `.github/` changes behavior, update the docs-side index or explanation, but keep the operative definition here.
-
-## Entry order
-
-For AI customization work, read in this order:
+## Read order
 
 1. [copilot-instructions.md](./copilot-instructions.md)
 2. [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md)
-3. the relevant folder in `.github/`
-4. the specific file being edited or referenced
+3. the target folder in `.github/`
+4. the exact file being edited
 
-## Folder index
+## Folder map
 
-| Path | Purpose | Recommended entry |
+| Path | Purpose | Entry |
 | --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage agents and specialized personas | [agents/planner.agent.md](./agents/planner.agent.md) |
-| [copilot/](./copilot/) | Reserved Copilot-specific assets | currently placeholder only |
-| [hooks/](./hooks/) | Reserved hook assets and enforcement wiring | currently placeholder only |
-| [instructions/](./instructions/) | Always-on or applyTo-scoped instructions | [instructions/xuanwu-app-nextjs-mddd.instructions.md](./instructions/xuanwu-app-nextjs-mddd.instructions.md) |
-| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | Reserved GitHub issue template assets | currently placeholder only |
+| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/planner.agent.md](./agents/planner.agent.md) |
+| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
+| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
+| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/xuanwu-app-nextjs-mddd.instructions.md](./instructions/xuanwu-app-nextjs-mddd.instructions.md) |
+| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
 | [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/plan-feature.prompt.md](./prompts/plan-feature.prompt.md) |
-| [rules/](./rules/) | Machine-readable engineering rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step capabilities and domain skills | [skills/xuanwu-mddd-boundaries/SKILL.md](./skills/xuanwu-mddd-boundaries/SKILL.md) |
-| [workflows/](./workflows/) | GitHub Actions and automation checks | [workflows/link-check.yml](./workflows/link-check.yml) |
+| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
+| [skills/](./skills/) | Reusable multi-step skills | [skills/xuanwu-mddd-boundaries/SKILL.md](./skills/xuanwu-mddd-boundaries/SKILL.md) |
+| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
 
-## Key files
+## Core files
 
 | File | Role |
 | --- | --- |
-| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and workflow routing |
+| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
 | [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
 | [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
 | [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
 | [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
 
-## Link and reference policy
+## Maintenance
 
-- Use relative links inside `.github/`.
-- Prefer one recommended entry per folder.
-- When a docs page describes the same customization asset, keep the operative definition in `.github/` and use docs for explanation or routing.
-- Treat placeholder or example syntax as plain text, not live links.
-- When adding or moving a customization file, update this index and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) in the same change if routing changed.
-
-## Maintenance checklist
-
-- Does the folder have a clear recommended entry?
-- Does any newly added file need to be indexed here?
-- Are example paths written in a way that will not be mistaken for broken links?
-- If a delivery asset changed, is the docs-side index also updated?
+- Use relative links.
+- Keep one concrete entry file per folder.
+- Keep placeholders as plain text, not fake links.
+- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
