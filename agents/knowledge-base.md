@@ -67,7 +67,7 @@ Not every module has every subdirectory — only what it needs.
 
 Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
 
-`acceptance`, `account`, `ai`, `audit`, `billing`, `collaboration`, `content`, `event`, `file`, `finance`, `graph`, `identity`, `issue`, `knowledge`, `namespace`, `notification`, `organization`, `qa`, `search`, `shared`, `storage`, `task`, `wiki-beta`, `workspace`, `workspace-feed`, `workspace-flow`, `workspace-planner`.
+`account`, `ai`, `audit`, `collaboration`, `content`, `event`, `file`, `graph`, `identity`, `knowledge`, `namespace`, `notification`, `organization`, `search`, `shared`, `storage`, `wiki-beta`, `workspace`, `workspace-feed`, `workspace-flow`, `workspace-planner`.
 
 ## Package System (21 Packages)
 

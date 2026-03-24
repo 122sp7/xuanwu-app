@@ -37,13 +37,8 @@ import {
   SelectValue,
 } from "@ui-shadcn/ui/select";
 import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAcceptanceTab } from "@/modules/acceptance";
 import { WorkspaceAuditTab } from "@/modules/audit";
 import { WorkspaceFilesTab } from "@/modules/file";
-import { WorkspaceFinanceTab } from "@/modules/finance";
-import { WorkspaceIssueTab } from "@/modules/issue";
-import { WorkspaceQATab } from "@/modules/qa";
-import { WorkspaceTaskTab } from "@/modules/task";
 import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
 import { WorkspacePlannerTab } from "@/modules/workspace-planner";
 
@@ -500,16 +495,6 @@ export function WorkspaceDetailScreen({
         );
       case "Members":
         return <WorkspaceMembersTab workspace={workspace} />;
-      case "Tasks":
-        return <WorkspaceTaskTab workspace={workspace} />;
-      case "QA":
-        return <WorkspaceQATab workspace={workspace} />;
-      case "Acceptance":
-        return <WorkspaceAcceptanceTab workspace={workspace} />;
-      case "Finance":
-        return <WorkspaceFinanceTab workspaceId={workspace.id} />;
-      case "Issues":
-        return <WorkspaceIssueTab workspace={workspace} />;
       case "Daily":
         return <WorkspaceDailyTab workspace={workspace} />;
       case "Files":
