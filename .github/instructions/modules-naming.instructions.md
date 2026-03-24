@@ -30,7 +30,7 @@ Use consistent naming in module specifications and architecture docs so ownershi
 
 ## Conventions
 
-- Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration names
-- Prefer singular bounded-context names unless existing convention is plural
-- Keep renamed modules aligned with their public API names, Firestore collections, and event discriminants
-- Keep naming aligned with import-boundary rules defined in `modules-api-boundary.instructions.md`
+- Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration labels.
+- Prefer singular bounded-context names unless established convention is plural.
+- Keep module renames aligned with API surface, event discriminants, and persistence naming.
+- Keep naming aligned with `modules-api-boundary.instructions.md`.

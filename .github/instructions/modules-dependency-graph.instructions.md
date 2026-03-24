@@ -15,13 +15,13 @@ Use this instruction when a change adds, removes, or redirects dependencies betw
 
 ## Canonical Dependency Source
 
-Do not treat this file as a full edge registry. For concrete ownership and dependency decisions, use these sources in order:
+Do not treat this file as a full edge registry. For concrete decisions, use these sources in order:
 
 1. `modules/<target>/api` as the only cross-module import boundary
 2. `agents/knowledge-base.md` for MDDD boundary policy
 3. `eslint.config.mjs` boundary and restricted-import enforcement
 
-If a change needs a new edge or direction change, document and justify it in the same change instead of inferring from missing examples.
+If a change needs a new edge or direction change, document and justify it in the same change.
 
 ## Dependency Rules
 

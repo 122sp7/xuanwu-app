@@ -9,30 +9,16 @@ Use this instruction when designing or restructuring module architecture documen
 
 ## MDDD Layers
 
-Every first-class business module must preserve these layers:
-
-- `domain/`
-- `application/`
-- `infrastructure/`
-- `interfaces/`
-- `api/`
-
-For new modules, create all five layers plus:
-
-- `README.md`
-- `index.ts`
-
-If a layer is intentionally omitted in a special-case module, document the exception explicitly in the module README or architecture note.
+Each business module keeps: `domain/`, `application/`, `infrastructure/`, `interfaces/`, `api/`, plus `README.md` and `index.ts`.
+If any canonical layer is intentionally omitted, document the exception explicitly.
 
 ## Layer Responsibilities
 
-| Layer | Responsibilities | Constraints |
-| --- | --- | --- |
-| **`domain/`** | Entities, aggregates, value objects, domain events, repository interfaces, pure business rules | Framework-free; no Firebase SDKs, React, HTTP clients, or browser APIs |
-| **`application/`** | Use cases, DTOs, orchestration | Depend on domain ports and repository interfaces, not infrastructure |
-| **`infrastructure/`** | Repository implementations, Firebase adapters, HTTP adapters, persistence, external integrations | Implement contracts defined by domain layer |
-| **`interfaces/`** | UI components, hooks, queries, contracts, Server Actions | Keep UI and transport concerns out of `domain/` |
-| **`api/`** | Public cross-module surface | Export only contracts other modules are allowed to consume |
+- `domain/`: pure business rules, entities, value objects, events, repository interfaces; no framework imports.
+- `application/`: use-case orchestration and DTOs; depends on domain abstractions.
+- `infrastructure/`: adapter and repository implementations for external systems.
+- `interfaces/`: UI/transport/server-action concerns only.
+- `api/`: the only cross-module consumption boundary.
 
 ## Required Module Shape
 
@@ -57,15 +43,10 @@ Additional folders are allowed when needed, but do not rename the canonical laye
 
 ## Rules & Guardrails
 
-- **Layers**: Keep business rules out of `interfaces/`. Do not import infrastructure into `domain/`
-- **App boundary**: `app/` is route wiring, not business logic
-- **Code-level enforcement**: For source-code dependency edges and cross-module imports, defer to `modules-api-boundary.instructions.md` and `modules-dependency-graph.instructions.md`
-- **File placement**:
-  - Events → `domain/events/`
-  - Repository interfaces → `domain/repositories/`
-  - Entities/aggregates → `domain/entities/`
-  - Immutable value types → `domain/value-objects/`
-  - Repository implementations → `infrastructure/`
+- Keep business rules out of `interfaces/`; never import infrastructure into `domain/`.
+- `app/` is composition and routing, not business-rule ownership.
+- Use `modules-api-boundary.instructions.md` and `modules-dependency-graph.instructions.md` for code-level boundary enforcement.
+- Place events/interfaces/entities/value objects/repository implementations in their canonical folders.
 
 ## Validation
 

@@ -13,9 +13,9 @@ These instructions apply to the `py_fn/` runtime only.
 
 ## Architecture
 
-Keep dependency direction `interfaces -> application -> domain <- infrastructure`. Keep `domain/` pure (no Firebase/Google SDK specifics, HTTP framework logic, or file-system coupling). 
-
-Bootstrap and config in `app/bootstrap` and `app/config`. Vertical slices in `app/<bounded-context>/` with clear layer boundaries.
+Keep dependency direction `interfaces -> application -> domain <- infrastructure`.
+Keep `domain/` pure (no Firebase/Google SDK specifics, HTTP framework logic, or file-system coupling).
+Use `app/bootstrap` and `app/config` for wiring/config; preserve vertical slices and layer boundaries.
 
 ## Ingestion Pipeline Contract
 
@@ -24,10 +24,8 @@ Preserve established order (do not reorder without updating ADRs):
 
 ## Runtime Ownership
 
-| Responsibility | Owner |
-| --- | --- |
-| Browser-facing APIs, upload UX, auth, session, Route Handlers, Server Actions, query orchestration, prompt assembly, streamed responses | **Next.js** |
-| Parsing, cleaning, normalization, document-level taxonomy, chunking, chunk metadata, embedding, Firestore persistence, document status transitions, background/retryable/reprocess/admin jobs | **`py_fn/`** |
+- Next.js: browser-facing APIs, upload UX, auth/session, route handlers/server actions, query orchestration, prompt assembly, streaming.
+- `py_fn/`: parsing, cleaning, taxonomy, chunking, embedding, Firestore persistence, status transitions, background/retry/admin jobs.
 
 **Rule**: If the browser or page flow calls it directly → Next.js. If background, retryable, heavy, or admin/internal → `py_fn/`.
 
@@ -40,8 +38,8 @@ Preserve established order (do not reorder without updating ADRs):
 - Reintroduce legacy `libs/firebase/functions`
 
 **Validate**:
-- Run applicable Python and repository commands from `agents/commands.md`
-- Before changing boundaries: Read `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs
+- Run applicable Python and repository commands from `agents/commands.md`.
+- Before changing boundaries, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
 
 ## Documentation Update Rules
 
