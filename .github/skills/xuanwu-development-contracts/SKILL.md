@@ -17,8 +17,8 @@ Use this skill when implementation needs to follow a project contract instead of
 
 ## Authoritative Sources
 
-- [docs/reference/development-contracts/overview.md](../../../docs/reference/development-contracts/overview.md)
-- [docs/explanation/development-contract-governance.md](../../../docs/explanation/development-contract-governance.md)
+- [docs/development-reference/reference/development-contracts/overview.md](../../../docs/development-reference/reference/development-contracts/overview.md)
+- [docs/diagrams-events-explanations/explanation/development-contract-governance.md](../../../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
 
 ## Workflow
 

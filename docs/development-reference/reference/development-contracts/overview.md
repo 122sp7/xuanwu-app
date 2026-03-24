@@ -29,7 +29,7 @@ The repository already contains ADRs, design notes, and a few module plans, but 
 
 The development contracts complement, rather than replace, the existing design corpus:
 
-- RAG lifecycle and runtime ADRs under `docs/adr/`
+- RAG lifecycle and runtime ADRs under `docs/decision-architecture/adr/`
 - the file-module implementation plan in `modules/file/README.md`
 - the MDDD architecture guide in `agents/knowledge-base.md`
 

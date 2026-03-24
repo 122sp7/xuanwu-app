@@ -12,7 +12,7 @@ The acceptance module owns derived workspace acceptance gates and future approva
 
 ## Source of truth
 
-- development contract: `/home/runner/work/xuanwu-app/xuanwu-app/docs/reference/development-contracts/acceptance-contract.md`
+- development contract: `/home/runner/work/xuanwu-app/xuanwu-app/docs/development-reference/reference/development-contracts/acceptance-contract.md`
 - architecture baseline: `/home/runner/work/xuanwu-app/xuanwu-app/ARCHITECTURE.md`
 
 ## Current interface entrypoints

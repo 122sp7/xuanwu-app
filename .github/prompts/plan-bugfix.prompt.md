@@ -7,7 +7,7 @@ argument-hint: Describe the bug, observed behavior, expected behavior, reproduct
 
 # Plan Bugfix
 
-Analyze the bug report and produce a formal implementation plan using [implementation-plan-template.md](../../docs/reference/ai/implementation-plan-template.md).
+Analyze the bug report and produce a formal implementation plan using [implementation-plan-template.md](../../docs/development-reference/reference/ai/implementation-plan-template.md).
 
 ## Requirements
 
@@ -15,7 +15,7 @@ Analyze the bug report and produce a formal implementation plan using [implement
 - State the suspected root cause if enough evidence exists; otherwise make the uncertainty explicit.
 - Include regression risk in the risks section.
 - Define validation that proves the failing scenario is fixed and nearby behavior still works.
-- Follow [plan-schema.md](../../docs/reference/ai/plan-schema.md).
+- Follow [plan-schema.md](../../docs/development-reference/reference/ai/plan-schema.md).
 
 ## Output
 

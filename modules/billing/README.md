@@ -14,7 +14,7 @@ The billing module owns billing records, invoice and settlement workflows, refun
 
 ## Source of truth
 
-- development contract: `/home/runner/work/xuanwu-app/xuanwu-app/docs/reference/development-contracts/billing-contract.md`
+- development contract: `/home/runner/work/xuanwu-app/xuanwu-app/docs/development-reference/reference/development-contracts/billing-contract.md`
 - architecture baseline: `/home/runner/work/xuanwu-app/xuanwu-app/ARCHITECTURE.md`
 
 ## Current interface entrypoints

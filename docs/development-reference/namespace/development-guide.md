@@ -15,8 +15,8 @@ description: Developer guide for contributing to namespace-core — registering 
 
 開始任何 Namespace Core 相關實作前，請先閱讀：
 
-1. **架構規範**：`docs/architecture/namespace.md`
-2. **開發契約**：`docs/reference/development-contracts/namespace-contract.md`
+1. **架構規範**：`docs/decision-architecture/architecture/namespace.md`
+2. **開發契約**：`docs/development-reference/reference/development-contracts/namespace-contract.md`
 3. **整體架構指南**：`agents/knowledge-base.md`
 
 ---

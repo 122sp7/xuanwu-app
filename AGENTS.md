@@ -109,7 +109,7 @@ This repository also maintains a formal Copilot delivery chain for non-trivial w
 3. Reviewer
 4. QA
 
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/reference/ai/handoff-matrix.md`](docs/reference/ai/handoff-matrix.md) for the formal stage transitions.
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for the formal stage transitions.
 
 ## Permissions
 

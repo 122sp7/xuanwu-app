@@ -17,7 +17,7 @@ Quick reference for the most frequently needed files and directories.
 | `packages/` | 21 shared packages (stable public boundaries) |
 | `app/` | Next.js App Router pages and layouts |
 | `agents/` | MDDD architecture knowledge system (this directory) |
-| `docs/architecture/` | Detailed architecture specifications per module |
+| `docs/decision-architecture/architecture/` | Detailed architecture specifications per module |
 | `.github/agents/` | VS Code Copilot custom agents |
 | `.github/instructions/` | Copilot custom instruction files |
 | `.github/skills/` | Agent skills (documentation-writer, etc.) |

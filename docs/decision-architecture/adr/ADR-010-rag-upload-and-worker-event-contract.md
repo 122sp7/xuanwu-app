@@ -112,7 +112,7 @@ WorkerResult
 ## 與 py_fn ADR 協作與不衝突規則
 
 1. 本 ADR 定義 Next.js 與 worker 交接契約。
-2. `py_fn/docs/adr/ADR-004-structure-and-interaction-design.md` 與 `ADR-006-enterprise-rag-end-to-end-pipeline.md` 定義 worker 內部流程與觸發方向。
+2. `py_fn/docs/decision-architecture/adr/ADR-004-structure-and-interaction-design.md` 與 `ADR-006-enterprise-rag-end-to-end-pipeline.md` 定義 worker 內部流程與觸發方向。
 3. 不得將 worker 事件契約改寫成 browser-facing API。
 4. 本 ADR 若更新欄位，需同步檢查 py_fn ADR 是否需要補充但不能改變其 worker runtime 定位。
 

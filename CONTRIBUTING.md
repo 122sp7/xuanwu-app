@@ -110,6 +110,6 @@ For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW
 
 For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 
-- Plan first with [`docs/how-to/ai/start-feature-delivery.md`](docs/how-to/ai/start-feature-delivery.md)
+- Plan first with [`docs/how-to-user/how-to/ai/start-feature-delivery.md`](docs/how-to-user/how-to/ai/start-feature-delivery.md)
 - Use the implementation plan as the execution contract for implementation, review, and QA
 - Keep documentation updates in the same change whenever scope, boundaries, or public workflows move

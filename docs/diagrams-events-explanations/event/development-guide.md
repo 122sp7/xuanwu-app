@@ -15,8 +15,8 @@ description: Developer guide for contributing to event-core — publishing domai
 
 開始任何 Event Core 相關實作前，請先閱讀：
 
-1. **架構規範**：`docs/architecture/event.md`
-2. **開發契約**：`docs/reference/development-contracts/event-contract.md`
+1. **架構規範**：`docs/decision-architecture/architecture/event.md`
+2. **開發契約**：`docs/development-reference/reference/development-contracts/event-contract.md`
 3. **整體架構指南**：`agents/knowledge-base.md`
 
 ---

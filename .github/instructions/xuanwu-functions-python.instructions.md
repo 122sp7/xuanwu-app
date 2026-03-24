@@ -70,7 +70,7 @@ Do not reorder this pipeline without updating the corresponding ADR and runtime 
 - Do not move auth or session logic into this runtime.
 - Do not bypass `application` from `interfaces`.
 - Do not reintroduce legacy `libs/firebase/functions`.
-- Read `py_fn/docs/adr/README.md` and accepted ADRs before changing runtime boundaries.
+- Read `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs before changing runtime boundaries.
 
 ## Validation
 

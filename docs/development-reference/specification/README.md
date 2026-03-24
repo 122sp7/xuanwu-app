@@ -23,7 +23,7 @@ Xuanwu App 的規格文件分為三個層次：
     ↓
 功能規格（Feature Spec）        ← docs/wiki-beta/*.md
     ↓
-開發契約（Development Contract） ← docs/reference/development-contracts/
+開發契約（Development Contract） ← docs/development-reference/reference/development-contracts/
 ```
 
 | 層次 | 問什麼 | 讀者 |

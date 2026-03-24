@@ -19,10 +19,10 @@ Turn a delivery request into an implementation plan that later stages can execut
 
 ## Required references
 
-- Use [implementation plan template](../../docs/reference/ai/implementation-plan-template.md) as the output skeleton.
-- Enforce [plan schema](../../docs/reference/ai/plan-schema.md) before finalizing a plan.
+- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
+- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
 - Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
-- For governed workflows, consult [development contracts overview](../../docs/reference/development-contracts/overview.md).
+- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
 
 ## Workflow
 

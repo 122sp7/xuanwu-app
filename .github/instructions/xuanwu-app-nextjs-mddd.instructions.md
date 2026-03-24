@@ -127,7 +127,7 @@ import { updateDomainSettings } from "@/modules/<current-domain>/api";
   - update `packages/README.md` when adding or changing a package alias or package responsibility
   - update a module `README.md` when its scope or `api/` boundary changes
   - update `py_fn/README.md` or ADRs when runtime boundaries or ingestion contracts change
-  - update `docs/architecture/*` or `docs/reference/*` when architectural contracts move
+  - update `docs/decision-architecture/architecture/*` or `docs/development-reference/reference/*` when architectural contracts move
 - Keep terminology consistent with the existing MDDD and domain language already used in the repository.
 
 ## Validation Checklist

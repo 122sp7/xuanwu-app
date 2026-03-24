@@ -49,10 +49,10 @@ This page is the reference inventory for the Xuanwu Copilot Delivery Suite. Use 
 
 | Asset | Audience | Purpose |
 | --- | --- | --- |
-| [docs/how-to/ai/start-feature-delivery.md](../../how-to/ai/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [docs/how-to/ai/recover-agent-flow.md](../../how-to/ai/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [docs/how-to/ai/update-customizations.md](../../how-to/ai/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [docs/explanation/ai/agentic-delivery-model.md](../../explanation/ai/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
+| [docs/how-to-user/how-to/ai/start-feature-delivery.md](../../how-to/ai/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
+| [docs/how-to-user/how-to/ai/recover-agent-flow.md](../../how-to/ai/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
+| [docs/how-to-user/how-to/ai/update-customizations.md](../../how-to/ai/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
+| [docs/diagrams-events-explanations/explanation/ai/agentic-delivery-model.md](../../explanation/ai/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
 | [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
 
 ## Existing specialized skills

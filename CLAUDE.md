@@ -109,7 +109,7 @@ The repository also ships a formal Copilot delivery chain for complex work:
 3. Reviewer
 4. QA
 
-Use [`.github/copilot-instructions.md`](.github/copilot-instructions.md) as the Copilot-specific baseline and [`docs/reference/ai/handoff-matrix.md`](docs/reference/ai/handoff-matrix.md) for stage transitions and recovery paths.
+Use [`.github/copilot-instructions.md`](.github/copilot-instructions.md) as the Copilot-specific baseline and [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for stage transitions and recovery paths.
 
 ## Permissions Model
 

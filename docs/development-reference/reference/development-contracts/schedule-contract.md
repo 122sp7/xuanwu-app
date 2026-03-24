@@ -420,7 +420,7 @@ This is still a **workspace-side** cancellation slice, not the full organization
 
 ### Architecture reference
 
-- Design specification: `docs/architecture/schedule.md`
+- Design specification: `docs/decision-architecture/architecture/schedule.md`
 - Development guide: `docs/schedule/development-guide.md`
 - User manual: `docs/schedule/user-manual.md`
 

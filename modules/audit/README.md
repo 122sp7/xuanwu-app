@@ -14,7 +14,7 @@ The audit module owns append-only audit visibility for workspace and organizatio
 
 ## Source of truth
 
-- development contract: `/home/runner/work/xuanwu-app/xuanwu-app/docs/reference/development-contracts/audit-contract.md`
+- development contract: `/home/runner/work/xuanwu-app/xuanwu-app/docs/development-reference/reference/development-contracts/audit-contract.md`
 - architecture baseline: `/home/runner/work/xuanwu-app/xuanwu-app/ARCHITECTURE.md`
 
 ## Current interface entrypoints

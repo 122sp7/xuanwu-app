@@ -9,7 +9,7 @@ Use this file as the Copilot-specific baseline for all work in this repository.
 - Read [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, package aliases, and MDDD boundaries.
 - Read [agents/commands.md](../agents/commands.md) for build, lint, and deployment commands.
 - Read [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution and validation expectations.
-- Read [docs/reference/development-contracts/overview.md](../docs/reference/development-contracts/overview.md) and [docs/explanation/development-contract-governance.md](../docs/explanation/development-contract-governance.md) when a workflow is contract-governed.
+- Read [docs/development-reference/reference/development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [docs/diagrams-events-explanations/explanation/development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md) when a workflow is contract-governed.
 
 ## Core Delivery Rules
 

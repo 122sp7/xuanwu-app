@@ -4,12 +4,12 @@ This workflow is **opt-in**. Use it when explicitly requested by saying "use spe
 
 ## Design Documents
 
-Design documents for features in development live under `docs/design/` (or in a feature subdirectory under `docs/`).
+Design documents for features in development live under `docs/decision-architecture/design/` (or in a feature subdirectory under `docs/`).
 
 Each spec follows this structure:
 
 ```
-docs/design/{feature}/
+docs/decision-architecture/design/{feature}/
 ├── CLAUDE.md           # Feature-specific instructions (read this first)
 ├── design.md           # The specification
 ├── implementation.md   # Current status and what's done
@@ -31,7 +31,7 @@ docs/design/{feature}/
 
 ## When Implementing Features (Spec Mode)
 
-1. **Check for design doc** in `docs/design/` — if it exists, follow it
+1. **Check for design doc** in `docs/decision-architecture/design/` — if it exists, follow it
 2. **If no spec exists** — ask if you should create one first
 3. **Look at existing patterns** — find similar code and follow conventions (see [`agents/knowledge-base.md`](agents/knowledge-base.md))
 4. **Update implementation.md** — mark what's done after each piece
@@ -43,7 +43,7 @@ docs/design/{feature}/
 
 When user asks to build a new feature:
 
-1. Create the directory: `mkdir -p docs/design/{feature-name}`
+1. Create the directory: `mkdir -p docs/decision-architecture/design/{feature-name}`
 2. Explore the codebase to understand existing patterns
 3. Write `design.md` with technical spec
 4. Write `CLAUDE.md` with feature-specific instructions

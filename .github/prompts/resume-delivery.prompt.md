@@ -19,7 +19,7 @@ Reconstruct the current delivery state and route the work to the correct next st
 
 ## Requirements
 
-- Use [handoff-matrix.md](../../docs/reference/ai/handoff-matrix.md) to determine the valid next stage.
+- Use [handoff-matrix.md](../../docs/development-reference/reference/ai/handoff-matrix.md) to determine the valid next stage.
 - If the delivery state is unclear, ask the minimum questions needed to reconstruct it.
 - Recommend the correct next prompt or agent handoff.
 - If enough information is available, provide a ready-to-send next-stage prompt.

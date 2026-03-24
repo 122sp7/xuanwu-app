@@ -3,7 +3,7 @@
 > Module-Driven Domain Design (MDDD) agent knowledge base for xuanwu-app.
 > This directory teaches AI agents how to navigate, understand, and contribute to the codebase.
 
-For the formal Copilot delivery workflow, see [docs/reference/ai/customizations-index.md](../docs/reference/ai/customizations-index.md) and [docs/how-to/ai/start-feature-delivery.md](../docs/how-to/ai/start-feature-delivery.md).
+For the formal Copilot delivery workflow, see [docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) and [docs/how-to-user/how-to/ai/start-feature-delivery.md](../docs/how-to-user/how-to/ai/start-feature-delivery.md).
 
 - **[knowledge-base.md](knowledge-base.md)** — Domain knowledge, module boundaries, and architectural patterns
 - **[commands.md](commands.md)** — Build, lint, deploy, and development command reference

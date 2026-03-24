@@ -19,8 +19,8 @@ Use this skill when a change touches the end-to-end RAG lifecycle and you need t
 ## Authoritative Sources
 
 - [py_fn/README.md](../../../py_fn/README.md)
-- [docs/reference/development-contracts/rag-ingestion-contract.md](../../../docs/reference/development-contracts/rag-ingestion-contract.md)
-- [docs/design/rag-implementation-mapping.md](../../../docs/design/rag-implementation-mapping.md)
+- [docs/development-reference/reference/development-contracts/rag-ingestion-contract.md](../../../docs/development-reference/reference/development-contracts/rag-ingestion-contract.md)
+- [docs/decision-architecture/design/rag-implementation-mapping.md](../../../docs/decision-architecture/design/rag-implementation-mapping.md)
 
 ## Workflow
 

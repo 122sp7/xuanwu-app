@@ -32,7 +32,7 @@ npm run dev      # http://localhost:3000
 
 - [ ] [`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
 - [ ] [`agents/README.md`](../../agents/README.md) — 架構規則索引
-- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀 [`docs/reference/development-contracts/overview.md`](../reference/development-contracts/overview.md)
+- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀 [`docs/development-reference/reference/development-contracts/overview.md`](../reference/development-contracts/overview.md)
 
 ### 2.3 建立分支
 
@@ -220,7 +220,7 @@ Review 者確認：
 
 若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
 
-1. **先確認契約**：參閱 `docs/reference/development-contracts/` 中對應的契約文件。
+1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
 2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
 3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
 
@@ -231,7 +231,7 @@ Review 者確認：
 1. 評估**向後相容性**：舊資料是否需要 migration？
 2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
 3. 更新 **Security Rules**（`firestore.rules`）。
-4. 更新相關 ADR（`docs/adr/`）。
+4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
 
 ### 6.3 文件變更
 
@@ -257,7 +257,7 @@ git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
 「使用 @planner 規劃 wiki-beta pages CRUD 功能」
 ```
 
-計畫格式見 [`docs/reference/ai/implementation-plan-template.md`](../reference/ai/implementation-plan-template.md)。
+計畫格式見 [`docs/development-reference/reference/ai/implementation-plan-template.md`](../reference/ai/implementation-plan-template.md)。
 
 ### 7.2 使用 Implementer Agent（實作階段）
 
@@ -272,4 +272,4 @@ git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
 
 完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
 
-詳細說明見 [`docs/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
+詳細說明見 [`docs/development-reference/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
