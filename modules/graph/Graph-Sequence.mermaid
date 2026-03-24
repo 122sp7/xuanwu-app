@@ -1,0 +1,62 @@
+sequenceDiagram
+	autonumber
+	actor User
+	participant UI as External UI
+	participant API as graph/api
+	participant App as Application Use Case
+	participant Domain as Domain Rules
+	participant Repo as Repository
+	participant DB as Firestore
+
+	%% ── Create Node ──────────────────────────────────────────
+	User->>UI: Fill node form and submit
+	UI->>API: facade.createNode({ label, type, namespaceId })
+	API->>App: CreateNodeUseCase.execute(createNodeDto)
+	App->>Domain: validate label not empty and type allowed
+	Domain-->>App: validation passed
+	App->>Repo: save new GraphNode (status = draft)
+	Repo->>DB: write graph_nodes/{nodeId}
+	DB-->>Repo: written
+	Repo-->>App: GraphNode snapshot
+	App-->>API: GraphNodeSummary
+	API-->>UI: node created
+
+	%% ── Activate Node ────────────────────────────────────────
+	User->>UI: Click "Activate" on node detail panel
+	UI->>API: facade.activateNode(nodeId)
+	API->>App: ActivateNodeUseCase.execute(nodeId)
+	App->>Repo: load GraphNode
+	Repo->>DB: read graph_nodes/{nodeId}
+	DB-->>Repo: node doc
+	Repo-->>App: GraphNode (status = draft)
+	App->>Domain: validate ACTIVATE transition
+	Domain-->>App: transition allowed
+	App->>Repo: persist node status = active
+	Repo->>DB: update graph_nodes/{nodeId}
+	DB-->>Repo: updated
+	Repo-->>App: GraphNode snapshot
+	App-->>API: GraphNodeSummary
+	API-->>UI: node now active
+
+	%% ── Link Edge ────────────────────────────────────────────
+	User->>UI: Drag from source node to target node
+	UI->>API: facade.linkEdge({ sourceNodeId, targetNodeId, type, weight })
+	API->>App: LinkEdgeUseCase.execute(linkEdgeDto)
+	App->>Repo: load source and target GraphNodes
+	Repo->>DB: read graph_nodes/{sourceId} + graph_nodes/{targetId}
+	DB-->>Repo: both node docs
+	Repo-->>App: source + target nodes
+	App->>Domain: validate both nodes active, no duplicate edge
+	Domain-->>App: edge creation allowed
+	App->>Repo: save new GraphEdge (status = pending)
+	Repo->>DB: write graph_edges/{edgeId}
+	DB-->>Repo: written
+	Repo-->>App: GraphEdge snapshot
+	App->>Domain: validate ACTIVATE edge transition
+	Domain-->>App: transition allowed (both nodes active)
+	App->>Repo: persist edge status = active
+	Repo->>DB: update graph_edges/{edgeId}
+	DB-->>Repo: updated
+	Repo-->>App: GraphEdge snapshot
+	App-->>API: GraphEdgeSummary
+	API-->>UI: edge linked and active

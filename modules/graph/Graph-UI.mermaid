@@ -1,0 +1,102 @@
+flowchart LR
+	%% ==========================================================
+	%% Graph Module — UI Composition & API Boundary
+	%% UI is composed outside graph and consumes api/ only
+	%% Vis.js canvas rendering and node/edge interaction panels
+	%% ==========================================================
+
+	classDef page fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+	classDef panel fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
+	classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+	classDef canvas fill:#f0fdf4,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+	classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+
+	subgraph EXTERNAL_UI [External UI Composition — App Router]
+		direction TB
+
+		subgraph GRAPH_PAGE [Knowledge Graph Page]
+			direction LR
+
+			subgraph CANVAS_AREA [Graph Canvas — Vis.js]
+				direction TB
+				graph_page[Graph View Page<br/>/workspace/graph]:::page
+				vis_canvas[Vis.js Network Canvas<br/>node + edge rendering]:::canvas
+				layout_controls[Layout Controls<br/>force-directed / hierarchical / radial]:::panel
+				depth_filter[Depth Filter<br/>maxDepth slider]:::panel
+				graph_page --> vis_canvas
+				graph_page --> layout_controls
+				graph_page --> depth_filter
+			end
+
+			subgraph NODE_PANEL [Node Interaction Panel]
+				direction TB
+				node_detail[Node Detail Drawer]:::panel
+				node_label[Label / Type Editor]:::panel
+				node_actions[Activate / Archive / Restore Node]:::action
+				node_detail --> node_label
+				node_detail --> node_actions
+			end
+
+			subgraph EDGE_PANEL [Edge Interaction Panel]
+				direction TB
+				edge_detail[Edge Detail Drawer]:::panel
+				edge_weight[Weight / Label Editor]:::panel
+				edge_actions[Link Edge / Deactivate / Remove Edge]:::action
+				edge_detail --> edge_weight
+				edge_detail --> edge_actions
+			end
+
+			subgraph META_PANEL [Metadata Panel]
+				direction TB
+				meta_panel[Metadata Sidebar]:::panel
+				meta_tags[Tag / Category Assignment]:::panel
+				meta_props[Custom Property Editor]:::panel
+				meta_panel --> meta_tags
+				meta_panel --> meta_props
+			end
+		end
+	end
+
+	subgraph PUBLIC_API [graph Public API]
+		direction TB
+		api_index[api/index.ts]:::api
+		api_facade[api/graph.facade.ts<br/>createNode / linkEdge / archiveNode<br/>updateEdgeWeight / getViewConfig]:::api
+		api_contracts[api/contracts.ts<br/>GraphNodeSummary / GraphEdgeSummary<br/>GraphViewConfig]:::api
+		api_index --> api_facade
+		api_index --> api_contracts
+	end
+
+	subgraph INTERNAL_MODULE [graph Internal Logic]
+		direction TB
+		domain_logic[domain<br/>GraphNode + GraphEdge + GraphMetadata<br/>entities + events + guards + transitions]:::domain
+		application_logic[application<br/>DTOs + ports + use cases<br/>CreateNodeUseCase / LinkEdgeUseCase]:::domain
+		infrastructure_logic[infrastructure<br/>Firestore graph_nodes + graph_edges<br/>graph_metadata collections]:::domain
+		application_logic --> domain_logic
+		infrastructure_logic --> domain_logic
+	end
+
+	vis_canvas -->|load graph data| api_contracts
+	node_detail -->|load node details| api_contracts
+	node_actions -->|execute node commands| api_facade
+
+	edge_detail -->|load edge details| api_contracts
+	edge_actions -->|execute edge commands| api_facade
+
+	meta_panel -->|load metadata| api_contracts
+	meta_tags -->|update tags| api_facade
+
+	layout_controls -->|update view config| api_facade
+	depth_filter -->|update maxDepth| api_facade
+
+	api_facade --> application_logic
+	api_contracts --> application_logic
+
+	forbidden_domain[Do not bind UI directly to<br/>domain/*]:::rule
+	forbidden_application[Do not bind UI directly to<br/>application/*]:::rule
+	forbidden_infrastructure[Do not bind UI directly to<br/>infrastructure/*]:::rule
+
+	graph_page -. forbidden direct dependency .-> forbidden_domain
+	vis_canvas -. forbidden direct dependency .-> forbidden_application
+	node_detail -. forbidden direct dependency .-> forbidden_infrastructure
