@@ -1,0 +1,82 @@
+# Xuanwu App
+
+Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
+
+This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
+
+## Primary repository truths
+
+- AGENTS.md: repository-wide operating rules
+- .github/copilot-instructions.md: Copilot delivery baseline
+- agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
+- agents/commands.md: build, lint, test, and deployment commands
+- docs/README.md: documentation root index
+
+## Documentation reading order
+
+Read from high level to detail:
+
+1. docs/README.md
+2. docs/development-reference/specification/system-overview.md
+3. agents/knowledge-base.md
+4. docs/development-reference/reference/development-contracts/overview.md
+5. the nearest docs README in the relevant subfolder
+6. the specific contract, guide, or architecture page
+7. diagrams or ADRs only after the relevant higher-level page is identified
+
+## Topic routing
+
+- Repository rules and contribution workflow:
+  - AGENTS.md
+  - CONTRIBUTING.md
+  - agents/README.md
+- Architecture and module boundaries:
+  - agents/knowledge-base.md
+  - docs/decision-architecture/architecture/
+  - docs/decision-architecture/adr/
+- Development workflows and implementation rules:
+  - docs/development-reference/development/README.md
+  - docs/development-reference/reference/
+- Contract-governed workflows:
+  - docs/development-reference/reference/development-contracts/overview.md
+  - specific contract pages in docs/development-reference/reference/development-contracts/
+- AI workflow and Copilot customization assets:
+  - docs/development-reference/reference/ai/customizations-index.md
+  - docs/how-to-user/how-to/ai/
+  - .github/skills/
+- Diagrams and explanatory support:
+  - docs/diagrams-events-explanations/diagrams/README.md
+  - docs/diagrams-events-explanations/explanation/
+
+## Document layers
+
+- High layer:
+  - docs/README.md
+  - docs/development-reference/specification/system-overview.md
+  - agents/knowledge-base.md
+- Mid layer:
+  - folder READMEs
+  - development guides
+  - contract indexes
+  - how-to guides
+- Low layer:
+  - ADRs
+  - detailed diagrams
+  - deep technical explanations
+
+Use the smallest useful layer first.
+
+## Documentation organization rule
+
+When adding or changing docs:
+
+1. keep one canonical file per topic,
+2. add a short summary near the top,
+3. use clear headings for section-based chunking,
+4. update the nearest README index,
+5. update docs/README.md or this file if routing changes.
+
+## AI working rule
+
+If a question is broad, inspect summaries and README indexes before opening detailed files.
+If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
