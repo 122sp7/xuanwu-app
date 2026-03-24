@@ -115,7 +115,7 @@ export {
 } from "date-fns";
 
 // ── Utilities ──────────────────────────────────────────────────────────────
-export { constructNow, fromUnixTime, toDate, min, max, clamp } from "date-fns";
+export { constructNow, fromUnixTime, toDate, min, max, clamp, eachDayOfInterval } from "date-fns";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export type { Duration, Interval, FormatOptions } from "date-fns";
