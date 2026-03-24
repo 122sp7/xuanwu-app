@@ -26,7 +26,7 @@ export interface MemberResource {
 export interface DispatchAssignment {
   readonly taskId: string;
   readonly memberId: string;
-  readonly startTime: string; // ISO time string HH:mm
+  readonly startTime: string; // Time string in HH:mm format (e.g. "09:00")
 }
 
 /** Drag item type identifier for the DnD layer. */

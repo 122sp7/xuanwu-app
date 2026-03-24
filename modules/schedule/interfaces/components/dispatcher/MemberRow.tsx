@@ -7,6 +7,8 @@ import { dropTargetForElements } from "@lib-dragdrop";
 import { useDispatcherStore, selectMemberLoad } from "../../dispatcher/store";
 import { DRAG_TYPE_TASK, type MemberResource } from "../../dispatcher/types";
 
+const DEFAULT_START_TIME = "09:00";
+
 interface MemberRowProps {
   readonly member: MemberResource;
 }
@@ -45,8 +47,7 @@ export function MemberRow({ member }: MemberRowProps) {
         setIsOver(false);
         const taskId = source.data["taskId"];
         if (typeof taskId === "string") {
-          // Default start time = "09:00" for simplicity (no complex scheduling)
-          assignTask(taskId, member.id, "09:00");
+          assignTask(taskId, member.id, DEFAULT_START_TIME);
         }
       },
     });
