@@ -11,9 +11,9 @@ It does not own product UI composition.
 UI should be assembled outside this module and consume workspace-flow only through the public api boundary.
 
 Related references:
-- [README.md](http://_vscodecontentref_/6)
-- [Workspace-Flow.mermaid](http://_vscodecontentref_/7)
-- [Workspace-Tree-Flow.mermaid](http://_vscodecontentref_/8)
+- [README.md](./README.md)
+- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
+- [Workspace-Tree-Flow.mermaid](./Workspace-Tree-Flow.mermaid)
 
 ## Target Module Shape
 
@@ -38,24 +38,31 @@ modules/workspace-flow/
 │   ├── _actions/
 │   ├── queries/
 │   └── contracts/
-├── [README.md](http://_vscodecontentref_/9)
-├── [Workspace-Flow.mermaid](http://_vscodecontentref_/10)
-├── [Workspace-Tree-Flow.mermaid](http://_vscodecontentref_/11)
+├── README.md
+├── Workspace-Flow.mermaid
+├── Workspace-Tree-Flow.mermaid
 └── index.ts
 
-## Current Source Mapping
+## Legacy Types Policy
 
-The existing types folder is reference material for the refactor target.
-Do not treat types/ as the long-term public module boundary.
+The old types/ folder was temporary migration input only.
+The legacy files have been removed and must not be recreated.
 
-Suggested mapping:
-- types/core.ts → domain/value-objects or domain/events depending on content
-- types/models.ts → domain/entities
-- types/transitions.ts → domain/services
-- types/services.ts → application/ports
-- types/firestore.ts → infrastructure/firebase or infrastructure/persistence
-- types/examples.ts → documentation or application/examples if still needed
-- types/index.ts → replace with api/index.ts and local module index.ts responsibilities
+Rules:
+- Do not treat types/ as a public module boundary
+- Do not add new code under types/
+- Do not import types/* from outside this module
+- Move the logic into domain/application/infrastructure/api instead of recreating the legacy files
+- After deletion, do not recreate types/ as a shortcut export surface
+
+Legacy-to-target mapping:
+- core.ts → domain/value-objects/ and domain/events/
+- models.ts → domain/entities/
+- transitions.ts → domain/services/
+- services.ts → application/ports/
+- firestore.ts → infrastructure/firebase/ or infrastructure/persistence/
+- examples.ts → documentation examples or application examples if still needed
+- index.ts → split into api/index.ts and local module index.ts responsibilities
 
 ## Ownership Rules
 
@@ -159,12 +166,13 @@ Do not move product UI concerns into domain or application.
 ## Documentation Alignment
 
 Keep these documents aligned whenever workflow structure changes:
-- [README.md](http://_vscodecontentref_/12)
-- [Workspace-Flow.mermaid](http://_vscodecontentref_/13)
-- [Workspace-Tree-Flow.mermaid](http://_vscodecontentref_/14)
+- [README.md](./README.md)
+- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
+- [Workspace-Tree-Flow.mermaid](./Workspace-Tree-Flow.mermaid)
 - api exports if public contracts change
 
 If event names, states, or guards change, update the docs in the same change.
+If a temporary migration file is removed, update the docs in the same change so no document still presents it as canonical.
 
 ## Validation
 

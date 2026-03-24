@@ -1,8 +1,16 @@
 # System State Machines
 
-三條完全獨立的狀態機，不混用。
+workspace-flow 是純邏輯模組，負責狀態機、guard、資料契約與公開 API，不負責產品 UI 組裝。
 
-Mermaid 圖檔：`./Workspace-Flow.mermaid`
+對外互動規則：
+- 外界只能透過 `api/` 使用本模組
+- UI 由外部頁面或其他模組自行組裝
+- 舊的 `types/` 目錄原本只作為遷移參考，現已刪除，不可再作為公開邊界
+
+Mermaid 圖檔：
+- `./Workspace-Flow.mermaid`
+- `./Workspace-Tree-Flow.mermaid`
+- `./AGENT.md`
 
 ---
 
@@ -14,7 +22,7 @@ Issue.status     → 異常處理中
 Invoice.status   → 錢的狀態
 ```
 
-**六個 Domain，各自一條狀態機。**
+**三條獨立狀態機，各自處理不同責任。**
 
 ---
 
@@ -148,7 +156,32 @@ paid           --[close]-->    closed
 
 ---
 
-## 4. 資料模型
+## 4. 模組定位
+
+workspace-flow 應維持以下結構：
+
+```text
+modules/workspace-flow/
+├── api/
+├── application/
+├── domain/
+├── infrastructure/
+├── interfaces/
+├── AGENT.md
+├── README.md
+├── Workspace-Flow.mermaid
+├── Workspace-Tree-Flow.mermaid
+└── index.ts
+```
+
+說明：
+- `domain/`：狀態、事件、entity、transition、guard
+- `application/`：use case、DTO、ports、orchestration
+- `infrastructure/`：Firestore 與 persistence adapter
+- `interfaces/`：若未來需要本模組內的 action/query contract，可放這裡；產品 UI 仍優先在外部組裝
+- `api/`：唯一公開入口
+
+## 5. 資料模型
 
 ### Task
 
@@ -208,7 +241,7 @@ type InvoiceItem = {
 
 ---
 
-## 5. 關聯關係
+## 6. 關聯關係
 
 ```
 Task    1 ──── n    Issue
@@ -219,7 +252,7 @@ Task 不直接持有 Invoice，透過 InvoiceItem 關聯。
 
 ---
 
-## 6. Guard 規則（狀態轉移前置條件）
+## 7. Guard 規則（狀態轉移前置條件）
 
 | 規則 | 說明 |
 |---|---|
@@ -230,7 +263,7 @@ Task 不直接持有 Invoice，透過 InvoiceItem 關聯。
 
 ---
 
-## 7. 完整流程一覽
+## 8. 完整流程一覽
 
 ```
 Task → qa → acceptance → accepted

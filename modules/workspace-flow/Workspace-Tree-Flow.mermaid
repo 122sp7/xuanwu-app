@@ -41,15 +41,18 @@ flowchart TB
 			subgraph DOMAIN [domain/]
 				direction TB
 				domain_entities[entities/]:::layer
+				domain_events[events/]:::layer
 				domain_value_objects[value-objects/]:::layer
 				domain_services[services/]:::layer
 
-				file_models[entities/workspace-flow.models.ts<br/>from models.ts]:::file
-				file_core[value-objects/workspace-flow.core.ts<br/>IDs + statuses + events from core.ts]:::file
-				file_transitions[services/workspace-flow.transitions.ts<br/>transition maps + guards from transitions.ts]:::file
+				file_models[entities/Task.ts<br/>Issue.ts<br/>Invoice.ts<br/>InvoiceItem.ts]:::file
+				file_core[value-objects/TaskId.ts<br/>TaskStatus.ts<br/>IssueStage.ts]:::file
+				file_events[events/TaskEvent.ts<br/>IssueEvent.ts<br/>InvoiceEvent.ts]:::file
+				file_transitions[services/WorkflowTransitionPolicy.ts<br/>guards + transition rules]:::file
 
 				domain_entities --> file_models
 				domain_value_objects --> file_core
+				domain_events --> file_events
 				domain_services --> file_transitions
 			end
 
@@ -57,22 +60,26 @@ flowchart TB
 				direction TB
 				application_dto[dto/]:::layer
 				application_ports[ports/]:::layer
-				application_examples[examples/]:::layer
+				application_use_cases[use-cases/]:::layer
 
-				file_services[ports/workspace-flow.services.ts<br/>service contracts from services.ts]:::file
-				file_queries[dto/workspace-flow.queries.ts<br/>query DTOs extracted from firestore.ts]:::file
-				file_examples[examples/type-safety.examples.ts<br/>from examples.ts]:::file
+				file_services[ports/TaskService.ts<br/>IssueService.ts<br/>InvoiceService.ts]:::file
+				file_queries[dto/TaskQueryDto.ts<br/>IssueQueryDto.ts<br/>InvoiceQueryDto.ts]:::file
+				file_use_cases[use-cases/submit-task-to-qa.use-case.ts<br/>approve-acceptance.use-case.ts<br/>submit-invoice.use-case.ts]:::file
 
 				application_ports --> file_services
 				application_dto --> file_queries
-				application_examples --> file_examples
+				application_use_cases --> file_use_cases
 			end
 
 			subgraph INFRA [infrastructure/]
 				direction TB
-				infra_firestore[firebase/]:::layer
-				file_firestore[firebase/workspace-flow.firestore.ts<br/>COLLECTIONS + TaskDoc/IssueDoc/InvoiceDoc/InvoiceItemDoc]:::file
-				infra_firestore --> file_firestore
+				infra_firebase[firebase/]:::layer
+				infra_persistence[persistence/]:::layer
+				infra_repositories[repositories/]:::layer
+				file_firestore[firebase/workspace-flow.collections.ts<br/>COLLECTIONS + document mappings]:::file
+				file_repositories[repositories/FirebaseTaskRepository.ts<br/>FirebaseIssueRepository.ts<br/>FirebaseInvoiceRepository.ts]:::file
+				infra_firebase --> file_firestore
+				infra_repositories --> file_repositories
 			end
 
 			subgraph INTERFACES [interfaces/]
@@ -80,7 +87,7 @@ flowchart TB
 				interfaces_actions[_actions/]:::layer
 				interfaces_queries[queries/]:::layer
 				interfaces_components[components/]:::layer
-				interface_note[optional UI / server actions / query hooks<br/>not required for pure type module start]:::doc
+				interface_note[optional module-local actions or query contracts<br/>product UI remains outside this module]:::doc
 				interfaces_layer --> interfaces_actions
 				interfaces_layer --> interfaces_queries
 				interfaces_layer --> interfaces_components
@@ -112,14 +119,16 @@ flowchart TB
 	forbidden_application[forbidden<br/>@/modules/workspace-flow/application/*]:::forbid
 	forbidden_infra[forbidden<br/>@/modules/workspace-flow/infrastructure/*]:::forbid
 	forbidden_interfaces[forbidden<br/>@/modules/workspace-flow/interfaces/*]:::forbid
+	forbidden_types[forbidden<br/>do not recreate legacy types/*]:::forbid
 
 	external_app -. do not import .-> forbidden_domain
 	external_app -. do not import .-> forbidden_application
 	external_app -. do not import .-> forbidden_infra
 	external_app -. do not import .-> forbidden_interfaces
+	external_app -. do not import .-> forbidden_types
 
 	note_boundary[Cross-module rule<br/>external consumers must import only via<br/>@/modules/workspace-flow/api]:::doc
-	note_mapping[Current source set used for this design<br/>core.ts, examples.ts, firestore.ts, index.ts,<br/>models.ts, services.ts, transitions.ts, README.md, Workspace-Flow.mermaid]:::doc
+	note_mapping[Legacy types/* files were migration-only<br/>the target structure is now the canonical design]:::doc
 
 	note_boundary --> public_api_index
 	note_mapping --> module_root

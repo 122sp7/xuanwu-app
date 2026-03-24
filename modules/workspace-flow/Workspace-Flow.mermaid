@@ -1,9 +1,9 @@
 flowchart TB
   %% ==========================================================
   %% Workspace Flow
-  %% Source of truth limited to:
-  %% core.ts, examples.ts, firestore.ts, index.ts,
-  %% models.ts, services.ts, transitions.ts, README.md
+  %% Canonical state-machine documentation for workspace-flow
+  %% This diagram documents the target logic module
+  %% Legacy types/* files were migration input only and have been removed
   %% ==========================================================
 
   classDef task fill:#e8f3ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
@@ -49,6 +49,7 @@ flowchart TB
     open_issue_rule[任何節點發現問題<br/>開 Issue，不回退 Task]:::rule
     resume_rule[Issue resolved 後<br/>依 Issue.stage 回到原節點繼續]:::rule
     invoice_item[InvoiceItem<br/>invoice_id + task_id + amount<br/>只允許 accepted Task 加入]:::data
+    api_rule[外界只能透過 api 使用 workspace-flow<br/>UI 在模組外部自行組裝]:::rule
   end
 
   subgraph STORAGE [Firestore Collections]
@@ -79,3 +80,5 @@ flowchart TB
   open_issue_rule -. applies to .-> task_acceptance
   open_issue_rule -. applies to .-> invoice_finance_review
   resume_rule -. explains .-> issue_resolved
+  api_rule -. governs .-> task_draft
+  api_rule -. governs .-> invoice_draft
