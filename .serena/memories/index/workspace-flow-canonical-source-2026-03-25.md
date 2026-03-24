@@ -1,25 +1,28 @@
 ## Phase: maintenance
-## Task: workspace-flow canonical source index refresh
+## Task: workspace-flow canonical source index refresh (post-cleanup)
 ## Date: 2026-03-25
 
 ### Scope
-- Create a single index memory to reduce retrieval ambiguity for workspace-flow docs
+- Consolidate workspace-flow source-of-truth memory
+- Remove stale memories that still reference deprecated diagram names or pre-canonical assumptions
 
 ### Decisions / Findings
-- Source-of-truth order for workspace-flow architecture decisions:
-  1) modules/workspace-flow/AGENT.md (target module shape and boundary rules)
-  2) modules/workspace-flow/README.md (state-machine narrative and module positioning)
-  3) modules/workspace-flow/Workspace-Flow-Tree.mermaid (visual boundary and layer map)
-  4) Remaining Mermaid suite for complementary views (states/sequence/erd/architecture/permissions/events/lifecycle/ui/flow)
-- Cross-module consumption rule: only via @/modules/workspace-flow/api.
-- Legacy types/* are removed and must not be recreated as public surface.
+- Canonical authority order for workspace-flow docs:
+  1) modules/workspace-flow/AGENT.md
+  2) modules/workspace-flow/README.md
+  3) modules/workspace-flow/Workspace-Flow-Tree.mermaid
+  4) modules/workspace-flow/Workspace-Flow-UI.mermaid
+  5) Remaining Mermaid set for complementary views (Flow/States/Sequence/ERD/Architecture/Permissions/Events/Lifecycle)
+- Cross-module access remains strict: external consumers import only via @/modules/workspace-flow/api.
+- Legacy types/ is removed and must not be recreated as an external boundary.
 
 ### Validation / Evidence
-- All canonical diagram files exist in modules/workspace-flow root.
-- References in AGENT.md and README.md now align with canonical file names.
+- Canonical files are present in modules/workspace-flow module root.
+- AGENT.md and README.md describe the same module positioning: logic-first bounded context, UI composed outside module.
 
 ### Deviations / Risks
-- Planned implementation files/folders (api/application/domain/infrastructure/interfaces/index.ts) are target-state, not present-state.
+- Documented module shape remains target-state blueprint; implementation folders/files may still be incomplete.
+- README event labels are simplified and should be normalized during implementation.
 
 ### Open Questions
 - none
