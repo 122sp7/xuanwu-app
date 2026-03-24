@@ -43,7 +43,6 @@ import { WorkspaceFilesTab } from "@/modules/file";
 import { WorkspaceFinanceTab } from "@/modules/finance";
 import { WorkspaceIssueTab } from "@/modules/issue";
 import { WorkspaceQATab } from "@/modules/qa";
-import { WorkspaceScheduleTab } from "@/modules/schedule";
 import { WorkspaceTaskTab } from "@/modules/task";
 import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
 
@@ -517,7 +516,7 @@ export function WorkspaceDetailScreen({
       case "Wiki":
         return <WikiBetaWorkspaceView workspace={workspace} />;
       case "Schedule":
-        return <WorkspaceScheduleTab workspace={workspace} />;
+        return renderWorkspacePlaceholderTab("Schedule");
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       default:
