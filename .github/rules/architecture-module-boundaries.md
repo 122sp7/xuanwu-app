@@ -1,15 +1,15 @@
 ---
-title: Module Boundaries via Barrel Exports
+title: Module Boundaries via Domain API
 impact: CRITICAL
 impactDescription: Prevents tight coupling between modules
-tags: architecture, mddd, boundaries, barrel-exports, imports
+tags: architecture, mddd, boundaries, api, imports
 ---
 
-## Module Boundaries via Barrel Exports
+## Module Boundaries via Domain API
 
 **Impact: CRITICAL**
 
-Every module exposes its public API through a single `index.ts` barrel export. Other modules may **only** import from this barrel — never by reaching into a module's internal directories.
+Every domain module exposes cross-module contracts through `modules/<domain>/api/`. Other modules may **only** import from this API boundary — never by reaching into a module's internal directories.
 
 **Incorrect (reaching into another module's internals):**
 
@@ -19,12 +19,12 @@ import { publishDomainEvent } from "@/modules/event/application/use-cases/publis
 import { WikiDocument } from "@/modules/wiki/domain/entities/wiki-document.entity";
 ```
 
-**Correct (importing through the barrel export):**
+**Correct (importing through the domain API boundary):**
 
 ```typescript
 // modules/schedule/application/use-cases/list-workspace-schedule-items.use-case.ts
-import { publishDomainEvent } from "@/modules/event";
-import type { WikiDocument } from "@/modules/wiki";
+import { publishDomainEvent } from "@/modules/event/api";
+import type { WikiDocument } from "@/modules/wiki/api";
 ```
 
 **Within the same module, use relative imports:**
@@ -35,19 +35,16 @@ import { WikiDocument } from "../../domain/entities/wiki-document.entity";      
 import type { IWikiDocumentRepository } from "../../domain/repositories/iwiki-document.repository"; // ✅ Relative
 ```
 
-**What goes in `index.ts`:**
+**What goes in `api/`:**
 
 ```typescript
-// modules/event/index.ts
+// modules/event/api/index.ts
 // Public types
-export type { DomainEvent } from "./domain/entities/domain-event.entity";
+export type { DomainEvent } from "./contracts/domain-event";
 
 // Public use cases
-export { publishDomainEvent } from "./application/use-cases/publish-domain-event";
-export { listEventsByAggregate } from "./application/use-cases/list-events-by-aggregate";
-
-// Public infrastructure (for DI wiring only)
-export { EventStoreRepository } from "./infrastructure/repositories/event-store.repository";
+export { publishDomainEvent } from "./publish-domain-event";
+export { listEventsByAggregate } from "./list-events-by-aggregate";
 ```
 
-Only export what other modules actually need. Internal helpers, private entities, and implementation details stay unexported.
+Only expose stable cross-module contracts in `api/`. Internal helpers, private entities, and implementation details stay unexported.

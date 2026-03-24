@@ -33,6 +33,6 @@ npm test                    # ✅ Only runs after types are clean
 ```
 
 **Why this matters:**
-- A type error in a module boundary (`index.ts`) will cascade into dozens of test failures
+- A type error in a module boundary (`api/index.ts`) will cascade into dozens of test failures
 - Fixing the type error is one change; debugging failed tests is many
 - The `npm run build` step catches missing exports, wrong types, and broken imports across all modules

@@ -40,7 +40,7 @@ Use this skill when implementation work needs to stay aligned with Xuanwu's modu
    - Do not let packages reverse-import from `app/` or `modules/` internals
 
 4. **Respect public boundaries**
-   - Cross-module imports must go through the target module's `index.ts`
+   - Cross-module imports must go through the target module's `api/` boundary
    - Internal files inside one module should use relative imports
    - Package consumers must import through the configured `@alias`, never through relative paths into `packages/*`
 

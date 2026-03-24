@@ -40,5 +40,5 @@ const items = await deriveScheduleItems(workspace, financeSnapshot);
 **When comments are useful:**
 - Business rules that aren't obvious from code
 - Workarounds for known framework issues (with issue links)
-- Module-level documentation in `README.md` or `index.ts`
+- Module-level documentation in `README.md` or `api/index.ts`
 - Complex derivation logic in domain services

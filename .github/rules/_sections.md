@@ -23,7 +23,7 @@ The section ID (in parentheses) is the filename prefix used to group rules.
 ## 4. API Design (api)
 
 **Impact:** HIGH
-**Description:** Module API surface via barrel exports and `@api-contracts` route registry patterns.
+**Description:** Module API surface via domain `api/` boundaries and `@api-contracts` route registry patterns.
 
 ## 5. Performance (performance)
 

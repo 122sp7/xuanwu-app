@@ -33,7 +33,7 @@ Quick reference for the most frequently needed files and directories.
 
 ```
 modules/<name>/
-├── index.ts                    # Public barrel export
+├── api/index.ts                # Cross-module API boundary
 ├── domain/entities/            # Aggregate roots, value objects
 ├── domain/repositories/        # Repository interfaces
 ├── domain/services/            # Domain services (optional)

@@ -66,4 +66,4 @@ Reference: [Link](url)
 
 ## Core Principles
 
-> The architecture is **module-driven, not layer-driven**. Every business capability is a self-contained module. Modules communicate through barrel exports, never by reaching into each other's internals. Packages are stable public boundaries for shared concerns.
+> The architecture is **module-driven, not layer-driven**. Every business capability is a self-contained module. Modules communicate through each target domain's `api/` boundary, never by reaching into each other's internals. Packages are stable public boundaries for shared concerns.

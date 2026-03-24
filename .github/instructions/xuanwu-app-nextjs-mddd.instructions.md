@@ -30,6 +30,7 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
 ### `modules/`
 
 - Treat `modules/*` as vertical business slices.
+- Treat each domain module as isolated. Cross-module interaction must go through the target module `api/` boundary.
 - Keep the dependency direction `interfaces -> application -> domain <- infrastructure`.
 - Keep `domain/` framework-free. Do not import React, Firebase SDKs, HTTP clients, or browser APIs into domain files.
 - Put business workflows in `application/use-cases/`.
@@ -68,7 +69,7 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
   - `@/ui/shadcn/*`
   - `@/ui/vis*`
   - `@/interfaces/*`
-- Inside a module, prefer relative imports for that module's own internal files instead of importing the module's barrel back into itself.
+- Inside a module, prefer relative imports for that module's own internal files instead of importing the module `api/` boundary back into itself.
 
 ### Good Example
 
@@ -83,7 +84,7 @@ import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 ```ts
 import { formatDate } from "@/shared/utils";
 import { Button } from "@/ui/shadcn/ui/button";
-import { updateWorkspaceSettings } from "@/modules/workspace";
+import { updateWorkspaceSettings } from "@/modules/workspace/api";
 ```
 
 ### Internal Module Import Example
@@ -92,8 +93,8 @@ import { updateWorkspaceSettings } from "@/modules/workspace";
 // Good: keep module-internal imports relative
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 
-// Bad: do not re-import the module barrel from inside the same module
-import { updateWorkspaceSettings } from "@/modules/workspace";
+// Bad: do not re-import the module api boundary from inside the same module
+import { updateWorkspaceSettings } from "@/modules/workspace/api";
 ```
 
 ## Next.js and UI Practices
@@ -124,7 +125,7 @@ import { updateWorkspaceSettings } from "@/modules/workspace";
 - Update related documentation when architecture, public contracts, or runtime ownership changes.
 - Common examples:
   - update `packages/README.md` when adding or changing a package alias or package responsibility
-  - update a module `README.md` when its scope or public API changes
+  - update a module `README.md` when its scope or `api/` boundary changes
   - update `py_fn/README.md` or ADRs when runtime boundaries or ingestion contracts change
   - update `docs/architecture/*` or `docs/reference/*` when architectural contracts move
 - Keep terminology consistent with the existing MDDD and domain language already used in the repository.

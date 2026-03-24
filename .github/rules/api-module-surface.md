@@ -1,15 +1,15 @@
 ---
-title: Module API Surface via Barrel Exports
+title: Module API Surface via Domain API
 impact: HIGH
 impactDescription: Defines the contract between modules and external consumers
-tags: api, module-surface, barrel, exports
+tags: api, module-surface, domain-api, contracts
 ---
 
-## Module API Surface via Barrel Exports
+## Module API Surface via Domain API
 
 **Impact: HIGH**
 
-Every module's `index.ts` is its **public API contract**. It defines exactly what other modules and the `app/` layer can consume. Treat it like a published library interface.
+Every module's `api/` directory is its **public cross-module contract**. It defines exactly what other modules can consume. Treat it like a published library interface.
 
 **Guidelines:**
 
@@ -21,7 +21,7 @@ Every module's `index.ts` is its **public API contract**. It defines exactly wha
 **Example:**
 
 ```typescript
-// modules/wiki/index.ts
+// modules/wiki/api/index.ts
 
 // ── Types ──────────────────────────────────────
 export type { WikiDocument } from "./domain/entities/wiki-document.entity";
@@ -38,6 +38,5 @@ export { useWikiDocuments } from "./interfaces/queries/wiki.queries";
 // ── Components ─────────────────────────────────
 export { WikiEditor } from "./interfaces/components/WikiEditor";
 
-// ── Infrastructure (for DI wiring at app root) ─
-export { WikiDocumentFirebaseRepository } from "./infrastructure/repositories/WikiDocumentRepository";
+// Keep infrastructure details private to the module.
 ```

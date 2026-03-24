@@ -13,7 +13,7 @@ Every code change must be reviewed with attention to architectural alignment, no
 
 **Review checklist:**
 
-1. **Module boundaries** — Does the change respect module `index.ts` barrel exports? No internal cross-module imports?
+1. **Module boundaries** — Does the change respect module `api/` boundaries? No internal cross-module imports?
 2. **Layer direction** — Does the domain layer remain free of infrastructure/framework imports?
 3. **Import aliases** — Are all shared imports using `@alias` paths? No legacy `@/shared/*`, `@/infrastructure/*`, `@/libs/*`?
 4. **Use-case structure** — Are new use cases single-purpose files under `application/use-cases/`?
@@ -30,7 +30,7 @@ LGTM 👍
 **Correct (substantive review):**
 
 ```
-- ✅ Module boundaries respected (imports via barrel)
+- ✅ Module boundaries respected (imports via `api/`)
 - ⚠️ Line 42: This use case imports directly from `@integration-firebase` — 
      should the Firestore call go through a repository interface instead?
 - ❌ Line 78: `@/shared/types` is a legacy path — use `@shared-types`

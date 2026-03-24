@@ -9,7 +9,7 @@ tags: quality, imports, aliases, eslint, packages
 
 **Impact: CRITICAL**
 
-All shared code must be imported through `@alias` paths defined in `tsconfig.json`. Legacy paths are blocked by ESLint. Cross-module imports use `@/modules/<name>` (the barrel export). Within a module, use relative imports.
+All shared code must be imported through `@alias` paths defined in `tsconfig.json`. Legacy paths are blocked by ESLint. Cross-module imports use `@/modules/<name>/api` (the domain API boundary). Within a module, use relative imports.
 
 **Incorrect (legacy paths — ESLint blocks these):**
 
@@ -36,11 +36,11 @@ import { Button } from "@ui-shadcn/ui/button";
 import { z } from "@lib-zod";
 ```
 
-**Correct (module barrel for cross-module):**
+**Correct (module API boundary for cross-module):**
 
 ```typescript
-import { publishDomainEvent } from "@/modules/event";
-import type { Task } from "@/modules/task";
+import { publishDomainEvent } from "@/modules/event/api";
+import type { Task } from "@/modules/task/api";
 ```
 
 **Correct (relative within same module):**

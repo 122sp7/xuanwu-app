@@ -13,7 +13,7 @@ AI tools (GitHub Copilot, coding agents) are first-class development aids. Use t
 
 **Guidelines:**
 - **Trust but verify** — AI-generated code must pass the same review standards as human-written code
-- **Feed context** — point AI tools to the relevant module's `index.ts`, `README.md`, and architecture docs for better suggestions
+- **Feed context** — point AI tools to the relevant module's `api/`, `README.md`, and architecture docs for better suggestions
 - **Use the agents knowledge base** — the `agents/` directory contains rules, patterns, and domain knowledge that AI tools can reference
 - **Keep agents updated** — when you change a module's structure or patterns, update the corresponding knowledge base entries
 - **Don't blindly accept** — if AI suggests a pattern that violates MDDD rules (e.g., importing infrastructure in domain), correct it

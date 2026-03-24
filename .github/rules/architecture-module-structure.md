@@ -31,7 +31,7 @@ src/
 ```
 modules/
   task/
-    index.ts                          # Public API barrel export
+    api/index.ts                      # Cross-module API boundary
     domain/
       entities/Task.ts
       repositories/TaskRepository.ts
@@ -44,7 +44,7 @@ modules/
       queries/task.queries.ts
       _actions/task.actions.ts
   wiki/
-    index.ts
+    api/index.ts
     domain/
       entities/wiki-document.entity.ts
       repositories/iwiki-document.repository.ts
