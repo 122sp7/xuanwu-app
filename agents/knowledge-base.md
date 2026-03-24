@@ -54,7 +54,7 @@ modules/<module-name>/
 
 Not every module has every subdirectory — only what it needs.
 
-## Module Inventory (20 Modules)
+## Module Inventory (21 Modules)
 
 | Module | Responsibility | Key Patterns |
 |--------|---------------|--------------|
@@ -79,6 +79,7 @@ Not every module has every subdirectory — only what it needs.
 | **task** | Task management, work items | Standard CRUD |
 | **wiki-beta** | Knowledge base, wiki documents, Pages, Libraries, RAG retrieval | Full persistence + embedding + retrieval |
 | **workspace** | Workspace (project space) management, members | Core organizational unit |
+| **workspace-feed** | X-style workspace post stream and account-level aggregated workspace feed | Facade-first domain isolation + interaction counters (reply/repost/like/view/bookmark/share) |
 
 ## Package System (21 Packages)
 
@@ -225,3 +226,4 @@ import { publishDomainEvent } from "@/modules/event/application/use-cases/publis
 | Domain Events | event | all modules (publish/subscribe) |
 | Namespace Resolution | namespace | all modules (addressing) |
 | Knowledge & RAG | wiki-beta, ai | file (documents), namespace (scoping) |
+| Workspace Social Feed | workspace-feed | workspace (scope context), account (actor identity) |
