@@ -9,38 +9,38 @@ tags: patterns, domain-events, event-driven, decoupling
 
 **Impact: MEDIUM**
 
-When a module needs to notify other modules of a state change, publish a domain event through the **event** module. Don't create direct cross-module function calls for side effects.
+When a module needs to notify other modules of a state change, publish a domain event through the target domain `api/` boundary responsible for event publishing. Don't create direct cross-module function calls for side effects.
 
 **Incorrect (direct cross-module coupling for side effects):**
 
 ```typescript
-// modules/file/application/use-cases/upload-complete-file.use-case.ts
-import { refreshParserSummary } from "@/modules/parser";     // ❌ Direct call
-import { appendAuditLog } from "@/modules/audit";            // ❌ Tight coupling
+// modules/<source-domain>/application/use-cases/<use-case>.ts
+import { refreshProjection } from "@/modules/<target-domain-a>/api";   // ❌ Direct call
+import { appendDomainLog } from "@/modules/<target-domain-b>/api";     // ❌ Tight coupling
 
-export async function completeUpload(fileId: string) {
-  await fileRepo.markComplete(fileId);
-  await refreshParserSummary(workspaceId);                    // ❌ File knows about parser
-  await appendAuditLog({ action: "file-uploaded", fileId });  // ❌ File knows about audit
+export async function completeProcess(entityId: string) {
+  await sourceRepo.markComplete(entityId);
+  await refreshProjection(scopeId);                             // ❌ Source knows target A internals
+  await appendDomainLog({ action: "source-completed", entityId }); // ❌ Source knows target B internals
 }
 ```
 
 **Correct (publish domain event, let subscribers react):**
 
 ```typescript
-// modules/file/application/use-cases/upload-complete-file.use-case.ts
-import { publishDomainEvent } from "@/modules/event";
+// modules/<source-domain>/application/use-cases/<use-case>.ts
+import { publishDomainEvent } from "@/modules/<event-domain>/api";
 
-export async function completeUpload(fileId: string) {
-  const file = await fileRepo.markComplete(fileId);
+export async function completeProcess(entityId: string) {
+  const entity = await sourceRepo.markComplete(entityId);
 
   await publishDomainEvent({
-    type: "file.upload.completed",
-    aggregateId: fileId,
-    payload: { workspaceId: file.workspaceId, fileId },
+    type: "source.entity.completed",
+    aggregateId: entityId,
+    payload: { scopeId: entity.scopeId, entityId },
   });
-  // Parser and audit modules subscribe independently
+  // Subscriber domains react independently
 }
 ```
 
-**Event naming convention:** `<module>.<entity>.<action>` (e.g., `file.upload.completed`, `wiki.page.created`, `schedule.request.submitted`)
+**Event naming convention:** `<domain>.<entity>.<action>` (e.g., `source.entity.completed`, `domain.entity.created`, `domain.request.submitted`)

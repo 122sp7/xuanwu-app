@@ -21,22 +21,22 @@ Every module's `api/` directory is its **public cross-module contract**. It defi
 **Example:**
 
 ```typescript
-// modules/wiki/api/index.ts
+// modules/<target-domain>/api/index.ts
 
 // ── Types ──────────────────────────────────────
-export type { WikiDocument } from "./domain/entities/wiki-document.entity";
-export type { WikiPage } from "./domain/entities/wiki-page.entity";
+export type { PublicEntity } from "./domain/entities/public-entity";
+export type { PublicView } from "./domain/entities/public-view";
 
 // ── Use Cases ──────────────────────────────────
-export { createWikiDocument } from "./application/use-cases/create-wiki-document";
-export { searchWikiDocuments } from "./application/use-cases/search-wiki-documents.use-case";
-export { getWorkspaceKnowledgeSummary } from "./application/use-cases/get-workspace-knowledge-summary.use-case";
+export { createPublicEntity } from "./application/use-cases/create-public-entity";
+export { searchPublicEntities } from "./application/use-cases/search-public-entities";
+export { getPublicSummary } from "./application/use-cases/get-public-summary";
 
 // ── Queries (React hooks) ──────────────────────
-export { useWikiDocuments } from "./interfaces/queries/wiki.queries";
+export { usePublicEntities } from "./interfaces/queries/public.queries";
 
 // ── Components ─────────────────────────────────
-export { WikiEditor } from "./interfaces/components/WikiEditor";
+export { PublicPanel } from "./interfaces/components/PublicPanel";
 
 // Keep infrastructure details private to the module.
 ```

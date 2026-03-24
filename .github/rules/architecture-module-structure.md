@@ -30,32 +30,32 @@ src/
 
 ```
 modules/
-  task/
+  domain-a/
     api/index.ts                      # Cross-module API boundary
     domain/
-      entities/Task.ts
-      repositories/TaskRepository.ts
+      entities/DomainAEntity.ts
+      repositories/DomainARepository.ts
     application/
-      use-cases/task.use-cases.ts
+      use-cases/domain-a.use-cases.ts
     infrastructure/
-      firebase/TaskFirebaseRepository.ts
+      firebase/DomainAFirebaseRepository.ts
     interfaces/
-      components/TaskList.tsx
-      queries/task.queries.ts
-      _actions/task.actions.ts
-  wiki/
+      components/DomainAList.tsx
+      queries/domain-a.queries.ts
+      _actions/domain-a.actions.ts
+  domain-b/
     api/index.ts
     domain/
-      entities/wiki-document.entity.ts
-      repositories/iwiki-document.repository.ts
-      services/derive-knowledge-summary.ts
+      entities/domain-b.entity.ts
+      repositories/idomain-b.repository.ts
+      services/derive-domain-b-summary.ts
     application/
-      use-cases/create-wiki-document.ts
+      use-cases/create-domain-b.ts
     infrastructure/
-      repositories/WikiDocumentRepository.ts
+      repositories/DomainBRepository.ts
     interfaces/
-      components/WikiEditor.tsx
-      queries/wiki.queries.ts
+      components/DomainBPanel.tsx
+      queries/domain-b.queries.ts
 ```
 
 **Layer responsibilities:**

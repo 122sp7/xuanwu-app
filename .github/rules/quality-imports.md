@@ -9,7 +9,7 @@ tags: quality, imports, aliases, eslint, packages
 
 **Impact: CRITICAL**
 
-All shared code must be imported through `@alias` paths defined in `tsconfig.json`. Legacy paths are blocked by ESLint. Cross-module imports use `@/modules/<name>/api` (the domain API boundary). Within a module, use relative imports.
+All shared code must be imported through `@alias` paths defined in `tsconfig.json`. Legacy paths are blocked by ESLint. Cross-module imports use `@/modules/<target-domain>/api` (the domain API boundary). Within a module, use relative imports.
 
 **Incorrect (legacy paths — ESLint blocks these):**
 
@@ -23,7 +23,7 @@ import { Button } from "@/ui/shadcn/ui/button";
 **Incorrect (reaching into another module's internals):**
 
 ```typescript
-import { Task } from "@/modules/task/domain/entities/Task";
+import { DomainEntity } from "@/modules/<target-domain>/domain/entities/<entity>";
 ```
 
 **Correct (package aliases for shared code):**
@@ -39,13 +39,13 @@ import { z } from "@lib-zod";
 **Correct (module API boundary for cross-module):**
 
 ```typescript
-import { publishDomainEvent } from "@/modules/event/api";
-import type { Task } from "@/modules/task/api";
+import { runTargetUseCase } from "@/modules/<target-domain>/api";
+import type { DomainEntity } from "@/modules/<target-domain>/api";
 ```
 
 **Correct (relative within same module):**
 
 ```typescript
-// Inside modules/wiki/application/use-cases/create-wiki-document.ts
-import { WikiDocument } from "../../domain/entities/wiki-document.entity";
+// Inside modules/<current-domain>/application/use-cases/<use-case>.ts
+import { SourceEntity } from "../../domain/entities/<entity>";
 ```

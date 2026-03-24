@@ -14,7 +14,7 @@ Use this file as the Copilot-specific baseline for all work in this repository.
 ## Core Delivery Rules
 
 - For cross-module, cross-runtime, or contract-governed work, plan before implementation.
-- Treat each `modules/<domain>` context as isolated. Cross-module interaction must go through the target domain `api/` boundary.
+- Treat each domain context under `modules/` as isolated. Cross-module interaction must go through the target domain `api/` boundary.
 - Start formal delivery work with the Planner agent or one of the planning prompts.
 - Treat the implementation plan as the canonical execution contract for the current task.
 - Persist approved plans explicitly when work must survive a chat reset or cross-session handoff.

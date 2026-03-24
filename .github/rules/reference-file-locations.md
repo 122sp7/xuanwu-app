@@ -32,7 +32,7 @@ Quick reference for the most frequently needed files and directories.
 **Module structure pattern:**
 
 ```
-modules/<name>/
+modules/<domain-id>/
 ├── api/index.ts                # Cross-module API boundary
 ├── domain/entities/            # Aggregate roots, value objects
 ├── domain/repositories/        # Repository interfaces

@@ -76,7 +76,7 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
 ```ts
 import { formatDate } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
-import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import { updateDomainSettings } from "../_actions/domain.actions";
 ```
 
 ### Bad Example
@@ -84,17 +84,17 @@ import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 ```ts
 import { formatDate } from "@/shared/utils";
 import { Button } from "@/ui/shadcn/ui/button";
-import { updateWorkspaceSettings } from "@/modules/workspace/api";
+import { updateDomainSettings } from "@/modules/<target-domain>/api";
 ```
 
 ### Internal Module Import Example
 
 ```ts
 // Good: keep module-internal imports relative
-import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import { updateDomainSettings } from "../_actions/domain.actions";
 
 // Bad: do not re-import the module api boundary from inside the same module
-import { updateWorkspaceSettings } from "@/modules/workspace/api";
+import { updateDomainSettings } from "@/modules/<current-domain>/api";
 ```
 
 ## Next.js and UI Practices

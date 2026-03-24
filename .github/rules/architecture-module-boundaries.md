@@ -9,42 +9,42 @@ tags: architecture, mddd, boundaries, api, imports
 
 **Impact: CRITICAL**
 
-Every domain module exposes cross-module contracts through `modules/<domain>/api/`. Other modules may **only** import from this API boundary — never by reaching into a module's internal directories.
+Every domain module exposes cross-module contracts through `modules/<target-domain>/api/`. Other modules may **only** import from this API boundary — never by reaching into a module's internal directories.
 
 **Incorrect (reaching into another module's internals):**
 
 ```typescript
-// modules/schedule/application/use-cases/list-workspace-schedule-items.use-case.ts
-import { publishDomainEvent } from "@/modules/event/application/use-cases/publish-domain-event";
-import { WikiDocument } from "@/modules/wiki/domain/entities/wiki-document.entity";
+// modules/<source-domain>/application/use-cases/<use-case>.ts
+import { runTargetUseCase } from "@/modules/<target-domain>/application/use-cases/<use-case>";
+import { TargetEntity } from "@/modules/<target-domain>/domain/entities/<entity>";
 ```
 
 **Correct (importing through the domain API boundary):**
 
 ```typescript
-// modules/schedule/application/use-cases/list-workspace-schedule-items.use-case.ts
-import { publishDomainEvent } from "@/modules/event/api";
-import type { WikiDocument } from "@/modules/wiki/api";
+// modules/<source-domain>/application/use-cases/<use-case>.ts
+import { runTargetUseCase } from "@/modules/<target-domain>/api";
+import type { TargetEntity } from "@/modules/<target-domain>/api";
 ```
 
 **Within the same module, use relative imports:**
 
 ```typescript
-// modules/wiki/application/use-cases/create-wiki-document.ts
-import { WikiDocument } from "../../domain/entities/wiki-document.entity";             // ✅ Relative
-import type { IWikiDocumentRepository } from "../../domain/repositories/iwiki-document.repository"; // ✅ Relative
+// modules/<source-domain>/application/use-cases/<use-case>.ts
+import { SourceEntity } from "../../domain/entities/<entity>";             // ✅ Relative
+import type { SourceRepository } from "../../domain/repositories/<repository>"; // ✅ Relative
 ```
 
 **What goes in `api/`:**
 
 ```typescript
-// modules/event/api/index.ts
+// modules/<target-domain>/api/index.ts
 // Public types
-export type { DomainEvent } from "./contracts/domain-event";
+export type { PublicContract } from "./contracts/public-contract";
 
 // Public use cases
-export { publishDomainEvent } from "./publish-domain-event";
-export { listEventsByAggregate } from "./list-events-by-aggregate";
+export { runTargetUseCase } from "./run-target-use-case";
+export { getTargetState } from "./get-target-state";
 ```
 
 Only expose stable cross-module contracts in `api/`. Internal helpers, private entities, and implementation details stay unexported.
