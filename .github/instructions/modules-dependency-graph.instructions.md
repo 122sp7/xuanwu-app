@@ -13,16 +13,15 @@ Use this instruction when a change adds, removes, or redirects dependencies betw
 - Do not introduce reverse edges for convenience.
 - Keep the graph acyclic unless an event-driven contract explicitly documents the exception.
 
-## Current Example Edges
+## Canonical Dependency Source
 
-Use these as current guardrails for allowed direction in existing flows:
+Do not treat this file as a full edge registry. For concrete ownership and dependency decisions, use these sources in order:
 
-- `account -> workspace -> task -> finance`
-- `account -> audit`
-- `workspace -> content`
-- `content -> graph`
+1. `modules/<target>/api` as the only cross-module import boundary
+2. `agents/knowledge-base.md` for MDDD boundary policy
+3. `eslint.config.mjs` boundary and restricted-import enforcement
 
-These examples are directional, not exhaustive. If a change needs a new edge or a different direction, document and justify it in the same change.
+If a change needs a new edge or direction change, document and justify it in the same change instead of inferring from missing examples.
 
 ## Dependency Rules
 

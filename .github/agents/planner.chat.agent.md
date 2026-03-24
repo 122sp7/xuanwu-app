@@ -1,6 +1,6 @@
 ---
-name: Planner
-description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
+name: Planner Docs Flow
+description: 'Plan delivery work and optionally hand off Markdown optimization after plan approval.'
 tools: ['vscode', 'read', 'search', 'web', 'todo']
 handoffs:
   - label: Start Implementation
@@ -16,7 +16,9 @@ handoffs:
     send: false
 ---
 
-# Planner
+# Planner Docs Flow
+
+> Note: This is a docs-optimized planner variant. Use `Planner` as the default planning agent unless the task explicitly includes markdown optimization handoff.
 
 You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
 

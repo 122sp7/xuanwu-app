@@ -1,6 +1,6 @@
 ---
 description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
-applyTo: '**/*.ts, **/*.tsx, **/*.js, **/*.jsx, **/*.css'
+applyTo: 'app/**/*.ts, app/**/*.tsx, modules/**/*.ts, modules/**/*.tsx, packages/**/*.ts, packages/**/*.tsx, providers/**/*.ts, providers/**/*.tsx, debug/**/*.ts, debug/**/*.tsx'
 ---
 
 # Xuanwu App Next.js + MDDD Development Instructions
