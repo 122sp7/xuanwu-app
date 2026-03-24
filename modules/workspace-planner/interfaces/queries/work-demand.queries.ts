@@ -14,10 +14,10 @@ import {
   ListWorkspaceDemandsUseCase,
   ListAccountDemandsUseCase,
 } from "../../application/work-demand.use-cases";
-import { MockDemandRepository } from "../../infrastructure/mock-demand-repository";
+import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
 
 function makeRepo() {
-  return new MockDemandRepository();
+  return new FirebaseDemandRepository();
 }
 
 export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
