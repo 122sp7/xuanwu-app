@@ -8,3 +8,4 @@ export type { GraphRepository } from "../domain/repositories/GraphRepository";
 export { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
 export { LinkExtractorService } from "../application/link-extractor.service";
 export { KnowledgeApi } from "./knowledge-api";
+export type { GraphDataDTO } from "./knowledge-api";
