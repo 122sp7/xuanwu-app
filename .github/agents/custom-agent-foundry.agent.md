@@ -2,7 +2,7 @@
 description: 'Expert at designing and creating VS Code custom agents with optimal configurations'
 name: Custom Agent Foundry
 argument-hint: Describe the agent role, purpose, and required capabilities
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'github/*', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'todo']
 ---
 
 # Custom Agent Foundry - Expert Agent Designer
@@ -157,7 +157,7 @@ Provide the complete file content, not just snippets. After creation, explain th
 
 ## Reference Syntax
 
-- Reference other files: `[instruction file](path/to/instructions.md)`
+- Reference other files with standard Markdown links to real workspace paths.
 - Reference tools in body: `#tool:toolName` (e.g., `#tool:githubRepo`)
 - MCP server tools: `server-name/*` in tools array
 

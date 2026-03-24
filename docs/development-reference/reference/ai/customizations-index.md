@@ -11,6 +11,7 @@ This page is the reference inventory for the Xuanwu Copilot Delivery Suite. Use 
 
 | Asset | Type | Responsibility | Notes |
 | --- | --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, canonical entries, and link policy | Start here when routing inside `.github/` |
 | [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
 | [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
 | [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
@@ -49,10 +50,11 @@ This page is the reference inventory for the Xuanwu Copilot Delivery Suite. Use 
 
 | Asset | Audience | Purpose |
 | --- | --- | --- |
-| [docs/how-to-user/how-to-user/how-to/ai/start-feature-delivery.md](../../../how-to-user/how-to/ai/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [docs/how-to-user/how-to-user/how-to/ai/recover-agent-flow.md](../../../how-to-user/how-to/ai/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [docs/how-to-user/how-to-user/how-to/ai/update-customizations.md](../../../how-to-user/how-to/ai/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [docs/diagrams-events-explanations/diagrams-events-explanations/explanation/ai/agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/ai/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
+| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, canonical entries, and link policy |
+| [start-feature-delivery.md](../../../how-to-user/how-to/ai/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
+| [recover-agent-flow.md](../../../how-to-user/how-to/ai/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
+| [update-customizations.md](../../../how-to-user/how-to/ai/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
+| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/ai/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
 | [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
 
 ## Existing specialized skills
@@ -73,5 +75,5 @@ These skills remain authoritative for domain-specific guidance and are reused by
 ## Ownership and update policy
 
 - Update this index whenever a delivery agent, planning contract, or operational how-to is added, renamed, or retired.
-- Keep this page aligned with [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
+- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
 - Treat any undocumented customization as non-authoritative until it is indexed here or intentionally documented elsewhere.

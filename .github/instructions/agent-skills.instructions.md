@@ -142,11 +142,11 @@ Use relative paths to reference files within the skill directory:
 ```markdown
 ## Available Scripts
 
-Run the [helper script](./scripts/helper.py) to automate common tasks.
+Run the helper script in `./scripts/helper.py` to automate common tasks.
 
-See [API reference](./references/api_reference.md) for detailed documentation.
+See the API reference in `./references/api_reference.md` for detailed documentation.
 
-Use the [scaffold](./templates/scaffold.py) as a starting point.
+Use the scaffold in `./templates/scaffold.py` as a starting point.
 ```
 
 ## Progressive Loading Architecture
@@ -244,11 +244,11 @@ When executing multi-step workflows, create a TODO list where each step referenc
 
 ```markdown
 ## TODO
-- [ ] Step 1: Configure environment - see [workflow-setup.md](./references/workflow-setup.md#environment)
-- [ ] Step 2: Build project - see [workflow-setup.md](./references/workflow-setup.md#build)
-- [ ] Step 3: Deploy to staging - see [workflow-deployment.md](./references/workflow-deployment.md#staging)
-- [ ] Step 4: Run validation - see [workflow-deployment.md](./references/workflow-deployment.md#validation)
-- [ ] Step 5: Deploy to production - see [workflow-deployment.md](./references/workflow-deployment.md#production)
+- [ ] Step 1: Configure environment - see `./references/workflow-setup.md#environment`
+- [ ] Step 2: Build project - see `./references/workflow-setup.md#build`
+- [ ] Step 3: Deploy to staging - see `./references/workflow-deployment.md#staging`
+- [ ] Step 4: Run validation - see `./references/workflow-deployment.md#validation`
+- [ ] Step 5: Deploy to production - see `./references/workflow-deployment.md#production`
 ```
 
 This ensures traceability and allows resuming workflows if interrupted.

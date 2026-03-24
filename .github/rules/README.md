@@ -53,7 +53,7 @@ Brief explanation of the rule and why it matters.
 // Good code example
 \`\`\`
 
-Reference: [Link](url)
+Reference: [Link](https://example.com)
 ```
 
 ## Adding New Rules
