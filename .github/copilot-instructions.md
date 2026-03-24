@@ -1,55 +1,38 @@
 # Xuanwu Copilot Delivery Suite
 
-Use this file as the Copilot-specific baseline for all work in this repository.
+Baseline for Copilot agents to stay aligned with the repository and toolchain.
 
-## Authoritative Sources
+## Authoritative Sources (read in order)
 
-- Read [AGENTS.md](../AGENTS.md) for repository-wide operating rules.
-- Read [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility guidance.
-- Read [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, package aliases, and MDDD boundaries.
-- Read [agents/commands.md](../agents/commands.md) for build, lint, and deployment commands.
-- Read [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution and validation expectations.
-- Read [docs/development-reference/reference/development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [docs/diagrams-events-explanations/explanation/development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md) when a workflow is contract-governed.
+1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
+2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
+3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
+4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
+5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
+6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
 
-## Core Delivery Rules
+## Operating rules (concise)
 
-- For cross-module, cross-runtime, or contract-governed work, plan before implementation.
-- Treat each domain context under `modules/` as isolated. Cross-module interaction must go through the target domain `api/` boundary.
-- Keep architecture guidance generic by default: do not hard-code domain-to-module assignments unless a governing contract explicitly requires it.
-- Keep logic/UI/UX boundaries explicit: business logic in `domain/` + `application/`, UI/UX in `interfaces/` and `app/` composition.
-- Start formal delivery work with the Planner agent or one of the planning prompts.
-- Treat the implementation plan as the canonical execution contract for the current task.
-- Persist approved plans explicitly when work must survive a chat reset or cross-session handoff.
-- Keep implementation inside the approved scope, non-goals, and validation plan.
-- Update documentation in the same change whenever runtime ownership, boundaries, acceptance gates, or public APIs change.
+- Plan first for cross-module, cross-runtime, or contract-governed work.  
+- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
+- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
+- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
 
-## Delivery Chain
+## Orchestration pattern
 
-Use the formal delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use re-entry prompts when a session needs to restart or a stage must be rerun independently.
-
-## Skill Routing
-
-- Use [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md) for module ownership, layer placement, and import-boundary questions.
-- Use [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md) for contract-first workflows and acceptance gates.
-- Use [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md) for RAG ownership across Next.js and `py_fn`.
-- Use [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md) when working in React or Next.js UI paths that need performance or rendering guidance.
+1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
+2. Activate skills as needed:  
+   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
+   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
+   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
+   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
+3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
 
 ## Validation
 
-- Use the commands listed in [agents/commands.md](../agents/commands.md).
-- At minimum, run the validation that matches the files changed.
-- Use Chat customization diagnostics when a prompt, agent, or instruction does not appear to load or route correctly.
-- Do not mark work complete if the plan's required validation or documentation updates are still pending.
+- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
+- Do not close work until required checks and documentation updates are complete.  
 
----
+## Terminology
 
-# Terminology & Efficiency Notes
-
-For terminology across token efficiency, system performance, AI/RAG systems, and documentation engineering, see [terminology-glossary.md](./terminology-glossary.md).
+See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.

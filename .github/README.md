@@ -1,20 +1,19 @@
 # .github Customization Index
 
-This file is the operational index for repository-scoped customization assets.
+Operational index for repository-scoped customization assets.
+
+## Commander flow (fast path)
+
+1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
+2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
+3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
+4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
 
 ## Boundary
 
 - Keep executable customization assets in `.github/`.
 - Keep explanation, governance, and lifecycle context in `docs/`.
-- Do not duplicate full definitions across both locations.
-- If behavior changes in `.github/`, update the docs mirror in the same change.
-
-## Read order
-
-1. [copilot-instructions.md](./copilot-instructions.md)
-2. [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md)
-3. the target folder in `.github/`
-4. the exact file being edited
+- Update both locations together when behavior changes.
 
 ## Folder map
 
