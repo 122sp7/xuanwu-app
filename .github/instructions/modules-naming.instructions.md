@@ -9,7 +9,7 @@ Use consistent naming in module specifications and architecture docs so ownershi
 
 ## Naming Table
 
-| 類型 | 命名 |
+| Type | Naming |
 | --- | --- |
 | Module directory | `kebab-case` bounded-context name, e.g. `workspace-planner`, `content` |
 | Module public API folder | `api/` |

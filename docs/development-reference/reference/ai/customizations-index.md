@@ -60,6 +60,11 @@ Use this order when working on customization assets:
 | Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
 | Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
 
+Scope partition for instruction consumption:
+
+- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
+- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
+
 ## Delivery prompts
 
 | Asset | Primary use | Typical entry point |

@@ -34,9 +34,7 @@ Use this instruction when planning or documenting add/refactor/split/merge/delet
 - [ ] Update routing, tests, docs
 
 ### Delete module
-- [ ] Search `@/modules/<module-name>` imports
-- [ ] Search `@/modules/<module-name>/api` imports
-- [ ] Search event discriminants and docs referencing module
+- [ ] Search all imports, event discriminants, and docs referencing the module boundary
 - [ ] Remove consumers first, then module
 - [ ] Update indexes and dependency guidance
 
