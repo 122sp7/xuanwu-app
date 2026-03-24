@@ -13,6 +13,7 @@ This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
 - This page provides routing, ownership, lifecycle status, and maintenance policy.
 - Avoid duplicating full file bodies from `.github/`.
 - If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
+- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
 
 ## Baseline references
 
