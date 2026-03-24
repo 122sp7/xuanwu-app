@@ -26,6 +26,12 @@ This page is the reference inventory for the Xuanwu Copilot Delivery Suite. Use 
 | [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
 | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
 
+## Specialized custom agents
+
+| Asset | Focus | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
+
 ## Delivery prompts
 
 | Asset | Primary use | Typical entry point |
