@@ -1,14 +1,14 @@
 import type {
-  WikiBetaKnowledgeRepository,
+  WikiBetaContentRepository,
 } from "../../domain/repositories/wiki-beta.repositories";
 import type {
   WikiBetaParsedDocument,
   WikiBetaRagQueryResult,
   WikiBetaReindexInput,
 } from "../../domain/entities/wiki-beta.types";
-import { FirebaseWikiBetaKnowledgeRepository } from "../../infrastructure";
+import { FirebaseWikiBetaContentRepository } from "../../infrastructure";
 
-const defaultKnowledgeRepository: WikiBetaKnowledgeRepository = new FirebaseWikiBetaKnowledgeRepository();
+const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
 
 export async function runWikiBetaRagQuery(
   query: string,
@@ -20,14 +20,14 @@ export async function runWikiBetaRagQuery(
     maxAgeDays?: number;
     requireReady?: boolean;
   } = {},
-  repository: WikiBetaKnowledgeRepository = defaultKnowledgeRepository,
+  repository: WikiBetaContentRepository = defaultContentRepository,
 ): Promise<WikiBetaRagQueryResult> {
   return repository.runRagQuery(query, accountId, workspaceId, topK, options);
 }
 
 export async function reindexWikiBetaDocument(
   input: WikiBetaReindexInput,
-  repository: WikiBetaKnowledgeRepository = defaultKnowledgeRepository,
+  repository: WikiBetaContentRepository = defaultContentRepository,
 ): Promise<void> {
   await repository.reindexDocument(input);
 }
@@ -35,7 +35,7 @@ export async function reindexWikiBetaDocument(
 export async function listWikiBetaParsedDocuments(
   accountId: string,
   limitCount = 20,
-  repository: WikiBetaKnowledgeRepository = defaultKnowledgeRepository,
+  repository: WikiBetaContentRepository = defaultContentRepository,
 ): Promise<WikiBetaParsedDocument[]> {
   return repository.listParsedDocuments(accountId, limitCount);
 }

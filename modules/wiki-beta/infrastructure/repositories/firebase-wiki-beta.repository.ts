@@ -2,7 +2,7 @@ import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firest
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 
 import type {
-  WikiBetaKnowledgeRepository,
+  WikiBetaContentRepository,
   WikiBetaWorkspaceRepository,
 } from "../../domain/repositories/wiki-beta.repositories";
 import type {
@@ -126,7 +126,7 @@ function sortByUploadedAtDesc(documents: WikiBetaParsedDocument[]): WikiBetaPars
   return copied;
 }
 
-export class FirebaseWikiBetaKnowledgeRepository implements WikiBetaKnowledgeRepository {
+export class FirebaseWikiBetaContentRepository implements WikiBetaContentRepository {
   async runRagQuery(
     query: string,
     accountId: string,

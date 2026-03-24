@@ -55,28 +55,28 @@ export interface WikiBetaWorkspaceRef {
   name: string;
 }
 
-export interface WikiBetaKnowledgeItemNode {
+export interface WikiBetaContentItemNode {
   key: "spaces" | "pages" | "libraries" | "documents" | "vector-index" | "rag" | "ai-tools";
   label: string;
   href: string;
   enabled: boolean;
 }
 
-export interface WikiBetaWorkspaceKnowledgeNode {
+export interface WikiBetaWorkspaceContentNode {
   workspaceId: string;
   workspaceName: string;
   href: string;
-  knowledgeBaseItems: WikiBetaKnowledgeItemNode[];
+  contentBaseItems: WikiBetaContentItemNode[];
 }
 
-export interface WikiBetaAccountKnowledgeNode {
+export interface WikiBetaAccountContentNode {
   accountId: string;
   accountName: string;
   accountType: WikiBetaAccountType;
   isActive: boolean;
   membersHref?: string;
   teamsHref?: string;
-  workspaces: WikiBetaWorkspaceKnowledgeNode[];
+  workspaces: WikiBetaWorkspaceContentNode[];
 }
 
 export interface WikiBetaAccountSeed {

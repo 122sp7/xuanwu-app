@@ -36,6 +36,21 @@ This page is the docs-side mirror and explanation layer for AI customization ass
 | [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
 | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
 
+## Specialized Custom Agents
+
+| Asset | Focus | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
+| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
+
+## Modules Architecture Suite
+
+| Asset group | Files |
+| --- | --- |
+| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
+| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
+| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
+
 ## Delivery prompts
 
 | Asset | Primary use | Typical entry point |

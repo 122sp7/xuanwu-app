@@ -1,13 +1,13 @@
 export type {
-  WikiBetaAccountKnowledgeNode,
+  WikiBetaAccountContentNode,
   WikiBetaAccountSeed,
   WikiBetaAccountType,
   WikiBetaCitation,
-  WikiBetaKnowledgeItemNode,
+  WikiBetaContentItemNode,
   WikiBetaParsedDocument,
   WikiBetaRagQueryResult,
   WikiBetaReindexInput,
-  WikiBetaWorkspaceKnowledgeNode,
+  WikiBetaWorkspaceContentNode,
   WikiBetaWorkspaceRef,
 } from "./entities/wiki-beta.types";
 export type {
@@ -30,7 +30,7 @@ export type {
 } from "./entities/wiki-beta-library.types";
 
 export type {
-  WikiBetaKnowledgeRepository,
+  WikiBetaContentRepository,
   WikiBetaLibraryRepository,
   WikiBetaPageRepository,
   WikiBetaWorkspaceRepository,

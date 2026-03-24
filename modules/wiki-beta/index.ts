@@ -5,11 +5,11 @@ export type {
   CreateWikiBetaPageInput,
   MoveWikiBetaPageInput,
   RenameWikiBetaPageInput,
-  WikiBetaAccountKnowledgeNode,
+  WikiBetaAccountContentNode,
   WikiBetaAccountSeed,
   WikiBetaAccountType,
   WikiBetaCitation,
-  WikiBetaKnowledgeItemNode,
+  WikiBetaContentItemNode,
   WikiBetaLibrary,
   WikiBetaLibraryField,
   WikiBetaLibraryFieldType,
@@ -21,12 +21,12 @@ export type {
   WikiBetaParsedDocument,
   WikiBetaRagQueryResult,
   WikiBetaReindexInput,
-  WikiBetaWorkspaceKnowledgeNode,
+  WikiBetaWorkspaceContentNode,
   WikiBetaWorkspaceRef,
 } from "./domain";
 
 export type {
-  WikiBetaKnowledgeRepository,
+  WikiBetaContentRepository,
   WikiBetaLibraryRepository,
   WikiBetaPageRepository,
   WikiBetaWorkspaceRepository,
@@ -34,7 +34,7 @@ export type {
 
 export {
   addWikiBetaLibraryField,
-  buildWikiBetaKnowledgeTree,
+  buildWikiBetaContentTree,
   createWikiBetaLibrary,
   createWikiBetaLibraryRow,
   createWikiBetaPage,
@@ -49,7 +49,7 @@ export {
 } from "./application";
 
 export {
-  FirebaseWikiBetaKnowledgeRepository,
+  FirebaseWikiBetaContentRepository,
   FirebaseWikiBetaPageRepository,
   InMemoryWikiBetaLibraryRepository,
   InMemoryWikiBetaPageRepository,

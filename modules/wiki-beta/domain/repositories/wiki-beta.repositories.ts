@@ -11,7 +11,7 @@ import type {
   WikiBetaLibraryRow,
 } from "../entities/wiki-beta-library.types";
 
-export interface WikiBetaKnowledgeRepository {
+export interface WikiBetaContentRepository {
   runRagQuery(
     query: string,
     accountId: string,

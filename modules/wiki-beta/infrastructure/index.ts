@@ -1,5 +1,5 @@
 export {
-  FirebaseWikiBetaKnowledgeRepository,
+  FirebaseWikiBetaContentRepository,
   FirebaseWikiBetaWorkspaceRepository,
 } from "./repositories/firebase-wiki-beta.repository";
 export { FirebaseWikiBetaPageRepository } from "./repositories/firebase-wiki-beta-page.repository";

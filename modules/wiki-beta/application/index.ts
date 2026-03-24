@@ -1,6 +1,6 @@
 export {
-  buildWikiBetaKnowledgeTree,
-} from "./use-cases/wiki-beta-knowledge-tree.use-case";
+  buildWikiBetaContentTree,
+} from "./use-cases/wiki-beta-content-tree.use-case";
 
 export {
   listWikiBetaParsedDocuments,
