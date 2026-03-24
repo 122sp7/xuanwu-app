@@ -10,8 +10,7 @@ import { PenSquare, Send, X } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import type { DailyPostType } from "@/modules/daily";
-import { DailyFeed, DAILY_POST_TYPES } from "@/modules/daily";
-import { createDailyPost } from "@/modules/daily/interfaces/_actions/daily-post.actions";
+import { createDailyPost, DailyFeed, DAILY_POST_TYPES } from "@/modules/daily";
 import type { WorkspaceEntity } from "@/modules/workspace";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
