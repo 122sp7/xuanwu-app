@@ -9,6 +9,7 @@
 | 文件 | 類型 | 說明 |
 |---|---|---|
 | [development-process.md](./development-process.md) | 操作指南 | 從需求到合併的端對端開發流程 |
+| [modules-implementation-guide.md](./modules-implementation-guide.md) | 參考 | 將高階架構對位到 `modules/`、`packages/`、`app/` 的實作落點 |
 | [branch-strategy.md](./branch-strategy.md) | 參考 | Git 分支命名、生命週期與保護規則 |
 | [code-style.md](./code-style.md) | 參考 | TypeScript、React、CSS 程式碼風格規範 |
 

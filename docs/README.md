@@ -2,6 +2,8 @@
 
 本目錄收斂 Xuanwu App 的所有技術文件、設計文件、操作手冊與架構決策記錄。
 
+目前 `docs/` 根目錄僅保留總索引；高階架構、實作指南與配圖已分流到對應子目錄，避免文件散落在根層。
+
 ---
 
 ## 📚 文件地圖
@@ -12,6 +14,22 @@
 | [development-reference/](./development-reference/) | 💻 開發指南與技術參考（Development、Reference、Specification、Namespace） | 工程師、PM |
 | [diagrams-events-explanations/](./diagrams-events-explanations/) | 🗺 圖表、事件流、原理說明（Diagrams、Event、Explanation） | 架構師、工程師 |
 | [how-to-user/](./how-to-user/) | 📖 操作教學與使用者導向文件（How-to、UI/UX、User Manual） | 使用者、工程師、設計師 |
+
+---
+
+## 🗂 核心入口
+
+| 主題 | 文件 | 歸類原因 |
+|---|---|---|
+| 產品與系統高階架構 | [ai-knowledge-platform-architecture.md](./decision-architecture/architecture/ai-knowledge-platform-architecture.md) | 屬於架構視角的設計說明，放在 `decision-architecture/architecture/` |
+| 模組落地與實作邊界 | [modules-implementation-guide.md](./development-reference/development/modules-implementation-guide.md) | 屬於工程落地指南，放在 `development-reference/development/` |
+| AI 知識平台配圖 | [ai-knowledge-platform-architecture.png](./diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png) | 屬於架構圖資產，放在 `diagrams-events-explanations/diagrams/` |
+
+### 建議閱讀順序
+
+1. 先讀 [ai-knowledge-platform-architecture.md](./decision-architecture/architecture/ai-knowledge-platform-architecture.md) 了解概念架構
+2. 再看 [ai-knowledge-platform-architecture.png](./diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png) 對照視覺化配圖
+3. 最後讀 [modules-implementation-guide.md](./development-reference/development/modules-implementation-guide.md) 了解如何在 repository 內落地
 
 ---
 

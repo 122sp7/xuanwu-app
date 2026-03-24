@@ -1,15 +1,15 @@
 # Modules Implementation Guide
 
-本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
+本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
 
-- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
+- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
 - 本文件：回答「在 repository 內如何落地」。
 
 ---
 
-## 1. 與 Architecture.md 的對位關係
+## 1. 與概念架構文件的對位關係
 
-`Architecture.md` 定義三層融合：
+[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
 
 1. Content / UI Layer（Notion）
 2. Knowledge Graph Layer（Wiki）
@@ -95,7 +95,7 @@ modules/*
   -> packages/* (stable public boundary)
 ```
 
-這個原則與 `Architecture.md` 的三層融合不衝突：
+這個原則與上位概念架構文件的三層融合不衝突：
 
 - 融合的是產品能力（編輯 + 關聯 + AI）
 - 隔離的是程式邊界（module `api/` boundary + package boundary）
@@ -104,7 +104,7 @@ modules/*
 
 ## 5. Next.js 路由與融合介面
 
-`Architecture.md` 的基礎平行路由示意：
+[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
 
 ```text
 /workspace
@@ -135,7 +135,7 @@ modules/*
 
 ## 6. 目標對齊聲明
 
-本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
+本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
 
 1. 保留 Notion × Wiki × NotebookLM 融合方向。
 2. 明確化「融合體驗」與「邊界隔離」可同時成立。
@@ -145,7 +145,7 @@ modules/*
 
 ## 7. 依「AI 知識平台架構圖」調整後的領域規劃
 
-以 `modules/AI 知識平台架構圖.png` 為準，實作前建議先完成 **9 個領域規劃設計**。
+以 [ai-knowledge-platform-architecture.png](../../diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png) 為準，實作前建議先完成 **9 個領域規劃設計**。
 
 ### 7.1 需要先規劃的 9 個領域
 
@@ -192,9 +192,9 @@ modules/*
 
 ---
 
-## 7. 要實現前需完成的領域規劃設計（建議 6 個）
+## 8. 要實現前需完成的領域規劃設計（建議 6 個）
 
-僅依 `modules/Architecture.md` 的三層融合模型（Content / Graph / AI）來落地，建議先完成 **6 個領域規劃設計**。原因是三層屬於概念分層，實作時仍需把權限、協作、治理獨立成 bounded context，才能維持模組邊界。
+僅依上位概念架構文件的三層融合模型（Content / Graph / AI）來落地，建議先完成 **6 個領域規劃設計**。原因是三層屬於概念分層，實作時仍需把權限、協作、治理獨立成 bounded context，才能維持模組邊界。
 
 | # | 領域規劃設計 | 解決的核心問題 | 建議承載模組群 |
 | --- | --- | --- | --- |
@@ -207,7 +207,7 @@ modules/*
 
 ### 為什麼是 6 個
 
-1. `Architecture.md` 的 3 層是產品能力視角，不是完整實作責任切分。
+1. 上位概念架構文件的 3 層是產品能力視角，不是完整實作責任切分。
 2. 若只切 3 層，授權、治理、協作通常會被塞進 UI 或應用層，導致跨模組耦合。
 3. 切成 6 個後，能同時保留「前台融合體驗」與「後台模組邊界」。
 
