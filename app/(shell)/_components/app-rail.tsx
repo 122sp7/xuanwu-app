@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -186,6 +186,11 @@ export function AppRail({
   }
 
   const railItems: RailItem[] = [
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
     {
       href: "/wiki-beta",
       label: "Account Wiki-Beta",
