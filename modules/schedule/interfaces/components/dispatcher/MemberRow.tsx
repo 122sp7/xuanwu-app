@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { dropTargetForElements } from "@lib-dragdrop";
 
@@ -25,8 +26,8 @@ export function MemberRow({ member }: MemberRowProps) {
 
   const assignTask = useDispatcherStore((s) => s.assignTask);
   const unassignTask = useDispatcherStore((s) => s.unassignTask);
-  const assignments = useDispatcherStore((s) =>
-    s.assignments.filter((a) => a.memberId === member.id),
+  const assignments = useDispatcherStore(
+    useShallow((s) => s.assignments.filter((a) => a.memberId === member.id)),
   );
   const tasks = useDispatcherStore((s) => s.tasks);
   const loadMinutes = useDispatcherStore((s) => selectMemberLoad(s, member.id));
