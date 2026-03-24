@@ -50,6 +50,7 @@ const ALL_ACCOUNT_MANAGEMENT_ITEMS = [
   { id: "permissions", label: "權限", href: "/organization/permissions" },
   { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
   { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
   { id: "daily", label: "每日", href: "/organization/daily" },
   { id: "audit", label: "稽核", href: "/organization/audit" },
 ] as const;
