@@ -40,8 +40,7 @@ Preserve established order (do not reorder without updating ADRs):
 - Reintroduce legacy `libs/firebase/functions`
 
 **Validate**:
-- Local: `python -m compileall -q .` in `py_fn/`
-- Repository: `npm run lint` and `npm run build` from project root
+- Run applicable Python and repository commands from `agents/commands.md`
 - Before changing boundaries: Read `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs
 
 ## Documentation Update Rules

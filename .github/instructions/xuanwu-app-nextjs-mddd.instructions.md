@@ -13,10 +13,7 @@ These instructions apply to the main xuanwu-app web application outside module-i
 - UI stack: React 19, Tailwind CSS, shadcn/ui, Lucide
 - Architecture: MDDD with `app/`, `modules/`, `packages/`, and `py_fn/`
 - Package manager: npm
-- Validation commands:
-  - `npm install`
-  - `npm run lint`
-  - `npm run build`
+- Validation command source: `agents/commands.md`
 
 ## Layer Responsibilities
 
@@ -38,8 +35,6 @@ These instructions apply to the main xuanwu-app web application outside module-i
 | **Other** | `@lib-*` | date-fns, zod, zustand, etc. |
 
 **Forbidden legacy patterns**: `@/shared/*`, `@/infrastructure/*`, `@/libs/*`, `@/ui/shadcn/*`, `@/ui/vis*`, `@/interfaces/*`
-
-**Module-internal imports**: Use relative imports (`../`) for same-module files, not the module `api/` boundary.
 
 **Cross-module imports from app**: Use `@/modules/<target>/api` (or the target module public boundary) instead of internal module layer paths.
 
@@ -66,8 +61,6 @@ These instructions apply to the main xuanwu-app web application outside module-i
 
 Before finishing a change:
 
-- Install dependencies with `npm install` if needed.
-- Run `npm run lint`.
-- Run `npm run build`.
+- Run applicable validation commands listed in `agents/commands.md`.
 - If you changed architecture or public boundaries, verify the related docs were updated.
 - Keep changes focused. Do not fix unrelated issues as part of the same change.

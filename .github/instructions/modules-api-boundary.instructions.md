@@ -11,9 +11,7 @@ Cross-module interaction must remain explicit and minimal.
 
 | Pattern | Status | Example |
 | --- | --- | --- |
-| Import via `@/modules/<target>/api` | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
-| Import via target module public boundary | ✅ **Allowed** | `import { publishDomainEvent } from "@/modules/event"` |
-| Import via domain events | ✅ **Allowed** | `import { publishDomainEvent } from "@/modules/event/api"` |
+| Import via target module public boundary (`@/modules/<target>` or `@/modules/<target>/api`) | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
 | Import `<target>/domain/*`, `<target>/application/*`, `<target>/infrastructure/*`, `<target>/interfaces/*` | ❌ **Forbidden** | `import { ContentPage } from "@/modules/content/domain/entities/..."` |
 | Import private repositories or entities | ❌ **Forbidden** | `import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/..."` |
 
@@ -28,3 +26,4 @@ Cross-module interaction must remain explicit and minimal.
 
 - Re-check all changed imports
 - Run validation commands from `agents/commands.md` based on change scope
+- Rely on `eslint.config.mjs` as the enforcement source for restricted-import patterns

@@ -1,32 +1,32 @@
 # Custom Instructions
 
-Always-on and `applyTo`-scoped instructions that guide code generation, review, and standards enforcement.
+Repository instruction index for `applyTo`-scoped rules used by Copilot.
 
 ## Foundation
 
 | File | Scope | Purpose |
 | --- | --- | --- |
-| [instructions.instructions.md](./instructions.instructions.md) | `**/*.instructions.md` | How to create high-quality custom instruction files |
-| [agents.instructions.md](./agents.instructions.md) | `**/*.agent.md` | How to create custom delivery agents |
+| [instructions.instructions.md](./instructions.instructions.md) | `.github/instructions/*.instructions.md` | How to create high-quality custom instruction files |
+| [agents.instructions.md](./agents.instructions.md) | `.github/agents/*.agent.md` | How to create custom delivery agents |
 | [agent-skills.instructions.md](./agent-skills.instructions.md) | `.github/skills/**/SKILL.md` | How to create agent skills |
-| [prompt.instructions.md](./prompt.instructions.md) | `**/*.prompt.md` | How to create slash-command prompts |
+| [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/*.prompt.md` | How to create slash-command prompts |
 
 ## Project-Specific
 
 | File | Scope | Purpose |
 | --- | --- | --- |
-| [xuanwu-app-nextjs-mddd.instructions.md](./xuanwu-app-nextjs-mddd.instructions.md) | `**/*.ts`, `**/*.tsx`, `**/*.js`, `**/*.jsx`, `**/*.css` | Next.js 16, React 19, MDDD development standards |
+| [xuanwu-app-nextjs-mddd.instructions.md](./xuanwu-app-nextjs-mddd.instructions.md) | `app/**/*.{ts,tsx}`, `packages/**/*.{ts,tsx}`, `providers/**/*.{ts,tsx}`, `debug/**/*.{ts,tsx}` | Next.js 16, React 19, MDDD development standards |
 | [xuanwu-functions-python.instructions.md](./xuanwu-functions-python.instructions.md) | `py_fn/**/*.py` | Python Firebase Functions development standards |
 
 ## Architecture & Modules
 
 | File | Scope | Purpose |
 | --- | --- | --- |
-| [modules-architecture.instructions.md](./modules-architecture.instructions.md) | `modules/**/*.{ts,tsx,js,jsx,md}` | MDDD layer design and module structure |
-| [modules-api-boundary.instructions.md](./modules-api-boundary.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}`, `app/**/*.{ts,tsx}` | Cross-module API boundaries and imports |
-| [modules-dependency-graph.instructions.md](./modules-dependency-graph.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}`, `app/**/*.{ts,tsx}` | Dependency direction and layer enforcement |
-| [modules-naming.instructions.md](./modules-naming.instructions.md) | `modules/**/*.{ts,tsx,js,jsx,md}` | File and symbol naming conventions |
-| [modules-refactoring.instructions.md](./modules-refactoring.instructions.md) | `modules/**/*.{ts,tsx,js,jsx,md}`, `app/**/*.{ts,tsx}` | Refactoring workflows for modules |
+| [modules-architecture.instructions.md](./modules-architecture.instructions.md) | `modules/**/*.md` | MDDD layer design and module structure docs |
+| [modules-api-boundary.instructions.md](./modules-api-boundary.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Cross-module API boundaries and imports |
+| [modules-dependency-graph.instructions.md](./modules-dependency-graph.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Dependency direction and layer enforcement |
+| [modules-naming.instructions.md](./modules-naming.instructions.md) | `modules/**/*.md` | Module naming conventions in specs/docs |
+| [modules-refactoring.instructions.md](./modules-refactoring.instructions.md) | `modules/**/*.md` | Refactoring workflows for module planning/docs |
 
 ## Other
 
@@ -48,6 +48,14 @@ Use this partition to avoid overlapping instruction contexts:
 - Prompt authoring: `prompt.instructions.md`
 - Agent authoring: `agents.instructions.md`
 - Skill authoring: `agent-skills.instructions.md`
+
+## Conflict Resolution Order
+
+When rules overlap, resolve by this order:
+
+1. The instruction with the most specific `applyTo`
+2. Code-boundary instructions over descriptive docs (`modules-api-boundary` and `modules-dependency-graph`)
+3. `.github/copilot-instructions.md` for execution workflow and delivery rules
 
 ## Related
 

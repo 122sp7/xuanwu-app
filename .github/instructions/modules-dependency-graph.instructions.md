@@ -1,5 +1,5 @@
 ---
-description: 'Dependency-direction guardrails and example module edges for modules/ refactors under Xuanwu MDDD'
+description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
 applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
 ---
 
