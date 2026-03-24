@@ -148,9 +148,12 @@ export {
   getKnowledgeVersions,
 } from "./interfaces/queries/knowledge.queries";
 
-// ── Interfaces: Facade (cross-domain API) ────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./interfaces/api/knowledge-facade";
+// ── API: Facade (cross-domain entry point) ────────────────────────────────────
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
 export type {
   KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
   KnowledgeAddBlockParams,
-} from "./interfaces/api/knowledge-facade";
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";

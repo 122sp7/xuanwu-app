@@ -2,6 +2,9 @@
  * Module: knowledge
  * Layer: interfaces/barrel
  * Purpose: Re-exports all public interface adapters for the Knowledge module.
+ *
+ * NOTE: The cross-domain facade (KnowledgeFacade) lives in `api/` not here.
+ * It is re-exported from the module root index.ts.
  */
 
 // ── Server Actions ────────────────────────────────────────────────────────────
@@ -25,10 +28,3 @@ export {
   getKnowledgeBlocks,
   getKnowledgeVersions,
 } from "./queries/knowledge.queries";
-
-// ── Facade (cross-domain API) ─────────────────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeAddBlockParams,
-} from "./api/knowledge-facade";
