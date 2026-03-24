@@ -10,6 +10,20 @@
 
 ## 1. System Structure
 
+### [ai-knowledge-platform-architecture.png](./ai-knowledge-platform-architecture.png)
+
+用途：
+
+- 提供 AI 知識平台的整體概念架構圖
+- 對齊 Notion × Wiki × NotebookLM 的三層融合視角
+- 可作為 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 與 [modules-implementation-guide.md](../../development-reference/development/modules-implementation-guide.md) 的配圖
+
+適合閱讀者：
+
+- Architect
+- Product Designer
+- Tech Lead
+
 ### [system-multi-workspace-hierarchy.mermaid](./system-multi-workspace-hierarchy.mermaid)
 
 用途：
@@ -193,16 +207,17 @@
 如果你是第一次讀這套圖，建議順序：
 
 1. [system-multi-workspace-hierarchy.mermaid](./system-multi-workspace-hierarchy.mermaid)
-2. [system-architecture-overview-combined.mermaid](./system-architecture-overview-combined.mermaid)
-3. [workspace-internal-data-model.mermaid](./workspace-internal-data-model.mermaid)
-4. [workspace-interaction-flow.mermaid](./workspace-interaction-flow.mermaid)
-5. [api-data-flow.mermaid](./api-data-flow.mermaid)
-6. [firestore-collection-path-structure.mermaid](./firestore-collection-path-structure.mermaid)
-7. [security-rules-decision-flow.mermaid](./security-rules-decision-flow.mermaid)
-8. [nextjs-app-router-structure.mermaid](./nextjs-app-router-structure.mermaid)
-9. [auth-state-machine.mermaid](./auth-state-machine.mermaid)
-10. [kb-ingestion-pipeline-state-machine.mermaid](./kb-ingestion-pipeline-state-machine.mermaid)
-11. [event-bus-message-flow.mermaid](./event-bus-message-flow.mermaid)
+2. [ai-knowledge-platform-architecture.png](./ai-knowledge-platform-architecture.png)
+3. [system-architecture-overview-combined.mermaid](./system-architecture-overview-combined.mermaid)
+4. [workspace-internal-data-model.mermaid](./workspace-internal-data-model.mermaid)
+5. [workspace-interaction-flow.mermaid](./workspace-interaction-flow.mermaid)
+6. [api-data-flow.mermaid](./api-data-flow.mermaid)
+7. [firestore-collection-path-structure.mermaid](./firestore-collection-path-structure.mermaid)
+8. [security-rules-decision-flow.mermaid](./security-rules-decision-flow.mermaid)
+9. [nextjs-app-router-structure.mermaid](./nextjs-app-router-structure.mermaid)
+10. [auth-state-machine.mermaid](./auth-state-machine.mermaid)
+11. [kb-ingestion-pipeline-state-machine.mermaid](./kb-ingestion-pipeline-state-machine.mermaid)
+12. [event-bus-message-flow.mermaid](./event-bus-message-flow.mermaid)
 
 ## 8. Notes
 
