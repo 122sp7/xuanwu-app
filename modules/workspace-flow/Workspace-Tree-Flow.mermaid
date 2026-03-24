@@ -1,0 +1,125 @@
+flowchart TB
+	%% ==========================================================
+	%% Workspace Flow Module Tree
+	%% Goal: all external consumers enter through api/
+	%% ==========================================================
+
+	classDef root fill:#0f172a,stroke:#0f172a,color:#f8fafc,stroke-width:2px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef layer fill:#e2e8f0,stroke:#475569,color:#0f172a,stroke-width:1.5px;
+	classDef file fill:#f8fafc,stroke:#94a3b8,color:#0f172a;
+	classDef doc fill:#fff7ed,stroke:#ea580c,color:#7c2d12;
+	classDef forbid fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+	classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
+
+	external_app[app routes / other modules / tests]:::external --> public_api
+
+	subgraph WORKSPACE_FLOW [modules/workspace-flow]
+		direction TB
+		module_root[workspace-flow/]:::root
+
+		subgraph PUBLIC [Public Boundary]
+			direction TB
+			public_api[api/]:::api
+			public_api_index[index.ts<br/>only allowed cross-module entry]:::api
+			public_api --> public_api_index
+		end
+
+		subgraph INTERNAL [Internal Layers]
+			direction TB
+
+			readme[README.md<br/>module rules and lifecycle summary]:::doc
+			flow_doc[Workspace-Flow.mermaid<br/>state machine overview]:::doc
+			tree_doc[Workspace-Tree-Flow.mermaid<br/>module tree and boundary rules]:::doc
+
+			domain_layer[domain/]:::layer
+			application_layer[application/]:::layer
+			infrastructure_layer[infrastructure/]:::layer
+			interfaces_layer[interfaces/]:::layer
+			local_index[index.ts<br/>same-module convenience only]:::file
+
+			subgraph DOMAIN [domain/]
+				direction TB
+				domain_entities[entities/]:::layer
+				domain_value_objects[value-objects/]:::layer
+				domain_services[services/]:::layer
+
+				file_models[entities/workspace-flow.models.ts<br/>from models.ts]:::file
+				file_core[value-objects/workspace-flow.core.ts<br/>IDs + statuses + events from core.ts]:::file
+				file_transitions[services/workspace-flow.transitions.ts<br/>transition maps + guards from transitions.ts]:::file
+
+				domain_entities --> file_models
+				domain_value_objects --> file_core
+				domain_services --> file_transitions
+			end
+
+			subgraph APPLICATION [application/]
+				direction TB
+				application_dto[dto/]:::layer
+				application_ports[ports/]:::layer
+				application_examples[examples/]:::layer
+
+				file_services[ports/workspace-flow.services.ts<br/>service contracts from services.ts]:::file
+				file_queries[dto/workspace-flow.queries.ts<br/>query DTOs extracted from firestore.ts]:::file
+				file_examples[examples/type-safety.examples.ts<br/>from examples.ts]:::file
+
+				application_ports --> file_services
+				application_dto --> file_queries
+				application_examples --> file_examples
+			end
+
+			subgraph INFRA [infrastructure/]
+				direction TB
+				infra_firestore[firebase/]:::layer
+				file_firestore[firebase/workspace-flow.firestore.ts<br/>COLLECTIONS + TaskDoc/IssueDoc/InvoiceDoc/InvoiceItemDoc]:::file
+				infra_firestore --> file_firestore
+			end
+
+			subgraph INTERFACES [interfaces/]
+				direction TB
+				interfaces_actions[_actions/]:::layer
+				interfaces_queries[queries/]:::layer
+				interfaces_components[components/]:::layer
+				interface_note[optional UI / server actions / query hooks<br/>not required for pure type module start]:::doc
+				interfaces_layer --> interfaces_actions
+				interfaces_layer --> interfaces_queries
+				interfaces_layer --> interfaces_components
+				interfaces_layer --> interface_note
+			end
+		end
+
+		module_root --> public_api
+		module_root --> domain_layer
+		module_root --> application_layer
+		module_root --> infrastructure_layer
+		module_root --> interfaces_layer
+		module_root --> readme
+		module_root --> flow_doc
+		module_root --> tree_doc
+		module_root --> local_index
+
+		domain_layer --> DOMAIN
+		application_layer --> APPLICATION
+		infrastructure_layer --> INFRA
+	end
+
+	public_api_index --> application_layer
+	application_layer --> domain_layer
+	infrastructure_layer --> domain_layer
+	interfaces_layer --> application_layer
+
+	forbidden_domain[forbidden<br/>@/modules/workspace-flow/domain/*]:::forbid
+	forbidden_application[forbidden<br/>@/modules/workspace-flow/application/*]:::forbid
+	forbidden_infra[forbidden<br/>@/modules/workspace-flow/infrastructure/*]:::forbid
+	forbidden_interfaces[forbidden<br/>@/modules/workspace-flow/interfaces/*]:::forbid
+
+	external_app -. do not import .-> forbidden_domain
+	external_app -. do not import .-> forbidden_application
+	external_app -. do not import .-> forbidden_infra
+	external_app -. do not import .-> forbidden_interfaces
+
+	note_boundary[Cross-module rule<br/>external consumers must import only via<br/>@/modules/workspace-flow/api]:::doc
+	note_mapping[Current source set used for this design<br/>core.ts, examples.ts, firestore.ts, index.ts,<br/>models.ts, services.ts, transitions.ts, README.md, Workspace-Flow.mermaid]:::doc
+
+	note_boundary --> public_api_index
+	note_mapping --> module_root
