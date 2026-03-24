@@ -58,7 +58,7 @@
 | `member` | 一般成員 | 讀寫工作區資源、文件上傳 |
 | `viewer` | 唯讀成員 | 僅查看，不可修改 |
 
-> 完整權限矩陣見 [`PERMISSIONS.md`](../../PERMISSIONS.md)。
+> 完整權限矩陣見 [`PERMISSIONS.md`](../../../PERMISSIONS.md)。
 
 ### 2.3 調整成員角色
 

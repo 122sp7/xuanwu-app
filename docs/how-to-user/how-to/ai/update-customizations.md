@@ -21,10 +21,10 @@ When changing the delivery workflow, update files in this order:
 
 Update all of the following in the same change:
 
-- [implementation-plan-template.md](../../reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../reference/ai/plan-schema.md)
-- [.github/agents/planner.agent.md](../../../.github/agents/planner.agent.md)
-- planning prompts under [.github/prompts](../../../.github/prompts)
+- [implementation-plan-template.md](../../../development-reference/reference/ai/implementation-plan-template.md)
+- [plan-schema.md](../../../development-reference/reference/ai/plan-schema.md)
+- [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md)
+- planning prompts under [.github/prompts](../../../../.github/prompts)
 - any operational docs that explain planning or recovery
 
 ## If you change a handoff rule
@@ -32,16 +32,16 @@ Update all of the following in the same change:
 Update all of the following in the same change:
 
 - the relevant `.agent.md` file,
-- [handoff-matrix.md](../../reference/ai/handoff-matrix.md),
-- [agentic-delivery-model.md](../../explanation/ai/agentic-delivery-model.md) if rationale changed,
+- [handoff-matrix.md](../../../development-reference/reference/ai/handoff-matrix.md),
+- [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/ai/agentic-delivery-model.md) if rationale changed,
 - recovery guidance if the valid re-entry path changed.
 
 ## If you add or retire an asset
 
 Update all of the following in the same change:
 
-- [customizations-index.md](../../reference/ai/customizations-index.md)
-- [legacy-customizations-migration.md](../../reference/ai/legacy-customizations-migration.md) when applicable
+- [customizations-index.md](../../../development-reference/reference/ai/customizations-index.md)
+- [legacy-customizations-migration.md](../../../development-reference/reference/ai/legacy-customizations-migration.md) when applicable
 - README or contributing guidance if contributor-facing entry points changed
 
 ## Validation expectations

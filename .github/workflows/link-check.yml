@@ -1,0 +1,16 @@
+name: Check Broken Links
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run broken link checker
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --root-dir "$(pwd)" --verbose --no-progress './**/*.md'

@@ -24,7 +24,7 @@ status: "🏗️ Midway"
   - 功能：新增資源請求（`scheduleRequests` 寫入 + `scheduleMdddFlowProjections` 初始 projection）
 - **組織 UI**：`app/(shell)/organization/schedule/page.tsx`
   - 待分派（`submitted` 狀態的 projection 清單）+ 月曆週視圖
-- **開發契約**：`docs/development-reference/reference/development-contracts/schedule-contract.md`
+- **開發契約**：`docs/development-reference/development-reference/reference/development-contracts/schedule-contract.md`
 
 ### 0.1 目前已交付（本輪完成）
 

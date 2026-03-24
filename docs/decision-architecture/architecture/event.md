@@ -35,9 +35,9 @@ status: "🚧 Developing"
 | 文件 | 路徑 |
 |------|------|
 | 架構設計（本文件） | `docs/decision-architecture/architecture/event.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
-| 開發指南 | `docs/diagrams-events-explanations/event/development-guide.md` |
-| 使用手冊 | `docs/diagrams-events-explanations/event/user-manual.md` |
+| 開發契約 | `docs/development-reference/development-reference/reference/development-contracts/event-contract.md` |
+| 開發指南 | `docs/diagrams-events-explanations/diagrams-events-explanations/event/development-guide.md` |
+| 使用手冊 | `docs/diagrams-events-explanations/diagrams-events-explanations/event/user-manual.md` |
 
 ### 0.2 本輪不在交付範圍
 

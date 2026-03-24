@@ -10,7 +10,7 @@
 |---|---|---|
 | [system-overview.md](./system-overview.md) | 規格 | 系統全局規格：平台定位、技術架構、運行時邊界 |
 | [../reference/development-contracts/overview.md](../reference/development-contracts/overview.md) | 契約索引 | 所有開發契約的入口與說明 |
-| [../adr/](../adr/) | ADR | 架構決策記錄（ADR-001 ~ ADR-012） |
+| [../../decision-architecture/adr/](../../decision-architecture/adr/) | ADR | 架構決策記錄（ADR-001 ~ ADR-012） |
 
 ---
 
@@ -23,7 +23,7 @@ Xuanwu App 的規格文件分為三個層次：
     ↓
 功能規格（Feature Spec）        ← docs/wiki-beta/*.md
     ↓
-開發契約（Development Contract） ← docs/development-reference/reference/development-contracts/
+開發契約（Development Contract） ← docs/development-reference/development-reference/reference/development-contracts/
 ```
 
 | 層次 | 問什麼 | 讀者 |
@@ -38,8 +38,8 @@ Xuanwu App 的規格文件分為三個層次：
 
 | 功能 | 設計規格 | UI/UX 規格 | 使用手冊 |
 |---|---|---|---|
-| Wiki-Beta 核心 | [wiki-beta-design-spec.md](../wiki-beta/wiki-beta-design-spec.md) | [wiki-beta-ui-ux-spec.md](../wiki-beta/wiki-beta-ui-ux-spec.md) | [wiki-beta-user-manual.md](../wiki-beta/wiki-beta-user-manual.md) |
-| Wiki-Beta Pages/Libraries | [wiki-beta-pages-libraries-design-spec.md](../wiki-beta/wiki-beta-pages-libraries-design-spec.md) | — | [wiki-beta-pages-libraries-user-manual.md](../wiki-beta/wiki-beta-pages-libraries-user-manual.md) |
+| Wiki-Beta 核心 | [wiki-beta-design-spec.md](../../development-reference/specification/README.md) | [wiki-beta-ui-ux-spec.md](../../development-reference/specification/README.md) | [wiki-beta-user-manual.md](../../development-reference/specification/README.md) |
+| Wiki-Beta Pages/Libraries | [wiki-beta-pages-libraries-design-spec.md](../../development-reference/specification/README.md) | — | [wiki-beta-pages-libraries-user-manual.md](../../development-reference/specification/README.md) |
 
 ---
 
@@ -90,7 +90,7 @@ ADR 記錄了重要的架構決策及其理由：
 |---|---|
 | 資料隔離 | 所有 Firestore 讀寫必須在 `accounts/{accountId}/...` 路徑下 |
 | 認證 | Firebase Auth；所有 Shell 頁面需認證（`shell-guard.tsx`） |
-| 授權 | RBAC；角色定義於 [`PERMISSIONS.md`](../../PERMISSIONS.md) |
+| 授權 | RBAC；角色定義於 [`PERMISSIONS.md`](../../../PERMISSIONS.md) |
 | Storage 隔離 | 上傳必須攜帶 `account_id` metadata |
 
 ### 效能（Performance）

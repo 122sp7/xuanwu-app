@@ -42,7 +42,7 @@ main ←────────────────────────
 |---|---|---|
 | `feature` | 新功能 | `feature/wiki-beta-pages-crud` |
 | `bugfix` | 錯誤修復 | `bugfix/upload-mime-validation` |
-| `docs` | 文件更新 | `docs/ui-ux-wireframes` |
+| `docs` | 文件更新 | `docs/how-to-user/ui-ux-wireframes` |
 | `refactor` | 重構 | `refactor/extract-document-use-case` |
 | `hotfix` | 緊急修復 | `hotfix/auth-token-refresh` |
 | `chore` | 工具、設定、依賴更新 | `chore/update-tailwind-v4` |

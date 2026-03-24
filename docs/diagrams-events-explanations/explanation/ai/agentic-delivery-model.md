@@ -56,8 +56,8 @@ The implementation plan is not a casual summary. It is the shared input contract
 
 That is why the suite includes both:
 
-- [implementation-plan-template.md](../../reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../reference/ai/plan-schema.md)
+- [implementation-plan-template.md](../../../development-reference/reference/ai/implementation-plan-template.md)
+- [plan-schema.md](../../../development-reference/reference/ai/plan-schema.md)
 
 The template defines the shape contributors read. The schema defines the fields that later stages rely on. Together they stop the plan from becoming an inconsistent free-form note.
 

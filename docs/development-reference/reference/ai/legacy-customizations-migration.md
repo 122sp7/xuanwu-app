@@ -11,12 +11,12 @@ This page tracks older customization assets that are being replaced by the forma
 
 | Legacy asset | Replacement | Migration status | Notes |
 | --- | --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../.github/agents/qa-subagent.agent.md) | [.github/agents/qa.agent.md](../../../.github/agents/qa.agent.md) | In progress | The legacy agent is now hidden from picker and model invocation to avoid QA name collisions while contributor-facing references are cleaned up |
+| [.github/agents/qa-subagent.agent.md].../../../.github/agents/qa-subagent.agent.md) | [.github/agents/qa.agent.md].../../../.github/agents/qa.agent.md) | In progress | The legacy agent is now hidden from picker and model invocation to avoid QA name collisions while contributor-facing references are cleaned up |
 
 ## Migration rules
 
 - Do not silently delete a legacy asset before its replacement is documented.
-- Update [customizations-index.md](./customizations-index.md) when status changes.
+- Update [customizations-index.md]../customizations-index.md) when status changes.
 - Remove legacy references from contributor-facing docs before deleting the file.
 
 ## Retirement criteria

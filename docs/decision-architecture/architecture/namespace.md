@@ -34,9 +34,9 @@ status: "🚧 Developing"
 | 文件 | 路徑 |
 |------|------|
 | 架構設計（本文件） | `docs/decision-architecture/architecture/namespace.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
-| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
-| 使用手冊 | `docs/development-reference/namespace/user-manual.md` |
+| 開發契約 | `docs/development-reference/development-reference/reference/development-contracts/namespace-contract.md` |
+| 開發指南 | `docs/development-reference/development-reference/namespace/development-guide.md` |
+| 使用手冊 | `docs/development-reference/development-reference/namespace/user-manual.md` |
 
 ### 0.2 本輪不在交付範圍
 

@@ -10,8 +10,8 @@
 |---|---|---|
 | [user-guide.md](./user-guide.md) | 一般使用者 | 平台核心功能操作說明 |
 | [admin-guide.md](./admin-guide.md) | 組織管理員 | 成員管理、權限設定、系統維運 |
-| [../wiki-beta/wiki-beta-user-manual.md](../wiki-beta/wiki-beta-user-manual.md) | 知識庫使用者 | Wiki-Beta 詳細操作手冊 |
-| [../wiki-beta/wiki-beta-pages-libraries-user-manual.md](../wiki-beta/wiki-beta-pages-libraries-user-manual.md) | 知識庫使用者 | Pages 與 Libraries 詳細手冊 |
+| [../../development-reference/specification/README.md](../../development-reference/specification/README.md) | 知識庫使用者 | Wiki-Beta 詳細操作手冊 |
+| [../../development-reference/specification/README.md](../../development-reference/specification/README.md) | 知識庫使用者 | Pages 與 Libraries 詳細手冊 |
 
 ---
 

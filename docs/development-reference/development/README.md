@@ -18,9 +18,9 @@
 
 ### 開發前必讀
 
-1. **架構文件**：[`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 20 個 MDDD 模組的職責與邊界
-2. **規則索引**：[`agents/README.md`](../../agents/README.md) — 架構、品質、資料、API 規則
-3. **貢獻指南**：[`CONTRIBUTING.md`](../../CONTRIBUTING.md) — PR 規範與 House Rules
+1. **架構文件**：[`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — 20 個 MDDD 模組的職責與邊界
+2. **規則索引**：[`agents/README.md`](../../../agents/README.md) — 架構、品質、資料、API 規則
+3. **貢獻指南**：[`CONTRIBUTING.md`](../../../CONTRIBUTING.md) — PR 規範與 House Rules
 
 ### 每次開發前執行
 
@@ -57,7 +57,7 @@ cd py_fn && python -m pytest tests/ -v
 
 ## 相關文件連結
 
-- [UI/UX 設計文件](../ui-ux/README.md)
+- [UI/UX 設計文件](../../how-to-user/ui-ux/README.md)
 - [規格與契約文件](../specification/README.md)
-- [ADR 決策記錄](../adr/)
+- [ADR 決策記錄](../../decision-architecture/adr/)
 - [開發契約總覽](../reference/development-contracts/overview.md)

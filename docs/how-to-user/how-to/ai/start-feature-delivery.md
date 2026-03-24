@@ -50,6 +50,6 @@ The workflow is complete when all of the following are true:
 
 ## Related references
 
-- [implementation-plan-template.md](../../reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../reference/ai/plan-schema.md)
-- [handoff-matrix.md](../../reference/ai/handoff-matrix.md)
+- [implementation-plan-template.md](../../../development-reference/reference/ai/implementation-plan-template.md)
+- [plan-schema.md](../../../development-reference/reference/ai/plan-schema.md)
+- [handoff-matrix.md](../../../development-reference/reference/ai/handoff-matrix.md)

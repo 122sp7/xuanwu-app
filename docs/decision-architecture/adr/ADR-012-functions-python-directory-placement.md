@@ -64,5 +64,5 @@
 - `firebase.json` — `source` 欄位
 - `packages/README.md` — Migration History 新增條目與說明
 - `docs/decision-architecture/adr/ADR-001, ADR-009, ADR-010` — 跨 runtime 邊界引用
-- `docs/development-reference/reference/development-contracts/overview.md, rag-ingestion-contract.md`
+- `docs/development-reference/development-reference/reference/development-contracts/overview.md, rag-ingestion-contract.md`
 - `py_fn/README.md, AGENT.md, docs/decision-architecture/adr/*` — 內部自我引用

@@ -60,7 +60,7 @@ Xuanwu App 是一個**知識管理與 AI 輔助的工作區平台**，融合 Not
 
 ## 相關文件連結
 
-- [系統架構圖索引](../diagrams/README.md)
-- [Wiki-Beta UI/UX 設計規格](../wiki-beta/wiki-beta-ui-ux-spec.md)
-- [Wiki-Beta Pages / Libraries 設計規格](../wiki-beta/wiki-beta-pages-libraries-design-spec.md)
-- [開發指南](../development/README.md)
+- [系統架構圖索引](../../diagrams-events-explanations/diagrams/README.md)
+- [Wiki-Beta UI/UX 設計規格](../../development-reference/specification/README.md)
+- [Wiki-Beta Pages / Libraries 設計規格](../../development-reference/specification/README.md)
+- [開發指南](../../development-reference/development/README.md)
