@@ -69,6 +69,7 @@ Not every module has every subdirectory — only what it needs.
 | **finance** | Financial tracking, statements, ledgers | Firebase persistence |
 | **identity** | User identity, authentication, token refresh | Firebase auth integration |
 | **issue** | Issue tracking, task tracking | Standard CRUD |
+| **knowledge** | Knowledge domain — Page, Block, PageTree, Version (Notion+Wiki core) | MDDD aggregates, domain events, KnowledgeFacade cross-domain API |
 | **namespace** | Slug-based namespace registration and resolution | Domain-driven slug policy |
 | **notification** | Notifications, alerts, messaging | Firebase messaging |
 | **organization** | Organization (tenant) management, policies | Multi-tenant baseline |
