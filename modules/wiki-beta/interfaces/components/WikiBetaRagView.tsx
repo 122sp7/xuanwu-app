@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,7 +9,6 @@ import {
   FileUp,
   Loader2,
   Pencil,
-  RefreshCw,
   Search,
   Trash2,
   XCircle,
@@ -25,13 +24,10 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
 import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  runWikiBetaRagQuery,
-} from "../../application";
-import type {
-  WikiBetaCitation,
-  WikiBetaParsedDocument,
-} from "../../domain";
+import { runWikiBetaRagQuery } from "../../application";
+import type { WikiBetaCitation } from "../../domain";
+import type { WikiBetaLiveDocument } from "../hooks/useDocumentsSnapshot";
+import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
 
 interface WikiBetaRagViewProps {
   readonly onBack: () => void;
@@ -56,129 +52,24 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("zh-TW", { hour12: false });
 }
 
-interface WikiBetaLiveDocument extends WikiBetaParsedDocument {
-  readonly errorMessage: string;
-  readonly ragError: string;
-  readonly isClientPending?: boolean;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function objectOrEmpty(value: unknown): Record<string, unknown> {
-  if (isRecord(value)) {
-    return value;
-  }
-  return {};
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  const maybeToDate = value.toDate;
-  if (typeof maybeToDate === "function") {
-    try {
-      const converted = maybeToDate.call(value);
-      if (converted instanceof Date) {
-        return converted;
-      }
-    } catch {
-      // fallback to toMillis below
-    }
-  }
-
-  const maybeToMillis = value.toMillis;
-  if (typeof maybeToMillis === "function") {
-    try {
-      const millis = maybeToMillis.call(value);
-      if (typeof millis === "number" && Number.isFinite(millis)) {
-        return new Date(millis);
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function toNumberOrDefault(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return isRecord(value) ? value : {};
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
   if (isRecord(error)) {
     const direct = error.message;
-    if (typeof direct === "string" && direct.trim()) {
-      return direct;
-    }
-    const nested = objectOrEmpty(error.details);
-    const nestedMessage = nested.message;
-    if (typeof nestedMessage === "string" && nestedMessage.trim()) {
-      return nestedMessage;
-    }
+    if (typeof direct === "string" && direct.trim()) return direct;
+    const nestedMessage = objectOrEmpty(error.details).message;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) return nestedMessage;
   }
   return "未知錯誤";
-}
-
-function resolveDocumentFilename(data: Record<string, unknown>): string {
-  const source = objectOrEmpty(data.source);
-  const metadata = objectOrEmpty(data.metadata);
-
-  const candidates = [
-    source.filename,
-    source.display_name,
-    data.title,
-    metadata.filename,
-    metadata.display_name,
-    source.original_filename,
-    metadata.original_filename,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate;
-    }
-  }
-
-  return "";
-}
-
-function mapToLiveDocument(id: string, data: Record<string, unknown>): WikiBetaLiveDocument {
-  const source = objectOrEmpty(data.source);
-  const parsed = objectOrEmpty(data.parsed);
-  const rag = objectOrEmpty(data.rag);
-  const metadata = objectOrEmpty(data.metadata);
-  const error = objectOrEmpty(data.error);
-
-  const sourceGcsFromSource = typeof source.gcs_uri === "string" ? source.gcs_uri : "";
-  const sourceGcsFromMeta = typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : "";
-  const jsonGcsFromParsed = typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "";
-  const jsonGcsFromMeta = typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : "";
-  const workspaceIdFromDoc = typeof data.spaceId === "string" ? data.spaceId : "";
-  const workspaceIdFromMeta = typeof metadata.space_id === "string" ? metadata.space_id : "";
-
-  return {
-    id,
-    filename: resolveDocumentFilename(data) || id,
-    workspaceId: workspaceIdFromDoc || workspaceIdFromMeta,
-    sourceGcsUri: sourceGcsFromSource || sourceGcsFromMeta,
-    jsonGcsUri: jsonGcsFromParsed || jsonGcsFromMeta,
-    pageCount:
-      toNumberOrDefault(parsed.page_count) ||
-      toNumberOrDefault(metadata.page_count) ||
-      toNumberOrDefault(data.pageCount),
-    status: typeof data.status === "string" ? data.status : "unknown",
-    ragStatus: typeof rag.status === "string" ? rag.status : "",
-    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
-    errorMessage: typeof error.message === "string" ? error.message : "",
-    ragError: typeof rag.error === "string" ? rag.error : "",
-  };
 }
 
 function StatusBadge({ status, errorMessage }: { status: string; errorMessage: string }) {
@@ -261,14 +152,15 @@ export function WikiBetaRagView({
   const [searchHits, setSearchHits] = useState(0);
   const [accountScope, setAccountScope] = useState("(未查詢)");
 
-  const [docs, setDocs] = useState<WikiBetaLiveDocument[]>([]);
-  const [pendingDocs, setPendingDocs] = useState<WikiBetaLiveDocument[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(true);
+  const { docs, loading: loadingDocs, pendingDocs, addPending, removePending } = useDocumentsSnapshot(
+    activeAccountId,
+    effectiveWorkspaceId || undefined,
+  );
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const statusMapRef = useRef<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -277,87 +169,6 @@ export function WikiBetaRagView({
     const timestamp = new Date().toLocaleTimeString("zh-TW", { hour12: false });
     setLogs((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 100));
   }, []);
-
-  const sortByUploadedDesc = useCallback((items: WikiBetaLiveDocument[]) => {
-    const copied = [...items];
-    copied.sort((a, b) => {
-      const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
-      const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
-      return bt - at;
-    });
-    return copied;
-  }, []);
-
-  const loadDocs = useCallback(async () => {
-    if (!activeAccountId) {
-      setDocs([]);
-      setLoadingDocs(false);
-      return;
-    }
-
-    setLoadingDocs(true);
-    try {
-      const db = getFirebaseFirestore();
-      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
-      const snap = await firestoreApi.getDocs(colRef);
-      const mapped = snap.docs
-        .map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())))
-        .filter((item) => !effectiveWorkspaceId || item.workspaceId === effectiveWorkspaceId);
-      setDocs(sortByUploadedDesc(mapped));
-      setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
-      appendLog(`手動刷新文件列表：${mapped.length} 筆`);
-    } catch (error) {
-      console.error(error);
-      toast.error("讀取文件列表失敗");
-    } finally {
-      setLoadingDocs(false);
-    }
-  }, [activeAccountId, appendLog, effectiveWorkspaceId, sortByUploadedDesc]);
-
-  useEffect(() => {
-    if (!activeAccountId) {
-      setDocs([]);
-      setLoadingDocs(false);
-      return;
-    }
-
-    const db = getFirebaseFirestore();
-    const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
-    setLoadingDocs(true);
-
-    const unsubscribe = firestoreApi.onSnapshot(
-      colRef,
-      (snapshot) => {
-        const mapped = snapshot.docs
-          .map((item) => mapToLiveDocument(item.id, objectOrEmpty(item.data())))
-          .filter((item) => !effectiveWorkspaceId || item.workspaceId === effectiveWorkspaceId);
-        setDocs(sortByUploadedDesc(mapped));
-        setPendingDocs((prev) => prev.filter((item) => !mapped.some((doc) => doc.id === item.id)));
-        setLoadingDocs(false);
-
-        const nextStatusMap: Record<string, string> = {};
-        mapped.forEach((doc) => {
-          const statusKey = `${doc.status}/${doc.ragStatus}`;
-          nextStatusMap[doc.id] = statusKey;
-          if (statusMapRef.current[doc.id] !== statusKey) {
-            appendLog(`狀態更新 ${doc.filename}: ${doc.status} / rag=${doc.ragStatus || "-"}`);
-          }
-        });
-        statusMapRef.current = nextStatusMap;
-      },
-      (error) => {
-        console.error(error);
-        setLoadingDocs(false);
-        toast.error("即時監聽文件列表失敗");
-        appendLog("即時監聽失敗，請嘗試手動刷新");
-      },
-    );
-
-    return () => {
-      unsubscribe();
-      statusMapRef.current = {};
-    };
-  }, [activeAccountId, appendLog, effectiveWorkspaceId, sortByUploadedDesc]);
 
   async function handleAsk() {
     const q = query.trim();
@@ -372,7 +183,6 @@ export function WikiBetaRagView({
         toast.error("請先以真實帳號登入才能執行 RAG 查詢");
         return;
       }
-      // Dev-demo users have app "authenticated" status but no real Firebase session and cannot call Cloud Functions
       if (authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
         toast.error("請先以真實帳號登入才能執行 RAG 查詢（Dev-demo 帳號無法使用此功能）");
         return;
@@ -391,7 +201,6 @@ export function WikiBetaRagView({
         requireReady: true,
       });
 
-      // Compatibility fallback: old vectors may miss ready status or freshness fields.
       if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
         appendLog("主要查詢無可用引用，啟用相容模式重試 (require_ready=false, max_age_days=3650)");
         result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
@@ -420,17 +229,11 @@ export function WikiBetaRagView({
   function buildUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {
     const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
     const docId = crypto.randomUUID();
-    return {
-      uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`,
-      docId,
-    };
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
   }
 
   function handleFileChange(file: File | null) {
-    if (!file) {
-      setSelectedFile(null);
-      return;
-    }
+    if (!file) { setSelectedFile(null); return; }
     if (!(file.type in ACCEPTED_MIME)) {
       toast.error(`僅支援 ${ACCEPTED_EXTS}`);
       setSelectedFile(null);
@@ -441,14 +244,8 @@ export function WikiBetaRagView({
   }
 
   async function handleUpload() {
-    if (!selectedFile) {
-      toast.error("請先選擇檔案");
-      return;
-    }
-    if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法上傳");
-      return;
-    }
+    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
     setUploading(true);
     let pendingDocId = "";
     try {
@@ -457,7 +254,7 @@ export function WikiBetaRagView({
       const fileRef = storageApi.ref(storage, uploadPath);
       pendingDocId = docId;
 
-      const pendingItem: WikiBetaLiveDocument = {
+      addPending({
         id: docId,
         filename: selectedFile.name,
         workspaceId: effectiveWorkspaceId,
@@ -470,8 +267,7 @@ export function WikiBetaRagView({
         errorMessage: "",
         ragError: "",
         isClientPending: true,
-      };
-      setPendingDocs((prev) => [pendingItem, ...prev.filter((item) => item.id !== docId)]);
+      });
 
       const customMetadata: Record<string, string> = {
         account_id: activeAccountId,
@@ -479,38 +275,26 @@ export function WikiBetaRagView({
         original_filename: selectedFile.name,
         display_name: selectedFile.name,
       };
-      if (effectiveWorkspaceId) {
-        customMetadata.workspace_id = effectiveWorkspaceId;
-      }
+      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
 
-      await storageApi.uploadBytes(fileRef, selectedFile, {
-        customMetadata,
-      });
-
+      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
       toast.success("上傳成功，背景已開始解析與入庫");
       appendLog(`上傳成功：${selectedFile.name} -> ${uploadPath}`);
-      appendLog(`等待索引建立：${docId}`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error(error);
       toast.error("上傳失敗");
       appendLog(`上傳失敗：${selectedFile.name}`);
-      if (pendingDocId) {
-        setPendingDocs((prev) => prev.filter((item) => item.id !== pendingDocId));
-      }
+      if (pendingDocId) removePending(pendingDocId);
     } finally {
       setUploading(false);
     }
   }
 
   async function handleDelete(doc: WikiBetaLiveDocument) {
-    if (!activeAccountId) {
-      return;
-    }
-    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) {
-      return;
-    }
+    if (!activeAccountId) return;
+    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
 
     setDeletingId(doc.id);
     try {
@@ -518,18 +302,17 @@ export function WikiBetaRagView({
       if (doc.sourceGcsUri) {
         try {
           await storageApi.deleteObject(storageApi.ref(storage, doc.sourceGcsUri));
-        } catch (_) {
+        } catch {
           // ignore storage-not-found
         }
       }
       if (doc.jsonGcsUri) {
         try {
           await storageApi.deleteObject(storageApi.ref(storage, doc.jsonGcsUri));
-        } catch (_) {
+        } catch {
           // ignore storage-not-found
         }
       }
-
       const db = getFirebaseFirestore();
       await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
       toast.success("文件已刪除");
@@ -544,19 +327,14 @@ export function WikiBetaRagView({
   }
 
   async function handleRename(doc: WikiBetaLiveDocument) {
-    if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法更名");
-      return;
-    }
-
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法更名"); return; }
     const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
     if (!nextName || nextName === doc.filename) return;
 
     setRenamingId(doc.id);
     try {
       const db = getFirebaseFirestore();
-      const ref = firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id);
-      await firestoreApi.updateDoc(ref, {
+      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
         title: nextName,
         "source.filename": nextName,
         "metadata.filename": nextName,
@@ -577,8 +355,7 @@ export function WikiBetaRagView({
     if (!doc.sourceGcsUri) return;
     try {
       const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, doc.sourceGcsUri);
-      const url = await storageApi.getDownloadURL(fileRef);
+      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
       window.open(url, "_blank", "noopener,noreferrer");
       appendLog(`開啟原始檔：${doc.filename}`);
     } catch (error) {
@@ -588,23 +365,19 @@ export function WikiBetaRagView({
     }
   }
 
-  const filteredDocs = useMemo(() => {
-    const merged = [...pendingDocs, ...docs.filter((doc) => !pendingDocs.some((pending) => pending.id === doc.id))].filter(
-      (doc) => !effectiveWorkspaceId || doc.workspaceId === effectiveWorkspaceId,
-    );
-    return sortByUploadedDesc(merged);
-  }, [docs, effectiveWorkspaceId, pendingDocs, sortByUploadedDesc]);
+  const filteredDocs = useMemo(
+    () => [...pendingDocs, ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id))],
+    [docs, pendingDocs],
+  );
 
-  const statusSummary = useMemo(() => {
-    return {
-      total: filteredDocs.length,
-      processing: filteredDocs.filter((item) => item.status === "processing").length,
-      completed: filteredDocs.filter((item) => item.status === "completed").length,
-      errors: filteredDocs.filter((item) => item.status === "error").length,
-      ragReady: filteredDocs.filter((item) => item.ragStatus === "ready").length,
-      ragError: filteredDocs.filter((item) => item.ragStatus === "error").length,
-    };
-  }, [filteredDocs]);
+  const statusSummary = useMemo(() => ({
+    total: filteredDocs.length,
+    processing: filteredDocs.filter((item) => item.status === "processing").length,
+    completed: filteredDocs.filter((item) => item.status === "completed").length,
+    errors: filteredDocs.filter((item) => item.status === "error").length,
+    ragReady: filteredDocs.filter((item) => item.ragStatus === "ready").length,
+    ragError: filteredDocs.filter((item) => item.ragStatus === "error").length,
+  }), [filteredDocs]);
 
   const filteredReadyCount = useMemo(
     () => filteredDocs.filter((item) => item.ragStatus === "ready").length,
@@ -613,14 +386,11 @@ export function WikiBetaRagView({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        {showBackButton ? <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button> : null}
-        {showDocsSection ? (
-          <Button variant="outline" onClick={() => void loadDocs()} disabled={loadingDocs}>
-            {loadingDocs ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}刷新文件
-          </Button>
-        ) : null}
-      </div>
+      {showBackButton ? (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button>
+        </div>
+      ) : null}
 
       {showQueryCard ? (
       <Card>
@@ -694,20 +464,11 @@ export function WikiBetaRagView({
         </CardHeader>
         <CardContent className="space-y-3">
           <label
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
+            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              handleFileChange(event.dataTransfer.files?.[0] ?? null);
-            }}
+            onDrop={(event) => { event.preventDefault(); setDragging(false); handleFileChange(event.dataTransfer.files?.[0] ?? null); }}
             className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
-              dragging
-                ? "border-primary/60 bg-primary/10"
-                : "border-border/70 bg-muted/10 hover:border-primary/40"
+              dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
             }`}
           >
             <FileUp className="size-7 text-muted-foreground" />
@@ -723,7 +484,6 @@ export function WikiBetaRagView({
               onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
             />
           </label>
-
           <div className="flex items-center gap-2">
             <Button onClick={() => void handleUpload()} disabled={uploading || !selectedFile || !activeAccountId}>
               {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
@@ -731,10 +491,7 @@ export function WikiBetaRagView({
             </Button>
             <Button
               variant="outline"
-              onClick={() => {
-                setSelectedFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = "";
-              }}
+              onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
               disabled={uploading}
             >
               清除
@@ -798,9 +555,7 @@ export function WikiBetaRagView({
               <tbody>
                 {loadingDocs ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                      讀取中...
-                    </td>
+                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">讀取中...</td>
                   </tr>
                 ) : filteredDocs.length === 0 ? (
                   <tr>
@@ -877,7 +632,7 @@ export function WikiBetaRagView({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileText className="size-4" /> Runtime Console</CardTitle>
-          <CardDescription>顯示上傳、監聽與 CRUD 操作紀錄。</CardDescription>
+          <CardDescription>顯示上傳與 CRUD 操作紀錄。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
@@ -895,7 +650,7 @@ export function WikiBetaRagView({
           )}
           <div className="flex items-start gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-blue-700">
             <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-            文件列表目前使用 Firestore 即時監聽；如果監聽中斷可按上方「刷新文件」。
+            文件列表使用 Firestore 即時監聽，自動保持最新狀態。
           </div>
         </CardContent>
       </Card>

@@ -1,13 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WikiBetaRagView } from "@/modules/wiki-beta";
+import { WikiBetaRagQueryView } from "@/modules/wiki-beta";
 
 export default function WikiBetaRagQueryPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { state: appState } = useApp();
   const workspaceId = searchParams.get("workspaceId")?.trim() || appState.activeWorkspaceId || undefined;
@@ -20,7 +18,7 @@ export default function WikiBetaRagQueryPage() {
         <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
-      <WikiBetaRagView onBack={() => router.push("/wiki-beta")} mode="query" workspaceId={workspaceId} />
+      <WikiBetaRagQueryView workspaceId={workspaceId} />
     </div>
   );
 }
