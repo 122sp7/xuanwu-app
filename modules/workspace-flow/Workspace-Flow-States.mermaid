@@ -1,0 +1,34 @@
+stateDiagram-v2
+  direction LR
+
+  state "Task Flow" as TaskFlow {
+    [*] --> draft
+    draft --> in_progress: ASSIGN
+    in_progress --> qa: SUBMIT_QA
+    qa --> acceptance: PASS_QA / no open issues
+    acceptance --> accepted: APPROVE_ACCEPTANCE / no open issues
+    accepted --> archived: ARCHIVE / invoice closed or none
+    archived --> [*]
+  }
+
+  state "Issue Flow" as IssueFlow {
+    [*] --> open
+    open --> investigating: START
+    investigating --> fixing: FIX
+    fixing --> retest: SUBMIT_RETEST
+    retest --> resolved: PASS_RETEST
+    retest --> fixing: FAIL_RETEST
+    resolved --> closed: CLOSE
+    closed --> [*]
+  }
+
+  state "Invoice Flow" as InvoiceFlow {
+    [*] --> invoice_draft
+    invoice_draft --> submitted: SUBMIT / item_count > 0
+    submitted --> finance_review: REVIEW
+    finance_review --> approved: APPROVE
+    finance_review --> submitted: REJECT
+    approved --> paid: PAY
+    paid --> closed: CLOSE
+    closed --> [*]
+  }

@@ -1,0 +1,46 @@
+erDiagram
+  TASK ||--o{ ISSUE : has
+  TASK ||--o{ INVOICE_ITEM : bills
+  INVOICE ||--o{ INVOICE_ITEM : contains
+
+  TASK {
+    string id
+    string title
+    string description
+    string status
+    string assignee
+    date created_at
+    date accepted_at
+    date archived_at
+  }
+
+  ISSUE {
+    string id
+    string task_id
+    string stage
+    string title
+    string description
+    string status
+    string created_by
+    string assigned_to
+    date created_at
+    date resolved_at
+  }
+
+  INVOICE {
+    string id
+    string status
+    number total_amount
+    date created_at
+    date submitted_at
+    date approved_at
+    date paid_at
+    date closed_at
+  }
+
+  INVOICE_ITEM {
+    string id
+    string invoice_id
+    string task_id
+    number amount
+  }

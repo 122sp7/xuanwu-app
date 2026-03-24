@@ -1,0 +1,94 @@
+flowchart LR
+	%% ==========================================================
+	%% Workspace Flow UI Simulation
+	%% UI is composed outside workspace-flow and consumes api only
+	%% ==========================================================
+
+	classDef page fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+	classDef panel fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
+	classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+	classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+
+	subgraph EXTERNAL_UI [External UI Composition]
+		direction TB
+
+		subgraph WORKSPACE_PAGE [Workspace Flow Page]
+			direction LR
+
+			subgraph TASK_AREA [Task Workspace]
+				direction TB
+				task_page[Task Board Page]:::page
+				task_list[Task List / Columns]:::panel
+				task_detail[Task Detail Drawer]:::panel
+				task_actions[Assign / Submit QA / Pass QA / Archive]:::action
+				task_page --> task_list
+				task_page --> task_detail
+				task_detail --> task_actions
+			end
+
+			subgraph ISSUE_AREA [Issue Workspace]
+				direction TB
+				issue_page[Issue Tracker Page]:::page
+				issue_list[Issue Queue]:::panel
+				issue_detail[Issue Detail Drawer]:::panel
+				issue_actions[Start / Fix / Submit Retest / Close]:::action
+				issue_page --> issue_list
+				issue_page --> issue_detail
+				issue_detail --> issue_actions
+			end
+
+			subgraph INVOICE_AREA [Invoice Workspace]
+				direction TB
+				invoice_page[Invoice Review Page]:::page
+				invoice_list[Invoice Draft / Review List]:::panel
+				invoice_detail[Invoice Detail Drawer]:::panel
+				invoice_actions[Add Item / Submit / Review / Approve / Pay]:::action
+				invoice_page --> invoice_list
+				invoice_page --> invoice_detail
+				invoice_detail --> invoice_actions
+			end
+		end
+	end
+
+	subgraph PUBLIC_API [workspace-flow Public API]
+		direction TB
+		api_index[api/index.ts]:::api
+		api_facade[api/workspace-flow.facade.ts]:::api
+		api_contracts[api/contracts.ts]:::api
+		api_index --> api_facade
+		api_index --> api_contracts
+	end
+
+	subgraph INTERNAL_MODULE [workspace-flow Internal Logic]
+		direction TB
+		domain_logic[domain<br/>entities + events + guards + transitions]:::domain
+		application_logic[application<br/>DTOs + ports + use cases]:::domain
+		infrastructure_logic[infrastructure<br/>Firestore collections + converters + repositories]:::domain
+		application_logic --> domain_logic
+		infrastructure_logic --> domain_logic
+	end
+
+	task_list -->|read summaries| api_contracts
+	task_detail -->|load task details| api_contracts
+	task_actions -->|execute workflow commands| api_facade
+
+	issue_list -->|read summaries| api_contracts
+	issue_detail -->|load issue details| api_contracts
+	issue_actions -->|execute workflow commands| api_facade
+
+	invoice_list -->|read summaries| api_contracts
+	invoice_detail -->|load invoice details| api_contracts
+	invoice_actions -->|execute workflow commands| api_facade
+
+	api_facade --> application_logic
+	api_contracts --> application_logic
+
+	forbidden_domain[Do not bind UI directly to<br/>domain/*]:::rule
+	forbidden_application[Do not bind UI directly to<br/>application/*]:::rule
+	forbidden_infrastructure[Do not bind UI directly to<br/>infrastructure/*]:::rule
+
+	task_page -. forbidden direct dependency .-> forbidden_domain
+	issue_page -. forbidden direct dependency .-> forbidden_application
+	invoice_page -. forbidden direct dependency .-> forbidden_infrastructure

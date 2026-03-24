@@ -1,0 +1,24 @@
+flowchart LR
+  classDef command fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+  classDef event fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+  classDef readmodel fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:1.5px;
+  classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-dasharray: 6 4;
+
+  subgraph TASK_EVENTS [Task Event Flow]
+    direction LR
+    task_commands[ASSIGN / SUBMIT_QA / PASS_QA / APPROVE_ACCEPTANCE / ARCHIVE]:::command --> task_events[Task lifecycle events]:::event --> task_read[Task summaries / workflow read model]:::readmodel
+  end
+
+  subgraph ISSUE_EVENTS [Issue Event Flow]
+    direction LR
+    issue_commands[START / FIX / SUBMIT_RETEST / PASS_RETEST / FAIL_RETEST / CLOSE]:::command --> issue_events[Issue lifecycle events]:::event --> issue_read[Issue queue / issue detail read model]:::readmodel
+  end
+
+  subgraph INVOICE_EVENTS [Invoice Event Flow]
+    direction LR
+    invoice_commands[SUBMIT / REVIEW / APPROVE / REJECT / PAY / CLOSE]:::command --> invoice_events[Invoice lifecycle events]:::event --> invoice_read[Invoice list / billing read model]:::readmodel
+  end
+
+  task_events -. opens or resumes .-> issue_commands
+  task_events -. accepted tasks feed .-> invoice_commands
+  note[This is a target event-flow view.<br/>It documents how workflow actions propagate into read models.]:::note

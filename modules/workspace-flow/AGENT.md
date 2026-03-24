@@ -13,7 +13,15 @@ UI should be assembled outside this module and consume workspace-flow only throu
 Related references:
 - [README.md](./README.md)
 - [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
-- [Workspace-Tree-Flow.mermaid](./Workspace-Tree-Flow.mermaid)
+- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
+- [Workspace-Flow-UI.mermaid](./Workspace-Flow-UI.mermaid)
+- [Workspace-Flow-States.mermaid](./Workspace-Flow-States.mermaid)
+- [Workspace-Flow-Sequence.mermaid](./Workspace-Flow-Sequence.mermaid)
+- [Workspace-Flow-ERD.mermaid](./Workspace-Flow-ERD.mermaid)
+- [Workspace-Flow-Architecture.mermaid](./Workspace-Flow-Architecture.mermaid)
+- [Workspace-Flow-Permissions.mermaid](./Workspace-Flow-Permissions.mermaid)
+- [Workspace-Flow-Events.mermaid](./Workspace-Flow-Events.mermaid)
+- [Workspace-Flow-Lifecycle.mermaid](./Workspace-Flow-Lifecycle.mermaid)
 
 ## Target Module Shape
 
@@ -111,7 +119,7 @@ modules/workspace-flow/
 ├── AGENT.md
 ├── README.md
 ├── Workspace-Flow.mermaid
-├── Workspace-Tree-Flow.mermaid
+├── Workspace-Flow-Tree.mermaid
 └── index.ts
 ```
 
@@ -249,7 +257,15 @@ Files:
 - AGENT.md
 - README.md
 - Workspace-Flow.mermaid
-- Workspace-Tree-Flow.mermaid
+- Workspace-Flow-Tree.mermaid
+- Workspace-Flow-UI.mermaid
+- Workspace-Flow-States.mermaid
+- Workspace-Flow-Sequence.mermaid
+- Workspace-Flow-ERD.mermaid
+- Workspace-Flow-Architecture.mermaid
+- Workspace-Flow-Permissions.mermaid
+- Workspace-Flow-Events.mermaid
+- Workspace-Flow-Lifecycle.mermaid
 
 Rules:
 - index.ts is a local module barrel, not the cross-module public boundary
@@ -388,7 +404,7 @@ Do not move product UI concerns into domain or application.
 Keep these documents aligned whenever workflow structure changes:
 - [README.md](./README.md)
 - [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
-- [Workspace-Tree-Flow.mermaid](./Workspace-Tree-Flow.mermaid)
+- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
 - api exports if public contracts change
 
 If event names, states, or guards change, update the docs in the same change.

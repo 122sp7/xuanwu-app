@@ -1,0 +1,60 @@
+flowchart TB
+  classDef actor fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+  classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+  classDef state fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+  classDef note fill:#fff7ed,stroke:#ea580c,color:#7c2d12,stroke-dasharray: 6 4;
+
+  subgraph ACTORS [Suggested Workflow Actors]
+    direction LR
+    member[Task Assignee / Operator]:::actor
+    qa[QA Reviewer]:::actor
+    acceptance[Acceptance Reviewer]:::actor
+    finance[Finance Reviewer]:::actor
+  end
+
+  subgraph TASK_PERMS [Task Permissions]
+    direction LR
+    draft[draft]:::state --> assign[ASSIGN]:::action --> in_progress[in_progress]:::state
+    in_progress --> submit_qa[SUBMIT_QA]:::action --> qa_state[qa]:::state
+    qa_state --> pass_qa[PASS_QA]:::action --> acceptance_state[acceptance]:::state
+    acceptance_state --> approve_acc[APPROVE_ACCEPTANCE]:::action --> accepted[accepted]:::state
+    accepted --> archive[ARCHIVE]:::action --> archived[archived]:::state
+  end
+
+  subgraph ISSUE_PERMS [Issue Permissions]
+    direction LR
+    open[open]:::state --> start[START]:::action --> investigating[investigating]:::state
+    investigating --> fix[FIX]:::action --> fixing[fixing]:::state
+    fixing --> submit_retest[SUBMIT_RETEST]:::action --> retest[retest]:::state
+    retest --> pass_retest[PASS_RETEST]:::action --> resolved[resolved]:::state
+    retest --> fail_retest[FAIL_RETEST]:::action --> fixing
+    resolved --> close[CLOSE]:::action --> closed[closed]:::state
+  end
+
+  subgraph INVOICE_PERMS [Invoice Permissions]
+    direction LR
+    invoice_draft[invoice_draft]:::state --> submit_invoice[SUBMIT]:::action --> submitted[submitted]:::state
+    submitted --> review[REVIEW]:::action --> finance_review[finance_review]:::state
+    finance_review --> approve[APPROVE]:::action --> approved[approved]:::state
+    finance_review --> reject[REJECT]:::action --> submitted
+    approved --> pay[PAY]:::action --> paid[paid]:::state
+    paid --> close_invoice[CLOSE]:::action --> invoice_closed[closed]:::state
+  end
+
+  member -. owns .-> assign
+  member -. owns .-> submit_qa
+  member -. owns .-> start
+  member -. owns .-> fix
+  member -. owns .-> submit_retest
+  qa -. reviews .-> pass_qa
+  qa -. reviews .-> pass_retest
+  qa -. reports issues .-> start
+  acceptance -. approves .-> approve_acc
+  finance -. handles .-> submit_invoice
+  finance -. handles .-> review
+  finance -. handles .-> approve
+  finance -. handles .-> reject
+  finance -. handles .-> pay
+  finance -. handles .-> close_invoice
+
+  note[Permissions are target workflow guidance.<br/>Actual authorization enforcement must still live outside the diagram.]:::note

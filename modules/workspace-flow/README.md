@@ -9,7 +9,15 @@ workspace-flow 是純邏輯模組，負責狀態機、guard、資料契約與公
 
 Mermaid 圖檔：
 - `./Workspace-Flow.mermaid`
-- `./Workspace-Tree-Flow.mermaid`
+- `./Workspace-Flow-Tree.mermaid`
+- `./Workspace-Flow-UI.mermaid`
+- `./Workspace-Flow-States.mermaid`
+- `./Workspace-Flow-Sequence.mermaid`
+- `./Workspace-Flow-ERD.mermaid`
+- `./Workspace-Flow-Architecture.mermaid`
+- `./Workspace-Flow-Permissions.mermaid`
+- `./Workspace-Flow-Events.mermaid`
+- `./Workspace-Flow-Lifecycle.mermaid`
 - `./AGENT.md`
 
 ---
@@ -170,7 +178,7 @@ modules/workspace-flow/
 ├── AGENT.md
 ├── README.md
 ├── Workspace-Flow.mermaid
-├── Workspace-Tree-Flow.mermaid
+├── Workspace-Flow-Tree.mermaid
 └── index.ts
 ```
 
