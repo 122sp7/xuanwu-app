@@ -20,115 +20,45 @@ These instructions apply to the main xuanwu-app web application. Use them togeth
 
 ## Layer Responsibilities
 
-### `app/`
-
-- Use `app/` for Next.js routing, layouts, route groups, route handlers, and page composition.
-- Keep page files focused on rendering, request orchestration, and wiring.
-- Prefer Server Components by default. Add `'use client'` only for browser APIs, interactivity, local state, or hooks.
-- Keep provider wiring in `app/providers/`.
-
-### `modules/`
-
-- Treat `modules/*` as vertical business slices.
-- Treat each domain module as isolated. Cross-module interaction must go through the target module `api/` boundary.
-- Keep the dependency direction `interfaces -> application -> domain <- infrastructure`.
-- Keep `domain/` framework-free. Do not import React, Firebase SDKs, HTTP clients, or browser APIs into domain files.
-- Put business workflows in `application/use-cases/`.
-- Put framework adapters in `interfaces/`, such as:
-  - `_actions/` for Server Actions
-  - `components/` for React UI
-  - `hooks/` for client hooks
-  - `queries/` for fetch/query helpers
-- Prefer thin Server Actions that delegate to use cases and return `CommandResult`.
-
-### `packages/`
-
-- Treat `packages/*` as stable public boundaries.
-- Import from package aliases only. Do not reach into another package with relative paths.
-- Keep real implementations in packages. Do not reintroduce shim or legacy paths.
+| Layer | Responsibilities |
+| --- | --- |
+| **`app/`** | Routing, layouts, route groups, route handlers, page composition. Use Server Components by default; add `'use client'` only for browser APIs, interactivity, or hooks. Keep providers in `app/providers/`. |
+| **`modules/`** | Vertical business slices. Treat each as isolated; cross-module must use `modules/<target>/api/`. Keep dependency direction: `interfaces -> application -> domain <- infrastructure`. Keep `domain/` framework-free. Business workflows in `application/use-cases/`. UI adapters in `interfaces/` (`_actions/`, `components/`, `hooks/`, `queries/`). Prefer thin Server Actions to use cases returning `CommandResult`. |
+| **`packages/`** | Stable public boundaries with real implementations (no shims). Import via aliases only; no relative paths across packages. |
 
 ## Import Rules
 
-- Use `@/*` for app and module code.
-- Use package aliases from `tsconfig.json` for shared code:
-  - `@shared-types`
-  - `@shared-utils`
-  - `@shared-validators`
-  - `@shared-constants`
-  - `@shared-hooks`
-  - `@integration-firebase`
-  - `@integration-http`
-  - `@api-contracts`
-  - `@ui-shadcn`
-  - `@ui-vis`
-  - `@lib-*`
-- Follow ESLint package-boundary enforcement. Do not use these legacy import families:
-  - `@/shared/*`
-  - `@/infrastructure/*`
-  - `@/libs/*`
-  - `@/ui/shadcn/*`
-  - `@/ui/vis*`
-  - `@/interfaces/*`
-- Inside a module, prefer relative imports for that module's own internal files instead of importing the module `api/` boundary back into itself.
+| Rule | Pattern | Examples |
+| --- | --- | --- |
+| **App/Module code** | `@/*` | `pages`, `components`, `hooks` |
+| **Shared** | `@shared-*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
+| **Integrations** | `@integration-*` | `@integration-firebase`, `@integration-http` |
+| **API Contracts** | `@api-contracts` | REST/GraphQL schemas |
+| **UI Libraries** | `@ui-*` | `@ui-shadcn`, `@ui-vis` |
+| **Other** | `@lib-*` | date-fns, zod, zustand, etc. |
 
-### Good Example
+**Forbidden legacy patterns**: `@/shared/*`, `@/infrastructure/*`, `@/libs/*`, `@/ui/shadcn/*`, `@/ui/vis*`, `@/interfaces/*`
 
-```ts
-import { formatDate } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { updateDomainSettings } from "../_actions/domain.actions";
-```
+**Module-internal imports**: Use relative imports (`../`) for same-module files, not the module `api/` boundary.
 
-### Bad Example
+## Development Practices
 
-```ts
-import { formatDate } from "@/shared/utils";
-import { Button } from "@/ui/shadcn/ui/button";
-import { updateDomainSettings } from "@/modules/<target-domain>/api";
-```
+- **Components**: Use shadcn/ui via `@ui-shadcn/*`. Prefer semantic HTML, accessible labels, keyboard-friendly interactions.
+- **Utilities**: Reuse `@shared-utils` and `@ui-shadcn/utils` instead of duplicating code.
+- **Server Actions**: Keep explicit with `'use server'`. Delegate to use cases, return `CommandResult`.
+- **Validation**: Use shared types and validators. Validate at boundary before invoking business logic.
+- **Error Handling**: Prefer `CommandResult` and domain error patterns for mutation flows.
+- **Infrastructure**: Keep in repositories and adapters, not in pages or domain files.
 
-### Internal Module Import Example
+## Runtime & Documentation Boundaries
 
-```ts
-// Good: keep module-internal imports relative
-import { updateDomainSettings } from "../_actions/domain.actions";
-
-// Bad: do not re-import the module api boundary from inside the same module
-import { updateDomainSettings } from "@/modules/<current-domain>/api";
-```
-
-## Next.js and UI Practices
-
-- Use the App Router conventions already present in `app/`.
-- Keep Client Components focused and explicit with `'use client'`.
-- Keep Server Actions explicit with `'use server'`.
-- Use shadcn/ui components through `@ui-shadcn/*`.
-- Use `@shared-utils` or `@ui-shadcn/utils` helpers instead of duplicating UI utility code.
-- Prefer semantic HTML, accessible labels, and keyboard-friendly interactions.
-- Reuse existing providers, tabs, cards, dialogs, and form primitives before introducing new patterns.
-
-## Data, Validation, and Error Handling
-
-- Use shared types and validators instead of redefining contracts locally.
-- Prefer `CommandResult` and existing domain error patterns for mutation flows.
-- Validate user input at the boundary before invoking business logic.
-- Keep infrastructure concerns in repositories and adapters, not in pages or domain files.
-
-## Runtime Boundary Rules
-
-- Keep browser-facing product flows in Next.js.
-- Keep heavy background ingestion and worker logic out of the main app runtime.
-- When a change touches ingestion, parsing, chunking, embedding, or retryable worker flows, coordinate with the `py_fn/` runtime instead of moving that logic into `app/` or `modules/`.
-
-## Documentation Update Rules
-
-- Update related documentation when architecture, public contracts, or runtime ownership changes.
-- Common examples:
-  - update `packages/README.md` when adding or changing a package alias or package responsibility
-  - update a module `README.md` when its scope or `api/` boundary changes
-  - update `py_fn/README.md` or ADRs when runtime boundaries or ingestion contracts change
-  - update `docs/decision-architecture/architecture/*` or `docs/development-reference/reference/*` when architectural contracts move
-- Keep terminology consistent with the existing MDDD and domain language already used in the repository.
+- **Runtime boundary**: Keep browser-facing product in Next.js; move ingestion, parsing, chunking, embedding, and retryable worker logic to `py_fn/`.
+- **Documentation**: Update docs when architecture, public contracts, or runtime ownership changes:
+  - `packages/README.md` — package alias or responsibility changes
+  - Module `README.md` — scope or `api/` boundary changes
+  - `py_fn/README.md` or ADRs — runtime boundaries or ingestion contracts
+  - `docs/decision-architecture/` or `docs/development-reference/` — architectural contracts
+- **Terminology**: Keep aligned with existing MDDD and domain language in the repository.
 
 ## Validation Checklist
 
