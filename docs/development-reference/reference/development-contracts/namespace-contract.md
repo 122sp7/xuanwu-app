@@ -10,12 +10,11 @@ status: "🚧 Developing"
 
 ## Purpose
 
-This contract defines `modules/namespace` as the **命名空間基礎** for xuanwu-app:
-
-- a uniform model for registering and validating organization-level and workspace-level slugs
-- the resolution boundary for translating slugs to internal Namespace records
-- the multi-tenant addressing layer used by organization and workspace modules on creation
-- the foundation for human-readable URL routing (`/{org-slug}/{workspace-slug}`)
+`modules/namespace` defines:
+- Uniform slug registration and validation (org/workspace level)
+- Slug → namespace resolution
+- Multi-tenant addressing layer
+- Human-readable URL routing foundation (`/{org-slug}/{workspace-slug}`)
 
 ## Current owner and dependencies
 
@@ -33,36 +32,32 @@ This contract defines `modules/namespace` as the **命名空間基礎** for xuan
 
 | Context | Responsibility |
 | --- | --- |
-| Registration Context | validate slug format, check collision, persist new Namespace record |
-| Resolution Context | translate slug + kind to internal Namespace; return null if not found |
-| Lifecycle Context | suspend, restore, and archive namespace records |
-| Slug Derivation Context | convert display names to slug candidates via pure domain service |
+| Registration | Validate slug, check collision, persist |
+| Resolution | Translate slug + kind → namespace or null |
+| Lifecycle | Suspend, restore, archive records |
+| Derivation | Display name → slug candidate (pure)
 
 ## Namespace entity contract
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | yes | UUID v4 — globally unique |
-| `slug` | `NamespaceSlug` | yes | Validated slug value object |
-| `kind` | `'organization' \| 'workspace'` | yes | Namespace scope kind |
-| `ownerAccountId` | `string` | yes | accountId of the registering user |
-| `organizationId` | `string` | yes | Multi-tenant org boundary |
-| `status` | `'active' \| 'suspended' \| 'archived'` | yes | Lifecycle state |
-| `createdAt` | `Date` | yes | Registration timestamp |
-| `updatedAt` | `Date` | yes | Last state-change timestamp |
+| `id` | `string` | UUID v4 |
+| `slug` | `NamespaceSlug` | Validated VO |
+| `kind` | `org\|workspace` | Scope |
+| `ownerAccountId` | `string` | Registering user |
+| `organizationId` | `string` | Org boundary |
+| `status` | `active\|suspended\|archived` | State |
+| `createdAt` | `Date` | Registered |
+| `updatedAt` | `Date` | Updated |
 
 ## NamespaceSlug value object contract
 
-Format rules:
-- Length: **3–63 characters**
-- Allowed characters: lowercase `a-z`, digits `0-9`, hyphen `-`
-- Must not start or end with a hyphen
-- Validated and normalised on construction via `NamespaceSlug.create(raw)`
+**3–63 chars**: a-z, 0-9, hyphen. Cannot start/end with hyphen.
 
-```typescript
-NamespaceSlug.create('my-org')     // → ok
-NamespaceSlug.create('-bad-')      // → throws Error
-NamespaceSlug.create('AB_TEST')    // → throws Error (uppercase / underscore)
+```ts
+NamespaceSlug.create('my-org')  // ✓
+NamespaceSlug.create('-bad-')   // ✗
+NamespaceSlug.create('AB_CD')   // ✗
 ```
 
 ## Slug policy contract (pure functions)
@@ -110,14 +105,9 @@ RegisterNamespaceUseCase.execute(dto):
 
 ## Namespace lifecycle contract
 
-| Transition | From | To | Guard |
-| --- | --- | --- | --- |
-| `suspend()` | `active` | `suspended` | must be active |
-| `restore()` | `suspended` | `active` | must be suspended |
-| `archive()` | `active` or `suspended` | `archived` | must not already be archived |
-
-- Archived namespaces cannot be restored (final state).
-- The slug of an archived namespace is still reserved (existsBySlug returns true).
+| `suspend()` | `active` → `suspended` | must be active |
+| `restore()` | `suspended` → `active` | must be suspended |
+| `archive()` | `active\|suspended` → `archived` | final
 
 ## Infrastructure configuration contract
 

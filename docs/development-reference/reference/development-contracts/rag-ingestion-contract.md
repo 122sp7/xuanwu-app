@@ -10,7 +10,7 @@ status: "🚧 Developing"
 
 ## Scope
 
-This contract is the authoritative implementation reference for the upload-to-worker boundary that spans Next.js registration, Firestore document metadata, Python ingestion execution, and retrieval readiness.
+Authoritative cross-runtime contract for upload-to-worker boundary spanning Next.js registration, Firestore metadata, Python execution, and retrieval readiness.
 
 ## Owning modules and runtimes
 
@@ -24,115 +24,100 @@ This contract is the authoritative implementation reference for the upload-to-wo
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `organizationId` | `string` | yes | Tenant boundary |
-| `workspaceId` | `string` | yes | Retrieval working-set boundary |
-| `uploaderId` | `string` | yes | Actor for audit and attribution |
-| `sourceFileName` | `string` | yes | Original user-facing file name |
-| `mimeType` | `string` | yes | Required for parser routing |
-| `sizeBytes` | `number` | yes | Artifact size at registration |
-| `checksum` | `string` | yes | Idempotency key component |
+| `organizationId` | `string` | Tenant |
+| `workspaceId` | `string` | Retrieval scope |
+| `uploaderId` | `string` | Audit actor |
+| `sourceFileName` | `string` | File name |
+| `mimeType` | `string` | Parser routing |
+| `sizeBytes` | `number` | Size |
+| `checksum` | `string` | Idempotency |
 
 ## Canonical `documents` metadata
 
-**Collection Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
+**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | `string` | yes | Server-generated document identifier, duplicated from the Firestore doc id so collection-group consumers can project a stable field without depending on snapshot metadata |
-| `organizationId` | `string` | yes | Tenant boundary |
-| `workspaceId` | `string` | yes | Workspace retrieval boundary |
-| `title` | `string` | yes | Human-readable document title |
-| `sourceFileName` | `string` | yes | Upload file name |
-| `mimeType` | `string` | yes | Parser routing metadata |
-| `storagePath` | `string` | yes | Organization/workspace-scoped storage pointer |
-| `checksum` | `string` | no | Required in production flow even if compatibility paths still allow omission |
-| `taxonomy` | `string` | no | Optional hint before ingestion completes |
-| `status` | `uploaded \| processing \| ready \| failed \| archived` | yes | Shared lifecycle field |
-| `processingStartedAt` | timestamp | no | Worker-owned |
-| `readyAt` | timestamp | no | Worker-owned |
-| `failedAt` | timestamp | no | Worker-owned |
-| `archivedAt` | timestamp | no | Maintenance or product-owned |
-| `errorCode` | `string` | no | Worker-owned classified failure |
-| `errorMessage` | `string` | no | Worker-owned failure detail |
-| `createdAt` | timestamp | yes | Registration timestamp |
-| `updatedAt` | timestamp | yes | Last metadata update |
+| `id` | `string` | Doc ID |
+| `organizationId` | `string` | Tenant |
+| `workspaceId` | `string` | Retrieval scope |
+| `title` | `string` | Display |
+| `sourceFileName` | `string` | File name |
+| `mimeType` | `string` | Parser routing |
+| `storagePath` | `string` | Storage pointer |
+| `checksum` | `string?` | Idempotency |
+| `taxonomy` | `string?` | Classification hint |
+| `status` | `uploaded\|processing\|ready\|failed\|archived` | Lifecycle |
+| `processingStartedAt` | `timestamp?` | Worker-owned |
+| `readyAt` | `timestamp?` | Worker-owned |
+| `failedAt` | `timestamp?` | Worker-owned |
+| `archivedAt` | `timestamp?` | Governance |
+| `errorCode` | `string?` | Failure class |
+| `errorMessage` | `string?` | Failure detail |
+| `createdAt` | `timestamp` | Registered |
+| `updatedAt` | `timestamp` | Updated |
 
 ## Worker invocation boundary
 
-### Target boundary
+Firestore-driven: document `status=uploaded` triggers worker to resolve metadata, read artifact, set `processing`, persist chunks, write terminal status.
 
-The primary boundary is now a Firestore-driven ingestion flow that begins when a document is registered with `status=uploaded` under `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`. The worker resolves the document metadata, reads the source artifact from Cloud Storage, transitions the document to `processing`, and then persists chunks plus the final lifecycle result.
-
-### Compatibility boundary
-
-The Python HTTPS callable remains available as a secondary internal/admin bridge. It may still accept `rawText` for explicit reprocess/testing flows, but when `rawText` is omitted it should resolve the source text from the document `storagePath` instead of inventing a second browser-facing ingestion contract.
+Python callable bridge remains for internal/admin reprocess flows when `rawText` omitted, uses document `storagePath`.
 
 ## Worker command fields
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `documentId` | `string` | yes | Primary correlation key |
-| `organizationId` | `string` | yes | Reject if missing |
-| `workspaceId` | `string` | yes | Reject if missing |
-| `title` | `string` | yes | Prompt and audit context |
-| `sourceFileName` | `string` | yes | File name carried into worker audit context |
-| `mimeType` | `string` | yes | Parser routing hint |
-| `storagePath` | `string` | yes | Cloud Storage object path for worker download |
-| `checksum` | `string` | no | Idempotency guard |
-| `taxonomyHint` | `string` | no | Optional pre-classification hint |
+| `documentId` | `string` | Correlation key |
+| `organizationId` | `string` | Tenant (reject if missing) |
+| `workspaceId` | `string` | Scope (reject if missing) |
+| `title` | `string` | Prompt/audit |
+| `sourceFileName` | `string` | Audit context |
+| `mimeType` | `string` | Router hint |
+| `storagePath` | `string` | Storage path |
+| `checksum` | `string?` | Idempotency |
+| `taxonomyHint` | `string?` | Pre-classify hint |
 
 ## `chunks` persistence contract
 
-**Collection Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
+**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `chunkId` | `string` | yes | Deterministic chunk identifier, duplicated from the Firestore doc id so collection-group consumers can project a stable field without depending on snapshot metadata; guaranteed on new MVP ingestion writes |
-| `docId` | `string` | yes | Parent document id |
-| `organizationId` | `string` | yes | Tenant filter |
-| `workspaceId` | `string` | yes | Workspace filter |
-| `chunkIndex` | `number` | yes | Deterministic sequence |
-| `text` | `string` | yes | Retrieval source text |
-| `embedding` | `number[]` | yes | Vector payload |
-| `taxonomy` | `string` | yes | Retrieval filter field |
-| `page` | `number` | no | Optional page reference |
-| `tags` | `string[]` | no | Optional retrieval metadata |
+| `chunkId` | `string` | Deterministic ID |
+| `docId` | `string` | Parent doc ID |
+| `organizationId` | `string` | Tenant filter |
+| `workspaceId` | `string` | Workspace filter |
+| `chunkIndex` | `number` | Sequence |
+| `text` | `string` | Retrieval source |
+| `embedding` | `number[]` | Vector |
+| `taxonomy` | `string` | Filter field |
+| `page` | `number?` | Page ref |
+| `tags` | `string[]?` | Metadata |
 
 ## Lifecycle state machine
 
-| State | Trigger actor | Allowed next states | Notes |
-| --- | --- | --- | --- |
-| `uploaded` | Next.js upload registration | `processing` | Registration-only state |
-| `processing` | ingestion worker | `ready`, `failed` | Worker writes `processingStartedAt` |
-| `ready` | ingestion worker or product governance | `processing`, `archived` | `processing` is reprocess; `archived` is not worker-owned |
-| `failed` | ingestion worker | `processing` | Retry path |
-| `archived` | maintenance or product governance | terminal until an explicit unarchive flow is defined | Do not let worker self-revive archived documents |
+| `uploaded` | Next.js | `processing` | Registration only |
+| `processing` | Worker | `ready`, `failed` | Started |
+| `ready` | Worker/governance | `processing`, `archived` | Terminal success |
+| `failed` | Worker | `processing` | Retry |
+| `archived` | Governance | terminal | No self-revive |
 
 ## Invariants
 
-1. `organizationId` and `workspaceId` must exist on both `documents` and `chunks`.
-2. Embeddings are computed once during ingestion and reused for organization-scoped or workspace-scoped retrieval.
-3. Workspace-scoped retrieval should be preferred whenever the caller has a workspace boundary, because organization-only collection-group scans are broader and more expensive.
-4. Archive is a governance transition, not an ingestion side effect.
-5. The worker must never persist chunks without also writing a terminal document status.
-6. Idempotency is keyed by `documentId + checksum`, and reprocess must replace prior chunk records rather than duplicate them.
+1. `organizationId` + `workspaceId` on both documents + chunks
+2. Embeddings computed once, reused (org/workspace scoped)
+3. Workspace retrieval preferred (cheaper than org-scoped)
+4. Archive ≠ ingestion side-effect
+5. Worker: never persist chunks without terminal status
+6. Idempotency: `documentId + checksum`, reprocess replaces prior chunks
 
-## Legacy data note
+## Legacy note
 
-- Retrieval currently falls back to Firestore snapshot ids, so pre-MVP `documents` or `chunks` rows without duplicated `id` or `chunkId` fields remain readable.
-- No automatic backfill is included in this slice; legacy rows pick up the duplicated fields the next time they are reprocessed.
+Fallback to Firestore snapshot IDs (pre-MVP docs/chunks without duplicated `id`/`chunkId` still readable). No automatic backfill; legacy rows pick up duplicated fields on next reprocess.
 
 ## Acceptance gates
 
-A slice is ready for implementation only when all of the following are true:
+✓ DTOs, fields, command fields match this contract
+✓ Trigger path explicit (Firestore or callable, one primary)
+✓ Firestore indexes support documented patterns
+✓ Worker records all timestamps + classified errors
 
-- TypeScript registration DTOs, Firestore metadata fields, and Python worker command fields match this page.
-- The chosen trigger path is explicit: either compatibility callable or target Firestore event, with one marked as primary.
-- `firestore.indexes.json` supports the documented retrieval and retry patterns.
-- The ingestion worker records `processingStartedAt`, terminal timestamps, and classified error fields.
+## Open blockers
 
-## Open blockers still to resolve
-
-- Replace the compatibility callable boundary with the target Firestore `status=uploaded` trigger.
-- Consolidate ADR-010 with the current `mimeType` and `sourceFileName` field usage.
-- Add the archive or unarchive write-side flow before exposing document governance in the UI.
+- Replace compatibility callable with Firestore `status=uploaded` trigger
+- Consolidate ADR-010 with current `mimeType` + `sourceFileName` usage
+- Add archive/unarchive write-side before UI governance

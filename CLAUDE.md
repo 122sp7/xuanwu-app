@@ -1,116 +1,45 @@
-# CLAUDE.md — Xuanwu App
+# CLAUDE.md — Xuanwu App Context
 
-This file gives Claude (and other AI agents) the context needed to work in this repository.
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
 
-## Project Overview
+## Context
 
-**Xuanwu App** is a Next.js 16 knowledge-management and AI-assisted workspace platform.
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
 
-- Runtime: Next.js 16 App Router, React 19, Firebase, Upstash
-- Architecture: **Module-Driven Domain Design (MDDD)** — 20 bounded-context modules under `modules/`
-- Workers: Python 3.11 Cloud Functions in `py_fn/` (ingestion, parsing, embedding)
-- Package manager: npm (Node.js 24)
+**Architecture**: Module-Driven Domain Design (MDDD) — 20+ bounded-context modules
 
-## Essential Reading
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
 
-Before making any change, read:
-
-1. [`agents/README.md`](agents/README.md) — rules index
-2. [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
-3. [`agents/commands.md`](agents/commands.md) — all build/deploy commands
-
-## Validation Commands
+## Quick Commands
 
 ```bash
-npm install          # install dependencies
-npm run lint         # ESLint — 0 errors expected (pre-existing warnings OK)
-npm run build        # Next.js production build + type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
 cd py_fn && python -m pytest tests/ -v
 ```
 
-## Architecture Rules
+See [agents/commands.md](agents/commands.md) for full list.
 
-### Module-Driven Domain Design
+## Key Principles
 
-- All business logic lives in `modules/<context>/` with four layers:
-  `domain/` → `application/` → `infrastructure/` + `interfaces/`
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`
-- `domain/` must be framework-free (no Firebase, React, HTTP clients)
-- Every `modules/<module-name>/` is isolated; cross-module imports must go through `modules/<module-name>/api/`
-- Keep guidance generic by default: do not hard-code specific domain-to-module mappings unless a contract explicitly requires it
-- Keep boundaries explicit: logic in `domain/` + `application/`, UI/UX in `interfaces/` and `app/` composition
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
 
-### Import Aliases
-
-Use `@alias` imports — never relative paths across modules or legacy paths.
+## Common Patterns (See AGENTS.md for full examples)
 
 ```ts
-// Good
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-
-// Bad — legacy paths
-import { cn } from "@/shared/utils";
-import { Button } from "@/ui/shadcn/ui/button";
-```
-
-### Runtime Boundary
-
-| Next.js owns | `py_fn/` owns |
-|---|---|
-| Browser-facing APIs | Ingestion pipeline (parse → clean → taxonomy → chunk → embed) |
-| Upload UX | Document AI processing |
-| Auth / session / cookies | Firestore chunk persistence |
-| Server Actions | Background & retryable jobs |
-| Genkit query orchestration | Admin/internal callables |
-| Streaming AI responses | |
-
-## Key Patterns
-
-### Server Action
-
-```ts
+// Server Action: orchestrate use case, return CommandResult
 "use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  const useCase = new MyUseCase(new FirebaseMyRepository());
-  return useCase.execute(input);
-}
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
 ```
 
-### Use Case
+## Full Reference
 
-```ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface: `modules/<context>/domain/repositories/MyRepository.ts`
-- Implementation: `modules/<context>/infrastructure/firebase/FirebaseMyRepository.ts`
-
-## Spec-Driven Development
-
-When spec-driven development is requested, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-The repository also ships a formal Copilot delivery chain for complex work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use [`.github/copilot-instructions.md`](.github/copilot-instructions.md) as the Copilot-specific baseline and [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for stage transitions and recovery paths.
-
-## Permissions Model
-
-See [`PERMISSIONS.md`](PERMISSIONS.md) for the role/permission model used in this project.
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[agents/knowledge-base.md](agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
