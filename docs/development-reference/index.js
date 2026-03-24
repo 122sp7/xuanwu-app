@@ -39,7 +39,11 @@ const specification = Object.freeze({
 });
 
 const markdown = Object.freeze({
-  ...development,
+  developmentBranchStrategy: development.branchStrategy,
+  developmentCodeStyle: development.codeStyle,
+  developmentDevelopmentProcess: development.developmentProcess,
+  developmentModulesImplementationGuide: development.modulesImplementationGuide,
+  developmentReadme: development.readme,
   namespaceDevelopmentGuide: namespace.developmentGuide,
   namespaceUserManual: namespace.userManual,
   referenceAiCustomizationsIndex: reference.ai.customizationsIndex,
