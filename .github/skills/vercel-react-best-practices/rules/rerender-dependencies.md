@@ -13,7 +13,7 @@ Specify primitive dependencies instead of objects to minimize effect re-runs.
 
 ```tsx
 useEffect(() => {
-  fetchUserDetails(user.id)
+  console.log(user.id)
 }, [user])
 ```
 
@@ -21,7 +21,7 @@ useEffect(() => {
 
 ```tsx
 useEffect(() => {
-  fetchUserDetails(user.id)
+  console.log(user.id)
 }, [user.id])
 ```
 

@@ -12,19 +12,17 @@ Load large data or modules only when a feature is activated.
 **Example (lazy-load animation frames):**
 
 ```tsx
-function AnimationPlayer({ enabled }: { enabled: boolean }) {
+function AnimationPlayer({ enabled, setEnabled }: { enabled: boolean; setEnabled: React.Dispatch<React.SetStateAction<boolean>> }) {
   const [frames, setFrames] = useState<Frame[] | null>(null)
-  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
-    if (enabled && !frames && !loadError && typeof window !== 'undefined') {
+    if (enabled && !frames && typeof window !== 'undefined') {
       import('./animation-frames.js')
         .then(mod => setFrames(mod.frames))
-        .catch(() => setLoadError(true))
+        .catch(() => setEnabled(false))
     }
-  }, [enabled, frames, loadError])
+  }, [enabled, frames, setEnabled])
 
-  if (loadError) return <ErrorMessage />
   if (!frames) return <Skeleton />
   return <Canvas frames={frames} />
 }
