@@ -10,8 +10,8 @@ import { Badge } from "@ui-shadcn/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import { buildWikiBetaKnowledgeTree } from "../../application";
-import type { WikiBetaAccountKnowledgeNode, WikiBetaAccountSeed } from "../../domain";
+import { buildWikiBetaContentTree } from "../../application";
+import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "../../domain";
 
 const QUICK_ACCESS = [
   {
@@ -43,7 +43,7 @@ const QUICK_ACCESS = [
 export function WikiBetaOverviewView() {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
-  const [knowledgeTree, setKnowledgeTree] = useState<WikiBetaAccountKnowledgeNode[]>([]);
+  const [contentTree, setContentTree] = useState<WikiBetaAccountContentNode[]>([]);
   const [loading, setLoading] = useState(true);
 
   const accountSeeds = useMemo<WikiBetaAccountSeed[]>(() => {
@@ -79,13 +79,13 @@ export function WikiBetaOverviewView() {
     async function load() {
       setLoading(true);
       try {
-        const result = await buildWikiBetaKnowledgeTree(accountSeeds);
+        const result = await buildWikiBetaContentTree(accountSeeds);
         if (!disposed) {
-          setKnowledgeTree(result);
+          setContentTree(result);
         }
       } catch {
         if (!disposed) {
-          setKnowledgeTree([]);
+          setContentTree([]);
         }
       } finally {
         if (!disposed) {
@@ -101,7 +101,7 @@ export function WikiBetaOverviewView() {
     };
   }, [accountSeeds]);
 
-  const activeAccount = knowledgeTree.find((node) => node.isActive);
+  const activeAccount = contentTree.find((node) => node.isActive);
 
   return (
     <div className="space-y-4">
@@ -180,7 +180,7 @@ export function WikiBetaOverviewView() {
                       <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-1">
-                      {workspace.knowledgeBaseItems
+                      {workspace.contentBaseItems
                         .filter((item) => item.enabled)
                         .map((item) => (
                           <Badge key={item.key} variant="secondary" className="text-[10px]">
