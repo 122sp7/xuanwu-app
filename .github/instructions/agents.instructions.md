@@ -296,65 +296,17 @@ For maintainable orchestrators, document these structural elements:
 
 Avoid embedding orchestration “code” (JavaScript, Python, etc.) inside the orchestrator prompt; prefer deterministic, tool-driven coordination.
 
-### Basic Pattern
+### ⚠️ Tool Ceiling
 
-Structure each step invocation with:
+Sub-agents cannot access tools not in the orchestrator's `tools` list — include every tool sub-agents need.
 
-1. **Step description**: Clear one-line purpose (used for logs and traceability)
-2. **Agent identity**: `agentName` + `agentSpecPath`
-3. **Context**: A small, explicit set of variables (paths, IDs, environment name)
-4. **Expected outputs**: Files to create/update and where they should be written
-5. **Return summary**: Ask the sub-agent to return a short, structured summary
-
-### Example: Multi-Step Processing
-
-```text
-Step 1: Transform raw input data
-Agent: data-processor
-Spec: .github/agents/data-processor.agent.md
-Context: projectName=${projectName}, basePath=${basePath}
-Input: ${basePath}/raw/
-Output: ${basePath}/processed/
-Expected: write ${basePath}/processed/summary.md
-
-Step 2: Analyze processed data (depends on Step 1 output)
-Agent: data-analyst
-Spec: .github/agents/data-analyst.agent.md
-Context: projectName=${projectName}, basePath=${basePath}
-Input: ${basePath}/processed/
-Output: ${basePath}/analysis/
-Expected: write ${basePath}/analysis/report.md
-```
-
-### Key Points
-
-- **Pass variables in prompts**: Use `${variableName}` for all dynamic values
-- **Keep prompts focused**: Clear, specific tasks for each sub-agent
-- **Return summaries**: Each sub-agent should report what it accomplished
-- **Sequential execution**: Run steps in order when dependencies exist between outputs/inputs
-- **Error handling**: Check results before proceeding to dependent steps
-
-### ⚠️ Tool Availability Requirement
-
-**Critical**: If a sub-agent requires specific tools (e.g., `edit`, `execute`, `search`), the orchestrator must include those tools in its own `tools` list. Sub-agents cannot access tools that aren't available to their parent orchestrator.
-
-**Example**:
 ```yaml
-# If your sub-agents need to edit files, execute commands, or search code
 tools: ['read', 'edit', 'search', 'execute', 'agent']
 ```
 
-The orchestrator's tool permissions act as a ceiling for all invoked sub-agents. Plan your tool list carefully to ensure all sub-agents have the tools they need.
+### ⚠️ Not for Bulk Processing
 
-### ⚠️ Important Limitation
-
-**Sub-agent orchestration is NOT suitable for large-scale data processing.** Avoid using multi-step sub-agent pipelines when:
-- Processing hundreds or thousands of files
-- Handling large datasets
-- Performing bulk transformations on big codebases
-- Orchestrating more than 5-10 sequential steps
-
-Each sub-agent invocation adds latency and context overhead. For high-volume processing, implement logic directly in a single agent instead. Use orchestration only for coordinating specialized tasks on focused, manageable datasets.
+Avoid multi-step orchestration for hundreds of files, large datasets, or >10 sequential steps — implement logic in a single agent instead.
 
 ## Agent Prompt Structure
 
