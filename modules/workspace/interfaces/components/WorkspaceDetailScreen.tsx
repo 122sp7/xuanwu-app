@@ -45,6 +45,7 @@ import { WorkspaceIssueTab } from "@/modules/issue";
 import { WorkspaceQATab } from "@/modules/qa";
 import { WorkspaceTaskTab } from "@/modules/task";
 import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
+import { WorkspacePlannerTab } from "@/modules/workspace-planner";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -516,7 +517,13 @@ export function WorkspaceDetailScreen({
       case "Wiki":
         return <WikiBetaWorkspaceView workspace={workspace} />;
       case "Schedule":
-        return renderWorkspacePlaceholderTab("Schedule");
+        return (
+          <WorkspacePlannerTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       default:
