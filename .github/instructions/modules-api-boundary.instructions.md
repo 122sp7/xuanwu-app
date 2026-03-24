@@ -7,41 +7,21 @@ applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx, 
 
 Cross-module interaction must remain explicit and minimal.
 
-## Allowed
+## Allowed vs. Forbidden
 
-- `module A -> module B` via `@/modules/module-b/api`
-- `module A -> module B` via module B's public barrel when that barrel is intentionally the declared API surface
-- `module A -> module B` via domain events
+| Pattern | Status | Example |
+| --- | --- | --- |
+| Import via `@/modules/<target>/api` | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
+| Import via domain events | ✅ **Allowed** | `import { publishDomainEvent } from "@/modules/event/api"` |
+| Import `<target>/domain/*`, `<target>/application/*`, `<target>/infrastructure/*`, `<target>/interfaces/*` | ❌ **Forbidden** | `import { ContentPage } from "@/modules/content/domain/entities/..."` |
+| Import private repositories or entities | ❌ **Forbidden** | `import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/..."` |
 
-## Forbidden
-
-- `module A` importing `module B/domain/*`
-- `module A` importing `module B/application/*`
-- `module A` importing `module B/infrastructure/*`
-- `module A` importing `module B/interfaces/*`
-- `module A` importing `module B` repository implementations
-- `module A` importing `module B` entities directly from private paths
-
-## Boundary Rules
+## Rules
 
 - Keep module internals private
-- Export only the minimum needed from `api/`
-- Prefer façades, query contracts, action contracts, or event contracts over exposing raw internal types
-- When an existing boundary is too wide, narrow it during refactor instead of keeping leaks
-
-## Good Example
-
-```ts
-import { contentFacade } from "@/modules/content/api";
-import { publishDomainEvent } from "@/modules/event/api";
-```
-
-## Bad Example
-
-```ts
-import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/firebase/FirebaseContentPageRepository";
-import { ContentPage } from "@/modules/content/domain/entities/ContentPage";
-```
+- Export only minimum needed from `api/`
+- Prefer façades, contracts, or events over exposing raw types
+- Narrow wide boundaries during refactor, not incrementally
 
 ## Validation
 

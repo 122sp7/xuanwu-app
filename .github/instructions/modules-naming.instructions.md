@@ -28,20 +28,9 @@ Use consistent naming so module ownership and MDDD layer roles remain obvious.
 | Server Action file | `domain-name.actions.ts` under `interfaces/_actions/` |
 | Query file | `domain-name.queries.ts` under `interfaces/queries/` |
 
-## Module Naming Rules
+## Conventions
 
-- Use business-domain names, not UI labels or temporary migration names
-- Prefer singular bounded-context names unless an existing convention is already plural
-- Keep renamed modules aligned with their public API names, Firestore collections, and event discriminants when the contract requires it
-
-## Import Naming Rules
-
-- Use `@alias` imports for packages
-- Use relative imports within the same module
-- Use `@/modules/<target>/api` only for cross-module imports
-
-## Avoid
-
-- Ambiguous module names like `common`, `misc`, or `helper`
-- Cross-module imports that require consumers to know internal filenames
-- Inconsistent `Knowledge*` / `Content*` style dual naming after a refactor
+- Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration names
+- Prefer singular bounded-context names unless existing convention is plural
+- Keep renamed modules aligned with their public API names, Firestore collections, and event discriminants
+- Use `@alias` imports for packages, relative imports within same module, `@/modules/<target>/api` for cross-module

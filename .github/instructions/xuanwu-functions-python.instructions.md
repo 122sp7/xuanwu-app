@@ -7,78 +7,42 @@ applyTo: 'py_fn/**/*.py'
 
 These instructions apply to the `py_fn/` runtime only.
 
-## Mission
+## Overview
 
-- Treat `py_fn/` as the Firebase Python worker runtime for ingestion and heavy processing.
-- Treat Next.js as the user-facing application edge.
-- Do not turn `py_fn/` into a second product web server.
+`py_fn/` is the Firebase Python worker runtime for ingestion and heavy processing. Next.js owns the user-facing application edge. **Do not turn `py_fn/` into a second product web server.**
 
-## Architecture Rules
+## Architecture
 
-- Keep the dependency direction `interfaces -> application -> domain <- infrastructure`.
-- Keep `domain/` pure. Do not import Firebase SDK specifics, Google SDK specifics, HTTP framework logic, or file-system coupling into domain code.
-- Put Firebase entrypoints in `main.py`.
-- Keep bootstrap and config support code in `app/bootstrap` and `app/config`.
-- Keep vertical slices inside `app/<bounded-context>/` with clear layer boundaries.
+Keep dependency direction `interfaces -> application -> domain <- infrastructure`. Keep `domain/` pure (no Firebase/Google SDK specifics, HTTP framework logic, or file-system coupling). 
 
-## Runtime Ownership
-
-### `py_fn` owns
-
-- parsing raw files
-- cleaning and normalization
-- document-level taxonomy
-- chunking and structuring
-- chunk metadata generation
-- embedding generation
-- Firestore persistence for ingestion outputs
-- document status transitions for ingestion
-- background, retryable, reprocess, and admin-safe jobs
-
-### Next.js owns
-
-- browser-facing APIs
-- upload UX
-- auth and session-aware endpoints
-- Route Handlers and Server Actions
-- query orchestration and prompt assembly
-- streamed UI responses
-
-## API Placement Rule
-
-- If the browser or page flow calls it directly, put it in Next.js.
-- If it is background, retryable, heavy, or admin/internal, put it in `py_fn/`.
+Bootstrap and config in `app/bootstrap` and `app/config`. Vertical slices in `app/<bounded-context>/` with clear layer boundaries.
 
 ## Ingestion Pipeline Contract
 
-Preserve the established ingestion order:
+Preserve established order (do not reorder without updating ADRs):
+**Parse → Clean → Taxonomy → Chunk → Chunk metadata → Embedding → Firestore writes → Mark ready**
 
-1. parse
-2. clean
-3. taxonomy
-4. chunk
-5. chunk metadata
-6. embedding
-7. Firestore writes
-8. mark document ready
+## Runtime Ownership
 
-Do not reorder this pipeline without updating the corresponding ADR and runtime documentation.
+| Responsibility | Owner |
+| --- | --- |
+| Browser-facing APIs, upload UX, auth, session, Route Handlers, Server Actions, query orchestration, prompt assembly, streamed responses | **Next.js** |
+| Parsing, cleaning, normalization, document-level taxonomy, chunking, chunk metadata, embedding, Firestore persistence, document status transitions, background/retryable/reprocess/admin jobs | **`py_fn/`** |
 
-## Guardrails
+**Rule**: If the browser or page flow calls it directly → Next.js. If background, retryable, heavy, or admin/internal → `py_fn/`.
 
-- Do not add chat streaming endpoints here.
-- Do not move auth or session logic into this runtime.
-- Do not bypass `application` from `interfaces`.
-- Do not reintroduce legacy `libs/firebase/functions`.
-- Read `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs before changing runtime boundaries.
+## Guardrails & Validation
 
-## Validation
+**Do not**:
+- Add chat streaming endpoints
+- Move auth or session logic into this runtime
+- Bypass `application` layer from `interfaces`
+- Reintroduce legacy `libs/firebase/functions`
 
-- Preferred local validation inside `py_fn/`:
-  - `python -m compileall -q .`
-- Repository-level validation from the project root:
-  - `npm run lint`
-  - `npm run build`
+**Validate**:
+- Local: `python -m compileall -q .` in `py_fn/`
+- Repository: `npm run lint` and `npm run build` from project root
+- Before changing boundaries: Read `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs
 
 ## Documentation Update Rules
 

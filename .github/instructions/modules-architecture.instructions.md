@@ -26,32 +26,13 @@ If a layer is intentionally omitted in a special-case module, document the excep
 
 ## Layer Responsibilities
 
-### `domain/`
-
-- Own entities, aggregates, value objects, domain events, repository interfaces, and pure business rules
-- Stay framework-free
-- Do not import Firebase SDKs, React, HTTP clients, or browser APIs
-
-### `application/`
-
-- Own use cases and DTOs
-- Orchestrate domain operations
-- Depend on domain ports and repository interfaces, not concrete infrastructure
-
-### `infrastructure/`
-
-- Own repository implementations, Firebase adapters, HTTP adapters, persistence adapters, and other external integrations
-- Implement contracts defined by the domain layer
-
-### `interfaces/`
-
-- Own UI components, hooks, queries, contracts, and Server Actions
-- Keep UI and transport concerns out of `domain/`
-
-### `api/`
-
-- Own the public cross-module surface
-- Export only the contracts that other modules are allowed to consume
+| Layer | Responsibilities | Constraints |
+| --- | --- | --- |
+| **`domain/`** | Entities, aggregates, value objects, domain events, repository interfaces, pure business rules | Framework-free; no Firebase SDKs, React, HTTP clients, or browser APIs |
+| **`application/`** | Use cases, DTOs, orchestration | Depend on domain ports and repository interfaces, not infrastructure |
+| **`infrastructure/`** | Repository implementations, Firebase adapters, HTTP adapters, persistence, external integrations | Implement contracts defined by domain layer |
+| **`interfaces/`** | UI components, hooks, queries, contracts, Server Actions | Keep UI and transport concerns out of `domain/` |
+| **`api/`** | Public cross-module surface | Export only contracts other modules are allowed to consume |
 
 ## Required Module Shape
 
@@ -74,22 +55,17 @@ modules/{module-name}/
 
 Additional folders are allowed when needed, but do not rename the canonical layers.
 
-## Hard Rules
+## Rules & Guardrails
 
-- Do not cross-import another module's internals.
-- Do not skip `api/` when the module must be consumed by another module.
-- Do not put business rules in `interfaces/`.
-- Do not import infrastructure into `domain/`.
-- Do not treat `app/` as a substitute for module business logic.
-
-## Events / Repository / Entity / Value Object Rules
-
-- Put domain events in `domain/events/`
-- Put repository interfaces in `domain/repositories/`
-- Put entities and aggregates in `domain/entities/`
-- Put immutable value types in `domain/value-objects/`
-- Implement repositories in `infrastructure/`
-- Route cross-module integration through `api/` or event flows
+- **Cross-module**: Do not reach into another module's internals; use `api/` or event flows
+- **Layers**: Never skip `api/` for cross-module consumption. Do not put business rules in `interfaces/`. Do not import infrastructure into `domain/`
+- **App boundary**: `app/` is route wiring, not business logic
+- **File placement**:
+  - Events → `domain/events/`
+  - Repository interfaces → `domain/repositories/`
+  - Entities/aggregates → `domain/entities/`
+  - Immutable value types → `domain/value-objects/`
+  - Repository implementations → `infrastructure/`
 
 ## Validation
 
