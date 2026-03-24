@@ -5,11 +5,11 @@ import type {
 } from "../../domain/entities/WorkspaceMember";
 import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { FirebaseOrganizationRepository } from "@/modules/organization/infrastructure/firebase/FirebaseOrganizationRepository";
-import type {
-  MemberReference,
-  Team,
-} from "@/modules/organization/domain/entities/Organization";
+import {
+  organizationApi,
+  type OrganizationMemberDTO,
+  type OrganizationTeamDTO,
+} from "@/modules/organization/api";
 import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
@@ -20,7 +20,7 @@ const personnelLabels = {
   safetyOfficerId: "Safety officer",
 } as const;
 
-function toPresence(value: MemberReference["presence"] | undefined): WorkspaceMemberPresence {
+function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
   if (value === "active" || value === "away" || value === "offline") {
     return value;
   }
@@ -44,8 +44,6 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
   }
 
   private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  private readonly organizationRepo = new FirebaseOrganizationRepository();
 
   subscribeToWorkspacesForAccount(
     accountId: string,
@@ -82,7 +80,7 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     const mergeMember = (
       memberId: string,
       channel: WorkspaceMemberAccessChannel,
-      orgMember?: MemberReference,
+      orgMember?: OrganizationMemberDTO,
     ) => {
       const current = members.get(memberId) ?? createFallbackMember(memberId);
       const channelKey = [
@@ -112,14 +110,14 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
 
     if (workspace.accountType === "organization") {
       const [organizationMembers, teams] = await Promise.all([
-        this.organizationRepo.getMembers(workspace.accountId),
-        this.organizationRepo.getTeams(workspace.accountId),
+        organizationApi.getMembers(workspace.accountId),
+        organizationApi.getTeams(workspace.accountId),
       ]);
 
       const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
       const teamMap = new Map(teams.map((team) => [team.id, team]));
 
-      const mergeTeam = (team: Team, role?: string, protocol?: string) => {
+      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
         const label = team.name || team.id;
         team.memberIds.forEach((memberId) => {
           mergeMember(

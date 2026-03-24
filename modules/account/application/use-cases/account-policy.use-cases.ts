@@ -6,25 +6,23 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
-import type { TokenRefreshRepository } from "@/modules/identity/domain/repositories/TokenRefreshRepository";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+import { identityApi } from "@/modules/identity/api";
 
 // ─── Create Account Policy ────────────────────────────────────────────────────
 
 export class CreateAccountPolicyUseCase {
   constructor(
     private readonly policyRepo: AccountPolicyRepository,
-    private readonly tokenRefreshRepo: TokenRefreshRepository,
   ) {}
 
   async execute(input: CreatePolicyInput): Promise<CommandResult> {
     try {
       const policy = await this.policyRepo.create(input);
       // [S6] Emit token refresh signal after policy change so frontend refreshes claims.
-      await this.tokenRefreshRepo.emit({
+      await identityApi.emitTokenRefreshSignal({
         accountId: input.accountId,
         reason: "policy:changed",
-        issuedAt: new Date().toISOString(),
         ...(input.traceId ? { traceId: input.traceId } : {}),
       });
       return commandSuccess(policy.id, Date.now());
@@ -42,7 +40,6 @@ export class CreateAccountPolicyUseCase {
 export class UpdateAccountPolicyUseCase {
   constructor(
     private readonly policyRepo: AccountPolicyRepository,
-    private readonly tokenRefreshRepo: TokenRefreshRepository,
   ) {}
 
   async execute(
@@ -57,10 +54,9 @@ export class UpdateAccountPolicyUseCase {
       }
       await this.policyRepo.update(policyId, data);
       // [S6] Emit refresh signal after policy change.
-      await this.tokenRefreshRepo.emit({
+      await identityApi.emitTokenRefreshSignal({
         accountId,
         reason: "policy:changed",
-        issuedAt: new Date().toISOString(),
       });
       return commandSuccess(policyId, Date.now());
     } catch (err) {
@@ -77,7 +73,6 @@ export class UpdateAccountPolicyUseCase {
 export class DeleteAccountPolicyUseCase {
   constructor(
     private readonly policyRepo: AccountPolicyRepository,
-    private readonly tokenRefreshRepo: TokenRefreshRepository,
   ) {}
 
   async execute(policyId: string, accountId: string): Promise<CommandResult> {
@@ -88,10 +83,9 @@ export class DeleteAccountPolicyUseCase {
       }
       await this.policyRepo.delete(policyId);
       // [S6] Emit refresh signal after policy deletion.
-      await this.tokenRefreshRepo.emit({
+      await identityApi.emitTokenRefreshSignal({
         accountId,
         reason: "policy:changed",
-        issuedAt: new Date().toISOString(),
       });
       return commandSuccess(policyId, Date.now());
     } catch (err) {

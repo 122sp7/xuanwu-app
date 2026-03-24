@@ -6,6 +6,7 @@
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountRepository } from "../../domain/repositories/AccountRepository";
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import { identityApi } from "@/modules/identity/api";
 
 // ─── Create Account ───────────────────────────────────────────────────────────
 
@@ -107,7 +108,6 @@ export class DebitWalletUseCase {
 export class AssignAccountRoleUseCase {
   constructor(
     private readonly accountRepo: AccountRepository,
-    private readonly tokenRefreshRepo?: import("@/modules/identity/domain/repositories/TokenRefreshRepository").TokenRefreshRepository,
   ) {}
 
   async execute(
@@ -119,14 +119,11 @@ export class AssignAccountRoleUseCase {
     try {
       const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
       // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
-      if (this.tokenRefreshRepo) {
-        await this.tokenRefreshRepo.emit({
-          accountId,
-          reason: "role:changed",
-          issuedAt: new Date().toISOString(),
-          ...(traceId ? { traceId } : {}),
-        });
-      }
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+        ...(traceId ? { traceId } : {}),
+      });
       return commandSuccess(record.accountId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -142,20 +139,16 @@ export class AssignAccountRoleUseCase {
 export class RevokeAccountRoleUseCase {
   constructor(
     private readonly accountRepo: AccountRepository,
-    private readonly tokenRefreshRepo?: import("@/modules/identity/domain/repositories/TokenRefreshRepository").TokenRefreshRepository,
   ) {}
 
   async execute(accountId: string): Promise<CommandResult> {
     try {
       await this.accountRepo.revokeRole(accountId);
       // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
-      if (this.tokenRefreshRepo) {
-        await this.tokenRefreshRepo.emit({
-          accountId,
-          reason: "role:changed",
-          issuedAt: new Date().toISOString(),
-        });
-      }
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+      });
       return commandSuccess(accountId, Date.now());
     } catch (err) {
       return commandFailureFrom(
