@@ -8,7 +8,7 @@ The project follows **Module-Driven Domain Design**: each business capability is
 
 ### Core Principle
 
-> Every module owns a bounded context. Modules communicate through their public `index.ts` barrel exports, never by reaching into each other's internals.
+> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
 
 ### Global Dependency Direction
 
@@ -24,7 +24,9 @@ Each module under `modules/` follows a four-layer Clean Architecture:
 
 ```
 modules/<module-name>/
-├── index.ts                    # Public API — barrel export (the ONLY import point for other modules)
+├── api/
+│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
+├── index.ts                    # Optional local barrel for same-module composition
 ├── README.md                   # Module documentation (optional)
 ├── domain/
 │   ├── entities/               # Aggregate roots, value objects, entity types
@@ -54,32 +56,18 @@ modules/<module-name>/
 
 Not every module has every subdirectory — only what it needs.
 
-## Module Inventory (21 Modules)
+### Boundary Policy
 
-| Module | Responsibility | Key Patterns |
-|--------|---------------|--------------|
-| **acceptance** | Workspace readiness gates | Query-side only, derives from workspace snapshots |
-| **account** | User accounts, member roles, account policies | Firebase persistence |
-| **ai** | AI orchestration & RAG (retrieval-augmented generation) | Genkit integration, NOT data ownership |
-| **audit** | Append-only audit visibility | Immutable evidence records |
-| **billing** | Billing records, invoices, settlements | In-memory placeholder, high-risk domain |
-| **daily** | Daily digests, authored entries, workspace/org feeds | Canonical authored-entry feed |
-| **event** | Domain event bus, event store, dispatch | Domain event publishing pattern |
-| **file** | File lifecycle, versioning, permissions, retention | Full hexagonal design with ports |
-| **finance** | Financial tracking, statements, ledgers | Firebase persistence |
-| **identity** | User identity, authentication, token refresh | Firebase auth integration |
-| **issue** | Issue tracking, task tracking | Standard CRUD |
-| **knowledge** | Knowledge domain — Page, Block, PageTree, Version (Notion+Wiki core) | MDDD aggregates, domain events, KnowledgeFacade cross-domain API |
-| **namespace** | Slug-based namespace registration and resolution | Domain-driven slug policy |
-| **notification** | Notifications, alerts, messaging | Firebase messaging |
-| **organization** | Organization (tenant) management, policies | Multi-tenant baseline |
-| **parser** | Document parser readiness, summary derivation | Query-side only, derives from workspace + file data |
-| **qa** | Quality assurance, quality checks | Standard CRUD |
-| **schedule** | Bidirectional resource-request scheduling | Complex MDDD with state machines |
-| **task** | Task management, work items | Standard CRUD |
-| **wiki-beta** | Knowledge base, wiki documents, Pages, Libraries, RAG retrieval | Full persistence + embedding + retrieval |
-| **workspace** | Workspace (project space) management, members | Core organizational unit |
-| **workspace-feed** | X-style workspace post stream and account-level aggregated workspace feed | Facade-first domain isolation + interaction counters (reply/repost/like/view/bookmark/share) |
+- Every `modules/<module-name>/` is isolated.
+- Cross-module imports are allowed only via `modules/<target-module>/api/`.
+- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
+- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+
+## Module Inventory
+
+Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+
+`acceptance`, `account`, `ai`, `audit`, `billing`, `collaboration`, `content`, `event`, `file`, `finance`, `graph`, `identity`, `issue`, `knowledge`, `namespace`, `notification`, `organization`, `qa`, `search`, `shared`, `storage`, `task`, `wiki-beta`, `workspace`, `workspace-feed`, `workspace-flow`, `workspace-planner`.
 
 ## Package System (21 Packages)
 
@@ -174,7 +162,7 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 
 ### Hexagonal Ports (Advanced)
 
-Used in the **file** module as a reference implementation:
+Example port shapes:
 - `domain/ports/ActorContextPort.ts` — resolves who is acting
 - `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
 - `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
@@ -182,7 +170,7 @@ Used in the **file** module as a reference implementation:
 
 ### Domain Events
 
-The **event** module provides the canonical event bus:
+Example event use cases:
 - `publish-domain-event.ts` — publishes events to the event store
 - `list-events-by-aggregate.ts` — queries events by aggregate ID
 - Dispatch policy controls event routing
@@ -202,11 +190,11 @@ import { WikiBetaPage } from "@/modules/wiki-beta";
 
 ### Cross-Module Imports
 
-Between modules, always use the target module's `index.ts`:
+Between modules, always use the target module's `api/` boundary:
 
 ```typescript
 // ✅ Cross-module import
-import { publishDomainEvent } from "@/modules/event";
+import { publishDomainEvent } from "@/modules/event/api";
 
 // ❌ Reaching into another module's internals
 import { publishDomainEvent } from "@/modules/event/application/use-cases/publish-domain-event";
@@ -214,16 +202,6 @@ import { publishDomainEvent } from "@/modules/event/application/use-cases/publis
 
 ## Responsibility Boundaries
 
-| Concern | Owning Module | Supporting Modules |
-|---------|--------------|-------------------|
-| Identity & Auth | identity | account |
-| User Roles & Policies | account, organization | workspace (references) |
-| Workspace Grants | workspace | organization (baseline) |
-| File Lifecycle | file | workspace (context), organization (governance) |
-| Parser Readiness | parser | workspace (context), file (input) |
-| Schedule Readiness | schedule | workspace (context), finance (context) |
-| Audit Events | audit | any module (sends events) |
-| Domain Events | event | all modules (publish/subscribe) |
-| Namespace Resolution | namespace | all modules (addressing) |
-| Knowledge & RAG | wiki-beta, ai | file (documents), namespace (scoping) |
-| Workspace Social Feed | workspace-feed | workspace (scope context), account (actor identity) |
+- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
+- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
+- When ownership shifts, update contracts and architecture docs in the same change.

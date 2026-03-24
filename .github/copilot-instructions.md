@@ -15,6 +15,8 @@ Use this file as the Copilot-specific baseline for all work in this repository.
 
 - For cross-module, cross-runtime, or contract-governed work, plan before implementation.
 - Treat each domain context under `modules/` as isolated. Cross-module interaction must go through the target domain `api/` boundary.
+- Keep architecture guidance generic by default: do not hard-code domain-to-module assignments unless a governing contract explicitly requires it.
+- Keep logic/UI/UX boundaries explicit: business logic in `domain/` + `application/`, UI/UX in `interfaces/` and `app/` composition.
 - Start formal delivery work with the Planner agent or one of the planning prompts.
 - Treat the implementation plan as the canonical execution contract for the current task.
 - Persist approved plans explicitly when work must survive a chat reset or cross-session handoff.

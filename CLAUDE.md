@@ -39,7 +39,9 @@ cd py_fn && python -m pytest tests/ -v
   `domain/` → `application/` → `infrastructure/` + `interfaces/`
 - Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`
 - `domain/` must be framework-free (no Firebase, React, HTTP clients)
-- Modules communicate **only** through their `index.ts` barrel export
+- Every `modules/<module-name>/` is isolated; cross-module imports must go through `modules/<module-name>/api/`
+- Keep guidance generic by default: do not hard-code specific domain-to-module mappings unless a contract explicitly requires it
+- Keep boundaries explicit: logic in `domain/` + `application/`, UI/UX in `interfaces/` and `app/` composition
 
 ### Import Aliases
 

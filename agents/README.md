@@ -5,7 +5,7 @@
 
 For the formal Copilot delivery workflow, see [docs/reference/ai/customizations-index.md](../docs/reference/ai/customizations-index.md) and [docs/how-to/ai/start-feature-delivery.md](../docs/how-to/ai/start-feature-delivery.md).
 
-- **[knowledge-base.md](knowledge-base.md)** — Domain knowledge, module responsibilities, and architectural patterns
+- **[knowledge-base.md](knowledge-base.md)** — Domain knowledge, module boundaries, and architectural patterns
 - **[commands.md](commands.md)** — Build, lint, deploy, and development command reference
 
 ## Rules Index
@@ -14,7 +14,7 @@ For the formal Copilot delivery workflow, see [docs/reference/ai/customizations-
 
 - [architecture-module-structure](rules/architecture-module-structure.md) — Four-layer module layout (domain / application / infrastructure / interfaces)
 - [architecture-dependency-direction](rules/architecture-dependency-direction.md) — UI → Application → Domain ← Infrastructure
-- [architecture-module-boundaries](rules/architecture-module-boundaries.md) — Module public API via `index.ts` barrel exports
+- [architecture-module-boundaries](rules/architecture-module-boundaries.md) — Module public API via `modules/<module-name>/api/`
 - [architecture-package-boundaries](rules/architecture-package-boundaries.md) — `packages/*` as stable public boundaries
 - [architecture-hexagonal-ports](rules/architecture-hexagonal-ports.md) — Ports pattern for cross-cutting concerns
 
@@ -35,7 +35,7 @@ For the formal Copilot delivery workflow, see [docs/reference/ai/customizations-
 
 ### API Design
 
-- [api-module-surface](rules/api-module-surface.md) — Module API surface via barrel exports
+- [api-module-surface](rules/api-module-surface.md) — Module API surface via `api/` boundary
 - [api-contracts](rules/api-contracts.md) — `@api-contracts` route registry patterns
 
 ### Performance

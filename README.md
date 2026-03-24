@@ -60,8 +60,10 @@ See [`agents/commands.md`](agents/commands.md) for the full command reference.
 This project follows **Module-Driven Domain Design (MDDD)**:
 
 - Each business capability is a self-contained module under `modules/`.
-- Modules communicate through their public `index.ts` barrel exports only.
+- Each `modules/<module-name>/` is an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
 - Dependency direction: `UI → Application → Domain ← Infrastructure`.
+- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
 - Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
 
 See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.

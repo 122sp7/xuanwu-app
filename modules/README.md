@@ -30,7 +30,10 @@
 ## 2. module 標準結構（MDDD）
 
 ```text
-module-name/
+<domain-id>/
+│
+├── api/
+│   └── index.ts
 │
 ├── domain/
 │   ├── entities/
@@ -56,14 +59,13 @@ module-name/
 │   ├── hooks/
 │   └── components/
 │
-└── index.ts
 ```
 
 說明：
 
 1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `index.ts` 公開 API。
-3. module 內部檔案使用相對路徑，不自我 import barrel。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
 
 ---
 
@@ -96,7 +98,7 @@ modules/*
 這個原則與 `Architecture.md` 的三層融合不衝突：
 
 - 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module API + package boundary）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
 
 ---
 

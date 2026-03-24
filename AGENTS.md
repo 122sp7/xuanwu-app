@@ -34,8 +34,11 @@ Use the following status flow for issues, tasks, and features:
 ### Architecture
 
 - Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
 - Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
 - `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
 - Import shared code through `@alias` package aliases, never with relative paths across modules.
 
 ### Import Aliases
