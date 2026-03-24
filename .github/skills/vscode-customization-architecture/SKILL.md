@@ -1,6 +1,7 @@
----
+﻿---
 name: vscode-customization-architecture
 description: Design VS Code Copilot customizations correctly. Use when deciding between custom instructions, prompt files, custom agents, agent skills, MCP servers, hooks, or customization layering in a repository.
+disable-model-invocation: true
 ---
 
 # VS Code Customization Architecture

@@ -1,6 +1,7 @@
----
+﻿---
 name: vscode-tasks-authoring
 description: Author and review VS Code tasks.json workflows. Use when creating build, test, watch, shell, process, background, or problem matcher tasks, or when explaining the tasks.json schema and task execution behavior.
+disable-model-invocation: true
 ---
 
 # VS Code Tasks Authoring

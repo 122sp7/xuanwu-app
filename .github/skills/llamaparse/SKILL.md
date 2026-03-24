@@ -1,4 +1,4 @@
----
+﻿---
 name: llamaparse
 description: Use this skill when the user asks to parse the content of an unstructured file (PDF, PPTX, DOCX...)
 compatibility: Needs a `LLAMA_CLOUD_API_KEY` defined within the environment and the `@llamaindex/llama-cloud@latest` typescript library installed.
@@ -6,6 +6,7 @@ license: MIT
 metadata:
   author: LlamaIndex
   version: "1.0.0"
+disable-model-invocation: true
 ---
 
 # LlamaParse Skill

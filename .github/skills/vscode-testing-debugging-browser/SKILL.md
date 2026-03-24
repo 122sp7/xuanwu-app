@@ -1,6 +1,7 @@
----
+﻿---
 name: vscode-testing-debugging-browser
 description: Use Copilot to test, debug, and validate applications in VS Code. Use when generating tests, fixing failing tests, setting up debugging, using browser agent tools, or creating closed-loop test and fix workflows.
+disable-model-invocation: true
 ---
 
 # VS Code Testing, Debugging, and Browser Workflows

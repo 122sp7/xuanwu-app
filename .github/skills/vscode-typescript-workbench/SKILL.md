@@ -1,6 +1,7 @@
----
+﻿---
 name: vscode-typescript-workbench
 description: Work effectively with TypeScript in VS Code. Use when configuring tsconfig, transpiling with tsc, debugging with source maps, editing with IntelliSense, refactoring symbols, or managing TypeScript-specific editor features.
+disable-model-invocation: true
 ---
 
 # VS Code TypeScript Workbench

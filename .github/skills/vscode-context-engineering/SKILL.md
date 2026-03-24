@@ -1,6 +1,7 @@
----
+﻿---
 name: vscode-context-engineering
 description: Build high-signal AI workflows for a repository. Use when setting up project context, planning workflows, implementation handoffs, documentation layers, or best-practice Copilot customization strategies in VS Code.
+disable-model-invocation: true
 ---
 
 # VS Code Context Engineering

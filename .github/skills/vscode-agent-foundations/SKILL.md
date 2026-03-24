@@ -1,6 +1,7 @@
----
+﻿---
 name: vscode-agent-foundations
 description: Learn how VS Code agents work and choose the right agent workflow. Use when asked about Ask, Agent, Plan, local agents, planning, memory, tools, subagents, handoffs, or Copilot smart actions in VS Code.
+disable-model-invocation: true
 ---
 
 # VS Code Agent Foundations

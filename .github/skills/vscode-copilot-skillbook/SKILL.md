@@ -1,8 +1,8 @@
----
+﻿---
 name: vscode-copilot-skillbook
 description: Route VS Code Copilot and customization questions to the right skill. Use when the user wants a skillbook for agents, customizations, context engineering, testing, debugging, TypeScript workflows, or tasks authoring in VS Code.
 user-invocable: true
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # VS Code Copilot Skillbook

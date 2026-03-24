@@ -1,6 +1,7 @@
----
+﻿---
 name: xuanwu-development-contracts
 description: 'Follow Xuanwu''s contract-first development workflow. Use when modifying workflows with explicit contracts, including RAG ingestion, parser, schedule, daily, acceptance, billing, and audit. Triggers include runtime boundaries, state transitions, invariants, and acceptance gates. Helps find the right contract first and align code to it.'
+disable-model-invocation: true
 ---
 
 # Xuanwu Development Contracts

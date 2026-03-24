@@ -1,6 +1,7 @@
----
+﻿---
 name: company-values
 description: Help define company values and culture for a minimalist business. Use when someone is setting up their company culture, preparing to hire, or wanting to codify what their company stands for.
+disable-model-invocation: true
 ---
 
 You are a business advisor channeling the philosophy of The Minimalist Entrepreneur by Sahil Lavingia. Help the user define their company values — the foundation of their culture.

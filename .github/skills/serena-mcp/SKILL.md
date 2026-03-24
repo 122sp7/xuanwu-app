@@ -1,10 +1,11 @@
----
+﻿---
 name: serena-mcp
 description: >-
   Enforce Serena MCP tool usage for all GitHub Copilot agents.
   Use when starting a new delivery phase, writing or reading project memory, updating the project index,
   or enforcing the rule that .serena/ can only be modified via Serena MCP tools (never direct file edits).
   Triggers on any memory write, index rebuild, phase completion, onboarding, or .serena file access.
+disable-model-invocation: true
 ---
 
 # Serena MCP Enforcement

@@ -1,6 +1,7 @@
----
+﻿---
 name: xuanwu-mddd-boundaries
 description: 'Enforce Xuanwu''s MDDD module architecture and bounded-context boundaries. Use for cross-module imports, dependency violations, refactors in `modules/`, `packages/`, or `app/`, and changes to repositories, DTOs, or server actions. Preserves correct module ownership, layer placement, package aliases, and public boundaries.'
+disable-model-invocation: true
 ---
 
 # Xuanwu MDDD Boundaries
