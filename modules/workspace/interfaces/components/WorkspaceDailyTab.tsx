@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Send, X } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
-import type {
-  DailyFeedItem,
-  PublishDailyEntryInput,
-  WorkspaceDailyDigestEntity,
-} from "@/modules/daily";
-import { getWorkspaceDailyDigest, getWorkspaceDailyFeed } from "@/modules/daily";
+import type { DailyFeedItem, PublishDailyEntryInput } from "@/modules/daily";
+import { getWorkspaceDailyFeed } from "@/modules/daily";
 import { publishDailyEntry } from "@/modules/daily/interfaces/_actions/daily.actions";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -42,20 +38,8 @@ const WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visib
   "workspace_only",
   "organization",
 ];
-const PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] = [
-  "workspace_only",
-];
-
-function formatNotificationTime(timestamp: number) {
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(timestamp));
-  } catch {
-    return "—";
-  }
-}
+const PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] =
+  ["workspace_only"];
 
 function formatPublishedAt(iso: string) {
   const timestamp = Date.parse(iso);
@@ -85,7 +69,6 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       : PERSONAL_WORKSPACE_DAILY_VISIBILITY_OPTIONS;
   const defaultVisibility = supportedVisibilities[0];
 
-  const [digest, setDigest] = useState<WorkspaceDailyDigestEntity | null>(null);
   const [feed, setFeed] = useState<readonly DailyFeedItem[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [showComposer, setShowComposer] = useState(false);
@@ -106,15 +89,11 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       setLoadState("loading");
 
       try {
-        const [nextDigest, nextFeed] = await Promise.all([
-          getWorkspaceDailyDigest(workspace.id, workspace.accountId),
-          getWorkspaceDailyFeed(workspace.id),
-        ]);
+        const nextFeed = await getWorkspaceDailyFeed(workspace.id);
         if (cancelled) {
           return;
         }
 
-        setDigest(nextDigest);
         setFeed(nextFeed);
         setLoadState("loaded");
       } catch (error) {
@@ -123,7 +102,6 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
         }
 
         if (!cancelled) {
-          setDigest(null);
           setFeed([]);
           setLoadState("error");
         }
@@ -135,17 +113,10 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [workspace.accountId, workspace.id]);
-
-  const dailyNotifications = useMemo(() => digest?.items ?? [], [digest]);
-  const unreadCount = useMemo(() => digest?.summary.unread ?? 0, [digest]);
+  }, [workspace.id]);
 
   async function refreshDailyData() {
-    const [nextDigest, nextFeed] = await Promise.all([
-      getWorkspaceDailyDigest(workspace.id, workspace.accountId),
-      getWorkspaceDailyFeed(workspace.id),
-    ]);
-    setDigest(nextDigest);
+    const nextFeed = await getWorkspaceDailyFeed(workspace.id);
     setFeed(nextFeed);
     setLoadState("loaded");
   }
@@ -193,9 +164,7 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle>Daily</CardTitle>
-            <CardDescription>
-              目前以 canonical Daily feed 為標準；通知 digest 僅保留為遷移期間的相容對照。
-            </CardDescription>
+            <CardDescription>發布每日更新，讓組織即時掌握工作區狀態。</CardDescription>
           </div>
           <button
             type="button"
@@ -208,21 +177,6 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Canonical entries</p>
-            <p className="mt-1 text-xl font-semibold">{feed.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Digest unread (compat)</p>
-            <p className="mt-1 text-xl font-semibold">{unreadCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Workspace account</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{workspace.accountId}</p>
-          </div>
-        </div>
-
         {showComposer && (
           <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -341,75 +295,28 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
           </p>
         )}
 
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Workspace Daily</h3>
-            <p className="text-xs text-muted-foreground">
-              先以文件定義的 authored entry 為主，再保留 digest 作為相容基線。
-            </p>
-          </div>
+        {loadState === "loaded" && feed.length === 0 && (
+          <p className="text-sm text-muted-foreground">今天尚未發布新的 Workspace Daily。</p>
+        )}
 
-          {loadState === "loaded" && feed.length === 0 && (
-            <p className="text-sm text-muted-foreground">今天尚未發布新的 Workspace Daily。</p>
-          )}
-
-          {feed.map((entry) => (
-            <div key={entry.entryId} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{entry.title}</p>
-                    <Badge variant="outline">{DAILY_ENTRY_TYPE_LABEL[entry.entryType]}</Badge>
-                    <Badge variant="secondary">{DAILY_VISIBILITY_LABEL[entry.visibility]}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{entry.summary}</p>
-                  {entry.body && <p className="text-sm text-foreground/90">{entry.body}</p>}
-                  <p className="text-xs text-muted-foreground">{formatPublishedAt(entry.publishedAtISO)}</p>
+        {feed.map((entry) => (
+          <div key={entry.entryId} className="rounded-xl border border-border/40 px-4 py-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">{entry.title}</p>
+                  <Badge variant="outline">{DAILY_ENTRY_TYPE_LABEL[entry.entryType]}</Badge>
+                  <Badge variant="secondary">{DAILY_VISIBILITY_LABEL[entry.visibility]}</Badge>
                 </div>
+                <p className="text-sm text-muted-foreground">{entry.summary}</p>
+                {entry.body && <p className="text-sm text-foreground/90">{entry.body}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {formatPublishedAt(entry.publishedAtISO)}
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Digest baseline</h3>
-            <p className="text-xs text-muted-foreground">保留既有通知摘要，確保遷移期間仍可對照。</p>
           </div>
-
-          {loadState === "loaded" && dailyNotifications.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              今天尚未有新的工作區通知或動態紀錄。
-            </p>
-          )}
-
-          {loadState === "loaded" && dailyNotifications.length > 0 && (
-            <div className="space-y-3">
-              {dailyNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="rounded-xl border border-border/40 px-4 py-4"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {notification.title}
-                        </p>
-                        <Badge variant="outline">{notification.type}</Badge>
-                        {!notification.read && <Badge variant="secondary">Unread</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{notification.message}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatNotificationTime(notification.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        ))}
       </CardContent>
     </Card>
   );

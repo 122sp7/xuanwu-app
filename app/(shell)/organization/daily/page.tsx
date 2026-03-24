@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import type { DailyFeedItem, OrganizationDailyDigestEntity } from "@/modules/daily";
-import { getOrganizationDailyDigest, getOrganizationDailyFeed } from "@/modules/daily";
+import type { DailyFeedItem } from "@/modules/daily";
+import { getOrganizationDailyFeed } from "@/modules/daily";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { getWorkspacesForAccount } from "@/modules/workspace";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -46,7 +46,6 @@ export default function OrganizationDailyPage() {
   const { activeAccount } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  const [digest, setDigest] = useState<OrganizationDailyDigestEntity | null>(null);
   const [feed, setFeed] = useState<readonly DailyFeedItem[]>([]);
   const [workspaces, setWorkspaces] = useState<readonly WorkspaceEntity[]>([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
@@ -64,20 +63,15 @@ export default function OrganizationDailyPage() {
       try {
         const nextWorkspaces = await getWorkspacesForAccount(organizationId);
         const workspaceIds = nextWorkspaces.map((workspace) => workspace.id);
-        const [nextFeed, nextDigest] = await Promise.all([
-          getOrganizationDailyFeed(organizationId, workspaceIds),
-          getOrganizationDailyDigest(organizationId, workspaceIds),
-        ]);
+        const nextFeed = await getOrganizationDailyFeed(organizationId, workspaceIds);
 
         if (!cancelled) {
           setWorkspaces(nextWorkspaces);
           setFeed(nextFeed);
-          setDigest(nextDigest);
           setLoadState("loaded");
         }
       } catch {
         if (!cancelled) {
-          setDigest(null);
           setFeed([]);
           setWorkspaces([]);
           setLoadState("error");
@@ -97,8 +91,6 @@ export default function OrganizationDailyPage() {
     [workspaces],
   );
 
-  const digestItems = useMemo(() => digest?.items ?? [], [digest]);
-
   if (!activeOrganizationId) {
     return (
       <div>
@@ -111,23 +103,17 @@ export default function OrganizationDailyPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">每日</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          目前以 organization canonical Daily feed 為標準；通知 digest 僅保留為遷移期間的相容對照。
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">跨工作區的組織 Daily 動態彙整。</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-border/40 px-4 py-3">
-          <p className="text-xs text-muted-foreground">Canonical entries</p>
+          <p className="text-xs text-muted-foreground">今日條目</p>
           <p className="mt-1 text-xl font-semibold">{feed.length}</p>
         </div>
         <div className="rounded-xl border border-border/40 px-4 py-3">
-          <p className="text-xs text-muted-foreground">Digest items (compat)</p>
-          <p className="mt-1 text-xl font-semibold">{digest?.summary.total ?? 0}</p>
-        </div>
-        <div className="rounded-xl border border-border/40 px-4 py-3">
-          <p className="text-xs text-muted-foreground">Unread digest (compat)</p>
-          <p className="mt-1 text-xl font-semibold">{digest?.summary.unread ?? 0}</p>
+          <p className="text-xs text-muted-foreground">工作區數</p>
+          <p className="mt-1 text-xl font-semibold">{workspaces.length}</p>
         </div>
       </div>
 
@@ -141,12 +127,12 @@ export default function OrganizationDailyPage() {
 
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle>Workspace Daily Feed</CardTitle>
-          <CardDescription>依工作區整理 canonical Daily 條目；目前排序仍為 freshness-only。</CardDescription>
+          <CardTitle>組織 Daily Feed</CardTitle>
+          <CardDescription>依工作區整理的 Daily 條目，按發布時間排序。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loadState === "loaded" && feed.length === 0 && (
-            <p className="text-sm text-muted-foreground">今天還沒有新的 Workspace Daily 發布。</p>
+            <p className="text-sm text-muted-foreground">今天還沒有新的 Daily 發布。</p>
           )}
 
           {feed.map((entry) => (
@@ -173,29 +159,6 @@ export default function OrganizationDailyPage() {
               </div>
             </div>
           ))}
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Digest compatibility</CardTitle>
-          <CardDescription>既有通知驅動摘要僅作相容對照，並非目前 Daily 的主標準。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loaded" && digestItems.length === 0 && (
-            <p className="text-sm text-muted-foreground">今天沒有新的組織通知摘要。</p>
-          )}
-          {loadState === "loaded" &&
-            digestItems.map((notification) => (
-              <div key={notification.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  <Badge variant="outline">{notification.type}</Badge>
-                  {!notification.read && <Badge variant="secondary">Unread</Badge>}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{notification.message}</p>
-              </div>
-            ))}
         </CardContent>
       </Card>
     </div>
