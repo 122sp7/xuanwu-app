@@ -90,6 +90,7 @@ Use this order when working on customization assets:
 
 ## Existing specialized skills
 
+- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
 - [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
 - [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
 - [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
