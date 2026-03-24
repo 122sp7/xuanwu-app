@@ -1,86 +1,90 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * WorkspaceDailyTab — 工作區施工動態（IG 瀑布流骨架）。
+ * 奧卡姆剃刀：Feed + 浮動發布按鈕 + 極簡撰寫面板。
+ */
+
+import { useRef, useState } from "react";
 import { PenSquare, Send, X } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
-import type { PublishDailyEntryInput } from "@/modules/daily";
-import { DailyFeed } from "@/modules/daily";
-import { publishDailyEntry } from "@/modules/daily/interfaces/_actions/daily.actions";
+import type { DailyPostType } from "@/modules/daily";
+import { DailyFeed, DAILY_POST_TYPES } from "@/modules/daily";
+import { createDailyPost } from "@/modules/daily/interfaces/_actions/daily-post.actions";
 import type { WorkspaceEntity } from "@/modules/workspace";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
 
 interface WorkspaceDailyTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
-const ENTRY_TYPE_LABEL: Record<PublishDailyEntryInput["entryType"], string> = {
-  update: "進度更新",
-  blocker: "阻塞問題",
-  ask: "協作需求",
-  milestone: "里程碑",
-  signal: "系統訊號",
-  story: "限時動態",
-  highlight: "精選",
+// ── 類型標籤 ────────────────────────────────────────────────────────────────
+
+const TYPE_LABEL: Record<DailyPostType, string> = {
+  progress: "進度",
+  issue: "問題",
+  safety: "安全",
+  material: "材料",
 };
 
-const VISIBILITY_OPTIONS: readonly PublishDailyEntryInput["visibility"][] = [
-  "workspace_only",
-  "organization",
-];
-const VISIBILITY_LABEL: Record<PublishDailyEntryInput["visibility"], string> = {
-  workspace_only: "僅工作區",
-  organization: "組織可見",
-  selected_workspaces: "指定工作區",
-  public_demo: "公開展示",
+const TYPE_ACTIVE_CLASS: Record<DailyPostType, string> = {
+  progress: "bg-green-600 text-white border-green-600",
+  issue: "bg-red-600 text-white border-red-600",
+  safety: "bg-yellow-500 text-white border-yellow-500",
+  material: "bg-blue-600 text-white border-blue-600",
 };
+
+// ── 元件 ────────────────────────────────────────────────────────────────────
 
 export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
   const { state: appState } = useApp();
-  const actorAccountId = appState.activeAccount?.id ?? "";
+  const actor = appState.activeAccount;
 
-  const visibilityOptions =
-    workspace.accountType === "organization" ? VISIBILITY_OPTIONS : VISIBILITY_OPTIONS.slice(0, 1);
-  const defaultVisibility = visibilityOptions[0] ?? "workspace_only";
+  const actorId = actor?.id ?? "";
+  const actorName = actor?.name ?? "未知";
+  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
+  const actorInitial = actorName.charAt(0).toUpperCase();
 
   const [showComposer, setShowComposer] = useState(false);
-  const [entryType, setEntryType] =
-    useState<PublishDailyEntryInput["entryType"]>("update");
-  const [visibility, setVisibility] =
-    useState<PublishDailyEntryInput["visibility"]>(defaultVisibility);
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  const [body, setBody] = useState("");
+  const [postType, setPostType] = useState<DailyPostType>("progress");
+  const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  async function handlePublish() {
-    if (!actorAccountId) {
-      setActionError("找不到目前操作帳戶，請重新整理後再試一次。");
-      return;
-    }
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function openComposer() {
+    setShowComposer(true);
+    // 下一個 tick 後聚焦 textarea
+    setTimeout(() => textareaRef.current?.focus(), 80);
+  }
+
+  function closeComposer() {
+    setShowComposer(false);
+    setActionError(null);
+    setContent("");
+    setPostType("progress");
+  }
+
+  async function handlePost() {
+    if (!actorId || !content.trim()) return;
     setSubmitting(true);
     setActionError(null);
     try {
-      const result = await publishDailyEntry({
-        organizationId: workspace.accountId,
+      const result = await createDailyPost({
+        accountId: workspace.accountId,
         workspaceId: workspace.id,
-        authorId: actorAccountId,
-        entryType,
-        visibility,
-        title,
-        summary,
-        body,
+        content: content.trim(),
+        type: postType,
+        createdBy: { id: actorId, name: actorName, avatarUrl: actorAvatar },
       });
       if (!result.success) {
         setActionError(result.error.message);
         return;
       }
-      setTitle("");
-      setSummary("");
-      setBody("");
-      setEntryType("update");
-      setVisibility(defaultVisibility);
-      setShowComposer(false);
+      closeComposer();
     } finally {
       setSubmitting(false);
     }
@@ -91,103 +95,79 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       {/* ── 動態瀑布流 ── */}
       <DailyFeed scope={{ accountId: workspace.accountId, workspaceId: workspace.id }} />
 
-      {/* ── 撰寫浮動按鈕（右下角） ── */}
+      {/* ── FAB（右下浮動發布按鈕） ── */}
       {!showComposer && (
         <button
           type="button"
           aria-label="新增 Daily"
-          onClick={() => setShowComposer(true)}
+          onClick={openComposer}
           className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-foreground shadow-lg text-background hover:bg-foreground/90 active:scale-95 transition-all"
         >
           <PenSquare className="h-5 w-5" />
         </button>
       )}
 
-      {/* ── 撰寫面板（底部滑出式） ── */}
+      {/* ── 撰寫面板（底部滑出，IG 極簡風） ── */}
       {showComposer && (
-        <div className="fixed inset-x-0 bottom-0 z-30 max-w-lg mx-auto bg-background border-t border-border shadow-2xl rounded-t-2xl p-4 space-y-3 animate-in slide-in-from-bottom duration-200">
+        <div className="fixed inset-x-0 bottom-0 z-30 max-w-lg mx-auto bg-background border-t border-border shadow-2xl rounded-t-2xl px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-bottom duration-200">
+          {/* 頂部操作列 */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">新增 Daily</h3>
             <button
               type="button"
               aria-label="關閉"
-              onClick={() => {
-                setShowComposer(false);
-                setActionError(null);
-              }}
-              className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+              onClick={closeComposer}
+              className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
+            <button
+              type="button"
+              disabled={submitting || !content.trim()}
+              onClick={() => void handlePost()}
+              className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-4 text-xs font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {submitting ? "發布中…" : "發布"}
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">類型</label>
-              <select
-                value={entryType}
-                onChange={(e) =>
-                  setEntryType(e.target.value as PublishDailyEntryInput["entryType"])
-                }
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {Object.entries(ENTRY_TYPE_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">可見性</label>
-              <select
-                value={visibility}
-                onChange={(e) =>
-                  setVisibility(e.target.value as PublishDailyEntryInput["visibility"])
-                }
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {visibilityOptions.map((v) => (
-                  <option key={v} value={v}>{VISIBILITY_LABEL[v]}</option>
-                ))}
-              </select>
-            </div>
+          {/* 作者列 + 輸入框 */}
+          <div className="flex items-start gap-2.5">
+            <Avatar className="h-8 w-8 shrink-0 mt-0.5">
+              <AvatarImage src={actorAvatar} alt={actorName} />
+              <AvatarFallback className="text-xs font-bold">{actorInitial}</AvatarFallback>
+            </Avatar>
+            <textarea
+              ref={textareaRef}
+              rows={3}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="分享今天的施工動態…"
+              className="flex-1 resize-none bg-transparent text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
+            />
           </div>
 
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="標題（必填）"
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <textarea
-            rows={2}
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="摘要（必填）：一句話說明進展"
-            className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <textarea
-            rows={2}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="補充內文（選填）"
-            className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
+          {/* 類型選擇（pill 群組） */}
+          <div className="flex items-center gap-2 flex-wrap pl-10">
+            {DAILY_POST_TYPES.map((t: DailyPostType) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setPostType(t)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  postType === t
+                    ? TYPE_ACTIVE_CLASS[t]
+                    : "border-border text-muted-foreground hover:border-foreground/40"
+                }`}
+              >
+                {TYPE_LABEL[t]}
+              </button>
+            ))}
+          </div>
 
           {actionError && (
-            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              {actionError}
-            </p>
+            <p className="text-xs text-destructive pl-10">{actionError}</p>
           )}
-
-          <button
-            type="button"
-            disabled={submitting || !title.trim() || !summary.trim()}
-            onClick={() => void handlePublish()}
-            className="w-full flex h-10 items-center justify-center gap-1.5 rounded-xl bg-foreground text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-            {submitting ? "發布中…" : "發布 Daily"}
-          </button>
         </div>
       )}
     </div>

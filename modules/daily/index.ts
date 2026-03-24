@@ -37,9 +37,11 @@ export {
 } from "./interfaces/queries/daily-feed.queries";
 export { publishDailyEntry } from "./interfaces/_actions/daily.actions";
 
-// ── 新增：精簡領域 Schema 與施工社群動態元件（interfaces 層） ──────────────
+// ── 精簡領域 Schema 與施工社群動態元件（interfaces 層） ──────────────────────
 export type { DailyPost, DailyPostType, Attachment, DailyFeedPage } from "./domain/schema";
 export { DailyPostSchema, AttachmentSchema, DAILY_POST_TYPES } from "./domain/schema";
 export { getDailyFeed } from "./interfaces/queries/daily-post.queries";
 export { DailyFeed } from "./interfaces/components/DailyFeed";
 export { DailyPostCard } from "./interfaces/components/DailyPostCard";
+export type { CreateDailyPostInput } from "./interfaces/_actions/daily-post.actions";
+export { createDailyPost } from "./interfaces/_actions/daily-post.actions";
