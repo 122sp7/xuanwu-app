@@ -32,6 +32,9 @@ export class AssignTaskUseCase {
       return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
     }
 
+    // Persist the assignee before transitioning status
+    await this.taskRepository.update(taskId, { assigneeId: assigneeId.trim() });
+
     const nowISO = new Date().toISOString();
     const updated = await this.taskRepository.transitionStatus(taskId, "in_progress", nowISO);
     if (!updated) {
