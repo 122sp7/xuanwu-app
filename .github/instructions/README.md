@@ -49,6 +49,21 @@ Use this partition to avoid overlapping instruction contexts:
 - Agent authoring: `agents.instructions.md`
 - Skill authoring: `agent-skills.instructions.md`
 
+## Context Noise Budget
+
+To reduce repeated context consumption:
+
+- Keep each instruction file focused on one concern.
+- Prefer narrow `applyTo` globs.
+- Avoid duplicating repository-wide policy from `AGENTS.md` and `.github/copilot-instructions.md`.
+- Link to canonical docs instead of repeating long explanations.
+- Move long examples into dedicated docs and keep instruction files compact.
+
+Recommended size targets:
+
+- High-frequency instruction files: <= 300 lines
+- Specialized instruction files: <= 500 lines
+
 ## Conflict Resolution Order
 
 When rules overlap, resolve by this order:
