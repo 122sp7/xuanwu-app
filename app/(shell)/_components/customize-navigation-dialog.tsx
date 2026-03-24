@@ -73,7 +73,6 @@ const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }
   { id: "product", tabKey: "Product", fallbackLabel: "Product" },
   { id: "design", tabKey: "Design", fallbackLabel: "Design" },
   { id: "databases", tabKey: "Databases", fallbackLabel: "Databases" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
   { id: "projects", tabKey: "Projects", fallbackLabel: "Projects" },
   { id: "roadmap", tabKey: "Roadmap", fallbackLabel: "Roadmap" },
   { id: "notes", tabKey: "Notes", fallbackLabel: "Notes" },
@@ -88,10 +87,6 @@ const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }
   { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
   { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
   { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
-  { id: "issues", tabKey: "Issues", fallbackLabel: "Issues" },
-  { id: "qa", tabKey: "QA", fallbackLabel: "QA" },
-  { id: "acceptance", tabKey: "Acceptance", fallbackLabel: "Acceptance" },
-  { id: "finance", tabKey: "Finance", fallbackLabel: "Finance" },
   { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
 ];
 
