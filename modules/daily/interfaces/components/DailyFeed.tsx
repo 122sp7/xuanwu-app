@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * DailyFeed — 施工動態饋送（Construction Social Feed）。
- * 使用 useEffect + useState 實現手動分頁載入，與現有程式庫風格一致。
+ * DailyFeed — 施工動態饋送（IG/FB 瀑布流）。
+ * 純無框垂直流，依建立時間倒序，支援無限滾動載入。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,17 +17,18 @@ import { DailyPostCard } from "./DailyPostCard";
 
 function FeedSkeleton() {
   return (
-    <div className="space-y-4 animate-pulse">
+    <div className="animate-pulse divide-y divide-border/30">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-border/40 p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-muted" />
-            <div className="space-y-1 flex-1">
+        <div key={i} className="py-3 space-y-3">
+          <div className="flex items-center gap-2.5 px-3">
+            <div className="h-8 w-8 rounded-full bg-muted shrink-0" />
+            <div className="space-y-1.5 flex-1">
               <div className="h-3 w-28 rounded bg-muted" />
-              <div className="h-3 w-20 rounded bg-muted" />
+              <div className="h-2.5 w-20 rounded bg-muted" />
             </div>
           </div>
-          <div className="h-14 w-full rounded bg-muted" />
+          <div className="h-64 w-full bg-muted" />
+          <div className="px-3 h-3 w-3/4 rounded bg-muted" />
         </div>
       ))}
     </div>
@@ -47,9 +48,7 @@ export function DailyFeed({ scope }: DailyFeedProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // 底部偵測 ref，用於觸發載入下一頁
   const bottomRef = useRef<HTMLDivElement>(null);
-  // 防止 effect 重複執行的 ref
   const loadedRef = useRef(false);
 
   // 初次載入
@@ -74,7 +73,6 @@ export function DailyFeed({ scope }: DailyFeedProps) {
     return () => {
       cancelled = true;
     };
-    // scope 物件以字串鍵聚合，避免每次渲染都重新載入
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope.accountId, scope.workspaceId]);
 
@@ -93,7 +91,7 @@ export function DailyFeed({ scope }: DailyFeedProps) {
       });
   }, [scope, nextCursor, loadingMore]);
 
-  // IntersectionObserver 觸發無限滾動
+  // IntersectionObserver 無限滾動
   useEffect(() => {
     const el = bottomRef.current;
     if (!el) return;
@@ -111,46 +109,40 @@ export function DailyFeed({ scope }: DailyFeedProps) {
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, fetchNextPage]);
 
-  if (status === "loading") {
-    return <FeedSkeleton />;
-  }
+  if (status === "loading") return <FeedSkeleton />;
 
   if (status === "error") {
     return (
-      <p className="text-sm text-destructive py-4 text-center">
-        無法載入施工動態，請稍後再試。
+      <p className="text-sm text-destructive py-8 text-center">
+        無法載入動態，請稍後再試。
       </p>
     );
   }
 
   if (status === "loaded" && posts.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        目前尚無施工動態，成為第一個發布紀錄的人吧！
+      <p className="text-sm text-muted-foreground py-12 text-center">
+        目前尚無動態，成為第一個發布的人吧！
       </p>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-20">
-      {/* 動態卡片列表 */}
+    <div className="divide-y divide-border/30 pb-20">
       {posts.map((post) => (
         <DailyPostCard key={post.id} post={post} />
       ))}
 
-      {/* 載入中指示器 */}
       {loadingMore && (
-        <div className="flex justify-center py-4">
+        <div className="flex justify-center py-6">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
 
-      {/* 到達最底部 */}
       {!nextCursor && status === "loaded" && posts.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center py-4">已顯示全部動態</p>
+        <p className="text-xs text-muted-foreground text-center py-6">已顯示全部動態</p>
       )}
 
-      {/* 底部偵測點 */}
       <div ref={bottomRef} className="h-2" />
     </div>
   );
