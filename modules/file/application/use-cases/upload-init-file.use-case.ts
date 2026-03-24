@@ -4,10 +4,10 @@ import type { File } from "../../domain/entities/File";
 import type { FileVersion } from "../../domain/entities/FileVersion";
 import type { FileRepository } from "../../domain/repositories/FileRepository";
 import type {
+  FileCommandErrorCode,
   UploadInitFileInputDto,
   UploadInitFileOutputDto,
 } from "../dto/file.dto";
-import type { FileCommandErrorCode } from "../../interfaces/contracts/file-command-result";
 
 type UploadInitFileUseCaseResult =
   | { ok: true; data: UploadInitFileOutputDto }

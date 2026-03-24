@@ -354,4 +354,15 @@ npm run lint -- --fix
 - `@typescript-eslint/no-explicit-any` — 禁止 any
 - `jsdoc/*` — JSDoc 格式檢查
 - `@typescript-eslint/naming-convention` — 命名規範
+- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
 - 匯入路徑邊界（legacy path 封鎖）
+
+### 7.1 什麼時候要調整 `eslint.config.mjs`
+
+- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
+- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
+- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
+- **同步文件**：調整規則時一併更新
+  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
+  - 本節清單（如新增/刪除常見規則）
+- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。

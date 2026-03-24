@@ -5,6 +5,7 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { TokenRefreshRepository } from "@/modules/identity";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 import { identityApi } from "@/modules/identity/api";

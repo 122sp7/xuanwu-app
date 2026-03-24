@@ -14,6 +14,7 @@ Operational index for repository-scoped customization assets.
 - Keep executable customization assets in `.github/`.
 - Keep explanation, governance, and lifecycle context in `docs/`.
 - Update both locations together when behavior changes.
+- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
 
 ## Folder map
 

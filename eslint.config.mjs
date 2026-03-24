@@ -1,11 +1,13 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import jsdoc from "eslint-plugin-jsdoc";
  
 const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const typescriptFileGlobs = ["**/*.{ts,tsx}"];
+const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -80,6 +82,78 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    files: moduleFileGlobs,
+    plugins: {
+      boundaries,
+    },
+    settings: {
+      "boundaries/include": moduleFileGlobs,
+      "boundaries/elements": [
+        {
+          type: "module-domain",
+          pattern: "modules/*/domain/**/*",
+        },
+        {
+          type: "module-application",
+          pattern: "modules/*/application/**/*",
+        },
+        {
+          type: "module-infrastructure",
+          pattern: "modules/*/infrastructure/**/*",
+        },
+        {
+          type: "module-interfaces",
+          pattern: "modules/*/interfaces/**/*",
+        },
+      ],
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          rules: [
+            {
+              from: { type: "module-domain" },
+              disallow: { to: { type: ["module-application", "module-infrastructure", "module-interfaces"] } },
+              message: "Domain files may depend only on domain files and shared packages, not on application, infrastructure, or interfaces layers.",
+            },
+            {
+              from: { type: "module-application" },
+              disallow: { to: { type: ["module-infrastructure", "module-interfaces"] } },
+              message: "Application files may depend on domain files, but not directly on infrastructure or interfaces layers.",
+            },
+            {
+              from: { type: "module-infrastructure" },
+              disallow: { to: { type: ["module-interfaces"] } },
+              message: "Infrastructure files may not depend on interfaces files.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/index", "**/index.ts", "**/index.tsx"],
+              message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+            },
+            {
+              group: [
+                "@/modules/*/application/**",
+                "@/modules/*/domain/**",
+                "@/modules/*/infrastructure/**",
+                "@/modules/*/interfaces/**",
+              ],
+              message: "Cross-module dependencies must go through the target module public boundary (`@/modules/<module>` or `api/`), not an internal layer path.",
+            },
+          ],
+        },
       ],
     },
   },

@@ -52,3 +52,9 @@ Update all of the following in the same change:
 - Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
 - Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
 - Keep authoritative sources and workflow docs aligned.
+
+## Handling conflicts with docs
+
+- When merge conflicts happen between `.github/` assets and docs mirrors, keep the `.github/` version.
+- Adjust the docs-side index or links after resolving the conflict to match `.github/` instead of copying file bodies.
+- Remove duplicated excerpts to reduce future diff noise.
