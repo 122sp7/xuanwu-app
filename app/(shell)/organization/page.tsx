@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import type { AccountEntity } from "@/modules/account/api";
 import { Button } from "@ui-shadcn/ui/button";
 
 function isOrganizationAccount(

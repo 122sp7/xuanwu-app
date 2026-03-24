@@ -22,5 +22,6 @@ export {
   sendPasswordResetEmail,
   signOut,
 } from "./interfaces/_actions/identity.actions";
-// Client-only hook — import directly to avoid RSC bundle contamination:
-// import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/useTokenRefreshListener"
+// Client-only hook — must be imported from the module barrel only from "use client" files
+// to avoid RSC bundle contamination.
+export { useTokenRefreshListener } from "./interfaces/hooks/useTokenRefreshListener";

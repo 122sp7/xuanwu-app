@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import { useApp } from "@/app/providers/app-provider";
-import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import type { AccountEntity } from "@/modules/account/api";
 import { createOrganization } from "@/modules/organization";
 import { Button } from "@ui-shadcn/ui/button";
 import {

@@ -18,7 +18,6 @@ import { FirebaseAccountRepository } from "../../infrastructure/firebase/Firebas
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
 
 const accountRepo = new FirebaseAccountRepository();
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
 
 export async function createUserAccount(
   userId: string,
@@ -74,8 +73,8 @@ export async function assignAccountRole(
   traceId?: string,
 ): Promise<CommandResult> {
   try {
-    // Pass tokenRefreshRepo so TOKEN_REFRESH_SIGNAL is emitted after role change [S6].
-    return await new AssignAccountRoleUseCase(accountRepo, tokenRefreshRepo).execute(
+    // TOKEN_REFRESH_SIGNAL is emitted inside AssignAccountRoleUseCase after role change [S6].
+    return await new AssignAccountRoleUseCase(accountRepo).execute(
       accountId,
       role,
       grantedBy,
@@ -88,7 +87,7 @@ export async function assignAccountRole(
 
 export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
   try {
-    return await new RevokeAccountRoleUseCase(accountRepo, tokenRefreshRepo).execute(accountId);
+    return await new RevokeAccountRoleUseCase(accountRepo).execute(accountId);
   } catch (err) {
     return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }

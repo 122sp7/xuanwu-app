@@ -1,7 +1,7 @@
 ---
 name: Implementer
 description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'todo', 'serena/*']
 handoffs:
   - label: Review Implementation
     agent: reviewer
@@ -23,15 +23,18 @@ Execute the approved implementation plan without expanding scope. Write code, up
 - Follow [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [.github/copilot-instructions.md](../copilot-instructions.md).
 - Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement matters.
 - Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) when a workflow is contract-governed.
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
 
 ## Workflow
 
-1. Read the plan completely before editing.
-2. Execute the implementation tasks in a deliberate order.
-3. Keep changes inside the documented scope and non-goals.
-4. Run the validation named in the plan.
-5. Update the documentation listed in the plan.
-6. Prepare a concise completion summary for review.
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the plan completely before editing.
+3. Execute the implementation tasks in a deliberate order.
+4. Keep changes inside the documented scope and non-goals.
+5. Run the validation named in the plan.
+6. Update the documentation listed in the plan.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
+8. Prepare a concise completion summary for review.
 
 ## Guardrails
 
@@ -39,6 +42,7 @@ Execute the approved implementation plan without expanding scope. Write code, up
 - Do not bypass required validation.
 - Do not ignore required documentation updates.
 - Stop and request a plan revision if owner, runtime, or validation is unclear.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
 
 ## Output expectations
 

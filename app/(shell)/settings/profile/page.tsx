@@ -9,8 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Plus, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { subscribeToUserProfile } from "@/modules/account/interfaces/queries/account.queries";
-import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import { subscribeToUserProfile, type AccountEntity } from "@/modules/account/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";

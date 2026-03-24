@@ -15,11 +15,10 @@ import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/F
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 
 const policyRepo = new FirebaseAccountPolicyRepository();
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
 
 export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
   try {
-    return await new CreateAccountPolicyUseCase(policyRepo, tokenRefreshRepo).execute(input);
+    return await new CreateAccountPolicyUseCase(policyRepo).execute(input);
   } catch (err) {
     return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -31,7 +30,7 @@ export async function updateAccountPolicy(
   data: UpdatePolicyInput,
 ): Promise<CommandResult> {
   try {
-    return await new UpdateAccountPolicyUseCase(policyRepo, tokenRefreshRepo).execute(policyId, accountId, data);
+    return await new UpdateAccountPolicyUseCase(policyRepo).execute(policyId, accountId, data);
   } catch (err) {
     return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -42,7 +41,7 @@ export async function deleteAccountPolicy(
   accountId: string,
 ): Promise<CommandResult> {
   try {
-    return await new DeleteAccountPolicyUseCase(policyRepo, tokenRefreshRepo).execute(policyId, accountId);
+    return await new DeleteAccountPolicyUseCase(policyRepo).execute(policyId, accountId);
   } catch (err) {
     return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }

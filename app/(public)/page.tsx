@@ -12,15 +12,14 @@ import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { FirebaseIdentityRepository } from "@/modules/identity/infrastructure/firebase/FirebaseIdentityRepository";
 import {
+  FirebaseIdentityRepository,
   SignInUseCase,
   SignInAnonymouslyUseCase,
   RegisterUseCase,
   SendPasswordResetEmailUseCase,
-} from "@/modules/identity/application/use-cases/identity.use-cases";
-import { CreateUserAccountUseCase } from "@/modules/account/application/use-cases/account.use-cases";
-import { FirebaseAccountRepository } from "@/modules/account/infrastructure/firebase/FirebaseAccountRepository";
+} from "@/modules/identity";
+import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account";
 import {
   createDevDemoUser,
   isDevDemoCredential,
