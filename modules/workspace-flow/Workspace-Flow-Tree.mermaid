@@ -52,7 +52,7 @@ flowchart TB
 				file_models[entities/Task.ts<br/>Issue.ts<br/>Invoice.ts<br/>InvoiceItem.ts]:::file
 				file_core[value-objects/TaskId.ts<br/>TaskStatus.ts<br/>IssueStage.ts]:::file
 				file_events[events/TaskEvent.ts<br/>IssueEvent.ts<br/>InvoiceEvent.ts]:::file
-				file_transitions[services/WorkflowTransitionPolicy.ts<br/>guards + transition rules]:::file
+				file_transitions[services/task-transition-policy.ts<br/>issue-transition-policy.ts<br/>invoice-transition-policy.ts<br/>task-guards.ts<br/>invoice-guards.ts]:::file
 
 				domain_entities --> file_models
 				domain_value_objects --> file_core
@@ -67,9 +67,9 @@ flowchart TB
 				application_use_cases[use-cases/]:::layer
 
 				file_services[ports/TaskService.ts<br/>IssueService.ts<br/>InvoiceService.ts]:::file
-				file_queries[dto/TaskQueryDto.ts<br/>IssueQueryDto.ts<br/>InvoiceQueryDto.ts]:::file
-				file_commands[dto/CreateTaskDto.ts<br/>OpenIssueDto.ts<br/>AddInvoiceItemDto.ts]:::file
-				file_use_cases[use-cases/submit-task-to-qa.use-case.ts<br/>approve-acceptance.use-case.ts<br/>submit-invoice.use-case.ts]:::file
+				file_queries[dto/task-query.dto.ts<br/>issue-query.dto.ts<br/>invoice-query.dto.ts]:::file
+				file_commands[dto/create-task.dto.ts<br/>open-issue.dto.ts<br/>add-invoice-item.dto.ts]:::file
+				file_use_cases[use-cases/submit-task-to-qa.use-case.ts<br/>approve-task-acceptance.use-case.ts<br/>submit-invoice.use-case.ts]:::file
 
 				application_ports --> file_services
 				application_dto --> file_queries
@@ -93,12 +93,18 @@ flowchart TB
 			subgraph INTERFACES [interfaces/]
 				direction TB
 				interfaces_actions[_actions/]:::layer
+				interfaces_contracts[contracts/]:::layer
 				interfaces_queries[queries/]:::layer
-				interfaces_components[components/]:::layer
+				file_interface_contracts[contracts/workspace-flow.contract.ts]:::file
+				file_interface_actions[_actions/workspace-flow.actions.ts]:::file
+				file_interface_queries[queries/workspace-flow.queries.ts]:::file
 				interface_note[optional module-local actions or query contracts<br/>product UI remains outside this module]:::doc
 				interfaces_layer --> interfaces_actions
+				interfaces_layer --> interfaces_contracts
 				interfaces_layer --> interfaces_queries
-				interfaces_layer --> interfaces_components
+				interfaces_actions --> file_interface_actions
+				interfaces_contracts --> file_interface_contracts
+				interfaces_queries --> file_interface_queries
 				interfaces_layer --> interface_note
 			end
 		end

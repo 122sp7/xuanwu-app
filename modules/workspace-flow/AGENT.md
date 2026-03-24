@@ -118,8 +118,16 @@ modules/workspace-flow/
 │       └── workspace-flow.queries.ts
 ├── AGENT.md
 ├── README.md
+├── Workspace-Flow-Architecture.mermaid
+├── Workspace-Flow-ERD.mermaid
+├── Workspace-Flow-Events.mermaid
+├── Workspace-Flow-Lifecycle.mermaid
+├── Workspace-Flow-Permissions.mermaid
+├── Workspace-Flow-Sequence.mermaid
+├── Workspace-Flow-States.mermaid
 ├── Workspace-Flow.mermaid
 ├── Workspace-Flow-Tree.mermaid
+├── Workspace-Flow-UI.mermaid
 └── index.ts
 ```
 
