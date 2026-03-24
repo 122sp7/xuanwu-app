@@ -12,6 +12,7 @@
 | Auth & Security | [auth-state-machine.mermaid](./auth-state-machine.mermaid), [security-rules-decision-flow.mermaid](./security-rules-decision-flow.mermaid) |
 | Knowledge & Events | [kb-ingestion-pipeline-state-machine.mermaid](./kb-ingestion-pipeline-state-machine.mermaid), [event-bus-message-flow.mermaid](./event-bus-message-flow.mermaid) |
 | Next.js & Agents | [nextjs-app-router-structure.mermaid](./nextjs-app-router-structure.mermaid), [agent-architecture-commander-subagents.mermaid](./agent-architecture-commander-subagents.mermaid) |
+| Domain Models | [core-logic.mermaid](./core-logic.mermaid), [erd-model.mermaid](./erd-model.mermaid), [project-derivation.mermaid](./project-derivation.mermaid), [rag-enterprise-e2e.mermaid](./rag-enterprise-e2e.mermaid), [state-machine.mermaid](./state-machine.mermaid) |
 
 ## 建議閱讀順序
 

@@ -7,7 +7,8 @@ Development guides, specifications, contracts, and planning for the Xuanwu App p
 - [development/](./development/) — Process, branching, code style → [development/README.md](./development/README.md)
 - [reference/](./reference/) — AI customization, plans, contracts → [reference/README.md](./reference/README.md)
 - [specification/](./specification/) — System specs, development contracts → [specification/README.md](./specification/README.md)
-- [namespace/](./namespace/) — Namespace definitions
+- [event/](./event/) — Event Core developer guide and user manual
+- [namespace/](./namespace/) — Namespace Core developer guide and user manual
 
 ## Quick Navigation
 

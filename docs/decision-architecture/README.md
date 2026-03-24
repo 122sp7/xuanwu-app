@@ -8,13 +8,12 @@ Architectural decisions (ADRs), system designs, and domain models.
 | --- | --- | --- |
 | ADRs | 12 | [adr/](./adr/) — RAG (ADR-001-011), Python functions (ADR-012) |
 | Architectures | 5 | [architecture/](./architecture/) — AI Knowledge Platform, Daily, Event, Namespace, Schedule |
-| Design Models | 5 | [design/](./design/) — core logic, ERD, derivation, RAG E2E, state machines |
 
 ## Quick Start
 
 - **System overview** → [architecture/ai-knowledge-platform-architecture.md](./architecture/ai-knowledge-platform-architecture.md)
 - **RAG details** → [adr/ADR-001...011](./adr/) (upload → ingestion → query → observability)
-- **Domain models** → [design/core-logic.mermaid](./design/core-logic.mermaid), [erd-model.mermaid](./design/erd-model.mermaid)
+- **Domain models** → [../diagrams-events-explanations/diagrams/core-logic.mermaid](../diagrams-events-explanations/diagrams/core-logic.mermaid), [erd-model.mermaid](../diagrams-events-explanations/diagrams/erd-model.mermaid)
 - **Feature architecture** → [architecture/](./architecture/)
 
 ## Related

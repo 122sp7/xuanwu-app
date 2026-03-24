@@ -21,27 +21,16 @@ const architecture = Object.freeze({
   schedule: "docs/decision-architecture/architecture/schedule.md",
 });
 
-const design = Object.freeze({
-  coreLogic: "docs/decision-architecture/design/core-logic.mermaid",
-  erdModel: "docs/decision-architecture/design/erd-model.mermaid",
-  projectDerivation: "docs/decision-architecture/design/project-derivation.mermaid",
-  ragEnterpriseE2e: "docs/decision-architecture/design/rag-enterprise-e2e.mermaid",
-  stateMachine: "docs/decision-architecture/design/state-machine.mermaid",
-});
-
 const markdown = Object.freeze({
   ...adr,
   ...architecture,
 });
 
-const assets = Object.freeze({
-  ...design,
-});
+const assets = Object.freeze({});
 
 module.exports = Object.freeze({
   adr,
   architecture,
-  design,
   markdown,
   assets,
 });
