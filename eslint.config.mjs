@@ -120,17 +120,17 @@ const eslintConfig = defineConfig([
             {
               from: { type: "module-domain" },
               disallow: { to: { type: ["module-application", "module-infrastructure", "module-interfaces"] } },
-              message: "domain 層只能依賴 domain 與 shared package，不能反向依賴 application / infrastructure / interfaces。",
+              message: "Domain files may depend only on domain files and shared packages, not on application, infrastructure, or interfaces layers.",
             },
             {
               from: { type: "module-application" },
               disallow: { to: { type: ["module-infrastructure", "module-interfaces"] } },
-              message: "application 層只能往 domain 依賴，不能直接依賴 infrastructure / interfaces。",
+              message: "Application files may depend on domain files, but not directly on infrastructure or interfaces layers.",
             },
             {
               from: { type: "module-infrastructure" },
               disallow: { to: { type: ["module-interfaces"] } },
-              message: "infrastructure 層不能依賴 interfaces。",
+              message: "Infrastructure files may not depend on interfaces files.",
             },
           ],
         },
@@ -141,7 +141,7 @@ const eslintConfig = defineConfig([
           patterns: [
             {
               group: ["**/index", "**/index.ts", "**/index.tsx"],
-              message: "請直接 import 目標檔案或模組公開邊界，避免透過顯式 index 形成隱形跨層。",
+              message: "Import the target file or public module boundary directly instead of using an explicit index path.",
             },
             {
               group: [
@@ -150,7 +150,7 @@ const eslintConfig = defineConfig([
                 "@/modules/*/infrastructure/**",
                 "@/modules/*/interfaces/**",
               ],
-              message: "跨模組依賴必須走目標模組的公開邊界（`@/modules/<module>` 或 `api/`），不要直連內部 layer。",
+              message: "Cross-module dependencies must go through the target module public boundary (`@/modules/<module>` or `api/`), not an internal layer path.",
             },
           ],
         },
