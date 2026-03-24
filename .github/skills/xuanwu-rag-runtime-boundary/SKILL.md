@@ -20,7 +20,7 @@ Use this skill when a change touches the end-to-end RAG lifecycle and you need t
 
 - [py_fn/README.md](../../../py_fn/README.md)
 - [docs/development-reference/reference/development-contracts/rag-ingestion-contract.md](../../../docs/development-reference/reference/development-contracts/rag-ingestion-contract.md)
-- [docs/decision-architecture/design/rag-implementation-mapping.md](../../../docs/decision-architecture/design/rag-implementation-mapping.md)
+- [docs/decision-architecture/adr/ADR-005-rag-ingestion-execution-contract.md](../../../docs/decision-architecture/adr/ADR-005-rag-ingestion-execution-contract.md)
 
 ## Workflow
 
