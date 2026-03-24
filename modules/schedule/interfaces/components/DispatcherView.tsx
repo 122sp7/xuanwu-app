@@ -18,7 +18,6 @@ import { MemberRow } from "./dispatcher/MemberRow";
 export function DispatcherView() {
   const members = useDispatcherStore((s) => s.members);
   const unassigned = useDispatcherStore(selectUnassignedTasks);
-  const assignTask = useDispatcherStore((s) => s.assignTask);
   const setDraggingTask = useDispatcherStore((s) => s.setDraggingTask);
 
   // Global DnD monitor — handles drops that land directly on the monitor
@@ -30,7 +29,7 @@ export function DispatcherView() {
         setDraggingTask(null);
       },
     });
-  }, [setDraggingTask, assignTask]);
+  }, [setDraggingTask]);
 
   return (
     <div className="flex h-full min-h-0 gap-4">

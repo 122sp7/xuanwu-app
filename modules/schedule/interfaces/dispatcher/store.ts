@@ -4,6 +4,8 @@ import { create } from "@lib-zustand";
 import type { DispatchAssignment, MemberResource, TaskDemand } from "./types";
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
+// TODO: Replace with real data fetching from the schedule/workspace domain once
+//       the backend API for cross-workspace task assignment is available.
 
 const MOCK_TASKS: TaskDemand[] = [
   { id: "t1", title: "審核 Q1 報告", workspaceName: "財務工作區", durationMinutes: 60, priority: "high" },

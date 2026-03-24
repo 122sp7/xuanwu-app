@@ -233,6 +233,12 @@ export default function OrganizationSchedulePage() {
   );
 
   // ── URL helpers ─────────────────────────────────────────────────────────────
+  /**
+   * Builds a relative URL for this page with the given view/status overrides.
+   *
+   * Supported view modes: "list" (default, no param), "calendar", "dispatcher".
+   * Supported status tabs: "upcoming" (default, no param), plus the other STATUS_TABS values.
+   */
   function buildUrl(overrides: { view?: ViewMode; status?: StatusTab }): string {
     const params = new URLSearchParams();
     const v = overrides.view ?? viewMode;
