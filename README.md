@@ -76,7 +76,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 This repository includes a formal Copilot delivery workflow for non-trivial changes.
 
-- Start here: [docs/how-to-user/how-to/ai/start-feature-delivery.md](docs/how-to-user/how-to/ai/start-feature-delivery.md)
+- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
 - Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
 
 ## Code of Conduct

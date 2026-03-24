@@ -38,5 +38,5 @@ Use this guide when the formal delivery workflow was interrupted or needs to res
 
 ## Related references
 
-- [handoff-matrix.md](../../../development-reference/reference/ai/handoff-matrix.md)
-- [customizations-index.md](../../../development-reference/reference/ai/customizations-index.md)
+- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
+- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)

@@ -21,16 +21,14 @@ const diagrams = Object.freeze({
 });
 
 const explanation = Object.freeze({
+  agenticDeliveryModel: "docs/diagrams-events-explanations/explanation/agentic-delivery-model.md",
   developmentContractGovernance: "docs/diagrams-events-explanations/explanation/development-contract-governance.md",
-  ai: Object.freeze({
-    agenticDeliveryModel: "docs/diagrams-events-explanations/explanation/ai/agentic-delivery-model.md",
-  }),
 });
 
 const markdown = Object.freeze({
   diagramsReadme: diagrams.readme,
+  explanationAgenticDeliveryModel: explanation.agenticDeliveryModel,
   explanationDevelopmentContractGovernance: explanation.developmentContractGovernance,
-  explanationAiAgenticDeliveryModel: explanation.ai.agenticDeliveryModel,
 });
 
 const assets = Object.freeze({

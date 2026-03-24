@@ -1,9 +1,8 @@
 const howTo = Object.freeze({
-  ai: Object.freeze({
-    recoverAgentFlow: "docs/how-to-user/how-to/ai/recover-agent-flow.md",
-    startFeatureDelivery: "docs/how-to-user/how-to/ai/start-feature-delivery.md",
-    updateCustomizations: "docs/how-to-user/how-to/ai/update-customizations.md",
-  }),
+  organizeDocsForAi: "docs/how-to-user/how-to/organize-docs-for-ai.md",
+  recoverAgentFlow: "docs/how-to-user/how-to/recover-agent-flow.md",
+  startFeatureDelivery: "docs/how-to-user/how-to/start-feature-delivery.md",
+  updateCustomizations: "docs/how-to-user/how-to/update-customizations.md",
 });
 
 const uiUx = Object.freeze({
@@ -22,9 +21,10 @@ const userManual = Object.freeze({
 });
 
 const markdown = Object.freeze({
-  howToAiRecoverAgentFlow: howTo.ai.recoverAgentFlow,
-  howToAiStartFeatureDelivery: howTo.ai.startFeatureDelivery,
-  howToAiUpdateCustomizations: howTo.ai.updateCustomizations,
+  howToOrganizeDocsForAi: howTo.organizeDocsForAi,
+  howToRecoverAgentFlow: howTo.recoverAgentFlow,
+  howToStartFeatureDelivery: howTo.startFeatureDelivery,
+  howToUpdateCustomizations: howTo.updateCustomizations,
   uiUxComponentPatterns: uiUx.componentPatterns,
   uiUxDesignSystem: uiUx.designSystem,
   uiUxInformationArchitecture: uiUx.informationArchitecture,

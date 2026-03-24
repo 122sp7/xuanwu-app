@@ -19,4 +19,4 @@ Technical reference, specifications, and planning templates.
 ## Related
 
 - [../../README.md](../../README.md) — Development reference root
-- [../../../how-to-user/how-to/ai/start-feature-delivery.md](../../../how-to-user/how-to/ai/start-feature-delivery.md) — How-to workflow
+- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow

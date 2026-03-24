@@ -5,7 +5,7 @@ Conceptual explanations, architectural rationale, and governance documentation.
 ## Core Content
 
 - [development-contract-governance.md](./development-contract-governance.md) — Development contract purpose, maintenance, and governance
-- [ai/agentic-delivery-model.md](./ai/agentic-delivery-model.md) — Agentic delivery suite design and rationale
+- [agentic-delivery-model.md](./agentic-delivery-model.md) — Agentic delivery suite design and rationale
 
 ## Related
 

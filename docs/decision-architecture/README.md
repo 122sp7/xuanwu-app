@@ -13,7 +13,7 @@ Architectural decisions (ADRs), system designs, and domain models.
 
 - **System overview** → [architecture/ai-knowledge-platform-architecture.md](./architecture/ai-knowledge-platform-architecture.md)
 - **RAG details** → [adr/ADR-001...011](./adr/) (upload → ingestion → query → observability)
-- **Domain models** → [../diagrams-events-explanations/diagrams/core-logic.mermaid](../diagrams-events-explanations/diagrams/core-logic.mermaid), [erd-model.mermaid](../diagrams-events-explanations/diagrams/erd-model.mermaid)
+- **Domain models** → [core-logic.mermaid](../diagrams-events-explanations/diagrams/core-logic.mermaid), [erd-model.mermaid](../diagrams-events-explanations/diagrams/erd-model.mermaid)
 - **Feature architecture** → [architecture/](./architecture/)
 
 ## Related

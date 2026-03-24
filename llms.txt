@@ -42,7 +42,7 @@ Read from high level to detail:
   - specific contract pages in docs/development-reference/reference/development-contracts/
 - AI workflow and Copilot customization assets:
   - docs/development-reference/reference/ai/customizations-index.md
-  - docs/how-to-user/how-to/ai/
+  - docs/how-to-user/how-to/
   - .github/skills/
 - Diagrams and explanatory support:
   - docs/diagrams-events-explanations/diagrams/README.md

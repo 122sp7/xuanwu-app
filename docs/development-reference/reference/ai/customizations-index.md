@@ -82,10 +82,10 @@ Use this order when working on customization assets:
 | Asset | Audience | Purpose |
 | --- | --- | --- |
 | [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
-| [start-feature-delivery.md](../../../how-to-user/how-to/ai/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [recover-agent-flow.md](../../../how-to-user/how-to/ai/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [update-customizations.md](../../../how-to-user/how-to/ai/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/ai/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
+| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
+| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
+| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
+| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
 | [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
 
 ## Existing specialized skills
