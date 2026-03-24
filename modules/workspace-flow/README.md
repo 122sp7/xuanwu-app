@@ -1,389 +1,250 @@
-modules\task
-modules\qa
-modules\acceptance
-modules\finance
-modules\issue
+# System State Machines
 
-# 一、整體系統流程
+三條完全獨立的狀態機，不混用。
 
-系統其實是三條流程：
+Mermaid 圖檔：`./Workspace-Flow.mermaid`
 
-```
-Work Flow（工作流）
-Issue Flow（異常 / 問題單）
-Finance Flow（金流）
-```
+---
 
-整體關係：
+## 核心原則
 
 ```
-Task → QA → Acceptance → Accepted
-            ↑      ↓
-            └ Issue ┘
-
-Accepted Tasks
- → Select Tasks
- → Create Invoice / Payment Batch
- → Finance Review
- → Approved
- → Paid
+Task.status      → 事情做完沒
+Issue.status     → 異常處理中
+Invoice.status   → 錢的狀態
 ```
 
-核心概念：
+**六個 Domain，各自一條狀態機。**
+
+---
+
+## 1. Task State Machine（工作流）
 
 ```
-Task Status ≠ Finance Status
-Issue 是側邊流程，不是主流程
+INITIAL → draft
+
+draft        --[assign]-->     in_progress
+in_progress  --[submit_qa]-->  qa
+qa           --[pass]-->       acceptance
+acceptance   --[approve]-->    accepted
+accepted     --[archive]-->    archived
+
+qa           --[fail]-->       in_progress   ← 不用，改開 Issue
+acceptance   --[fail]-->       qa            ← 不用，改開 Issue
+```
+
+> **規則：Task status 只往前走，不倒退。**
+> 發現問題 → 開 Issue，不是退狀態。
+
+### States
+
+| state | 說明 |
+|---|---|
+| `draft` | 任務建立，尚未開始 |
+| `in_progress` | 開發中 |
+| `qa` | 提交測試 |
+| `acceptance` | 客戶驗收中 |
+| `accepted` | 驗收通過，可進 Finance |
+| `archived` | 歸檔 |
+
+### Transitions
+
+| from | event | to | guard |
+|---|---|---|---|
+| `draft` | `ASSIGN` | `in_progress` | assignee 存在 |
+| `in_progress` | `SUBMIT_QA` | `qa` | — |
+| `qa` | `PASS` | `acceptance` | no open issues |
+| `acceptance` | `APPROVE` | `accepted` | no open issues |
+| `accepted` | `ARCHIVE` | `archived` | invoice closed or none |
+
+---
+
+## 2. Issue State Machine（問題單流）
+
+```
+INITIAL → open
+
+open          --[start]-->    investigating
+investigating --[fix]-->      fixing
+fixing        --[submit]-->   retest
+retest        --[pass]-->     resolved
+retest        --[fail]-->     fixing          ← 回修
+resolved      --[close]-->    closed
+```
+
+> **規則：任何節點發現問題，一律開 Issue，不退 Task。**
+> Issue 解決後，回到原來節點繼續。
+
+### States
+
+| state | 說明 |
+|---|---|
+| `open` | 問題建立 |
+| `investigating` | 調查原因中 |
+| `fixing` | 修復中 |
+| `retest` | 重新測試 |
+| `resolved` | 已解決 |
+| `closed` | 關閉歸檔 |
+
+### Transitions
+
+| from | event | to |
+|---|---|---|
+| `open` | `START` | `investigating` |
+| `investigating` | `FIX` | `fixing` |
+| `fixing` | `SUBMIT` | `retest` |
+| `retest` | `PASS` | `resolved` |
+| `retest` | `FAIL` | `fixing` |
+| `resolved` | `CLOSE` | `closed` |
+
+### Issue 與 Task 的關係
+
+```
+Task (qa)       → Issue.stage = 'qa'       → 解完 → 回 qa
+Task (acceptance) → Issue.stage = 'acceptance' → 解完 → 回 acceptance
+```
+
+`Issue.stage` 記錄在哪個節點產生，方便 retest 後回到正確位置。
+
+---
+
+## 3. Invoice State Machine（財務流）
+
+```
+INITIAL → invoice_draft
+
+invoice_draft  --[submit]-->   submitted
+submitted      --[review]-->   finance_review
+finance_review --[approve]-->  approved
+finance_review --[reject]-->   submitted       ← 退回補件
+approved       --[pay]-->      paid
+paid           --[close]-->    closed
+```
+
+> **規則：Task 不擁有 Finance status。**
+> Invoice 有自己的狀態機。Task 被加入 InvoiceItem，透過 InvoiceItem 關聯到 Invoice。
+
+### States
+
+| state | 說明 |
+|---|---|
+| `invoice_draft` | 草稿，選取 accepted tasks |
+| `submitted` | 送出請款 |
+| `finance_review` | 財務審核中 |
+| `approved` | 核准 |
+| `paid` | 已付款 |
+| `closed` | 結案 |
+
+### Transitions
+
+| from | event | to | guard |
+|---|---|---|---|
+| `invoice_draft` | `SUBMIT` | `submitted` | items 不為空 |
+| `submitted` | `REVIEW` | `finance_review` | — |
+| `finance_review` | `APPROVE` | `approved` | — |
+| `finance_review` | `REJECT` | `submitted` | — |
+| `approved` | `PAY` | `paid` | — |
+| `paid` | `CLOSE` | `closed` | — |
+
+---
+
+## 4. 資料模型
+
+### Task
+
+```ts
+type Task = {
+  id: string
+  title: string
+  description: string
+  status: 'draft' | 'in_progress' | 'qa' | 'acceptance' | 'accepted' | 'archived'
+  assignee: string
+  accepted_at?: Date
+  created_at: Date
+}
+```
+
+### Issue
+
+```ts
+type Issue = {
+  id: string
+  task_id: string
+  stage: 'qa' | 'acceptance' | 'finance'     // 在哪個節點發生
+  title: string
+  description: string
+  status: 'open' | 'investigating' | 'fixing' | 'retest' | 'resolved' | 'closed'
+  created_by: string
+  assigned_to: string
+  created_at: Date
+  resolved_at?: Date
+}
+```
+
+### Invoice
+
+```ts
+type Invoice = {
+  id: string
+  status: 'invoice_draft' | 'submitted' | 'finance_review' | 'approved' | 'paid' | 'closed'
+  total_amount: number
+  created_at: Date
+  submitted_at?: Date
+  approved_at?: Date
+  paid_at?: Date
+}
+```
+
+### InvoiceItem
+
+```ts
+type InvoiceItem = {
+  id: string
+  invoice_id: string
+  task_id: string
+  amount: number
+}
 ```
 
 ---
 
-# 二、Task Workflow（工作狀態機）
-
-Task 主流程：
+## 5. 關聯關係
 
 ```
-draft
-→ in_progress
-→ qa
-→ acceptance
-→ accepted
-→ archived
+Task    1 ──── n    Issue
+Task    1 ──── n    InvoiceItem   n ──── 1   Invoice
 ```
 
-狀態說明：
-
-| 狀態          | 說明   |
-| ----------- | ---- |
-| draft       | 建立任務 |
-| in_progress | 開發中  |
-| qa          | 測試   |
-| acceptance  | 驗收   |
-| accepted    | 驗收完成 |
-| archived    | 歸檔   |
-
-**Accepted 才能進 Finance**
+Task 不直接持有 Invoice，透過 InvoiceItem 關聯。
 
 ---
 
-# 三、Issue Workflow（問題單 / 異常流程）
+## 6. Guard 規則（狀態轉移前置條件）
 
-任何階段發現問題都不要直接退回
-**一律開 Issue**
-
-```
-open
-→ investigating
-→ fixing
-→ retest
-→ resolved
-→ closed
-```
-
-Issue 與 Task / QA / Acceptance 關係：
-
-```
-Task → QA → Acceptance
-        ↓      ↓
-       Issue  Issue
-```
-
-Issue 解決後回到原本節點：
-
-```
-QA 發現問題
-→ Issue
-→ 修復
-→ retest
-→ 回 QA
-
-Acceptance 發現問題
-→ Issue
-→ 修復
-→ retest
-→ 回 Acceptance
-```
-
-**重點：不要讓 Task status 一直 forward / backward**
-用 Issue Flow 處理異常。
+| 規則 | 說明 |
+|---|---|
+| `qa → acceptance` | Task 下無 `open / investigating / fixing / retest` 的 Issue |
+| `acceptance → accepted` | 同上 |
+| `invoice_draft → submitted` | InvoiceItems 至少一筆 |
+| `accepted → archived` | 關聯的 Invoice 全為 `closed` 或無 Invoice |
 
 ---
 
-# 四、Finance Workflow（財務 / 請款 / 付款）
-
-Finance 是另一個狀態機：
+## 7. 完整流程一覽
 
 ```
-invoice_draft
-→ submitted
-→ finance_review
-→ approved
-→ paid
-→ closed
+Task → qa → acceptance → accepted
+        │        │
+        └─ Issue ┘  (任何節點發現問題 → 開 Issue → 修完回原節點)
+
+accepted → InvoiceItem → Invoice → Finance Review → Approved → Paid
 ```
 
-流程：
+**一句話記憶法：**
 
 ```
-Accepted Tasks
- → Select Tasks
- → Create Invoice / Payment Batch
- → Finance Review
- → Approved
- → Paid
+Task   解決：事情做完沒？
+Issue  解決：異常怎麼辦？
+Invoice 解決：要收多少錢？
+Finance 解決：錢付了沒？
 ```
-
-注意：
-
-```
-Task 被加入 Invoice
-Invoice 有 Finance Status
-Task 不應該有 Finance Status
-```
-
----
-
-# 五、三條流程合併視圖（非常重要）
-
-完整流程圖：
-
-```
-Work Flow
----------
-Task
- → QA
- → Acceptance
- → Accepted
-        ↓
-Finance Flow
-------------
-Accepted Tasks
- → Select Tasks
- → Invoice / Payment Batch
- → Finance Review
- → Approved
- → Paid
-
-Issue Flow
-----------
-任何節點
- → Create Issue
- → Fix
- → Retest
- → 回原節點
-```
-
-用圖表示：
-
-```
-Task → QA → Acceptance → Accepted
-        │       │
-        └ Issue ┘
-                ↓
-            Invoice
-                ↓
-             Review
-                ↓
-             Approved
-                ↓
-               Paid
-```
-
----
-
-# 六、資料模型（核心）
-
-這是最重要的資料關係設計。
-
-## 1. Task
-
-```
-Task
- ├─ id
- ├─ title
- ├─ description
- ├─ status
- ├─ assignee
- ├─ accepted_at
- ├─ created_at
-```
-
-## 2. Issue（問題單）
-
-```
-Issue
- ├─ id
- ├─ task_id
- ├─ stage (qa / acceptance / finance)
- ├─ title
- ├─ description
- ├─ status
- ├─ created_by
- ├─ assigned_to
- ├─ created_at
- ├─ resolved_at
-```
-
-## 3. Invoice
-
-```
-Invoice
- ├─ id
- ├─ status
- ├─ total_amount
- ├─ created_at
- ├─ submitted_at
- ├─ approved_at
- ├─ paid_at
-```
-
-## 4. InvoiceItems
-
-```
-InvoiceItems
- ├─ id
- ├─ invoice_id
- ├─ task_id
- ├─ amount
-```
-
----
-
-# 七、關聯關係（非常重要）
-
-```
-Task 1 --- n Issue
-
-Task 1 --- n InvoiceItems n --- 1 Invoice
-```
-
-完整關係：
-
-```
-Task
- ├─ Issues
- └─ InvoiceItems
-        └─ Invoice
-```
-
-或畫成流程：
-
-```
-Task
- ├─ QA
- ├─ Acceptance
- ├─ Issues
- └─ Accepted
-        ↓
-   InvoiceItem
-        ↓
-      Invoice
-        ↓
-      Payment
-```
-
----
-
-# 八、最終狀態機整理（總表）
-
-## Task Status
-
-```
-draft
-in_progress
-qa
-acceptance
-accepted
-archived
-```
-
-## Issue Status
-
-```
-open
-investigating
-fixing
-retest
-resolved
-closed
-```
-
-## Invoice / Finance Status
-
-```
-invoice_draft
-submitted
-finance_review
-approved
-paid
-closed
-```
-
----
-
-# 九、最終完整流程（最標準版本）
-
-這個可以當系統設計文件：
-
-```
-Task Flow
----------
-draft
-→ in_progress
-→ qa
-→ acceptance
-→ accepted
-→ archived
-
-Issue Flow
-----------
-open
-→ investigating
-→ fixing
-→ retest
-→ resolved
-→ closed
-
-Finance Flow
-------------
-invoice_draft
-→ submitted
-→ finance_review
-→ approved
-→ paid
-→ closed
-```
-
-流程關係：
-
-```
-Task → QA → Acceptance → Accepted
-        │       │
-        └ Issue ┘
-                ↓
-            Invoice
-                ↓
-             Review
-                ↓
-             Approved
-                ↓
-               Paid
-```
-
----
-
-# 十、系統設計核心原則（非常重要）
-
-最後記住這幾句就不會設計錯：
-
-```
-Task 解決：事情做完沒
-QA 解決：品質過關沒
-Acceptance 解決：客戶驗收沒
-Issue 解決：異常與問題
-Invoice 解決：要收多少錢
-Finance 解決：錢付了沒
-```
-
-**六個 Domain，不要混成一個狀態機。**
-

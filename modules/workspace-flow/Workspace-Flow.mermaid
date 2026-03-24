@@ -1,0 +1,88 @@
+%% Workspace Flow (derived only from modules/workspace-flow README + types)
+%% Includes: Task main flow, Issue side flow, Invoice finance flow, and guard gates.
+
+flowchart LR
+	%% ==================== Task ====================
+	subgraph TASK[Task State Machine]
+		direction LR
+		T0([draft]) -->|ASSIGN| T1([in_progress])
+		T1 -->|SUBMIT_QA| T2([qa])
+		T2 --> G1{open issues == 0?}
+		G1 -->|PASS_QA| T3([acceptance])
+		G1 -->|no| I0
+
+		T3 --> G2{open issues == 0?}
+		G2 -->|APPROVE_ACCEPTANCE| T4([accepted])
+		G2 -->|no| I0
+
+		T4 --> G3{all related invoices closed\nor no invoice?}
+		G3 -->|ARCHIVE| T5([archived])
+		G3 -->|no| W1[(wait finance close)]
+	end
+
+	%% ==================== Issue ====================
+	subgraph ISSUE[Issue State Machine]
+		direction LR
+		I0([open]) -->|START| I1([investigating])
+		I1 -->|FIX| I2([fixing])
+		I2 -->|SUBMIT_RETEST| I3([retest])
+		I3 -->|PASS_RETEST| I4([resolved])
+		I3 -->|FAIL_RETEST| I2
+		I4 -->|CLOSE| I5([closed])
+	end
+
+	%% ==================== Invoice ====================
+	subgraph INVOICE[Invoice State Machine]
+		direction LR
+		V0([invoice_draft]) --> G4{items > 0?}
+		G4 -->|SUBMIT| V1([submitted])
+		G4 -->|no| W2[(add invoice items)]
+		V1 -->|REVIEW| V2([finance_review])
+		V2 -->|APPROVE| V3([approved])
+		V2 -->|REJECT| V1
+		V3 -->|PAY| V4([paid])
+		V4 -->|CLOSE| V5([closed])
+	end
+
+	%% ==================== Cross-relations ====================
+	T4 -. accepted task eligible .-> J1[[InvoiceItem(task_id, amount)]]
+	J1 -. belongs to .-> V0
+
+	I5 -. unblock QA gate .-> G1
+	I5 -. unblock Acceptance gate .-> G2
+	V5 -. unblock Archive gate .-> G3
+
+	%% ==================== Domain notes ====================
+	N1[Issue.stage records where issue was created:\nqa | acceptance | finance]
+	N2[Task status is forward-only.\nDo not roll back task status on failures.]
+	N3[Task does not own finance status.\nFinance status lives in Invoice.]
+
+	I0 -. context .-> N1
+	TASK -. rule .-> N2
+	INVOICE -. rule .-> N3
+
+	%% ==================== Legend ====================
+	subgraph LEGEND[Legend]
+		direction TB
+		L1([State])
+		L2{Guard}
+		L3[(Action required)]
+		L4[[Cross-domain relation]]
+	end
+
+	%% ==================== Styling ====================
+	classDef task fill:#e6f0ff,stroke:#1d4ed8,color:#1e3a8a,stroke-width:1.8px;
+	classDef issue fill:#ecfdf3,stroke:#047857,color:#065f46,stroke-width:1.8px;
+	classDef invoice fill:#fff7ed,stroke:#c2410c,color:#9a3412,stroke-width:1.8px;
+	classDef guard fill:#fef9c3,stroke:#a16207,color:#713f12,stroke-width:1.6px;
+	classDef wait fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d,stroke-width:1.6px;
+	classDef xref fill:#f5f3ff,stroke:#6d28d9,color:#4c1d95,stroke-width:1.6px;
+	classDef note fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.2px;
+
+	class T0,T1,T2,T3,T4,T5 task;
+	class I0,I1,I2,I3,I4,I5 issue;
+	class V0,V1,V2,V3,V4,V5 invoice;
+	class G1,G2,G3,G4,L2 guard;
+	class W1,W2,L3 wait;
+	class J1,L4 xref;
+	class N1,N2,N3,L1 note;
