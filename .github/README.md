@@ -2,11 +2,11 @@
 
 This directory is the root index for repository-scoped Copilot, GitHub, and automation assets.
 
-Use this page when you need one stable entry point for `.github/` instead of jumping directly into individual files or folders.
+Use this page when you need one stable starting point for `.github/` instead of jumping directly into individual files or folders.
 
 ## Scope boundary
 
-Treat `.github/` as the operational source of truth for active customization assets.
+Treat `.github/` as the operational home for active customization assets.
 
 - Put live Copilot behavior, workflow entrypoints, applyTo instructions, agents, prompts, skills, and automation wiring here.
 - Put explanatory, governance, onboarding, and maintenance documentation in `docs/`.
@@ -24,7 +24,7 @@ For AI customization work, read in this order:
 
 ## Folder index
 
-| Path | Purpose | Canonical entry |
+| Path | Purpose | Recommended entry |
 | --- | --- | --- |
 | [agents/](./agents/) | Delivery-stage agents and specialized personas | [agents/planner.agent.md](./agents/planner.agent.md) |
 | [copilot/](./copilot/) | Reserved Copilot-specific assets | currently placeholder only |
@@ -49,14 +49,14 @@ For AI customization work, read in this order:
 ## Link and reference policy
 
 - Use relative links inside `.github/`.
-- Prefer one canonical entry per folder.
-- Treat `.github/` files as canonical when a docs page describes the same customization asset.
+- Prefer one recommended entry per folder.
+- When a docs page describes the same customization asset, keep the operative definition in `.github/` and use docs for explanation or routing.
 - Treat placeholder or example syntax as plain text, not live links.
 - When adding or moving a customization file, update this index and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) in the same change if routing changed.
 
 ## Maintenance checklist
 
-- Does the folder have a clear canonical entry?
+- Does the folder have a clear recommended entry?
 - Does any newly added file need to be indexed here?
 - Are example paths written in a way that will not be mistaken for broken links?
 - If a delivery asset changed, is the docs-side index also updated?

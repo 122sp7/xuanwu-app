@@ -21,9 +21,9 @@ Xuanwu App 的規格文件分為三個層次：
 ```
 系統規格（System Spec）         ← 本目錄 system-overview.md
     ↓
-功能規格（Feature Spec）        ← docs/wiki-beta/*.md
+功能或主題規格（Feature / Topic Spec）
     ↓
-開發契約（Development Contract） ← docs/development-reference/development-reference/reference/development-contracts/
+開發契約（Development Contract） ← docs/development-reference/reference/development-contracts/
 ```
 
 | 層次 | 問什麼 | 讀者 |
@@ -34,12 +34,14 @@ Xuanwu App 的規格文件分為三個層次：
 
 ---
 
-## 現有功能規格文件
+## 現有規格入口
 
-| 功能 | 設計規格 | UI/UX 規格 | 使用手冊 |
-|---|---|---|---|
-| Wiki-Beta 核心 | [wiki-beta-design-spec.md](../../development-reference/specification/README.md) | [wiki-beta-ui-ux-spec.md](../../development-reference/specification/README.md) | [wiki-beta-user-manual.md](../../development-reference/specification/README.md) |
-| Wiki-Beta Pages/Libraries | [wiki-beta-pages-libraries-design-spec.md](../../development-reference/specification/README.md) | — | [wiki-beta-pages-libraries-user-manual.md](../../development-reference/specification/README.md) |
+| 主題 | 入口 | 說明 |
+|---|---|---|
+| 系統層規格 | [system-overview.md](./system-overview.md) | 平台定位、運行時邊界、核心能力總覽 |
+| 開發契約 | [../reference/development-contracts/overview.md](../reference/development-contracts/overview.md) | 需要明確 workflow boundary 時的契約入口 |
+| UI / UX 與操作 | [../../how-to-user/ui-ux/README.md](../../how-to-user/ui-ux/README.md) | 介面原則、資訊架構、元件與操作說明 |
+| 架構決策記錄 | [../../decision-architecture/adr/](../../decision-architecture/adr/) | 重要架構決策與取捨理由 |
 
 ---
 
@@ -88,10 +90,10 @@ ADR 記錄了重要的架構決策及其理由：
 
 | 需求 | 規格 |
 |---|---|
-| 資料隔離 | 所有 Firestore 讀寫必須在 `accounts/{accountId}/...` 路徑下 |
+| 資料隔離 | Firestore 讀寫應遵循目前定義的租戶與資源邊界 |
 | 認證 | Firebase Auth；所有 Shell 頁面需認證（`shell-guard.tsx`） |
 | 授權 | RBAC；角色定義於 [`PERMISSIONS.md`](../../../PERMISSIONS.md) |
-| Storage 隔離 | 上傳必須攜帶 `account_id` metadata |
+| Storage 隔離 | 上傳流程應保留可供隔離與追蹤的必要 metadata |
 
 ### 效能（Performance）
 
@@ -111,4 +113,4 @@ ADR 記錄了重要的架構決策及其理由：
 
 - 所有關鍵操作（上傳、重整、查詢）需可在 Playwright 中重現與驗證
 - Console 不得有初始化錯誤（`accountId required` 類型）
-- 失敗必須 toast + console.error（不可靜默失敗）
+- 失敗應提供明確回饋，避免靜默失敗

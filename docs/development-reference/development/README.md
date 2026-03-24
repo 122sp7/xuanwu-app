@@ -19,7 +19,7 @@
 
 ### 開發前必讀
 
-1. **架構文件**：[`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — 20 個 MDDD 模組的職責與邊界
+1. **架構文件**：[`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — MDDD 模組的職責與邊界
 2. **規則索引**：[`agents/README.md`](../../../agents/README.md) — 架構、品質、資料、API 規則
 3. **貢獻指南**：[`CONTRIBUTING.md`](../../../CONTRIBUTING.md) — PR 規範與 House Rules
 

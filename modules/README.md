@@ -11,9 +11,9 @@
 
 `Architecture.md` 定義三層融合：
 
-1. Content / UI Layer（Notion）
-2. Knowledge Graph Layer（Wiki）
-3. AI Layer（NotebookLM / RAG）
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
 
 在本專案中的實作對位：
 
@@ -137,7 +137,7 @@ modules/*
 
 本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
 
-1. 保留 Notion × Wiki × NotebookLM 融合方向。
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
 2. 明確化「融合體驗」與「邊界隔離」可同時成立。
 3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
 

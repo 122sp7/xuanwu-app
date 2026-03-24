@@ -15,7 +15,7 @@
 用途：
 
 - 提供 AI 知識平台的整體概念架構圖
-- 對齊 Notion × Wiki × NotebookLM 的三層融合視角
+- 對齊內容體驗、知識關聯、AI 能力的三層融合視角
 - 可作為 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 與 [modules-implementation-guide.md](../../development-reference/development/modules-implementation-guide.md) 的配圖
 
 適合閱讀者：
@@ -43,7 +43,7 @@
 用途：
 
 - 提供整體系統總覽
-- 把多 Workspace hierarchy 與單一 Workspace canonical domains 接起來
+- 把多 Workspace hierarchy 與單一 Workspace 的主要資料領域接起來
 - 作為簡報或總體設計文件的主圖
 
 適合閱讀者：
@@ -103,7 +103,7 @@
 用途：
 
 - 說明 Firestore collections / subcollections 路徑拓撲
-- 區分 active collections、legacy path、canonical file model target
+- 區分 active collections、legacy path、目前採用的 file model target
 - 適合作為資料落點與命名地圖
 
 適合閱讀者：
