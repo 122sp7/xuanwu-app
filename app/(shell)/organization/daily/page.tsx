@@ -1,8 +1,7 @@
 "use client";
 
-import { Layers3, Orbit } from "lucide-react";
-
 import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceFeedAccountView } from "@/modules/workspace-feed";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationDailyPage() {
@@ -23,36 +22,18 @@ export default function OrganizationDailyPage() {
       <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold">Account Daily</p>
+            <p className="text-sm font-semibold">Account Workspace Feed</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              聚合名下 workspace 的 Daily feed。現階段先保留入口與 account scope，避免已刪除模組持續卡住後續實作。
+              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
             </p>
           </div>
-          <div className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-            rebuilding
+          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            live
           </div>
         </div>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-2xl border border-dashed border-border bg-background/70 p-5">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Layers3 className="h-4 w-4" />
-            account scope preserved
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">organization/account id: {activeOrganizationId}</p>
-        </article>
-
-        <article className="rounded-2xl border border-dashed border-border bg-background/70 p-5">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Orbit className="h-4 w-4" />
-            next build target
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            之後在這裡接回跨 workspace 的 X-like timeline，並補上 reply、repost、like、view、bookmark、share。
-          </p>
-        </article>
-      </div>
+      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
     </section>
   );
 }

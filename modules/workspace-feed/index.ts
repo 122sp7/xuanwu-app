@@ -15,6 +15,8 @@ export type {
   WorkspaceFeedInteractionParams,
 } from "./api";
 
+export { WorkspaceFeedWorkspaceView, WorkspaceFeedAccountView } from "./interfaces";
+
 // Read model exposed for API consumers.
 export type { WorkspaceFeedPost, WorkspaceFeedPostType } from "./domain/entities/workspace-feed-post.entity";
 export { WORKSPACE_FEED_POST_TYPES } from "./domain/entities/workspace-feed-post.entity";

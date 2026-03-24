@@ -13,3 +13,6 @@ export {
   getWorkspaceFeed,
   getAccountWorkspaceFeed,
 } from "./queries/workspace-feed.queries";
+
+export { WorkspaceFeedWorkspaceView } from "./components/WorkspaceFeedWorkspaceView";
+export { WorkspaceFeedAccountView } from "./components/WorkspaceFeedAccountView";
