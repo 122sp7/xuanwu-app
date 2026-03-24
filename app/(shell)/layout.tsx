@@ -14,7 +14,7 @@ import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import type { AccountEntity } from "@/modules/account/api";
 import { AccountSwitcher } from "./_components/account-switcher";
 import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
 import { AppRail } from "./_components/app-rail";

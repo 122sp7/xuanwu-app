@@ -12,7 +12,7 @@ import type {
   WikiBetaReindexInput,
   WikiBetaWorkspaceRef,
 } from "../../domain/entities/wiki-beta.types";
-import { getWorkspacesForAccount } from "@/modules/workspace";
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

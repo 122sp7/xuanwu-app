@@ -18,12 +18,11 @@ import {
   type ReactNode,
 } from "react";
 
-import { subscribeToAccountsForUser } from "@/modules/account/interfaces/queries/account.queries";
-import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
 import {
   subscribeToWorkspacesForAccount,
   type WorkspaceEntity,
-} from "@/modules/workspace";
+} from "@/modules/workspace/api";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";
