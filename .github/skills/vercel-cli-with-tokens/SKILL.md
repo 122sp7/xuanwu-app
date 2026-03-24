@@ -7,52 +7,28 @@ metadata:
 disable-model-invocation: true
 ---
 
-# Vercel CLI with Tokens (Condensed)
+# vercel-cli-with-tokens (Condensed)
 
-Use `VERCEL_TOKEN` from environment. Do not pass tokens via CLI flags.
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
-## Token Discovery Order
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. `printenv VERCEL_TOKEN`
-2. `.env` key `VERCEL_TOKEN`
-3. `.env` other Vercel-like key (often `vca_...`)
-4. If missing, ask user for token.
-
-## Project Target Discovery
-
-Check:
-- `VERCEL_PROJECT_ID`
-- `VERCEL_ORG_ID`
-- `.vercel/project.json` or `.vercel/repo.json`
-
-If project URL exists, extract team slug from it.
-
-## Required Rules
-
-- `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` must be set together.
-- Avoid exposing token in command history.
-- Default to preview deploy.
-
-## Deploy Paths
-
-### Quick deploy (IDs already set)
-
-- `vercel deploy -y --no-wait [--scope <team>]`
-- Production only when explicit: `vercel deploy --prod -y --no-wait [--scope ...]`
-- Validate with `vercel inspect <url>`.
-
-### Full flow (no IDs)
-
-1. Check git remote and linked state.
-2. Link:
-   - remote exists: `vercel link --repo --scope <team> -y`
-   - no remote: `vercel link --scope <team> -y`
-3. Deploy:
-   - with remote: ask then push
-   - no remote: `vercel deploy --scope <team> -y --no-wait`
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Never push without approval.
-- Never leak tokens in command args.
-- Keep scope/project targeting explicit.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

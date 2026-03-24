@@ -4,50 +4,28 @@ description: Learn how VS Code agents work and choose the right agent workflow. 
 disable-model-invocation: true
 ---
 
-# VS Code Agent Foundations
+# vscode-agent-foundations (Condensed)
 
-Use this skill when the task is about understanding or designing agent workflows in VS Code.
-
-## When to Use This Skill
-
-- Choosing between Ask, Agent, and Plan
-- Explaining local agents versus background or cloud agents
-- Planning multi-step work with handoffs
-- Understanding memory scopes and when to persist knowledge
-- Using tools, approvals, and tool sets
-- Deciding when subagents improve context isolation
-- Explaining Copilot smart actions and where they fit
-
-## Core Concepts
-
-- Ask: research, explanation, and codebase questions
-- Plan: structured implementation planning before code changes
-- Agent: autonomous multi-step execution with tools
-- Local agents: interactive work in the current workspace
-- Session isolation: each session has its own context window
-- Memory scopes: user, repository, and session
-- Subagents: isolated workers for research, analysis, or review
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Identify whether the user needs explanation, planning, or execution.
-2. If the task is ambiguous, recommend Ask or Plan before Agent.
-3. If the task spans multiple files or needs validation, recommend Agent.
-4. If the task needs context isolation or parallel analysis, recommend subagents.
-5. If the user asks for reusable workflow control, suggest custom agents, prompt files, or skills as the next layer.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Do not recommend Agent for a simple conceptual question that Ask can handle.
-- Do not recommend Plan for trivial edits that do not need staged execution.
-- Do not treat memory as a general knowledge dump; store only durable, relevant context.
-- Do not suggest subagents when the task is already narrow and single-purpose.
-
-## Output Expectations
-
-When using this skill, return:
-
-1. the recommended agent mode,
-2. why it fits,
-3. which tools or permissions matter,
-4. whether memory or subagents should be involved.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

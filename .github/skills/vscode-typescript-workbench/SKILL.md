@@ -4,41 +4,28 @@ description: Work effectively with TypeScript in VS Code. Use when configuring t
 disable-model-invocation: true
 ---
 
-# VS Code TypeScript Workbench
+# vscode-typescript-workbench (Condensed)
 
-Use this skill when the task is specifically about TypeScript workflows inside VS Code.
-
-## When to Use This Skill
-
-- Creating or fixing tsconfig.json
-- Explaining TypeScript transpilation flow
-- Setting up source maps and launch.json
-- Refactoring TypeScript symbols or imports
-- Explaining auto imports, inlay hints, CodeLens, or Quick Fixes
-- Aligning VS Code's TypeScript version with the workspace TypeScript version
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Determine whether the problem is editing, compiling, refactoring, or debugging.
-2. For compile issues, inspect tsconfig, outDir, sourceMap, and included files.
-3. For editor-behavior issues, inspect TypeScript version, IntelliSense features, and settings.
-4. For refactoring, choose rename, extract, move, import conversion, or organize imports.
-5. For debugging, ensure source maps exist and launch.json outFiles points at built output.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
-## Key Topics
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Compiler versus language service
-- Workspace TypeScript version versus bundled version
-- sourceMap and outFiles
-- Organize Imports and updateImportsOnFileMove
-- Code actions on save
-- Large-project performance with focused tsconfig and project references
-
-## Output Expectations
-
-When using this skill, return:
-
-1. the TypeScript workflow category,
-2. the relevant VS Code feature or config,
-3. the likely misconfiguration if something is broken,
-4. the fastest way to validate.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

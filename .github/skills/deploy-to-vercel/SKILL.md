@@ -7,54 +7,28 @@ metadata:
 disable-model-invocation: true
 ---
 
-# Deploy to Vercel (Condensed)
+# deploy-to-vercel (Condensed)
 
-Default to preview deploy unless user explicitly asks for production.
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
-## Preflight Checks
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. `git remote get-url origin`
-2. `.vercel/project.json` or `.vercel/repo.json` exists?
-3. `vercel whoami`
-4. `vercel teams list --format json` (if authenticated)
-
-## Team Scope
-
-- If multiple teams, list slugs and ask user to pick one.
-- Use `--scope <team-slug>` on all Vercel CLI commands.
-- If already linked, trust `orgId` from `.vercel/*`.
-
-## Method Selection
-
-### A) Linked + git remote
-
-- Ask before pushing.
-- `git add . && git commit -m "deploy: ..." && git push`
-- Retrieve latest deployment URL with `vercel ls --format json`.
-
-### B) Linked + no git remote
-
-- `vercel deploy -y --no-wait [--scope ...]`
-- Check with `vercel inspect <url>`.
-
-### C) Not linked + authenticated
-
-- With remote: `vercel link --repo --scope <team-slug>`
-- Without remote: `vercel link --scope <team-slug>`
-- Then use A or B.
-
-### D) Not linked + not authenticated
-
-- `npm install -g vercel`
-- `vercel login`
-- Link and deploy as above.
-
-## Last-Resort Fallback
-
-Use bundled fallback scripts only when CLI auth/install is unavailable in sandbox environments.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Never push without explicit user approval.
-- Do not run production deploy unless explicitly requested.
-- Prefer linked+git flow as long-term setup.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

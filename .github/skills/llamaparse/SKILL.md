@@ -9,49 +9,28 @@ metadata:
 disable-model-invocation: true
 ---
 
-# LlamaParse Skill (Condensed)
+# llamaparse (Condensed)
 
-## Preconditions
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
-Confirm before execution:
-- `LLAMA_CLOUD_API_KEY` is set
-- `@llamaindex/llama-cloud` is installed
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-If missing package:
-- `npm install @llamaindex/llama-cloud@latest`
-
-## Core Pattern
-
-Use two-step flow:
-1. Upload file -> get `file_id`
-2. Parse using `file_id`
-
-Always use top-level `LlamaCloud` client.
-
-## Parse Defaults
-
-- Default tier: `agentic`
-- Always set `expand` explicitly (`text_full`, `markdown_full`, `items`, etc.)
-- Guard nullable fields: `result.text_full ?? ""`
-
-## Minimal Script Requirements
-
-- Include node shebang
-- Read file -> create `File` -> `client.files.create()` -> `client.parsing.parse()`
-- Use nested option blocks (`input_options`, `output_options`, `processing_options`, `agentic_options`) only when requested
-
-## Images
-
-If requesting `images_content_metadata`, download presigned URLs with Bearer auth using `LLAMA_CLOUD_API_KEY`.
-
-## Execution Flow
-
-1. Show generated TypeScript script.
-2. Ask permission before running.
-3. Execute and return results per user request.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Do not parse before preconditions are confirmed.
-- Do not omit `expand`.
-- Keep script minimal and task-specific.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

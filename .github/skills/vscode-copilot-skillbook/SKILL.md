@@ -5,38 +5,28 @@ user-invocable: true
 disable-model-invocation: true
 ---
 
-# VS Code Copilot Skillbook
+# vscode-copilot-skillbook (Condensed)
 
-Use this skill as the entry point for the VS Code and Copilot skill library in this repository.
-
-## When to Use This Skill
-
-- The user asks for a Copilot or VS Code skillbook
-- The user is not sure which skill applies
-- The request spans multiple Copilot customization topics
-- The user wants a guided map of agent, customization, testing, TypeScript, or tasks capabilities
-
-## Routing Map
-
-- Use [vscode-agent-foundations](../vscode-agent-foundations/SKILL.md) for Ask, Agent, Plan, memory, tools, subagents, sessions, and smart actions.
-- Use [vscode-customization-architecture](../vscode-customization-architecture/SKILL.md) for instructions, prompts, agents, skills, MCP servers, and hooks.
-- Use [vscode-context-engineering](../vscode-context-engineering/SKILL.md) for layered project context, planning workflows, and implementation handoffs.
-- Use [vscode-testing-debugging-browser](../vscode-testing-debugging-browser/SKILL.md) for test generation, failing tests, debugging setup, browser-agent validation, and closed-loop fix workflows.
-- Use [vscode-typescript-workbench](../vscode-typescript-workbench/SKILL.md) for tsconfig, transpilation, refactoring, imports, source maps, and launch.json alignment.
-- Use [vscode-tasks-authoring](../vscode-tasks-authoring/SKILL.md) for tasks.json design, problem matchers, background tasks, and build or test task grouping.
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Classify the request into one or more capability areas.
-2. Choose the narrowest matching skill first.
-3. If the request spans multiple areas, use this skill to sequence the work rather than collapsing everything into one broad answer.
-4. Keep the response explicit about which specialized skill should be applied next.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
-## Output Expectations
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-When using this skill, return:
-
-1. the request category,
-2. the recommended skill,
-3. why it is the best fit,
-4. and any secondary skill that may be needed afterward.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

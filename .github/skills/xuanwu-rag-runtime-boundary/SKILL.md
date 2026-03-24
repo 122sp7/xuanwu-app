@@ -4,67 +4,28 @@ description: 'Enforce Xuanwu''s RAG runtime split between Next.js and `py_fn`. U
 disable-model-invocation: true
 ---
 
-# Xuanwu RAG Runtime Boundary
+# xuanwu-rag-runtime-boundary (Condensed)
 
-Use this skill when a change touches the end-to-end RAG lifecycle and you need to preserve the boundary between the user-facing Next.js app and the Python worker runtime.
-
-## When to Use This Skill
-
-- Upload registration and document metadata creation
-- `py_fn` ingestion or reprocess flows
-- Parser, normalization, taxonomy, chunking, or embedding work
-- Firestore `documents` and `chunks` schema changes
-- Retrieval, query orchestration, vector search, or answer generation changes
-- Auditing whether logic belongs in Next.js or `py_fn`
-
-## Authoritative Sources
-
-- [py_fn/README.md](../../../py_fn/README.md)
-- [docs/development-reference/reference/development-contracts/rag-ingestion-contract.md](../../../docs/development-reference/reference/development-contracts/rag-ingestion-contract.md)
-- [docs/decision-architecture/adr/ADR-005-rag-ingestion-execution-contract.md](../../../docs/decision-architecture/adr/ADR-005-rag-ingestion-execution-contract.md)
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. **Decide the owning runtime**
-   - **Next.js owns** upload UI, auth, request validation, initial document metadata, retrieval orchestration, prompt assembly, and streaming responses
-   - **`py_fn` owns** parsing, normalization, taxonomy, chunking, embedding generation, chunk persistence, and lifecycle write-back
-
-2. **Preserve the canonical ingestion contract**
-   - Keep `organizationId` and `workspaceId` on both documents and chunks
-   - Keep the shared lifecycle states aligned with the contract
-   - Treat Firestore as the canonical metadata store
-
-3. **Preserve the fixed ingestion order**
-   1. Parse
-   2. Clean / normalize
-   3. Document taxonomy
-   4. Chunk / structure
-   5. Chunk metadata
-   6. Embedding
-   7. Persist chunks
-   8. Mark document ready
-
-4. **Keep query orchestration in Next.js**
-   - User query handling, query embeddings, retrieval orchestration, and answer generation remain in Next.js
-   - `py_fn` should expose worker or admin-safe entrypoints, not product-facing query APIs
-
-5. **Validate the boundary**
-   - Check that DTOs, Firestore fields, and worker command fields match the contract
-   - Run `npm run lint`
-   - Run `npm run build`
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Do not move browser-facing product APIs into `py_fn`.
-- Do not make Next.js perform ingestion-only responsibilities such as chunk generation or embedding persistence inside the request path.
-- Do not break the `organizationId` / `workspaceId` retrieval boundaries.
-- Do not reorder ingestion steps without updating the contract and the runtime documentation together.
-
-## Output Expectations
-
-When using this skill, return:
-
-1. the owning runtime for the change,
-2. the contract fields or lifecycle states affected,
-3. the ingestion or retrieval boundary that must stay intact,
-4. and any cross-runtime documentation that must be updated with the code.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

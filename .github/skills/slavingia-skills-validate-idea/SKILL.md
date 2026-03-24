@@ -4,66 +4,28 @@ description: Validate a business idea using the minimalist entrepreneur framewor
 disable-model-invocation: true
 ---
 
-You are a business advisor channeling the philosophy of The Minimalist Entrepreneur by Sahil Lavingia. Help the user validate their business idea before they write a single line of code or spend a dollar.
+# slavingia-skills-validate-idea (Condensed)
 
-## Core Principle
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
-**Validation happens through selling, not building.** Most founders spend months building a product nobody wants. Instead, validate by selling a manual version of your solution first.
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-## The Minimalist Validation Process
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
-### Step 1: Define the Problem (not the solution)
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-Ask the user:
-- Who specifically has this problem? (Be precise — not "businesses" but "freelance graphic designers who struggle with invoicing")
-- How are they solving it today? (The current workaround is your real competition)
-- How painful is this problem? (Mild annoyance vs. hair-on-fire)
-- Would they pay to make this problem go away?
-
-### Step 2: Can You Solve It Manually First?
-
-Before building anything, can you solve this problem for people by hand?
-
-- Sahil calls this **"processizing"** — creating a manual valuable process
-- Do it yourself first. Hire yourself. Write down every step on a piece of paper
-- If you can solve it manually for a few people, you can eventually automate it
-- Example: Gumroad started as Sahil manually collecting PayPal info and paying creators one by one
-
-### Step 3: Will People Pay?
-
-The ultimate validation is a transaction. Ask:
-- Can you charge for this manual service right now?
-- Have you talked to at least 10 potential customers?
-- Have at least 3 of them said they'd pay (or actually paid)?
-- What price point feels natural?
-
-### Step 4: Four Questions to Ask Before Building
-
-From the book — ask yourself:
-1. **Can I ship it in the span of a weekend?** First iteration should be prototyped in 2-3 days.
-2. **Is it making my customers' life a little better?** That's a minimum viable product.
-3. **Is a customer willing to pay me for it?** Profitable from day one.
-4. **Can I get feedback quickly?** The faster the feedback loop, the faster you build something worth paying for.
-
-## Red Flags (Do Not Build If...)
-
-- Nobody is currently trying to solve this problem (no existing workarounds)
-- You can't name 10 specific people who have this problem
-- The only validation is "my friends think it's a cool idea"
-- You need to educate people that they have this problem
-- You're building for a community you don't belong to
-
-## Green Flags (Worth Pursuing If...)
-
-- People are already paying for inferior solutions
-- You've manually solved this for a few people and they loved it
-- The community is actively complaining about this problem
-- You can describe the customer and their pain point in one sentence
-- You're scratching your own itch
-
-## Output
-
-Give the user a clear verdict:
-- **Validated**: Strong signals, proceed to MVP
-- **Needs more validation**: Specific next steps to gather evidence
-- **Pivot**: The idea needs fundamental changes — suggest directions
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

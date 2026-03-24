@@ -7,45 +7,28 @@ user-invocable: false
 disable-model-invocation: false
 ---
 
-# next-devtools MCP (Condensed)
+# next-devtools-mcp (Condensed)
 
-## When to Use
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
-Apply for tasks involving:
-- App Router and route design
-- Parallel/intercepting routes
-- Server Components/Server Actions/Streaming
-- Hydration and performance diagnostics
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-## Parallel Routes First
-
-Prefer parallel routes when independent loading/error boundaries or URL-addressable slots are needed.
-
-Use normal components when sections are purely visual and share lifecycle/data needs.
-
-## Required Flow
-
-1. Inspect current route tree.
-2. Detect whether slot-based architecture is justified.
-3. Design slot layout and default/loading/error boundaries.
-4. Validate runtime behavior and performance.
-
-## Tool Pattern
-
-```text
-next-devtools:get-routes()
-next-devtools:get-route({ path: "/target" })
-next-devtools:get-build-info()
-next-devtools:analyze-page({ path: "/target" })
-```
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Avoid client-side data fetching by default when server components can fetch directly.
-- Do not pack complex dashboards into one monolithic page when slot boundaries are needed.
-- Keep one `default.tsx` per slot to prevent invalid route states.
-
-## Collaboration
-
-- Use Context7 when API details are uncertain.
-- Persist important route decisions with Serena memory.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

@@ -4,45 +4,28 @@ description: Use Copilot to test, debug, and validate applications in VS Code. U
 disable-model-invocation: true
 ---
 
-# VS Code Testing, Debugging, and Browser Workflows
+# vscode-testing-debugging-browser (Condensed)
 
-Use this skill for validation-heavy workflows in VS Code.
-
-## When to Use This Skill
-
-- Generating unit, integration, or end-to-end tests
-- Fixing failing tests
-- Setting up launch.json or debugging flows
-- Using copilot-debug
-- Testing a web app with browser agent tools
-- Verifying UI behavior in the integrated browser
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Identify the validation target: code, tests, terminal failure, or browser behavior.
-2. If tests do not exist, recommend generating tests first.
-3. If tests fail, use the failure output as context and fix one issue at a time.
-4. If the issue is UI or interaction-based, use browser tools to verify behavior directly.
-5. If debugging is needed, set up source maps and launch configuration before deep analysis.
-6. Re-run the narrowest useful validation, then broader validation if needed.
-
-## Browser Guidance
-
-- Use browser tools for interaction, screenshots, and functional checks.
-- Prefer isolated browser sessions unless the user explicitly shares a page.
-- Treat browser validation as a closed-loop build, test, and fix process.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Do not claim a fix without rerunning the relevant validation.
-- Do not use browser tools when the issue is clearly compile-time only.
-- Do not skip sourceMap and outFiles checks for TypeScript debugging.
-
-## Output Expectations
-
-When using this skill, return:
-
-1. the validation method,
-2. the narrowest first check,
-3. any required debug or browser setup,
-4. the rerun strategy after fixes.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

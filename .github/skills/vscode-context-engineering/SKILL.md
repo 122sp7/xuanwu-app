@@ -4,48 +4,28 @@ description: Build high-signal AI workflows for a repository. Use when setting u
 disable-model-invocation: true
 ---
 
-# VS Code Context Engineering
+# vscode-context-engineering (Condensed)
 
-Use this skill when the goal is to improve AI quality by curating context, separating workflow stages, and reducing ambiguity.
-
-## When to Use This Skill
-
-- Creating a project-wide Copilot setup
-- Improving prompt quality and context quality
-- Designing planning to implementation handoffs
-- Reducing repeated agent mistakes
-- Creating reusable AI workflows for teams
-
-## Principles
-
-- Start small and iterate.
-- Prefer concise, decision-relevant context.
-- Separate planning, implementation, review, and testing.
-- Keep context fresh as the codebase evolves.
-- Use different customizations for different layers of guidance.
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Identify what context must always be present.
-2. Put stable project truths into always-on instructions.
-3. Put planning structure into a Plan workflow or planning agent.
-4. Put execution logic into Agent workflows or custom agents.
-5. Put repeated multi-step capabilities into skills.
-6. Revisit and refine the setup after failures or repeated corrections.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
-## Anti-patterns
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Context dumping
-- Conflicting instructions across files
-- Mixing unrelated tasks in one chat
-- Using one giant customization for everything
-- Skipping validation after AI output
-
-## Output Expectations
-
-When using this skill, return:
-
-1. the context layers to create,
-2. what belongs in each layer,
-3. how the workflow should hand off between stages,
-4. what to review periodically.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.

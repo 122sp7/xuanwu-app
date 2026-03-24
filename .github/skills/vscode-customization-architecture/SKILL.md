@@ -4,47 +4,28 @@ description: Design VS Code Copilot customizations correctly. Use when deciding 
 disable-model-invocation: true
 ---
 
-# VS Code Customization Architecture
+# vscode-customization-architecture (Condensed)
 
-Use this skill when the task is to design or review how AI behavior is customized in VS Code.
-
-## When to Use This Skill
-
-- Deciding whether something belongs in instructions, prompts, agents, or skills
-- Designing repository-level AI customization structure
-- Adding MCP servers or hooks
-- Reviewing why a customization is not being discovered
-- Building a layered Copilot workflow for a team
-
-## Decision Rules
-
-- Use custom instructions for always-on standards and conventions.
-- Use prompt files for lightweight slash-command workflows.
-- Use custom agents for personas, tool restrictions, model selection, and handoffs.
-- Use skills for portable capabilities, multi-step procedures, and bundled resources.
-- Use MCP servers when the AI needs external tools, APIs, resources, or prompts.
-- Use hooks for deterministic enforcement, auditing, and approval policy.
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
 ## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Normalize the request into one of the customization types.
-2. Separate always-on rules from task-specific workflows.
-3. Keep instructions concise and stable.
-4. Keep skills focused, discoverable, and explicit in their description.
-5. Recommend diagnostics if discovery or applyTo behavior seems wrong.
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Do not put project coding standards into skills if they belong in instructions.
-- Do not use a custom agent when a prompt file is enough.
-- Do not create a huge umbrella skill with weak discovery metadata.
-- Do not assume MCP is only about tools; it can also provide resources, prompts, and apps.
-
-## Output Expectations
-
-When using this skill, return:
-
-1. the correct customization type,
-2. why other types are a worse fit,
-3. the recommended file location,
-4. any discovery or security considerations.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
