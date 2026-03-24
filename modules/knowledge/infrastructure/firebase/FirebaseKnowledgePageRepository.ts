@@ -11,7 +11,6 @@
  */
 
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -20,6 +19,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -112,9 +112,9 @@ export class FirebaseKnowledgePageRepository implements KnowledgePageRepository 
     };
     if (input.workspaceId) data.workspaceId = input.workspaceId;
 
-    await addDoc(pagesCol(this.db, input.accountId), { ...data, id });
+    await setDoc(docRef, data);
 
-    return toKnowledgePage(docRef.id, { ...data, id: docRef.id });
+    return toKnowledgePage(id, { ...data, id });
   }
 
   async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {

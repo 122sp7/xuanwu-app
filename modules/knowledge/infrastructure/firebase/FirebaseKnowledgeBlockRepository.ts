@@ -86,7 +86,11 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
     const nowISO = new Date().toISOString();
     const id = generateId();
 
-    // Determine order based on existing blocks for the page
+    // Determine order based on existing blocks for the page.
+    // When inserting at a specific index, this repository does NOT re-sequence
+    // existing blocks — the caller is responsible for calling
+    // ReorderKnowledgePageBlocksUseCase afterwards to keep the Page.blockIds
+    // array and block.order values consistent.
     const existing = await getDocs(
       query(blocksCol(this.db, input.accountId), where("pageId", "==", input.pageId)),
     );

@@ -70,10 +70,18 @@ export interface BlockContent {
 
 /**
  * Returns true when two BlockContent values are structurally equal.
- * Safe to use for optimistic UI diff checks.
+ * Properties are sorted before comparison to avoid false negatives due to
+ * insertion-order differences in the `properties` bag.
  */
 export function blockContentEquals(a: BlockContent, b: BlockContent): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  if (a.type !== b.type || a.text !== b.text) return false;
+  // Fast path: both have no properties
+  if (a.properties === undefined && b.properties === undefined) return true;
+  if (a.properties === undefined || b.properties === undefined) return false;
+  // Deep compare via sorted serialization (properties values are JSON-safe per schema)
+  const sortedKeys = (obj: Record<string, unknown>): string =>
+    JSON.stringify(obj, Object.keys(obj).sort());
+  return sortedKeys(a.properties) === sortedKeys(b.properties);
 }
 
 /**

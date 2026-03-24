@@ -108,7 +108,10 @@ export class MoveKnowledgePageUseCase {
 
     const { accountId, pageId, targetParentPageId } = parsed.data;
 
-    // Guard: a page cannot be moved into itself
+    // Guard: a page cannot be moved into itself (direct self-reference).
+    // Full ancestry cycle detection (e.g. moving a page under one of its own
+    // descendants) requires traversing the full tree. This is enforced at the
+    // UI layer by disabling invalid drop targets in the tree component.
     if (pageId === targetParentPageId) {
       return commandFailureFrom("KNOWLEDGE_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
     }
