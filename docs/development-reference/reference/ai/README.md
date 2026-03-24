@@ -35,4 +35,4 @@ This folder is the **docs-side reference** for the Xuanwu Copilot Delivery Suite
 - [../../README.md](../../README.md) — Development reference root
 - [../../../../../.github/copilot-instructions.md](../../../../../.github/copilot-instructions.md) — Copilot baseline
 - [../../../../../.github/README.md](../../../../../.github/README.md) — Operative root
-- [../../../how-to-user/how-to/ai/start-feature-delivery.md](../../../how-to-user/how-to/ai/start-feature-delivery.md) — How-to workflow
+- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow

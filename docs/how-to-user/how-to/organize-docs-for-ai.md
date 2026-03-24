@@ -25,11 +25,11 @@ Use the existing docs structure instead of adding a parallel documentation tree.
 
 | Content type | Primary location | Why |
 | --- | --- | --- |
-| High-level architecture and rationale | [docs/decision-architecture/](../../../decision-architecture/) | Design intent, ADRs, system architecture |
-| Development workflows and technical references | [docs/development-reference/](../../../development-reference/) | Implementation rules, contracts, specifications |
-| Diagrams and explanations | [docs/diagrams-events-explanations/](../../../diagrams-events-explanations/) | Visual and explanatory support material |
-| User-facing guides and operator flows | [docs/how-to-user/](../../../how-to-user/) | How-to and manual content |
-| Agent and repo operating rules | [agents/](../../../../agents/) and [.github/](../../../../.github/) | AI instructions, command references, workflow assets |
+| High-level architecture and rationale | [docs/decision-architecture/](../../decision-architecture/) | Design intent, ADRs, system architecture |
+| Development workflows and technical references | [docs/development-reference/](../../development-reference/) | Implementation rules, contracts, specifications |
+| Diagrams and explanations | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) | Visual and explanatory support material |
+| User-facing guides and operator flows | [docs/how-to-user/](../../how-to-user/) | How-to and manual content |
+| Agent and repo operating rules | [agents/](../../agents/) and [.github/](../../.github/) | AI instructions, command references, workflow assets |
 
 Do not create a new root-level docs bucket unless the existing structure cannot express the ownership clearly.
 
@@ -39,10 +39,10 @@ Before editing content, decide the document's home by intent, not by filename.
 
 | Question | Place it here |
 | --- | --- |
-| Is this about architecture decisions or rationale? | [docs/decision-architecture/](../../../decision-architecture/) |
-| Is this a rule, contract, specification, or engineering reference? | [docs/development-reference/](../../../development-reference/) |
-| Is this a how-to, operator guide, or user manual? | [docs/how-to-user/](../../../how-to-user/) |
-| Is this mainly a diagram or visual explanation? | [docs/diagrams-events-explanations/](../../../diagrams-events-explanations/) |
+| Is this about architecture decisions or rationale? | [docs/decision-architecture/](../../decision-architecture/) |
+| Is this a rule, contract, specification, or engineering reference? | [docs/development-reference/](../../development-reference/) |
+| Is this a how-to, operator guide, or user manual? | [docs/how-to-user/](../../how-to-user/) |
+| Is this mainly a diagram or visual explanation? | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) |
 
 When consolidating files:
 
@@ -105,7 +105,7 @@ AI tools should read the smallest useful layer first.
 
 | Layer | Purpose | Typical files in this repo |
 | --- | --- | --- |
-| High | Fast orientation and routing | [docs/README.md](../../../README.md), [docs/development-reference/specification/system-overview.md](../../../development-reference/specification/system-overview.md), [agents/knowledge-base.md](../../../../agents/knowledge-base.md) |
+| High | Fast orientation and routing | [docs/README.md](../../README.md), [docs/development-reference/specification/system-overview.md](../../development-reference/specification/system-overview.md), [agents/knowledge-base.md](../../agents/knowledge-base.md) |
 | Mid | Implementation guidance and workflows | contracts, development READMEs, AI workflow references |
 | Low | Raw detail and supporting artifacts | ADRs, diagrams, logs, detailed specs |
 
@@ -150,8 +150,8 @@ Example prompt:
 
 For this repository, preferred entry order is:
 
-1. [llms.txt](../../../../llms.txt)
-2. [docs/README.md](../../../README.md)
+1. [llms.txt](../../llms.txt)
+2. [docs/README.md](../../README.md)
 3. nearest folder README
 4. specific contract, guide, or reference page
 5. supporting ADRs or diagrams
@@ -161,9 +161,9 @@ For this repository, preferred entry order is:
 Whenever a new document is added or moved, update in the same change:
 
 1. the nearest README index,
-2. any affected root index such as [docs/README.md](../../../README.md),
+2. any affected root index such as [docs/README.md](../../README.md),
 3. summaries and keywords,
-4. AI entry points such as [llms.txt](../../../../llms.txt) if routing changes materially.
+4. AI entry points such as [llms.txt](../../llms.txt) if routing changes materially.
 
 Use this maintenance checklist:
 
@@ -187,6 +187,6 @@ Every new important document should provide all of the following:
 
 ## Related references
 
-- [docs/README.md](../../../README.md)
-- [docs/development-reference/reference/ai/customizations-index.md](../../../development-reference/reference/ai/customizations-index.md)
-- [agents/knowledge-base.md](../../../../agents/knowledge-base.md)
+- [docs/README.md](../../README.md)
+- [docs/development-reference/reference/ai/customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
+- [agents/knowledge-base.md](../../agents/knowledge-base.md)

@@ -6,7 +6,7 @@ End-user documentation, administrator guides, UI/UX design, and operation workfl
 
 | Subdirectory | Content | Entry |
 | --- | --- | --- |
-| [how-to/](./how-to/) | How-to guides and operational workflows | [how-to/ai/](./how-to/ai/) |
+| [how-to/](./how-to/) | How-to guides and operational workflows | [how-to/README.md](./how-to/README.md) |
 | [ui-ux/](./ui-ux/) | UI design, UX principles, components | [ui-ux/README.md](./ui-ux/README.md) |
 | [user-manual/](./user-manual/) | End-user and admin guides | [user-manual/README.md](./user-manual/README.md) |
 
@@ -15,14 +15,14 @@ End-user documentation, administrator guides, UI/UX design, and operation workfl
 1. **For end users**: [user-manual/user-guide.md](./user-manual/user-guide.md)
 2. **For administrators**: [user-manual/admin-guide.md](./user-manual/admin-guide.md)
 3. **For designers**: [ui-ux/README.md](./ui-ux/README.md)
-4. **For AI/Copilot workflow**: [how-to/ai/start-feature-delivery.md](./how-to/ai/start-feature-delivery.md)
+4. **For AI/Copilot workflow**: [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
 
 ## Quick Start
 
 - **I'm a user**: Start with [user-manual/user-guide.md](./user-manual/user-guide.md)
 - **I'm an admin**: Start with [user-manual/admin-guide.md](./user-manual/admin-guide.md)
 - **I need design specs**: Read [ui-ux/README.md](./ui-ux/README.md)
-- **I'm using Copilot**: See [how-to/ai/start-feature-delivery.md](./how-to/ai/start-feature-delivery.md)
+- **I'm using Copilot**: See [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
 
 ## Related
 

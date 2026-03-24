@@ -117,6 +117,6 @@ A: 目前 event bus adapter 為 noop scaffold。完整訂閱實作（例如 Fire
 | 文件 | 路徑 |
 |------|------|
 | 架構設計 | `docs/decision-architecture/architecture/event.md` |
-| 開發契約 | `docs/development-reference/development-reference/reference/development-contracts/event-contract.md` |
-| 開發指南 | `docs/diagrams-events-explanations/diagrams-events-explanations/event/development-guide.md` |
+| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
+| 開發指南 | `docs/development-reference/event/development-guide.md` |
 | 整體架構指南 | `agents/knowledge-base.md` |

@@ -6,6 +6,11 @@ const development = Object.freeze({
   readme: "docs/development-reference/development/README.md",
 });
 
+const event = Object.freeze({
+  developmentGuide: "docs/development-reference/event/development-guide.md",
+  userManual: "docs/development-reference/event/user-manual.md",
+});
+
 const namespace = Object.freeze({
   developmentGuide: "docs/development-reference/namespace/development-guide.md",
   userManual: "docs/development-reference/namespace/user-manual.md",
@@ -44,6 +49,8 @@ const markdown = Object.freeze({
   developmentDevelopmentProcess: development.developmentProcess,
   developmentModulesImplementationGuide: development.modulesImplementationGuide,
   developmentReadme: development.readme,
+  eventDevelopmentGuide: event.developmentGuide,
+  eventUserManual: event.userManual,
   namespaceDevelopmentGuide: namespace.developmentGuide,
   namespaceUserManual: namespace.userManual,
   referenceAiCustomizationsIndex: reference.ai.customizationsIndex,
@@ -69,6 +76,7 @@ const assets = Object.freeze({});
 
 module.exports = Object.freeze({
   development,
+  event,
   namespace,
   reference,
   specification,

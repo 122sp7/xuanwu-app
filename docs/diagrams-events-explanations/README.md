@@ -1,13 +1,12 @@
-# Diagrams, Events & Explanations
+# Diagrams & Explanations
 
-System diagrams, event flows, and conceptual explanations that clarify architecture and decisions.
+System diagrams and conceptual explanations that clarify architecture and decisions.
 
 ## Organization
 
 | Subdirectory | Content | Entry |
 | --- | --- | --- |
 | [diagrams/](./diagrams/) | Architecture, data, flow, and state diagrams | [diagrams/README.md](./diagrams/README.md) |
-| [event/](./event/) | Domain events and event flows | index.js |
 | [explanation/](./explanation/) | Detailed explanations of design rationale | index.js |
 
 ## Reading Order
@@ -21,7 +20,7 @@ System diagrams, event flows, and conceptual explanations that clarify architect
 
 - **For visual understanding**: See [diagrams/README.md](./diagrams/README.md)
 - **For rationale behind decisions**: Read [explanation/](./explanation/)
-- **For domain events**: Check [event/](./event/)
+- **For domain event / namespace module guides**: See [../development-reference/event/](../development-reference/event/) and [../development-reference/namespace/](../development-reference/namespace/)
 
 ## Related
 
