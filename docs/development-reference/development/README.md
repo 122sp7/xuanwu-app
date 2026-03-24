@@ -1,35 +1,29 @@
 # 開發指南索引
 
-本目錄提供開發流程、分支策略與程式碼風格的入口。
+開發流程、分支策略、程式碼風格入口。
 
-## 文件地圖
+## 文件
 
-| 文件 | 類型 | 說明 |
-| --- | --- | --- |
-| [development-process.md](./development-process.md) | How-to | 從需求到合併的開發流程 |
-| [modules-implementation-guide.md](./modules-implementation-guide.md) | Reference | `modules/`、`packages/`、`app/` 的落點與邊界 |
-| [branch-strategy.md](./branch-strategy.md) | Reference | 分支命名、生命週期、保護策略 |
-| [code-style.md](./code-style.md) | Reference | TypeScript、React、CSS 程式碼風格 |
+| 文件 | 說明 |
+| --- | --- |
+| [development-process.md](./development-process.md) | 需求 → 合併的開發流程 |
+| [modules-implementation-guide.md](./modules-implementation-guide.md) | `modules/`、`packages/`、`app/` 邊界 |
+| [branch-strategy.md](./branch-strategy.md) | 分支命名與保護策略 |
+| [code-style.md](./code-style.md) | TypeScript、React、CSS 風格 |
 
-## 開發前檢查
-
-1. [agents/knowledge-base.md](../../../agents/knowledge-base.md)
-2. [agents/README.md](../../../agents/README.md)
-3. [CONTRIBUTING.md](../../../CONTRIBUTING.md)
-
-## 驗證命令
+## 驗證
 
 ```bash
-npm install
-npm run lint
-npm run build
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
+npm install && npm run lint && npm run build
+cd py_fn && python -m compileall -q . && python -m pytest tests/ -v
 ```
 
-## 相關索引
+## 初讀
 
-- [docs/how-to-user/ui-ux/README.md](../../how-to-user/ui-ux/README.md)
-- [docs/development-reference/specification/README.md](../specification/README.md)
-- [docs/development-reference/reference/development-contracts/overview.md](../reference/development-contracts/overview.md)
-- [docs/decision-architecture/adr/](../../decision-architecture/adr/)
+- [agents/knowledge-base.md](../../../agents/knowledge-base.md) — MDDD 與模塊清冊
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) — 貢獻指南
+
+## 相關
+
+- [../specification/README.md](../specification/README.md) — 規格與契約
+- [../../decision-architecture/adr/](../../decision-architecture/adr/) — 架構決策

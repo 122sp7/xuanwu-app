@@ -2,26 +2,13 @@
 
 Conceptual explanations, architectural rationale, and governance documentation.
 
-## Organization
+## Core Content
 
-| Subdirectory | Content |
-| --- | --- |
-| [ai/](./ai/) | AI delivery model and architectural decisions |
-
-## Core Files
-
-| File | Purpose |
-| --- | --- |
-| [development-contract-governance.md](./development-contract-governance.md) | Why development contracts exist and how to maintain them |
-| [ai/agentic-delivery-model.md](./ai/agentic-delivery-model.md) | Design rationale for the delivery suite |
-
-## Quick Navigation
-
-- **Understanding development contracts**: [development-contract-governance.md](./development-contract-governance.md)
-- **Understanding the AI delivery model**: [ai/agentic-delivery-model.md](./ai/agentic-delivery-model.md)
+- [development-contract-governance.md](./development-contract-governance.md) — Development contract purpose, maintenance, and governance
+- [ai/agentic-delivery-model.md](./ai/agentic-delivery-model.md) — Agentic delivery suite design and rationale
 
 ## Related
 
-- [../../README.md](../../README.md) — Diagrams, events, explanations root
+- [../../README.md](../../README.md) — Root: diagrams, events, explanations
 - [../diagrams/README.md](../diagrams/README.md) — System architecture diagrams
 - [../../development-reference/reference/development-contracts/overview.md](../../development-reference/reference/development-contracts/overview.md) — Development contracts overview
