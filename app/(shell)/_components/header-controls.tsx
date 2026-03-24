@@ -11,12 +11,12 @@ import { Bell, Moon, Sun } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import type { NotificationEntity } from "@/modules/notification";
 import {
+  type NotificationEntity,
   markAllNotificationsRead,
   markNotificationRead,
-} from "@/modules/notification/interfaces/_actions/notification.actions";
-import { getNotificationsForRecipient } from "@/modules/notification/interfaces/queries/notification.queries";
+  getNotificationsForRecipient,
+} from "@/modules/notification";
 import { Button } from "@ui-shadcn/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
 import { TranslationSwitcher } from "./translation-switcher";

@@ -15,17 +15,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/domain/entities/Account";
+import type { AccountEntity } from "@/modules/account/api";
 import {
   getWorkspaceTabLabel,
   getWorkspaceTabPrefId,
   getWorkspaceTabStatus,
   getWorkspaceTabsByGroup,
   isWorkspaceTabValue,
-  type WorkspaceEntity,
   type WorkspaceTabGroup,
   type WorkspaceTabValue,
 } from "@/modules/workspace";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import {
   CustomizeNavigationDialog,
