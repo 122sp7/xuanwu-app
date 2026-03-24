@@ -10,12 +10,12 @@
 
 ## 文件地圖
 
-| 目錄 | 內容 | 主要讀者 |
-| --- | --- | --- |
-| [decision-architecture/](./decision-architecture/) | ADR、Architecture、Design | 架構師、Tech Lead |
-| [development-reference/](./development-reference/) | Development、Reference、Specification、Namespace | 工程師、PM |
-| [diagrams-events-explanations/](./diagrams-events-explanations/) | Diagrams、Event、Explanation | 架構師、工程師 |
-| [how-to-user/](./how-to-user/) | How-to、UI/UX、User Manual | 使用者、工程師、設計師 |
+| 目錄 | 內容 | Index | 主要讀者 |
+| --- | --- | --- | --- |
+| [decision-architecture/](./decision-architecture/) | ADR、Architecture、Design | [decision-architecture/README.md](./decision-architecture/README.md) | 架構師、Tech Lead |
+| [development-reference/](./development-reference/) | Development、Reference、Specification、Namespace | [development-reference/README.md](./development-reference/README.md) | 工程師、PM |
+| [diagrams-events-explanations/](./diagrams-events-explanations/) | Diagrams、Event、Explanation | [diagrams-events-explanations/README.md](./diagrams-events-explanations/README.md) | 架構師、工程師 |
+| [how-to-user/](./how-to-user/) | How-to、UI/UX、User Manual | [how-to-user/README.md](./how-to-user/README.md) | 使用者、工程師、設計師 |
 
 ## 建議閱讀順序
 

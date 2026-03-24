@@ -18,16 +18,16 @@ This file is the operational index for repository-scoped customization assets.
 
 ## Folder map
 
-| Path | Purpose | Entry |
+| Path | Purpose | Index |
 | --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/planner.agent.md](./agents/planner.agent.md) |
+| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
 | [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
 | [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
-| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/xuanwu-app-nextjs-mddd.instructions.md](./instructions/xuanwu-app-nextjs-mddd.instructions.md) |
+| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
 | [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
-| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/plan-feature.prompt.md](./prompts/plan-feature.prompt.md) |
+| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
 | [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step skills | [skills/xuanwu-mddd-boundaries/SKILL.md](./skills/xuanwu-mddd-boundaries/SKILL.md) |
+| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
 | [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
 
 ## Core files
