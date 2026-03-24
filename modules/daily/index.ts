@@ -36,3 +36,10 @@ export {
   getOrganizationDailyFeed,
 } from "./interfaces/queries/daily-feed.queries";
 export { publishDailyEntry } from "./interfaces/_actions/daily.actions";
+
+// ── 新增：精簡領域 Schema、基礎設施 API 與 Presentation 元件（奧卡姆剃刀重構） ─
+export type { DailyPost, DailyPostType, Attachment, DailyFeedPage } from "./domain/schema";
+export { DailyPostSchema, AttachmentSchema, DAILY_POST_TYPES } from "./domain/schema";
+export { getDailyFeed } from "./infrastructure/api";
+export { DailyFeed } from "./presentation/DailyFeed";
+export { DailyPostCard } from "./presentation/DailyPostCard";
