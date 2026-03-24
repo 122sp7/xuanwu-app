@@ -273,28 +273,12 @@ IMPORTANT:
 - Return a clear summary (actions taken + files produced/modified + issues).
 ```
 
-Optional: if you need a lightweight, structured wrapper for traceability, embed a small JSON block in the prompt (still human-readable and tool-agnostic):
+### Orchestrator Guidelines
 
-```text
-{
-  "step": "<STEP_ID>",
-  "agent": "<AGENT_NAME>",
-  "spec": "<AGENT_SPEC_PATH>",
-  "basePath": "<BASE_PATH>"
-}
-```
-
-### Orchestrator Structure (Keep It Generic)
-
-For maintainable orchestrators, document these structural elements:
-
-- **Dynamic parameters**: what values are extracted from the user (e.g., `projectName`, `fileName`, `basePath`).
-- **Sub-agent registry**: a list/table mapping each step to `agentName` + `agentSpecPath`.
-- **Step ordering**: explicit sequence (Step 1 → Step N).
-- **Trigger conditions** (optional but recommended): define when a step runs vs is skipped.
-- **Logging strategy** (optional but recommended): a single log/report file updated after each step.
-
-Avoid embedding orchestration “code” (JavaScript, Python, etc.) inside the orchestrator prompt; prefer deterministic, tool-driven coordination.
+- Sub-agent registry: map each step to `agentName` + `agentSpecPath`.
+- Step ordering: explicit sequence (Step 1 → Step N) with optional trigger conditions.
+- Log to a single file updated after each step.
+- No orchestration code (JS/Python); use deterministic tool-driven coordination.
 
 ### ⚠️ Tool Ceiling
 
