@@ -1,11 +1,13 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import jsdoc from "eslint-plugin-jsdoc";
  
 const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const typescriptFileGlobs = ["**/*.{ts,tsx}"];
+const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -80,6 +82,78 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    files: moduleFileGlobs,
+    plugins: {
+      boundaries,
+    },
+    settings: {
+      "boundaries/include": moduleFileGlobs,
+      "boundaries/elements": [
+        {
+          type: "module-domain",
+          pattern: "modules/*/domain/**/*",
+        },
+        {
+          type: "module-application",
+          pattern: "modules/*/application/**/*",
+        },
+        {
+          type: "module-infrastructure",
+          pattern: "modules/*/infrastructure/**/*",
+        },
+        {
+          type: "module-interfaces",
+          pattern: "modules/*/interfaces/**/*",
+        },
+      ],
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          rules: [
+            {
+              from: { type: "module-domain" },
+              disallow: { to: { type: ["module-application", "module-infrastructure", "module-interfaces"] } },
+              message: "domain 層只能依賴 domain 與 shared package，不能反向依賴 application / infrastructure / interfaces。",
+            },
+            {
+              from: { type: "module-application" },
+              disallow: { to: { type: ["module-infrastructure", "module-interfaces"] } },
+              message: "application 層只能往 domain 依賴，不能直接依賴 infrastructure / interfaces。",
+            },
+            {
+              from: { type: "module-infrastructure" },
+              disallow: { to: { type: ["module-interfaces"] } },
+              message: "infrastructure 層不能依賴 interfaces。",
+            },
+          ],
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/index", "**/index.ts", "**/index.tsx"],
+              message: "請直接 import 目標檔案或模組公開邊界，避免透過顯式 index 形成隱形跨層。",
+            },
+            {
+              group: [
+                "@/modules/*/application/**",
+                "@/modules/*/domain/**",
+                "@/modules/*/infrastructure/**",
+                "@/modules/*/interfaces/**",
+              ],
+              message: "跨模組依賴必須走目標模組的公開邊界（`@/modules/<module>` 或 `api/`），不要直連內部 layer。",
+            },
+          ],
+        },
       ],
     },
   },

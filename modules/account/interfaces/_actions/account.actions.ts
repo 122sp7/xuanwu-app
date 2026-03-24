@@ -5,6 +5,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseTokenRefreshRepository } from "@/modules/identity";
 import {
   CreateUserAccountUseCase,
   UpdateUserProfileUseCase,
@@ -14,7 +15,6 @@ import {
   RevokeAccountRoleUseCase,
 } from "../../application/use-cases/account.use-cases";
 import { FirebaseAccountRepository } from "../../infrastructure/firebase/FirebaseAccountRepository";
-import { FirebaseTokenRefreshRepository } from "@/modules/identity/infrastructure/firebase/FirebaseTokenRefreshRepository";
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
 
 const accountRepo = new FirebaseAccountRepository();

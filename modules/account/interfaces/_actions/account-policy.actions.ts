@@ -5,13 +5,13 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseTokenRefreshRepository } from "@/modules/identity";
 import {
   CreateAccountPolicyUseCase,
   UpdateAccountPolicyUseCase,
   DeleteAccountPolicyUseCase,
 } from "../../application/use-cases/account-policy.use-cases";
 import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/FirebaseAccountPolicyRepository";
-import { FirebaseTokenRefreshRepository } from "@/modules/identity/infrastructure/firebase/FirebaseTokenRefreshRepository";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 
 const policyRepo = new FirebaseAccountPolicyRepository();

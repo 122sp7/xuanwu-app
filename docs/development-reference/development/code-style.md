@@ -354,6 +354,7 @@ npm run lint -- --fix
 - `@typescript-eslint/no-explicit-any` — 禁止 any
 - `jsdoc/*` — JSDoc 格式檢查
 - `@typescript-eslint/naming-convention` — 命名規範
+- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
 - 匯入路徑邊界（legacy path 封鎖）
 
 ### 7.1 什麼時候要調整 `eslint.config.mjs`

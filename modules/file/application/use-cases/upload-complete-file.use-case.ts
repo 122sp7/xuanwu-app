@@ -2,8 +2,8 @@ import type { File } from "../../domain/entities/File";
 import type { FileRepository } from "../../domain/repositories/FileRepository";
 import { completeUploadFile } from "../../domain/services/complete-upload-file";
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
-import type { FileCommandErrorCode } from "../../interfaces/contracts/file-command-result";
 import type {
+  FileCommandErrorCode,
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
 } from "../dto/file.dto";

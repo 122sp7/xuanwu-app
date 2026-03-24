@@ -3,13 +3,13 @@ import type {
   WorkspaceMemberPresence,
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMember";
+import {
+  FirebaseOrganizationRepository,
+  type MemberReference,
+  type Team,
+} from "@/modules/organization";
 import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { FirebaseOrganizationRepository } from "@/modules/organization/infrastructure/firebase/FirebaseOrganizationRepository";
-import type {
-  MemberReference,
-  Team,
-} from "@/modules/organization/domain/entities/Organization";
 import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";

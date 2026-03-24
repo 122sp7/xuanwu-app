@@ -126,6 +126,12 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 | `@/ui/vis*` | `@ui-vis` |
 | `@/interfaces/*` | `@api-contracts` |
 
+`modules/` 內也有額外邊界保護：
+
+- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
+- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
+- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
+
 ## Tech Stack
 
 | Concern | Technology | Version |
