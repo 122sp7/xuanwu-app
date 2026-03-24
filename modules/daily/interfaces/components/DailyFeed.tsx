@@ -2,15 +2,15 @@
 
 /**
  * DailyFeed — 施工動態饋送（Construction Social Feed）。
- * 使用 TanStack Query v5 的 useInfiniteQuery 實現無限滾動載入。
+ * 使用 useEffect + useState 實現手動分頁載入，與現有程式庫風格一致。
  */
 
-import { useEffect, useRef } from "react";
-import { useInfiniteQuery } from "@lib-tanstack";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import type { QueryScope } from "../../shared/domain/types";
-import { getDailyFeed } from "../infrastructure/api";
+import type { QueryScope } from "../../../shared/domain/types";
+import type { DailyPost } from "../../domain/schema";
+import { getDailyFeed } from "../queries/daily-post.queries";
 import { DailyPostCard } from "./DailyPostCard";
 
 // ── 骨架載入畫面 ──────────────────────────────────────────────────────────
@@ -42,24 +42,56 @@ interface DailyFeedProps {
 }
 
 export function DailyFeed({ scope }: DailyFeedProps) {
+  const [posts, setPosts] = useState<DailyPost[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // 底部偵測 ref，用於觸發載入下一頁
   const bottomRef = useRef<HTMLDivElement>(null);
+  // 防止 effect 重複執行的 ref
+  const loadedRef = useRef(false);
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    status,
-    error,
-  } = useInfiniteQuery({
-    queryKey: ["daily-feed", scope.accountId, scope.workspaceId ?? "all"],
-    queryFn: ({ pageParam }) =>
-      getDailyFeed(scope, pageParam as string | null | undefined),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30_000, // 30 秒內不重新請求
-  });
+  // 初次載入
+  useEffect(() => {
+    if (!scope.accountId || loadedRef.current) return;
+    loadedRef.current = true;
+
+    let cancelled = false;
+    setStatus("loading");
+
+    void getDailyFeed(scope, null)
+      .then((page) => {
+        if (cancelled) return;
+        setPosts(page.items);
+        setNextCursor(page.nextCursor);
+        setStatus("loaded");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // scope 物件以字串鍵聚合，避免每次渲染都重新載入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.accountId, scope.workspaceId]);
+
+  // 載入下一頁
+  const fetchNextPage = useCallback(() => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+
+    void getDailyFeed(scope, nextCursor)
+      .then((page) => {
+        setPosts((prev) => [...prev, ...page.items]);
+        setNextCursor(page.nextCursor);
+      })
+      .finally(() => {
+        setLoadingMore(false);
+      });
+  }, [scope, nextCursor, loadingMore]);
 
   // IntersectionObserver 觸發無限滾動
   useEffect(() => {
@@ -68,8 +100,8 @@ export function DailyFeed({ scope }: DailyFeedProps) {
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          void fetchNextPage();
+        if (entries[0]?.isIntersecting && nextCursor && !loadingMore) {
+          fetchNextPage();
         }
       },
       { threshold: 0.1 },
@@ -77,30 +109,21 @@ export function DailyFeed({ scope }: DailyFeedProps) {
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [nextCursor, loadingMore, fetchNextPage]);
 
-  // 初始載入
-  if (status === "pending") {
+  if (status === "loading") {
     return <FeedSkeleton />;
   }
 
-  // 錯誤狀態
   if (status === "error") {
     return (
       <p className="text-sm text-destructive py-4 text-center">
-        無法載入動態，請稍後再試。
-        {process.env.NODE_ENV !== "production" && (
-          <span className="block text-xs opacity-60 mt-1">
-            {error instanceof Error ? error.message : String(error)}
-          </span>
-        )}
+        無法載入施工動態，請稍後再試。
       </p>
     );
   }
 
-  const allPosts = data.pages.flatMap((page) => page.items);
-
-  if (allPosts.length === 0) {
+  if (status === "loaded" && posts.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
         目前尚無施工動態，成為第一個發布紀錄的人吧！
@@ -111,19 +134,19 @@ export function DailyFeed({ scope }: DailyFeedProps) {
   return (
     <div className="max-w-2xl mx-auto space-y-4 pb-20">
       {/* 動態卡片列表 */}
-      {allPosts.map((post) => (
+      {posts.map((post) => (
         <DailyPostCard key={post.id} post={post} />
       ))}
 
       {/* 載入中指示器 */}
-      {isFetchingNextPage && (
+      {loadingMore && (
         <div className="flex justify-center py-4">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
 
       {/* 到達最底部 */}
-      {!hasNextPage && allPosts.length > 0 && (
+      {!nextCursor && status === "loaded" && posts.length > 0 && (
         <p className="text-xs text-muted-foreground text-center py-4">已顯示全部動態</p>
       )}
 

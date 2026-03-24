@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Card, CardContent, CardHeader } from "@ui-shadcn/ui/card";
 
-import type { DailyPost, DailyPostType } from "../domain/schema";
+import type { DailyPost, DailyPostType } from "../../domain/schema";
 
 // ── 類型標籤顏色映射 ───────────────────────────────────────────────────────
 

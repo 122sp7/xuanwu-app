@@ -37,9 +37,9 @@ export {
 } from "./interfaces/queries/daily-feed.queries";
 export { publishDailyEntry } from "./interfaces/_actions/daily.actions";
 
-// ── 新增：精簡領域 Schema、基礎設施 API 與 Presentation 元件（奧卡姆剃刀重構） ─
+// ── 新增：精簡領域 Schema 與施工社群動態元件（interfaces 層） ──────────────
 export type { DailyPost, DailyPostType, Attachment, DailyFeedPage } from "./domain/schema";
 export { DailyPostSchema, AttachmentSchema, DAILY_POST_TYPES } from "./domain/schema";
-export { getDailyFeed } from "./infrastructure/api";
-export { DailyFeed } from "./presentation/DailyFeed";
-export { DailyPostCard } from "./presentation/DailyPostCard";
+export { getDailyFeed } from "./interfaces/queries/daily-post.queries";
+export { DailyFeed } from "./interfaces/components/DailyFeed";
+export { DailyPostCard } from "./interfaces/components/DailyPostCard";

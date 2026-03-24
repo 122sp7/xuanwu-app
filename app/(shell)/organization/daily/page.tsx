@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
 import type { DailyFeedItem, OrganizationDailyDigestEntity } from "@/modules/daily";
-import { getOrganizationDailyDigest, getOrganizationDailyFeed } from "@/modules/daily";
+import { DailyFeed, getOrganizationDailyDigest, getOrganizationDailyFeed } from "@/modules/daily";
 import type { WorkspaceEntity } from "@/modules/workspace";
 import { getWorkspacesForAccount } from "@/modules/workspace";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -196,6 +196,19 @@ export default function OrganizationDailyPage() {
                 <p className="mt-1 text-xs text-muted-foreground">{notification.message}</p>
               </div>
             ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 施工社群動態牆（新版 DailyFeed）─────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>施工現場動態</CardTitle>
+          <CardDescription>
+            即時施工現場社群動態；支援無限滾動載入，依建立時間倒序排列。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DailyFeed scope={{ accountId: activeOrganizationId }} />
         </CardContent>
       </Card>
     </div>
