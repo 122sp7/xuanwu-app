@@ -1,10 +1,10 @@
 %% Xuanwu consolidated state machine (merged)
 %% Merged sources: state-machine + auth-state-machine + kb-ingestion-pipeline-state-machine
 
-flowchart LR
+flowchart TB
     subgraph AuthStateMachine[Auth State Machine]
         A0[Initializing]
-        A1[Resolve Signed Out]
+        A1[Resolve Signed Out State]
         A2[Authenticated]
         A3[Signing Out]
         A4[Unauthenticated]
@@ -15,23 +15,22 @@ flowchart LR
         A1 --> A4
         A2 --> A3 --> A4
         A4 --> A2
-        A2 --> A2
     end
 
     subgraph IngestionStateMachine[Knowledge Ingestion State Machine]
         I0[Upload Detected]
         I1[Scope Validated]
-        I2[Processing Indexed]
+        I2[Processing Indexed Metadata]
         I3[Parsing Document]
-        I4[Parsed JSON Stored]
-        I5[Parse Indexed]
+        I4[Parsed Artifact Stored]
+        I5[Parse Completed Indexed]
         I6[RAG Chunking]
         I7[Embedding]
         I8[Search Indexed]
         I9[RAG Ready]
         IE1[Parse Failed]
         IE2[RAG Failed]
-        IE3[Completed With RAG Error]
+        IE3[Completed With RAG Warning]
         IE4[Error Recorded]
         I0 --> I1 --> I2 --> I3 --> I4 --> I5 --> I6 --> I7 --> I8 --> I9
         I3 --> IE1 --> IE4

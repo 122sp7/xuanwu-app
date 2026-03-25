@@ -12,7 +12,7 @@ flowchart TB
         Account --> WC
     end
 
-    subgraph Router[Next.js App Router Slices]
+    subgraph Router[Next.js App Router]
         PublicRoot[/]
         Dashboard[/dashboard]
         WorkspaceHub[/workspace]
@@ -23,15 +23,15 @@ flowchart TB
         Settings[/settings/*]
     end
 
-    subgraph CoreInteraction[Workspace Interaction Flow]
+    subgraph CoreInteraction[Workspace Interaction]
         Start[Open App]
         Auth{Authenticated}
         SelectWorkspace{Select workspace}
         Membership{Membership valid}
         Shell[Bootstrap shell]
         Intent{User intent}
-        PageFlow[Page editing flow]
-        DatabaseFlow[Database row flow]
+        PageFlow[Page editing]
+        DatabaseFlow[Database rows]
         FileFlow[File upload and linking]
         SearchFlow[Workspace search]
         AdminFlow[Members and settings]
@@ -47,16 +47,16 @@ flowchart TB
     end
 
     subgraph FirestoreCollections[Firestore Collection Paths]
-        Accounts[accounts/{accountId}]
-        Organizations[organizations/{organizationId}]
-        Workspaces[workspaces/{workspaceId}]
-        WorkspaceTasks[workspaceTasks/{taskId}]
-        WorkspaceIssues[workspaceIssues/{issueId}]
-        Notifications[notifications/{notificationId}]
-        AuditLogs[auditLogs/{logId}]
-        TokenSignals[tokenRefreshSignals/{accountId}]
-        Finance[finance/{workspaceId}]
-        FileDocuments[fileDocuments/{fileId}]
+        Accounts[accounts\n{accountId}]
+        Organizations[organizations\n{organizationId}]
+        Workspaces[workspaces\n{workspaceId}]
+        WorkspaceTasks[workspaceTasks\n{taskId}]
+        WorkspaceIssues[workspaceIssues\n{issueId}]
+        Notifications[notifications\n{notificationId}]
+        AuditLogs[auditLogs\n{logId}]
+        TokenSignals[tokenRefreshSignals\n{accountId}]
+        Finance[finance\n{workspaceId}]
+        FileDocuments[fileDocuments\n{fileId}]
     end
 
     WA --> WorkspaceDetail

@@ -1,7 +1,7 @@
 %% Xuanwu consolidated system architecture (merged)
 %% Merged sources: xuanwu_architecture + project-derivation + system-architecture-overview-combined
 
-flowchart LR
+flowchart TB
     subgraph Actors[Actors]
         PlatformOwner[Platform Owner]
         OrgAdmin[Organization Admin]
@@ -15,7 +15,7 @@ flowchart LR
         WorkerRuntime[Python Worker py_fn]
         Firestore[(Firestore)]
         Storage[(Cloud Storage)]
-        LLM[Genkit and LLM]
+        LLM[Genkit and LLM orchestration]
     end
 
     subgraph Domains[Module Domains]
@@ -33,7 +33,7 @@ flowchart LR
         Application[application]
         Domain[domain]
         Infrastructure[infrastructure]
-        PublicApi[api only cross-module boundary]
+        PublicApi[api-only cross-module boundary]
         Interfaces --> Application --> Domain
         Infrastructure --> Domain
         Application -. expose .-> PublicApi
@@ -53,10 +53,10 @@ flowchart LR
         WorkspaceC -. same structure .-> CanonicalBoundary
     end
 
-    subgraph CanonicalData[Canonical Workspace Domains]
+    subgraph CanonicalData[Canonical Workspace Data Domains]
         CoreData[Workspace Core]
-        KnowledgeData[Knowledge Spaces Pages Blocks]
-        StructuredData[Database Rows Property Values]
+        KnowledgeData[Knowledge spaces pages blocks]
+        StructuredData[Database rows property values]
         AssetData[Files Templates]
         TaxonomyData[Tags]
     end
