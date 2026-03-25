@@ -1,7 +1,7 @@
 ---
 name: context7-mcp
 description: 使用 Context7 MCP 前先核對官方手冊，並以可用工具執行查詢、記憶維護與回報
-agent: agent
+agent: Commander
 argument-hint: 例如 query=Next.js caching, goals=docs,examples,memory-refresh
 ---
 

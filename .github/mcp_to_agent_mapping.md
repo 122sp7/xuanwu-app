@@ -36,3 +36,35 @@ This file records the implemented mapping strategy for using MCP tools through d
 | `.github/prompts/*` | Trigger surface for chain and MCP lanes | Prompt scope routes work to delivery agents or MCP-specialized agents |
 | `.github/instructions/*` | Always-on policy layer | Narrow `applyTo` keeps context noise low while preserving guardrails |
 | `.github/copilot-instructions.md` | Top-level orchestration contract | Defines precedence, boundaries, and mapping baseline usage |
+
+## Legacy inventory decisions
+
+### Agents
+
+| Asset group | Decision | Why |
+| --- | --- | --- |
+| Delivery chain (`planner`, `implementer`, `reviewer`, `qa`) | Keep | Formal delivery workflow remains the primary quality gate for non-trivial work |
+| MCP lanes (`commander`, `app-router`, `component`, `rag-vector`, `e2e-qa`) | Keep | These provide focused execution for MCP-heavy tasks and reduce prompt ambiguity |
+| Domain lanes (`modules-*`, `app-router-composer`) | Keep with role split | Composition/refactor roles are still needed when runtime diagnostics are not the main problem |
+| `serena` | Keep | Cross-cutting execution backbone with symbolic workflow and guarded MCP access |
+| `planner-docs`, `md-writer` | Keep as optional extension | Required for doc-heavy delivery but not mandatory for every feature |
+| `qa-legacy` | Keep hidden, retire later | Retained for historical traceability only; not part of primary routing |
+| `custom-agent-foundry`, `repo-architect` | Keep as maintainer tools | Useful for customization authoring and bootstrap, but not core delivery path |
+
+### Instructions
+
+| Asset group | Decision | Why |
+| --- | --- | --- |
+| Foundation authoring rules (`agents`, `prompt`, `agent-skills`, `instructions`) | Keep | Prevents customization quality drift |
+| Project/runtime rules (`xuanwu-*`, `modules-*`, `app/*`) | Keep | Enforces architecture boundaries and runtime split |
+| MCP extensions (`06-context7`, `07-markitdown-rag`) | Keep | Required to keep external-doc and conversion behavior consistent with mapping |
+| Dotnet guidance | Keep low-priority | Not currently primary stack, but valid for mixed-language contributions |
+
+### Prompts
+
+| Asset group | Decision | Why |
+| --- | --- | --- |
+| Delivery prompts (`plan-*`, `implement-plan`, `review-changes`, `run-qa`) | Keep | Mirrors formal delivery stages |
+| Module/app prompts | Keep | Supports bounded-context and route composition work |
+| MCP prompts (`context7`, `shadcn`, `next-devtools`, `playwright`, `markitdown`) | Keep with routing refactor | Must target MCP-specialized agents to stay self-consistent with mapping |
+| Markdown optimization prompts (`md-*`) | Keep optional | High-value for docs maintenance, not required for code-only changes |

@@ -1,7 +1,7 @@
 ---
 name: next-devtools-mcp
 description: 使用 Next DevTools MCP 前先核對官方手冊，再執行 Next.js 診斷、文件查詢與路由驗證
-agent: agent
+agent: App Router Agent
 argument-hint: 例如 task=diagnose-runtime-errors route=/wiki-beta officialDocUrl=https://nextjs.org/docs
 ---
 

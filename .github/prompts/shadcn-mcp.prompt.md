@@ -1,7 +1,7 @@
 ---
 name: shadcn-mcp
 description: 使用 shadcn MCP 前先核對官方手冊，再執行元件搜尋、安裝與頁面組裝
-agent: agent
+agent: Component Agent
 tools:
 	- shadcn/*
 argument-hint: 例如 task=add-components components=button,card officialDocUrl=https://ui.shadcn.com/docs

@@ -1,9 +1,9 @@
 ---
 name: playwright-mcp
 description: 使用 Playwright MCP 前先核對官方手冊，執行可重現的頁面互動、截圖與錯誤診斷
-agent: agent
+agent: E2E QA Agent
 tools:
-	- playwright/*
+	- microsoft/playwright-mcp/*
 argument-hint: 例如 url=http://localhost:3000 flow=login-and-submit officialDocUrl=https://playwright.dev
 ---
 
