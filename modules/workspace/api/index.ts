@@ -19,3 +19,18 @@ export {
   getWorkspacesForAccount,
   subscribeToWorkspacesForAccount,
 } from "../interfaces/queries/workspace.queries";
+
+// ─── WikiBeta content-tree types (transitional — workspace-owned) ─────────────
+
+export type {
+  WikiBetaAccountContentNode,
+  WikiBetaAccountSeed,
+  WikiBetaAccountType,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaWorkspaceRef,
+} from "../domain/entities/WikiBetaContentTree";
+
+// ─── WikiBeta content-tree use-case (transitional) ────────────────────────────
+
+export { buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";

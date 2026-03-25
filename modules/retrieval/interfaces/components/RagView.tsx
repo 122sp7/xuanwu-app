@@ -24,7 +24,7 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
 import { Textarea } from "@ui-shadcn/ui/textarea";
-import { runWikiBetaRagQuery, type WikiBetaCitation } from "@/modules/wiki-beta/api";
+import { runWikiBetaRagQuery, type WikiBetaCitation } from "../../api";
 import type { AssetLiveDocument as WikiBetaLiveDocument } from "@/modules/asset/api";
 import { useDocumentsSnapshot } from "@/modules/asset/api";
 

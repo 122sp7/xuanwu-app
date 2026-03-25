@@ -9,7 +9,7 @@ import {
   monitorForElements,
 } from "@lib-dragdrop";
 
-import { listWikiBetaPagesTree, moveWikiBetaPage, type WikiBetaPageTreeNode } from "@/modules/wiki-beta/api";
+import { listWikiBetaPagesTree, moveWikiBetaPage, type WikiBetaPageTreeNode } from "../../api";
 
 interface WikiBetaPagesDnDViewProps {
   readonly accountId: string;

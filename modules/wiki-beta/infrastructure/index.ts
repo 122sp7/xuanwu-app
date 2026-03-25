@@ -1,7 +1,7 @@
-export {
-  FirebaseWikiBetaContentRepository,
-  FirebaseWikiBetaWorkspaceRepository,
-} from "./repositories/firebase-wiki-beta.repository";
-export { FirebaseWikiBetaPageRepository } from "./repositories/firebase-wiki-beta-page.repository";
-export { InMemoryWikiBetaPageRepository } from "./repositories/in-memory-wiki-beta-page.repository";
-export { InMemoryWikiBetaLibraryRepository } from "./repositories/in-memory-wiki-beta-library.repository";
+/**
+ * Module: wiki-beta
+ * Layer: infrastructure/barrel
+ *
+ * All infrastructure implementations have been migrated to their canonical
+ * bounded-context modules. This barrel is kept as a tombstone.
+ */

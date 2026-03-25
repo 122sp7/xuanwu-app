@@ -16,6 +16,24 @@ export type {
 
 export { ContentApi } from "./content-api";
 
+// ── WikiBeta page types (transitional — owned by content domain) ──────────────
+export type {
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
+  CreateWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+} from "../domain/entities/wiki-beta-page.types";
+
+// ── WikiBeta page use-cases (transitional) ────────────────────────────────────
+export {
+  createWikiBetaPage,
+  listWikiBetaPagesTree,
+  moveWikiBetaPage,
+  renameWikiBetaPage,
+} from "../application/use-cases/wiki-beta-pages.use-case";
+
 export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
 export type { Block } from "../interfaces/store/block-editor.store";

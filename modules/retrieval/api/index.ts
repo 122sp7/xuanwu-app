@@ -37,6 +37,21 @@ export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query
 export { FirebaseRagRetrievalRepository } from "../infrastructure/firebase/FirebaseRagRetrievalRepository";
 export { GenkitRagGenerationRepository } from "../infrastructure/genkit/GenkitRagGenerationRepository";
 
+// ── WikiBeta RAG types (transitional — owned by retrieval domain) ─────────────
+export type {
+  WikiBetaCitation,
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../domain/entities/WikiBetaRagTypes";
+
+// ── WikiBeta RAG use-cases (transitional) ─────────────────────────────────────
+export {
+  runWikiBetaRagQuery,
+  reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments,
+} from "../application/use-cases/wiki-beta-rag.use-case";
+
 // ── UI components ─────────────────────────────────────────────────────────────
 export { RagQueryView } from "../interfaces/components/RagQueryView";
 export { RagView } from "../interfaces/components/RagView";

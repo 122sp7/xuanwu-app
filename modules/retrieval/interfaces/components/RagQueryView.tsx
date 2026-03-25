@@ -14,7 +14,7 @@ import { Textarea } from "@ui-shadcn/ui/textarea";
 import {
   runWikiBetaRagQuery,
   type WikiBetaCitation,
-} from "@/modules/wiki-beta/api";
+} from "../../api";
 
 interface RagQueryViewProps {
   readonly workspaceId?: string;

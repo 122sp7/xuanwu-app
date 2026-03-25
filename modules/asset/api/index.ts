@@ -12,6 +12,30 @@
 export type { File, FileStatus } from "../domain/entities/File";
 export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
 
+// --- WikiBeta library entity types (transitional — owned by asset domain) ----
+
+export type {
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+} from "../domain/entities/wiki-beta-library.types";
+
+// --- WikiBeta library use-cases (transitional) --------------------------------
+
+export type { WikiBetaLibrarySnapshot } from "../application/use-cases/wiki-beta-libraries.use-case";
+export {
+  addWikiBetaLibraryField,
+  createWikiBetaLibrary,
+  createWikiBetaLibraryRow,
+  getWikiBetaLibrarySnapshot,
+  listWikiBetaLibraries,
+} from "../application/use-cases/wiki-beta-libraries.use-case";
+
 // --- Document snapshot types (owned by asset) --------------------------------
 
 export type { AssetDocument, AssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";

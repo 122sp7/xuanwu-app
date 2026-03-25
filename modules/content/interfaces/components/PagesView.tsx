@@ -9,7 +9,7 @@ import {
   moveWikiBetaPage,
   renameWikiBetaPage,
   type WikiBetaPageTreeNode,
-} from "@/modules/wiki-beta/api";
+} from "../../api";
 
 interface WikiBetaPagesViewProps {
   readonly accountId: string;
