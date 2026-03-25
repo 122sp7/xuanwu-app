@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Align Ingestion Inputs
-		agent: Doc Ingest Agent
-		prompt: Align document normalization and source attribution with the chunking strategy described above.
-	- label: Configure Embeddings
-		agent: Embedding Writer
-		prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
-	- label: Review RAG Contract
-		agent: RAG Lead
-		prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
+  - label: Align Ingestion Inputs
+    agent: Doc Ingest Agent
+    prompt: Align document normalization and source attribution with the chunking strategy described above.
+  - label: Configure Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
 
 ---
 

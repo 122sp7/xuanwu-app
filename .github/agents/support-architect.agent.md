@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Re-scope With Serena
-		agent: Serena Strategist
-		prompt: Re-scope this support issue into a boundary-safe execution plan with the right owner and validation path.
-	- label: Review Quality Risk
-		agent: Quality Lead
-		prompt: Review the confirmed failure modes, residual risk, and release impact for this support-driven task.
-	- label: Update Knowledge Base
-		agent: KB Architect
-		prompt: Capture the reusable support resolution pattern in the knowledge base without adding redundant noise.
+  - label: Re-scope With Serena
+    agent: Serena Strategist
+    prompt: Re-scope this support issue into a boundary-safe execution plan with the right owner and validation path.
+  - label: Review Quality Risk
+    agent: Quality Lead
+    prompt: Review the confirmed failure modes, residual risk, and release impact for this support-driven task.
+  - label: Update Knowledge Base
+    agent: KB Architect
+    prompt: Capture the reusable support resolution pattern in the knowledge base without adding redundant noise.
 
 ---
 

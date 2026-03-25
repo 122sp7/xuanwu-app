@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Diagnose Route Behavior
-		agent: App Router Agent
-		prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
-	- label: Compose UI Primitives
-		agent: Shadcn Composer
-		prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
+  - label: Diagnose Route Behavior
+    agent: App Router Agent
+    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
+  - label: Compose UI Primitives
+    agent: Shadcn Composer
+    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
 
 ---
 

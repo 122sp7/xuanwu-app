@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Re-plan With Serena
-		agent: Serena Strategist
-		prompt: Re-plan the task with Serena-first discovery and boundary checks before more tool calls.
-	- label: Review Quality Risk
-		agent: Quality Lead
-		prompt: Review whether the evidence gathered so far is sufficient for quality and release decisions.
-	- label: Review Repo Structure
-		agent: Repo Architect Agent
-		prompt: Review whether the task needs repository-level scaffolding, customization, or structural cleanup.
+  - label: Re-plan With Serena
+    agent: Serena Strategist
+    prompt: Re-plan the task with Serena-first discovery and boundary checks before more tool calls.
+  - label: Review Quality Risk
+    agent: Quality Lead
+    prompt: Review whether the evidence gathered so far is sufficient for quality and release decisions.
+  - label: Review Repo Structure
+    agent: Repo Architect Agent
+    prompt: Review whether the task needs repository-level scaffolding, customization, or structural cleanup.
 
 ---
 

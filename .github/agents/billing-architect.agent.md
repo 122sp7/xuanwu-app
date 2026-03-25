@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Check Domain Ownership
-		agent: Domain Lead
-		prompt: Confirm the owning bounded context, layer placement, and API-only collaboration path for this billing change.
-	- label: Shape Firestore Model
-		agent: Firestore Schema Agent
-		prompt: Design or review the data model, indexes, and compatibility risks for this billing scope.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this billing design for regression risk, invariant coverage, and validation gaps.
+  - label: Check Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context, layer placement, and API-only collaboration path for this billing change.
+  - label: Shape Firestore Model
+    agent: Firestore Schema Agent
+    prompt: Design or review the data model, indexes, and compatibility risks for this billing scope.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this billing design for regression risk, invariant coverage, and validation gaps.
 
 ---
 

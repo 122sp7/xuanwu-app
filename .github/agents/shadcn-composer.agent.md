@@ -6,15 +6,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Review Frontend Ownership
-		agent: Frontend Lead
-		prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
-	- label: Refine Parallel Routes
-		agent: Parallel Routes Agent
-		prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
-	- label: Verify End-to-End
-		agent: E2E QA Agent
-		prompt: Verify the interaction states and browser behavior for this UI change.
+  - label: Review Frontend Ownership
+    agent: Frontend Lead
+    prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
+  - label: Refine Parallel Routes
+    agent: Parallel Routes Agent
+    prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
+  - label: Verify End-to-End
+    agent: E2E QA Agent
+    prompt: Verify the interaction states and browser behavior for this UI change.
 
 ---
 

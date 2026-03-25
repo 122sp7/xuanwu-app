@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Plan Migration
-		agent: Schema Migration Agent
-		prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
-	- label: Review Security Rules
-		agent: Security Rules Agent
-		prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
+  - label: Plan Migration
+    agent: Schema Migration Agent
+    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
 
 ---
 

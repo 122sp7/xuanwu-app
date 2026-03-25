@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Check Domain Boundary
-		agent: Domain Lead
-		prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
-	- label: Review Frontend Impact
-		agent: Frontend Lead
-		prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
-	- label: Summarize Quality Risk
-		agent: Quality Lead
-		prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
+  - label: Check Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
+  - label: Review Frontend Impact
+    agent: Frontend Lead
+    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
 
 ---
 
