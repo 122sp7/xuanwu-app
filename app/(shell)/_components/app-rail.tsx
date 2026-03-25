@@ -18,8 +18,10 @@ import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
 import { createOrganization } from "@/modules/organization";
-import { createWorkspace } from "@/modules/workspace";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
 import {

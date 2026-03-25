@@ -24,8 +24,8 @@ import {
   isWorkspaceTabValue,
   type WorkspaceTabGroup,
   type WorkspaceTabValue,
-} from "@/modules/workspace";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import {
   CustomizeNavigationDialog,

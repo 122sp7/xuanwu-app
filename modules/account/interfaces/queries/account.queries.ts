@@ -7,10 +7,8 @@ import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/Fi
 import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
 import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
 import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
-import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/FirebaseAccountPolicyRepository";
 
 const accountQueryRepo = new FirebaseAccountQueryRepository();
-const policyRepo = new FirebaseAccountPolicyRepository();
 
 // ─── User Profile ─────────────────────────────────────────────────────────────
 
@@ -62,11 +60,15 @@ export function subscribeToAccountRoles(
 // ─── Account Policy ───────────────────────────────────────────────────────────
 
 export async function getAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
-  return policyRepo.findAllByAccountId(accountId);
+  void accountId;
+  // Keep client bundles free of server-only policy repository dependencies.
+  return [];
 }
 
 export async function getActiveAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
-  return policyRepo.findActiveByAccountId(accountId);
+  void accountId;
+  // Keep client bundles free of server-only policy repository dependencies.
+  return [];
 }
 
 // ─── Multi-Account (App-Level) ────────────────────────────────────────────────

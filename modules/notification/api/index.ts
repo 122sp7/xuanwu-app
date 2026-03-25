@@ -18,6 +18,10 @@ export type {
 // ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
 
 export { dispatchNotification } from "../interfaces/_actions/notification.actions";
+export {
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../interfaces/_actions/notification.actions";
 
 // ─── Query functions ──────────────────────────────────────────────────────────
 
