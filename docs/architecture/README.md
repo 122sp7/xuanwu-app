@@ -8,6 +8,7 @@
 - 層級依賴方向
 - 跨模組互動方式
 - 主要技術決策摘要
+- 領域數量與分期目標（domain-implementation-target.md）
 
 ## 命名建議
 
