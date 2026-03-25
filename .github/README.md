@@ -1,107 +1,29 @@
-# VS Code Agent / Prompt / Instruction 檔案屬性說明
+# VS Code Agent / Prompt / Instruction / Skill 檔案屬性說明文件
 
-本文件說明在 **VS Code Agent 系統** 中三種類型設定檔所支援的屬性：
+本文件整理 **VS Code Agents / Copilot Agent System** 中四種設定檔類型與其支援屬性：
 
-1. 提示檔案（Prompt file）
-2. 指示檔案（Instruction file）
-3. 代理程式檔案（Agent file）
+1. Agent 檔案
+2. Prompt 檔案
+3. Instruction 檔案
+4. Skill 檔案
 
----
-
-# 一、提示檔案（Prompt File）
-
-**用途**：定義可被呼叫的提示模板（Prompt Template）
-
-## 支援屬性
-
-| 屬性            | 用途                    |
-| ------------- | --------------------- |
-| agent         | 指定此 prompt 屬於哪個 agent |
-| argument-hint | 提示參數格式                |
-| description   | 提示用途說明                |
-| model         | 指定使用模型                |
-| name          | Prompt 名稱             |
-| tools         | 允許使用的工具               |
-
-## 範例
-
-```yaml
-name: generate-api
-description: Generate API endpoint
-agent: backend-agent
-model: 'GPT-5.3-Codex'
-tools: [read, edit, search]
-argument-hint: <resource-name>
-```
-
-## 說明
-
-Prompt file 比較像：
-
-> 可重複呼叫的任務模板
-
-例如：
-
-* 生成 API
-* 生成測試
-* 重構程式碼
-* 建立 DTO
-* 建立 Migration
+此系統主要用於 **Visual Studio Code Agent / GitHub Copilot Agents 架構。
 
 ---
 
-# 二、指示檔案（Instruction File）
+# 一、Agent 檔案（.agent.md）
 
-**用途**：定義規則、架構指導、開發規範（類似 AI 的 coding standards）
-
-## 支援屬性
-
-| 屬性          | 用途        |
-| ----------- | --------- |
-| applyTo     | 套用的檔案或資料夾 |
-| description | 規則說明      |
-| name        | 指示名稱      |
-
-## 範例
-
-```yaml
-name: nextjs-structure
-description: Enforce Next.js app router structure
-applyTo: app/**
-```
-
-## 說明
-
-Instruction file 比較像：
-
-> 專案規範 / 架構守則 / Coding Guideline
-
-例如：
-
-* Next.js 結構規範
-* DDD 分層規範
-* 命名規則
-* API 設計規範
-* 測試規範
-
-Instruction 是 **長期規則**
-Prompt 是 **一次性任務**
-
----
-
-# 三、代理程式檔案（Agent File）
-
-**用途**：定義 AI 代理（Agent），包含能力、工具、可呼叫性、代理協作等
+**用途**：定義 AI 代理角色、能力、工具、子代理與協作流程。
 
 ## 支援屬性
 
-| 屬性                       | 用途          |
+| 屬性                       | 說明          |
 | ------------------------ | ----------- |
 | agents                   | 子代理         |
 | argument-hint            | 呼叫參數提示      |
-| description              | 代理說明        |
+| description              | 代理描述        |
 | disable-model-invocation | 禁止自動呼叫模型    |
-| github                   | GitHub 整合   |
+| github                   | GitHub 整合設定 |
 | handoffs                 | 可交接給其他代理    |
 | model                    | 使用模型        |
 | name                     | 代理名稱        |
@@ -109,59 +31,156 @@ Prompt 是 **一次性任務**
 | tools                    | 可使用工具       |
 | user-invocable           | 是否允許使用者直接呼叫 |
 
----
-
-## Agent 範例
+## 範例
 
 ```yaml
-name: backend-agent
-description: Backend architecture and API development agent
-model: 'GPT-5.3-Codex'
+name: implementer-agent
+description: Implement features and write code
+model: gpt-5-codex
 tools: [read, edit, search]
-agents: [database-agent, api-agent]
 handoffs: [reviewer-agent]
 user-invocable: true
 ```
 
 ---
 
-# 四、三種檔案差異總結
+# 二、Prompt 檔案（.prompt.md）
 
-| 類型           | 用途          | 作用層級 |
-| ------------ | ----------- | ---- |
-| instructions | 專案規範 / 開發規則 | 全域規則 |
-| prompts      | 任務模板        | 任務層  |
-| agents       | AI 角色與能力    | 系統層  |
+**用途**：定義可重複使用的任務提示模板（Prompt Template）。
+
+## 支援屬性
+
+| 屬性            | 說明        |
+| ------------- | --------- |
+| agent         | 指定使用的代理   |
+| argument-hint | 參數提示      |
+| description   | 提示用途      |
+| model         | 使用模型      |
+| name          | Prompt 名稱 |
+| tools         | 可使用工具     |
+
+## 範例
+
+```yaml
+name: generate-api
+description: Generate API endpoint
+agent: backend-agent
+model: gpt-5-codex
+tools: [read, edit]
+argument-hint: <resource-name>
+```
 
 ---
 
-# 五、整體架構關係（很重要）
+# 三、Instruction 檔案（.instruction.md）
 
-可以理解成三層：
+**用途**：定義專案規範、架構規則、開發準則。
+
+## 支援屬性
+
+| 屬性          | 說明       |
+| ----------- | -------- |
+| applyTo     | 套用的檔案或目錄 |
+| description | 規則說明     |
+| name        | 指示名稱     |
+
+## 範例
+
+```yaml
+name: nextjs-architecture
+description: Enforce Next.js App Router structure
+applyTo: app/**
+```
+
+Instruction 通常用於：
+
+* DDD 分層規範
+* 命名規則
+* API 設計規範
+* 測試規範
+* 專案架構規範
+
+---
+
+# 四、Skill 檔案（SKILL.md）
+
+**用途**：定義可安裝、可重用的技能模組（通常可透過 npx skills add 安裝）。
+
+## 支援屬性
+
+| 屬性                       | 說明        |
+| ------------------------ | --------- |
+| argument-hint            | 技能參數提示    |
+| compatibility            | 相容性       |
+| description              | 技能描述      |
+| disable-model-invocation | 禁止模型自動呼叫  |
+| license                  | 授權        |
+| metadata                 | 額外資訊      |
+| name                     | 技能名稱      |
+| user-invocable           | 是否允許使用者呼叫 |
+
+## 範例
+
+```yaml
+name: repo-analyzer
+description: Analyze repository structure
+argument-hint: <repo-path>
+compatibility: vscode
+license: MIT
+user-invocable: true
+metadata:
+  author: team-ai
+```
+
+---
+
+# 五、四種檔案定位差異（重要）
+
+這四種檔案在系統中的角色如下：
+
+| 類型           | 作用         | 層級  |
+| ------------ | ---------- | --- |
+| Agents       | AI 角色與代理系統 | 系統層 |
+| Prompts      | 任務模板       | 任務層 |
+| Instructions | 專案規範       | 規則層 |
+| Skills       | 可安裝技能模組    | 能力層 |
+
+---
+
+# 六、整體關係架構
+
+整體關係可以用這個邏輯理解：
 
 ```
-Agents（代理角色）
-    ↓ 使用
-Prompts（任務模板）
-    ↓ 遵守
-Instructions（專案規範）
+Instructions = 規則 / 架構 / Coding Standards
+Prompts      = 任務模板
+Skills       = 能力模組
+Agents       = AI 角色 / 指揮系統
 ```
 
-也就是：
+關係流程：
 
 ```
-Agent = 誰來做
+Agent 使用 Skills
+Agent 執行 Prompt
+Agent 遵守 Instructions
+Agents 之間可以 handoff
+```
+
+或簡化為：
+
+```
+Agent = 誰做事
 Prompt = 做什麼
 Instruction = 怎麼做
+Skill = 有什麼能力
 ```
-
-這是整個 VS Code Agent / Copilot Agents 架構的核心模型。
 
 ---
 
-# 六、常見專案目錄結構
+# 七、建議 .github 結構
 
-建議結構：
+建議專案目錄：
 
 ```
 .github/
@@ -178,25 +197,68 @@ Instruction = 怎麼做
 │   └─ write-tests.prompt.md
 │
 ├─ instructions/
-│   ├─ nextjs-architecture.instruction.md
-│   ├─ ddd-structure.instruction.md
+│   ├─ ddd-architecture.instruction.md
+│   ├─ nextjs-structure.instruction.md
 │   └─ coding-standards.instruction.md
+│
+├─ skills/
+│   ├─ repo-analyzer/
+│   │   └─ SKILL.md
+│   └─ test-generator/
+│       └─ SKILL.md
 ```
 
 ---
 
-# 七、最重要觀念（核心）
+# 八、屬性總表（完整）
 
-記住這個對應關係：
+## Agent
 
-| 檔案           | 本質      |
-| ------------ | ------- |
-| agents       | AI 組織架構 |
-| prompts      | 任務腳本    |
-| instructions | 開發憲法    |
-| tools        | 能力      |
-| handoffs     | 代理協作    |
-| applyTo      | 規則作用範圍  |
+```
+agents
+argument-hint
+description
+disable-model-invocation
+github
+handoffs
+model
+name
+target
+tools
+user-invocable
+```
+
+## Prompt
+
+```
+agent
+argument-hint
+description
+model
+name
+tools
+```
+
+## Instruction
+
+```
+applyTo
+description
+name
+```
+
+## Skill
+
+```
+argument-hint
+compatibility
+description
+disable-model-invocation
+license
+metadata
+name
+user-invocable
+```
 
 ---
 
