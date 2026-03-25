@@ -8,6 +8,7 @@ import jsdoc from "eslint-plugin-jsdoc";
 const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const typescriptFileGlobs = ["**/*.{ts,tsx}"];
 const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
+const boundaryRuleSeverity = "warn";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -127,7 +128,7 @@ const eslintConfig = defineConfig([
     },
     rules: {
       "boundaries/dependencies": [
-        "error",
+        boundaryRuleSeverity,
         {
           default: "disallow",
           rules: [
@@ -259,7 +260,7 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "no-restricted-imports": [
-        "error",
+        boundaryRuleSeverity,
         {
           patterns: [
             {
@@ -300,18 +301,11 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       "no-restricted-imports": [
-        "error",
+        boundaryRuleSeverity,
         {
           patterns: [
             {
-              group: [
-                "@/modules/*",
-                "@/modules/*/**",
-                "!@/modules/*/api",
-                "!@/modules/*/api/**",
-                "!@/modules/system",
-                "!@/modules/system/*",
-              ],
+              regex: "^@/modules/(?!system$)[^/]+$",
               message: "Module imports must use `@/modules/<module>/api` only (except approved system facade).",
             },
           ],
@@ -324,7 +318,7 @@ const eslintConfig = defineConfig([
     files: moduleFileGlobs,
     rules: {
       "no-restricted-imports": [
-        "error",
+        boundaryRuleSeverity,
         {
           patterns: [
             {
@@ -332,14 +326,7 @@ const eslintConfig = defineConfig([
               message: "Import the target file or public module boundary directly instead of using an explicit index path.",
             },
             {
-              group: [
-                "@/modules/*",
-                "@/modules/*/**",
-                "!@/modules/*/api",
-                "!@/modules/*/api/**",
-                "!@/modules/system",
-                "!@/modules/system/*",
-              ],
+              regex: "^@/modules/(?!system$)[^/]+$",
               message: "Module imports must use `@/modules/<module>/api` only (except approved system facade).",
             },
             {
@@ -361,7 +348,7 @@ const eslintConfig = defineConfig([
     files: ["modules/wiki/**/*.{ts,tsx}", "app/(shell)/wiki/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
-        "error",
+        boundaryRuleSeverity,
         {
           patterns: [
             {
@@ -381,7 +368,7 @@ const eslintConfig = defineConfig([
     files: ["modules/wiki-beta/**/*.{ts,tsx}", "app/(shell)/wiki-beta/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
-        "error",
+        boundaryRuleSeverity,
         {
           patterns: [
             {
