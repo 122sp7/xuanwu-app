@@ -4,6 +4,7 @@
 
 flowchart LR
     App["App / Orchestration Layer"]
+    DependencyRule["Dependency Rule:\nall dependencies point inward\ninner layers never depend on outer layers"]
 
     subgraph DomainA["Domain A - DOMAIN_ID_A"]
         direction TB
@@ -15,9 +16,8 @@ flowchart LR
         A_INF["infrastructure/\nexternal adapters"]
 
         A_IF --> A_API --> A_APP --> A_DOM
-        A_APP --> A_PORT
-        A_INF --> A_PORT
-        A_PORT --> A_DOM
+        A_APP -->|depends on abstraction| A_PORT
+        A_INF -.implements adapter for.-> A_PORT
     end
 
     subgraph DomainB["Domain B - DOMAIN_ID_B"]
@@ -30,9 +30,8 @@ flowchart LR
         B_INF["infrastructure/\nexternal adapters"]
 
         B_IF --> B_API --> B_APP --> B_DOM
-        B_APP --> B_PORT
-        B_INF --> B_PORT
-        B_PORT --> B_DOM
+        B_APP -->|depends on abstraction| B_PORT
+        B_INF -.implements adapter for.-> B_PORT
     end
 
     subgraph DomainC["Domain C - DOMAIN_ID_C"]
@@ -45,14 +44,14 @@ flowchart LR
         C_INF["infrastructure/\nexternal adapters"]
 
         C_IF --> C_API --> C_APP --> C_DOM
-        C_APP --> C_PORT
-        C_INF --> C_PORT
-        C_PORT --> C_DOM
+        C_APP -->|depends on abstraction| C_PORT
+        C_INF -.implements adapter for.-> C_PORT
     end
 
     App --> A_API
     App --> B_API
     App --> C_API
+    App -. follows .-> DependencyRule
 
     A_API -. "API call only" .-> B_API
     B_API -. "API call only" .-> C_API
@@ -68,6 +67,7 @@ flowchart LR
     classDef layer fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
     classDef infra fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
     classDef port fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.2px;
+    classDef rule fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
     classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
 
     class App app;
@@ -75,4 +75,5 @@ flowchart LR
     class A_IF,A_APP,A_DOM,B_IF,B_APP,B_DOM,C_IF,C_APP,C_DOM layer;
     class A_PORT,B_PORT,C_PORT port;
     class A_INF,B_INF,C_INF infra;
+    class DependencyRule rule;
     class Forbidden warn;
