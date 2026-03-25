@@ -21,7 +21,7 @@ handoffs:
 
 ## Target Scope
 
-- `modules/ai/**`
+- `modules/agent/**`
 - `app/**`
 - `modules/retrieval/**`
 

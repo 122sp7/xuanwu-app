@@ -14,7 +14,7 @@ Each use case lives in its own file under `application/use-cases/`. A use case r
 **Incorrect (multiple use cases in one file):**
 
 ```typescript
-// modules/task/application/use-cases/task.use-cases.ts
+// modules/workspace-flow/application/use-cases/task.use-cases.ts
 export async function createTask(input: CreateTaskInput) { ... }
 export async function updateTask(id: string, input: UpdateTaskInput) { ... }
 export async function deleteTask(id: string) { ... }
@@ -24,15 +24,15 @@ export async function listTasks(workspaceId: string) { ... }
 **Correct (one file per use case):**
 
 ```
-modules/task/application/use-cases/
+modules/workspace-flow/application/use-cases/
 ├── create-task.use-case.ts
 ├── update-task.use-case.ts
-├── delete-task.use-case.ts
-└── list-workspace-tasks.use-case.ts
+├── archive-task.use-case.ts
+└── assign-task.use-case.ts
 ```
 
 ```typescript
-// modules/task/application/use-cases/create-task.use-case.ts
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
 import type { CommandResult } from "@shared-types";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import { Task } from "../../domain/entities/Task";

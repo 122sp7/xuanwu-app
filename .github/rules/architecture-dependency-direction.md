@@ -19,7 +19,7 @@ interfaces/ ──→ application/ ──→ domain/ ←── infrastructure/
 **Incorrect (domain importing infrastructure):**
 
 ```typescript
-// modules/task/domain/entities/Task.ts
+// modules/workspace-flow/domain/entities/Task.ts
 import { collection, getDocs } from "firebase/firestore";  // ❌ Domain knows about Firebase
 import { db } from "@integration-firebase";                 // ❌ Domain imports infrastructure
 
@@ -34,13 +34,13 @@ export class Task {
 **Correct (domain defines interface, infrastructure implements):**
 
 ```typescript
-// modules/task/domain/repositories/TaskRepository.ts
+// modules/workspace-flow/domain/repositories/TaskRepository.ts
 export interface TaskRepository {
   findAll(): Promise<Task[]>;        // ✅ Pure interface, no framework dependency
   findById(id: string): Promise<Task | null>;
 }
 
-// modules/task/infrastructure/firebase/TaskFirebaseRepository.ts
+// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@integration-firebase";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";

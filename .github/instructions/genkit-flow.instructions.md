@@ -1,6 +1,6 @@
 ---
 description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
-applyTo: '{modules/ai/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
+applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
 ---
 
 # Genkit Flow

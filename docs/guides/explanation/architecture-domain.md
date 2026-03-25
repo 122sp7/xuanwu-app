@@ -808,7 +808,7 @@ interface QueryPlannerService {
 }
 ```
 
-**對應的 Genkit Flow（`modules/ai` 或 `modules/retrieval/infrastructure/genkit/`）：**
+**對應的 Genkit Flow（`modules/agent/infrastructure/genkit/` 或 `modules/retrieval/infrastructure/genkit/`）：**
 - `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
 - `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
 - `CitationFlow` → Answer + Source Mapping + Faithfulness Check

@@ -14,7 +14,7 @@ REST API routes and GraphQL schemas are defined in the `@api-contracts` package 
 **Incorrect (ad-hoc route definitions scattered across modules):**
 
 ```typescript
-// modules/task/interfaces/api/task.controller.ts
+// modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
 const TASK_API = "/api/v1/tasks";    // ❌ Route defined locally, not tracked centrally
 ```
 

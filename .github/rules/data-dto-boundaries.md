@@ -14,7 +14,7 @@ Data Transfer Objects (DTOs) mark the boundary between layers. Domain entities a
 **Incorrect (exposing Firestore document shape to UI):**
 
 ```typescript
-// modules/task/interfaces/components/TaskList.tsx
+// modules/workspace-flow/interfaces/components/TaskList.tsx
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@integration-firebase";
 
@@ -31,7 +31,7 @@ export function TaskList() {
 **Correct (use case returns typed DTO):**
 
 ```typescript
-// modules/task/application/use-cases/list-tasks.use-case.ts
+// modules/workspace-flow/application/use-cases/list-tasks.use-case.ts
 export interface TaskListItemDTO {
   id: string;
   title: string;
@@ -49,7 +49,7 @@ export async function listWorkspaceTasks(workspaceId: string): Promise<TaskListI
   }));
 }
 
-// modules/task/interfaces/components/TaskList.tsx
+// modules/workspace-flow/interfaces/components/TaskList.tsx
 import { listWorkspaceTasks, type TaskListItemDTO } from "../../application/use-cases/list-tasks.use-case";
 // Component receives typed data, doesn't know about Firestore
 ```
