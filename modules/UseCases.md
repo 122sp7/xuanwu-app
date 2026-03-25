@@ -11,7 +11,7 @@
 
 - **Actor**: Content Creator
 - **Primary Module**: `modules/content`
-- **Supporting Modules**: `modules/knowledge`, `modules/ai`
+- **Supporting Modules**: `modules/knowledge`, `modules/agent`
 
 ### Main Flow
 1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
@@ -30,8 +30,8 @@
 用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
 
 - **Actor**: Knowledge Worker
-- **Primary Module**: `modules/ai`
-- **Supporting Modules**: `modules/search`, `modules/content`
+- **Primary Module**: `modules/agent`
+- **Supporting Modules**: `modules/retrieval`, `modules/content`
 
 ### Main Flow
 1. 用戶開啟右側 `Assistant Panel`。

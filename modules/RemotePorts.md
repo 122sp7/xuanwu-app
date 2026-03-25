@@ -4,7 +4,7 @@
 
 ---
 
-## 1. Vector Store Port (`modules/search/domain/ports`)
+## 1. Vector Store Port (`modules/retrieval/domain/ports`)
 
 負責向量資料庫的讀寫。
 
@@ -37,7 +37,7 @@ export type VectorDocument = {
 };
 ```
 
-## 2. LLM Orchestrator Port (`modules/ai/domain/ports`)
+## 2. LLM Orchestrator Port (`modules/agent/domain`)
 
 負責與 Python Runtime (`py_fn`) 或 Genkit 溝通的介面。
 
