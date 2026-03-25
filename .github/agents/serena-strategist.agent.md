@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Route To Domain Lead
-		agent: domain-lead
+		agent: Domain Lead
 		prompt: Continue with a domain-ownership and module-boundary decision for this scoped task.
 	- label: Route To Frontend Lead
-		agent: frontend-lead
+		agent: Frontend Lead
 		prompt: Continue with route composition, UI ownership, and app-layer implementation for this scoped task.
 	- label: Route To RAG Lead
-		agent: rag-lead
+		agent: RAG Lead
 		prompt: Continue with retrieval, ingestion, and worker-boundary planning for this scoped task.
 
 ---

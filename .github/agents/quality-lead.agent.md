@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Enforce Lint Rules
-		agent: lint-rule-enforcer
+		agent: Lint Rule Enforcer
 		prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
 	- label: Verify Browser Flows
-		agent: e2e-qa
+		agent: E2E QA Agent
 		prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
 	- label: Expand Test Scenarios
-		agent: test-scenario-writer
+		agent: Test Scenario Writer
 		prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
 
 ---

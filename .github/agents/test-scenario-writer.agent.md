@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Quality Risk
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
 	- label: Verify Browser Flows
-		agent: e2e-qa
+		agent: E2E QA Agent
 		prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
 	- label: Check Lint And Rules
-		agent: lint-rule-enforcer
+		agent: Lint Rule Enforcer
 		prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
 
 ---

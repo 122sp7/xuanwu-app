@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Plan Migration
-		agent: schema-migration
+		agent: Schema Migration Agent
 		prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
 	- label: Review Security Rules
-		agent: security-rules
+		agent: Security Rules Agent
 		prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
 
 ---

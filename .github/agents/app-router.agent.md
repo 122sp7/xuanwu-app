@@ -6,15 +6,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.v
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Refine Parallel Routes
-		agent: parallel-routes
-		prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
-	- label: Write Server Action
-		agent: server-action-writer
-		prompt: Implement or review the server action orchestration and validation boundary used by this route.
-	- label: Verify End-to-End
-		agent: e2e-qa
-		prompt: Verify the affected route in a browser and collect runtime evidence for this change.
+  - label: Refine Parallel Routes
+    agent: Parallel Routes Agent
+    prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
+  - label: Write Server Action
+    agent: Server Action Writer
+    prompt: Implement or review the server action orchestration and validation boundary used by this route.
+  - label: Verify End-to-End
+    agent: E2E QA Agent
+    prompt: Verify the affected route in a browser and collect runtime evidence for this change.
 
 ---
 

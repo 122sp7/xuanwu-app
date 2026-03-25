@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Organize Knowledge Base
-		agent: kb-architect
+		agent: KB Architect
 		prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
 	- label: Refine Tool Strategy
-		agent: tool-caller
+		agent: Tool Caller
 		prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
 
 ---

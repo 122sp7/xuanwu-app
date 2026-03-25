@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Chunk Inputs
-		agent: chunk-strategist
+		agent: Chunk Strategist
 		prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
 	- label: Refine Flow Integration
-		agent: genkit-flow
+		agent: Genkit Flow Agent
 		prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
 
 ---

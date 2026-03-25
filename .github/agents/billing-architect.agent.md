@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Check Domain Ownership
-		agent: domain-lead
+		agent: Domain Lead
 		prompt: Confirm the owning bounded context, layer placement, and API-only collaboration path for this billing change.
 	- label: Shape Firestore Model
-		agent: firestore-schema
+		agent: Firestore Schema Agent
 		prompt: Design or review the data model, indexes, and compatibility risks for this billing scope.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this billing design for regression risk, invariant coverage, and validation gaps.
 
 ---

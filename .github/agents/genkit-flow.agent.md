@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review AI Ownership
-		agent: ai-genkit-lead
+		agent: AI Genkit Lead
 		prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
 	- label: Review RAG Contract
-		agent: rag-lead
+		agent: RAG Lead
 		prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
 
 ---

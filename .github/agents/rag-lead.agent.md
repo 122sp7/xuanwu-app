@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Normalize Ingestion
-		agent: doc-ingest
+		agent: Doc Ingest Agent
 		prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
 	- label: Design Chunk Strategy
-		agent: chunk-strategist
+		agent: Chunk Strategist
 		prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
 	- label: Write Embeddings
-		agent: embedding-writer
+		agent: Embedding Writer
 		prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
 
 ---

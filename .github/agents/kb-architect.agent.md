@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Refine Prompt Contracts
-		agent: prompt-engineer
+		agent: Prompt Engineer
 		prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
 	- label: Align Support Playbooks
-		agent: support-architect
+		agent: Support Architect
 		prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
 
 ---

@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Run Quality Gate
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review release readiness, residual risk, and validation coverage for this pipeline or deploy change.
 	- label: Plan Schema Rollout
-		agent: schema-migration
+		agent: Schema Migration Agent
 		prompt: Plan compatibility windows, rollout phases, and rollback requirements for the schema-related deployment scope.
 	- label: Review Repo Setup
-		agent: repo-architect
+		agent: Repo Architect Agent
 		prompt: Review the repository automation structure and agentic project configuration involved in this delivery flow.
 
 ---

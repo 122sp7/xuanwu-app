@@ -31,7 +31,7 @@ In this repository, folder responsibility is documented in each agent body under
 
 ## Handoff Rule
 
-- Handoffs should point to the target agent file identifier, such as `quality-lead` or `server-action-writer`
+- Handoffs should point to the visible target agent name, such as `Quality Lead` or `Server Action Writer`
 - Labels should describe the next action, not repeat the target name mechanically
 - Prompts should be short and task-forward so the next agent can start immediately
 

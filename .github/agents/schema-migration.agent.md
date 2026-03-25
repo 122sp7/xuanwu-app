@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Firestore Model
-		agent: firestore-schema
+		agent: Firestore Schema Agent
 		prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
 	- label: Review Security Rules
-		agent: security-rules
+		agent: Security Rules Agent
 		prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
 
 ---

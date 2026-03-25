@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwrigh
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Summarize Quality Risk
-		agent: quality-lead
-		prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
-	- label: Expand Test Coverage
-		agent: test-scenario-writer
-		prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
-	- label: Capture Support Follow-up
-		agent: support-architect
-		prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
+  - label: Expand Test Coverage
+    agent: Test Scenario Writer
+    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
+  - label: Capture Support Follow-up
+    agent: Support Architect
+    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
 
 ---
 

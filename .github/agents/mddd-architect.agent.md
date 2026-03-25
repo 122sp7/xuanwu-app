@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Confirm Domain Ownership
-		agent: domain-lead
+		agent: Domain Lead
 		prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
 	- label: Update Contracts
-		agent: ts-interface-writer
+		agent: TS Interface Writer
 		prompt: Update or review the public DTO and contract surface affected by this module refactor.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
 
 ---

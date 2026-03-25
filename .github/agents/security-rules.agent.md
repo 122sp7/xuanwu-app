@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Firestore Schema
-		agent: firestore-schema
+		agent: Firestore Schema Agent
 		prompt: Review the data model and access paths that this security-rules change must protect.
 	- label: Verify Browser Impact
-		agent: e2e-qa
+		agent: E2E QA Agent
 		prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
 	- label: Run Quality Review
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
 
 ---

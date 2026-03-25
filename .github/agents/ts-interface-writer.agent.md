@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Domain Ownership
-		agent: domain-lead
+		agent: Domain Lead
 		prompt: Confirm the owning bounded context and public API boundary for these contract changes.
 	- label: Write Server Action
-		agent: server-action-writer
+		agent: Server Action Writer
 		prompt: Update the server action orchestration that consumes or returns these contract changes.
 	- label: Review Firestore Shape
-		agent: firestore-schema
+		agent: Firestore Schema Agent
 		prompt: Review the persistence and index implications of these contract changes.
 
 ---

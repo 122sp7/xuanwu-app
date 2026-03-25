@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Design Chunk Strategy
-		agent: chunk-strategist
+		agent: Chunk Strategist
 		prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
 	- label: Write Embeddings
-		agent: embedding-writer
+		agent: Embedding Writer
 		prompt: Implement or review embedding generation and metadata writes for this ingestion output.
 	- label: Review RAG Flow
-		agent: rag-lead
+		agent: RAG Lead
 		prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
 
 ---

@@ -7,13 +7,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Frontend Ownership
-		agent: frontend-lead
+		agent: Frontend Lead
 		prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
 	- label: Refine Parallel Routes
-		agent: parallel-routes
+		agent: Parallel Routes Agent
 		prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
 	- label: Verify End-to-End
-		agent: e2e-qa
+		agent: E2E QA Agent
 		prompt: Verify the interaction states and browser behavior for this UI change.
 
 ---

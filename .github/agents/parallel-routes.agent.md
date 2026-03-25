@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Review Frontend Composition
-		agent: frontend-lead
+		agent: Frontend Lead
 		prompt: Review the route-level composition, ownership, and API consumption for this parallel-route scope.
 	- label: Compose UI States
-		agent: shadcn-composer
+		agent: Shadcn Composer
 		prompt: Compose or refine the UI primitives and interaction states used in this parallel-route slot.
 	- label: Verify End-to-End
-		agent: e2e-qa
+		agent: E2E QA Agent
 		prompt: Verify the affected slot behavior, rendering, and interactions in the browser.
 
 ---

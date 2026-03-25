@@ -6,13 +6,13 @@ model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
 	- label: Check Domain Boundary
-		agent: domain-lead
+		agent: Domain Lead
 		prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
 	- label: Review Frontend Impact
-		agent: frontend-lead
+		agent: Frontend Lead
 		prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
 	- label: Summarize Quality Risk
-		agent: quality-lead
+		agent: Quality Lead
 		prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
 
 ---
