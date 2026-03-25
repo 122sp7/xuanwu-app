@@ -5,7 +5,6 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseTokenRefreshRepository } from "@/modules/identity";
 import {
   CreateAccountPolicyUseCase,
   UpdateAccountPolicyUseCase,

@@ -9,3 +9,4 @@ export { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphReposito
 export { LinkExtractorService } from "../application/link-extractor.service";
 export { KnowledgeGraphApi } from "./knowledge-graph-api";
 export type { GraphDataDTO } from "./knowledge-graph-api";
+export type { GraphViewConfig, GraphLayout } from "../domain/entities/view-config";

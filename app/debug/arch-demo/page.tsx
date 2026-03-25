@@ -19,7 +19,7 @@ import {
   createPageAction,
   addBlockAction,
   updateBlockAction,
-} from "@/modules/interfaces/_actions/demo.actions";
+} from "./_actions/demo.actions";
 
 export const metadata = { title: "Arch Demo — Phase 3" };
 

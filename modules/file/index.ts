@@ -1,4 +1,4 @@
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
+﻿/**
+ * @deprecated modules/file is retired. Use @/modules/asset/api instead.
+ */
+export * from "./api/index";

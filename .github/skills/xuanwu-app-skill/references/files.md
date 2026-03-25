@@ -7635,6 +7635,68 @@ export default function WorkspacePage() {
 }
 `````
 
+## File: app/debug/arch-demo/_actions/demo.actions.ts
+`````typescript
+"use server";
+
+/**
+ * app/debug/arch-demo/_actions/demo.actions.ts
+ *
+ * Architecture Phase 3 — Server Actions for the /debug/arch-demo page.
+ *
+ * MDDD boundary rule:
+ *   Imports ONLY from `@/modules/system` (which re-exports via api/ paths).
+ *   Never reaches into domain/, application/, or infrastructure/ layers.
+ */
+
+import { revalidatePath } from "next/cache";
+
+import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "@/modules/system";
+import type { GraphDataDTO } from "@/modules/knowledge-graph/api/knowledge-graph-api";
+
+// ── Form-bound Server Actions (return void — re-render via revalidatePath) ──
+
+/**
+ * Create a new in-memory page.
+ */
+export async function createPageAction(formData: FormData): Promise<void> {
+  const title = (formData.get("title") as string | null)?.trim() || "Untitled";
+  await contentApi.createPage(DEMO_ACCOUNT_ID, title);
+  revalidatePath("/debug/arch-demo");
+}
+
+/**
+ * Add a block to an existing page.
+ */
+export async function addBlockAction(formData: FormData): Promise<void> {
+  const pageId = (formData.get("pageId") as string | null)?.trim() ?? "";
+  const text = (formData.get("text") as string | null) ?? "";
+  if (!pageId) return;
+  await contentApi.addBlock(DEMO_ACCOUNT_ID, pageId, text);
+  revalidatePath("/debug/arch-demo");
+}
+
+/**
+ * Update a block's text content.
+ * If the text contains [[WikiLinks]], the event bus propagates the change to
+ * KnowledgeGraphApi, which extracts new graph nodes and edges.
+ */
+export async function updateBlockAction(formData: FormData): Promise<void> {
+  const blockId = (formData.get("blockId") as string | null)?.trim() ?? "";
+  const text = (formData.get("text") as string | null) ?? "";
+  if (!blockId) return;
+  await contentApi.updateBlock(DEMO_ACCOUNT_ID, blockId, text);
+  revalidatePath("/debug/arch-demo");
+}
+
+/**
+ * Expose the current graph data for programmatic use.
+ */
+export async function getGraphDataAction(): Promise<GraphDataDTO> {
+  return knowledgeApi.getGraphData();
+}
+`````
+
 ## File: app/globals.css
 `````css
 @import "tailwindcss";
@@ -17491,6 +17553,2705 @@ interface GraphDataDTO {
 - `getSimilarBlocks(text: string, threshold: number): Promise<Result<ScoredBlockDTO[]>>`
 `````
 
+## File: modules/asset/api/index.ts
+`````typescript
+/**
+ * Module: asset
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Asset domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// --- Core entity types -------------------------------------------------------
+
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+
+// --- Query functions ---------------------------------------------------------
+
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+
+// --- UI components (cross-module public) -------------------------------------
+
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+`````
+
+## File: modules/asset/application/dto/file.dto.ts
+`````typescript
+import type { File } from "../../domain/entities/File";
+import type { RagDocumentStatus } from "../../domain/repositories/RagDocumentRepository";
+
+export interface WorkspaceFileListItemDto {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly name: string;
+  readonly status: File["status"];
+  readonly kind: File["classification"];
+  readonly source: string;
+  readonly detail: string;
+  readonly href?: string;
+}
+
+export interface UploadInitFileInputDto {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+  readonly fileName: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly idempotencyKey?: string;
+}
+
+export interface UploadInitFileOutputDto {
+  readonly fileId: string;
+  readonly versionId: string;
+  readonly uploadPath: string;
+  readonly uploadToken: string;
+  readonly expiresAtISO: string;
+}
+
+export interface UploadCompleteFileInputDto {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+  readonly fileId: string;
+  readonly versionId: string;
+}
+
+export interface UploadCompleteFileOutputDto {
+  readonly fileId: string;
+  readonly versionId: string;
+  readonly status: "active";
+  readonly ragDocumentId: string;
+  readonly ragDocumentStatus: RagDocumentStatus;
+}
+
+export type FileCommandErrorCode =
+  | "FILE_WORKSPACE_REQUIRED"
+  | "FILE_ORGANIZATION_REQUIRED"
+  | "FILE_ACTOR_REQUIRED"
+  | "FILE_NAME_REQUIRED"
+  | "FILE_ID_REQUIRED"
+  | "FILE_VERSION_REQUIRED"
+  | "FILE_VERSION_NOT_FOUND"
+  | "FILE_INVALID_SIZE"
+  | "FILE_NOT_FOUND"
+  | "FILE_SCOPE_MISMATCH"
+  | "FILE_STATUS_CONFLICT"
+  | "FILE_RAG_REGISTRATION_FAILED";
+`````
+
+## File: modules/asset/application/dto/rag-document.dto.ts
+`````typescript
+export interface RegisterUploadedRagDocumentInputDto {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  /** Account ID of the actor who uploaded this document. */
+  readonly accountId: string;
+  readonly title: string;
+  readonly sourceFileName: string;
+  readonly mimeType: string;
+  readonly storagePath: string;
+  readonly sizeBytes?: number;
+  readonly checksum?: string;
+  readonly taxonomy?: string;
+  readonly category?: string;
+  readonly department?: string;
+  readonly tags?: readonly string[];
+  readonly language?: string;
+  readonly accessControl?: readonly string[];
+  readonly versionGroupId?: string;
+  readonly versionNumber?: number;
+  readonly updateLog?: string;
+  readonly expiresAtISO?: string;
+}
+
+export interface RegisterUploadedRagDocumentOutputDto {
+  readonly documentId: string;
+  readonly status: "uploaded";
+  readonly registeredAtISO: string;
+}
+
+export type RegisterUploadedRagDocumentResult =
+  | {
+      ok: true;
+      data: RegisterUploadedRagDocumentOutputDto;
+      commandId: string;
+    }
+  | {
+      ok: false;
+      error: {
+        code:
+          | "RAG_ORGANIZATION_REQUIRED"
+          | "RAG_WORKSPACE_REQUIRED"
+          | "RAG_ACCOUNT_ID_REQUIRED"
+          | "RAG_TITLE_REQUIRED"
+          | "RAG_FILE_NAME_REQUIRED"
+          | "RAG_MIME_TYPE_REQUIRED"
+          | "RAG_STORAGE_PATH_REQUIRED";
+        message: string;
+      };
+      commandId: string;
+    };
+`````
+
+## File: modules/asset/application/index.ts
+`````typescript
+export * from "./dto/file.dto";
+export * from "./dto/rag-document.dto";
+export * from "./use-cases/list-workspace-files.use-case";
+export * from "./use-cases/upload-init-file.use-case";
+export * from "./use-cases/upload-complete-file.use-case";
+export * from "./use-cases/register-uploaded-rag-document.use-case";
+`````
+
+## File: modules/asset/application/use-cases/list-workspace-files.use-case.ts
+`````typescript
+import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
+import type { WorkspaceFileListItemDto } from "../dto/file.dto";
+
+const DEFAULT_FILE_SOURCE = "file-module";
+const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
+
+export class ListWorkspaceFilesUseCase {
+  constructor(private readonly fileRepository: FileRepository) {}
+
+  async execute(scope: ListWorkspaceFilesScope): Promise<WorkspaceFileListItemDto[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    const actorAccountId = scope.actorAccountId.trim();
+
+    if (!workspaceId || !organizationId || !actorAccountId) {
+      return [];
+    }
+
+    const files = await this.fileRepository.listByWorkspace({
+      workspaceId,
+      organizationId,
+      actorAccountId,
+    });
+
+    return files.map((file) => ({
+      id: file.id,
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      name: file.name,
+      status: file.status,
+      kind: file.classification,
+      source: file.source ?? DEFAULT_FILE_SOURCE,
+      detail: file.detail ?? DEFAULT_FILE_DETAIL,
+      href: file.href,
+    }));
+  }
+}
+`````
+
+## File: modules/asset/application/use-cases/register-uploaded-rag-document.use-case.ts
+`````typescript
+import { randomUUID } from "node:crypto";
+
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentOutputDto,
+} from "../dto/rag-document.dto";
+
+type RegisterUploadedRagDocumentUseCaseResult =
+  | { ok: true; data: RegisterUploadedRagDocumentOutputDto }
+  | {
+      ok: false;
+      error: {
+        code:
+          | "RAG_ORGANIZATION_REQUIRED"
+          | "RAG_WORKSPACE_REQUIRED"
+          | "RAG_ACCOUNT_ID_REQUIRED"
+          | "RAG_TITLE_REQUIRED"
+          | "RAG_FILE_NAME_REQUIRED"
+          | "RAG_MIME_TYPE_REQUIRED"
+          | "RAG_STORAGE_PATH_REQUIRED";
+        message: string;
+      };
+    };
+
+export class RegisterUploadedRagDocumentUseCase {
+  constructor(private readonly ragDocumentRepository: RagDocumentRepository) {}
+
+  async execute(
+    input: RegisterUploadedRagDocumentInputDto,
+  ): Promise<RegisterUploadedRagDocumentUseCaseResult> {
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId.trim();
+    const accountId = input.accountId.trim();
+    const title = input.title.trim();
+    const sourceFileName = input.sourceFileName.trim();
+    const mimeType = input.mimeType.trim();
+    const storagePath = input.storagePath.trim();
+
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: { code: "RAG_ORGANIZATION_REQUIRED", message: "Organization is required." },
+      };
+    }
+
+    if (!workspaceId) {
+      return {
+        ok: false,
+        error: { code: "RAG_WORKSPACE_REQUIRED", message: "Workspace is required." },
+      };
+    }
+
+    if (!accountId) {
+      return {
+        ok: false,
+        error: { code: "RAG_ACCOUNT_ID_REQUIRED", message: "Account ID is required." },
+      };
+    }
+
+    if (!title) {
+      return {
+        ok: false,
+        error: { code: "RAG_TITLE_REQUIRED", message: "Document title is required." },
+      };
+    }
+
+    if (!sourceFileName) {
+      return {
+        ok: false,
+        error: { code: "RAG_FILE_NAME_REQUIRED", message: "Source file name is required." },
+      };
+    }
+
+    if (!mimeType) {
+      return {
+        ok: false,
+        error: { code: "RAG_MIME_TYPE_REQUIRED", message: "Mime type is required." },
+      };
+    }
+
+    if (!storagePath) {
+      return {
+        ok: false,
+        error: { code: "RAG_STORAGE_PATH_REQUIRED", message: "Storage path is required." },
+      };
+    }
+
+    const nowISO = new Date().toISOString();
+    const documentId = `rag-document-${randomUUID()}`;
+    const versionGroupId = input.versionGroupId?.trim() ? input.versionGroupId.trim() : documentId;
+
+    await this.ragDocumentRepository.saveUploaded({
+      id: documentId,
+      organizationId,
+      workspaceId,
+      accountId,
+      displayName: sourceFileName,
+      title,
+      sourceFileName,
+      mimeType,
+      storagePath,
+      sizeBytes: input.sizeBytes ?? 0,
+      status: "uploaded",
+      checksum: input.checksum?.trim() || undefined,
+      taxonomy: input.taxonomy?.trim() || undefined,
+      category: input.category?.trim() || undefined,
+      department: input.department?.trim() || undefined,
+      tags: input.tags ?? [],
+      language: input.language?.trim() || undefined,
+      accessControl: input.accessControl ?? [],
+      versionGroupId,
+      versionNumber: input.versionNumber ?? 1,
+      isLatest: true,
+      updateLog: input.updateLog?.trim() || undefined,
+      expiresAtISO: input.expiresAtISO?.trim() || undefined,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    return {
+      ok: true,
+      data: {
+        documentId,
+        status: "uploaded",
+        registeredAtISO: nowISO,
+      },
+    };
+  }
+}
+`````
+
+## File: modules/asset/application/use-cases/upload-complete-file.use-case.ts
+`````typescript
+import type { File } from "../../domain/entities/File";
+import type { FileRepository } from "../../domain/repositories/FileRepository";
+import { completeUploadFile } from "../../domain/services/complete-upload-file";
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
+import type {
+  FileCommandErrorCode,
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+} from "../dto/file.dto";
+import { RegisterUploadedRagDocumentUseCase } from "./register-uploaded-rag-document.use-case";
+
+type UploadCompleteFileUseCaseResult =
+  | { ok: true; data: UploadCompleteFileOutputDto }
+  | { ok: false; error: { code: FileCommandErrorCode; message: string } };
+
+function isFileScopeMatch(input: {
+  readonly file: File;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+  readonly versionId: string;
+}): boolean {
+  return (
+    input.file.workspaceId === input.workspaceId &&
+    input.file.organizationId === input.organizationId &&
+    input.file.accountId === input.actorAccountId &&
+    input.file.currentVersionId === input.versionId
+  );
+}
+
+function isFileAlreadyCompleted(file: File): boolean {
+  return file.source === "file-upload-complete";
+}
+
+export class UploadCompleteFileUseCase {
+  constructor(
+    private readonly fileRepository: FileRepository,
+    private readonly ragDocumentRepository: RagDocumentRepository,
+  ) {}
+
+  async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteFileUseCaseResult> {
+    const workspaceId = input.workspaceId.trim();
+    const organizationId = input.organizationId.trim();
+    const actorAccountId = input.actorAccountId.trim();
+    const fileId = input.fileId.trim();
+    const versionId = input.versionId.trim();
+
+    if (!workspaceId) {
+      return {
+        ok: false,
+        error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." },
+      };
+    }
+
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." },
+      };
+    }
+
+    if (!actorAccountId) {
+      return {
+        ok: false,
+        error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." },
+      };
+    }
+
+    if (!fileId) {
+      return {
+        ok: false,
+        error: { code: "FILE_ID_REQUIRED", message: "File id is required." },
+      };
+    }
+
+    if (!versionId) {
+      return {
+        ok: false,
+        error: { code: "FILE_VERSION_REQUIRED", message: "Version id is required." },
+      };
+    }
+
+    const file = await this.fileRepository.findById(fileId);
+    if (!file) {
+      return {
+        ok: false,
+        error: { code: "FILE_NOT_FOUND", message: "File metadata not found." },
+      };
+    }
+
+    const version = await this.fileRepository.findVersion(fileId, versionId);
+    if (!version) {
+      return {
+        ok: false,
+        error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." },
+      };
+    }
+
+    if (
+      !isFileScopeMatch({
+        file,
+        workspaceId,
+        organizationId,
+        actorAccountId,
+        versionId,
+      })
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_SCOPE_MISMATCH",
+          message: "Upload completion scope does not match file metadata.",
+        },
+      };
+    }
+
+    if (file.status !== "active") {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_STATUS_CONFLICT",
+          message: "File upload completion requires an active file record.",
+        },
+      };
+    }
+
+    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
+      organizationId,
+      workspaceId,
+      storagePath: version.storagePath,
+    });
+
+    const nextFile =
+      isFileAlreadyCompleted(file)
+        ? file
+        : completeUploadFile({
+            file,
+            completedAtISO: new Date().toISOString(),
+          });
+
+    if (!isFileAlreadyCompleted(file)) {
+      await this.fileRepository.save(nextFile);
+    }
+
+    const ragDocument =
+      existingRagDocument === null
+        ? await (async () => {
+            const registerUploadedRagDocumentUseCase = new RegisterUploadedRagDocumentUseCase(
+              this.ragDocumentRepository,
+            );
+            const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
+              organizationId,
+              workspaceId,
+              accountId: actorAccountId,
+              title: file.name,
+              sourceFileName: file.name,
+              mimeType: file.mimeType,
+              storagePath: version.storagePath,
+              sizeBytes: file.sizeBytes,
+              checksum: version.checksum,
+              versionNumber: version.versionNumber,
+            });
+            if (!ragDocumentResult.ok) {
+              return ragDocumentResult;
+            }
+
+            return {
+              ok: true as const,
+              data: {
+                documentId: ragDocumentResult.data.documentId,
+                status: ragDocumentResult.data.status,
+              },
+            };
+          })()
+        : {
+            ok: true as const,
+            data: {
+              documentId: existingRagDocument.id,
+              status: existingRagDocument.status,
+            },
+          };
+
+    if (ragDocument.ok === false) {
+      return {
+        ok: false,
+        error: {
+          code: "FILE_RAG_REGISTRATION_FAILED",
+          message: ragDocument.error.message,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        fileId: nextFile.id,
+        versionId: nextFile.currentVersionId,
+        status: "active",
+        ragDocumentId: ragDocument.data.documentId,
+        ragDocumentStatus: ragDocument.data.status,
+      },
+    };
+  }
+}
+`````
+
+## File: modules/asset/application/use-cases/upload-init-file.use-case.ts
+`````typescript
+import { randomBytes, randomUUID } from "node:crypto";
+
+import type { File } from "../../domain/entities/File";
+import type { FileVersion } from "../../domain/entities/FileVersion";
+import type { FileRepository } from "../../domain/repositories/FileRepository";
+import type {
+  FileCommandErrorCode,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../dto/file.dto";
+
+type UploadInitFileUseCaseResult =
+  | { ok: true; data: UploadInitFileOutputDto }
+  | { ok: false; error: { code: FileCommandErrorCode; message: string } };
+
+function inferClassification(mimeType: string): File["classification"] {
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+
+  if (mimeType.includes("json")) {
+    return "manifest";
+  }
+
+  return "other";
+}
+
+function buildUploadPath(
+  organizationId: string,
+  workspaceId: string,
+  fileId: string,
+  fileName: string,
+) {
+  const encodedName = encodeURIComponent(fileName.replace(/\s+/g, "-"));
+  return `organizations/${organizationId}/workspaces/${workspaceId}/files/${fileId}/${encodedName}`;
+}
+
+export class UploadInitFileUseCase {
+  constructor(private readonly fileRepository: FileRepository) {}
+
+  async execute(input: UploadInitFileInputDto): Promise<UploadInitFileUseCaseResult> {
+    const workspaceId = input.workspaceId.trim();
+    const organizationId = input.organizationId.trim();
+    const actorAccountId = input.actorAccountId.trim();
+    const fileName = input.fileName.trim();
+
+    if (!workspaceId) {
+      return {
+        ok: false,
+        error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." },
+      };
+    }
+
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." },
+      };
+    }
+
+    if (!actorAccountId) {
+      return {
+        ok: false,
+        error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." },
+      };
+    }
+
+    if (!fileName) {
+      return {
+        ok: false,
+        error: { code: "FILE_NAME_REQUIRED", message: "File name is required." },
+      };
+    }
+
+    if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) {
+      return {
+        ok: false,
+        error: { code: "FILE_INVALID_SIZE", message: "File size must be a positive number." },
+      };
+    }
+
+    const createdAtISO = new Date().toISOString();
+    const fileId = `file-${randomUUID()}`;
+    const versionId = `file-version-${randomUUID()}`;
+    const uploadPath = buildUploadPath(organizationId, workspaceId, fileId, fileName);
+
+    const file: File = {
+      id: fileId,
+      workspaceId,
+      organizationId,
+      accountId: actorAccountId,
+      name: fileName,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      classification: inferClassification(input.mimeType),
+      tags: [],
+      currentVersionId: versionId,
+      status: "active",
+      source: "file-upload-init",
+      detail: "File metadata persisted before binary upload is completed.",
+      createdAtISO,
+      updatedAtISO: createdAtISO,
+    };
+
+    const version: FileVersion = {
+      id: versionId,
+      fileId,
+      versionNumber: 1,
+      status: "pending",
+      storagePath: uploadPath,
+      createdAtISO,
+    };
+
+    await this.fileRepository.save(file, [version]);
+
+    return {
+      ok: true,
+      data: {
+        fileId,
+        versionId,
+        uploadPath,
+        uploadToken: randomBytes(32).toString("base64url"),
+        expiresAtISO: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      },
+    };
+  }
+}
+`````
+
+## File: modules/asset/domain/entities/AuditRecord.ts
+`````typescript
+export type FileAuditAction =
+  | "upload_init"
+  | "upload_complete"
+  | "list_files"
+  | "download_url_issued"
+  | "archive"
+  | "restore";
+
+export interface AuditRecord {
+  readonly id: string;
+  readonly fileId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+  readonly action: FileAuditAction;
+  readonly occurredAtISO: string;
+  readonly detail?: string;
+}
+`````
+
+## File: modules/asset/domain/entities/File.ts
+`````typescript
+export type FileStatus = "active" | "archived" | "deleted";
+
+export interface File {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification: "image" | "manifest" | "record" | "other";
+  readonly tags: readonly string[];
+  readonly currentVersionId: string;
+  readonly retentionPolicyId?: string;
+  readonly status: FileStatus;
+  readonly source?: string;
+  readonly detail?: string;
+  readonly href?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+  readonly deletedAtISO?: string;
+}
+
+const ARCHIVEABLE_STATUS: readonly FileStatus[] = ["active"];
+const RESTOREABLE_STATUS: readonly FileStatus[] = ["archived"];
+
+export function canArchiveFile(file: File): boolean {
+  return ARCHIVEABLE_STATUS.includes(file.status);
+}
+
+export function canRestoreFile(file: File): boolean {
+  return RESTOREABLE_STATUS.includes(file.status);
+}
+`````
+
+## File: modules/asset/domain/entities/FileVersion.ts
+`````typescript
+export type FileVersionStatus = "pending" | "stored" | "active" | "superseded";
+
+export interface FileVersion {
+  readonly id: string;
+  readonly fileId: string;
+  readonly versionNumber: number;
+  readonly status: FileVersionStatus;
+  readonly storagePath: string;
+  readonly checksum?: string;
+  readonly createdAtISO: string;
+}
+
+export function isVersionImmutable(version: FileVersion): boolean {
+  return version.status === "active" || version.status === "superseded";
+}
+`````
+
+## File: modules/asset/domain/entities/PermissionSnapshot.ts
+`````typescript
+export interface PermissionSnapshot {
+  readonly actorAccountId: string;
+  readonly actorRole: string;
+  readonly organizationPolicyVersion: number;
+  readonly workspaceGrantVersion: number;
+  readonly canRead: boolean;
+  readonly canUpload: boolean;
+  readonly canDownload: boolean;
+  readonly canArchive: boolean;
+  readonly canRestore: boolean;
+  readonly resolvedAtISO: string;
+}
+`````
+
+## File: modules/asset/domain/entities/RetentionPolicy.ts
+`````typescript
+export interface RetentionPolicy {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly retentionDays: number;
+  readonly legalHold: boolean;
+  readonly purgeMode: "soft-delete" | "hard-delete";
+  readonly updatedAtISO: string;
+}
+`````
+
+## File: modules/asset/domain/index.ts
+`````typescript
+export * from "./entities/File";
+export * from "./entities/FileVersion";
+export * from "./entities/PermissionSnapshot";
+export * from "./entities/RetentionPolicy";
+export * from "./entities/AuditRecord";
+export * from "./repositories/FileRepository";
+export * from "./repositories/RagDocumentRepository";
+export * from "./ports/ActorContextPort";
+export * from "./ports/WorkspaceGrantPort";
+export * from "./ports/OrganizationPolicyPort";
+export * from "./services/resolve-file-organization-id";
+export * from "./services/complete-upload-file";
+`````
+
+## File: modules/asset/domain/ports/ActorContextPort.ts
+`````typescript
+export interface ActorFileContext {
+  readonly actorAccountId: string;
+  readonly actorRole: string;
+  readonly organizationIds: readonly string[];
+}
+
+export interface ActorContextPort {
+  getActorFileContext(actorAccountId: string): ActorFileContext | null;
+}
+`````
+
+## File: modules/asset/domain/ports/OrganizationPolicyPort.ts
+`````typescript
+import type { RetentionPolicy } from "../entities/RetentionPolicy";
+
+export interface OrganizationFilePolicySnapshot {
+  readonly organizationId: string;
+  readonly policyVersion: number;
+  readonly denyRead: boolean;
+  readonly denyUpload: boolean;
+  readonly denyDownload: boolean;
+  readonly denyArchive: boolean;
+  readonly denyRestore: boolean;
+  readonly retentionPolicy?: RetentionPolicy;
+}
+
+export interface OrganizationPolicyPort {
+  getOrganizationFilePolicy(organizationId: string): OrganizationFilePolicySnapshot | null;
+}
+`````
+
+## File: modules/asset/domain/ports/WorkspaceGrantPort.ts
+`````typescript
+export interface WorkspaceGrantSnapshot {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly grantVersion: number;
+  readonly canRead: boolean;
+  readonly canUpload: boolean;
+  readonly canDownload: boolean;
+  readonly canArchive: boolean;
+  readonly canRestore: boolean;
+}
+
+export interface WorkspaceGrantPort {
+  getWorkspaceGrantSnapshot(workspaceId: string, actorAccountId: string): WorkspaceGrantSnapshot | null;
+}
+`````
+
+## File: modules/asset/domain/repositories/FileRepository.ts
+`````typescript
+import type { File } from "../entities/File";
+import type { FileVersion } from "../entities/FileVersion";
+
+export interface ListWorkspaceFilesScope {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+}
+
+export interface FileRepository {
+  findById(fileId: string): Promise<File | null>;
+  findVersion(fileId: string, versionId: string): Promise<FileVersion | null>;
+  listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]>;
+  save(file: File, versions?: readonly FileVersion[]): Promise<void>;
+}
+`````
+
+## File: modules/asset/domain/repositories/RagDocumentRepository.ts
+`````typescript
+export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed" | "archived";
+
+export const ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS: Readonly<
+  Record<RagDocumentStatus, readonly RagDocumentStatus[]>
+> = {
+  uploaded: ["processing"],
+  processing: ["ready", "failed"],
+  ready: ["processing", "archived"],
+  failed: ["processing"],
+  archived: [],
+};
+
+export function canTransitionRagDocumentStatus(
+  fromStatus: RagDocumentStatus,
+  toStatus: RagDocumentStatus,
+): boolean {
+  return ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
+}
+
+/**
+ * RAG document record stored in Firestore at:
+ * /knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
+ *
+ * Fields align with knowledge.md §2.1 (files collection spec).
+ */
+export interface RagDocumentRecord {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  /** User-visible file name (preserves original filename semantics). */
+  readonly displayName: string;
+  /** System / legacy title (same as displayName for initial uploads). */
+  readonly title: string;
+  readonly sourceFileName: string;
+  readonly mimeType: string;
+  readonly storagePath: string;
+  readonly sizeBytes: number;
+  readonly status: RagDocumentStatus;
+  /** Error detail written back when status is "failed". */
+  readonly statusMessage?: string;
+  readonly checksum?: string;
+  /** Semantic document taxonomy / category hierarchy (e.g. "規章制度"). */
+  readonly taxonomy?: string;
+  readonly category?: string;
+  readonly department?: string;
+  readonly tags?: readonly string[];
+  /** Primary language of the document content (ISO 639-1, e.g. "zh-TW"). */
+  readonly language?: string;
+  /** Allowed OrganizationRole values or accountId allowlist for RBAC. */
+  readonly accessControl?: readonly string[];
+  /**
+   * Version group identifier — all versions of the same logical document share
+   * this ID.  Defaults to the document's own id for the first upload.
+   */
+  readonly versionGroupId: string;
+  /** 1-based version counter within the versionGroupId. */
+  readonly versionNumber: number;
+  /** True when this record is the current canonical version for its group. */
+  readonly isLatest: boolean;
+  /** Free-text description of what changed in this version. */
+  readonly updateLog?: string;
+  /** Account ID of the person who uploaded this document. */
+  readonly accountId: string;
+  /** Total chunk count — written back by the ingestion worker after processing. */
+  readonly chunkCount?: number;
+  /** ISO-8601 timestamp set by the ingestion worker when indexing completes. */
+  readonly indexedAtISO?: string;
+  /** ISO-8601 expiry timestamp; the document is auto-archived when reached. */
+  readonly expiresAtISO?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface RagDocumentRepository {
+  findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+  }): Promise<RagDocumentRecord | null>;
+  findByWorkspace(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly RagDocumentRecord[]>;
+  saveUploaded(record: RagDocumentRecord): Promise<void>;
+}
+`````
+
+## File: modules/asset/domain/services/complete-upload-file.ts
+`````typescript
+import type { File } from "../entities/File";
+
+interface CompleteUploadFileInput {
+  readonly file: File;
+  readonly completedAtISO: string;
+}
+
+export function completeUploadFile(input: CompleteUploadFileInput): File {
+  return {
+    ...input.file,
+    status: "active",
+    updatedAtISO: input.completedAtISO,
+    source: "file-upload-complete",
+    detail: "File upload completed; status set to active and metadata timestamp finalized.",
+  };
+}
+`````
+
+## File: modules/asset/domain/services/resolve-file-organization-id.ts
+`````typescript
+export function resolveFileOrganizationId(
+  accountType: "user" | "organization",
+  accountId: string,
+): string {
+  return accountType === "organization" ? accountId : `personal:${accountId}`;
+}
+`````
+
+## File: modules/asset/index.ts
+`````typescript
+export * from "./domain";
+export * from "./application";
+export * from "./infrastructure";
+export * from "./interfaces";
+`````
+
+## File: modules/asset/infrastructure/firebase/FirebaseFileRepository.ts
+`````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { File } from "../../domain/entities/File";
+import type { FileVersion } from "../../domain/entities/FileVersion";
+import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
+
+const FILE_COLLECTION = "workspaceFiles";
+const VERSION_SUBCOLLECTION = "versions";
+
+interface FirestoreFileDocument {
+  readonly workspaceId?: string;
+  readonly organizationId?: string;
+  readonly accountId?: string;
+  readonly name?: string;
+  readonly mimeType?: string;
+  readonly sizeBytes?: number;
+  readonly classification?: File["classification"];
+  readonly tags?: readonly string[];
+  readonly currentVersionId?: string;
+  readonly retentionPolicyId?: string;
+  readonly status?: File["status"];
+  readonly source?: string;
+  readonly detail?: string;
+  readonly href?: string;
+  readonly createdAtISO?: string;
+  readonly updatedAtISO?: string;
+  readonly deletedAtISO?: string;
+}
+
+interface FirestoreFileVersionDocument {
+  readonly fileId?: string;
+  readonly versionNumber?: number;
+  readonly status?: FileVersion["status"];
+  readonly storagePath?: string;
+  readonly checksum?: string;
+  readonly createdAtISO?: string;
+}
+
+function isFileStatus(value: unknown): value is File["status"] {
+  return value === "active" || value === "archived" || value === "deleted";
+}
+
+function isFileClassification(value: unknown): value is File["classification"] {
+  return value === "image" || value === "manifest" || value === "record" || value === "other";
+}
+
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function toFileEntity(fileId: string, data: FirestoreFileDocument): File {
+  return {
+    id: fileId,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    classification: isFileClassification(data.classification) ? data.classification : "other",
+    tags: toStringArray(data.tags),
+    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
+    retentionPolicyId:
+      typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
+    status: isFileStatus(data.status) ? data.status : "active",
+    source: typeof data.source === "string" ? data.source : undefined,
+    detail: typeof data.detail === "string" ? data.detail : undefined,
+    href: typeof data.href === "string" ? data.href : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
+  };
+}
+
+function isFileVersionStatus(value: unknown): value is FileVersion["status"] {
+  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
+}
+
+function toFileVersionEntity(versionId: string, data: FirestoreFileVersionDocument): FileVersion {
+  return {
+    id: versionId,
+    fileId: typeof data.fileId === "string" ? data.fileId : "",
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
+    status: isFileVersionStatus(data.status) ? data.status : "pending",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseFileRepository implements FileRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  private get collectionRef() {
+    return collection(this.db, FILE_COLLECTION);
+  }
+
+  async findById(fileId: string): Promise<File | null> {
+    const normalizedFileId = fileId.trim();
+    if (!normalizedFileId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedFileId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument);
+  }
+
+  async findVersion(fileId: string, versionId: string): Promise<FileVersion | null> {
+    const normalizedFileId = fileId.trim();
+    const normalizedVersionId = versionId.trim();
+    if (!normalizedFileId || !normalizedVersionId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(
+      doc(this.db, FILE_COLLECTION, normalizedFileId, VERSION_SUBCOLLECTION, normalizedVersionId),
+    );
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return toFileVersionEntity(snapshot.id, snapshot.data() as FirestoreFileVersionDocument);
+  }
+
+  async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    if (!workspaceId) {
+      return [];
+    }
+
+    const snapshots = await getDocs(
+      query(
+        this.collectionRef,
+        where("workspaceId", "==", workspaceId),
+        where("organizationId", "==", organizationId),
+      ),
+    );
+
+    return snapshots.docs
+      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument))
+      .sort((left, right) => right.updatedAtISO.localeCompare(left.updatedAtISO));
+  }
+
+  async save(file: File, versions: readonly FileVersion[] = []): Promise<void> {
+    const batch = writeBatch(this.db);
+    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
+
+    batch.set(fileRef, {
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      accountId: file.accountId,
+      name: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      classification: file.classification,
+      tags: [...file.tags],
+      currentVersionId: file.currentVersionId,
+      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
+      status: file.status,
+      ...(file.source ? { source: file.source } : {}),
+      ...(file.detail ? { detail: file.detail } : {}),
+      ...(file.href ? { href: file.href } : {}),
+      createdAtISO: file.createdAtISO,
+      updatedAtISO: file.updatedAtISO,
+      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
+    });
+
+    versions.forEach((version) => {
+      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
+        fileId: version.fileId,
+        versionNumber: version.versionNumber,
+        status: version.status,
+        storagePath: version.storagePath,
+        ...(version.checksum ? { checksum: version.checksum } : {}),
+        createdAtISO: version.createdAtISO,
+      });
+    });
+
+    await batch.commit();
+  }
+}
+`````
+
+## File: modules/asset/infrastructure/firebase/FirebaseRagDocumentRepository.ts
+`````typescript
+import {
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type {
+  RagDocumentRecord,
+  RagDocumentRepository,
+} from "../../domain/repositories/RagDocumentRepository";
+
+function buildKnowledgeDocumentRef(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+}) {
+  return doc(
+    getFirestore(firebaseClientApp),
+    "knowledge_base",
+    input.organizationId,
+    "workspaces",
+    input.workspaceId,
+    "documents",
+    input.documentId,
+  );
+}
+
+function buildKnowledgeDocumentsCollection(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+}) {
+  return collection(
+    getFirestore(firebaseClientApp),
+    "knowledge_base",
+    input.organizationId,
+    "workspaces",
+    input.workspaceId,
+    "documents",
+  );
+}
+
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function toRagDocumentRecord(
+  documentId: string,
+  data: Record<string, unknown>,
+  fallbackScope: { organizationId: string; workspaceId: string },
+): RagDocumentRecord {
+  return {
+    id: documentId,
+    organizationId:
+      typeof data.organizationId === "string" ? data.organizationId : fallbackScope.organizationId,
+    workspaceId:
+      typeof data.workspaceId === "string" ? data.workspaceId : fallbackScope.workspaceId,
+    displayName:
+      (typeof data.displayName === "string" && data.displayName) ||
+      (typeof data.sourceFileName === "string" && data.sourceFileName) ||
+      "",
+    title: typeof data.title === "string" ? data.title : "",
+    sourceFileName: typeof data.sourceFileName === "string" ? data.sourceFileName : "",
+    mimeType:
+      typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    status:
+      data.status === "uploaded" ||
+      data.status === "processing" ||
+      data.status === "ready" ||
+      data.status === "failed" ||
+      data.status === "archived"
+        ? data.status
+        : "uploaded",
+    statusMessage:
+      typeof data.statusMessage === "string" ? data.statusMessage : undefined,
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : undefined,
+    category: typeof data.category === "string" ? data.category : undefined,
+    department: typeof data.department === "string" ? data.department : undefined,
+    tags: toStringArray(data.tags),
+    language: typeof data.language === "string" ? data.language : undefined,
+    accessControl: toStringArray(data.accessControl),
+    versionGroupId: typeof data.versionGroupId === "string" ? data.versionGroupId : documentId,
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 1,
+    isLatest: typeof data.isLatest === "boolean" ? data.isLatest : true,
+    updateLog: typeof data.updateLog === "string" ? data.updateLog : undefined,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
+    indexedAtISO:
+      typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
+    expiresAtISO:
+      typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseRagDocumentRepository implements RagDocumentRepository {
+  async findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+  }): Promise<RagDocumentRecord | null> {
+    const snapshots = await getDocs(
+      query(
+        buildKnowledgeDocumentsCollection({
+          organizationId: scope.organizationId,
+          workspaceId: scope.workspaceId,
+        }),
+        where("storagePath", "==", scope.storagePath),
+        limit(1),
+      ),
+    );
+    const [firstMatch] = snapshots.docs;
+    if (!firstMatch) {
+      return null;
+    }
+
+    return toRagDocumentRecord(firstMatch.id, firstMatch.data() as Record<string, unknown>, {
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+    });
+  }
+
+  async findByWorkspace(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly RagDocumentRecord[]> {
+    const snapshots = await getDocs(
+      query(
+        buildKnowledgeDocumentsCollection({
+          organizationId: scope.organizationId,
+          workspaceId: scope.workspaceId,
+        }),
+        orderBy("createdAtISO", "desc"),
+      ),
+    );
+
+    return snapshots.docs.map((docSnap) =>
+      toRagDocumentRecord(docSnap.id, docSnap.data() as Record<string, unknown>, {
+        organizationId: scope.organizationId,
+        workspaceId: scope.workspaceId,
+      }),
+    );
+  }
+
+  async saveUploaded(record: RagDocumentRecord): Promise<void> {
+    const documentRef = buildKnowledgeDocumentRef({
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      documentId: record.id,
+    });
+
+    await setDoc(documentRef, {
+      // Duplicate the document id in the payload so collection-group consumers can project
+      // a stable field without depending on Firestore snapshot metadata.
+      id: record.id,
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      displayName: record.displayName,
+      title: record.title,
+      sourceFileName: record.sourceFileName,
+      mimeType: record.mimeType,
+      storagePath: record.storagePath,
+      sizeBytes: record.sizeBytes,
+      status: record.status,
+      ...(record.statusMessage ? { statusMessage: record.statusMessage } : {}),
+      ...(record.checksum ? { checksum: record.checksum } : {}),
+      ...(record.taxonomy ? { taxonomy: record.taxonomy } : {}),
+      ...(record.category ? { category: record.category } : {}),
+      ...(record.department ? { department: record.department } : {}),
+      tags: record.tags ?? [],
+      ...(record.language ? { language: record.language } : {}),
+      accessControl: record.accessControl ?? [],
+      versionGroupId: record.versionGroupId,
+      versionNumber: record.versionNumber,
+      isLatest: record.isLatest,
+      ...(record.updateLog ? { updateLog: record.updateLog } : {}),
+      accountId: record.accountId,
+      ...(record.chunkCount !== undefined ? { chunkCount: record.chunkCount } : {}),
+      ...(record.indexedAtISO ? { indexedAtISO: record.indexedAtISO } : {}),
+      ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
+      createdAtISO: record.createdAtISO,
+      updatedAtISO: record.updatedAtISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+`````
+
+## File: modules/asset/infrastructure/index.ts
+`````typescript
+export * from "./firebase/FirebaseFileRepository";
+export * from "./firebase/FirebaseRagDocumentRepository";
+`````
+
+## File: modules/asset/interfaces/_actions/file.actions.ts
+`````typescript
+"use server";
+
+import type {
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../application/dto/file.dto";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../application/dto/rag-document.dto";
+import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-uploaded-rag-document.use-case";
+import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-complete-file.use-case";
+import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import type { FileCommandResult } from "../contracts/file-command-result";
+
+function createCommandId(idempotencyKey?: string) {
+  const normalized = idempotencyKey?.trim();
+  if (normalized) {
+    return normalized;
+  }
+
+  return `file-upload-init-${crypto.randomUUID()}`;
+}
+
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<FileCommandResult<UploadInitFileOutputDto>> {
+  const commandId = createCommandId(input.idempotencyKey);
+  const useCase = new UploadInitFileUseCase(new FirebaseFileRepository());
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
+  const useCase = new UploadCompleteFileUseCase(
+    new FirebaseFileRepository(),
+    new FirebaseRagDocumentRepository(),
+  );
+  const commandId = createCommandId(input.versionId);
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult> {
+  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentRepository());
+  const commandId = createCommandId(input.storagePath);
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+`````
+
+## File: modules/asset/interfaces/components/WorkspaceFilesTab.tsx
+`````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+
+import type { WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { getWorkspaceFiles } from "../queries/file.queries";
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { getFirebaseStorage } from "@integration-firebase";
+
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[WorkspaceFilesTab] Failed to load file metadata:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      }
+
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFiles() {
+      await reloadFiles();
+      if (cancelled) {
+        return;
+      }
+    }
+
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(
+        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
+      );
+
+      await reloadFiles();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
+      }
+      setUploadState("error");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
+    }
+  }
+
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (!nextFile) {
+                  return;
+                }
+
+                void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p
+              className={`mt-3 text-xs ${
+                uploadState === "error" ? "text-destructive" : "text-emerald-600"
+              }`}
+            >
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入已持久化的檔案資料，請稍後再試。
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
+            </div>
+          )}
+
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
+                      {asset.status}
+                    </Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">
+                        Open asset
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+`````
+
+## File: modules/asset/interfaces/contracts/file-command-result.ts
+`````typescript
+import type { FileCommandErrorCode } from "../../application/dto/file.dto";
+
+export type FileCommandResult<TData> =
+  | {
+      ok: true;
+      data: TData;
+      commandId: string;
+    }
+  | {
+      ok: false;
+      error: {
+        code: FileCommandErrorCode;
+        message: string;
+      };
+      commandId: string;
+    };
+`````
+
+## File: modules/asset/interfaces/index.ts
+`````typescript
+export * from "./components/WorkspaceFilesTab";
+export * from "./queries/file.queries";
+export * from "./_actions/file.actions";
+export * from "./contracts/file-command-result";
+`````
+
+## File: modules/asset/interfaces/queries/file.queries.ts
+`````typescript
+import type { WorkspaceEntity } from "@/modules/workspace";
+
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
+
+export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
+  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+
+  return listWorkspaceFilesUseCase.execute({
+    workspaceId: workspace.id,
+    organizationId,
+    actorAccountId: workspace.accountId,
+  });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+  const repo = new FirebaseRagDocumentRepository();
+
+  return repo.findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
+}
+`````
+
+## File: modules/asset/README.md
+`````markdown
+# File Module MDDD + Hexagonal Implementation Plan
+
+> **開發狀態**：🚧 Developing — 積極開發中
+
+**核心原則：檔案模組只擁有檔案生命週期、版本、授權快照與保留策略的業務規則，account / workspace / organization 只提供身分、協作情境與治理政策，所有存取判斷一律經由 file application use case 透過 ports 解算。**
+
+---
+
+## 1) 問題陳述與目標 / 非目標
+
+### 問題陳述
+目前 `modules/file` 已完成第一階段解耦，但仍缺少完整生命週期能力：
+
+- `WorkspaceFilesTab` 已走 file module query，不再依賴 workspace projection
+- 讀取路徑已從 workspace 衍生訊號拆離，但 canonical write-side / lifecycle（upload/download/version/retention）仍未完整落地
+- account、workspace、organization 在檔案領域的責任邊界尚未被明確建模
+- 檔案權限、版本、保留、稽核、下載連結生命週期都沒有正式 aggregate / port / use case
+- 如果直接在 app/router 或 UI 補功能，會進一步惡化 coupling，違反本專案的 MDDD + Hexagonal 依賴方向
+
+### 目標
+1. 將 `modules/file` 定義為正式 bounded context，具備可演進的 `domain / application / infrastructure / interfaces` 分層。
+2. 一次釐清 account、workspace、organization、file 四者在檔案領域的責任邊界。
+3. 建立最小可行資料模型，支援：
+   - upload-init / upload-complete
+   - list-files
+   - get-download-url
+   - archive-file / restore-file
+   - versioning / audit / retention
+4. 明確定義權限解算優先序與 default deny 原則。
+5. 提供可直接開工的 migration plan，先拆掉目前 `WorkspaceOperationalSignals` 對檔案顯示的耦合。
+6. 確保所有外部依賴（Firebase / Firestore / Storage / signed URL / notification / audit）只存在 infrastructure。
+
+### 非目標
+1. 本次方案**不**直接實作完整 Document AI / Parser / RAG ingestion pipeline；那是 parser / py_fn 的責任。
+2. 本次方案**不**定義新的 UI 視覺設計系統；UI 僅需接正式 query / action。
+3. 本次方案**不**讓 account / workspace / organization 模組去「接管」檔案生命週期。
+4. 本次方案**不**在第一個 PR 就完成全文檢索、DLP、病毒掃描、跨區域複寫。
+5. 本次方案**不**把權限規則散落在 router、server action、React component、Firebase Rules 各處重複實作。
+
+---
+
+## 2) account / workspace / organization / file 職責矩陣
+
+| 邊界 | 擁有資料 | 可執行行為 | 禁止責任 |
+| --- | --- | --- | --- |
+| `account` | `accountId`、身份狀態、角色指派結果、成員資格、使用者偏好 | 發起 upload / download / archive / restore 請求；作為 actor 被授權；持有 personal scope 的擁有者資訊 | 不可擁有 organization 檔案政策；不可直接決定 workspace 檔案可見性；不可實作檔案生命週期規則 |
+| `workspace` | `workspaceId`、協作情境、成員關係、workspace grants、檔案掛載上下文 | 定義檔案與某個 workspace 的協作歸屬；提供 workspace-level grant；決定哪些檔案在該 workspace 被列出 | 不可擁有 blob/storage path；不可實作版本規則；不可繞過 organization policy 發放權限 |
+| `organization` | `organizationId`、租戶邊界、治理政策、保留政策基線、分類基線、legal hold / compliance policy | 提供 tenant boundary；定義最高優先權 hard deny / retention baseline / classification baseline | 不可直接持有檔案版本資料；不可把檔案列表實作成 organization page fan-out 邏輯；不可在 UI 內解權限 |
+| `file` | 檔案 metadata、版本、storage pointer、permission snapshot、retention outcome、download token issuance、audit payload | 管理 upload session、版本建立、列檔、下載連結、封存、還原、軟刪除、權限快照、稽核事件發送 | 不可成為 identity source；不可管理 organization/team/workspace lifecycle；不可直接 import 他模組 domain 來解決規則 |
+
+### 邊界補充
+- `organization` 是**租戶與治理邊界**。
+- `workspace` 是**協作與掛載邊界**。
+- `account` 是**actor 與主體邊界**。
+- `file` 是**檔案生命週期與存取決策邊界**。
+
+---
+
+## 3) 10 條不可違反架構規則
+
+1. `app/` 與 route handler / server action 只能協調輸入輸出，不得實作檔案業務規則。
+2. `modules/file/interfaces/*` 只能呼叫 `application/use-cases`，不得直接存取 Firebase / Firestore / Storage。
+3. `modules/file/application/*` 不得 import Firebase SDK、Next.js runtime API、React hook、UI component。
+4. `modules/file/domain/*` 必須保持 pure TypeScript，不得 import `workspace` / `organization` / `account` 的 domain symbols。
+5. 檔案權限判斷只能在 file application + domain 內完成，且必須 default deny。
+6. 任何下載連結、上傳 URL、Storage path、metadata 寫入只能由 infrastructure adapter 產生。
+7. 檔案版本是 immutable；更新內容只能新增 `FileVersion`，不可原地改寫舊版本 metadata。
+8. `archive / restore / soft delete / purge` 只能透過 `File` aggregate 狀態轉移，UI 不可直接 patch status。
+9. 與 account / workspace / organization / audit / notification 的互動只能透過 ports，不能直接跨模組 repository 實作或 domain import。
+10. 任何跨租戶請求只要 `organizationId` 不一致，必須在最外層 use case 直接拒絕，不能依賴 UI 過濾或 Storage path 猜測。
+
+---
+
+## 4) file module 分層目錄草案與檔案命名建議
+
+```text
+modules/file/
+├── README.md
+├── index.ts
+├── domain/
+│   ├── entities/
+│   │   ├── File.ts
+│   │   ├── FileVersion.ts
+│   │   ├── PermissionSnapshot.ts
+│   │   ├── RetentionPolicy.ts
+│   │   └── AuditRecord.ts
+│   ├── value-objects/
+│   │   ├── FileId.ts
+│   │   ├── FileScope.ts
+│   │   ├── FileStatus.ts
+│   │   ├── FilePermission.ts
+│   │   └── StorageObjectPath.ts
+│   ├── repositories/
+│   │   ├── FileRepository.ts
+│   │   ├── FileVersionRepository.ts
+│   │   ├── UploadSessionRepository.ts
+│   │   └── PermissionSnapshotRepository.ts
+│   └── ports/
+│       ├── ActorContextPort.ts
+│       ├── WorkspaceGrantPort.ts
+│       ├── OrganizationPolicyPort.ts
+│       ├── BlobStoragePort.ts
+│       ├── DownloadUrlSignerPort.ts
+│       ├── AuditSinkPort.ts
+│       └── NotificationPort.ts
+├── application/
+│   ├── dto/
+│   │   ├── init-upload.dto.ts
+│   │   ├── complete-upload.dto.ts
+│   │   ├── list-files.dto.ts
+│   │   ├── get-download-url.dto.ts
+│   │   ├── archive-file.dto.ts
+│   │   └── restore-file.dto.ts
+│   └── use-cases/
+│       ├── init-file-upload.use-case.ts
+│       ├── complete-file-upload.use-case.ts
+│       ├── list-workspace-files.use-case.ts
+│       ├── list-organization-files.use-case.ts
+│       ├── get-file-download-url.use-case.ts
+│       ├── archive-file.use-case.ts
+│       ├── restore-file.use-case.ts
+│       └── resolve-file-permissions.use-case.ts
+├── infrastructure/
+│   ├── firebase/
+│   │   ├── FirebaseFileRepository.ts
+│   │   ├── FirebaseFileVersionRepository.ts
+│   │   ├── FirebaseUploadSessionRepository.ts
+│   │   ├── FirebasePermissionSnapshotRepository.ts
+│   │   ├── FirebaseBlobStorageAdapter.ts
+│   │   ├── FirebaseDownloadUrlSigner.ts
+│   │   └── mappers/
+│   │       ├── file-document.mapper.ts
+│   │       ├── file-version-document.mapper.ts
+│   │       ├── permission-snapshot-document.mapper.ts
+│   │       └── retention-policy-document.mapper.ts
+│   ├── integration/
+│   │   ├── AccountActorContextAdapter.ts
+│   │   ├── WorkspaceGrantAdapter.ts
+│   │   ├── OrganizationPolicyAdapter.ts
+│   │   ├── AuditSinkAdapter.ts
+│   │   └── NotificationAdapter.ts
+├── interfaces/
+│   ├── _actions/
+│   │   └── file.actions.ts
+│   ├── queries/
+│   │   └── file.queries.ts
+│   ├── components/
+│   │   ├── WorkspaceFilesTab.tsx
+│   │   └── OrganizationFilesTab.tsx
+│   └── presenters/
+│       └── file.presenter.ts
+```
+
+### 檔名命名原則
+- entity：名詞單數，直接反映 aggregate / entity 名稱
+- use case：`verb-object.use-case.ts`
+- Firebase adapter：`Firebase<Thing>Repository.ts` / `Firebase<Thing>Adapter.ts`
+- DTO：`<command>.dto.ts`
+- interface entry：集中在 `file.actions.ts` / `file.queries.ts`
+- legacy bridge：只能暫存於 `infrastructure/legacy/`，禁止長期存在
+
+---
+
+## 5) 最小可行資料模型
+
+> 原則：檔案 metadata 與權限 / 保留 / 稽核是 file module 的 canonical source；organization / workspace / account 只提供 reference 與 policy input。
+
+### `File`
+
+```ts
+interface File {
+  id: string;
+  organizationId: string;
+  workspaceId?: string;
+  ownerAccountId: string;
+  createdByAccountId: string;
+  currentVersionId: string;
+  currentVersionNumber: number;
+  name: string;
+  normalizedName: string;
+  extension?: string;
+  contentType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  status: "INITIATED" | "UPLOADING" | "AVAILABLE" | "ARCHIVED" | "SOFT_DELETED" | "PURGED";
+  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
+  classification: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
+  tags: string[];
+  permissionSnapshotId: string;
+  retentionPolicyId: string;
+  legalHold: boolean;
+  archivedAt?: Timestamp;
+  deletedAt?: Timestamp;
+  purgeAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+#### `File` 狀態機
+
+```text
+INITIATED -> UPLOADING -> AVAILABLE -> ARCHIVED -> AVAILABLE
+AVAILABLE -> SOFT_DELETED -> AVAILABLE
+SOFT_DELETED -> PURGED
+INITIATED -> PURGED     (expired upload session cleanup)
+```
+
+#### 狀態規則
+- `INITIATED`: 已發 upload-init，但 blob 尚未確認完成
+- `UPLOADING`: 已取得 upload target，尚未 complete
+- `AVAILABLE`: 可列出、可下載（前提是權限解算通過）
+- `ARCHIVED`: 不出現在預設列表，但可 restore
+- `SOFT_DELETED`: 對 UI 隱藏，可在保留期內 restore
+- `PURGED`: 終態；metadata 可保留精簡 tombstone，但 blob 與版本不可再使用
+
+### `FileVersion`
+
+```ts
+interface FileVersion {
+  id: string;
+  fileId: string;
+  organizationId: string;
+  workspaceId?: string;
+  versionNumber: number;
+  storagePath: string;
+  storageBucket: string;
+  objectGeneration?: string;
+  sizeBytes: number;
+  contentType: string;
+  checksumSha256: string;
+  sourceFileName: string;
+  uploadedByAccountId: string;
+  status: "PENDING_UPLOAD" | "STORED" | "ACTIVE" | "SUPERSEDED" | "PURGED";
+  createdAt: Timestamp;
+}
+```
+
+#### `FileVersion` 狀態機
+```text
+PENDING_UPLOAD -> STORED -> ACTIVE -> SUPERSEDED
+ACTIVE -> PURGED
+SUPERSEDED -> PURGED
+```
+
+### `PermissionSnapshot`
+
+```ts
+interface PermissionSnapshot {
+  id: string;
+  fileId: string;
+  organizationId: string;
+  workspaceId?: string;
+  defaultEffect: "DENY";
+  organizationPolicyVersion: number;
+  workspaceGrantVersion?: number;
+  actorContextVersion: number;
+  allowedPermissions: string[];
+  deniedPermissions: string[];
+  computedAt: Timestamp;
+}
+```
+
+### `RetentionPolicy`
+
+```ts
+interface RetentionPolicy {
+  id: string;
+  organizationId: string;
+  workspaceId?: string;
+  scope: "ORGANIZATION" | "WORKSPACE" | "FILE";
+  archiveAfterDays?: number;
+  deleteAfterDays?: number;
+  purgeAfterDays?: number;
+  legalHold: boolean;
+  policyVersion: number;
+  inheritedFromId?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+### `AuditRecord`
+
+```ts
+interface AuditRecord {
+  id: string;
+  organizationId: string;
+  workspaceId?: string;
+  fileId: string;
+  versionId?: string;
+  actorAccountId: string;
+  action:
+    | "UPLOAD_INIT"
+    | "UPLOAD_COMPLETE"
+    | "LIST"
+    | "DOWNLOAD_URL_ISSUED"
+    | "ARCHIVE"
+    | "RESTORE"
+    | "DELETE"
+    | "PURGE";
+  result: "SUCCESS" | "DENIED" | "FAILED";
+  reason?: string;
+  correlationId: string;
+  idempotencyKey?: string;
+  metadata?: Record<string, unknown>;
+  occurredAt: Timestamp;
+}
+```
+
+### Firestore collection 建議
+
+```text
+fileDocuments/{fileId}
+fileDocuments/{fileId}/versions/{versionId}
+filePermissionSnapshots/{snapshotId}
+fileRetentionPolicies/{policyId}
+fileUploadSessions/{uploadSessionId}
+fileAuditRecords/{auditRecordId}
+```
+
+### 索引建議
+
+1. `fileDocuments`: `(organizationId, workspaceId, status, updatedAt desc)`
+2. `fileDocuments`: `(organizationId, ownerAccountId, status, createdAt desc)`
+3. `fileDocuments`: `(organizationId, classification, status, updatedAt desc)`
+4. `versions`: `(fileId, versionNumber desc)`
+5. `fileAuditRecords`: `(organizationId, workspaceId, occurredAt desc)`
+6. `fileAuditRecords`: `(fileId, occurredAt desc)`
+7. `fileRetentionPolicies`: `(organizationId, scope, policyVersion desc)`
+8. `fileUploadSessions`: `(organizationId, expiresAt asc, status)` for cleanup
+
+---
+
+## 6) 權限解算演算法
+
+### 解算輸入
+- `organization policy`
+- `workspace grants`（若檔案綁定 workspace）
+- `account role / membership`
+- `file visibility / classification / legalHold`
+- `requested permission`（`READ`, `DOWNLOAD`, `WRITE`, `ARCHIVE`, `RESTORE`, `DELETE`, `MANAGE_RETENTION`, `SHARE`）
+
+### 優先序
+1. **Tenant boundary**：`organizationId` 不一致立即 deny
+2. **Organization policy explicit deny**：最高優先權，任何其他 allow 都不能覆蓋
+3. **Legal hold / retention hard rule**：若 action 觸犯保留規則，直接 deny
+4. **Workspace explicit deny**：只能在 organization 允許範圍內進一步收斂
+5. **Account role capability**：actor 必須擁有執行該 action 的 role capability
+6. **Workspace allow / organization allow**：至少需要一個顯式 allow，否則 default deny
+7. **File visibility filter**：若檔案是 `PRIVATE`，額外要求 owner 或具 delegated privilege
+
+### 衝突處理原則
+- `deny > allow`
+- `organization deny > workspace allow`
+- `workspace deny > account role allow`
+- `account role` 只提供 capability，不單獨成為 allow 來源
+- 沒有 explicit allow 時一律 `DENY`
+
+### 偽程式碼
+
+```ts
+function resolvePermission(input: ResolvePermissionInput): PermissionDecision {
+  const {
+    actor,
+    file,
+    requestedPermission,
+    organizationPolicy,
+    workspaceGrant,
+  } = input;
+
+  if (actor.organizationId !== file.organizationId) {
+    return deny("FILE_CROSS_TENANT_ACCESS", "Actor and file belong to different organizations");
+  }
+
+  if (organizationPolicy.denies(requestedPermission, file.classification)) {
+    return deny("FILE_ORG_POLICY_DENY", "Organization policy denied permission");
+  }
+
+  if (file.legalHold && requestedPermission === "DELETE") {
+    return deny("FILE_LEGAL_HOLD_ACTIVE", "File is under legal hold");
+  }
+
+  if (workspaceGrant?.denies(requestedPermission, actor.accountId)) {
+    return deny("FILE_WORKSPACE_GRANT_DENY", "Workspace grant denied permission");
+  }
+
+  if (!actor.capabilities.includes(mapPermissionToCapability(requestedPermission))) {
+    return deny("FILE_ACCOUNT_CAPABILITY_MISSING", "Actor role does not include required capability");
+  }
+
+  const orgAllows = organizationPolicy.allows(requestedPermission, file.visibility, file.classification);
+  const workspaceAllows = file.workspaceId
+    ? workspaceGrant?.allows(requestedPermission, actor.accountId) ?? false
+    : false;
+
+  const visibilityAllows = checkVisibilityRule(file, actor, requestedPermission);
+
+  if (!visibilityAllows) {
+    return deny("FILE_VISIBILITY_RESTRICTED", "File visibility rule rejected permission");
+  }
+
+  if (orgAllows || workspaceAllows) {
+    return allow();
+  }
+
+  return deny("FILE_DEFAULT_DENY", "No explicit allow matched");
+}
+```
+
+---
+
+## 7) 端到端流程設計
+
+### 共用錯誤碼
+
+| 錯誤碼 | 說明 |
+| --- | --- |
+| `FILE_NOT_FOUND` | 找不到 file 或 version |
+| `FILE_PERMISSION_DENIED` | 權限解算拒絕 |
+| `FILE_INVALID_STATE` | 狀態轉移不合法 |
+| `FILE_CROSS_TENANT_ACCESS` | 跨 organization 邊界 |
+| `FILE_UPLOAD_SESSION_EXPIRED` | upload session 過期 |
+| `FILE_IDEMPOTENCY_CONFLICT` | 同一 idempotency key 但 payload 不同 |
+| `FILE_STORAGE_WRITE_FAILED` | Storage 寫入失敗 |
+| `FILE_STORAGE_OBJECT_MISSING` | upload-complete 時找不到 blob |
+| `FILE_DOWNLOAD_URL_EXPIRED` | 嘗試使用過期下載 URL |
+| `FILE_RETENTION_BLOCKED` | retention / legal hold 阻擋 |
+
+### A. `upload-init`
+
+#### Input DTO
+```ts
+interface InitFileUploadInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
+  classification?: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
+  tags?: string[];
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface InitFileUploadOutput {
+  fileId: string;
+  versionId: string;
+  uploadSessionId: string;
+  uploadUrl: string;
+  uploadHttpMethod: "PUT";
+  storagePath: string;
+  expiresAt: string;
+}
+```
+
+#### Idempotency
+- key scope: `(organizationId, actorAccountId, idempotencyKey, command=upload-init)`
+- same key + same payload -> 回傳先前結果
+- same key + different payload -> `FILE_IDEMPOTENCY_CONFLICT`
+
+### B. `upload-complete`
+
+#### Input DTO
+```ts
+interface CompleteFileUploadInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  versionId: string;
+  uploadSessionId: string;
+  checksumSha256: string;
+  sizeBytes: number;
+  storageObjectGeneration?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface CompleteFileUploadOutput {
+  fileId: string;
+  versionId: string;
+  status: "AVAILABLE";
+}
+```
+
+#### Idempotency
+- key scope: `(organizationId, fileId, uploadSessionId, idempotencyKey, command=upload-complete)`
+- 若 session 已完成且 checksum 相同 -> 回傳 success
+- 若 blob metadata 與 session 不符 -> `FILE_STORAGE_OBJECT_MISSING` 或 `FILE_INVALID_STATE`
+
+### C. `list-files`
+
+#### Input DTO
+```ts
+interface ListFilesInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  statuses?: Array<"AVAILABLE" | "ARCHIVED" | "SOFT_DELETED">;
+  search?: string;
+  tags?: string[];
+  page: number;
+  limit: number;
+}
+```
+
+#### Output DTO
+```ts
+interface ListFilesOutput {
+  data: Array<{
+    id: string;
+    name: string;
+    status: string;
+    currentVersionNumber: number;
+    contentType: string;
+    sizeBytes: number;
+    visibility: string;
+    classification: string;
+    updatedAt: string;
+  }>;
+  total: number;
+  page: number;
+  limit: number;
+}
+```
+
+#### Idempotency
+- query，不需要 idempotency key
+- server-side 一律重新解權限，不可使用前端快取直接信任
+
+### D. `get-download-url`
+
+#### Input DTO
+```ts
+interface GetFileDownloadUrlInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  versionId?: string;
+  reason?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface GetFileDownloadUrlOutput {
+  fileId: string;
+  versionId: string;
+  downloadUrl: string;
+  expiresAt: string;
+}
+```
+
+#### Idempotency
+- 若同一 key 在有效時間內重放，可回傳相同 URL 或重新簽發但寫同一 audit correlationId
+- URL TTL 建議 5~15 分鐘，過期必須重新申請
+
+### E. `archive-file`
+
+#### Input DTO
+```ts
+interface ArchiveFileInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  reason?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface ArchiveFileOutput {
+  fileId: string;
+  status: "ARCHIVED";
+}
+```
+
+#### Idempotency
+- 同一 file 已是 `ARCHIVED` 視為成功重放
+- archive 不搬移 blob，只更新 metadata / audit / notification
+
+### F. `restore-file`
+
+#### Input DTO
+```ts
+interface RestoreFileInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  reason?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface RestoreFileOutput {
+  fileId: string;
+  status: "AVAILABLE";
+}
+```
+
+#### Idempotency
+- 同一 file 已是 `AVAILABLE` 視為成功重放
+- 若已 `PURGED`，不得 restore，回 `FILE_INVALID_STATE`
+
+---
+
+## 8) Storage path 與檔名命名規範
+
+### 核心規範
+1. 第一層一定是 tenant boundary，不允許 accountId 當第一層。
+2. storage path 必須 immutable；archive / restore 不移動 blob。
+3. 人類可讀檔名只能放最後一段，且前面必須先有 canonical IDs。
+4. 不允許單純使用原始檔名當 object key。
+5. 必須包含 version segment，避免覆寫。
+6. 必須帶 checksum short hash 或 nonce，防碰撞且可稽核。
+
+### 建議 path
+
+#### Temporary upload session
+```text
+tenants/{organizationId}/upload-sessions/{uploadSessionId}/incoming/{nonce}
+```
+
+#### Final blob path
+```text
+tenants/{organizationId}/workspaces/{workspaceIdOr_org}/files/{fileId}/versions/v{versionNumber}/{versionId}_{checksum12}_{slugifiedName}
+```
+
+#### 範例
+```text
+tenants/org_123/workspaces/ws_456/files/file_789/versions/v3/ver_003_a1b2c3d4e5f6_design-spec.pdf
+```
+
+### 檔名規範
+- `slugifiedName` 只能保留小寫英數、短橫線、最後副檔名
+- 長度上限建議 96 chars（不含前綴 IDs）
+- 原始檔名完整值保留在 Firestore metadata `sourceFileName`
+- storage path 只用於定位，不用於顯示名稱權威來源
+
+### 可稽核要求
+- 每個 `FileVersion` 必須保存 `storageBucket + storagePath + objectGeneration + checksumSha256`
+- 每次簽發下載連結必須寫入 `AuditRecord`
+
+---
+
+## 9) interfaces 層契約草案
+
+### Server Actions
+
+```ts
+// modules/file/interfaces/_actions/file.actions.ts
+export async function initFileUpload(input: InitFileUploadInput): Promise<CommandResult>
+export async function completeFileUpload(input: CompleteFileUploadInput): Promise<CommandResult>
+export async function archiveFile(input: ArchiveFileInput): Promise<CommandResult>
+export async function restoreFile(input: RestoreFileInput): Promise<CommandResult>
+```
+
+### Query Wrappers
+
+```ts
+// modules/file/interfaces/queries/file.queries.ts
+export async function getWorkspaceFiles(input: ListFilesInput): Promise<ListFilesOutput>
+export async function getOrganizationFiles(input: ListFilesInput): Promise<ListFilesOutput>
+export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promise<GetFileDownloadUrlOutput>
+```
+
+### `CommandResult` 格式範例
+
+```ts
+// success
+{
+  success: true,
+  aggregateId: "file_789",
+  version: 3,
+}
+
+// failure
+{
+  success: false,
+  error: {
+    code: "FILE_PERMISSION_DENIED",
+    message: "Actor is not allowed to archive this file",
+    context: {
+      fileId: "file_789",
+      requestedPermission: "ARCHIVE",
+    },
+  },
+}
+```
+
+### REST 對外映射（若未來需要 route handlers）
+- `POST /api/files/upload-init`
+- `POST /api/files/upload-complete`
+- `GET /api/files`
+- `POST /api/files/:fileId/download-url`
+- `POST /api/files/:fileId/archive`
+- `POST /api/files/:fileId/restore`
+
+> Route handler 只做 transport mapping；真正規則仍在 file application use cases。
+
+---
+
+## 10) 與既有模組整合方式（只能透過哪些 port）
+
+| 既有模組 | file module 可依賴的 port | 允許取得的資訊 | 禁止方式 |
+| --- | --- | --- | --- |
+| `account / identity` | `ActorContextPort` | actor accountId、organization membership、role capabilities、account status | 禁止 import `modules/account/domain/*` 或 `modules/identity/domain/*` |
+| `workspace` | `WorkspaceGrantPort` | workspace 是否存在、所屬 organization、workspace grants、member scope | 禁止從 `WorkspaceOperationalSignals` 直接取衍生檔案資料 |
+| `organization` | `OrganizationPolicyPort` | retention baseline、classification baseline、hard deny / hard allow policy、legal hold policy | 禁止直接 fan-out organization 頁面資料作為 canonical policy source |
+| `audit` | `AuditSinkPort` | append-only audit 寫入口 | 禁止 file module 自行寫 organization 頁 UI read model |
+| `notification` | `NotificationPort` | 非同步通知發送（例如 upload 完成、封存、還原） | 禁止在 use case 內直接 import notification repository |
+
+### 明確整合原則
+- file application 只知道 port interface，不知道他模組具體 repository / Firebase adapter。
+- cross-module read model 一律由 file infrastructure 的 adapter 包裝。
+- 目前 active read path 已不再依賴 legacy workspace projection；若後續仍需過渡 adapter，必須明確標記 phase-out 並避免重新掛回 `WorkspaceOperationalSignals`。
+
+---
+
+## 11) 三階段 Migration Plan
+
+## Phase 1 — 模組骨架 + UI 解耦（先拆 coupling）
+
+### 變更範圍
+- 建立 `modules/file/domain / application / infrastructure / interfaces` 正式骨架
+- 建立 `list-workspace-files.use-case.ts` 與 `file.queries.ts`
+- 將 `WorkspaceFilesTab` 從 `getWorkspaceFileAssets(workspace)` 改為 `getWorkspaceFiles(...)`
+- 目前 read path 已由 `FirebaseFileRepository` 提供，舊 bridge 已可移除
+
+### 風險
+- 讀取結果與既有 UI 顯示不一致
+- 在 canonical Firestore model 完成前，既有 metadata 映射策略可能需要持續校正
+
+### 回滾
+- 回退 `WorkspaceFilesTab` 對 `getWorkspaceFiles` 的使用，改回上一版 file query implementation（不重掛 workspace projection）
+
+### 驗證命令
+- `npm run lint`
+- `npm run build`
+
+### 完成定義
+- `WorkspaceFilesTab` 不再直接 import `WorkspaceOperationalSignals`
+- file module 擁有自己的 query entrypoint
+- 所有 file 顯示路徑已經從 UI -> file interfaces -> file application -> file infrastructure 走通
+
+---
+
+## Phase 2 — Canonical Firestore model + upload/download lifecycle
+
+### 變更範圍
+- 落地 `File / FileVersion / UploadSession / PermissionSnapshot` Firestore collections
+- 實作 `init-file-upload.use-case.ts`、`complete-file-upload.use-case.ts`、`get-file-download-url.use-case.ts`
+- 實作 Firebase Storage adapter 與 signer
+- 延續清理與 canonical model 衝突的舊 metadata 轉接邏輯（`LegacyWorkspaceFileAssetBridge` 已移除）
+
+### 風險
+- signed URL 與 metadata 寫入不一致
+- upload-complete 可能遇到 blob 已存在但 metadata 未提交的半完成狀態
+
+### 回滾
+- 停用新 upload actions，保留 read-only 查詢
+- upload session collection 可用 TTL cleanup 回收未完成資料
+- 保留 legacy read bridge 作為 fallback，直到 canonical collection 穩定
+
+### 驗證命令
+- `npm run lint`
+- `npm run build`
+
+### 完成定義
+- 檔案 metadata 已由 file module 自己持有
+- workspace file list 改讀 `fileDocuments`
+- download URL 只由 file module signer 發放
+
+---
+
+## Phase 3 — governance / retention / archive / restore / organization aggregation
+
+### 變更範圍
+- 實作 `archive-file.use-case.ts`、`restore-file.use-case.ts`
+- 實作 organization-level list query 與 retention policy resolution
+- 串接 audit / notification ports
+- 將 organization / workspace file lists 統一切到 file read model
+
+### 風險
+- policy resolution 與 UI 預期不一致
+- archive / restore / soft delete 對歷史版本顯示造成混淆
+
+### 回滾
+- archive / restore actions 可 feature-flag 關閉
+- organization list 可暫時回退為只讀 workspace aggregation，但 canonical policy 不回退
+
+### 驗證命令
+- `npm run lint`
+- `npm run build`
+
+### 完成定義
+- organization file list 顯示的是該 organization 底下所有 workspace / org-scope files 的正式聚合結果
+- 權限、保留、稽核、通知都經由 file module ports
+- legacy bridge 完全移除
+
+---
+
+## 12) 測試策略矩陣
+
+> 目前 `package.json` 尚無 test script；以下矩陣是正式模組落地時必須補齊的測試面，工具選型需遵循當下 repo 標準，不在本方案內新增測試框架決策。
+
+| Layer | 主要測試標的 | 必測案例 |
+| --- | --- | --- |
+| `domain` | `File` / `FileVersion` / `RetentionPolicy` 狀態與不變式 | 狀態衝突、版本不可覆寫、軟刪除後不可直接下載、purged 不可 restore |
+| `application` | use cases + permission resolution | 權限衝突（org deny vs workspace allow）、default deny、跨租戶隔離、legal hold 阻擋 delete、版本回朔時 currentVersion 不被污染 |
+| `interfaces` | action/query contract | DTO validation、錯誤碼映射、CommandResult shape、過期下載連結要求重新簽發 |
+| `infrastructure` | Firestore / Storage adapters | storage path 命名、防碰撞、metadata round-trip、signed URL TTL、upload session 冪等重放 |
+
+### 至少要覆蓋的情境
+1. **權限衝突**：organization deny + workspace allow -> deny
+2. **跨租戶隔離**：actor.organizationId != file.organizationId -> deny
+3. **過期下載連結**：過期後重新申請成功，舊連結不可再信任
+4. **版本回朔**：恢復到舊版本時不覆寫歷史 version record，而是切換 currentVersion pointer 或新增 restore version
+5. **軟刪除與還原**：soft delete 後預設列表不可見，restore 後重新可見
+6. **封存與還原**：archive 不移動 blob，只改 metadata；restore 成功後列表重新出現
+
+---
+
+## 13) 第一個 PR 就能做的任務拆解清單
+
+> 目標：先把 `modules/file` 從 interface-only 變成正式模組骨架，並優先拆掉 `WorkspaceOperationalSignals` 對檔案 UI 的耦合。
+
+### P0 — 建立正式模組骨架
+1. **新增** `modules/file/domain/entities/File.ts`
+   - Symbol: `File`, `FileStatus`, `archive()`, `restore()`
+   - 驗收：有明確狀態轉移規則，禁止非法 transition
+2. **新增** `modules/file/domain/entities/FileVersion.ts`
+   - Symbol: `FileVersion`, `FileVersionStatus`
+   - 驗收：版本 immutable，只有 status 可從 pending -> stored -> active/superseded
+3. **新增** `modules/file/domain/repositories/FileRepository.ts`
+   - Symbol: `FileRepository`
+   - 驗收：至少定義 `findById`, `listByWorkspace`, `save`
+4. **新增** `modules/file/domain/ports/ActorContextPort.ts`
+   - Symbol: `ActorContextPort`
+   - 驗收：可提供 account role / org membership 的最小 contract
+5. **新增** `modules/file/domain/ports/WorkspaceGrantPort.ts`
+   - Symbol: `WorkspaceGrantPort`
+   - 驗收：可提供 workspace 所屬 organization 與 grants contract
+6. **新增** `modules/file/domain/ports/OrganizationPolicyPort.ts`
+   - Symbol: `OrganizationPolicyPort`
+   - 驗收：可提供 retention / classification / deny policy contract
+
+### P1 — 落地 read-side 最小 use case
+7. **新增** `modules/file/application/use-cases/list-workspace-files.use-case.ts`
+   - Symbol: `ListWorkspaceFilesUseCase`
+   - 驗收：不 import Firebase / React / Next.js
+8. **移除** `modules/file/infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`
+   - Symbol: `LegacyWorkspaceFileAssetBridge`
+   - 驗收：不再保留對 `WorkspaceOperationalSignals` 的檔案投影依賴
+9. **新增** `modules/file/interfaces/queries/file.queries.ts`
+   - Symbol: `getWorkspaceFiles`
+   - 驗收：對外回傳 stable DTO，供 UI 使用
+10. **更新** `modules/file/index.ts`
+   - Symbol export：`WorkspaceFilesTab` + `getWorkspaceFiles`
+   - 驗收：file module 有自己的 public API
+
+### P2 — 拆掉 UI 對 workspace domain signal 的直連
+11. **更新** `modules/file/interfaces/components/WorkspaceFilesTab.tsx`
+   - 變更：移除 `getWorkspaceFileAssets(workspace)` import
+   - 改為：呼叫 `getWorkspaceFiles({ organizationId, workspaceId, actorAccountId, ... })`
+   - 驗收：UI 不再直連 workspace domain signal
+12. **必要時新增** `modules/file/interfaces/presenters/file.presenter.ts`
+   - Symbol: `toWorkspaceFileCardViewModel`
+   - 驗收：UI 格式轉換不留在 use case / infrastructure
+
+### 第一個 PR 驗收條件
+- `modules/file` 不再是 interface-only 模組
+- `WorkspaceFilesTab` 不再 import `WorkspaceOperationalSignals`
+- file 模組具備至少一條正式 read path：UI -> file query -> file use case -> file infra bridge
+- `npm run lint` 通過
+- `npm run build` 通過
+
+---
+
+## 建議的第一個實作切片（結論）
+
+**先做 read-side 解耦，不先做 upload command。**
+
+原因：
+- 目前最嚴重的架構問題不是少一個上傳 API，而是 file UI 還掛在 workspace domain 衍生函式上。
+- 先拆 coupling，才能讓後續 upload / version / permission / retention 都有正確落點。
+- 這也是最小、最安全、最符合本專案 MDDD 遷移順序的第一個 PR。
+`````
+
 ## File: modules/content/api/content-facade.ts
 `````typescript
 /**
@@ -20413,10 +23174,10 @@ export function resolveFileOrganizationId(
 
 ## File: modules/file/index.ts
 `````typescript
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
+/**
+ * @deprecated modules/file is retired. Use @/modules/asset/api instead.
+ */
+export * from "./api/index";
 `````
 
 ## File: modules/file/infrastructure/firebase/FirebaseFileRepository.ts
@@ -22118,13 +24879,13 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 ## File: modules/graph/api/index.ts
 `````typescript
 /**
- * modules/graph — public API barrel.
+ * @deprecated modules/graph is retired.
+ * Import from @/modules/knowledge-graph/api instead.
  */
-
 export type {
   GraphViewConfig,
   GraphLayout,
-} from "../domain/entities/view-config";
+} from "../../knowledge-graph/api";
 `````
 
 ## File: modules/graph/domain/entities/view-config.ts
@@ -22754,6 +25515,39 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 ## File: modules/identity/ports/.gitkeep
 `````
 
+`````
+
+## File: modules/knowledge-graph/domain/entities/view-config.ts
+`````typescript
+/**
+ * modules/knowledge-graph — domain entity: GraphViewConfig
+ *
+ * Describes the visual configuration for rendering a knowledge graph.
+ * This is a pure data type; rendering logic lives in the interfaces layer.
+ */
+
+import type { ID } from "@shared-types";
+
+/** Layout algorithm for positioning nodes */
+export type GraphLayout = "force-directed" | "hierarchical" | "radial";
+
+/** Visual configuration for a knowledge-graph view */
+export interface GraphViewConfig {
+  /** Identifier for this configuration */
+  readonly id: ID;
+  /** Human-readable name */
+  readonly label: string;
+  /** Layout algorithm to apply */
+  readonly layout: GraphLayout;
+  /** IDs of nodes that should be visible; empty means show all */
+  readonly visibleNodeIds: ID[];
+  /** ID of the node to center / focus the view on (optional) */
+  readonly focusNodeId?: ID;
+  /** Whether to show edge labels */
+  readonly showEdgeLabels: boolean;
+  /** Maximum graph depth to render from the focus node */
+  readonly maxDepth: number;
+}
 `````
 
 ## File: modules/knowledge/.gitkeep
@@ -25330,6 +28124,77 @@ export interface IEventBus {
 - **Vector DB**: 優先使用 `UpstashVectorAdapter` 透過 HTTP REST API 進行操作，保持 Edge Runtime 相容性。
 `````
 
+## File: modules/retrieval/api/index.ts
+`````typescript
+/**
+ * modules/retrieval — public API barrel.
+ *
+ * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
+ * Other modules MUST import from here only.
+ */
+
+export type {
+  IVectorStore,
+  VectorDocument,
+  VectorSearchResult,
+} from "../domain/ports/vector-store";
+`````
+
+## File: modules/retrieval/domain/ports/vector-store.ts
+`````typescript
+/**
+ * modules/retrieval — domain port: IVectorStore
+ *
+ * Hexagonal architecture port that abstracts the underlying vector database
+ * (e.g. Upstash Vector, Pinecone).  Infrastructure layer must implement this
+ * interface; no concrete SDK details belong here.
+ */
+
+/** A document to index in the vector store */
+export interface VectorDocument {
+  /** Unique identifier (e.g. BlockId or PageId) */
+  readonly id: string;
+  /** Raw text content used to generate the embedding */
+  readonly content: string;
+  /** Arbitrary metadata for filtering (e.g. { pageId, workspaceId }) */
+  readonly metadata?: Record<string, string | number | boolean>;
+}
+
+/** A search result returned by the vector store */
+export interface VectorSearchResult {
+  /** The matched document's ID */
+  readonly id: string;
+  /** Similarity score (0–1, higher is more similar) */
+  readonly score: number;
+  /** Metadata attached to the matched document */
+  readonly metadata?: Record<string, string | number | boolean>;
+}
+
+/**
+ * Port that every vector-store adapter must satisfy.
+ * Domain and application layers depend ONLY on this interface.
+ */
+export interface IVectorStore {
+  /**
+   * Insert or update documents in the vector store.
+   * Embeddings are computed by the adapter implementation.
+   */
+  upsert(documents: VectorDocument[]): Promise<void>;
+
+  /**
+   * Find the top-K documents most similar to the query text.
+   * @param query   - Natural-language query string
+   * @param k       - Number of results to return
+   * @param filter  - Optional metadata filter
+   */
+  search(
+    query: string,
+    k: number,
+    filter?: Record<string, string | number | boolean>,
+  ): Promise<VectorSearchResult[]>;
+}
+`````
+
 ## File: modules/search/.gitkeep
 `````
 
@@ -25338,14 +28203,14 @@ export interface IEventBus {
 ## File: modules/search/api/index.ts
 `````typescript
 /**
- * modules/search — public API barrel.
+ * @deprecated modules/search is retired.
+ * Import from @/modules/retrieval/api instead.
  */
-
 export type {
   IVectorStore,
   VectorDocument,
   VectorSearchResult,
-} from "../domain/ports/vector-store";
+} from "../../retrieval/api";
 `````
 
 ## File: modules/search/domain/ports/vector-store.ts
@@ -54766,7 +57631,7 @@ import {
   createPageAction,
   addBlockAction,
   updateBlockAction,
-} from "@/modules/interfaces/_actions/demo.actions";
+} from "./_actions/demo.actions";
 
 export const metadata = { title: "Arch Demo — Phase 3" };
 
@@ -59525,11 +62390,6 @@ export class RevokeAccountRoleUseCase {
 
 `````
 
-## File: modules/asset/.gitkeep
-`````
-
-`````
-
 ## File: modules/content/api/content-api.ts
 `````typescript
 /**
@@ -59669,22 +62529,12 @@ export type { PublishDomainEventDTO } from "../application/use-cases/publish-dom
 ## File: modules/file/api/index.ts
 `````typescript
 /**
- * Module: file
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the File domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+ * @deprecated modules/file is retired. Use @/modules/asset/api instead.
  */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+export type { File, FileStatus } from "../../asset/domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../../asset/domain/entities/FileVersion";
+export { getWorkspaceFiles } from "../../asset/interfaces/queries/file.queries";
+export { WorkspaceFilesTab } from "../../asset/interfaces/components/WorkspaceFilesTab";
 `````
 
 ## File: modules/file/application/dto/file.dto.ts
@@ -60793,6 +63643,7 @@ export { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphReposito
 export { LinkExtractorService } from "../application/link-extractor.service";
 export { KnowledgeGraphApi } from "./knowledge-graph-api";
 export type { GraphDataDTO } from "./knowledge-graph-api";
+export type { GraphViewConfig, GraphLayout } from "../domain/entities/view-config";
 `````
 
 ## File: modules/knowledge-graph/api/knowledge-graph-api.ts
@@ -66047,117 +68898,6 @@ This repository includes a formal Copilot delivery workflow for non-trivial chan
 ## Code of Conduct
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
-`````
-
-## File: repomix.config.json
-`````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "input": {
-    "maxFileSize": 52428800
-  },
-  "output": {
-    "filePath": "repomix-output.json",
-    "style": "json",
-    "parsableStyle": false,
-    "fileSummary": true,
-    "directoryStructure": true,
-    "files": true,
-    "removeComments": false,
-    "removeEmptyLines": false,
-    "compress": false,
-    "topFilesLength": 5,
-    "showLineNumbers": false,
-    "truncateBase64": false,
-    "copyToClipboard": false,
-    "includeFullDirectoryStructure": false,
-    "tokenCountTree": false,
-    "git": {
-      "sortByChanges": true,
-      "sortByChangesMaxCommits": 100,
-      "includeDiffs": false,
-      "includeLogs": false,
-      "includeLogsCount": 50
-    }
-  },
-  "include": [],
-  "ignore": {
-    "useGitignore": true,
-    "useDotIgnore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "dist/**",
-      "coverage/**",
-      ".turbo/**",
-      ".vercel/**",
-      ".firebase/**",
-      ".output/**",
-      ".parcel-cache/**",
-
-      ".cursor/**",
-      ".vscode/**",
-      ".serena/**",
-      ".opencode/**",
-      ".idea/**",
-      ".history/**",
-
-      ".cache/**",
-      ".temp/**",
-      ".tmp/**",
-      "tmp/**",
-      "temp/**",
-
-      "*.log",
-      "logs/**",
-      "firebase-debug.log",
-
-      ".env*",
-      "*.pem",
-      "*.key",
-      "*.crt",
-
-      ".DS_Store",
-      "Thumbs.db",
-
-      "*.lock",
-      "package-lock.json",
-      "pnpm-lock.yaml",
-      "yarn.lock",
-      "skills-lock.json",
-
-      "*.tsbuildinfo",
-      ".eslintcache",
-      ".stylelintcache",
-
-      ".git/**",
-      ".github/workflows/**",
-
-      "public/**",
-      "*.png",
-      "*.jpg",
-      "*.jpeg",
-      "*.gif",
-      "*.webp",
-      "*.mp4",
-      "*.zip",
-      "*.tar",
-      "*.gz",
-
-      "*.sqlite",
-      "*.db"
-    ]
-  },
-  "security": {
-    "enableSecurityCheck": true
-  },
-  "tokenCount": {
-    "encoding": "o200k_base"
-  }
-}
 `````
 
 ## File: .github/agents/implementer.agent.md
@@ -72212,7 +74952,6 @@ Update all of the following in the same change:
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { TokenRefreshRepository } from "@/modules/identity";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 import { identityApi } from "@/modules/identity/api";
@@ -72315,7 +75054,6 @@ export class DeleteAccountPolicyUseCase {
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseTokenRefreshRepository } from "@/modules/identity";
 import {
   CreateAccountPolicyUseCase,
   UpdateAccountPolicyUseCase,
@@ -72367,7 +75105,6 @@ export async function deleteAccountPolicy(
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseTokenRefreshRepository } from "@/modules/identity";
 import {
   CreateUserAccountUseCase,
   UpdateUserProfileUseCase,
@@ -73404,64 +76141,16 @@ AI 功能：
 
 ## File: modules/interfaces/_actions/demo.actions.ts
 `````typescript
-"use server";
-
 /**
- * modules/interfaces/_actions/demo.actions.ts
- *
- * Architecture Phase 3 — Server Actions for the /debug/arch-demo page.
- *
- * MDDD boundary rule:
- *   Imports ONLY from `modules/system` (which re-exports via api/ paths).
- *   Never reaches into domain/, application/, or infrastructure/ layers.
+ * @deprecated modules/interfaces is retired.
+ * Server Actions have moved to app/debug/arch-demo/_actions/demo.actions.ts.
  */
-
-import { revalidatePath } from "next/cache";
-
-import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "../../system";
-import type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
-
-// ── Form-bound Server Actions (return void — re-render via revalidatePath) ──
-
-/**
- * Create a new in-memory page.
- */
-export async function createPageAction(formData: FormData): Promise<void> {
-  const title = (formData.get("title") as string | null)?.trim() || "Untitled";
-  await contentApi.createPage(DEMO_ACCOUNT_ID, title);
-  revalidatePath("/debug/arch-demo");
-}
-
-/**
- * Add a block to an existing page.
- */
-export async function addBlockAction(formData: FormData): Promise<void> {
-  const pageId = (formData.get("pageId") as string | null)?.trim() ?? "";
-  const text = (formData.get("text") as string | null) ?? "";
-  if (!pageId) return;
-  await contentApi.addBlock(DEMO_ACCOUNT_ID, pageId, text);
-  revalidatePath("/debug/arch-demo");
-}
-
-/**
- * Update a block's text content.
- * If the text contains [[WikiLinks]], the event bus propagates the change to
- * KnowledgeApi, which extracts new graph nodes and edges.
- */
-export async function updateBlockAction(formData: FormData): Promise<void> {
-  const blockId = (formData.get("blockId") as string | null)?.trim() ?? "";
-  const text = (formData.get("text") as string | null) ?? "";
-  if (!blockId) return;
-  await contentApi.updateBlock(DEMO_ACCOUNT_ID, blockId, text);
-  revalidatePath("/debug/arch-demo");
-}
-
-/**
- * Expose the current graph data for programmatic use.
- */
-export async function getGraphDataAction(): Promise<GraphDataDTO> {
-  return knowledgeApi.getGraphData();
-}
+export {
+  createPageAction,
+  addBlockAction,
+  updateBlockAction,
+  getGraphDataAction,
+} from "../../../app/debug/arch-demo/_actions/demo.actions";
 `````
 
 ## File: modules/knowledge/api/index.ts
@@ -76196,6 +78885,117 @@ export function WorkspaceSchedulingTab({
 }
 `````
 
+## File: repomix.config.json
+`````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": false,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "compress": false,
+    "topFilesLength": 5,
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": false,
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 100,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "dist/**",
+      "coverage/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "*.log",
+      "logs/**",
+      "firebase-debug.log",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      ".DS_Store",
+      "Thumbs.db",
+
+      "*.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "skills-lock.json",
+
+      "*.tsbuildinfo",
+      ".eslintcache",
+      ".stylelintcache",
+
+      ".git/**",
+      ".github/workflows/**",
+
+      "public/**",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
+`````
+
 ## File: .github/instructions/modules-api-boundary.instructions.md
 `````markdown
 ---
@@ -78413,7 +81213,7 @@ import {
 } from "@ui-shadcn/ui/select";
 import { Separator } from "@ui-shadcn/ui/separator";
 import { WorkspaceAuditTab } from "@/modules/workspace-audit";
-import { WorkspaceFilesTab } from "@/modules/file";
+import { WorkspaceFilesTab } from "@/modules/asset/api";
 import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
 import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling";
 

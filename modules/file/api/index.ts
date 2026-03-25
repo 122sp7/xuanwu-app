@@ -1,17 +1,7 @@
-/**
- * Module: file
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the File domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+﻿/**
+ * @deprecated modules/file is retired. Use @/modules/asset/api instead.
  */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+export type { File, FileStatus } from "../../asset/domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../../asset/domain/entities/FileVersion";
+export { getWorkspaceFiles } from "../../asset/interfaces/queries/file.queries";
+export { WorkspaceFilesTab } from "../../asset/interfaces/components/WorkspaceFilesTab";

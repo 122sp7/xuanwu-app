@@ -1,8 +1,8 @@
-/**
- * modules/graph — public API barrel.
+﻿/**
+ * @deprecated modules/graph is retired.
+ * Import from @/modules/knowledge-graph/api instead.
  */
-
 export type {
   GraphViewConfig,
   GraphLayout,
-} from "../domain/entities/view-config";
+} from "../../knowledge-graph/api";

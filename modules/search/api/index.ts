@@ -1,9 +1,9 @@
-/**
- * modules/search — public API barrel.
+﻿/**
+ * @deprecated modules/search is retired.
+ * Import from @/modules/retrieval/api instead.
  */
-
 export type {
   IVectorStore,
   VectorDocument,
   VectorSearchResult,
-} from "../domain/ports/vector-store";
+} from "../../retrieval/api";

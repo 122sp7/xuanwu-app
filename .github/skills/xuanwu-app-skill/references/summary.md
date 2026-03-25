@@ -38,14 +38,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-976 files | 77,180 lines
+1010 files | 79,844 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 368 | 20,065 |
-| Markdown | 312 | 27,892 |
-| TypeScript (TSX) | 121 | 18,839 |
-| No Extension | 66 | 120 |
+| TypeScript | 401 | 21,580 |
+| Markdown | 313 | 28,794 |
+| TypeScript (TSX) | 122 | 19,087 |
+| No Extension | 65 | 119 |
 | Python | 49 | 3,532 |
 | MERMAID | 33 | 2,488 |
 | JSON | 10 | 2,549 |
@@ -60,8 +60,8 @@ This skill contains the following reference files:
 - `docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` (942 lines)
 - `modules/Architecture.md` (942 lines)
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (918 lines)
+- `modules/asset/README.md` (902 lines)
 - `modules/file/README.md` (902 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/app-rail.tsx` (669 lines)
-- `modules/wiki-beta/interfaces/components/WikiBetaRagView.tsx` (660 lines)
