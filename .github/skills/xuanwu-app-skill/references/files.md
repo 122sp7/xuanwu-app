@@ -13274,679 +13274,6 @@ export function AppBreadcrumbs() {
 }
 `````
 
-## File: app/(shell)/_components/app-rail.tsx
-`````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization";
-import { createWorkspace } from "@/modules/workspace";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    {
-      href: "/wiki-beta",
-      label: "Account Wiki-Beta",
-      icon: <BookOpen className="size-[18px]" />,
-    },
-    {
-      href: "/ai-chat",
-      label: "AI 對話",
-      icon: <Bot className="size-[18px]" />,
-    },
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  /** Settings is pinned above the avatar, separate from main nav */
-  const settingsHref = "/settings";
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  function buildWikiBetaWorkspaceHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki-beta")) {
-      const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
-      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-    }
-    return `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            if (item.href === "/wiki-beta") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="Account Wiki-Beta: 切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Account Wiki-Beta: 切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onSelectWorkspace(null);
-                        router.push("/wiki-beta");
-                      }}
-                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
-                    >
-                      Account Wiki-Beta 首頁
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWikiBetaWorkspaceHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        {/* ── Settings (pinned above avatar) ────────────────────────── */}
-        <div className="mb-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href={settingsHref}
-                aria-current={isActive(settingsHref) ? "page" : undefined}
-                aria-label="個人設定"
-                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                  isActive(settingsHref)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <Settings className="size-[18px]" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs">個人設定</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* ── User avatar / sign-out ────────────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="開啟使用者選單"
-                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  <Avatar size="sm">
-                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                      {getInitial(user?.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
-              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="end" className="w-48">
-            <DropdownMenuLabel className="space-y-0.5">
-              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-              登出
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
-  );
-}
-`````
-
 ## File: app/(shell)/_components/customize-navigation-dialog.tsx
 `````typescript
 "use client";
@@ -14561,982 +13888,6 @@ export function CustomizeNavigationDialog({
 }
 `````
 
-## File: app/(shell)/_components/dashboard-sidebar.tsx
-`````typescript
-"use client";
-
-/**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "@/modules/workspace";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-
-interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-// ── Section helpers ──────────────────────────────────────────────────────────
-
-type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "account" | "organization" | "settings" | "other";
-
-function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
-  if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  if (pathname.startsWith("/settings")) return "settings";
-  return "other";
-}
-
-// ── Section icon labels for the title bar ────────────────────────────────────
-
-const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki-beta": { label: "Account Wiki-Beta", icon: <BookOpen className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  settings: { label: "設定", icon: <Settings className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export function DashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
-  const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
-  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
-  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-  const searchParams = useSearchParams();
-
-  function toggleCollapsed() {
-    onToggleCollapsed();
-  }
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(() => {
-    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  const visibleAccountItems = useMemo(() => {
-    return ACCOUNT_NAV_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  // Whether to show recent workspaces section (controlled by personal prefs)
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  // Max workspaces to show (apply user preference)
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  // Track recently visited workspaces in localStorage
-  useEffect(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [activeAccount?.id, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [activeAccount?.id, pathname]);
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (typeof window === "undefined" || !pathname.startsWith("/wiki-beta")) {
-      return;
-    }
-
-    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
-    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(searchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
-
-  const recentWorkspaceLinks = useMemo(() => {
-    return recentWorkspaceIds
-      .map((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/wiki-beta")) {
-        const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(() => {
-    return Object.values(workspacesById)
-      .map((workspace) => ({
-        id: workspace.id,
-        name: workspace.name,
-        href: buildWorkspaceContextHref(workspace.id),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, buildWorkspaceContextHref]);
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
-    ? rawWorkspaceTab
-    : "Overview";
-
-  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
-    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-  }
-
-  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
-    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-  }
-
-  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
-    if (tab === "Wiki") {
-      const status = getWorkspaceTabStatus(tab);
-      return `${status} WorkSpace Wiki-Beta`;
-    }
-    const status = getWorkspaceTabStatus(tab);
-    return `${status} ${tWorkspaceTab(tab, fallback)}`;
-  }
-
-  function tWorkspaceGroup(groupKey: string, fallback: string) {
-    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
-  }
-
-  function getWorkspacePrefId(tabValue: string) {
-    if (isWorkspaceTabValue(tabValue)) {
-      return getWorkspaceTabPrefId(tabValue);
-    }
-    return tabValue.toLowerCase().replace(/\s+/g, "-");
-  }
-
-  function isWorkspaceItemEnabled(prefId: string) {
-    return navPrefs.pinnedWorkspace.includes(prefId);
-  }
-
-  function getWorkspaceItemOrder(prefId: string) {
-    const index = navPrefs.workspaceOrder.indexOf(prefId);
-    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-  }
-
-  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
-    return [...items].sort(
-      (left, right) =>
-        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
-        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
-    );
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSidebarLocale() {
-      const isZhHant =
-        typeof navigator !== "undefined" &&
-        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
-      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
-
-      try {
-        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as SidebarLocaleBundle;
-        if (!cancelled) {
-          setLocaleBundle(data);
-        }
-      } catch {
-        // Keep fallback labels when localization files are unavailable.
-      }
-    }
-
-    void loadSidebarLocale();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleWikiBetaQuickCreate(kind: "page" | "database") {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-
-    setCreatingKind(kind);
-    try {
-      const db = getFirebaseFirestore();
-      const collectionName = kind === "page" ? "pages" : "databases";
-      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
-
-      const payload: Record<string, unknown> = {
-        title: baseTitle,
-        kind,
-        accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-
-      if (activeWorkspaceId) {
-        payload.spaceId = activeWorkspaceId;
-      }
-
-      if (kind === "database") {
-        payload.template = "task-governance";
-        payload.metadata = {
-          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
-          description: "任務依賴與技能門檻分類模板",
-        };
-      }
-
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, collectionName),
-        payload,
-      );
-
-      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
-      setWikiBetaQuickCreateOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <>
-    <aside
-      aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
-      }`}
-    >
-      <>
-          {/* ── Sidebar title bar ──────────────────────────────────── */}
-          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-            {/* Section label */}
-            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-              {sectionMeta.icon}
-              {sectionMeta.label}
-            </span>
-            {/* Customize + collapse buttons grouped on the right */}
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                title="設定"
-                aria-label="設定"
-                onClick={() => {
-                  setCustomizeOpen(true);
-                }}
-                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="收起側欄"
-                title="收起側欄"
-                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-              >
-                <PanelLeftClose className="size-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Scrollable nav body ── section-specific ───────────── */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            {section === "account" && (
-              <>
-                {showAccountManagement && visibleAccountItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Account navigation">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      Account
-                    </p>
-                    {visibleAccountItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看 Account 選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "organization" && (
-              <>
-                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Organization management">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      組織管理
-                    </p>
-                    {visibleOrganizationManagementItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看管理選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "workspace" && (
-              <>
-                {workspacePathId ? (
-                  <nav className="space-y-3" aria-label="Workspace navigation">
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                    {isWorkspaceItemEnabled("workspace-modules") && (
-                      <div className="my-1.5 border-t border-border/40" />
-                    )}
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("workspace-modules") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceModulesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceModulesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
-                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceModulesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("spaces") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceSpacesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceSpacesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
-                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceSpacesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
-                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                    .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("databases") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceDatabasesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
-                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceDatabasesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                  </nav>
-                ) : (
-                  // ── Workspace hub: show recent workspaces ──────────────
-                  <>
-                    {showRecentWorkspaces && (
-                      <div className="space-y-0.5">
-                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                          最近工作區
-                        </p>
-                        {visibleRecentWorkspaceLinks.length === 0 ? (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                            尚無最近開啟的工作區。
-                          </p>
-                        ) : (
-                          visibleRecentWorkspaceLinks.map((ws) => (
-                            <Link
-                              key={ws.id}
-                              href={ws.href}
-                              onClick={() => {
-                                onSelectWorkspace(ws.id);
-                              }}
-                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                              }`}
-                              title={ws.name}
-                            >
-                              <span className="truncate">{ws.name}</span>
-                            </Link>
-                          ))
-                        )}
-                        {hasOverflow && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsExpanded((prev) => !prev);
-                            }}
-                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                          >
-                            {isExpanded ? "收起" : "顯示更多"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            {section === "wiki-beta" && (
-              <nav className="space-y-0.5" aria-label="Account Wiki-Beta navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Account Wiki-Beta
-                </p>
-                {(
-                  [
-                    { href: "/wiki-beta", label: "知識總覽" },
-                    { href: "/wiki-beta/block-editor", label: "區塊編輯器" },
-                    { href: "/wiki-beta/pages-dnd", label: "頁面 (DnD)" },
-                    { href: "/wiki-beta/rag-query", label: "RAG Query" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                  <Link
-                    href="/wiki-beta/documents"
-                    aria-current={isActiveRoute("/wiki-beta/documents") ? "page" : undefined}
-                    className={`flex-1 ${
-                      isActiveRoute("/wiki-beta/documents")
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Documents
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setWikiBetaQuickCreateOpen((prev) => !prev);
-                    }}
-                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
-                    aria-label="快速新增頁面或資料庫"
-                    title="快速新增"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-
-                  {wikiBetaQuickCreateOpen ? (
-                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiBetaQuickCreate("page")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiBetaQuickCreate("database")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {(
-                  [
-                    { href: "/wiki-beta/pages", label: "Pages" },
-                    { href: "/wiki-beta/libraries", label: "Libraries" },
-                    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="my-1.5 border-t border-border/40" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsWikiBetaWorkspacesExpanded((prev) => !prev);
-                  }}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isWikiBetaWorkspacesExpanded}
-                >
-                  <span>Workspaces</span>
-                  {isWikiBetaWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                </button>
-
-                {isWikiBetaWorkspacesExpanded && (
-                  <div className="space-y-0.5 pl-2">
-                    {!workspacesHydrated ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
-                    ) : allWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
-                    ) : (
-                      allWorkspaceLinks.map((workspace) => {
-                        const active = activeWorkspaceId === workspace.id;
-                        return (
-                          <Link
-                            key={workspace.id}
-                            href={workspace.href}
-                            onClick={() => {
-                              onSelectWorkspace(workspace.id);
-                            }}
-                            aria-current={active ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              active
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                            title={workspace.name}
-                          >
-                            <span className="truncate">{workspace.name}</span>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </nav>
-            )}
-
-            {section === "ai-chat" && (
-              <nav className="space-y-0.5" aria-label="AI Chat navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  AI Chat
-                </p>
-                {(
-                  [
-                    { href: "/ai-chat", label: "對話紀錄" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "settings" && (
-              <nav className="space-y-0.5" aria-label="Settings navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  個人設定
-                </p>
-                {(
-                  [
-                    { href: "/settings/profile", label: "個人資料" },
-                    { href: "/settings/general", label: "一般" },
-                    { href: "/settings/notifications", label: "推播通知" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-          </div>
-        </>
-    </aside>
-
-    <CustomizeNavigationDialog
-      open={customizeOpen}
-      onOpenChange={setCustomizeOpen}
-      onPreferencesChange={setNavPrefs}
-    />
-    </>
-  );
-}
-`````
-
 ## File: app/(shell)/_components/global-search-dialog.tsx
 `````typescript
 "use client";
@@ -15632,212 +13983,6 @@ export function useGlobalSearch() {
   }, []);
 
   return { open, setOpen };
-}
-`````
-
-## File: app/(shell)/_components/header-controls.tsx
-`````typescript
-"use client";
-
-/**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
- */
-
-import { Bell, Moon, Sun } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  type NotificationEntity,
-  markAllNotificationsRead,
-  markNotificationRead,
-  getNotificationsForRecipient,
-} from "@/modules/notification";
-import { Button } from "@ui-shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
-import { TranslationSwitcher } from "./translation-switcher";
-
-const THEME_KEY = "xuanwu_theme";
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-export function HeaderControls() {
-  const { state: authState } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isNotificationLoading, setIsNotificationLoading] = useState(false);
-  const [isNotificationMutating, setIsNotificationMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const recipientId = authState.user?.id ?? "";
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, notification) => count + (notification.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsNotificationLoading(true);
-    try {
-      const nextNotifications = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(nextNotifications);
-    } finally {
-      setIsNotificationLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-  }
-
-  async function handleNotificationOpenChange(nextOpen: boolean) {
-    setIsNotificationOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsNotificationMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === notificationId ? { ...notification, read: true } : notification,
-      ),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) {
-        setNotifications(previous);
-      }
-    } finally {
-      setIsNotificationMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsNotificationMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) {
-        setNotifications(previous);
-      }
-    } finally {
-      setIsNotificationMutating(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <DropdownMenu open={isNotificationOpen} onOpenChange={handleNotificationOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Open notifications"
-            className="relative text-muted-foreground"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80 p-0">
-          <div className="flex items-center justify-between px-3 py-2">
-            <p className="text-sm font-semibold">Notifications</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              disabled={isNotificationMutating || unreadCount === 0}
-              onClick={handleMarkAllRead}
-            >
-              Mark all read
-            </Button>
-          </div>
-          <DropdownMenuSeparator />
-          <div className="max-h-80 overflow-y-auto">
-            {isNotificationLoading ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-            ) : notifications.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-            ) : (
-              notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  type="button"
-                  onClick={() => void handleMarkOneRead(notification.id)}
-                  disabled={isNotificationMutating}
-                  className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">{notification.title}</p>
-                    {!notification.read ? (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                    ) : null}
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {notification.message}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatNotificationTime(notification.timestamp)}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
 }
 `````
 
@@ -22297,89 +20442,6 @@ export async function revokeAccountRole(accountId: string): Promise<CommandResul
 }
 `````
 
-## File: modules/account/interfaces/queries/account.queries.ts
-`````typescript
-/**
- * Account Read Queries — thin wrappers exposing read operations via the AccountQueryRepository port.
- * These are NOT Server Actions — they are callable from React components/hooks.
- */
-
-import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
-import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
-import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/FirebaseAccountPolicyRepository";
-
-const accountQueryRepo = new FirebaseAccountQueryRepository();
-const policyRepo = new FirebaseAccountPolicyRepository();
-
-// ─── User Profile ─────────────────────────────────────────────────────────────
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return accountQueryRepo.getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
-}
-
-// ─── Wallet ───────────────────────────────────────────────────────────────────
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return accountQueryRepo.getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-// ─── Role ─────────────────────────────────────────────────────────────────────
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return accountQueryRepo.getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
-}
-
-// ─── Account Policy ───────────────────────────────────────────────────────────
-
-export async function getAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
-  return policyRepo.findAllByAccountId(accountId);
-}
-
-export async function getActiveAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
-  return policyRepo.findActiveByAccountId(accountId);
-}
-
-// ─── Multi-Account (App-Level) ────────────────────────────────────────────────
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
-}
-`````
-
 ## File: modules/account/ports/.gitkeep
 `````
 
@@ -22388,6 +20450,381 @@ export function subscribeToAccountsForUser(
 ## File: modules/agent/.gitkeep
 `````
 
+`````
+
+## File: modules/agent/api/index.ts
+`````typescript
+/**
+ * modules/agent — public API barrel.
+ */
+
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+
+export type {
+  AgentResponse,
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../domain/entities/AgentGeneration";
+
+export type { AgentRepository } from "../domain/repositories/AgentRepository";
+export { GenerateAgentResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
+export { GenkitAgentRepository } from "../infrastructure/genkit/GenkitAgentRepository";
+
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "@/modules/retrieval/api";
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "@/modules/retrieval/api";
+
+export type { RagRetrievalRepository, RetrieveRagChunksInput } from "@/modules/retrieval/api";
+
+export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+
+export { answerRagQuery, generateAgentResponse } from "../interfaces/_actions/agent.actions";
+`````
+
+## File: modules/agent/application/index.ts
+`````typescript
+export { GenerateAgentResponseUseCase } from "./use-cases/generate-agent-response.use-case";
+export { AnswerRagQueryUseCase } from "./use-cases/answer-rag-query.use-case";
+`````
+
+## File: modules/agent/application/use-cases/answer-rag-query.use-case.ts
+`````typescript
+/**
+ * @deprecated AnswerRagQueryUseCase ownership is in modules/retrieval.
+ */
+export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/application/use-cases/generate-agent-response.use-case.ts
+`````typescript
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+
+export class GenerateAgentResponseUseCase {
+  constructor(private readonly agentRepository: AgentRepository) {}
+
+  async execute(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
+    const prompt = input.prompt.trim();
+    if (!prompt) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_PROMPT_REQUIRED",
+          message: "Agent prompt is required.",
+        },
+      };
+    }
+
+    return this.agentRepository.generateResponse({
+      ...input,
+      prompt,
+      ...(typeof input.system === "string" ? { system: input.system.trim() } : {}),
+    });
+  }
+}
+`````
+
+## File: modules/agent/domain/entities/AgentGeneration.ts
+`````typescript
+import type { DomainError } from "@shared-types";
+
+export interface GenerateAgentResponseInput {
+  readonly prompt: string;
+  readonly model?: string;
+  readonly system?: string;
+}
+
+export interface AgentResponse {
+  readonly text: string;
+  readonly model: string;
+  readonly finishReason?: string;
+}
+
+export type GenerateAgentResponseResult =
+  | { ok: true; data: AgentResponse }
+  | { ok: false; error: DomainError };
+`````
+
+## File: modules/agent/domain/entities/message.ts
+`````typescript
+/**
+ * modules/agent — domain entity: Message
+ */
+
+import type { ID } from "@shared-types";
+
+export type MessageRole = "user" | "assistant" | "system";
+
+export interface Message {
+  readonly id: ID;
+  readonly role: MessageRole;
+  readonly content: string;
+  readonly createdAt: string;
+}
+`````
+
+## File: modules/agent/domain/entities/RagQuery.ts
+`````typescript
+/**
+ * @deprecated Retrieval query contracts moved to modules/retrieval.
+ */
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/domain/entities/thread.ts
+`````typescript
+/**
+ * modules/agent — domain entity: Thread
+ */
+
+import type { ID } from "@shared-types";
+import type { Message } from "./message";
+
+export interface Thread {
+  readonly id: ID;
+  readonly messages: Message[];
+  readonly createdAt: string;
+}
+`````
+
+## File: modules/agent/domain/index.ts
+`````typescript
+export type {
+  AgentResponse,
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "./entities/AgentGeneration";
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "./entities/RagQuery";
+export type { AgentRepository } from "./repositories/AgentRepository";
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "./repositories/RagGenerationRepository";
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "./repositories/RagRetrievalRepository";
+`````
+
+## File: modules/agent/domain/repositories/AgentRepository.ts
+`````typescript
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../entities/AgentGeneration";
+
+export interface AgentRepository {
+  generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult>;
+}
+`````
+
+## File: modules/agent/domain/repositories/RagGenerationRepository.ts
+`````typescript
+/**
+ * @deprecated RAG generation contracts moved to modules/retrieval.
+ */
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/domain/repositories/RagRetrievalRepository.ts
+`````typescript
+/**
+ * @deprecated Retrieval repository contracts moved to modules/retrieval.
+ */
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/index.ts
+`````typescript
+export * from "./domain";
+export * from "./application";
+export * from "./infrastructure";
+export * from "./interfaces";
+`````
+
+## File: modules/agent/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
+`````typescript
+/**
+ * @deprecated Retrieval adapter ownership moved to modules/retrieval.
+ */
+export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/infrastructure/firebase/index.ts
+`````typescript
+export { FirebaseRagRetrievalRepository } from "./FirebaseRagRetrievalRepository";
+`````
+
+## File: modules/agent/infrastructure/genkit/client.ts
+`````typescript
+/**
+ * @module modules/agent/infrastructure/genkit/client
+ */
+
+import { googleAI } from "@genkit-ai/google-genai";
+import { genkit } from "genkit";
+
+const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
+
+export type GenkitClientOptions = {
+  model?: string;
+};
+
+export function getConfiguredGenkitModel(model?: string) {
+  return model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL;
+}
+
+export function createGenkitClient(options?: GenkitClientOptions) {
+  return genkit({
+    plugins: [googleAI()],
+    model: getConfiguredGenkitModel(options?.model),
+  });
+}
+
+export const agentClient = createGenkitClient();
+`````
+
+## File: modules/agent/infrastructure/genkit/GenkitAgentRepository.ts
+`````typescript
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+import { agentClient, getConfiguredGenkitModel } from "./client";
+
+export class GenkitAgentRepository implements AgentRepository {
+  async generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
+    try {
+      const response = await agentClient.generate({
+        prompt: input.prompt,
+        ...(input.system ? { system: input.system } : {}),
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      return {
+        ok: true,
+        data: {
+          text: response.text,
+          model: getConfiguredGenkitModel(input.model),
+          finishReason: response.finishReason ? String(response.finishReason) : undefined,
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_GENERATE_FAILED",
+          message:
+            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
+        },
+      };
+    }
+  }
+}
+`````
+
+## File: modules/agent/infrastructure/genkit/index.ts
+`````typescript
+/**
+ * @module modules/agent/infrastructure/genkit
+ */
+
+export {
+  agentClient,
+  createGenkitClient,
+  getConfiguredGenkitModel,
+  type GenkitClientOptions,
+} from "./client";
+export { GenkitAgentRepository } from "./GenkitAgentRepository";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/infrastructure/index.ts
+`````typescript
+export * from "./firebase";
+export * from "./genkit";
+`````
+
+## File: modules/agent/interfaces/_actions/agent.actions.ts
+`````typescript
+"use server";
+
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/retrieval/api";
+import { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+import { GenerateAgentResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
+import { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+import { GenkitAgentRepository } from "../../infrastructure/genkit/GenkitAgentRepository";
+import { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+
+export async function generateAgentResponse(
+  input: GenerateAgentResponseInput,
+): Promise<GenerateAgentResponseResult> {
+  const useCase = new GenerateAgentResponseUseCase(new GenkitAgentRepository());
+  return useCase.execute(input);
+}
+
+export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+  const useCase = new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalRepository(),
+    new GenkitRagGenerationRepository(),
+  );
+  return useCase.execute(input);
+}
+`````
+
+## File: modules/agent/interfaces/index.ts
+`````typescript
+export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
 `````
 
 ## File: modules/asset/application/dto/file.dto.ts
@@ -23759,12 +22196,6 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
     });
   }
 }
-`````
-
-## File: modules/asset/infrastructure/index.ts
-`````typescript
-export * from "./firebase/FirebaseFileRepository";
-export * from "./firebase/FirebaseRagDocumentRepository";
 `````
 
 ## File: modules/asset/interfaces/_actions/file.actions.ts
@@ -26594,17 +25025,6 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 }
 `````
 
-## File: modules/content/infrastructure/index.ts
-`````typescript
-/**
- * Module: content
- * Layer: infrastructure/barrel
- */
-
-export { FirebaseContentPageRepository } from "./firebase/FirebaseContentPageRepository";
-export { FirebaseContentBlockRepository } from "./firebase/FirebaseContentBlockRepository";
-`````
-
 ## File: modules/content/infrastructure/InMemoryContentRepository.ts
 `````typescript
 /**
@@ -28358,6 +26778,435 @@ export interface GraphRepository {
 }
 `````
 
+## File: modules/knowledge-graph/Graph-ERD.mermaid
+`````
+erDiagram
+	GRAPH_NODE ||--o{ GRAPH_EDGE : "source of"
+	GRAPH_NODE ||--o{ GRAPH_EDGE : "target of"
+	GRAPH_NODE ||--o{ GRAPH_METADATA : "has"
+	GRAPH_EDGE ||--o{ GRAPH_METADATA : "has"
+
+	GRAPH_NODE {
+		string id
+		string namespaceId
+		string label
+		string type
+		string status
+		string createdBy
+		date createdAt
+		date activatedAt
+		date archivedAt
+	}
+
+	GRAPH_EDGE {
+		string id
+		string sourceNodeId
+		string targetNodeId
+		string type
+		string status
+		float weight
+		string label
+		string createdBy
+		date createdAt
+		date activatedAt
+		date removedAt
+	}
+
+	GRAPH_METADATA {
+		string id
+		string entityId
+		string entityType
+		string key
+		string value
+		date updatedAt
+	}
+`````
+
+## File: modules/knowledge-graph/Graph-Flow.mermaid
+`````
+flowchart TB
+	%% ==========================================================
+	%% Graph Module — Domain State Machine & Data Flow
+	%% Canonical lifecycle documentation for modules/graph
+	%% Graph = Knowledge Graph Layer (Wiki-style linked knowledge)
+	%% ==========================================================
+
+	classDef node fill:#e8f3ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
+	classDef edge fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#0f172a;
+	classDef metadata fill:#fef9c3,stroke:#ca8a04,stroke-width:1.5px,color:#0f172a;
+	classDef data fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#0f172a;
+	classDef rule fill:#f8fafc,stroke:#64748b,stroke-dasharray: 5 5,color:#334155;
+
+	subgraph NODE_FLOW [GraphNode State Machine]
+		direction LR
+		node_start((Start)):::rule --> node_draft[draft]:::node
+		node_draft -->|ACTIVATE<br/>label required| node_active[active]:::node
+		node_active -->|ARCHIVE<br/>guard: no pending edges| node_archived[archived]:::node
+		node_archived -->|RESTORE| node_active
+	end
+
+	subgraph EDGE_FLOW [GraphEdge State Machine]
+		direction LR
+		edge_start((Start)):::rule --> edge_pending[pending]:::edge
+		edge_pending -->|ACTIVATE<br/>guard: both nodes active| edge_active[active]:::edge
+		edge_active -->|DEACTIVATE| edge_inactive[inactive]:::edge
+		edge_inactive -->|ACTIVATE| edge_active
+		edge_active -->|REMOVE<br/>guard: explicit delete| edge_removed[removed]:::edge
+		edge_pending -->|REMOVE| edge_removed
+	end
+
+	subgraph METADATA_FLOW [GraphMetadata]
+		direction LR
+		meta_attach[attach to node or edge]:::metadata --> meta_update[update properties]:::metadata --> meta_tag[tag / label assignment]:::metadata
+	end
+
+	subgraph CROSS_FLOW [Cross-Entity Relations]
+		direction TB
+		edge_guard[Edge requires both source and target nodes<br/>to be in active state before activation]:::rule
+		archive_guard[Node cannot be archived while<br/>any of its edges remain in pending or active state]:::rule
+		weight_rule[Edge weight defaults to 1.0<br/>updated by AI auto-link or manual edit]:::rule
+		api_rule[External consumers must access graph<br/>only through api/ facade]:::rule
+	end
+
+	subgraph STORAGE [Firestore Collections]
+		direction TB
+		nodes_doc[graph_nodes<br/>GraphNodeDoc = Omit<GraphNode, id>]:::data
+		edges_doc[graph_edges<br/>GraphEdgeDoc = Omit<GraphEdge, id>]:::data
+		metadata_doc[graph_metadata<br/>GraphMetadataDoc = Omit<GraphMetadata, id>]:::data
+	end
+
+	node_active -. source or target of .-> edge_pending
+	edge_active -. blocks archiving of .-> node_active
+
+	node_archived -. persisted as .-> nodes_doc
+	edge_removed -. persisted as .-> edges_doc
+	meta_tag -. persisted as .-> metadata_doc
+
+	edge_guard -. applies to .-> edge_pending
+	archive_guard -. applies to .-> node_active
+	weight_rule -. governs .-> edge_active
+	api_rule -. governs .-> node_draft
+	api_rule -. governs .-> edge_pending
+`````
+
+## File: modules/knowledge-graph/Graph-Sequence.mermaid
+`````
+sequenceDiagram
+	autonumber
+	actor User
+	participant UI as External UI
+	participant API as graph/api
+	participant App as Application Use Case
+	participant Domain as Domain Rules
+	participant Repo as Repository
+	participant DB as Firestore
+
+	%% ── Create Node ──────────────────────────────────────────
+	User->>UI: Fill node form and submit
+	UI->>API: facade.createNode({ label, type, namespaceId })
+	API->>App: CreateNodeUseCase.execute(createNodeDto)
+	App->>Domain: validate label not empty and type allowed
+	Domain-->>App: validation passed
+	App->>Repo: save new GraphNode (status = draft)
+	Repo->>DB: write graph_nodes/{nodeId}
+	DB-->>Repo: written
+	Repo-->>App: GraphNode snapshot
+	App-->>API: GraphNodeSummary
+	API-->>UI: node created
+
+	%% ── Activate Node ────────────────────────────────────────
+	User->>UI: Click "Activate" on node detail panel
+	UI->>API: facade.activateNode(nodeId)
+	API->>App: ActivateNodeUseCase.execute(nodeId)
+	App->>Repo: load GraphNode
+	Repo->>DB: read graph_nodes/{nodeId}
+	DB-->>Repo: node doc
+	Repo-->>App: GraphNode (status = draft)
+	App->>Domain: validate ACTIVATE transition
+	Domain-->>App: transition allowed
+	App->>Repo: persist node status = active
+	Repo->>DB: update graph_nodes/{nodeId}
+	DB-->>Repo: updated
+	Repo-->>App: GraphNode snapshot
+	App-->>API: GraphNodeSummary
+	API-->>UI: node now active
+
+	%% ── Link Edge ────────────────────────────────────────────
+	User->>UI: Drag from source node to target node
+	UI->>API: facade.linkEdge({ sourceNodeId, targetNodeId, type, weight })
+	API->>App: LinkEdgeUseCase.execute(linkEdgeDto)
+	App->>Repo: load source and target GraphNodes
+	Repo->>DB: read graph_nodes/{sourceId} + graph_nodes/{targetId}
+	DB-->>Repo: both node docs
+	Repo-->>App: source + target nodes
+	App->>Domain: validate both nodes active, no duplicate edge
+	Domain-->>App: edge creation allowed
+	App->>Repo: save new GraphEdge (status = pending)
+	Repo->>DB: write graph_edges/{edgeId}
+	DB-->>Repo: written
+	Repo-->>App: GraphEdge snapshot
+	App->>Domain: validate ACTIVATE edge transition
+	Domain-->>App: transition allowed (both nodes active)
+	App->>Repo: persist edge status = active
+	Repo->>DB: update graph_edges/{edgeId}
+	DB-->>Repo: updated
+	Repo-->>App: GraphEdge snapshot
+	App-->>API: GraphEdgeSummary
+	API-->>UI: edge linked and active
+`````
+
+## File: modules/knowledge-graph/Graph-Tree.mermaid
+`````
+flowchart TB
+	%% ==========================================================
+	%% Graph Module Tree
+	%% Goal: all external consumers enter through api/
+	%% ==========================================================
+
+	classDef root fill:#0f172a,stroke:#0f172a,color:#f8fafc,stroke-width:2px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef layer fill:#e2e8f0,stroke:#475569,color:#0f172a,stroke-width:1.5px;
+	classDef file fill:#f8fafc,stroke:#94a3b8,color:#0f172a;
+	classDef doc fill:#fff7ed,stroke:#ea580c,color:#7c2d12;
+	classDef forbid fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+	classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
+
+	external_app[app routes / other modules / tests]:::external --> public_api
+
+	subgraph GRAPH [modules/graph]
+		direction TB
+		module_root[graph/]:::root
+
+		subgraph PUBLIC [Public Boundary]
+			direction TB
+			public_api[api/]:::api
+			public_api_index[index.ts<br/>only allowed cross-module entry]:::api
+			public_facade[graph.facade.ts<br/>createNode / linkEdge / archiveNode<br/>getViewConfig / updateEdgeWeight]:::file
+			public_contracts[contracts.ts<br/>GraphNodeSummary / GraphEdgeSummary<br/>GraphViewConfig / GraphLayout]:::file
+			public_api --> public_api_index
+			public_api --> public_facade
+			public_api --> public_contracts
+		end
+
+		subgraph INTERNAL [Internal Layers]
+			direction TB
+
+			readme[README.md<br/>module rules and architecture summary]:::doc
+			flow_doc[Graph-Flow.mermaid<br/>state machine overview]:::doc
+			tree_doc[Graph-Tree.mermaid<br/>module tree and boundary rules]:::doc
+
+			domain_layer[domain/]:::layer
+			application_layer[application/]:::layer
+			infrastructure_layer[infrastructure/]:::layer
+			interfaces_layer[interfaces/]:::layer
+			local_index[index.ts<br/>same-module convenience only]:::file
+
+			subgraph DOMAIN [domain/]
+				direction TB
+				domain_entities[entities/]:::layer
+				domain_events[events/]:::layer
+				domain_value_objects[value-objects/]:::layer
+				domain_services[services/]:::layer
+
+				file_models[entities/GraphNode.ts<br/>GraphEdge.ts<br/>GraphMetadata.ts<br/>view-config.ts]:::file
+				file_core[value-objects/NodeId.ts<br/>NodeStatus.ts<br/>EdgeStatus.ts<br/>EdgeType.ts]:::file
+				file_events[events/GraphNodeEvent.ts<br/>GraphEdgeEvent.ts]:::file
+				file_transitions[services/node-transition-policy.ts<br/>edge-transition-policy.ts<br/>node-guards.ts<br/>edge-guards.ts]:::file
+
+				domain_entities --> file_models
+				domain_value_objects --> file_core
+				domain_events --> file_events
+				domain_services --> file_transitions
+			end
+
+			subgraph APPLICATION [application/]
+				direction TB
+				application_dto[dto/]:::layer
+				application_ports[ports/]:::layer
+				application_use_cases[use-cases/]:::layer
+
+				file_ports[ports/GraphNodeRepository.ts<br/>GraphEdgeRepository.ts<br/>GraphMetadataRepository.ts]:::file
+				file_queries[dto/node-query.dto.ts<br/>edge-query.dto.ts]:::file
+				file_commands[dto/create-node.dto.ts<br/>link-edge.dto.ts<br/>update-view-config.dto.ts]:::file
+				file_use_cases[use-cases/create-node.use-case.ts<br/>link-edge.use-case.ts<br/>archive-node.use-case.ts<br/>update-edge-weight.use-case.ts]:::file
+
+				application_ports --> file_ports
+				application_dto --> file_queries
+				application_dto --> file_commands
+				application_use_cases --> file_use_cases
+			end
+
+			subgraph INFRA [infrastructure/]
+				direction TB
+				infra_firebase[firebase/]:::layer
+				infra_repositories[repositories/]:::layer
+
+				file_firestore[firebase/graph.collections.ts<br/>COLLECTIONS + document mappings]:::file
+				file_converters[firebase/node.converter.ts<br/>edge.converter.ts<br/>metadata.converter.ts]:::file
+				file_repositories[repositories/FirebaseGraphNodeRepository.ts<br/>FirebaseGraphEdgeRepository.ts<br/>FirebaseGraphMetadataRepository.ts]:::file
+
+				infra_firebase --> file_firestore
+				infra_firebase --> file_converters
+				infra_repositories --> file_repositories
+			end
+
+			subgraph INTERFACES [interfaces/]
+				direction TB
+				interfaces_actions[_actions/]:::layer
+				interfaces_queries[queries/]:::layer
+
+				file_interface_actions[_actions/graph.actions.ts<br/>createNode / linkEdge server actions]:::file
+				file_interface_queries[queries/graph.queries.ts<br/>getGraph / getNode / getEdge]:::file
+				interface_note[optional module-local server actions and queries<br/>product UI remains outside this module]:::doc
+
+				interfaces_layer --> interfaces_actions
+				interfaces_layer --> interfaces_queries
+				interfaces_actions --> file_interface_actions
+				interfaces_queries --> file_interface_queries
+				interfaces_layer --> interface_note
+			end
+		end
+
+		module_root --> public_api
+		module_root --> domain_layer
+		module_root --> application_layer
+		module_root --> infrastructure_layer
+		module_root --> interfaces_layer
+		module_root --> readme
+		module_root --> flow_doc
+		module_root --> tree_doc
+		module_root --> local_index
+
+		domain_layer --> DOMAIN
+		application_layer --> APPLICATION
+		infrastructure_layer --> INFRA
+	end
+
+	public_api_index --> application_layer
+	application_layer --> domain_layer
+	infrastructure_layer --> domain_layer
+	interfaces_layer --> application_layer
+
+	forbidden_domain[forbidden<br/>@/modules/graph/domain/*]:::forbid
+	forbidden_application[forbidden<br/>@/modules/graph/application/*]:::forbid
+	forbidden_infra[forbidden<br/>@/modules/graph/infrastructure/*]:::forbid
+	forbidden_interfaces[forbidden<br/>@/modules/graph/interfaces/*]:::forbid
+
+	external_app -. do not import .-> forbidden_domain
+	external_app -. do not import .-> forbidden_application
+	external_app -. do not import .-> forbidden_infra
+	external_app -. do not import .-> forbidden_interfaces
+
+	note_boundary[Cross-module rule<br/>external consumers must import only via<br/>@/modules/graph/api]:::doc
+	note_boundary --> public_api_index
+`````
+
+## File: modules/knowledge-graph/Graph-UI.mermaid
+`````
+flowchart LR
+	%% ==========================================================
+	%% Graph Module — UI Composition & API Boundary
+	%% UI is composed outside graph and consumes api/ only
+	%% Vis.js canvas rendering and node/edge interaction panels
+	%% ==========================================================
+
+	classDef page fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+	classDef panel fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
+	classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+	classDef canvas fill:#f0fdf4,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+	classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+
+	subgraph EXTERNAL_UI [External UI Composition — App Router]
+		direction TB
+
+		subgraph GRAPH_PAGE [Knowledge Graph Page]
+			direction LR
+
+			subgraph CANVAS_AREA [Graph Canvas — Vis.js]
+				direction TB
+				graph_page[Graph View Page<br/>/workspace/graph]:::page
+				vis_canvas[Vis.js Network Canvas<br/>node + edge rendering]:::canvas
+				layout_controls[Layout Controls<br/>force-directed / hierarchical / radial]:::panel
+				depth_filter[Depth Filter<br/>maxDepth slider]:::panel
+				graph_page --> vis_canvas
+				graph_page --> layout_controls
+				graph_page --> depth_filter
+			end
+
+			subgraph NODE_PANEL [Node Interaction Panel]
+				direction TB
+				node_detail[Node Detail Drawer]:::panel
+				node_label[Label / Type Editor]:::panel
+				node_actions[Activate / Archive / Restore Node]:::action
+				node_detail --> node_label
+				node_detail --> node_actions
+			end
+
+			subgraph EDGE_PANEL [Edge Interaction Panel]
+				direction TB
+				edge_detail[Edge Detail Drawer]:::panel
+				edge_weight[Weight / Label Editor]:::panel
+				edge_actions[Link Edge / Deactivate / Remove Edge]:::action
+				edge_detail --> edge_weight
+				edge_detail --> edge_actions
+			end
+
+			subgraph META_PANEL [Metadata Panel]
+				direction TB
+				meta_panel[Metadata Sidebar]:::panel
+				meta_tags[Tag / Category Assignment]:::panel
+				meta_props[Custom Property Editor]:::panel
+				meta_panel --> meta_tags
+				meta_panel --> meta_props
+			end
+		end
+	end
+
+	subgraph PUBLIC_API [graph Public API]
+		direction TB
+		api_index[api/index.ts]:::api
+		api_facade[api/graph.facade.ts<br/>createNode / linkEdge / archiveNode<br/>updateEdgeWeight / getViewConfig]:::api
+		api_contracts[api/contracts.ts<br/>GraphNodeSummary / GraphEdgeSummary<br/>GraphViewConfig]:::api
+		api_index --> api_facade
+		api_index --> api_contracts
+	end
+
+	subgraph INTERNAL_MODULE [graph Internal Logic]
+		direction TB
+		domain_logic[domain<br/>GraphNode + GraphEdge + GraphMetadata<br/>entities + events + guards + transitions]:::domain
+		application_logic[application<br/>DTOs + ports + use cases<br/>CreateNodeUseCase / LinkEdgeUseCase]:::domain
+		infrastructure_logic[infrastructure<br/>Firestore graph_nodes + graph_edges<br/>graph_metadata collections]:::domain
+		application_logic --> domain_logic
+		infrastructure_logic --> domain_logic
+	end
+
+	vis_canvas -->|load graph data| api_contracts
+	node_detail -->|load node details| api_contracts
+	node_actions -->|execute node commands| api_facade
+
+	edge_detail -->|load edge details| api_contracts
+	edge_actions -->|execute edge commands| api_facade
+
+	meta_panel -->|load metadata| api_contracts
+	meta_tags -->|update tags| api_facade
+
+	layout_controls -->|update view config| api_facade
+	depth_filter -->|update maxDepth| api_facade
+
+	api_facade --> application_logic
+	api_contracts --> application_logic
+
+	forbidden_domain[Do not bind UI directly to<br/>domain/*]:::rule
+	forbidden_application[Do not bind UI directly to<br/>application/*]:::rule
+	forbidden_infrastructure[Do not bind UI directly to<br/>infrastructure/*]:::rule
+
+	graph_page -. forbidden direct dependency .-> forbidden_domain
+	vis_canvas -. forbidden direct dependency .-> forbidden_application
+	node_detail -. forbidden direct dependency .-> forbidden_infrastructure
+`````
+
 ## File: modules/knowledge-graph/infrastructure/InMemoryGraphRepository.ts
 `````typescript
 /**
@@ -29392,34 +28241,6 @@ export function NamespacePrototypeView({ organizationId, ownerAccountId }: Names
 
 export { NamespaceController } from './api/namespace.controller'
 export { NamespacePrototypeView } from './components/NamespacePrototypeView'
-`````
-
-## File: modules/notification/api/index.ts
-`````typescript
-/**
- * Module: notification
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Notification domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
-
-// ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
-
-export { dispatchNotification } from "../interfaces/_actions/notification.actions";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
 `````
 
 ## File: modules/notification/application/use-cases/notification.use-cases.ts
@@ -31242,6 +30063,200 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 `````
 
+## File: modules/retrieval/application/use-cases/answer-rag-query.use-case.ts
+`````typescript
+import { randomUUID } from "node:crypto";
+
+import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
+import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
+import type {
+  AnswerRagQueryInput,
+  AnswerRagQueryResult,
+  RagRetrievalSummary,
+} from "../../domain/entities/RagQuery";
+
+const DEFAULT_TOP_K = 5;
+const MAX_TOP_K = 10;
+
+function normalizeTopK(value?: number) {
+  if (value === undefined) {
+    return DEFAULT_TOP_K;
+  }
+
+  if (!Number.isFinite(value)) {
+    return DEFAULT_TOP_K;
+  }
+
+  return Math.min(MAX_TOP_K, Math.max(1, Math.trunc(value)));
+}
+
+export class AnswerRagQueryUseCase {
+  constructor(
+    private readonly ragRetrievalRepository: RagRetrievalRepository,
+    private readonly ragGenerationRepository: RagGenerationRepository,
+  ) {}
+
+  async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId?.trim() || undefined;
+    const userQuery = input.userQuery.trim();
+    const taxonomy = input.taxonomy?.trim() || undefined;
+    const topK = normalizeTopK(input.topK);
+    const traceId = `rag-trace-${randomUUID()}`;
+    const scope = workspaceId ? "workspace" : "organization";
+
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: {
+          code: "QUERY_FILTER_SCOPE_MISSING",
+          message: "Organization is required for RAG queries.",
+          context: { traceId, scope: "organizationId" },
+        },
+      };
+    }
+
+    if (!userQuery) {
+      return {
+        ok: false,
+        error: {
+          code: "QUERY_INVALID_INPUT",
+          message: "User query is required.",
+          context: { traceId },
+        },
+      };
+    }
+
+    const chunks = await this.ragRetrievalRepository.retrieve({
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
+      normalizedQuery: userQuery.toLowerCase(),
+      taxonomy,
+      topK,
+    });
+
+    if (chunks.length === 0) {
+      return {
+        ok: false,
+        error: {
+          code: "NO_RELEVANT_CHUNKS",
+          message:
+            "No ready chunks matched the current organization/workspace scope. Verify ingestion completed and documents are marked ready before querying.",
+          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
+        },
+      };
+    }
+
+    const generation = await this.ragGenerationRepository.generate({
+      traceId,
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
+      userQuery,
+      chunks,
+      model: input.model,
+    });
+
+    if (!generation.ok) {
+      return generation;
+    }
+
+    const retrievalSummary: RagRetrievalSummary = {
+      mode: "skeleton-metadata-filter",
+      scope,
+      retrievedChunkCount: chunks.length,
+      topK,
+      ...(taxonomy ? { taxonomy } : {}),
+    };
+
+    return {
+      ok: true,
+      data: {
+        answer: generation.data.answer,
+        citations: generation.data.citations,
+        retrievalSummary,
+        model: generation.data.model,
+        traceId,
+        events: [
+          {
+            type: "token",
+            traceId,
+            payload: generation.data.answer,
+          },
+          ...generation.data.citations.map((citation) => ({
+            type: "citation" as const,
+            traceId,
+            payload: citation,
+          })),
+          {
+            type: "done",
+            traceId,
+            payload: retrievalSummary,
+          },
+        ],
+      },
+    };
+  }
+}
+`````
+
+## File: modules/retrieval/domain/entities/RagQuery.ts
+`````typescript
+import type { DomainError } from "@shared-types";
+
+export interface RagRetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly taxonomy: string;
+  readonly text: string;
+  readonly score: number;
+}
+
+export interface RagCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+export interface RagRetrievalSummary {
+  readonly mode: "skeleton-metadata-filter";
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+
+export interface RagStreamEvent {
+  readonly type: "token" | "citation" | "done" | "error";
+  readonly traceId: string;
+  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
+}
+
+export interface AnswerRagQueryInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly taxonomy?: string;
+  readonly topK?: number;
+  readonly model?: string;
+}
+
+export interface AnswerRagQueryOutput {
+  readonly answer: string;
+  readonly citations: readonly RagCitation[];
+  readonly retrievalSummary: RagRetrievalSummary;
+  readonly model: string;
+  readonly traceId: string;
+  readonly events: readonly RagStreamEvent[];
+}
+
+export type AnswerRagQueryResult =
+  | { ok: true; data: AnswerRagQueryOutput }
+  | { ok: false; error: DomainError };
+`````
+
 ## File: modules/retrieval/domain/ports/vector-store.ts
 `````typescript
 /**
@@ -31294,6 +30309,267 @@ export interface IVectorStore {
     k: number,
     filter?: Record<string, string | number | boolean>,
   ): Promise<VectorSearchResult[]>;
+}
+`````
+
+## File: modules/retrieval/domain/repositories/RagGenerationRepository.ts
+`````typescript
+import type { DomainError } from "@shared-types";
+
+import type { RagCitation, RagRetrievedChunk } from "../entities/RagQuery";
+
+export interface GenerateRagAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly RagRetrievedChunk[];
+  readonly model?: string;
+}
+
+export interface GenerateRagAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly RagCitation[];
+  readonly model: string;
+}
+
+export type GenerateRagAnswerResult =
+  | { ok: true; data: GenerateRagAnswerOutput }
+  | { ok: false; error: DomainError };
+
+export interface RagGenerationRepository {
+  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
+}
+`````
+
+## File: modules/retrieval/domain/repositories/RagRetrievalRepository.ts
+`````typescript
+import type { RagRetrievedChunk } from "../entities/RagQuery";
+
+export interface RetrieveRagChunksInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly normalizedQuery: string;
+  readonly taxonomy?: string;
+  readonly topK: number;
+}
+
+export interface RagRetrievalRepository {
+  retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]>;
+}
+`````
+
+## File: modules/retrieval/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
+`````typescript
+import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { RagRetrievedChunk } from "../../domain/entities/RagQuery";
+import type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "../../domain/repositories/RagRetrievalRepository";
+
+interface FirestoreRagDocument {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly status?: string;
+  readonly taxonomy?: string;
+}
+
+const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
+const MIN_DOCUMENT_LIMIT = 20;
+const CHUNK_OVER_FETCH_MULTIPLIER = 10;
+const MIN_CHUNK_LIMIT = 50;
+
+interface FirestoreRagChunk {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly docId?: string;
+  readonly text?: string;
+  readonly taxonomy?: string;
+  readonly page?: number;
+  readonly chunkIndex?: number;
+}
+
+function tokenize(value: string): readonly string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function scoreChunk(queryTokens: readonly string[], text: string) {
+  if (queryTokens.length === 0) {
+    return 0;
+  }
+
+  const haystack = tokenize(text);
+  if (haystack.length === 0) {
+    return 0;
+  }
+
+  const matches = queryTokens.filter((token) => haystack.includes(token)).length;
+  return matches / queryTokens.length;
+}
+
+export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
+    const documentsQuery = query(
+      collectionGroup(this.db, "documents"),
+      where("organizationId", "==", input.organizationId),
+      where("status", "==", "ready"),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
+      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
+      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
+    );
+
+    const documentSnapshots = await getDocs(documentsQuery);
+    const readyDocumentIds = new Set(
+      documentSnapshots.docs
+        .filter((snapshot) => {
+          const data = snapshot.data() as FirestoreRagDocument;
+          return data.status === "ready";
+        })
+        .map((snapshot) => snapshot.id),
+    );
+
+    if (readyDocumentIds.size === 0) {
+      return [];
+    }
+
+    const chunkQuery = query(
+      collectionGroup(this.db, "chunks"),
+      where("organizationId", "==", input.organizationId),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
+      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
+      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
+    );
+
+    const chunkSnapshots = await getDocs(chunkQuery);
+    const queryTokens = tokenize(input.normalizedQuery);
+
+    return chunkSnapshots.docs
+      .map((snapshot) => {
+        const data = snapshot.data() as FirestoreRagChunk;
+        const text = typeof data.text === "string" ? data.text : "";
+        const docId = typeof data.docId === "string" ? data.docId : "";
+        return {
+          chunkId: snapshot.id,
+          docId,
+          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
+          page: typeof data.page === "number" ? data.page : undefined,
+          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
+          text,
+          score: scoreChunk(queryTokens, text),
+          organizationId:
+            typeof data.organizationId === "string" ? data.organizationId : undefined,
+          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+        };
+      })
+      .filter(
+        (chunk) =>
+          chunk.docId && readyDocumentIds.has(chunk.docId) && chunk.score > 0,
+      )
+      .sort((left, right) => right.score - left.score)
+      .slice(0, input.topK)
+      .map(({ organizationId: _organizationId, workspaceId: _workspaceId, ...chunk }) => chunk);
+  }
+}
+`````
+
+## File: modules/retrieval/infrastructure/genkit/client.ts
+`````typescript
+import { genkit } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
+
+const DEFAULT_GENKIT_MODEL = "googleai/gemini-2.0-flash";
+const genkitModelFromEnv = process.env.GENKIT_MODEL?.trim();
+const configuredGenkitModel =
+  genkitModelFromEnv && genkitModelFromEnv.length > 0 ? genkitModelFromEnv : DEFAULT_GENKIT_MODEL;
+
+const hasGoogleAiApiKey =
+  typeof process.env.GOOGLE_GENAI_API_KEY === "string" &&
+  process.env.GOOGLE_GENAI_API_KEY.trim().length > 0;
+
+const plugins = hasGoogleAiApiKey ? [googleAI()] : [];
+
+export const aiClient = genkit({
+  plugins,
+  model: configuredGenkitModel,
+});
+
+export function getConfiguredGenkitModel(model?: string): string {
+  const normalized = model?.trim();
+  return normalized && normalized.length > 0 ? normalized : configuredGenkitModel;
+}
+`````
+
+## File: modules/retrieval/infrastructure/genkit/GenkitRagGenerationRepository.ts
+`````typescript
+import type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "../../domain/repositories/RagGenerationRepository";
+import { aiClient, getConfiguredGenkitModel } from "./client";
+
+function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
+  const pageLabel = typeof input.page === "number" ? ` page:${input.page}` : "";
+  return `[doc:${input.docId} chunk:${input.chunkIndex}${pageLabel} taxonomy:${input.taxonomy}]\n${input.text}`;
+}
+
+function buildPrompt(input: GenerateRagAnswerInput) {
+  const context = input.chunks.map((chunk) => formatChunkForPrompt(chunk)).join("\n\n---\n\n");
+
+  return [
+    "Use the retrieved context to answer the user query.",
+    "If the context is incomplete, answer conservatively and keep citations grounded in the retrieved chunks.",
+    `User query: ${input.userQuery}`,
+    "Retrieved context:",
+    context,
+  ].join("\n\n");
+}
+
+export class GenkitRagGenerationRepository implements RagGenerationRepository {
+  async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
+    try {
+      const response = await aiClient.generate({
+        prompt: buildPrompt(input),
+        system:
+          "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.",
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      return {
+        ok: true,
+        data: {
+          answer: response.text,
+          model: getConfiguredGenkitModel(input.model),
+          citations: input.chunks.map((chunk) => ({
+            docId: chunk.docId,
+            chunkIndex: chunk.chunkIndex,
+            ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
+            reason: `Retrieved from ${chunk.taxonomy} context with score ${chunk.score.toFixed(2)}.`,
+          })),
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "FLOW_MODEL_PROVIDER_ERROR",
+          message:
+            error instanceof Error ? error.message : `Unexpected RAG generation error: ${String(error)}`,
+          context: { traceId: input.traceId },
+        },
+      };
+    }
+  }
 }
 `````
 
@@ -31573,819 +30849,6 @@ export {
 } from "./use-cases/wiki-beta-libraries.use-case";
 `````
 
-## File: modules/wiki-beta/application/use-cases/wiki-beta-content-tree.use-case.ts
-`````typescript
-import type {
-  WikiBetaAccountContentNode,
-  WikiBetaAccountSeed,
-  WikiBetaContentItemNode,
-  WikiBetaWorkspaceContentNode,
-} from "../../domain/entities/wiki-beta.types";
-import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/wiki-beta.repositories";
-import { FirebaseWikiBetaWorkspaceRepository } from "../../infrastructure";
-
-const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
-
-function buildContentBaseItems(workspaceId: string): WikiBetaContentItemNode[] {
-  return [
-    { key: "spaces", label: "WorkSpace Wiki-Beta", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
-    { key: "pages", label: "Pages", href: "/wiki-beta/pages", enabled: true },
-    { key: "libraries", label: "Libraries", href: "/wiki-beta/libraries", enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/wiki-beta", enabled: false },
-    { key: "rag", label: "RAG", href: "/wiki-beta", enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
-  ];
-}
-
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiBetaWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}?tab=Wiki`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
-}
-
-export async function buildWikiBetaContentTree(
-  seeds: WikiBetaAccountSeed[],
-  workspaceRepository: WikiBetaWorkspaceRepository = defaultWorkspaceRepository,
-): Promise<WikiBetaAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiBetaAccountContentNode;
-    }),
-  );
-
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
-}
-`````
-
-## File: modules/wiki-beta/application/use-cases/wiki-beta-libraries.use-case.ts
-`````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
-
-import type {
-  AddWikiBetaLibraryFieldInput,
-  CreateWikiBetaLibraryInput,
-  CreateWikiBetaLibraryRowInput,
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryRow,
-} from "../../domain/entities/wiki-beta-library.types";
-import type { WikiBetaLibraryRepository } from "../../domain/repositories/wiki-beta.repositories";
-import { InMemoryWikiBetaLibraryRepository } from "../../infrastructure";
-
-const defaultLibraryRepository: WikiBetaLibraryRepository = new InMemoryWikiBetaLibraryRepository();
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function normalizeName(name: string): string {
-  const value = name.trim();
-  if (!value) {
-    throw new Error("library name is required");
-  }
-  return value.slice(0, 80);
-}
-
-function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) {
-    throw new Error("field key is required");
-  }
-  return normalized.slice(0, 48);
-}
-
-function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiBetaLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((library) => library.slug));
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export async function listWikiBetaLibraries(
-  accountId: string,
-  workspaceId?: string,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibrary[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((library) => library.status === "active");
-  if (!workspaceId) {
-    return activeLibraries;
-  }
-  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
-}
-
-export async function createWikiBetaLibrary(
-  input: CreateWikiBetaLibraryInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibrary> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const name = normalizeName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiBetaLibrary = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.library.created",
-    aggregateType: "wiki-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiBetaLibraryField(
-  input: AddWikiBetaLibraryFieldInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((field) => field.key === key)) {
-    throw new Error(`field key \"${key}\" already exists`);
-  }
-
-  const field: WikiBetaLibraryField = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.library.field_added",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      fieldKey: field.key,
-      fieldType: field.type,
-    },
-  });
-
-  return field;
-}
-
-export async function createWikiBetaLibraryRow(
-  input: CreateWikiBetaLibraryRowInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  const requiredFields = fields.filter((field) => field.required);
-  for (const field of requiredFields) {
-    if (!(field.key in input.values)) {
-      throw new Error(`missing required field: ${field.key}`);
-    }
-  }
-
-  const now = new Date();
-  const row: WikiBetaLibraryRow = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.library.row_created",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      rowId: row.id,
-      fields: Object.keys(row.values),
-    },
-  });
-
-  return row;
-}
-
-export interface WikiBetaLibrarySnapshot {
-  library: WikiBetaLibrary;
-  fields: WikiBetaLibraryField[];
-  rows: WikiBetaLibraryRow[];
-}
-
-export async function getWikiBetaLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
-}
-`````
-
-## File: modules/wiki-beta/application/use-cases/wiki-beta-pages.use-case.ts
-`````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
-
-import type {
-  CreateWikiBetaPageInput,
-  MoveWikiBetaPageInput,
-  RenameWikiBetaPageInput,
-  WikiBetaPage,
-  WikiBetaPageTreeNode,
-} from "../../domain/entities/wiki-beta-page.types";
-import type { WikiBetaPageRepository } from "../../domain/repositories/wiki-beta.repositories";
-import { FirebaseWikiBetaPageRepository } from "../../infrastructure";
-
-const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function normalizeTitle(title: string): string {
-  const trimmed = title.trim();
-  if (!trimmed) {
-    throw new Error("title is required");
-  }
-  return trimmed.slice(0, 120);
-}
-
-function sameParent(a: WikiBetaPage, parentPageId: string | null): boolean {
-  return (a.parentPageId ?? null) === parentPageId;
-}
-
-function ensureUniqueSlug(baseSlug: string, siblingPages: WikiBetaPage[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
-  const existing = new Set(siblingPages.map((page) => page.slug));
-
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this page title");
-}
-
-function toTree(pages: WikiBetaPage[]): WikiBetaPageTreeNode[] {
-  const nodeById = new Map<string, WikiBetaPageTreeNode>();
-  for (const page of pages) {
-    nodeById.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: WikiBetaPageTreeNode[] = [];
-  for (const page of pages) {
-    const node = nodeById.get(page.id);
-    if (!node) continue;
-
-    if (!page.parentPageId) {
-      roots.push(node);
-      continue;
-    }
-
-    const parent = nodeById.get(page.parentPageId);
-    if (!parent) {
-      roots.push(node);
-      continue;
-    }
-    parent.children.push(node);
-  }
-
-  const sortRecursively = (nodes: WikiBetaPageTreeNode[]) => {
-    nodes.sort((a, b) => {
-      if (a.order !== b.order) {
-        return a.order - b.order;
-      }
-      return a.title.localeCompare(b.title, "zh-Hant");
-    });
-    for (const node of nodes) {
-      sortRecursively(node.children);
-    }
-  };
-
-  sortRecursively(roots);
-  return roots;
-}
-
-function assertNoCycle(pages: WikiBetaPage[], pageId: string, targetParentPageId: string | null): void {
-  if (!targetParentPageId) {
-    return;
-  }
-  if (pageId === targetParentPageId) {
-    throw new Error("page cannot be moved under itself");
-  }
-
-  const byId = new Map(pages.map((page) => [page.id, page]));
-  let current: string | null = targetParentPageId;
-  while (current) {
-    if (current === pageId) {
-      throw new Error("invalid move: target parent is a descendant of page");
-    }
-    current = byId.get(current)?.parentPageId ?? null;
-  }
-}
-
-export async function listWikiBetaPagesTree(
-  accountId: string,
-  workspaceId?: string,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPageTreeNode[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const allPages = await pageRepository.listByAccountId(accountId);
-  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
-  return toTree(pages.filter((page) => page.status === "active"));
-}
-
-export async function createWikiBetaPage(
-  input: CreateWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPage> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const title = normalizeTitle(input.title);
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const parentPageId = input.parentPageId ?? null;
-
-  if (parentPageId) {
-    const parent = pages.find((page) => page.id === parentPageId);
-    if (!parent) {
-      throw new Error("parent page not found");
-    }
-  }
-
-  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
-  const rawSlug = deriveSlugCandidate(title);
-  const slug = ensureUniqueSlug(rawSlug, siblingPages);
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
-
-  const now = new Date();
-  const created: WikiBetaPage = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    title,
-    slug,
-    parentPageId,
-    order,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await pageRepository.create(created);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.page.created",
-    aggregateType: "wiki-page",
-    aggregateId: created.id,
-    payload: {
-      accountId: created.accountId,
-      workspaceId: created.workspaceId,
-      parentPageId: created.parentPageId,
-      slug: created.slug,
-    },
-  });
-
-  return created;
-}
-
-export async function renameWikiBetaPage(
-  input: RenameWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPage> {
-  const title = normalizeTitle(input.title);
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
-  }
-
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
-  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
-
-  const updated: WikiBetaPage = {
-    ...existing,
-    title,
-    slug,
-    updatedAt: new Date(),
-  };
-
-  await pageRepository.update(updated);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.page.renamed",
-    aggregateType: "wiki-page",
-    aggregateId: updated.id,
-    payload: {
-      accountId: updated.accountId,
-      title: updated.title,
-      slug: updated.slug,
-    },
-  });
-
-  return updated;
-}
-
-export async function moveWikiBetaPage(
-  input: MoveWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPage> {
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
-  }
-
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const targetParentPageId = input.targetParentPageId ?? null;
-  assertNoCycle(pages, existing.id, targetParentPageId);
-
-  if (targetParentPageId) {
-    const targetParent = pages.find((page) => page.id === targetParentPageId);
-    if (!targetParent) {
-      throw new Error("target parent page not found");
-    }
-  }
-
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
-
-  const moved: WikiBetaPage = {
-    ...existing,
-    parentPageId: targetParentPageId,
-    order,
-    updatedAt: new Date(),
-  };
-
-  await pageRepository.update(moved);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.page.moved",
-    aggregateType: "wiki-page",
-    aggregateId: moved.id,
-    payload: {
-      accountId: moved.accountId,
-      fromParentPageId: existing.parentPageId,
-      toParentPageId: moved.parentPageId,
-    },
-  });
-
-  return moved;
-}
-`````
-
-## File: modules/wiki-beta/application/use-cases/wiki-beta-rag.use-case.ts
-`````typescript
-import type {
-  WikiBetaContentRepository,
-} from "../../domain/repositories/wiki-beta.repositories";
-import type {
-  WikiBetaParsedDocument,
-  WikiBetaRagQueryResult,
-  WikiBetaReindexInput,
-} from "../../domain/entities/wiki-beta.types";
-import { FirebaseWikiBetaContentRepository } from "../../infrastructure";
-
-const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
-
-export async function runWikiBetaRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: {
-    taxonomyFilters?: string[];
-    maxAgeDays?: number;
-    requireReady?: boolean;
-  } = {},
-  repository: WikiBetaContentRepository = defaultContentRepository,
-): Promise<WikiBetaRagQueryResult> {
-  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export async function reindexWikiBetaDocument(
-  input: WikiBetaReindexInput,
-  repository: WikiBetaContentRepository = defaultContentRepository,
-): Promise<void> {
-  await repository.reindexDocument(input);
-}
-
-export async function listWikiBetaParsedDocuments(
-  accountId: string,
-  limitCount = 20,
-  repository: WikiBetaContentRepository = defaultContentRepository,
-): Promise<WikiBetaParsedDocument[]> {
-  return repository.listParsedDocuments(accountId, limitCount);
-}
-`````
-
-## File: modules/wiki-beta/domain/entities/wiki-beta-library.types.ts
-`````typescript
-export type WikiBetaLibraryStatus = "active" | "archived";
-export type WikiBetaLibraryFieldType = "title" | "text" | "number" | "select" | "relation";
-
-export interface WikiBetaLibrary {
-  id: string;
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-  slug: string;
-  status: WikiBetaLibraryStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WikiBetaLibraryField {
-  id: string;
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiBetaLibraryFieldType;
-  required: boolean;
-  options?: string[];
-  createdAt: Date;
-}
-
-export interface WikiBetaLibraryRow {
-  id: string;
-  libraryId: string;
-  values: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateWikiBetaLibraryInput {
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-}
-
-export interface AddWikiBetaLibraryFieldInput {
-  accountId: string;
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiBetaLibraryFieldType;
-  required?: boolean;
-  options?: string[];
-}
-
-export interface CreateWikiBetaLibraryRowInput {
-  accountId: string;
-  libraryId: string;
-  values: Record<string, unknown>;
-}
-`````
-
-## File: modules/wiki-beta/domain/entities/wiki-beta-page.types.ts
-`````typescript
-export type WikiBetaPageStatus = "active" | "archived";
-
-export interface WikiBetaPage {
-  id: string;
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  slug: string;
-  parentPageId: string | null;
-  order: number;
-  status: WikiBetaPageStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WikiBetaPageTreeNode extends WikiBetaPage {
-  children: WikiBetaPageTreeNode[];
-}
-
-export interface CreateWikiBetaPageInput {
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  parentPageId?: string | null;
-}
-
-export interface RenameWikiBetaPageInput {
-  accountId: string;
-  pageId: string;
-  title: string;
-}
-
-export interface MoveWikiBetaPageInput {
-  accountId: string;
-  pageId: string;
-  targetParentPageId?: string | null;
-}
-`````
-
-## File: modules/wiki-beta/domain/entities/wiki-beta.types.ts
-`````typescript
-export interface WikiBetaCitation {
-  provider?: "vector" | "search";
-  chunk_id?: string;
-  doc_id?: string;
-  filename?: string;
-  json_gcs_uri?: string;
-  search_id?: string;
-  score?: number;
-  text?: string;
-  account_id?: string;
-  workspace_id?: string;
-  taxonomy?: string;
-  processing_status?: string;
-  indexed_at?: string;
-}
-
-export interface WikiBetaRagQueryResult {
-  answer: string;
-  citations: WikiBetaCitation[];
-  cache: "hit" | "miss";
-  vectorHits: number;
-  searchHits: number;
-  accountScope: string;
-  workspaceScope?: string;
-  taxonomyFilters?: string[];
-  maxAgeDays?: number;
-  requireReady?: boolean;
-}
-
-export interface WikiBetaParsedDocument {
-  id: string;
-  filename: string;
-  workspaceId: string;
-  sourceGcsUri: string;
-  jsonGcsUri: string;
-  pageCount: number;
-  status: string;
-  ragStatus: string;
-  uploadedAt: Date | null;
-}
-
-export interface WikiBetaReindexInput {
-  accountId: string;
-  docId: string;
-  jsonGcsUri: string;
-  sourceGcsUri: string;
-  filename: string;
-  pageCount: number;
-}
-
-export type WikiBetaAccountType = "personal" | "organization";
-
-export interface WikiBetaWorkspaceRef {
-  id: string;
-  name: string;
-}
-
-export interface WikiBetaContentItemNode {
-  key: "spaces" | "pages" | "libraries" | "documents" | "vector-index" | "rag" | "ai-tools";
-  label: string;
-  href: string;
-  enabled: boolean;
-}
-
-export interface WikiBetaWorkspaceContentNode {
-  workspaceId: string;
-  workspaceName: string;
-  href: string;
-  contentBaseItems: WikiBetaContentItemNode[];
-}
-
-export interface WikiBetaAccountContentNode {
-  accountId: string;
-  accountName: string;
-  accountType: WikiBetaAccountType;
-  isActive: boolean;
-  membersHref?: string;
-  teamsHref?: string;
-  workspaces: WikiBetaWorkspaceContentNode[];
-}
-
-export interface WikiBetaAccountSeed {
-  accountId: string;
-  accountName: string;
-  accountType: WikiBetaAccountType;
-  isActive: boolean;
-}
-`````
-
 ## File: modules/wiki-beta/domain/index.ts
 `````typescript
 export type {
@@ -32425,552 +30888,6 @@ export type {
   WikiBetaPageRepository,
   WikiBetaWorkspaceRepository,
 } from "./repositories/wiki-beta.repositories";
-`````
-
-## File: modules/wiki-beta/domain/repositories/wiki-beta.repositories.ts
-`````typescript
-import type {
-  WikiBetaParsedDocument,
-  WikiBetaRagQueryResult,
-  WikiBetaReindexInput,
-  WikiBetaWorkspaceRef,
-} from "../entities/wiki-beta.types";
-import type { WikiBetaPage } from "../entities/wiki-beta-page.types";
-import type {
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryRow,
-} from "../entities/wiki-beta-library.types";
-
-export interface WikiBetaContentRepository {
-  runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options?: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    },
-  ): Promise<WikiBetaRagQueryResult>;
-  reindexDocument(input: WikiBetaReindexInput): Promise<void>;
-  listParsedDocuments(accountId: string, limitCount: number): Promise<WikiBetaParsedDocument[]>;
-}
-
-export interface WikiBetaWorkspaceRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaWorkspaceRef[]>;
-}
-
-export interface WikiBetaPageRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaPage[]>;
-  findById(accountId: string, pageId: string): Promise<WikiBetaPage | null>;
-  create(page: WikiBetaPage): Promise<void>;
-  update(page: WikiBetaPage): Promise<void>;
-}
-
-export interface WikiBetaLibraryRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaLibrary[]>;
-  findById(accountId: string, libraryId: string): Promise<WikiBetaLibrary | null>;
-  create(library: WikiBetaLibrary): Promise<void>;
-  createField(accountId: string, field: WikiBetaLibraryField): Promise<void>;
-  listFields(accountId: string, libraryId: string): Promise<WikiBetaLibraryField[]>;
-  createRow(accountId: string, row: WikiBetaLibraryRow): Promise<void>;
-  listRows(accountId: string, libraryId: string): Promise<WikiBetaLibraryRow[]>;
-}
-`````
-
-## File: modules/wiki-beta/infrastructure/index.ts
-`````typescript
-export {
-  FirebaseWikiBetaContentRepository,
-  FirebaseWikiBetaWorkspaceRepository,
-} from "./repositories/firebase-wiki-beta.repository";
-export { FirebaseWikiBetaPageRepository } from "./repositories/firebase-wiki-beta-page.repository";
-export { InMemoryWikiBetaPageRepository } from "./repositories/in-memory-wiki-beta-page.repository";
-export { InMemoryWikiBetaLibraryRepository } from "./repositories/in-memory-wiki-beta-library.repository";
-`````
-
-## File: modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
-`````typescript
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-
-import type { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
-import type { WikiBetaPageRepository } from "../../domain/repositories/wiki-beta.repositories";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function toDateOrNow(value: unknown): Date {
-  if (isRecord(value)) {
-    const maybeToDate = value.toDate;
-    if (typeof maybeToDate === "function") {
-      const converted = maybeToDate();
-      if (converted instanceof Date) {
-        return converted;
-      }
-    }
-  }
-  if (value instanceof Date) {
-    return value;
-  }
-  return new Date();
-}
-
-function mapToPage(id: string, accountId: string, data: Record<string, unknown>): WikiBetaPage {
-  return {
-    id,
-    accountId,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-    title: typeof data.title === "string" ? data.title : "Untitled",
-    slug: typeof data.slug === "string" ? data.slug : id,
-    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
-    order: typeof data.order === "number" ? data.order : 0,
-    status: data.status === "archived" ? "archived" : "active",
-    createdAt: toDateOrNow(data.createdAt),
-    updatedAt: toDateOrNow(data.updatedAt),
-  };
-}
-
-function mapForWrite(page: WikiBetaPage): Record<string, unknown> {
-  return {
-    workspaceId: page.workspaceId ?? null,
-    title: page.title,
-    slug: page.slug,
-    parentPageId: page.parentPageId,
-    order: page.order,
-    status: page.status,
-    createdAt: page.createdAt,
-    updatedAt: page.updatedAt,
-  };
-}
-
-export class FirebaseWikiBetaPageRepository implements WikiBetaPageRepository {
-  async listByAccountId(accountId: string): Promise<WikiBetaPage[]> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.collection(db, "accounts", accountId, "pages");
-    const snap = await firestoreApi.getDocs(ref);
-
-    const pages = snap.docs.map((docSnap) => {
-      const raw = docSnap.data();
-      const data = isRecord(raw) ? raw : {};
-      return mapToPage(docSnap.id, accountId, data);
-    });
-
-    pages.sort((a, b) => {
-      if (a.order !== b.order) {
-        return a.order - b.order;
-      }
-      return a.title.localeCompare(b.title, "zh-Hant");
-    });
-
-    return pages;
-  }
-
-  async findById(accountId: string, pageId: string): Promise<WikiBetaPage | null> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.doc(db, "accounts", accountId, "pages", pageId);
-    const snap = await firestoreApi.getDoc(ref);
-    if (!snap.exists()) {
-      return null;
-    }
-    const raw = snap.data();
-    const data = isRecord(raw) ? raw : {};
-    return mapToPage(snap.id, accountId, data);
-  }
-
-  async create(page: WikiBetaPage): Promise<void> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.doc(db, "accounts", page.accountId, "pages", page.id);
-    await firestoreApi.setDoc(ref, mapForWrite(page));
-  }
-
-  async update(page: WikiBetaPage): Promise<void> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.doc(db, "accounts", page.accountId, "pages", page.id);
-    await firestoreApi.updateDoc(ref, {
-      workspaceId: page.workspaceId ?? null,
-      title: page.title,
-      slug: page.slug,
-      parentPageId: page.parentPageId,
-      order: page.order,
-      status: page.status,
-      updatedAt: page.updatedAt,
-    });
-  }
-}
-`````
-
-## File: modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta.repository.ts
-`````typescript
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-
-import type {
-  WikiBetaContentRepository,
-  WikiBetaWorkspaceRepository,
-} from "../../domain/repositories/wiki-beta.repositories";
-import type {
-  WikiBetaCitation,
-  WikiBetaParsedDocument,
-  WikiBetaRagQueryResult,
-  WikiBetaReindexInput,
-  WikiBetaWorkspaceRef,
-} from "../../domain/entities/wiki-beta.types";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  if (isRecord(value)) {
-    return value;
-  }
-  return {};
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  const maybeToDate = value.toDate;
-  if (typeof maybeToDate === "function") {
-    const converted = maybeToDate();
-    if (converted instanceof Date) {
-      return converted;
-    }
-  }
-  return null;
-}
-
-function toCitations(value: unknown): WikiBetaCitation[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map((item) => {
-    if (!isRecord(item)) {
-      return {};
-    }
-
-    return {
-      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
-      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
-      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
-      filename: typeof item.filename === "string" ? item.filename : undefined,
-      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
-      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
-      score: typeof item.score === "number" ? item.score : undefined,
-      text: typeof item.text === "string" ? item.text : undefined,
-    };
-  });
-}
-
-function toNumberOrDefault(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function resolveDocumentFilename(data: Record<string, unknown>): string {
-  const source = objectOrEmpty(data.source);
-  const metadata = objectOrEmpty(data.metadata);
-
-  const candidates = [
-    source.filename,
-    source.display_name,
-    data.title,
-    metadata.filename,
-    metadata.display_name,
-    source.original_filename,
-    metadata.original_filename,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate;
-    }
-  }
-
-  return "";
-}
-
-function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiBetaParsedDocument {
-  const source = objectOrEmpty(data.source);
-  const parsed = objectOrEmpty(data.parsed);
-  const rag = objectOrEmpty(data.rag);
-  const metadata = objectOrEmpty(data.metadata);
-
-  const sourceGcsFromSource = typeof source.gcs_uri === "string" ? source.gcs_uri : "";
-  const sourceGcsFromMeta = typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : "";
-  const jsonGcsFromParsed = typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "";
-  const jsonGcsFromMeta = typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : "";
-  const workspaceIdFromDoc = typeof data.spaceId === "string" ? data.spaceId : "";
-  const workspaceIdFromMeta = typeof metadata.space_id === "string" ? metadata.space_id : "";
-
-  return {
-    id,
-    filename: resolveDocumentFilename(data) || id,
-    workspaceId: workspaceIdFromDoc || workspaceIdFromMeta,
-    sourceGcsUri: sourceGcsFromSource || sourceGcsFromMeta,
-    jsonGcsUri: jsonGcsFromParsed || jsonGcsFromMeta,
-    pageCount:
-      toNumberOrDefault(parsed.page_count) ||
-      toNumberOrDefault(metadata.page_count) ||
-      toNumberOrDefault(data.pageCount),
-    status: typeof data.status === "string" ? data.status : "unknown",
-    ragStatus: typeof rag.status === "string" ? rag.status : "",
-    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
-  };
-}
-
-function sortByUploadedAtDesc(documents: WikiBetaParsedDocument[]): WikiBetaParsedDocument[] {
-  const copied = [...documents];
-  copied.sort((a, b) => {
-    const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
-    const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
-    return bt - at;
-  });
-  return copied;
-}
-
-export class FirebaseWikiBetaContentRepository implements WikiBetaContentRepository {
-  async runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    } = {},
-  ): Promise<WikiBetaRagQueryResult> {
-    const functions = getFirebaseFunctions("asia-southeast1");
-    const callable = functionsApi.httpsCallable(functions, "rag_query");
-    const result = await callable({
-      query,
-      top_k: topK,
-      account_id: accountId,
-      workspace_id: workspaceId,
-      taxonomy_filters: options.taxonomyFilters ?? [],
-      max_age_days: options.maxAgeDays,
-      require_ready: options.requireReady,
-    });
-    const data = objectOrEmpty(result.data);
-
-    return {
-      answer: typeof data.answer === "string" ? data.answer : "",
-      citations: toCitations(data.citations),
-      cache: data.cache === "hit" ? "hit" : "miss",
-      vectorHits: typeof data.vector_hits === "number" ? data.vector_hits : 0,
-      searchHits: typeof data.search_hits === "number" ? data.search_hits : 0,
-      accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
-      workspaceScope: typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
-      taxonomyFilters: Array.isArray(data.taxonomy_filters)
-        ? data.taxonomy_filters.filter((value): value is string => typeof value === "string")
-        : undefined,
-      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
-      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
-    };
-  }
-
-  async reindexDocument(input: WikiBetaReindexInput): Promise<void> {
-    const functions = getFirebaseFunctions("asia-southeast1");
-    const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-    await callable({
-      account_id: input.accountId,
-      doc_id: input.docId,
-      json_gcs_uri: input.jsonGcsUri,
-      source_gcs_uri: input.sourceGcsUri,
-      filename: input.filename,
-      page_count: input.pageCount,
-    });
-  }
-
-  async listParsedDocuments(accountId: string, limitCount: number): Promise<WikiBetaParsedDocument[]> {
-    if (!accountId) {
-      throw new Error("accountId is required");
-    }
-
-    const db = getFirebaseFirestore();
-    const accountRef = firestoreApi.collection(db, "accounts", accountId, "documents");
-    const accountQuery = firestoreApi.query(accountRef, firestoreApi.limit(limitCount));
-    const accountSnap = await firestoreApi.getDocs(accountQuery);
-    const docs = accountSnap.docs.map((item) => {
-      const data = objectOrEmpty(item.data());
-      return mapToParsedDocument(item.id, data);
-    });
-
-    return sortByUploadedAtDesc(docs);
-  }
-}
-
-export class FirebaseWikiBetaWorkspaceRepository implements WikiBetaWorkspaceRepository {
-  async listByAccountId(accountId: string): Promise<WikiBetaWorkspaceRef[]> {
-    const workspaces = await getWorkspacesForAccount(accountId);
-    return workspaces.map((workspace) => ({
-      id: workspace.id,
-      name: workspace.name,
-    }));
-  }
-}
-`````
-
-## File: modules/wiki-beta/infrastructure/repositories/in-memory-wiki-beta-library.repository.ts
-`````typescript
-import type {
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryRow,
-} from "../../domain/entities/wiki-beta-library.types";
-import type { WikiBetaLibraryRepository } from "../../domain/repositories/wiki-beta.repositories";
-
-function sortByDateDesc<T extends { updatedAt?: Date; createdAt?: Date }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const aTime = (a.updatedAt ?? a.createdAt ?? new Date(0)).getTime();
-    const bTime = (b.updatedAt ?? b.createdAt ?? new Date(0)).getTime();
-    return bTime - aTime;
-  });
-}
-
-export class InMemoryWikiBetaLibraryRepository implements WikiBetaLibraryRepository {
-  private readonly libraries = new Map<string, Map<string, WikiBetaLibrary>>();
-  private readonly fields = new Map<string, Map<string, WikiBetaLibraryField>>();
-  private readonly rows = new Map<string, Map<string, WikiBetaLibraryRow>>();
-
-  async listByAccountId(accountId: string): Promise<WikiBetaLibrary[]> {
-    const map = this.libraries.get(accountId);
-    if (!map) return [];
-    return sortByDateDesc(Array.from(map.values()));
-  }
-
-  async findById(accountId: string, libraryId: string): Promise<WikiBetaLibrary | null> {
-    const map = this.libraries.get(accountId);
-    if (!map) return null;
-    return map.get(libraryId) ?? null;
-  }
-
-  async create(library: WikiBetaLibrary): Promise<void> {
-    const map = this.getOrCreateLibraries(library.accountId);
-    if (map.has(library.id)) {
-      throw new Error(`Library ${library.id} already exists`);
-    }
-    map.set(library.id, library);
-  }
-
-  async createField(accountId: string, field: WikiBetaLibraryField): Promise<void> {
-    const key = this.fieldsKey(accountId, field.libraryId);
-    const map = this.getOrCreate(this.fields, key);
-    if (map.has(field.id)) {
-      throw new Error(`Field ${field.id} already exists`);
-    }
-    map.set(field.id, field);
-  }
-
-  async listFields(accountId: string, libraryId: string): Promise<WikiBetaLibraryField[]> {
-    const key = this.fieldsKey(accountId, libraryId);
-    const map = this.fields.get(key);
-    if (!map) return [];
-    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
-  }
-
-  async createRow(accountId: string, row: WikiBetaLibraryRow): Promise<void> {
-    const key = this.rowsKey(accountId, row.libraryId);
-    const map = this.getOrCreate(this.rows, key);
-    if (map.has(row.id)) {
-      throw new Error(`Row ${row.id} already exists`);
-    }
-    map.set(row.id, row);
-  }
-
-  async listRows(accountId: string, libraryId: string): Promise<WikiBetaLibraryRow[]> {
-    const key = this.rowsKey(accountId, libraryId);
-    const map = this.rows.get(key);
-    if (!map) return [];
-    return sortByDateDesc(Array.from(map.values()));
-  }
-
-  private getOrCreateLibraries(accountId: string): Map<string, WikiBetaLibrary> {
-    return this.getOrCreate(this.libraries, accountId);
-  }
-
-  private getOrCreate<T>(bucket: Map<string, Map<string, T>>, key: string): Map<string, T> {
-    const existing = bucket.get(key);
-    if (existing) return existing;
-    const created = new Map<string, T>();
-    bucket.set(key, created);
-    return created;
-  }
-
-  private fieldsKey(accountId: string, libraryId: string): string {
-    return `${accountId}:${libraryId}`;
-  }
-
-  private rowsKey(accountId: string, libraryId: string): string {
-    return `${accountId}:${libraryId}`;
-  }
-}
-`````
-
-## File: modules/wiki-beta/infrastructure/repositories/in-memory-wiki-beta-page.repository.ts
-`````typescript
-import type { WikiBetaPageRepository } from "../../domain/repositories/wiki-beta.repositories";
-import type { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
-
-function sortPages(pages: WikiBetaPage[]): WikiBetaPage[] {
-  return [...pages].sort((a, b) => {
-    if (a.order !== b.order) {
-      return a.order - b.order;
-    }
-    return a.title.localeCompare(b.title, "zh-Hant");
-  });
-}
-
-export class InMemoryWikiBetaPageRepository implements WikiBetaPageRepository {
-  private readonly accountPages = new Map<string, Map<string, WikiBetaPage>>();
-
-  async listByAccountId(accountId: string): Promise<WikiBetaPage[]> {
-    const pages = this.accountPages.get(accountId);
-    if (!pages) {
-      return [];
-    }
-    return sortPages(Array.from(pages.values()));
-  }
-
-  async findById(accountId: string, pageId: string): Promise<WikiBetaPage | null> {
-    const pages = this.accountPages.get(accountId);
-    if (!pages) {
-      return null;
-    }
-    return pages.get(pageId) ?? null;
-  }
-
-  async create(page: WikiBetaPage): Promise<void> {
-    const pages = this.getOrCreateAccountMap(page.accountId);
-    if (pages.has(page.id)) {
-      throw new Error(`WikiBetaPage with id ${page.id} already exists`);
-    }
-    pages.set(page.id, page);
-  }
-
-  async update(page: WikiBetaPage): Promise<void> {
-    const pages = this.getOrCreateAccountMap(page.accountId);
-    if (!pages.has(page.id)) {
-      throw new Error(`WikiBetaPage with id ${page.id} not found`);
-    }
-    pages.set(page.id, page);
-  }
-
-  private getOrCreateAccountMap(accountId: string): Map<string, WikiBetaPage> {
-    const existing = this.accountPages.get(accountId);
-    if (existing) {
-      return existing;
-    }
-
-    const created = new Map<string, WikiBetaPage>();
-    this.accountPages.set(accountId, created);
-    return created;
-  }
-}
 `````
 
 ## File: modules/wiki-beta/interfaces/components/WikiBetaWorkspaceView.tsx
@@ -42422,31 +40339,6 @@ export function WorkspaceSchedulingTab({
     </div>
   );
 }
-`````
-
-## File: modules/workspace/api/index.ts
-`````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-  WorkspacePersonnel,
-} from "../domain/entities/Workspace";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../interfaces/queries/workspace.queries";
 `````
 
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
@@ -57373,6 +55265,1863 @@ See [`agents/rules/`](agents/rules/) for the complete set of architecture, quali
 - Firebase CLI: `npx firebase` (no global install required)
 `````
 
+## File: app/(shell)/_components/app-rail.tsx
+`````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    {
+      href: "/wiki-beta",
+      label: "Account Wiki-Beta",
+      icon: <BookOpen className="size-[18px]" />,
+    },
+    {
+      href: "/ai-chat",
+      label: "AI 對話",
+      icon: <Bot className="size-[18px]" />,
+    },
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  /** Settings is pinned above the avatar, separate from main nav */
+  const settingsHref = "/settings";
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  function buildWikiBetaWorkspaceHref(workspaceId: string): string {
+    if (pathname.startsWith("/wiki-beta")) {
+      const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+    }
+    return `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
+  }
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            if (item.href === "/wiki-beta") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="Account Wiki-Beta: 切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">Account Wiki-Beta: 切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onSelectWorkspace(null);
+                        router.push("/wiki-beta");
+                      }}
+                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
+                    >
+                      Account Wiki-Beta 首頁
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWikiBetaWorkspaceHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        {/* ── Settings (pinned above avatar) ────────────────────────── */}
+        <div className="mb-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={settingsHref}
+                aria-current={isActive(settingsHref) ? "page" : undefined}
+                aria-label="個人設定"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                  isActive(settingsHref)
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Settings className="size-[18px]" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs">個人設定</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* ── User avatar / sign-out ────────────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="開啟使用者選單"
+                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                      {getInitial(user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="end" className="w-48">
+            <DropdownMenuLabel className="space-y-0.5">
+              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
+              登出
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
+  );
+}
+`````
+
+## File: app/(shell)/_components/dashboard-sidebar.tsx
+`````typescript
+"use client";
+
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+// ── Section helpers ──────────────────────────────────────────────────────────
+
+type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "account" | "organization" | "settings" | "other";
+
+function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
+  if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  if (pathname.startsWith("/settings")) return "settings";
+  return "other";
+}
+
+// ── Section icon labels for the title bar ────────────────────────────────────
+
+const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  "wiki-beta": { label: "Account Wiki-Beta", icon: <BookOpen className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  settings: { label: "設定", icon: <Settings className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+export function DashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
+  const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
+  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
+  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+  const searchParams = useSearchParams();
+
+  function toggleCollapsed() {
+    onToggleCollapsed();
+  }
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(() => {
+    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  const visibleAccountItems = useMemo(() => {
+    return ACCOUNT_NAV_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  // Whether to show recent workspaces section (controlled by personal prefs)
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  // Max workspaces to show (apply user preference)
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  // Track recently visited workspaces in localStorage
+  useEffect(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [activeAccount?.id, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [activeAccount?.id, pathname]);
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (typeof window === "undefined" || !pathname.startsWith("/wiki-beta")) {
+      return;
+    }
+
+    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
+    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(searchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+
+  const recentWorkspaceLinks = useMemo(() => {
+    return recentWorkspaceIds
+      .map((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+      })
+      .filter((item): item is { id: string; name: string; href: string } => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/wiki-beta")) {
+        const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
+
+  const allWorkspaceLinks = useMemo(() => {
+    return Object.values(workspacesById)
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        href: buildWorkspaceContextHref(workspace.id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [workspacesById, buildWorkspaceContextHref]);
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
+    ? rawWorkspaceTab
+    : "Overview";
+
+  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
+    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  }
+
+  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
+    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+  }
+
+  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
+    if (tab === "Wiki") {
+      const status = getWorkspaceTabStatus(tab);
+      return `${status} WorkSpace Wiki-Beta`;
+    }
+    const status = getWorkspaceTabStatus(tab);
+    return `${status} ${tWorkspaceTab(tab, fallback)}`;
+  }
+
+  function tWorkspaceGroup(groupKey: string, fallback: string) {
+    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
+  }
+
+  function getWorkspacePrefId(tabValue: string) {
+    if (isWorkspaceTabValue(tabValue)) {
+      return getWorkspaceTabPrefId(tabValue);
+    }
+    return tabValue.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function isWorkspaceItemEnabled(prefId: string) {
+    return navPrefs.pinnedWorkspace.includes(prefId);
+  }
+
+  function getWorkspaceItemOrder(prefId: string) {
+    const index = navPrefs.workspaceOrder.indexOf(prefId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
+    return [...items].sort(
+      (left, right) =>
+        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
+        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarLocale() {
+      const isZhHant =
+        typeof navigator !== "undefined" &&
+        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
+      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
+
+      try {
+        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as SidebarLocaleBundle;
+        if (!cancelled) {
+          setLocaleBundle(data);
+        }
+      } catch {
+        // Keep fallback labels when localization files are unavailable.
+      }
+    }
+
+    void loadSidebarLocale();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleWikiBetaQuickCreate(kind: "page" | "database") {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+
+    setCreatingKind(kind);
+    try {
+      const db = getFirebaseFirestore();
+      const collectionName = kind === "page" ? "pages" : "databases";
+      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
+
+      const payload: Record<string, unknown> = {
+        title: baseTitle,
+        kind,
+        accountId,
+        createdAt: firestoreApi.serverTimestamp(),
+        updatedAt: firestoreApi.serverTimestamp(),
+      };
+
+      if (activeWorkspaceId) {
+        payload.spaceId = activeWorkspaceId;
+      }
+
+      if (kind === "database") {
+        payload.template = "task-governance";
+        payload.metadata = {
+          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
+          description: "任務依賴與技能門檻分類模板",
+        };
+      }
+
+      await firestoreApi.addDoc(
+        firestoreApi.collection(db, "accounts", accountId, collectionName),
+        payload,
+      );
+
+      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
+      setWikiBetaQuickCreateOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <>
+    <aside
+      aria-label="Secondary navigation"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
+      }`}
+    >
+      <>
+          {/* ── Sidebar title bar ──────────────────────────────────── */}
+          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+            {/* Section label */}
+            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              {sectionMeta.icon}
+              {sectionMeta.label}
+            </span>
+            {/* Customize + collapse buttons grouped on the right */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                title="設定"
+                aria-label="設定"
+                onClick={() => {
+                  setCustomizeOpen(true);
+                }}
+                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="收起側欄"
+                title="收起側欄"
+                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Scrollable nav body ── section-specific ───────────── */}
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            {section === "account" && (
+              <>
+                {showAccountManagement && visibleAccountItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Account navigation">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      Account
+                    </p>
+                    {visibleAccountItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看 Account 選項。
+                  </p>
+                )}
+              </>
+            )}
+
+            {section === "organization" && (
+              <>
+                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Organization management">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      組織管理
+                    </p>
+                    {visibleOrganizationManagementItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看管理選項。
+                  </p>
+                )}
+              </>
+            )}
+
+            {section === "workspace" && (
+              <>
+                {workspacePathId ? (
+                  <nav className="space-y-3" aria-label="Workspace navigation">
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    {isWorkspaceItemEnabled("workspace-modules") && (
+                      <div className="my-1.5 border-t border-border/40" />
+                    )}
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("workspace-modules") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceModulesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceModulesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
+                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceModulesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("spaces") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceSpacesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceSpacesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
+                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceSpacesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
+                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                    .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("databases") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceDatabasesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
+                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceDatabasesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                  </nav>
+                ) : (
+                  // ── Workspace hub: show recent workspaces ──────────────
+                  <>
+                    {showRecentWorkspaces && (
+                      <div className="space-y-0.5">
+                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                          最近工作區
+                        </p>
+                        {visibleRecentWorkspaceLinks.length === 0 ? (
+                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                            尚無最近開啟的工作區。
+                          </p>
+                        ) : (
+                          visibleRecentWorkspaceLinks.map((ws) => (
+                            <Link
+                              key={ws.id}
+                              href={ws.href}
+                              onClick={() => {
+                                onSelectWorkspace(ws.id);
+                              }}
+                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                              }`}
+                              title={ws.name}
+                            >
+                              <span className="truncate">{ws.name}</span>
+                            </Link>
+                          ))
+                        )}
+                        {hasOverflow && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExpanded((prev) => !prev);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {isExpanded ? "收起" : "顯示更多"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {section === "wiki-beta" && (
+              <nav className="space-y-0.5" aria-label="Account Wiki-Beta navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Account Wiki-Beta
+                </p>
+                {(
+                  [
+                    { href: "/wiki-beta", label: "知識總覽" },
+                    { href: "/wiki-beta/block-editor", label: "區塊編輯器" },
+                    { href: "/wiki-beta/pages-dnd", label: "頁面 (DnD)" },
+                    { href: "/wiki-beta/rag-query", label: "RAG Query" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                  <Link
+                    href="/wiki-beta/documents"
+                    aria-current={isActiveRoute("/wiki-beta/documents") ? "page" : undefined}
+                    className={`flex-1 ${
+                      isActiveRoute("/wiki-beta/documents")
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Documents
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setWikiBetaQuickCreateOpen((prev) => !prev);
+                    }}
+                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
+                    aria-label="快速新增頁面或資料庫"
+                    title="快速新增"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+
+                  {wikiBetaQuickCreateOpen ? (
+                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiBetaQuickCreate("page")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiBetaQuickCreate("database")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {(
+                  [
+                    { href: "/wiki-beta/pages", label: "Pages" },
+                    { href: "/wiki-beta/libraries", label: "Libraries" },
+                    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="my-1.5 border-t border-border/40" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsWikiBetaWorkspacesExpanded((prev) => !prev);
+                  }}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-expanded={isWikiBetaWorkspacesExpanded}
+                >
+                  <span>Workspaces</span>
+                  {isWikiBetaWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                </button>
+
+                {isWikiBetaWorkspacesExpanded && (
+                  <div className="space-y-0.5 pl-2">
+                    {!workspacesHydrated ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+                    ) : allWorkspaceLinks.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+                    ) : (
+                      allWorkspaceLinks.map((workspace) => {
+                        const active = activeWorkspaceId === workspace.id;
+                        return (
+                          <Link
+                            key={workspace.id}
+                            href={workspace.href}
+                            onClick={() => {
+                              onSelectWorkspace(workspace.id);
+                            }}
+                            aria-current={active ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              active
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                            title={workspace.name}
+                          >
+                            <span className="truncate">{workspace.name}</span>
+                          </Link>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </nav>
+            )}
+
+            {section === "ai-chat" && (
+              <nav className="space-y-0.5" aria-label="AI Chat navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  AI Chat
+                </p>
+                {(
+                  [
+                    { href: "/ai-chat", label: "對話紀錄" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "settings" && (
+              <nav className="space-y-0.5" aria-label="Settings navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  個人設定
+                </p>
+                {(
+                  [
+                    { href: "/settings/profile", label: "個人資料" },
+                    { href: "/settings/general", label: "一般" },
+                    { href: "/settings/notifications", label: "推播通知" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+          </div>
+        </>
+    </aside>
+
+    <CustomizeNavigationDialog
+      open={customizeOpen}
+      onOpenChange={setCustomizeOpen}
+      onPreferencesChange={setNavPrefs}
+    />
+    </>
+  );
+}
+`````
+
+## File: app/(shell)/_components/header-controls.tsx
+`````typescript
+"use client";
+
+/**
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
+ */
+
+import { Bell, Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  type NotificationEntity,
+  markAllNotificationsRead,
+  markNotificationRead,
+  getNotificationsForRecipient,
+} from "@/modules/notification/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
+import { TranslationSwitcher } from "./translation-switcher";
+
+const THEME_KEY = "xuanwu_theme";
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+export function HeaderControls() {
+  const { state: authState } = useAuth();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const storedTheme = window.localStorage.getItem(THEME_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isNotificationLoading, setIsNotificationLoading] = useState(false);
+  const [isNotificationMutating, setIsNotificationMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const recipientId = authState.user?.id ?? "";
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, notification) => count + (notification.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsNotificationLoading(true);
+    try {
+      const nextNotifications = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(nextNotifications);
+    } finally {
+      setIsNotificationLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
+  async function handleNotificationOpenChange(nextOpen: boolean) {
+    setIsNotificationOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsNotificationMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === notificationId ? { ...notification, read: true } : notification,
+      ),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) {
+        setNotifications(previous);
+      }
+    } finally {
+      setIsNotificationMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsNotificationMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) {
+        setNotifications(previous);
+      }
+    } finally {
+      setIsNotificationMutating(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <TranslationSwitcher />
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="text-muted-foreground"
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+
+      <DropdownMenu open={isNotificationOpen} onOpenChange={handleNotificationOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Open notifications"
+            className="relative text-muted-foreground"
+          >
+            <Bell className="h-4 w-4" />
+            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-80 p-0">
+          <div className="flex items-center justify-between px-3 py-2">
+            <p className="text-sm font-semibold">Notifications</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={isNotificationMutating || unreadCount === 0}
+              onClick={handleMarkAllRead}
+            >
+              Mark all read
+            </Button>
+          </div>
+          <DropdownMenuSeparator />
+          <div className="max-h-80 overflow-y-auto">
+            {isNotificationLoading ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+            ) : notifications.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+            ) : (
+              notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => void handleMarkOneRead(notification.id)}
+                  disabled={isNotificationMutating}
+                  className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">{notification.title}</p>
+                    {!notification.read ? (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                    ) : null}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {notification.message}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatNotificationTime(notification.timestamp)}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+`````
+
 ## File: CLAUDE.md
 `````markdown
 # CLAUDE.md — Xuanwu App Context
@@ -60861,379 +60610,528 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 - Deep conceptual essays
 `````
 
-## File: modules/agent/api/index.ts
+## File: modules/account/interfaces/queries/account.queries.ts
 `````typescript
 /**
- * modules/agent — public API barrel.
+ * Account Read Queries — thin wrappers exposing read operations via the AccountQueryRepository port.
+ * These are NOT Server Actions — they are callable from React components/hooks.
  */
 
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
+import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
+import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
 
-export type {
-  AgentResponse,
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "../domain/entities/AgentGeneration";
+const accountQueryRepo = new FirebaseAccountQueryRepository();
 
-export type { AgentRepository } from "../domain/repositories/AgentRepository";
-export { GenerateAgentResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
-export { GenkitAgentRepository } from "../infrastructure/genkit/GenkitAgentRepository";
+// ─── User Profile ─────────────────────────────────────────────────────────────
 
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "@/modules/retrieval/api";
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return accountQueryRepo.getUserProfile(userId);
+}
 
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "@/modules/retrieval/api";
+export function subscribeToUserProfile(
+  userId: string,
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
+}
 
-export type { RagRetrievalRepository, RetrieveRagChunksInput } from "@/modules/retrieval/api";
+// ─── Wallet ───────────────────────────────────────────────────────────────────
 
-export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
-export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
-export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return accountQueryRepo.getWalletBalance(accountId);
+}
 
-export { answerRagQuery, generateAgentResponse } from "../interfaces/_actions/agent.actions";
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+// ─── Role ─────────────────────────────────────────────────────────────────────
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return accountQueryRepo.getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
+}
+
+// ─── Account Policy ───────────────────────────────────────────────────────────
+
+export async function getAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
+  void accountId;
+  // Keep client bundles free of server-only policy repository dependencies.
+  return [];
+}
+
+export async function getActiveAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
+  void accountId;
+  // Keep client bundles free of server-only policy repository dependencies.
+  return [];
+}
+
+// ─── Multi-Account (App-Level) ────────────────────────────────────────────────
+
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
+}
 `````
 
-## File: modules/agent/application/index.ts
-`````typescript
-export { GenerateAgentResponseUseCase } from "./use-cases/generate-agent-response.use-case";
-export { AnswerRagQueryUseCase } from "./use-cases/answer-rag-query.use-case";
-`````
-
-## File: modules/agent/application/use-cases/answer-rag-query.use-case.ts
+## File: modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts
 `````typescript
 /**
- * @deprecated AnswerRagQueryUseCase ownership is in modules/retrieval.
+ * Module: asset
+ * Layer: application/use-cases
+ * Purpose: WikiBeta-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API kept for backward compatibility with wiki-beta
+ *          interfaces during transitional decomposition.
  */
-export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
-`````
 
-## File: modules/agent/application/use-cases/generate-agent-response.use-case.ts
-`````typescript
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@/modules/event";
+import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
+
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryRow,
+} from "../domain/entities/wiki-beta-library.types";
+import type { WikiBetaLibraryRepository } from "../domain/repositories/WikiBetaLibraryRepository";
+import { InMemoryWikiBetaLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-beta-library.repository";
 
-export class GenerateAgentResponseUseCase {
-  constructor(private readonly agentRepository: AgentRepository) {}
+const defaultLibraryRepository: WikiBetaLibraryRepository = new InMemoryWikiBetaLibraryRepository();
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
 
-  async execute(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
-    const prompt = input.prompt.trim();
-    if (!prompt) {
-      return {
-        ok: false,
-        error: {
-          code: "AGENT_PROMPT_REQUIRED",
-          message: "Agent prompt is required.",
-        },
-      };
-    }
-
-    return this.agentRepository.generateResponse({
-      ...input,
-      prompt,
-      ...(typeof input.system === "string" ? { system: input.system.trim() } : {}),
-    });
+function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
   }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeName(name: string): string {
+  const value = name.trim();
+  if (!value) {
+    throw new Error("library name is required");
+  }
+  return value.slice(0, 80);
+}
+
+function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) {
+    throw new Error("field key is required");
+  }
+  return normalized.slice(0, 48);
+}
+
+function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiBetaLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((library) => library.slug));
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export async function listWikiBetaLibraries(
+  accountId: string,
+  workspaceId?: string,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibrary[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((library) => library.status === "active");
+  if (!workspaceId) {
+    return activeLibraries;
+  }
+  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
+}
+
+export async function createWikiBetaLibrary(
+  input: CreateWikiBetaLibraryInput,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibrary> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const name = normalizeName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiBetaLibrary = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.library.created",
+    aggregateType: "wiki-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiBetaLibraryField(
+  input: AddWikiBetaLibraryFieldInput,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((field) => field.key === key)) {
+    throw new Error(`field key "${key}" already exists`);
+  }
+
+  const field: WikiBetaLibraryField = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.library.field_added",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      fieldKey: field.key,
+      fieldType: field.type,
+    },
+  });
+
+  return field;
+}
+
+export async function createWikiBetaLibraryRow(
+  input: CreateWikiBetaLibraryRowInput,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  const requiredFields = fields.filter((field) => field.required);
+  for (const field of requiredFields) {
+    if (!(field.key in input.values)) {
+      throw new Error(`missing required field: ${field.key}`);
+    }
+  }
+
+  const now = new Date();
+  const row: WikiBetaLibraryRow = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.library.row_created",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      rowId: row.id,
+      fields: Object.keys(row.values),
+    },
+  });
+
+  return row;
+}
+
+export interface WikiBetaLibrarySnapshot {
+  library: WikiBetaLibrary;
+  fields: WikiBetaLibraryField[];
+  rows: WikiBetaLibraryRow[];
+}
+
+export async function getWikiBetaLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
 }
 `````
 
-## File: modules/agent/domain/entities/AgentGeneration.ts
-`````typescript
-import type { DomainError } from "@shared-types";
-
-export interface GenerateAgentResponseInput {
-  readonly prompt: string;
-  readonly model?: string;
-  readonly system?: string;
-}
-
-export interface AgentResponse {
-  readonly text: string;
-  readonly model: string;
-  readonly finishReason?: string;
-}
-
-export type GenerateAgentResponseResult =
-  | { ok: true; data: AgentResponse }
-  | { ok: false; error: DomainError };
-`````
-
-## File: modules/agent/domain/entities/message.ts
+## File: modules/asset/domain/entities/wiki-beta-library.types.ts
 `````typescript
 /**
- * modules/agent — domain entity: Message
+ * Module: asset
+ * Layer: domain/entities
+ * Purpose: WikiBeta-style library entity — lightweight structured-data model
+ *          used by the wiki-beta interfaces during the transitional period.
+ *          Lives in asset because libraries are an asset/database-resource concern.
  */
 
-import type { ID } from "@shared-types";
+export type WikiBetaLibraryStatus = "active" | "archived";
+export type WikiBetaLibraryFieldType = "title" | "text" | "number" | "select" | "relation";
 
-export type MessageRole = "user" | "assistant" | "system";
+export interface WikiBetaLibrary {
+  id: string;
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  status: WikiBetaLibraryStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export interface Message {
-  readonly id: ID;
-  readonly role: MessageRole;
-  readonly content: string;
-  readonly createdAt: string;
+export interface WikiBetaLibraryField {
+  id: string;
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiBetaLibraryFieldType;
+  required: boolean;
+  options?: string[];
+  createdAt: Date;
+}
+
+export interface WikiBetaLibraryRow {
+  id: string;
+  libraryId: string;
+  values: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateWikiBetaLibraryInput {
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+}
+
+export interface AddWikiBetaLibraryFieldInput {
+  accountId: string;
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiBetaLibraryFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface CreateWikiBetaLibraryRowInput {
+  accountId: string;
+  libraryId: string;
+  values: Record<string, unknown>;
 }
 `````
 
-## File: modules/agent/domain/entities/RagQuery.ts
+## File: modules/asset/domain/repositories/WikiBetaLibraryRepository.ts
 `````typescript
 /**
- * @deprecated Retrieval query contracts moved to modules/retrieval.
- */
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "@/modules/retrieval/api";
-`````
-
-## File: modules/agent/domain/entities/thread.ts
-`````typescript
-/**
- * modules/agent — domain entity: Thread
+ * Module: asset
+ * Layer: domain/repositories
+ * Purpose: Repository port for the WikiBeta library entity.
  */
 
-import type { ID } from "@shared-types";
-import type { Message } from "./message";
+import type {
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryRow,
+} from "../entities/wiki-beta-library.types";
 
-export interface Thread {
-  readonly id: ID;
-  readonly messages: Message[];
-  readonly createdAt: string;
+export interface WikiBetaLibraryRepository {
+  listByAccountId(accountId: string): Promise<WikiBetaLibrary[]>;
+  findById(accountId: string, libraryId: string): Promise<WikiBetaLibrary | null>;
+  create(library: WikiBetaLibrary): Promise<void>;
+  createField(accountId: string, field: WikiBetaLibraryField): Promise<void>;
+  listFields(accountId: string, libraryId: string): Promise<WikiBetaLibraryField[]>;
+  createRow(accountId: string, row: WikiBetaLibraryRow): Promise<void>;
+  listRows(accountId: string, libraryId: string): Promise<WikiBetaLibraryRow[]>;
 }
 `````
 
-## File: modules/agent/domain/index.ts
+## File: modules/asset/infrastructure/index.ts
 `````typescript
-export type {
-  AgentResponse,
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "./entities/AgentGeneration";
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "./entities/RagQuery";
-export type { AgentRepository } from "./repositories/AgentRepository";
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "./repositories/RagGenerationRepository";
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "./repositories/RagRetrievalRepository";
+export * from "./firebase/FirebaseFileRepository";
+export * from "./firebase/FirebaseRagDocumentRepository";
+export { InMemoryWikiBetaLibraryRepository } from "./repositories/in-memory-wiki-beta-library.repository";
 `````
 
-## File: modules/agent/domain/repositories/AgentRepository.ts
+## File: modules/asset/infrastructure/repositories/in-memory-wiki-beta-library.repository.ts
 `````typescript
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "../entities/AgentGeneration";
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryRow,
+} from "../../domain/entities/wiki-beta-library.types";
+import type { WikiBetaLibraryRepository } from "../../domain/repositories/WikiBetaLibraryRepository";
 
-export interface AgentRepository {
-  generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult>;
-}
-`````
-
-## File: modules/agent/domain/repositories/RagGenerationRepository.ts
-`````typescript
-/**
- * @deprecated RAG generation contracts moved to modules/retrieval.
- */
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "@/modules/retrieval/api";
-`````
-
-## File: modules/agent/domain/repositories/RagRetrievalRepository.ts
-`````typescript
-/**
- * @deprecated Retrieval repository contracts moved to modules/retrieval.
- */
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "@/modules/retrieval/api";
-`````
-
-## File: modules/agent/index.ts
-`````typescript
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
-`````
-
-## File: modules/agent/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
-`````typescript
-/**
- * @deprecated Retrieval adapter ownership moved to modules/retrieval.
- */
-export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
-`````
-
-## File: modules/agent/infrastructure/firebase/index.ts
-`````typescript
-export { FirebaseRagRetrievalRepository } from "./FirebaseRagRetrievalRepository";
-`````
-
-## File: modules/agent/infrastructure/genkit/client.ts
-`````typescript
-/**
- * @module modules/agent/infrastructure/genkit/client
- */
-
-import { googleAI } from "@genkit-ai/google-genai";
-import { genkit } from "genkit";
-
-const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
-
-export type GenkitClientOptions = {
-  model?: string;
-};
-
-export function getConfiguredGenkitModel(model?: string) {
-  return model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL;
-}
-
-export function createGenkitClient(options?: GenkitClientOptions) {
-  return genkit({
-    plugins: [googleAI()],
-    model: getConfiguredGenkitModel(options?.model),
+function sortByDateDesc<T extends { updatedAt?: Date; createdAt?: Date }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const aTime = (a.updatedAt ?? a.createdAt ?? new Date(0)).getTime();
+    const bTime = (b.updatedAt ?? b.createdAt ?? new Date(0)).getTime();
+    return bTime - aTime;
   });
 }
 
-export const agentClient = createGenkitClient();
-`````
+export class InMemoryWikiBetaLibraryRepository implements WikiBetaLibraryRepository {
+  private readonly libraries = new Map<string, Map<string, WikiBetaLibrary>>();
+  private readonly fields = new Map<string, Map<string, WikiBetaLibraryField>>();
+  private readonly rows = new Map<string, Map<string, WikiBetaLibraryRow>>();
 
-## File: modules/agent/infrastructure/genkit/GenkitAgentRepository.ts
-`````typescript
-import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { AgentRepository } from "../../domain/repositories/AgentRepository";
-import { agentClient, getConfiguredGenkitModel } from "./client";
+  async listByAccountId(accountId: string): Promise<WikiBetaLibrary[]> {
+    const map = this.libraries.get(accountId);
+    if (!map) return [];
+    return sortByDateDesc(Array.from(map.values()));
+  }
 
-export class GenkitAgentRepository implements AgentRepository {
-  async generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
-    try {
-      const response = await agentClient.generate({
-        prompt: input.prompt,
-        ...(input.system ? { system: input.system } : {}),
-        ...(input.model ? { model: input.model } : {}),
-      });
+  async findById(accountId: string, libraryId: string): Promise<WikiBetaLibrary | null> {
+    const map = this.libraries.get(accountId);
+    if (!map) return null;
+    return map.get(libraryId) ?? null;
+  }
 
-      return {
-        ok: true,
-        data: {
-          text: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          finishReason: response.finishReason ? String(response.finishReason) : undefined,
-        },
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "AGENT_GENERATE_FAILED",
-          message:
-            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
-        },
-      };
+  async create(library: WikiBetaLibrary): Promise<void> {
+    const map = this.getOrCreateLibraries(library.accountId);
+    if (map.has(library.id)) {
+      throw new Error(`Library ${library.id} already exists`);
     }
+    map.set(library.id, library);
+  }
+
+  async createField(accountId: string, field: WikiBetaLibraryField): Promise<void> {
+    const key = this.fieldsKey(accountId, field.libraryId);
+    const map = this.getOrCreate(this.fields, key);
+    if (map.has(field.id)) {
+      throw new Error(`Field ${field.id} already exists`);
+    }
+    map.set(field.id, field);
+  }
+
+  async listFields(accountId: string, libraryId: string): Promise<WikiBetaLibraryField[]> {
+    const key = this.fieldsKey(accountId, libraryId);
+    const map = this.fields.get(key);
+    if (!map) return [];
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
+  }
+
+  async createRow(accountId: string, row: WikiBetaLibraryRow): Promise<void> {
+    const key = this.rowsKey(accountId, row.libraryId);
+    const map = this.getOrCreate(this.rows, key);
+    if (map.has(row.id)) {
+      throw new Error(`Row ${row.id} already exists`);
+    }
+    map.set(row.id, row);
+  }
+
+  async listRows(accountId: string, libraryId: string): Promise<WikiBetaLibraryRow[]> {
+    const key = this.rowsKey(accountId, libraryId);
+    const map = this.rows.get(key);
+    if (!map) return [];
+    return sortByDateDesc(Array.from(map.values()));
+  }
+
+  private getOrCreateLibraries(accountId: string): Map<string, WikiBetaLibrary> {
+    return this.getOrCreate(this.libraries, accountId);
+  }
+
+  private getOrCreate<T>(bucket: Map<string, Map<string, T>>, key: string): Map<string, T> {
+    const existing = bucket.get(key);
+    if (existing) return existing;
+    const created = new Map<string, T>();
+    bucket.set(key, created);
+    return created;
+  }
+
+  private fieldsKey(accountId: string, libraryId: string): string {
+    return `${accountId}:${libraryId}`;
+  }
+
+  private rowsKey(accountId: string, libraryId: string): string {
+    return `${accountId}:${libraryId}`;
   }
 }
-`````
-
-## File: modules/agent/infrastructure/genkit/index.ts
-`````typescript
-/**
- * @module modules/agent/infrastructure/genkit
- */
-
-export {
-  agentClient,
-  createGenkitClient,
-  getConfiguredGenkitModel,
-  type GenkitClientOptions,
-} from "./client";
-export { GenkitAgentRepository } from "./GenkitAgentRepository";
-export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
-`````
-
-## File: modules/agent/infrastructure/index.ts
-`````typescript
-export * from "./firebase";
-export * from "./genkit";
-`````
-
-## File: modules/agent/interfaces/_actions/agent.actions.ts
-`````typescript
-"use server";
-
-import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/retrieval/api";
-import { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
-import { GenerateAgentResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
-import { GenkitAgentRepository } from "../../infrastructure/genkit/GenkitAgentRepository";
-import { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
-
-export async function generateAgentResponse(
-  input: GenerateAgentResponseInput,
-): Promise<GenerateAgentResponseResult> {
-  const useCase = new GenerateAgentResponseUseCase(new GenkitAgentRepository());
-  return useCase.execute(input);
-}
-
-export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-  const useCase = new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalRepository(),
-    new GenkitRagGenerationRepository(),
-  );
-  return useCase.execute(input);
-}
-`````
-
-## File: modules/agent/interfaces/index.ts
-`````typescript
-export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
 `````
 
 ## File: modules/asset/interfaces/components/AssetDocumentsView.tsx
@@ -61641,573 +61539,6 @@ export function AssetDocumentsView({ workspaceId }: AssetDocumentsViewProps) {
 }
 `````
 
-## File: modules/asset/interfaces/components/LibrariesView.tsx
-`````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
-
-import {
-  addWikiBetaLibraryField,
-  createWikiBetaLibrary,
-  createWikiBetaLibraryRow,
-  getWikiBetaLibrarySnapshot,
-  listWikiBetaLibraries,
-  type WikiBetaLibrary,
-  type WikiBetaLibraryFieldType,
-  type WikiBetaLibraryRow,
-} from "@/modules/wiki-beta/api";
-
-interface WikiBetaLibrariesViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-const FIELD_TYPES: WikiBetaLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseFieldType(value: string): WikiBetaLibraryFieldType {
-  if (value === "title") return "title";
-  if (value === "text") return "text";
-  if (value === "number") return "number";
-  if (value === "select") return "select";
-  if (value === "relation") return "relation";
-  return "text";
-}
-
-export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewProps) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [libraries, setLibraries] = useState<WikiBetaLibrary[]>([]);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
-  const [fieldsPreview, setFieldsPreview] = useState<{ key: string; label: string; type: string }[]>([]);
-  const [rowsPreview, setRowsPreview] = useState<WikiBetaLibraryRow[]>([]);
-
-  const [libraryName, setLibraryName] = useState("");
-  const [fieldKey, setFieldKey] = useState("");
-  const [fieldLabel, setFieldLabel] = useState("");
-  const [fieldType, setFieldType] = useState<WikiBetaLibraryFieldType>("text");
-  const [rowJson, setRowJson] = useState('{"title":"New record"}');
-
-  const selectedLibrary = useMemo(
-    () => libraries.find((library) => library.id === selectedLibraryId) ?? null,
-    [libraries, selectedLibraryId],
-  );
-
-  const refreshLibraries = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await listWikiBetaLibraries(accountId, workspaceId);
-      setLibraries(result);
-      if (!selectedLibraryId && result.length > 0) {
-        setSelectedLibraryId(result[0].id);
-      }
-      if (result.length === 0) {
-        setSelectedLibraryId("");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to list libraries");
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, selectedLibraryId, workspaceId]);
-
-  const refreshSelectedSnapshot = useCallback(async () => {
-    if (!selectedLibraryId) {
-      setFieldsPreview([]);
-      setRowsPreview([]);
-      return;
-    }
-
-    try {
-      const snapshot = await getWikiBetaLibrarySnapshot(accountId, selectedLibraryId);
-      setFieldsPreview(snapshot.fields.map((field) => ({ key: field.key, label: field.label, type: field.type })));
-      setRowsPreview(snapshot.rows);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load library snapshot");
-    }
-  }, [accountId, selectedLibraryId]);
-
-  useEffect(() => {
-    void refreshLibraries();
-  }, [refreshLibraries]);
-
-  useEffect(() => {
-    void refreshSelectedSnapshot();
-  }, [refreshSelectedSnapshot]);
-
-  const handleCreateLibrary = useCallback(async () => {
-    try {
-      await createWikiBetaLibrary({ accountId, workspaceId, name: libraryName });
-      setLibraryName("");
-      await refreshLibraries();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create library");
-    }
-  }, [accountId, libraryName, refreshLibraries, workspaceId]);
-
-  const handleAddField = useCallback(async () => {
-    if (!selectedLibraryId) return;
-    try {
-      await addWikiBetaLibraryField({
-        accountId,
-        libraryId: selectedLibraryId,
-        key: fieldKey,
-        label: fieldLabel,
-        type: fieldType,
-      });
-      setFieldKey("");
-      setFieldLabel("");
-      await refreshSelectedSnapshot();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to add field");
-    }
-  }, [accountId, fieldKey, fieldLabel, fieldType, refreshSelectedSnapshot, selectedLibraryId]);
-
-  const handleCreateRow = useCallback(async () => {
-    if (!selectedLibraryId) return;
-    try {
-      const parsed = JSON.parse(rowJson);
-      if (!isRecord(parsed)) {
-        throw new Error("row JSON must be an object");
-      }
-      const values = parsed;
-      await createWikiBetaLibraryRow({
-        accountId,
-        libraryId: selectedLibraryId,
-        values,
-      });
-      await refreshSelectedSnapshot();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create row");
-    }
-  }, [accountId, refreshSelectedSnapshot, rowJson, selectedLibraryId]);
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Libraries MVP</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Structured Data</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          對齊命名：Database/Data Source 在產品層統一為 Libraries。MVP 支援建立 library、定義 fields、建立 rows。
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          載入 libraries 中...
-        </div>
-      ) : null}
-
-      {error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
-      ) : null}
-
-      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto]">
-        <input
-          type="text"
-          value={libraryName}
-          onChange={(event) => setLibraryName(event.target.value)}
-          placeholder="Library name"
-          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
-        />
-        <button
-          type="button"
-          onClick={() => void handleCreateLibrary()}
-          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          建立 Library
-        </button>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <h3 className="text-sm font-semibold text-foreground">Libraries</h3>
-
-          <select
-            value={selectedLibraryId}
-            onChange={(event) => setSelectedLibraryId(event.target.value)}
-            className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
-            aria-label="Select library"
-          >
-            <option value="">Select library</option>
-            {libraries.map((library) => (
-              <option key={library.id} value={library.id}>
-                {library.name} ({library.slug})
-              </option>
-            ))}
-          </select>
-
-          {selectedLibrary ? (
-            <p className="text-xs text-muted-foreground">{selectedLibrary.name} / {selectedLibrary.slug}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">請先建立或選擇一個 library。</p>
-          )}
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fields</p>
-            {fieldsPreview.length === 0 ? (
-              <p className="text-xs text-muted-foreground">尚無欄位</p>
-            ) : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {fieldsPreview.map((field) => (
-                  <li key={field.key} className="rounded border border-border/60 bg-background px-2 py-1">
-                    {field.label} ({field.key}) - {field.type}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <h3 className="text-sm font-semibold text-foreground">Add Field / Add Row</h3>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <input
-              type="text"
-              value={fieldKey}
-              onChange={(event) => setFieldKey(event.target.value)}
-              placeholder="field key"
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm"
-            />
-            <input
-              type="text"
-              value={fieldLabel}
-              onChange={(event) => setFieldLabel(event.target.value)}
-              placeholder="field label"
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={fieldType}
-              onChange={(event) => setFieldType(parseFieldType(event.target.value))}
-              className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
-            >
-              {FIELD_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => void handleAddField()}
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
-            >
-              新增欄位
-            </button>
-          </div>
-
-          <textarea
-            value={rowJson}
-            onChange={(event) => setRowJson(event.target.value)}
-            className="min-h-24 w-full rounded-md border border-border/60 bg-background px-3 py-2 text-xs"
-            placeholder='{"title":"My record"}'
-          />
-
-          <button
-            type="button"
-            onClick={() => void handleCreateRow()}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
-          >
-            建立 Row
-          </button>
-
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Rows Preview</p>
-            {rowsPreview.length === 0 ? (
-              <p className="text-xs text-muted-foreground">尚無資料列</p>
-            ) : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {rowsPreview.slice(0, 5).map((row) => (
-                  <li key={row.id} className="rounded border border-border/60 bg-background px-2 py-1">
-                    {JSON.stringify(row.values)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-`````
-
-## File: modules/asset/interfaces/components/LibraryTableView.tsx
-`````typescript
-"use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
-
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  useReactTable,
-} from "@lib-tanstack";
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@lib-dragdrop";
-
-import {
-  getWikiBetaLibrarySnapshot,
-  listWikiBetaLibraries,
-  type WikiBetaLibraryRow,
-} from "@/modules/wiki-beta/api";
-
-interface LibraryTableViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-type RowData = WikiBetaLibraryRow & { _values: Record<string, unknown> };
-
-const columnHelper = createColumnHelper<RowData>();
-
-/**
- * WikiBetaLibraryTableView
- *
- * TanStack Table rendering library rows with:
- * - Column-level text filter (global filter input)
- * - Drag-to-reorder rows via pragmatic-drag-and-drop
- */
-export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewProps) {
-  const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [fieldKeys, setFieldKeys] = useState<string[]>([]);
-  const [rows, setRows] = useState<RowData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  // Load library list
-  useEffect(() => {
-    void (async () => {
-      try {
-        const result = await listWikiBetaLibraries(accountId, workspaceId);
-        setLibraries(result.map((l) => ({ id: l.id, name: l.name })));
-        if (result.length > 0 && result[0]) {
-          setSelectedId(result[0].id);
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "載入 Libraries 失敗");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [accountId, workspaceId]);
-
-  // Load rows when selection changes
-  useEffect(() => {
-    if (!selectedId) return;
-    void (async () => {
-      setLoading(true);
-      try {
-        const snap = await getWikiBetaLibrarySnapshot(accountId, selectedId);
-        const keys = snap.fields.map((f) => f.key);
-        setFieldKeys(keys);
-        setRows(
-          snap.rows.map((r) => ({
-            ...r,
-            _values: r.values as Record<string, unknown>,
-          })),
-        );
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "載入資料列失敗");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [accountId, selectedId]);
-
-  // DnD row reorder
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const fromId = source.data["rowId"] as string | undefined;
-        const toId = target.data["rowId"] as string | undefined;
-        if (!fromId || !toId || fromId === toId) return;
-        setRows((prev) => {
-          const fromIdx = prev.findIndex((r) => r.id === fromId);
-          const toIdx = prev.findIndex((r) => r.id === toId);
-          if (fromIdx === -1 || toIdx === -1) return prev;
-          const next = [...prev];
-          const [moved] = next.splice(fromIdx, 1);
-          if (!moved) return prev;
-          next.splice(toIdx, 0, moved);
-          return next;
-        });
-      },
-    });
-  }, []);
-
-  const columns = useMemo(
-    () =>
-      fieldKeys.map((key) =>
-        columnHelper.accessor((row) => String(row._values[key] ?? ""), {
-          id: key,
-          header: key,
-          cell: (info) => info.getValue(),
-        }),
-      ),
-    [fieldKeys],
-  );
-
-  const table = useReactTable({
-    data: rows,
-    columns,
-    state: { globalFilter: filter },
-    onGlobalFilterChange: setFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Library Table</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">資料庫表格</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          TanStack Table · 全域篩選 · 拖曳重排列
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
-          aria-label="選擇 Library"
-        >
-          {libraries.map((lib) => (
-            <option key={lib.id} value={lib.id}>
-              {lib.name}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="search"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="篩選…"
-          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/40"
-        />
-      </div>
-
-      {loading && <p className="text-sm text-muted-foreground">載入中…</p>}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {!loading && fieldKeys.length === 0 && (
-        <p className="text-sm text-muted-foreground">此 Library 尚未定義欄位，請先在 Libraries 頁面新增欄位與資料列。</p>
-      )}
-
-      {fieldKeys.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border/60">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted/40">
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id}>
-                  <th className="w-8 px-2 py-2" />
-                  {hg.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-widest text-muted-foreground"
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={fieldKeys.length + 1} className="px-3 py-4 text-center text-sm text-muted-foreground">
-                    無資料
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <DraggableRow key={row.id} rowId={row.original.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 py-2">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </DraggableRow>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
-interface DraggableRowProps {
-  readonly rowId: string;
-  readonly children: React.ReactNode;
-}
-
-function DraggableRow({ rowId, children }: DraggableRowProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const rowRef = useRef<HTMLTableRowElement>(null);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const rowEl = rowRef.current;
-    if (!handleEl || !rowEl) return;
-    const cleanupDraggable = draggable({
-      element: handleEl,
-      getInitialData: () => ({ rowId }),
-    });
-    const cleanupDrop = dropTargetForElements({
-      element: rowEl,
-      getData: () => ({ rowId }),
-    });
-    return () => {
-      cleanupDraggable();
-      cleanupDrop();
-    };
-  }, [rowId]);
-
-  return (
-    <tr ref={rowRef} className="transition hover:bg-muted/20">
-      <td className="px-2 py-2">
-        <button
-          ref={dragHandleRef}
-          type="button"
-          aria-label="拖曳重排"
-          className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
-        >
-          <GripVertical className="size-4 text-muted-foreground" />
-        </button>
-      </td>
-      {children}
-    </tr>
-  );
-}
-`````
-
 ## File: modules/asset/interfaces/hooks/useDocumentsSnapshot.ts
 `````typescript
 "use client";
@@ -62386,6 +61717,547 @@ export function useDocumentsSnapshot(
   const pendingDocs = accountId ? rawPending : [];
 
   return { docs, loading, pendingDocs, addPending, removePending };
+}
+`````
+
+## File: modules/content/application/use-cases/wiki-beta-pages.use-case.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: application/use-cases
+ * Purpose: WikiBeta-style page use-cases — create, rename, move, list tree.
+ *          Lightweight direct-function API (no DI class wrappers) kept for
+ *          backward compatibility with the wiki-beta interfaces during
+ *          transitional decomposition.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@/modules/event";
+import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
+
+import type {
+  CreateWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+  WikiBetaPage,
+  WikiBetaPageTreeNode,
+} from "../domain/entities/wiki-beta-page.types";
+import type { WikiBetaPageRepository } from "../domain/repositories/WikiBetaPageRepository";
+import { FirebaseWikiBetaPageRepository } from "../infrastructure/repositories/firebase-wiki-beta-page.repository";
+
+const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new Error("title is required");
+  }
+  return trimmed.slice(0, 120);
+}
+
+function sameParent(a: WikiBetaPage, parentPageId: string | null): boolean {
+  return (a.parentPageId ?? null) === parentPageId;
+}
+
+function ensureUniqueSlug(baseSlug: string, siblingPages: WikiBetaPage[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
+  const existing = new Set(siblingPages.map((page) => page.slug));
+
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this page title");
+}
+
+function toTree(pages: WikiBetaPage[]): WikiBetaPageTreeNode[] {
+  const nodeById = new Map<string, WikiBetaPageTreeNode>();
+  for (const page of pages) {
+    nodeById.set(page.id, { ...page, children: [] });
+  }
+
+  const roots: WikiBetaPageTreeNode[] = [];
+  for (const page of pages) {
+    const node = nodeById.get(page.id);
+    if (!node) continue;
+
+    if (!page.parentPageId) {
+      roots.push(node);
+      continue;
+    }
+
+    const parent = nodeById.get(page.parentPageId);
+    if (!parent) {
+      roots.push(node);
+      continue;
+    }
+    parent.children.push(node);
+  }
+
+  const sortRecursively = (nodes: WikiBetaPageTreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+      return a.title.localeCompare(b.title, "zh-Hant");
+    });
+    for (const node of nodes) {
+      sortRecursively(node.children);
+    }
+  };
+
+  sortRecursively(roots);
+  return roots;
+}
+
+function assertNoCycle(pages: WikiBetaPage[], pageId: string, targetParentPageId: string | null): void {
+  if (!targetParentPageId) {
+    return;
+  }
+  if (pageId === targetParentPageId) {
+    throw new Error("page cannot be moved under itself");
+  }
+
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  let current: string | null = targetParentPageId;
+  while (current) {
+    if (current === pageId) {
+      throw new Error("invalid move: target parent is a descendant of page");
+    }
+    current = byId.get(current)?.parentPageId ?? null;
+  }
+}
+
+export async function listWikiBetaPagesTree(
+  accountId: string,
+  workspaceId?: string,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPageTreeNode[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const allPages = await pageRepository.listByAccountId(accountId);
+  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
+  return toTree(pages.filter((page) => page.status === "active"));
+}
+
+export async function createWikiBetaPage(
+  input: CreateWikiBetaPageInput,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPage> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const title = normalizeTitle(input.title);
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const parentPageId = input.parentPageId ?? null;
+
+  if (parentPageId) {
+    const parent = pages.find((page) => page.id === parentPageId);
+    if (!parent) {
+      throw new Error("parent page not found");
+    }
+  }
+
+  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
+  const rawSlug = deriveSlugCandidate(title);
+  const slug = ensureUniqueSlug(rawSlug, siblingPages);
+  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+
+  const now = new Date();
+  const created: WikiBetaPage = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title,
+    slug,
+    parentPageId,
+    order,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await pageRepository.create(created);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.page.created",
+    aggregateType: "wiki-page",
+    aggregateId: created.id,
+    payload: {
+      accountId: created.accountId,
+      workspaceId: created.workspaceId,
+      parentPageId: created.parentPageId,
+      slug: created.slug,
+    },
+  });
+
+  return created;
+}
+
+export async function renameWikiBetaPage(
+  input: RenameWikiBetaPageInput,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPage> {
+  const title = normalizeTitle(input.title);
+  const existing = await pageRepository.findById(input.accountId, input.pageId);
+  if (!existing) {
+    throw new Error("page not found");
+  }
+
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
+  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
+
+  const updated: WikiBetaPage = {
+    ...existing,
+    title,
+    slug,
+    updatedAt: new Date(),
+  };
+
+  await pageRepository.update(updated);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.page.renamed",
+    aggregateType: "wiki-page",
+    aggregateId: updated.id,
+    payload: {
+      accountId: updated.accountId,
+      title: updated.title,
+      slug: updated.slug,
+    },
+  });
+
+  return updated;
+}
+
+export async function moveWikiBetaPage(
+  input: MoveWikiBetaPageInput,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPage> {
+  const existing = await pageRepository.findById(input.accountId, input.pageId);
+  if (!existing) {
+    throw new Error("page not found");
+  }
+
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const targetParentPageId = input.targetParentPageId ?? null;
+  assertNoCycle(pages, existing.id, targetParentPageId);
+
+  if (targetParentPageId) {
+    const targetParent = pages.find((page) => page.id === targetParentPageId);
+    if (!targetParent) {
+      throw new Error("target parent page not found");
+    }
+  }
+
+  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
+  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+
+  const moved: WikiBetaPage = {
+    ...existing,
+    parentPageId: targetParentPageId,
+    order,
+    updatedAt: new Date(),
+  };
+
+  await pageRepository.update(moved);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.page.moved",
+    aggregateType: "wiki-page",
+    aggregateId: moved.id,
+    payload: {
+      accountId: moved.accountId,
+      fromParentPageId: existing.parentPageId,
+      toParentPageId: moved.parentPageId,
+    },
+  });
+
+  return moved;
+}
+`````
+
+## File: modules/content/domain/entities/wiki-beta-page.types.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: domain/entities
+ * Purpose: WikiBeta-style page entity — lightweight page model used by the
+ *          wiki-beta interfaces during the transitional decomposition period.
+ *          Lives in content because pages are a content-domain concern.
+ */
+
+export type WikiBetaPageStatus = "active" | "archived";
+
+export interface WikiBetaPage {
+  id: string;
+  accountId: string;
+  workspaceId?: string;
+  title: string;
+  slug: string;
+  parentPageId: string | null;
+  order: number;
+  status: WikiBetaPageStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface WikiBetaPageTreeNode extends WikiBetaPage {
+  children: WikiBetaPageTreeNode[];
+}
+
+export interface CreateWikiBetaPageInput {
+  accountId: string;
+  workspaceId?: string;
+  title: string;
+  parentPageId?: string | null;
+}
+
+export interface RenameWikiBetaPageInput {
+  accountId: string;
+  pageId: string;
+  title: string;
+}
+
+export interface MoveWikiBetaPageInput {
+  accountId: string;
+  pageId: string;
+  targetParentPageId?: string | null;
+}
+`````
+
+## File: modules/content/domain/repositories/WikiBetaPageRepository.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: domain/repositories
+ * Purpose: Repository port for the WikiBeta page entity.
+ */
+
+import type { WikiBetaPage } from "../entities/wiki-beta-page.types";
+
+export interface WikiBetaPageRepository {
+  listByAccountId(accountId: string): Promise<WikiBetaPage[]>;
+  findById(accountId: string, pageId: string): Promise<WikiBetaPage | null>;
+  create(page: WikiBetaPage): Promise<void>;
+  update(page: WikiBetaPage): Promise<void>;
+}
+`````
+
+## File: modules/content/infrastructure/index.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: infrastructure/barrel
+ */
+
+export { FirebaseContentPageRepository } from "./firebase/FirebaseContentPageRepository";
+export { FirebaseContentBlockRepository } from "./firebase/FirebaseContentBlockRepository";
+export { FirebaseWikiBetaPageRepository } from "./repositories/firebase-wiki-beta-page.repository";
+export { InMemoryWikiBetaPageRepository } from "./repositories/in-memory-wiki-beta-page.repository";
+`````
+
+## File: modules/content/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
+`````typescript
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+
+import type { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
+import type { WikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function toDateOrNow(value: unknown): Date {
+  if (isRecord(value)) {
+    const maybeToDate = value.toDate;
+    if (typeof maybeToDate === "function") {
+      const converted = maybeToDate();
+      if (converted instanceof Date) {
+        return converted;
+      }
+    }
+  }
+  if (value instanceof Date) {
+    return value;
+  }
+  return new Date();
+}
+
+function mapToPage(id: string, accountId: string, data: Record<string, unknown>): WikiBetaPage {
+  return {
+    id,
+    accountId,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    title: typeof data.title === "string" ? data.title : "Untitled",
+    slug: typeof data.slug === "string" ? data.slug : id,
+    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
+    order: typeof data.order === "number" ? data.order : 0,
+    status: data.status === "archived" ? "archived" : "active",
+    createdAt: toDateOrNow(data.createdAt),
+    updatedAt: toDateOrNow(data.updatedAt),
+  };
+}
+
+function mapForWrite(page: WikiBetaPage): Record<string, unknown> {
+  return {
+    workspaceId: page.workspaceId ?? null,
+    title: page.title,
+    slug: page.slug,
+    parentPageId: page.parentPageId,
+    order: page.order,
+    status: page.status,
+    createdAt: page.createdAt,
+    updatedAt: page.updatedAt,
+  };
+}
+
+export class FirebaseWikiBetaPageRepository implements WikiBetaPageRepository {
+  async listByAccountId(accountId: string): Promise<WikiBetaPage[]> {
+    const db = getFirebaseFirestore();
+    const ref = firestoreApi.collection(db, "accounts", accountId, "pages");
+    const snap = await firestoreApi.getDocs(ref);
+
+    const pages = snap.docs.map((docSnap) => {
+      const raw = docSnap.data();
+      const data = isRecord(raw) ? raw : {};
+      return mapToPage(docSnap.id, accountId, data);
+    });
+
+    pages.sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+      return a.title.localeCompare(b.title, "zh-Hant");
+    });
+
+    return pages;
+  }
+
+  async findById(accountId: string, pageId: string): Promise<WikiBetaPage | null> {
+    const db = getFirebaseFirestore();
+    const ref = firestoreApi.doc(db, "accounts", accountId, "pages", pageId);
+    const snap = await firestoreApi.getDoc(ref);
+    if (!snap.exists()) {
+      return null;
+    }
+    const raw = snap.data();
+    const data = isRecord(raw) ? raw : {};
+    return mapToPage(snap.id, accountId, data);
+  }
+
+  async create(page: WikiBetaPage): Promise<void> {
+    const db = getFirebaseFirestore();
+    const ref = firestoreApi.doc(db, "accounts", page.accountId, "pages", page.id);
+    await firestoreApi.setDoc(ref, mapForWrite(page));
+  }
+
+  async update(page: WikiBetaPage): Promise<void> {
+    const db = getFirebaseFirestore();
+    const ref = firestoreApi.doc(db, "accounts", page.accountId, "pages", page.id);
+    await firestoreApi.updateDoc(ref, {
+      workspaceId: page.workspaceId ?? null,
+      title: page.title,
+      slug: page.slug,
+      parentPageId: page.parentPageId,
+      order: page.order,
+      status: page.status,
+      updatedAt: page.updatedAt,
+    });
+  }
+}
+`````
+
+## File: modules/content/infrastructure/repositories/in-memory-wiki-beta-page.repository.ts
+`````typescript
+import type { WikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+import type { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
+
+function sortPages(pages: WikiBetaPage[]): WikiBetaPage[] {
+  return [...pages].sort((a, b) => {
+    if (a.order !== b.order) {
+      return a.order - b.order;
+    }
+    return a.title.localeCompare(b.title, "zh-Hant");
+  });
+}
+
+export class InMemoryWikiBetaPageRepository implements WikiBetaPageRepository {
+  private readonly accountPages = new Map<string, Map<string, WikiBetaPage>>();
+
+  async listByAccountId(accountId: string): Promise<WikiBetaPage[]> {
+    const pages = this.accountPages.get(accountId);
+    if (!pages) {
+      return [];
+    }
+    return sortPages(Array.from(pages.values()));
+  }
+
+  async findById(accountId: string, pageId: string): Promise<WikiBetaPage | null> {
+    const pages = this.accountPages.get(accountId);
+    if (!pages) {
+      return null;
+    }
+    return pages.get(pageId) ?? null;
+  }
+
+  async create(page: WikiBetaPage): Promise<void> {
+    const pages = this.getOrCreateAccountMap(page.accountId);
+    if (pages.has(page.id)) {
+      throw new Error(`WikiBetaPage with id ${page.id} already exists`);
+    }
+    pages.set(page.id, page);
+  }
+
+  async update(page: WikiBetaPage): Promise<void> {
+    const pages = this.getOrCreateAccountMap(page.accountId);
+    if (!pages.has(page.id)) {
+      throw new Error(`WikiBetaPage with id ${page.id} not found`);
+    }
+    pages.set(page.id, page);
+  }
+
+  private getOrCreateAccountMap(accountId: string): Map<string, WikiBetaPage> {
+    const existing = this.accountPages.get(accountId);
+    if (existing) {
+      return existing;
+    }
+
+    const created = new Map<string, WikiBetaPage>();
+    this.accountPages.set(accountId, created);
+    return created;
+  }
 }
 `````
 
@@ -62590,455 +62462,6 @@ function BlockRow({ block, setBlockRef, onKeyDown, onChange }: BlockRowProps) {
 }
 `````
 
-## File: modules/content/interfaces/components/PagesDnDView.tsx
-`````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, Loader2 } from "lucide-react";
-
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@lib-dragdrop";
-
-import { listWikiBetaPagesTree, moveWikiBetaPage, type WikiBetaPageTreeNode } from "@/modules/wiki-beta/api";
-
-interface WikiBetaPagesDnDViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-/**
- * WikiBetaPagesDnDView
- *
- * Flat-list DnD reorder of top-level pages.
- * Dragging a page onto another triggers moveWikiBetaPage to update parent.
- * No over-engineering: single-level DnD with minimal state.
- */
-export function PagesDnDView({ accountId, workspaceId }: WikiBetaPagesDnDViewProps) {
-  const [pages, setPages] = useState<WikiBetaPageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const tree = await listWikiBetaPagesTree(accountId, workspaceId);
-      setPages(tree);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load pages");
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  // DnD monitor: drop page onto another → reparent
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const draggedId = source.data["pageId"] as string | undefined;
-        const targetId = target.data["pageId"] as string | undefined;
-        if (!draggedId || !targetId || draggedId === targetId) return;
-
-        // Optimistically reorder locally (flat reorder only)
-        setPages((prev) => {
-          const fromIdx = prev.findIndex((p) => p.id === draggedId);
-          const toIdx = prev.findIndex((p) => p.id === targetId);
-          if (fromIdx === -1 || toIdx === -1) return prev;
-          const next = [...prev];
-          const [moved] = next.splice(fromIdx, 1);
-          if (!moved) return prev;
-          next.splice(toIdx, 0, moved);
-          return next;
-        });
-
-        // Persist: move dragged page under target as parent
-        void moveWikiBetaPage({
-          accountId,
-          pageId: draggedId,
-          targetParentPageId: targetId,
-        }).catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : "移動失敗");
-          void refresh();
-        });
-      },
-    });
-  }, [accountId, refresh]);
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Pages DnD</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">頁面樹拖曳重組</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          使用 @atlaskit/pragmatic-drag-and-drop 拖曳頁面至另一個頁面下（重新設定父層）。
-        </p>
-      </div>
-
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          載入頁面中…
-        </div>
-      )}
-
-      {error && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-
-      {!loading && pages.length === 0 && (
-        <p className="text-sm text-muted-foreground">尚無頁面，請先在「頁面」頁面建立頁面。</p>
-      )}
-
-      {pages.length > 0 && (
-        <ul className="space-y-1.5">
-          {pages.map((page) => (
-            <DraggablePage key={page.id} page={page} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-interface DraggablePageProps {
-  readonly page: WikiBetaPageTreeNode;
-}
-
-function DraggablePage({ page }: DraggablePageProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const itemRef = useRef<HTMLLIElement>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const itemEl = itemRef.current;
-    if (!handleEl || !itemEl) return;
-
-    const cleanupDraggable = draggable({
-      element: handleEl,
-      getInitialData: () => ({ pageId: page.id }),
-    });
-    const cleanupDrop = dropTargetForElements({
-      element: itemEl,
-      getData: () => ({ pageId: page.id }),
-      onDragEnter: () => setIsDragOver(true),
-      onDragLeave: () => setIsDragOver(false),
-      onDrop: () => setIsDragOver(false),
-    });
-    return () => {
-      cleanupDraggable();
-      cleanupDrop();
-    };
-  }, [page.id]);
-
-  return (
-    <li
-      ref={itemRef}
-      className={`flex items-center gap-2 rounded-md border px-3 py-2 transition ${
-        isDragOver
-          ? "border-primary/60 bg-primary/5"
-          : "border-border/60 bg-background"
-      }`}
-    >
-      <button
-        ref={dragHandleRef}
-        type="button"
-        aria-label="拖曳重排"
-        className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
-      >
-        <GripVertical className="size-4 text-muted-foreground" />
-      </button>
-
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="truncate text-sm font-medium text-foreground">{page.title}</span>
-        <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-          {page.slug}
-        </span>
-        {page.children.length > 0 && (
-          <span className="shrink-0 text-[10px] text-muted-foreground/60">
-            {page.children.length} 子頁面
-          </span>
-        )}
-      </div>
-    </li>
-  );
-}
-`````
-
-## File: modules/content/interfaces/components/PagesView.tsx
-`````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
-
-import {
-  createWikiBetaPage,
-  listWikiBetaPagesTree,
-  moveWikiBetaPage,
-  renameWikiBetaPage,
-  type WikiBetaPageTreeNode,
-} from "@/modules/wiki-beta/api";
-
-interface WikiBetaPagesViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-interface FlatPageOption {
-  id: string;
-  label: string;
-}
-
-function flattenPages(nodes: WikiBetaPageTreeNode[], depth = 0): FlatPageOption[] {
-  const out: FlatPageOption[] = [];
-  for (const node of nodes) {
-    out.push({ id: node.id, label: `${"  ".repeat(depth)}${node.title}` });
-    out.push(...flattenPages(node.children, depth + 1));
-  }
-  return out;
-}
-
-function PageTreeNode({
-  node,
-  onCreateChild,
-  onRename,
-  onMove,
-}: {
-  readonly node: WikiBetaPageTreeNode;
-  readonly onCreateChild: (pageId: string) => void;
-  readonly onRename: (pageId: string, currentTitle: string) => void;
-  readonly onMove: (pageId: string, currentParentId: string | null) => void;
-}) {
-  return (
-    <li className="space-y-2 rounded-md border border-border/60 bg-background p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium text-foreground">{node.title}</p>
-        <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-          {node.slug}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs">
-        <button
-          type="button"
-          onClick={() => onCreateChild(node.id)}
-          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
-        >
-          建立子頁
-        </button>
-        <button
-          type="button"
-          onClick={() => onRename(node.id, node.title)}
-          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
-        >
-          重新命名
-        </button>
-        <button
-          type="button"
-          onClick={() => onMove(node.id, node.parentPageId)}
-          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
-        >
-          移動
-        </button>
-      </div>
-
-      {node.children.length > 0 ? (
-        <ul className="space-y-2 border-l border-border/60 pl-3">
-          {node.children.map((child) => (
-            <PageTreeNode
-              key={child.id}
-              node={child}
-              onCreateChild={onCreateChild}
-              onRename={onRename}
-              onMove={onMove}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
-export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
-  const [title, setTitle] = useState("");
-  const [parentPageId, setParentPageId] = useState<string>("");
-  const [tree, setTree] = useState<WikiBetaPageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const pageOptions = useMemo(() => flattenPages(tree), [tree]);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await listWikiBetaPagesTree(accountId, workspaceId);
-      setTree(result);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const handleCreate = useCallback(
-    async (targetParentPageId?: string | null) => {
-      const rawTitle = targetParentPageId ? window.prompt("子頁標題") : title;
-      if (!rawTitle) {
-        return;
-      }
-
-      const finalTitle = rawTitle.trim();
-      if (!finalTitle) {
-        return;
-      }
-      try {
-        await createWikiBetaPage({
-          accountId,
-          workspaceId,
-          title: finalTitle,
-          parentPageId: targetParentPageId ?? (parentPageId || null),
-        });
-
-        setTitle("");
-        setParentPageId("");
-        await refresh();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "create page failed";
-        setError(message);
-      }
-    },
-    [accountId, parentPageId, refresh, title, workspaceId],
-  );
-
-  const handleRename = useCallback(
-    async (pageId: string, currentTitle: string) => {
-      const nextTitle = window.prompt("新的頁面標題", currentTitle);
-      if (!nextTitle || !nextTitle.trim()) {
-        return;
-      }
-      try {
-        await renameWikiBetaPage({ accountId, pageId, title: nextTitle });
-        await refresh();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "rename page failed";
-        setError(message);
-      }
-    },
-    [accountId, refresh],
-  );
-
-  const handleMove = useCallback(
-    async (pageId: string, currentParentId: string | null) => {
-      const raw = window.prompt(
-        "輸入新的 parent page id，留空代表 root",
-        currentParentId ?? "",
-      );
-      if (raw === null) {
-        return;
-      }
-      try {
-        await moveWikiBetaPage({
-          accountId,
-          pageId,
-          targetParentPageId: raw.trim() ? raw.trim() : null,
-        });
-        await refresh();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "move page failed";
-        setError(message);
-      }
-    },
-    [accountId, refresh],
-  );
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Pages MVP</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Page Tree</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          目前為最小可行版本：建立、重新命名、移動頁面。slug 由 namespace policy 推導，操作會發佈 domain event。
-        </p>
-      </div>
-
-      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto_auto]">
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="輸入頁面標題"
-          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
-        />
-        <select
-          value={parentPageId}
-          onChange={(event) => setParentPageId(event.target.value)}
-          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
-          aria-label="Select parent page"
-        >
-          <option value="">Root</option>
-          {pageOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => void handleCreate(null)}
-          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          建立頁面
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          載入頁面樹中...
-        </div>
-      ) : error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
-      ) : tree.length === 0 ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未建立頁面，先新增第一個 root page。
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {tree.map((node) => (
-            <PageTreeNode
-              key={node.id}
-              node={node}
-              onCreateChild={(pageId) => void handleCreate(pageId)}
-              onRename={(pageId, currentTitle) => void handleRename(pageId, currentTitle)}
-              onMove={(pageId, currentParentId) => void handleMove(pageId, currentParentId)}
-            />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-`````
-
 ## File: modules/content/interfaces/index.ts
 `````typescript
 /**
@@ -63141,1654 +62564,559 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 }));
 `````
 
-## File: modules/knowledge-graph/Graph-ERD.mermaid
-`````
-erDiagram
-	GRAPH_NODE ||--o{ GRAPH_EDGE : "source of"
-	GRAPH_NODE ||--o{ GRAPH_EDGE : "target of"
-	GRAPH_NODE ||--o{ GRAPH_METADATA : "has"
-	GRAPH_EDGE ||--o{ GRAPH_METADATA : "has"
+## File: modules/knowledge-graph/README.md
+`````markdown
+# knowledge-graph — Knowledge Graph Layer
 
-	GRAPH_NODE {
-		string id
-		string namespaceId
-		string label
-		string type
-		string status
-		string createdBy
-		date createdAt
-		date activatedAt
-		date archivedAt
-	}
+`modules/knowledge-graph` は Knowledge Graph Layer の中核モジュールです。Wiki スタイルのナレッジグラフを管理し、ノード（GraphNode）とエッジ（GraphEdge）のライフサイクルを定義します。
 
-	GRAPH_EDGE {
-		string id
-		string sourceNodeId
-		string targetNodeId
-		string type
-		string status
-		float weight
-		string label
-		string createdBy
-		date createdAt
-		date activatedAt
-		date removedAt
-	}
+外界との互動規則：
+- 外界は `api/` のみを通じてこのモジュールを使用してください
+- UI は外部ページまたは他のモジュールが独自に組み立てます
+- `domain/`, `application/`, `infrastructure/`, `interfaces/` への直接インポートは禁止です
 
-	GRAPH_METADATA {
-		string id
-		string entityId
-		string entityType
-		string key
-		string value
-		date updatedAt
-	}
-`````
+## アーキテクチャ図
 
-## File: modules/knowledge-graph/Graph-Flow.mermaid
-`````
-flowchart TB
-	%% ==========================================================
-	%% Graph Module — Domain State Machine & Data Flow
-	%% Canonical lifecycle documentation for modules/graph
-	%% Graph = Knowledge Graph Layer (Wiki-style linked knowledge)
-	%% ==========================================================
+| ファイル | 内容 |
+|---|---|
+| [`./Graph-Flow.mermaid`](./Graph-Flow.mermaid) | ドメイン状態機械（GraphNode / GraphEdge ライフサイクル） |
+| [`./Graph-UI.mermaid`](./Graph-UI.mermaid) | UI 組み立てと API 境界（App Router → api/ → Vis.js キャンバス） |
+| [`./Graph-Tree.mermaid`](./Graph-Tree.mermaid) | MDDD ディレクトリ構造と境界ルール |
+| [`./Graph-Sequence.mermaid`](./Graph-Sequence.mermaid) | ノード作成・エッジリンクの循環図 |
+| [`./Graph-ERD.mermaid`](./Graph-ERD.mermaid) | エンティティ関聯図（GraphNode / GraphEdge / GraphMetadata） |
 
-	classDef node fill:#e8f3ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
-	classDef edge fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#0f172a;
-	classDef metadata fill:#fef9c3,stroke:#ca8a04,stroke-width:1.5px,color:#0f172a;
-	classDef data fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#0f172a;
-	classDef rule fill:#f8fafc,stroke:#64748b,stroke-dasharray: 5 5,color:#334155;
+---
 
-	subgraph NODE_FLOW [GraphNode State Machine]
-		direction LR
-		node_start((Start)):::rule --> node_draft[draft]:::node
-		node_draft -->|ACTIVATE<br/>label required| node_active[active]:::node
-		node_active -->|ARCHIVE<br/>guard: no pending edges| node_archived[archived]:::node
-		node_archived -->|RESTORE| node_active
-	end
+## コアプリンシプル
 
-	subgraph EDGE_FLOW [GraphEdge State Machine]
-		direction LR
-		edge_start((Start)):::rule --> edge_pending[pending]:::edge
-		edge_pending -->|ACTIVATE<br/>guard: both nodes active| edge_active[active]:::edge
-		edge_active -->|DEACTIVATE| edge_inactive[inactive]:::edge
-		edge_inactive -->|ACTIVATE| edge_active
-		edge_active -->|REMOVE<br/>guard: explicit delete| edge_removed[removed]:::edge
-		edge_pending -->|REMOVE| edge_removed
-	end
+```
+GraphNode   → 知識の単位 (Wiki ページに相当)
+GraphEdge   → 知識間の関係 (Wiki リンクに相当)
+GraphMetadata → 付加情報 (タグ / カテゴリ / カスタム属性)
+```
 
-	subgraph METADATA_FLOW [GraphMetadata]
-		direction LR
-		meta_attach[attach to node or edge]:::metadata --> meta_update[update properties]:::metadata --> meta_tag[tag / label assignment]:::metadata
-	end
+**独立した 2 つの状態機械が、それぞれのライフサイクルを管理します。**
 
-	subgraph CROSS_FLOW [Cross-Entity Relations]
-		direction TB
-		edge_guard[Edge requires both source and target nodes<br/>to be in active state before activation]:::rule
-		archive_guard[Node cannot be archived while<br/>any of its edges remain in pending or active state]:::rule
-		weight_rule[Edge weight defaults to 1.0<br/>updated by AI auto-link or manual edit]:::rule
-		api_rule[External consumers must access graph<br/>only through api/ facade]:::rule
-	end
+---
 
-	subgraph STORAGE [Firestore Collections]
-		direction TB
-		nodes_doc[graph_nodes<br/>GraphNodeDoc = Omit<GraphNode, id>]:::data
-		edges_doc[graph_edges<br/>GraphEdgeDoc = Omit<GraphEdge, id>]:::data
-		metadata_doc[graph_metadata<br/>GraphMetadataDoc = Omit<GraphMetadata, id>]:::data
-	end
+## 1. GraphNode State Machine
 
-	node_active -. source or target of .-> edge_pending
-	edge_active -. blocks archiving of .-> node_active
+```
+draft       --[ACTIVATE]-->   active
+active      --[ARCHIVE]-->    archived    (guard: no pending or active edges)
+archived    --[RESTORE]-->    active
+```
 
-	node_archived -. persisted as .-> nodes_doc
-	edge_removed -. persisted as .-> edges_doc
-	meta_tag -. persisted as .-> metadata_doc
+| state | 説明 |
+|---|---|
+| `draft` | ノード作成済み、未公開 |
+| `active` | 公開中・グラフに表示 |
+| `archived` | アーカイブ済み |
 
-	edge_guard -. applies to .-> edge_pending
-	archive_guard -. applies to .-> node_active
-	weight_rule -. governs .-> edge_active
-	api_rule -. governs .-> node_draft
-	api_rule -. governs .-> edge_pending
+---
+
+## 2. GraphEdge State Machine
+
+```
+pending     --[ACTIVATE]-->    active      (guard: both nodes active)
+active      --[DEACTIVATE]-->  inactive
+inactive    --[ACTIVATE]-->    active
+active      --[REMOVE]-->      removed
+pending     --[REMOVE]-->      removed
+```
+
+| state | 説明 |
+|---|---|
+| `pending` | エッジ作成済み、未有効化 |
+| `active` | 有効なエッジ |
+| `inactive` | 一時的に非表示 |
+| `removed` | 削除済み |
+
+---
+
+## 参照アーキテクチャ
+
+`docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` の Knowledge Graph Layer に対応します。
 `````
 
-## File: modules/knowledge-graph/Graph-Sequence.mermaid
-`````
-sequenceDiagram
-	autonumber
-	actor User
-	participant UI as External UI
-	participant API as graph/api
-	participant App as Application Use Case
-	participant Domain as Domain Rules
-	participant Repo as Repository
-	participant DB as Firestore
-
-	%% ── Create Node ──────────────────────────────────────────
-	User->>UI: Fill node form and submit
-	UI->>API: facade.createNode({ label, type, namespaceId })
-	API->>App: CreateNodeUseCase.execute(createNodeDto)
-	App->>Domain: validate label not empty and type allowed
-	Domain-->>App: validation passed
-	App->>Repo: save new GraphNode (status = draft)
-	Repo->>DB: write graph_nodes/{nodeId}
-	DB-->>Repo: written
-	Repo-->>App: GraphNode snapshot
-	App-->>API: GraphNodeSummary
-	API-->>UI: node created
-
-	%% ── Activate Node ────────────────────────────────────────
-	User->>UI: Click "Activate" on node detail panel
-	UI->>API: facade.activateNode(nodeId)
-	API->>App: ActivateNodeUseCase.execute(nodeId)
-	App->>Repo: load GraphNode
-	Repo->>DB: read graph_nodes/{nodeId}
-	DB-->>Repo: node doc
-	Repo-->>App: GraphNode (status = draft)
-	App->>Domain: validate ACTIVATE transition
-	Domain-->>App: transition allowed
-	App->>Repo: persist node status = active
-	Repo->>DB: update graph_nodes/{nodeId}
-	DB-->>Repo: updated
-	Repo-->>App: GraphNode snapshot
-	App-->>API: GraphNodeSummary
-	API-->>UI: node now active
-
-	%% ── Link Edge ────────────────────────────────────────────
-	User->>UI: Drag from source node to target node
-	UI->>API: facade.linkEdge({ sourceNodeId, targetNodeId, type, weight })
-	API->>App: LinkEdgeUseCase.execute(linkEdgeDto)
-	App->>Repo: load source and target GraphNodes
-	Repo->>DB: read graph_nodes/{sourceId} + graph_nodes/{targetId}
-	DB-->>Repo: both node docs
-	Repo-->>App: source + target nodes
-	App->>Domain: validate both nodes active, no duplicate edge
-	Domain-->>App: edge creation allowed
-	App->>Repo: save new GraphEdge (status = pending)
-	Repo->>DB: write graph_edges/{edgeId}
-	DB-->>Repo: written
-	Repo-->>App: GraphEdge snapshot
-	App->>Domain: validate ACTIVATE edge transition
-	Domain-->>App: transition allowed (both nodes active)
-	App->>Repo: persist edge status = active
-	Repo->>DB: update graph_edges/{edgeId}
-	DB-->>Repo: updated
-	Repo-->>App: GraphEdge snapshot
-	App-->>API: GraphEdgeSummary
-	API-->>UI: edge linked and active
-`````
-
-## File: modules/knowledge-graph/Graph-Tree.mermaid
-`````
-flowchart TB
-	%% ==========================================================
-	%% Graph Module Tree
-	%% Goal: all external consumers enter through api/
-	%% ==========================================================
-
-	classDef root fill:#0f172a,stroke:#0f172a,color:#f8fafc,stroke-width:2px;
-	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
-	classDef layer fill:#e2e8f0,stroke:#475569,color:#0f172a,stroke-width:1.5px;
-	classDef file fill:#f8fafc,stroke:#94a3b8,color:#0f172a;
-	classDef doc fill:#fff7ed,stroke:#ea580c,color:#7c2d12;
-	classDef forbid fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
-	classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
-
-	external_app[app routes / other modules / tests]:::external --> public_api
-
-	subgraph GRAPH [modules/graph]
-		direction TB
-		module_root[graph/]:::root
-
-		subgraph PUBLIC [Public Boundary]
-			direction TB
-			public_api[api/]:::api
-			public_api_index[index.ts<br/>only allowed cross-module entry]:::api
-			public_facade[graph.facade.ts<br/>createNode / linkEdge / archiveNode<br/>getViewConfig / updateEdgeWeight]:::file
-			public_contracts[contracts.ts<br/>GraphNodeSummary / GraphEdgeSummary<br/>GraphViewConfig / GraphLayout]:::file
-			public_api --> public_api_index
-			public_api --> public_facade
-			public_api --> public_contracts
-		end
-
-		subgraph INTERNAL [Internal Layers]
-			direction TB
-
-			readme[README.md<br/>module rules and architecture summary]:::doc
-			flow_doc[Graph-Flow.mermaid<br/>state machine overview]:::doc
-			tree_doc[Graph-Tree.mermaid<br/>module tree and boundary rules]:::doc
-
-			domain_layer[domain/]:::layer
-			application_layer[application/]:::layer
-			infrastructure_layer[infrastructure/]:::layer
-			interfaces_layer[interfaces/]:::layer
-			local_index[index.ts<br/>same-module convenience only]:::file
-
-			subgraph DOMAIN [domain/]
-				direction TB
-				domain_entities[entities/]:::layer
-				domain_events[events/]:::layer
-				domain_value_objects[value-objects/]:::layer
-				domain_services[services/]:::layer
-
-				file_models[entities/GraphNode.ts<br/>GraphEdge.ts<br/>GraphMetadata.ts<br/>view-config.ts]:::file
-				file_core[value-objects/NodeId.ts<br/>NodeStatus.ts<br/>EdgeStatus.ts<br/>EdgeType.ts]:::file
-				file_events[events/GraphNodeEvent.ts<br/>GraphEdgeEvent.ts]:::file
-				file_transitions[services/node-transition-policy.ts<br/>edge-transition-policy.ts<br/>node-guards.ts<br/>edge-guards.ts]:::file
-
-				domain_entities --> file_models
-				domain_value_objects --> file_core
-				domain_events --> file_events
-				domain_services --> file_transitions
-			end
-
-			subgraph APPLICATION [application/]
-				direction TB
-				application_dto[dto/]:::layer
-				application_ports[ports/]:::layer
-				application_use_cases[use-cases/]:::layer
-
-				file_ports[ports/GraphNodeRepository.ts<br/>GraphEdgeRepository.ts<br/>GraphMetadataRepository.ts]:::file
-				file_queries[dto/node-query.dto.ts<br/>edge-query.dto.ts]:::file
-				file_commands[dto/create-node.dto.ts<br/>link-edge.dto.ts<br/>update-view-config.dto.ts]:::file
-				file_use_cases[use-cases/create-node.use-case.ts<br/>link-edge.use-case.ts<br/>archive-node.use-case.ts<br/>update-edge-weight.use-case.ts]:::file
-
-				application_ports --> file_ports
-				application_dto --> file_queries
-				application_dto --> file_commands
-				application_use_cases --> file_use_cases
-			end
-
-			subgraph INFRA [infrastructure/]
-				direction TB
-				infra_firebase[firebase/]:::layer
-				infra_repositories[repositories/]:::layer
-
-				file_firestore[firebase/graph.collections.ts<br/>COLLECTIONS + document mappings]:::file
-				file_converters[firebase/node.converter.ts<br/>edge.converter.ts<br/>metadata.converter.ts]:::file
-				file_repositories[repositories/FirebaseGraphNodeRepository.ts<br/>FirebaseGraphEdgeRepository.ts<br/>FirebaseGraphMetadataRepository.ts]:::file
-
-				infra_firebase --> file_firestore
-				infra_firebase --> file_converters
-				infra_repositories --> file_repositories
-			end
-
-			subgraph INTERFACES [interfaces/]
-				direction TB
-				interfaces_actions[_actions/]:::layer
-				interfaces_queries[queries/]:::layer
-
-				file_interface_actions[_actions/graph.actions.ts<br/>createNode / linkEdge server actions]:::file
-				file_interface_queries[queries/graph.queries.ts<br/>getGraph / getNode / getEdge]:::file
-				interface_note[optional module-local server actions and queries<br/>product UI remains outside this module]:::doc
-
-				interfaces_layer --> interfaces_actions
-				interfaces_layer --> interfaces_queries
-				interfaces_actions --> file_interface_actions
-				interfaces_queries --> file_interface_queries
-				interfaces_layer --> interface_note
-			end
-		end
-
-		module_root --> public_api
-		module_root --> domain_layer
-		module_root --> application_layer
-		module_root --> infrastructure_layer
-		module_root --> interfaces_layer
-		module_root --> readme
-		module_root --> flow_doc
-		module_root --> tree_doc
-		module_root --> local_index
-
-		domain_layer --> DOMAIN
-		application_layer --> APPLICATION
-		infrastructure_layer --> INFRA
-	end
-
-	public_api_index --> application_layer
-	application_layer --> domain_layer
-	infrastructure_layer --> domain_layer
-	interfaces_layer --> application_layer
-
-	forbidden_domain[forbidden<br/>@/modules/graph/domain/*]:::forbid
-	forbidden_application[forbidden<br/>@/modules/graph/application/*]:::forbid
-	forbidden_infra[forbidden<br/>@/modules/graph/infrastructure/*]:::forbid
-	forbidden_interfaces[forbidden<br/>@/modules/graph/interfaces/*]:::forbid
-
-	external_app -. do not import .-> forbidden_domain
-	external_app -. do not import .-> forbidden_application
-	external_app -. do not import .-> forbidden_infra
-	external_app -. do not import .-> forbidden_interfaces
-
-	note_boundary[Cross-module rule<br/>external consumers must import only via<br/>@/modules/graph/api]:::doc
-	note_boundary --> public_api_index
-`````
-
-## File: modules/knowledge-graph/Graph-UI.mermaid
-`````
-flowchart LR
-	%% ==========================================================
-	%% Graph Module — UI Composition & API Boundary
-	%% UI is composed outside graph and consumes api/ only
-	%% Vis.js canvas rendering and node/edge interaction panels
-	%% ==========================================================
-
-	classDef page fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
-	classDef panel fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
-	classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
-	classDef canvas fill:#f0fdf4,stroke:#16a34a,color:#052e16,stroke-width:2px;
-	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
-	classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
-	classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
-
-	subgraph EXTERNAL_UI [External UI Composition — App Router]
-		direction TB
-
-		subgraph GRAPH_PAGE [Knowledge Graph Page]
-			direction LR
-
-			subgraph CANVAS_AREA [Graph Canvas — Vis.js]
-				direction TB
-				graph_page[Graph View Page<br/>/workspace/graph]:::page
-				vis_canvas[Vis.js Network Canvas<br/>node + edge rendering]:::canvas
-				layout_controls[Layout Controls<br/>force-directed / hierarchical / radial]:::panel
-				depth_filter[Depth Filter<br/>maxDepth slider]:::panel
-				graph_page --> vis_canvas
-				graph_page --> layout_controls
-				graph_page --> depth_filter
-			end
-
-			subgraph NODE_PANEL [Node Interaction Panel]
-				direction TB
-				node_detail[Node Detail Drawer]:::panel
-				node_label[Label / Type Editor]:::panel
-				node_actions[Activate / Archive / Restore Node]:::action
-				node_detail --> node_label
-				node_detail --> node_actions
-			end
-
-			subgraph EDGE_PANEL [Edge Interaction Panel]
-				direction TB
-				edge_detail[Edge Detail Drawer]:::panel
-				edge_weight[Weight / Label Editor]:::panel
-				edge_actions[Link Edge / Deactivate / Remove Edge]:::action
-				edge_detail --> edge_weight
-				edge_detail --> edge_actions
-			end
-
-			subgraph META_PANEL [Metadata Panel]
-				direction TB
-				meta_panel[Metadata Sidebar]:::panel
-				meta_tags[Tag / Category Assignment]:::panel
-				meta_props[Custom Property Editor]:::panel
-				meta_panel --> meta_tags
-				meta_panel --> meta_props
-			end
-		end
-	end
-
-	subgraph PUBLIC_API [graph Public API]
-		direction TB
-		api_index[api/index.ts]:::api
-		api_facade[api/graph.facade.ts<br/>createNode / linkEdge / archiveNode<br/>updateEdgeWeight / getViewConfig]:::api
-		api_contracts[api/contracts.ts<br/>GraphNodeSummary / GraphEdgeSummary<br/>GraphViewConfig]:::api
-		api_index --> api_facade
-		api_index --> api_contracts
-	end
-
-	subgraph INTERNAL_MODULE [graph Internal Logic]
-		direction TB
-		domain_logic[domain<br/>GraphNode + GraphEdge + GraphMetadata<br/>entities + events + guards + transitions]:::domain
-		application_logic[application<br/>DTOs + ports + use cases<br/>CreateNodeUseCase / LinkEdgeUseCase]:::domain
-		infrastructure_logic[infrastructure<br/>Firestore graph_nodes + graph_edges<br/>graph_metadata collections]:::domain
-		application_logic --> domain_logic
-		infrastructure_logic --> domain_logic
-	end
-
-	vis_canvas -->|load graph data| api_contracts
-	node_detail -->|load node details| api_contracts
-	node_actions -->|execute node commands| api_facade
-
-	edge_detail -->|load edge details| api_contracts
-	edge_actions -->|execute edge commands| api_facade
-
-	meta_panel -->|load metadata| api_contracts
-	meta_tags -->|update tags| api_facade
-
-	layout_controls -->|update view config| api_facade
-	depth_filter -->|update maxDepth| api_facade
-
-	api_facade --> application_logic
-	api_contracts --> application_logic
-
-	forbidden_domain[Do not bind UI directly to<br/>domain/*]:::rule
-	forbidden_application[Do not bind UI directly to<br/>application/*]:::rule
-	forbidden_infrastructure[Do not bind UI directly to<br/>infrastructure/*]:::rule
-
-	graph_page -. forbidden direct dependency .-> forbidden_domain
-	vis_canvas -. forbidden direct dependency .-> forbidden_application
-	node_detail -. forbidden direct dependency .-> forbidden_infrastructure
-`````
-
-## File: modules/retrieval/application/use-cases/answer-rag-query.use-case.ts
+## File: modules/notification/api/index.ts
 `````typescript
-import { randomUUID } from "node:crypto";
+/**
+ * Module: notification
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Notification domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
 
-import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
-import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "../domain/entities/Notification";
+
+// ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
+
+export { dispatchNotification } from "../interfaces/_actions/notification.actions";
+export {
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../interfaces/_actions/notification.actions";
+
+// ─── Query functions ──────────────────────────────────────────────────────────
+
+export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
+`````
+
+## File: modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts
+`````typescript
+/**
+ * Module: retrieval
+ * Layer: application/use-cases
+ * Purpose: WikiBeta-style RAG use-cases — run query, reindex document, list documents.
+ *          Thin delegation to the FirebaseWikiBetaContentRepository, kept for
+ *          backward compatibility during transitional decomposition.
+ */
+
+import type { WikiBetaContentRepository } from "../domain/repositories/WikiBetaContentRepository";
 import type {
-  AnswerRagQueryInput,
-  AnswerRagQueryResult,
-  RagRetrievalSummary,
-} from "../../domain/entities/RagQuery";
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../domain/entities/WikiBetaRagTypes";
+import { FirebaseWikiBetaContentRepository } from "../infrastructure/firebase/FirebaseWikiBetaContentRepository";
 
-const DEFAULT_TOP_K = 5;
-const MAX_TOP_K = 10;
+const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
 
-function normalizeTopK(value?: number) {
-  if (value === undefined) {
-    return DEFAULT_TOP_K;
-  }
-
-  if (!Number.isFinite(value)) {
-    return DEFAULT_TOP_K;
-  }
-
-  return Math.min(MAX_TOP_K, Math.max(1, Math.trunc(value)));
+export async function runWikiBetaRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: {
+    taxonomyFilters?: string[];
+    maxAgeDays?: number;
+    requireReady?: boolean;
+  } = {},
+  repository: WikiBetaContentRepository = defaultContentRepository,
+): Promise<WikiBetaRagQueryResult> {
+  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
 }
 
-export class AnswerRagQueryUseCase {
-  constructor(
-    private readonly ragRetrievalRepository: RagRetrievalRepository,
-    private readonly ragGenerationRepository: RagGenerationRepository,
-  ) {}
+export async function reindexWikiBetaDocument(
+  input: WikiBetaReindexInput,
+  repository: WikiBetaContentRepository = defaultContentRepository,
+): Promise<void> {
+  await repository.reindexDocument(input);
+}
 
-  async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-    const organizationId = input.organizationId.trim();
-    const workspaceId = input.workspaceId?.trim() || undefined;
-    const userQuery = input.userQuery.trim();
-    const taxonomy = input.taxonomy?.trim() || undefined;
-    const topK = normalizeTopK(input.topK);
-    const traceId = `rag-trace-${randomUUID()}`;
-    const scope = workspaceId ? "workspace" : "organization";
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: {
-          code: "QUERY_FILTER_SCOPE_MISSING",
-          message: "Organization is required for RAG queries.",
-          context: { traceId, scope: "organizationId" },
-        },
-      };
-    }
-
-    if (!userQuery) {
-      return {
-        ok: false,
-        error: {
-          code: "QUERY_INVALID_INPUT",
-          message: "User query is required.",
-          context: { traceId },
-        },
-      };
-    }
-
-    const chunks = await this.ragRetrievalRepository.retrieve({
-      organizationId,
-      ...(workspaceId ? { workspaceId } : {}),
-      normalizedQuery: userQuery.toLowerCase(),
-      taxonomy,
-      topK,
-    });
-
-    if (chunks.length === 0) {
-      return {
-        ok: false,
-        error: {
-          code: "NO_RELEVANT_CHUNKS",
-          message:
-            "No ready chunks matched the current organization/workspace scope. Verify ingestion completed and documents are marked ready before querying.",
-          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
-        },
-      };
-    }
-
-    const generation = await this.ragGenerationRepository.generate({
-      traceId,
-      organizationId,
-      ...(workspaceId ? { workspaceId } : {}),
-      userQuery,
-      chunks,
-      model: input.model,
-    });
-
-    if (!generation.ok) {
-      return generation;
-    }
-
-    const retrievalSummary: RagRetrievalSummary = {
-      mode: "skeleton-metadata-filter",
-      scope,
-      retrievedChunkCount: chunks.length,
-      topK,
-      ...(taxonomy ? { taxonomy } : {}),
-    };
-
-    return {
-      ok: true,
-      data: {
-        answer: generation.data.answer,
-        citations: generation.data.citations,
-        retrievalSummary,
-        model: generation.data.model,
-        traceId,
-        events: [
-          {
-            type: "token",
-            traceId,
-            payload: generation.data.answer,
-          },
-          ...generation.data.citations.map((citation) => ({
-            type: "citation" as const,
-            traceId,
-            payload: citation,
-          })),
-          {
-            type: "done",
-            traceId,
-            payload: retrievalSummary,
-          },
-        ],
-      },
-    };
-  }
+export async function listWikiBetaParsedDocuments(
+  accountId: string,
+  limitCount = 20,
+  repository: WikiBetaContentRepository = defaultContentRepository,
+): Promise<WikiBetaParsedDocument[]> {
+  return repository.listParsedDocuments(accountId, limitCount);
 }
 `````
 
-## File: modules/retrieval/domain/entities/RagQuery.ts
+## File: modules/retrieval/domain/entities/WikiBetaRagTypes.ts
 `````typescript
-import type { DomainError } from "@shared-types";
+/**
+ * Module: retrieval
+ * Layer: domain/entities
+ * Purpose: WikiBeta-style RAG document and query result types — the
+ *          lightweight RAG interface types used by the wiki-beta UI components
+ *          during the transitional decomposition period. Lives in retrieval
+ *          because RAG query/answer is a retrieval-domain concern.
+ */
 
-export interface RagRetrievedChunk {
-  readonly chunkId: string;
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly taxonomy: string;
-  readonly text: string;
-  readonly score: number;
+export interface WikiBetaCitation {
+  provider?: "vector" | "search";
+  chunk_id?: string;
+  doc_id?: string;
+  filename?: string;
+  json_gcs_uri?: string;
+  search_id?: string;
+  score?: number;
+  text?: string;
+  account_id?: string;
+  workspace_id?: string;
+  taxonomy?: string;
+  processing_status?: string;
+  indexed_at?: string;
 }
 
-export interface RagCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
+export interface WikiBetaRagQueryResult {
+  answer: string;
+  citations: WikiBetaCitation[];
+  cache: "hit" | "miss";
+  vectorHits: number;
+  searchHits: number;
+  accountScope: string;
+  workspaceScope?: string;
+  taxonomyFilters?: string[];
+  maxAgeDays?: number;
+  requireReady?: boolean;
 }
 
-export interface RagRetrievalSummary {
-  readonly mode: "skeleton-metadata-filter";
-  readonly scope: "organization" | "workspace";
-  readonly retrievedChunkCount: number;
-  readonly topK: number;
-  readonly taxonomy?: string;
+export interface WikiBetaParsedDocument {
+  id: string;
+  filename: string;
+  workspaceId: string;
+  sourceGcsUri: string;
+  jsonGcsUri: string;
+  pageCount: number;
+  status: string;
+  ragStatus: string;
+  uploadedAt: Date | null;
 }
 
-export interface RagStreamEvent {
-  readonly type: "token" | "citation" | "done" | "error";
-  readonly traceId: string;
-  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
-}
-
-export interface AnswerRagQueryInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly taxonomy?: string;
-  readonly topK?: number;
-  readonly model?: string;
-}
-
-export interface AnswerRagQueryOutput {
-  readonly answer: string;
-  readonly citations: readonly RagCitation[];
-  readonly retrievalSummary: RagRetrievalSummary;
-  readonly model: string;
-  readonly traceId: string;
-  readonly events: readonly RagStreamEvent[];
-}
-
-export type AnswerRagQueryResult =
-  | { ok: true; data: AnswerRagQueryOutput }
-  | { ok: false; error: DomainError };
-`````
-
-## File: modules/retrieval/domain/repositories/RagGenerationRepository.ts
-`````typescript
-import type { DomainError } from "@shared-types";
-
-import type { RagCitation, RagRetrievedChunk } from "../entities/RagQuery";
-
-export interface GenerateRagAnswerInput {
-  readonly traceId: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly chunks: readonly RagRetrievedChunk[];
-  readonly model?: string;
-}
-
-export interface GenerateRagAnswerOutput {
-  readonly answer: string;
-  readonly citations: readonly RagCitation[];
-  readonly model: string;
-}
-
-export type GenerateRagAnswerResult =
-  | { ok: true; data: GenerateRagAnswerOutput }
-  | { ok: false; error: DomainError };
-
-export interface RagGenerationRepository {
-  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
+export interface WikiBetaReindexInput {
+  accountId: string;
+  docId: string;
+  jsonGcsUri: string;
+  sourceGcsUri: string;
+  filename: string;
+  pageCount: number;
 }
 `````
 
-## File: modules/retrieval/domain/repositories/RagRetrievalRepository.ts
+## File: modules/retrieval/domain/repositories/WikiBetaContentRepository.ts
 `````typescript
-import type { RagRetrievedChunk } from "../entities/RagQuery";
+/**
+ * Module: retrieval
+ * Layer: domain/repositories
+ * Purpose: Repository port for WikiBeta RAG content operations (query + reindex).
+ */
 
-export interface RetrieveRagChunksInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly normalizedQuery: string;
-  readonly taxonomy?: string;
-  readonly topK: number;
-}
-
-export interface RagRetrievalRepository {
-  retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]>;
-}
-`````
-
-## File: modules/retrieval/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
-`````typescript
-import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { RagRetrievedChunk } from "../../domain/entities/RagQuery";
 import type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "../../domain/repositories/RagRetrievalRepository";
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../entities/WikiBetaRagTypes";
 
-interface FirestoreRagDocument {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly status?: string;
-  readonly taxonomy?: string;
-}
-
-const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
-const MIN_DOCUMENT_LIMIT = 20;
-const CHUNK_OVER_FETCH_MULTIPLIER = 10;
-const MIN_CHUNK_LIMIT = 50;
-
-interface FirestoreRagChunk {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly docId?: string;
-  readonly text?: string;
-  readonly taxonomy?: string;
-  readonly page?: number;
-  readonly chunkIndex?: number;
-}
-
-function tokenize(value: string): readonly string[] {
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
-    .map((token) => token.trim())
-    .filter(Boolean);
-}
-
-function scoreChunk(queryTokens: readonly string[], text: string) {
-  if (queryTokens.length === 0) {
-    return 0;
-  }
-
-  const haystack = tokenize(text);
-  if (haystack.length === 0) {
-    return 0;
-  }
-
-  const matches = queryTokens.filter((token) => haystack.includes(token)).length;
-  return matches / queryTokens.length;
-}
-
-export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
-    const documentsQuery = query(
-      collectionGroup(this.db, "documents"),
-      where("organizationId", "==", input.organizationId),
-      where("status", "==", "ready"),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
-    );
-
-    const documentSnapshots = await getDocs(documentsQuery);
-    const readyDocumentIds = new Set(
-      documentSnapshots.docs
-        .filter((snapshot) => {
-          const data = snapshot.data() as FirestoreRagDocument;
-          return data.status === "ready";
-        })
-        .map((snapshot) => snapshot.id),
-    );
-
-    if (readyDocumentIds.size === 0) {
-      return [];
-    }
-
-    const chunkQuery = query(
-      collectionGroup(this.db, "chunks"),
-      where("organizationId", "==", input.organizationId),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
-    );
-
-    const chunkSnapshots = await getDocs(chunkQuery);
-    const queryTokens = tokenize(input.normalizedQuery);
-
-    return chunkSnapshots.docs
-      .map((snapshot) => {
-        const data = snapshot.data() as FirestoreRagChunk;
-        const text = typeof data.text === "string" ? data.text : "";
-        const docId = typeof data.docId === "string" ? data.docId : "";
-        return {
-          chunkId: snapshot.id,
-          docId,
-          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
-          page: typeof data.page === "number" ? data.page : undefined,
-          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
-          text,
-          score: scoreChunk(queryTokens, text),
-          organizationId:
-            typeof data.organizationId === "string" ? data.organizationId : undefined,
-          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-        };
-      })
-      .filter(
-        (chunk) =>
-          chunk.docId && readyDocumentIds.has(chunk.docId) && chunk.score > 0,
-      )
-      .sort((left, right) => right.score - left.score)
-      .slice(0, input.topK)
-      .map(({ organizationId: _organizationId, workspaceId: _workspaceId, ...chunk }) => chunk);
-  }
+export interface WikiBetaContentRepository {
+  runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options?: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    },
+  ): Promise<WikiBetaRagQueryResult>;
+  reindexDocument(input: WikiBetaReindexInput): Promise<void>;
+  listParsedDocuments(accountId: string, limitCount: number): Promise<WikiBetaParsedDocument[]>;
 }
 `````
 
-## File: modules/retrieval/infrastructure/genkit/client.ts
+## File: modules/retrieval/infrastructure/firebase/FirebaseWikiBetaContentRepository.ts
 `````typescript
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 
-const DEFAULT_GENKIT_MODEL = "googleai/gemini-2.0-flash";
-const genkitModelFromEnv = process.env.GENKIT_MODEL?.trim();
-const configuredGenkitModel =
-  genkitModelFromEnv && genkitModelFromEnv.length > 0 ? genkitModelFromEnv : DEFAULT_GENKIT_MODEL;
-
-const hasGoogleAiApiKey =
-  typeof process.env.GOOGLE_GENAI_API_KEY === "string" &&
-  process.env.GOOGLE_GENAI_API_KEY.trim().length > 0;
-
-const plugins = hasGoogleAiApiKey ? [googleAI()] : [];
-
-export const aiClient = genkit({
-  plugins,
-  model: configuredGenkitModel,
-});
-
-export function getConfiguredGenkitModel(model?: string): string {
-  const normalized = model?.trim();
-  return normalized && normalized.length > 0 ? normalized : configuredGenkitModel;
-}
-`````
-
-## File: modules/retrieval/interfaces/components/RagQueryView.tsx
-`````typescript
-"use client";
-
-import { useState } from "react";
-import { Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@ui-shadcn/ui/accordion";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  runWikiBetaRagQuery,
-  type WikiBetaCitation,
-} from "@/modules/wiki-beta/api";
-
-interface RagQueryViewProps {
-  readonly workspaceId?: string;
-}
-
-/** Minimal RAG query chat interface. Uses local useState only – no streaming, no global state. */
-export function RagQueryView({ workspaceId }: RagQueryViewProps) {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
-  const [queried, setQueried] = useState(false);
-
-  async function handleSubmit() {
-    const q = query.trim();
-    if (!q) {
-      toast.error("請先輸入問題");
-      return;
-    }
-    if (authState.status !== "authenticated" || authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
-      toast.error("請先以真實帳號登入才能執行 RAG 查詢");
-      return;
-    }
-    if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法執行 RAG 查詢");
-      return;
-    }
-    if (!effectiveWorkspaceId) {
-      toast.error("請先選擇工作區，再執行 RAG 查詢");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
-        requireReady: true,
-      });
-      // Compatibility fallback for older vectors without ready status.
-      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
-          requireReady: false,
-          maxAgeDays: 3650,
-        });
-      }
-      setAnswer(result.answer);
-      setCitations(result.citations);
-      setQueried(true);
-    } catch (error) {
-      console.error(error);
-      toast.error("呼叫 rag_query 失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Query input */}
-      <Card>
-        <CardHeader>
-          <CardTitle>RAG Query</CardTitle>
-          <CardDescription>
-            輸入問題，取得 AI 回答與引用來源。
-            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
-            }}
-            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
-            rows={4}
-          />
-          <Button onClick={() => void handleSubmit()} disabled={loading}>
-            {loading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Search className="mr-2 size-4" />
-            )}
-            {loading ? "查詢中..." : "送出查詢"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Answer */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Answer</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Citations */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Citations</CardTitle>
-            <CardDescription>
-              {citations.length === 0
-                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
-                : `${citations.length} 筆引用來源`}
-            </CardDescription>
-          </CardHeader>
-          {citations.length > 0 && (
-            <CardContent>
-              <Accordion type="multiple" className="w-full">
-                {citations.map((citation, index) => (
-                  <AccordionItem
-                    key={`${citation.doc_id ?? "doc"}-${index}`}
-                    value={`citation-${index}`}
-                  >
-                    <AccordionTrigger className="text-sm font-medium">
-                      <span className="flex items-center gap-2">
-                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
-                        {citation.provider && (
-                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-                            {citation.provider}
-                          </span>
-                        )}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          )}
-        </Card>
-      )}
-    </div>
-  );
-}
-`````
-
-## File: modules/retrieval/interfaces/components/RagView.tsx
-`````typescript
-"use client";
-
-import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  ExternalLink,
-  FileText,
-  FileUp,
-  Loader2,
-  Pencil,
-  Search,
-  Trash2,
-  XCircle,
-} from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { runWikiBetaRagQuery, type WikiBetaCitation } from "@/modules/wiki-beta/api";
-import type { AssetLiveDocument as WikiBetaLiveDocument } from "@/modules/asset/api";
-import { useDocumentsSnapshot } from "@/modules/asset/api";
-
-interface WikiBetaRagViewProps {
-  readonly onBack: () => void;
-  readonly mode?: "all" | "query" | "reindex" | "documents";
-  readonly workspaceId?: string;
-  readonly showBackButton?: boolean;
-}
-
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const WATCH_PATH = "uploads/";
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif/.tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg/.jpeg",
-};
-
-const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-function formatDate(value: Date | null): string {
-  if (!value) return "-";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
+import type { WikiBetaContentRepository } from "../../domain/repositories/WikiBetaContentRepository";
+import type {
+  WikiBetaCitation,
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../../domain/entities/WikiBetaRagTypes";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
+  if (isRecord(value)) {
+    return value;
+  }
+  return {};
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (isRecord(error)) {
-    const direct = error.message;
-    if (typeof direct === "string" && direct.trim()) return direct;
-    const nestedMessage = objectOrEmpty(error.details).message;
-    if (typeof nestedMessage === "string" && nestedMessage.trim()) return nestedMessage;
+function toDateOrNull(value: unknown): Date | null {
+  if (!isRecord(value)) return null;
+  const maybeToDate = value.toDate;
+  if (typeof maybeToDate === "function") {
+    const converted = maybeToDate();
+    if (converted instanceof Date) {
+      return converted;
+    }
   }
-  return "未知錯誤";
+  return null;
 }
 
-function StatusBadge({ status, errorMessage }: { status: string; errorMessage: string }) {
-  if (status === "completed") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> 完成
-      </span>
-    );
+function toCitations(value: unknown): WikiBetaCitation[] {
+  if (!Array.isArray(value)) {
+    return [];
   }
-  if (status === "processing") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> 處理中
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={errorMessage || "未知錯誤"}
-      >
-        <XCircle className="size-3" /> 錯誤
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">{status || "-"}</span>;
+
+  return value.map((item) => {
+    if (!isRecord(item)) {
+      return {};
+    }
+
+    return {
+      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
+      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
+      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
+      filename: typeof item.filename === "string" ? item.filename : undefined,
+      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
+      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
+      score: typeof item.score === "number" ? item.score : undefined,
+      text: typeof item.text === "string" ? item.text : undefined,
+    };
+  });
 }
 
-function RagBadge({ status, error }: { status: string; error: string }) {
-  if (status === "ready") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> Ready
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={error || "未知錯誤"}
-      >
-        <XCircle className="size-3" /> Error
-      </span>
-    );
-  }
-  if (status) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> {status}
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">-</span>;
+function toNumberOrDefault(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-export function RagView({
-  onBack,
-  mode = "all",
-  workspaceId,
-  showBackButton = true,
-}: WikiBetaRagViewProps) {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() || "";
-  const showQueryCard = mode === "all" || mode === "query";
-  const showDocumentsCard = mode === "documents";
-  const showDocsSection = mode === "all" || showDocumentsCard;
+function resolveDocumentFilename(data: Record<string, unknown>): string {
+  const source = objectOrEmpty(data.source);
+  const metadata = objectOrEmpty(data.metadata);
 
-  const [query, setQuery] = useState("");
-  const [topK, setTopK] = useState("4");
-  const [loadingAnswer, setLoadingAnswer] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
-  const [cacheMode, setCacheMode] = useState<"hit" | "miss">("miss");
-  const [vectorHits, setVectorHits] = useState(0);
-  const [searchHits, setSearchHits] = useState(0);
-  const [accountScope, setAccountScope] = useState("(未查詢)");
+  const candidates = [
+    source.filename,
+    source.display_name,
+    data.title,
+    metadata.filename,
+    metadata.display_name,
+    source.original_filename,
+    metadata.original_filename,
+  ];
 
-  const { docs, loading: loadingDocs, pendingDocs, addPending, removePending } = useDocumentsSnapshot(
-    activeAccountId,
-    effectiveWorkspaceId || undefined,
-  );
-
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-
-  const appendLog = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString("zh-TW", { hour12: false });
-    setLogs((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 100));
-  }, []);
-
-  async function handleAsk() {
-    const q = query.trim();
-    if (!q) {
-      toast.error("請先輸入問題");
-      return;
-    }
-
-    setLoadingAnswer(true);
-    try {
-      if (authState.status !== "authenticated") {
-        toast.error("請先以真實帳號登入才能執行 RAG 查詢");
-        return;
-      }
-      if (authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
-        toast.error("請先以真實帳號登入才能執行 RAG 查詢（Dev-demo 帳號無法使用此功能）");
-        return;
-      }
-      if (!activeAccountId) {
-        toast.error("目前沒有 active account，無法執行 RAG 查詢");
-        return;
-      }
-      if (!effectiveWorkspaceId) {
-        toast.error("請先選擇工作區，再執行 RAG 查詢");
-        return;
-      }
-      const parsedTopK = Number(topK);
-      const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
-      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
-        requireReady: true,
-      });
-
-      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        appendLog("主要查詢無可用引用，啟用相容模式重試 (require_ready=false, max_age_days=3650)");
-        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
-          requireReady: false,
-          maxAgeDays: 3650,
-        });
-      }
-
-      setAnswer(result.answer);
-      setCitations(result.citations);
-      setCacheMode(result.cache);
-      setVectorHits(result.vectorHits);
-      setSearchHits(result.searchHits);
-      setAccountScope(result.accountScope);
-      appendLog(`RAG 查詢完成：hits vector=${result.vectorHits}, search=${result.searchHits}`);
-    } catch (error) {
-      console.error(error);
-      const detail = getErrorMessage(error);
-      toast.error(`呼叫 rag_query 失敗：${detail}`);
-      appendLog(`RAG 查詢失敗：${detail}`);
-    } finally {
-      setLoadingAnswer(false);
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
     }
   }
 
-  function buildUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
-
-  function handleFileChange(file: File | null) {
-    if (!file) { setSelectedFile(null); return; }
-    if (!(file.type in ACCEPTED_MIME)) {
-      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setSelectedFile(file);
-  }
-
-  async function handleUpload() {
-    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
-    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
-    setUploading(true);
-    let pendingDocId = "";
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      pendingDocId = docId;
-
-      addPending({
-        id: docId,
-        filename: selectedFile.name,
-        workspaceId: effectiveWorkspaceId,
-        sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`,
-        jsonGcsUri: "",
-        pageCount: 0,
-        status: "processing",
-        ragStatus: "",
-        uploadedAt: new Date(),
-        errorMessage: "",
-        ragError: "",
-        isClientPending: true,
-      });
-
-      const customMetadata: Record<string, string> = {
-        account_id: activeAccountId,
-        filename: selectedFile.name,
-        original_filename: selectedFile.name,
-        display_name: selectedFile.name,
-      };
-      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
-
-      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
-      toast.success("上傳成功，背景已開始解析與入庫");
-      appendLog(`上傳成功：${selectedFile.name} -> ${uploadPath}`);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      console.error(error);
-      toast.error("上傳失敗");
-      appendLog(`上傳失敗：${selectedFile.name}`);
-      if (pendingDocId) removePending(pendingDocId);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDelete(doc: WikiBetaLiveDocument) {
-    if (!activeAccountId) return;
-    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
-
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      if (doc.sourceGcsUri) {
-        try {
-          await storageApi.deleteObject(storageApi.ref(storage, doc.sourceGcsUri));
-        } catch {
-          // ignore storage-not-found
-        }
-      }
-      if (doc.jsonGcsUri) {
-        try {
-          await storageApi.deleteObject(storageApi.ref(storage, doc.jsonGcsUri));
-        } catch {
-          // ignore storage-not-found
-        }
-      }
-      const db = getFirebaseFirestore();
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
-      toast.success("文件已刪除");
-      appendLog(`刪除文件：${doc.filename}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("刪除失敗");
-      appendLog(`刪除失敗：${doc.filename}`);
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleRename(doc: WikiBetaLiveDocument) {
-    if (!activeAccountId) { toast.error("目前沒有 active account，無法更名"); return; }
-    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
-    if (!nextName || nextName === doc.filename) return;
-
-    setRenamingId(doc.id);
-    try {
-      const db = getFirebaseFirestore();
-      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
-        title: nextName,
-        "source.filename": nextName,
-        "metadata.filename": nextName,
-        updatedAt: firestoreApi.serverTimestamp(),
-      });
-      toast.success("文件名稱已更新");
-      appendLog(`更名文件：${doc.filename} -> ${nextName}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("更名失敗");
-      appendLog(`更名失敗：${doc.filename}`);
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  async function handleViewOriginal(doc: WikiBetaLiveDocument) {
-    if (!doc.sourceGcsUri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
-      window.open(url, "_blank", "noopener,noreferrer");
-      appendLog(`開啟原始檔：${doc.filename}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("無法開啟原始檔");
-      appendLog(`開啟原始檔失敗：${doc.filename}`);
-    }
-  }
-
-  const filteredDocs = useMemo(
-    () => [...pendingDocs, ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id))],
-    [docs, pendingDocs],
-  );
-
-  const statusSummary = useMemo(() => ({
-    total: filteredDocs.length,
-    processing: filteredDocs.filter((item) => item.status === "processing").length,
-    completed: filteredDocs.filter((item) => item.status === "completed").length,
-    errors: filteredDocs.filter((item) => item.status === "error").length,
-    ragReady: filteredDocs.filter((item) => item.ragStatus === "ready").length,
-    ragError: filteredDocs.filter((item) => item.ragStatus === "error").length,
-  }), [filteredDocs]);
-
-  const filteredReadyCount = useMemo(
-    () => filteredDocs.filter((item) => item.ragStatus === "ready").length,
-    [filteredDocs],
-  );
-
-  return (
-    <div className="space-y-4">
-      {showBackButton ? (
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button>
-        </div>
-      ) : null}
-
-      {showQueryCard ? (
-      <Card>
-        <CardHeader>
-          <CardTitle>RAG Query</CardTitle>
-          <CardDescription>直接呼叫 py_fn rag_query callable，取得回答與引用來源。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="請輸入問題，例如：總結最近三份文件的重要重點"
-            rows={4}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="w-28"
-              value={topK}
-              onChange={(event) => setTopK(event.target.value)}
-              inputMode="numeric"
-              placeholder="top_k"
-            />
-            <Button onClick={() => void handleAsk()} disabled={loadingAnswer}>
-              {loadingAnswer ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Search className="mr-2 size-4" />}
-              送出查詢
-            </Button>
-          </div>
-
-          <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Answer</p>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "尚未查詢"}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full border border-border/60 px-2 py-1">cache: {cacheMode}</span>
-              <span className="rounded-full border border-border/60 px-2 py-1">scope: {accountScope}</span>
-              <span className="rounded-full border border-border/60 px-2 py-1">vector hits: {vectorHits}</span>
-              <span className="rounded-full border border-border/60 px-2 py-1">search hits: {searchHits}</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Citations</p>
-            {citations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">尚無引用來源</p>
-            ) : (
-              citations.map((citation, index) => (
-                <div key={`${citation.doc_id ?? "doc"}-${index}`} className="rounded-md border border-border/60 p-3">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{citation.filename || citation.doc_id || "未命名文件"}</p>
-                    <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-                      {citation.provider || "unknown"}
-                    </span>
-                  </div>
-                  <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{citation.text || "(無節錄)"}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      ) : null}
-
-      {showDocsSection ? (
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload File</CardTitle>
-          <CardDescription>
-            {effectiveWorkspaceId
-              ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
-              : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <label
-            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => { event.preventDefault(); setDragging(false); handleFileChange(event.dataTransfer.files?.[0] ?? null); }}
-            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
-              dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
-            }`}
-          >
-            <FileUp className="size-7 text-muted-foreground" />
-            <div className="text-center">
-              <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
-              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={Object.keys(ACCEPTED_MIME).join(",")}
-              className="sr-only"
-              onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-            />
-          </label>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => void handleUpload()} disabled={uploading || !selectedFile || !activeAccountId}>
-              {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              {uploading ? "上傳中..." : "上傳並啟動解析"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-              disabled={uploading}
-            >
-              清除
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      ) : null}
-
-      {showDocsSection ? (
-      <section className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-md border border-border/60 bg-card p-3">
-          <p className="text-xs text-muted-foreground">全部</p>
-          <p className="text-lg font-semibold">{statusSummary.total}</p>
-        </div>
-        <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
-          <p className="text-xs text-blue-700">處理中</p>
-          <p className="text-lg font-semibold text-blue-700">{statusSummary.processing}</p>
-        </div>
-        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
-          <p className="text-xs text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold text-emerald-700">{statusSummary.completed}</p>
-        </div>
-        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
-          <p className="text-xs text-destructive">解析錯誤</p>
-          <p className="text-lg font-semibold text-destructive">{statusSummary.errors}</p>
-        </div>
-        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
-          <p className="text-xs text-emerald-700">RAG Ready</p>
-          <p className="text-lg font-semibold text-emerald-700">{statusSummary.ragReady}</p>
-        </div>
-        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
-          <p className="text-xs text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold text-destructive">{statusSummary.ragError}</p>
-        </div>
-      </section>
-      ) : null}
-
-      {showDocsSection ? (
-      <Card>
-        <CardHeader>
-          <CardTitle>檔案列表 + 解析狀態</CardTitle>
-          <CardDescription>
-            account: {activeAccountId || "(未選擇)"}
-            {` / scope: ${effectiveWorkspaceId ? `workspace:${effectiveWorkspaceId}` : "account 全覽"} / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-sm">
-              <thead>
-                <tr className="border-b border-border/60 bg-muted/40">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingDocs ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">讀取中...</td>
-                  </tr>
-                ) : filteredDocs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                      目前沒有可用文件。上傳後會在此顯示解析狀態。
-                    </td>
-                  </tr>
-                ) : (
-                  filteredDocs.map((doc) => (
-                    <tr key={doc.id} className="border-b border-border/40 last:border-0">
-                      <td className="px-3 py-2.5">
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-foreground" title={doc.filename}>
-                            {doc.filename}
-                            {doc.isClientPending ? (
-                              <span className="ml-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700">
-                                pending
-                              </span>
-                            ) : null}
-                          </p>
-                          <p className="text-xs text-muted-foreground">id: {doc.id}</p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.errorMessage} />
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <RagBadge status={doc.ragStatus} error={doc.ragError} />
-                      </td>
-                      <td className="px-3 py-2.5 text-xs">{doc.pageCount || "-"}</td>
-                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{formatDate(doc.uploadedAt)}</td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => void handleViewOriginal(doc)}
-                            disabled={!doc.sourceGcsUri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleRename(doc)}
-                            disabled={renamingId === doc.id}
-                            title="更名"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            {renamingId === doc.id ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(doc)}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-      ) : null}
-
-      {showDocsSection ? (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><FileText className="size-4" /> Runtime Console</CardTitle>
-          <CardDescription>顯示上傳與 CRUD 操作紀錄。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setLogs([])}>清除 Console</Button>
-            <span className="text-xs text-muted-foreground">{logs.length} 筆</span>
-          </div>
-          {logs.length === 0 ? (
-            <p className="text-xs text-muted-foreground">尚無紀錄</p>
-          ) : (
-            <div className="max-h-48 overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-3">
-              {logs.map((line, index) => (
-                <p key={`${line}-${index}`} className="font-mono text-xs leading-5 text-foreground/90">{line}</p>
-              ))}
-            </div>
-          )}
-          <div className="flex items-start gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-blue-700">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-            文件列表使用 Firestore 即時監聽，自動保持最新狀態。
-          </div>
-        </CardContent>
-      </Card>
-      ) : null}
-    </div>
-  );
+  return "";
 }
+
+function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiBetaParsedDocument {
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
+
+  const sourceGcsFromSource = typeof source.gcs_uri === "string" ? source.gcs_uri : "";
+  const sourceGcsFromMeta = typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : "";
+  const jsonGcsFromParsed = typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "";
+  const jsonGcsFromMeta = typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : "";
+  const workspaceIdFromDoc = typeof data.spaceId === "string" ? data.spaceId : "";
+  const workspaceIdFromMeta = typeof metadata.space_id === "string" ? metadata.space_id : "";
+
+  return {
+    id,
+    filename: resolveDocumentFilename(data) || id,
+    workspaceId: workspaceIdFromDoc || workspaceIdFromMeta,
+    sourceGcsUri: sourceGcsFromSource || sourceGcsFromMeta,
+    jsonGcsUri: jsonGcsFromParsed || jsonGcsFromMeta,
+    pageCount:
+      toNumberOrDefault(parsed.page_count) ||
+      toNumberOrDefault(metadata.page_count) ||
+      toNumberOrDefault(data.pageCount),
+    status: typeof data.status === "string" ? data.status : "unknown",
+    ragStatus: typeof rag.status === "string" ? rag.status : "",
+    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
+  };
+}
+
+function sortByUploadedAtDesc(documents: WikiBetaParsedDocument[]): WikiBetaParsedDocument[] {
+  const copied = [...documents];
+  copied.sort((a, b) => {
+    const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
+    const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
+    return bt - at;
+  });
+  return copied;
+}
+
+export class FirebaseWikiBetaContentRepository implements WikiBetaContentRepository {
+  async runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    } = {},
+  ): Promise<WikiBetaRagQueryResult> {
+    const functions = getFirebaseFunctions("asia-southeast1");
+    const callable = functionsApi.httpsCallable(functions, "rag_query");
+    const result = await callable({
+      query,
+      top_k: topK,
+      account_id: accountId,
+      workspace_id: workspaceId,
+      taxonomy_filters: options.taxonomyFilters ?? [],
+      max_age_days: options.maxAgeDays,
+      require_ready: options.requireReady,
+    });
+    const data = objectOrEmpty(result.data);
+
+    return {
+      answer: typeof data.answer === "string" ? data.answer : "",
+      citations: toCitations(data.citations),
+      cache: data.cache === "hit" ? "hit" : "miss",
+      vectorHits: typeof data.vector_hits === "number" ? data.vector_hits : 0,
+      searchHits: typeof data.search_hits === "number" ? data.search_hits : 0,
+      accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
+      workspaceScope: typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
+      taxonomyFilters: Array.isArray(data.taxonomy_filters)
+        ? data.taxonomy_filters.filter((value): value is string => typeof value === "string")
+        : undefined,
+      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
+      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
+    };
+  }
+
+  async reindexDocument(input: WikiBetaReindexInput): Promise<void> {
+    const functions = getFirebaseFunctions("asia-southeast1");
+    const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
+    await callable({
+      account_id: input.accountId,
+      doc_id: input.docId,
+      json_gcs_uri: input.jsonGcsUri,
+      source_gcs_uri: input.sourceGcsUri,
+      filename: input.filename,
+      page_count: input.pageCount,
+    });
+  }
+
+  async listParsedDocuments(accountId: string, limitCount: number): Promise<WikiBetaParsedDocument[]> {
+    if (!accountId) {
+      throw new Error("accountId is required");
+    }
+
+    const db = getFirebaseFirestore();
+    const accountRef = firestoreApi.collection(db, "accounts", accountId, "documents");
+    const accountQuery = firestoreApi.query(accountRef, firestoreApi.limit(limitCount));
+    const accountSnap = await firestoreApi.getDocs(accountQuery);
+    const docs = accountSnap.docs.map((item) => {
+      const data = objectOrEmpty(item.data());
+      return mapToParsedDocument(item.id, data);
+    });
+
+    return sortByUploadedAtDesc(docs);
+  }
+}
+`````
+
+## File: modules/wiki-beta/application/use-cases/wiki-beta-content-tree.use-case.ts
+`````typescript
+// Moved to modules/workspace. Re-exported for internal wiki-beta backward compatibility.
+export { buildWikiBetaContentTree } from "@/modules/workspace/api";
+`````
+
+## File: modules/wiki-beta/application/use-cases/wiki-beta-libraries.use-case.ts
+`````typescript
+// Moved to modules/asset. Re-exported for internal wiki-beta backward compatibility.
+export type { WikiBetaLibrarySnapshot } from "@/modules/asset/api";
+export {
+  addWikiBetaLibraryField,
+  createWikiBetaLibrary,
+  createWikiBetaLibraryRow,
+  getWikiBetaLibrarySnapshot,
+  listWikiBetaLibraries,
+} from "@/modules/asset/api";
+`````
+
+## File: modules/wiki-beta/application/use-cases/wiki-beta-pages.use-case.ts
+`````typescript
+// Moved to modules/content. Re-exported for internal wiki-beta backward compatibility.
+export {
+  createWikiBetaPage,
+  listWikiBetaPagesTree,
+  moveWikiBetaPage,
+  renameWikiBetaPage,
+} from "@/modules/content/api";
+`````
+
+## File: modules/wiki-beta/application/use-cases/wiki-beta-rag.use-case.ts
+`````typescript
+// Moved to modules/retrieval. Re-exported for internal wiki-beta backward compatibility.
+export {
+  runWikiBetaRagQuery,
+  reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/wiki-beta/domain/entities/wiki-beta-library.types.ts
+`````typescript
+// Moved to modules/asset. Re-exported for internal wiki-beta backward compatibility.
+export type {
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+} from "@/modules/asset/api";
+`````
+
+## File: modules/wiki-beta/domain/entities/wiki-beta-page.types.ts
+`````typescript
+// Moved to modules/content. Re-exported for internal wiki-beta backward compatibility.
+export type {
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
+  CreateWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+} from "@/modules/content/api";
+`````
+
+## File: modules/wiki-beta/domain/entities/wiki-beta.types.ts
+`````typescript
+// RAG types moved to modules/retrieval. Re-exported for internal wiki-beta backward compatibility.
+export type {
+  WikiBetaCitation,
+  WikiBetaRagQueryResult,
+  WikiBetaParsedDocument,
+  WikiBetaReindexInput,
+} from "@/modules/retrieval/api";
+
+// Content-tree types moved to modules/workspace. Re-exported for internal wiki-beta backward compatibility.
+export type {
+  WikiBetaAccountType,
+  WikiBetaWorkspaceRef,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaAccountContentNode,
+  WikiBetaAccountSeed,
+} from "@/modules/workspace/api";
+`````
+
+## File: modules/wiki-beta/domain/repositories/wiki-beta.repositories.ts
+`````typescript
+/**
+ * Module: wiki-beta
+ * Layer: domain/repositories
+ *
+ * Repository interfaces have been migrated to their canonical bounded-context modules:
+ *   WikiBetaPageRepository      → modules/content (internal)
+ *   WikiBetaLibraryRepository   → modules/asset (internal)
+ *   WikiBetaContentRepository   → modules/retrieval (internal)
+ *   WikiBetaWorkspaceRepository → modules/workspace (internal)
+ *
+ * Cross-module consumers should import from the target module's api/ boundary.
+ * This file is kept as a tombstone to aid in code archaeology.
+ */
 `````
 
 ## File: modules/wiki-beta/index.ts
@@ -64802,6 +63130,51 @@ export function RagView({
  * Do NOT import from domain/, application/, infrastructure/, or interfaces/ from outside this module.
  */
 export * from "./api";
+`````
+
+## File: modules/wiki-beta/infrastructure/index.ts
+`````typescript
+/**
+ * Module: wiki-beta
+ * Layer: infrastructure/barrel
+ *
+ * All infrastructure implementations have been migrated to their canonical
+ * bounded-context modules. This barrel is kept as a tombstone.
+ */
+`````
+
+## File: modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
+`````typescript
+/**
+ * Migrated to modules/content/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
+ * This tombstone file is intentionally empty.
+ */
+`````
+
+## File: modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta.repository.ts
+`````typescript
+/**
+ * Migrated to:
+ *   FirebaseWikiBetaContentRepository  → modules/retrieval/infrastructure/firebase/
+ *   FirebaseWikiBetaWorkspaceRepository → modules/workspace/infrastructure/firebase/
+ * This tombstone file is intentionally empty.
+ */
+`````
+
+## File: modules/wiki-beta/infrastructure/repositories/in-memory-wiki-beta-library.repository.ts
+`````typescript
+/**
+ * Migrated to modules/asset/infrastructure/repositories/in-memory-wiki-beta-library.repository.ts
+ * This tombstone file is intentionally empty.
+ */
+`````
+
+## File: modules/wiki-beta/infrastructure/repositories/in-memory-wiki-beta-page.repository.ts
+`````typescript
+/**
+ * Migrated to modules/content/infrastructure/repositories/in-memory-wiki-beta-page.repository.ts
+ * This tombstone file is intentionally empty.
+ */
 `````
 
 ## File: modules/wiki-beta/interfaces/components/WikiBetaBlockEditorView.tsx
@@ -64826,210 +63199,6 @@ export { LibrariesView as WikiBetaLibrariesView } from "@/modules/asset/api";
 `````typescript
 // Moved to modules/asset as LibraryTableView. Transitional re-export during wiki-beta decomposition.
 export { LibraryTableView as WikiBetaLibraryTableView } from "@/modules/asset/api";
-`````
-
-## File: modules/wiki-beta/interfaces/components/WikiBetaOverviewView.tsx
-`````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import { buildWikiBetaContentTree } from "../../api";
-import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "../../api";
-
-const QUICK_ACCESS = [
-  {
-    href: "/wiki-beta/pages",
-    title: "Pages",
-    description: "層級頁面結構、命名與移動管理。",
-    icon: FileText,
-  },
-  {
-    href: "/wiki-beta/libraries",
-    title: "Libraries",
-    description: "欄位模型與資料列維護。",
-    icon: Database,
-  },
-  {
-    href: "/wiki-beta/documents",
-    title: "Documents",
-    description: "文件上傳、處理與索引狀態。",
-    icon: BookOpen,
-  },
-  {
-    href: "/wiki-beta/rag-query",
-    title: "RAG Query",
-    description: "知識問答與引用檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export function WikiBetaOverviewView() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiBetaAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiBetaAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiBetaAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiBetaContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Account Wiki-Beta Dashboard</CardTitle>
-          <CardDescription>顯示目前 active account 底下的 Wiki-Beta 範圍，並提供 account-level 與 workspace-level 的進入點。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki-Beta</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account，點擊後直接進入該 workspace 的 Wiki-Beta 範圍。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Link key={workspace.workspaceId} href={workspace.href}>
-                  <Card className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 `````
 
 ## File: modules/wiki-beta/interfaces/components/WikiBetaPagesDnDView.tsx
@@ -65067,6 +63236,140 @@ export { useDocumentsSnapshot, mapToAssetLiveDocument as mapToLiveDocument } fro
 `````typescript
 // Moved to modules/content. Transitional re-export during wiki-beta decomposition.
 export { useBlockEditorStore, type Block } from "@/modules/content/api";
+`````
+
+## File: modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts
+`````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the WikiBeta sidebar content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+
+import type {
+  WikiBetaAccountContentNode,
+  WikiBetaAccountSeed,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+} from "../domain/entities/WikiBetaContentTree";
+import type { WikiBetaWorkspaceRepository } from "../domain/repositories/WikiBetaWorkspaceRepository";
+import { FirebaseWikiBetaWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
+
+const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
+
+function buildContentBaseItems(workspaceId: string): WikiBetaContentItemNode[] {
+  return [
+    { key: "spaces", label: "WorkSpace Wiki-Beta", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
+    { key: "pages", label: "Pages", href: "/wiki-beta/pages", enabled: true },
+    { key: "libraries", label: "Libraries", href: "/wiki-beta/libraries", enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/wiki-beta", enabled: false },
+    { key: "rag", label: "RAG", href: "/wiki-beta", enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiBetaWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}?tab=Wiki`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiBetaContentTree(
+  seeds: WikiBetaAccountSeed[],
+  workspaceRepository: WikiBetaWorkspaceRepository = defaultWorkspaceRepository,
+): Promise<WikiBetaAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiBetaAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
+`````
+
+## File: modules/workspace/domain/entities/WikiBetaContentTree.ts
+`````typescript
+/**
+ * Module: workspace
+ * Layer: domain/entities
+ * Purpose: WikiBeta content-tree navigation types — the sidebar/overview tree
+ *          built from workspace membership. Lives in workspace because the tree
+ *          is anchored to account→workspace hierarchy.
+ */
+
+export type WikiBetaAccountType = "personal" | "organization";
+
+export interface WikiBetaWorkspaceRef {
+  id: string;
+  name: string;
+}
+
+export interface WikiBetaContentItemNode {
+  key: "spaces" | "pages" | "libraries" | "documents" | "vector-index" | "rag" | "ai-tools";
+  label: string;
+  href: string;
+  enabled: boolean;
+}
+
+export interface WikiBetaWorkspaceContentNode {
+  workspaceId: string;
+  workspaceName: string;
+  href: string;
+  contentBaseItems: WikiBetaContentItemNode[];
+}
+
+export interface WikiBetaAccountContentNode {
+  accountId: string;
+  accountName: string;
+  accountType: WikiBetaAccountType;
+  isActive: boolean;
+  membersHref?: string;
+  teamsHref?: string;
+  workspaces: WikiBetaWorkspaceContentNode[];
+}
+
+export interface WikiBetaAccountSeed {
+  accountId: string;
+  accountName: string;
+  accountType: WikiBetaAccountType;
+  isActive: boolean;
+}
+`````
+
+## File: modules/workspace/domain/repositories/WikiBetaWorkspaceRepository.ts
+`````typescript
+/**
+ * Module: workspace
+ * Layer: domain/repositories
+ * Purpose: Repository port for fetching workspace refs used by the
+ *          WikiBeta content-tree use-case.
+ */
+
+import type { WikiBetaWorkspaceRef } from "../entities/WikiBetaContentTree";
+
+export interface WikiBetaWorkspaceRepository {
+  listByAccountId(accountId: string): Promise<WikiBetaWorkspaceRef[]>;
+}
 `````
 
 ## File: modules/workspace/index.ts
@@ -65142,6 +63445,24 @@ export {
   subscribeToWorkspacesForAccount,
 } from "./interfaces/queries/workspace.queries";
 export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";
+`````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository.ts
+`````typescript
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
+
+import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/WikiBetaWorkspaceRepository";
+import type { WikiBetaWorkspaceRef } from "../../domain/entities/WikiBetaContentTree";
+
+export class FirebaseWikiBetaWorkspaceRepository implements WikiBetaWorkspaceRepository {
+  async listByAccountId(accountId: string): Promise<WikiBetaWorkspaceRef[]> {
+    const workspaces = await getWorkspacesForAccount(accountId);
+    return workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+    }));
+  }
+}
 `````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -67330,6 +65651,238 @@ modules/*
 5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
+## File: docs/diagrams/architecture.mermaid
+`````
+%% Derived from domain-id-api-boundary-template-v2.mermaid
+%% Source mapping from docs/guides/explanation/architecture.md
+%% Domain count: 12 (expanded architecture layers + core business modules)
+flowchart LR
+    App["App / Orchestration Layer\nNext.js app routes and server actions"]
+    DependencyRule["Dependency Rule:\nall dependencies point inward\ninner layers never depend on outer layers"]
+
+    %% ---------------- Domain A ----------------
+    subgraph DomainA["Domain A - Content Workspace"]
+        direction TB
+        A_IF["interfaces/"]
+        A_API["api/"]
+        A_APP["application/"]
+        A_DOM["domain/"]
+        A_PORT["domain/ports + repositories"]
+        A_INF["infrastructure/"]
+        A_IF --> A_API --> A_APP --> A_DOM
+        A_APP -->|depends on abstraction| A_PORT
+        A_INF -.implements adapter for.-> A_PORT
+    end
+
+    %% ---------------- Domain B ----------------
+    subgraph DomainB["Domain B - Knowledge Graph"]
+        direction TB
+        B_IF["interfaces/"]
+        B_API["api/"]
+        B_APP["application/"]
+        B_DOM["domain/"]
+        B_PORT["domain/ports + repositories"]
+        B_INF["infrastructure/"]
+        B_IF --> B_API --> B_APP --> B_DOM
+        B_APP -->|depends on abstraction| B_PORT
+        B_INF -.implements adapter for.-> B_PORT
+    end
+
+    %% ---------------- Domain C ----------------
+    subgraph DomainC["Domain C - Schema and Ontology"]
+        direction TB
+        C_IF["interfaces/"]
+        C_API["api/"]
+        C_APP["application/"]
+        C_DOM["domain/"]
+        C_PORT["domain/ports + repositories"]
+        C_INF["infrastructure/"]
+        C_IF --> C_API --> C_APP --> C_DOM
+        C_APP -->|depends on abstraction| C_PORT
+        C_INF -.implements adapter for.-> C_PORT
+    end
+
+    %% ---------------- Domain D ----------------
+    subgraph DomainD["Domain D - Ingestion Pipeline"]
+        direction TB
+        D_IF["interfaces/"]
+        D_API["api/"]
+        D_APP["application/"]
+        D_DOM["domain/"]
+        D_PORT["domain/ports + repositories"]
+        D_INF["infrastructure/"]
+        D_IF --> D_API --> D_APP --> D_DOM
+        D_APP -->|depends on abstraction| D_PORT
+        D_INF -.implements adapter for.-> D_PORT
+    end
+
+    %% ---------------- Domain E ----------------
+    subgraph DomainE["Domain E - AI Memory"]
+        direction TB
+        E_IF["interfaces/"]
+        E_API["api/"]
+        E_APP["application/"]
+        E_DOM["domain/"]
+        E_PORT["domain/ports + repositories"]
+        E_INF["infrastructure/"]
+        E_IF --> E_API --> E_APP --> E_DOM
+        E_APP -->|depends on abstraction| E_PORT
+        E_INF -.implements adapter for.-> E_PORT
+    end
+
+    %% ---------------- Domain F ----------------
+    subgraph DomainF["Domain F - Indexing and Retrieval"]
+        direction TB
+        F_IF["interfaces/"]
+        F_API["api/"]
+        F_APP["application/"]
+        F_DOM["domain/"]
+        F_PORT["domain/ports + repositories"]
+        F_INF["infrastructure/"]
+        F_IF --> F_API --> F_APP --> F_DOM
+        F_APP -->|depends on abstraction| F_PORT
+        F_INF -.implements adapter for.-> F_PORT
+    end
+
+    %% ---------------- Domain G ----------------
+    subgraph DomainG["Domain G - Reasoning and Grounding"]
+        direction TB
+        G_IF["interfaces/"]
+        G_API["api/"]
+        G_APP["application/"]
+        G_DOM["domain/"]
+        G_PORT["domain/ports + repositories"]
+        G_INF["infrastructure/"]
+        G_IF --> G_API --> G_APP --> G_DOM
+        G_APP -->|depends on abstraction| G_PORT
+        G_INF -.implements adapter for.-> G_PORT
+    end
+
+    %% ---------------- Domain H ----------------
+    subgraph DomainH["Domain H - Tool and Agent Orchestration"]
+        direction TB
+        H_IF["interfaces/"]
+        H_API["api/"]
+        H_APP["application/"]
+        H_DOM["domain/"]
+        H_PORT["domain/ports + repositories"]
+        H_INF["infrastructure/"]
+        H_IF --> H_API --> H_APP --> H_DOM
+        H_APP -->|depends on abstraction| H_PORT
+        H_INF -.implements adapter for.-> H_PORT
+    end
+
+    %% ---------------- Domain I ----------------
+    subgraph DomainI["Domain I - Account Module"]
+        direction TB
+        I_IF["interfaces/"]
+        I_API["api/"]
+        I_APP["application/"]
+        I_DOM["domain/"]
+        I_PORT["domain/ports + repositories"]
+        I_INF["infrastructure/"]
+        I_IF --> I_API --> I_APP --> I_DOM
+        I_APP -->|depends on abstraction| I_PORT
+        I_INF -.implements adapter for.-> I_PORT
+    end
+
+    %% ---------------- Domain J ----------------
+    subgraph DomainJ["Domain J - Identity Module"]
+        direction TB
+        J_IF["interfaces/"]
+        J_API["api/"]
+        J_APP["application/"]
+        J_DOM["domain/"]
+        J_PORT["domain/ports + repositories"]
+        J_INF["infrastructure/"]
+        J_IF --> J_API --> J_APP --> J_DOM
+        J_APP -->|depends on abstraction| J_PORT
+        J_INF -.implements adapter for.-> J_PORT
+    end
+
+    %% ---------------- Domain K ----------------
+    subgraph DomainK["Domain K - Organization Module"]
+        direction TB
+        K_IF["interfaces/"]
+        K_API["api/"]
+        K_APP["application/"]
+        K_DOM["domain/"]
+        K_PORT["domain/ports + repositories"]
+        K_INF["infrastructure/"]
+        K_IF --> K_API --> K_APP --> K_DOM
+        K_APP -->|depends on abstraction| K_PORT
+        K_INF -.implements adapter for.-> K_PORT
+    end
+
+    %% ---------------- Domain L ----------------
+    subgraph DomainL["Domain L - Asset Module"]
+        direction TB
+        L_IF["interfaces/"]
+        L_API["api/"]
+        L_APP["application/"]
+        L_DOM["domain/"]
+        L_PORT["domain/ports + repositories"]
+        L_INF["infrastructure/"]
+        L_IF --> L_API --> L_APP --> L_DOM
+        L_APP -->|depends on abstraction| L_PORT
+        L_INF -.implements adapter for.-> L_PORT
+    end
+
+    %% ---------------- App Layer ----------------
+    App --> A_API
+    App --> B_API
+    App --> D_API
+    App --> F_API
+    App --> G_API
+    App --> H_API
+    App --> I_API
+    App --> J_API
+    App --> K_API
+    App --> L_API
+    App -. follows .-> DependencyRule
+
+    %% ---------------- Cross-domain allowed API calls ----------------
+    A_API -. "API call only -> B_API" .-> B_API
+    B_API -. "API call only -> C_API" .-> C_API
+    A_API -. "API call only -> D_API" .-> D_API
+    D_API -. "API call only -> E_API" .-> E_API
+    D_API -. "API call only -> F_API" .-> F_API
+    F_API -. "API call only -> G_API" .-> G_API
+    G_API -. "API call only -> H_API" .-> H_API
+    I_API -. "API call only -> J_API" .-> J_API
+    J_API -. "API call only -> K_API" .-> K_API
+    K_API -. "API call only -> I_API" .-> I_API
+    A_API -. "API call only -> L_API" .-> L_API
+    L_API -. "API call only -> B_API" .-> B_API
+
+    %% ---------------- Rules ----------------
+    Forbidden["Forbidden:\nNo direct import to another domain internals\n(interfaces/application/domain/ports/infrastructure)"]
+    Forbidden -. never .-> A_APP
+    Forbidden -. never .-> D_DOM
+    Forbidden -. never .-> H_INF
+    Forbidden -. never .-> L_DOM
+
+    Allowed["Allowed inside one domain:\ninterfaces -> api -> application -> domain\napplication -> ports <- infrastructure"]
+
+    %% ---------------- Styles ----------------
+    classDef app fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef api fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
+    classDef layer fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
+    classDef infra fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
+    classDef port fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.2px;
+    classDef rule fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
+    classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
+
+    class App app;
+    class A_API,B_API,C_API,D_API,E_API,F_API,G_API,H_API,I_API,J_API,K_API,L_API api;
+    class A_IF,A_APP,A_DOM,B_IF,B_APP,B_DOM,C_IF,C_APP,C_DOM,D_IF,D_APP,D_DOM,E_IF,E_APP,E_DOM,F_IF,F_APP,F_DOM,G_IF,G_APP,G_DOM,H_IF,H_APP,H_DOM,I_IF,I_APP,I_DOM,J_IF,J_APP,J_DOM,K_IF,K_APP,K_DOM,L_IF,L_APP,L_DOM layer;
+    class A_PORT,B_PORT,C_PORT,D_PORT,E_PORT,F_PORT,G_PORT,H_PORT,I_PORT,J_PORT,K_PORT,L_PORT port;
+    class A_INF,B_INF,C_INF,D_INF,E_INF,F_INF,G_INF,H_INF,I_INF,J_INF,K_INF,L_INF infra;
+    class DependencyRule rule;
+    class Allowed rule;
+    class Forbidden warn;
+`````
+
 ## File: docs/diagrams/erd-model.mermaid
 `````
 erDiagram
@@ -67570,64 +66123,571 @@ flowchart LR
     class QueryEmbedding,VectorSearch,Hybrid,LLM,NoContext retrieval;
 `````
 
-## File: modules/asset/api/index.ts
+## File: modules/asset/interfaces/components/LibrariesView.tsx
 `````typescript
-/**
- * Module: asset
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Asset domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
+"use client";
 
-// --- Core entity types -------------------------------------------------------
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+import {
+  addWikiBetaLibraryField,
+  createWikiBetaLibrary,
+  createWikiBetaLibraryRow,
+  getWikiBetaLibrarySnapshot,
+  listWikiBetaLibraries,
+  type WikiBetaLibrary,
+  type WikiBetaLibraryFieldType,
+  type WikiBetaLibraryRow,
+} from "../../api";
 
-// --- Document snapshot types (owned by asset) --------------------------------
+interface WikiBetaLibrariesViewProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
 
-export type { AssetDocument, AssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
-export { useDocumentsSnapshot, mapToAssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
+const FIELD_TYPES: WikiBetaLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
 
-// --- Query functions ---------------------------------------------------------
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+function parseFieldType(value: string): WikiBetaLibraryFieldType {
+  if (value === "title") return "title";
+  if (value === "text") return "text";
+  if (value === "number") return "number";
+  if (value === "select") return "select";
+  if (value === "relation") return "relation";
+  return "text";
+}
 
-// --- UI components (cross-module public) -------------------------------------
+export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { AssetDocumentsView } from "../interfaces/components/AssetDocumentsView";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+  const [libraries, setLibraries] = useState<WikiBetaLibrary[]>([]);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
+  const [fieldsPreview, setFieldsPreview] = useState<{ key: string; label: string; type: string }[]>([]);
+  const [rowsPreview, setRowsPreview] = useState<WikiBetaLibraryRow[]>([]);
+
+  const [libraryName, setLibraryName] = useState("");
+  const [fieldKey, setFieldKey] = useState("");
+  const [fieldLabel, setFieldLabel] = useState("");
+  const [fieldType, setFieldType] = useState<WikiBetaLibraryFieldType>("text");
+  const [rowJson, setRowJson] = useState('{"title":"New record"}');
+
+  const selectedLibrary = useMemo(
+    () => libraries.find((library) => library.id === selectedLibraryId) ?? null,
+    [libraries, selectedLibraryId],
+  );
+
+  const refreshLibraries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listWikiBetaLibraries(accountId, workspaceId);
+      setLibraries(result);
+      if (!selectedLibraryId && result.length > 0) {
+        setSelectedLibraryId(result[0].id);
+      }
+      if (result.length === 0) {
+        setSelectedLibraryId("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to list libraries");
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, selectedLibraryId, workspaceId]);
+
+  const refreshSelectedSnapshot = useCallback(async () => {
+    if (!selectedLibraryId) {
+      setFieldsPreview([]);
+      setRowsPreview([]);
+      return;
+    }
+
+    try {
+      const snapshot = await getWikiBetaLibrarySnapshot(accountId, selectedLibraryId);
+      setFieldsPreview(snapshot.fields.map((field) => ({ key: field.key, label: field.label, type: field.type })));
+      setRowsPreview(snapshot.rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to load library snapshot");
+    }
+  }, [accountId, selectedLibraryId]);
+
+  useEffect(() => {
+    void refreshLibraries();
+  }, [refreshLibraries]);
+
+  useEffect(() => {
+    void refreshSelectedSnapshot();
+  }, [refreshSelectedSnapshot]);
+
+  const handleCreateLibrary = useCallback(async () => {
+    try {
+      await createWikiBetaLibrary({ accountId, workspaceId, name: libraryName });
+      setLibraryName("");
+      await refreshLibraries();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to create library");
+    }
+  }, [accountId, libraryName, refreshLibraries, workspaceId]);
+
+  const handleAddField = useCallback(async () => {
+    if (!selectedLibraryId) return;
+    try {
+      await addWikiBetaLibraryField({
+        accountId,
+        libraryId: selectedLibraryId,
+        key: fieldKey,
+        label: fieldLabel,
+        type: fieldType,
+      });
+      setFieldKey("");
+      setFieldLabel("");
+      await refreshSelectedSnapshot();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to add field");
+    }
+  }, [accountId, fieldKey, fieldLabel, fieldType, refreshSelectedSnapshot, selectedLibraryId]);
+
+  const handleCreateRow = useCallback(async () => {
+    if (!selectedLibraryId) return;
+    try {
+      const parsed = JSON.parse(rowJson);
+      if (!isRecord(parsed)) {
+        throw new Error("row JSON must be an object");
+      }
+      const values = parsed;
+      await createWikiBetaLibraryRow({
+        accountId,
+        libraryId: selectedLibraryId,
+        values,
+      });
+      await refreshSelectedSnapshot();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to create row");
+    }
+  }, [accountId, refreshSelectedSnapshot, rowJson, selectedLibraryId]);
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Libraries MVP</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Structured Data</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          對齊命名：Database/Data Source 在產品層統一為 Libraries。MVP 支援建立 library、定義 fields、建立 rows。
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          載入 libraries 中...
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+      ) : null}
+
+      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto]">
+        <input
+          type="text"
+          value={libraryName}
+          onChange={(event) => setLibraryName(event.target.value)}
+          placeholder="Library name"
+          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
+        />
+        <button
+          type="button"
+          onClick={() => void handleCreateLibrary()}
+          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          建立 Library
+        </button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <h3 className="text-sm font-semibold text-foreground">Libraries</h3>
+
+          <select
+            value={selectedLibraryId}
+            onChange={(event) => setSelectedLibraryId(event.target.value)}
+            className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
+            aria-label="Select library"
+          >
+            <option value="">Select library</option>
+            {libraries.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name} ({library.slug})
+              </option>
+            ))}
+          </select>
+
+          {selectedLibrary ? (
+            <p className="text-xs text-muted-foreground">{selectedLibrary.name} / {selectedLibrary.slug}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">請先建立或選擇一個 library。</p>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fields</p>
+            {fieldsPreview.length === 0 ? (
+              <p className="text-xs text-muted-foreground">尚無欄位</p>
+            ) : (
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {fieldsPreview.map((field) => (
+                  <li key={field.key} className="rounded border border-border/60 bg-background px-2 py-1">
+                    {field.label} ({field.key}) - {field.type}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <h3 className="text-sm font-semibold text-foreground">Add Field / Add Row</h3>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            <input
+              type="text"
+              value={fieldKey}
+              onChange={(event) => setFieldKey(event.target.value)}
+              placeholder="field key"
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm"
+            />
+            <input
+              type="text"
+              value={fieldLabel}
+              onChange={(event) => setFieldLabel(event.target.value)}
+              placeholder="field label"
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={fieldType}
+              onChange={(event) => setFieldType(parseFieldType(event.target.value))}
+              className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
+            >
+              {FIELD_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void handleAddField()}
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
+            >
+              新增欄位
+            </button>
+          </div>
+
+          <textarea
+            value={rowJson}
+            onChange={(event) => setRowJson(event.target.value)}
+            className="min-h-24 w-full rounded-md border border-border/60 bg-background px-3 py-2 text-xs"
+            placeholder='{"title":"My record"}'
+          />
+
+          <button
+            type="button"
+            onClick={() => void handleCreateRow()}
+            className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
+          >
+            建立 Row
+          </button>
+
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Rows Preview</p>
+            {rowsPreview.length === 0 ? (
+              <p className="text-xs text-muted-foreground">尚無資料列</p>
+            ) : (
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {rowsPreview.slice(0, 5).map((row) => (
+                  <li key={row.id} className="rounded border border-border/60 bg-background px-2 py-1">
+                    {JSON.stringify(row.values)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 `````
 
-## File: modules/content/api/index.ts
+## File: modules/asset/interfaces/components/LibraryTableView.tsx
 `````typescript
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
+
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  useReactTable,
+} from "@lib-tanstack";
+import {
+  draggable,
+  dropTargetForElements,
+  monitorForElements,
+} from "@lib-dragdrop";
+
+import {
+  getWikiBetaLibrarySnapshot,
+  listWikiBetaLibraries,
+  type WikiBetaLibraryRow,
+} from "../../api";
+
+interface LibraryTableViewProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+type RowData = WikiBetaLibraryRow & { _values: Record<string, unknown> };
+
+const columnHelper = createColumnHelper<RowData>();
+
 /**
- * Module: content
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the Content domain.
+ * WikiBetaLibraryTableView
+ *
+ * TanStack Table rendering library rows with:
+ * - Column-level text filter (global filter input)
+ * - Drag-to-reorder rows via pragmatic-drag-and-drop
  */
+export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewProps) {
+  const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [fieldKeys, setFieldKeys] = useState<string[]>([]);
+  const [rows, setRows] = useState<RowData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-export { ContentFacade, contentFacade } from "./content-facade";
-export type {
-  ContentCreatePageParams,
-  ContentRenamePageParams,
-  ContentMovePageParams,
-  ContentAddBlockParams,
-  ContentUpdateBlockParams,
-} from "./content-facade";
+  // Load library list
+  useEffect(() => {
+    void (async () => {
+      try {
+        const result = await listWikiBetaLibraries(accountId, workspaceId);
+        setLibraries(result.map((l) => ({ id: l.id, name: l.name })));
+        if (result.length > 0 && result[0]) {
+          setSelectedId(result[0].id);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "載入 Libraries 失敗");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [accountId, workspaceId]);
 
-export { ContentApi } from "./content-api";
+  // Load rows when selection changes
+  useEffect(() => {
+    if (!selectedId) return;
+    void (async () => {
+      setLoading(true);
+      try {
+        const snap = await getWikiBetaLibrarySnapshot(accountId, selectedId);
+        const keys = snap.fields.map((f) => f.key);
+        setFieldKeys(keys);
+        setRows(
+          snap.rows.map((r) => ({
+            ...r,
+            _values: r.values as Record<string, unknown>,
+          })),
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "載入資料列失敗");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [accountId, selectedId]);
 
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-export { PagesView } from "../interfaces/components/PagesView";
-export { PagesDnDView } from "../interfaces/components/PagesDnDView";
+  // DnD row reorder
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) return;
+        const fromId = source.data["rowId"] as string | undefined;
+        const toId = target.data["rowId"] as string | undefined;
+        if (!fromId || !toId || fromId === toId) return;
+        setRows((prev) => {
+          const fromIdx = prev.findIndex((r) => r.id === fromId);
+          const toIdx = prev.findIndex((r) => r.id === toId);
+          if (fromIdx === -1 || toIdx === -1) return prev;
+          const next = [...prev];
+          const [moved] = next.splice(fromIdx, 1);
+          if (!moved) return prev;
+          next.splice(toIdx, 0, moved);
+          return next;
+        });
+      },
+    });
+  }, []);
+
+  const columns = useMemo(
+    () =>
+      fieldKeys.map((key) =>
+        columnHelper.accessor((row) => String(row._values[key] ?? ""), {
+          id: key,
+          header: key,
+          cell: (info) => info.getValue(),
+        }),
+      ),
+    [fieldKeys],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: { globalFilter: filter },
+    onGlobalFilterChange: setFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Library Table</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">資料庫表格</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          TanStack Table · 全域篩選 · 拖曳重排列
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
+          aria-label="選擇 Library"
+        >
+          {libraries.map((lib) => (
+            <option key={lib.id} value={lib.id}>
+              {lib.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="篩選…"
+          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/40"
+        />
+      </div>
+
+      {loading && <p className="text-sm text-muted-foreground">載入中…</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {!loading && fieldKeys.length === 0 && (
+        <p className="text-sm text-muted-foreground">此 Library 尚未定義欄位，請先在 Libraries 頁面新增欄位與資料列。</p>
+      )}
+
+      {fieldKeys.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border/60">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/40">
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  <th className="w-8 px-2 py-2" />
+                  {hg.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={fieldKeys.length + 1} className="px-3 py-4 text-center text-sm text-muted-foreground">
+                    無資料
+                  </td>
+                </tr>
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <DraggableRow key={row.id} rowId={row.original.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-3 py-2">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </DraggableRow>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface DraggableRowProps {
+  readonly rowId: string;
+  readonly children: React.ReactNode;
+}
+
+function DraggableRow({ rowId, children }: DraggableRowProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const rowEl = rowRef.current;
+    if (!handleEl || !rowEl) return;
+    const cleanupDraggable = draggable({
+      element: handleEl,
+      getInitialData: () => ({ rowId }),
+    });
+    const cleanupDrop = dropTargetForElements({
+      element: rowEl,
+      getData: () => ({ rowId }),
+    });
+    return () => {
+      cleanupDraggable();
+      cleanupDrop();
+    };
+  }, [rowId]);
+
+  return (
+    <tr ref={rowRef} className="transition hover:bg-muted/20">
+      <td className="px-2 py-2">
+        <button
+          ref={dragHandleRef}
+          type="button"
+          aria-label="拖曳重排"
+          className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
+        >
+          <GripVertical className="size-4 text-muted-foreground" />
+        </button>
+      </td>
+      {children}
+    </tr>
+  );
+}
 `````
 
 ## File: modules/content/index.ts
@@ -67700,79 +66760,453 @@ export { PagesView } from "./interfaces/components/PagesView";
 export { PagesDnDView } from "./interfaces/components/PagesDnDView";
 `````
 
-## File: modules/knowledge-graph/README.md
-`````markdown
-# knowledge-graph — Knowledge Graph Layer
+## File: modules/content/interfaces/components/PagesDnDView.tsx
+`````typescript
+"use client";
 
-`modules/knowledge-graph` は Knowledge Graph Layer の中核モジュールです。Wiki スタイルのナレッジグラフを管理し、ノード（GraphNode）とエッジ（GraphEdge）のライフサイクルを定義します。
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GripVertical, Loader2 } from "lucide-react";
 
-外界との互動規則：
-- 外界は `api/` のみを通じてこのモジュールを使用してください
-- UI は外部ページまたは他のモジュールが独自に組み立てます
-- `domain/`, `application/`, `infrastructure/`, `interfaces/` への直接インポートは禁止です
+import {
+  draggable,
+  dropTargetForElements,
+  monitorForElements,
+} from "@lib-dragdrop";
 
-## アーキテクチャ図
+import { listWikiBetaPagesTree, moveWikiBetaPage, type WikiBetaPageTreeNode } from "../../api";
 
-| ファイル | 内容 |
-|---|---|
-| [`./Graph-Flow.mermaid`](./Graph-Flow.mermaid) | ドメイン状態機械（GraphNode / GraphEdge ライフサイクル） |
-| [`./Graph-UI.mermaid`](./Graph-UI.mermaid) | UI 組み立てと API 境界（App Router → api/ → Vis.js キャンバス） |
-| [`./Graph-Tree.mermaid`](./Graph-Tree.mermaid) | MDDD ディレクトリ構造と境界ルール |
-| [`./Graph-Sequence.mermaid`](./Graph-Sequence.mermaid) | ノード作成・エッジリンクの循環図 |
-| [`./Graph-ERD.mermaid`](./Graph-ERD.mermaid) | エンティティ関聯図（GraphNode / GraphEdge / GraphMetadata） |
+interface WikiBetaPagesDnDViewProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
 
----
+/**
+ * WikiBetaPagesDnDView
+ *
+ * Flat-list DnD reorder of top-level pages.
+ * Dragging a page onto another triggers moveWikiBetaPage to update parent.
+ * No over-engineering: single-level DnD with minimal state.
+ */
+export function PagesDnDView({ accountId, workspaceId }: WikiBetaPagesDnDViewProps) {
+  const [pages, setPages] = useState<WikiBetaPageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-## コアプリンシプル
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const tree = await listWikiBetaPagesTree(accountId, workspaceId);
+      setPages(tree);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to load pages");
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
 
-```
-GraphNode   → 知識の単位 (Wiki ページに相当)
-GraphEdge   → 知識間の関係 (Wiki リンクに相当)
-GraphMetadata → 付加情報 (タグ / カテゴリ / カスタム属性)
-```
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
-**独立した 2 つの状態機械が、それぞれのライフサイクルを管理します。**
+  // DnD monitor: drop page onto another → reparent
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) return;
+        const draggedId = source.data["pageId"] as string | undefined;
+        const targetId = target.data["pageId"] as string | undefined;
+        if (!draggedId || !targetId || draggedId === targetId) return;
 
----
+        // Optimistically reorder locally (flat reorder only)
+        setPages((prev) => {
+          const fromIdx = prev.findIndex((p) => p.id === draggedId);
+          const toIdx = prev.findIndex((p) => p.id === targetId);
+          if (fromIdx === -1 || toIdx === -1) return prev;
+          const next = [...prev];
+          const [moved] = next.splice(fromIdx, 1);
+          if (!moved) return prev;
+          next.splice(toIdx, 0, moved);
+          return next;
+        });
 
-## 1. GraphNode State Machine
+        // Persist: move dragged page under target as parent
+        void moveWikiBetaPage({
+          accountId,
+          pageId: draggedId,
+          targetParentPageId: targetId,
+        }).catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : "移動失敗");
+          void refresh();
+        });
+      },
+    });
+  }, [accountId, refresh]);
 
-```
-draft       --[ACTIVATE]-->   active
-active      --[ARCHIVE]-->    archived    (guard: no pending or active edges)
-archived    --[RESTORE]-->    active
-```
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Pages DnD</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">頁面樹拖曳重組</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          使用 @atlaskit/pragmatic-drag-and-drop 拖曳頁面至另一個頁面下（重新設定父層）。
+        </p>
+      </div>
 
-| state | 説明 |
-|---|---|
-| `draft` | ノード作成済み、未公開 |
-| `active` | 公開中・グラフに表示 |
-| `archived` | アーカイブ済み |
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          載入頁面中…
+        </div>
+      )}
 
----
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
-## 2. GraphEdge State Machine
+      {!loading && pages.length === 0 && (
+        <p className="text-sm text-muted-foreground">尚無頁面，請先在「頁面」頁面建立頁面。</p>
+      )}
 
-```
-pending     --[ACTIVATE]-->    active      (guard: both nodes active)
-active      --[DEACTIVATE]-->  inactive
-inactive    --[ACTIVATE]-->    active
-active      --[REMOVE]-->      removed
-pending     --[REMOVE]-->      removed
-```
+      {pages.length > 0 && (
+        <ul className="space-y-1.5">
+          {pages.map((page) => (
+            <DraggablePage key={page.id} page={page} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
-| state | 説明 |
-|---|---|
-| `pending` | エッジ作成済み、未有効化 |
-| `active` | 有効なエッジ |
-| `inactive` | 一時的に非表示 |
-| `removed` | 削除済み |
+interface DraggablePageProps {
+  readonly page: WikiBetaPageTreeNode;
+}
 
----
+function DraggablePage({ page }: DraggablePageProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const itemRef = useRef<HTMLLIElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-## 参照アーキテクチャ
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const itemEl = itemRef.current;
+    if (!handleEl || !itemEl) return;
 
-`docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` の Knowledge Graph Layer に対応します。
+    const cleanupDraggable = draggable({
+      element: handleEl,
+      getInitialData: () => ({ pageId: page.id }),
+    });
+    const cleanupDrop = dropTargetForElements({
+      element: itemEl,
+      getData: () => ({ pageId: page.id }),
+      onDragEnter: () => setIsDragOver(true),
+      onDragLeave: () => setIsDragOver(false),
+      onDrop: () => setIsDragOver(false),
+    });
+    return () => {
+      cleanupDraggable();
+      cleanupDrop();
+    };
+  }, [page.id]);
+
+  return (
+    <li
+      ref={itemRef}
+      className={`flex items-center gap-2 rounded-md border px-3 py-2 transition ${
+        isDragOver
+          ? "border-primary/60 bg-primary/5"
+          : "border-border/60 bg-background"
+      }`}
+    >
+      <button
+        ref={dragHandleRef}
+        type="button"
+        aria-label="拖曳重排"
+        className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
+      >
+        <GripVertical className="size-4 text-muted-foreground" />
+      </button>
+
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="truncate text-sm font-medium text-foreground">{page.title}</span>
+        <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+          {page.slug}
+        </span>
+        {page.children.length > 0 && (
+          <span className="shrink-0 text-[10px] text-muted-foreground/60">
+            {page.children.length} 子頁面
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+`````
+
+## File: modules/content/interfaces/components/PagesView.tsx
+`````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+
+import {
+  createWikiBetaPage,
+  listWikiBetaPagesTree,
+  moveWikiBetaPage,
+  renameWikiBetaPage,
+  type WikiBetaPageTreeNode,
+} from "../../api";
+
+interface WikiBetaPagesViewProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+interface FlatPageOption {
+  id: string;
+  label: string;
+}
+
+function flattenPages(nodes: WikiBetaPageTreeNode[], depth = 0): FlatPageOption[] {
+  const out: FlatPageOption[] = [];
+  for (const node of nodes) {
+    out.push({ id: node.id, label: `${"  ".repeat(depth)}${node.title}` });
+    out.push(...flattenPages(node.children, depth + 1));
+  }
+  return out;
+}
+
+function PageTreeNode({
+  node,
+  onCreateChild,
+  onRename,
+  onMove,
+}: {
+  readonly node: WikiBetaPageTreeNode;
+  readonly onCreateChild: (pageId: string) => void;
+  readonly onRename: (pageId: string, currentTitle: string) => void;
+  readonly onMove: (pageId: string, currentParentId: string | null) => void;
+}) {
+  return (
+    <li className="space-y-2 rounded-md border border-border/60 bg-background p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-foreground">{node.title}</p>
+        <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+          {node.slug}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <button
+          type="button"
+          onClick={() => onCreateChild(node.id)}
+          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
+        >
+          建立子頁
+        </button>
+        <button
+          type="button"
+          onClick={() => onRename(node.id, node.title)}
+          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
+        >
+          重新命名
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(node.id, node.parentPageId)}
+          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
+        >
+          移動
+        </button>
+      </div>
+
+      {node.children.length > 0 ? (
+        <ul className="space-y-2 border-l border-border/60 pl-3">
+          {node.children.map((child) => (
+            <PageTreeNode
+              key={child.id}
+              node={child}
+              onCreateChild={onCreateChild}
+              onRename={onRename}
+              onMove={onMove}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
+  const [title, setTitle] = useState("");
+  const [parentPageId, setParentPageId] = useState<string>("");
+  const [tree, setTree] = useState<WikiBetaPageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const pageOptions = useMemo(() => flattenPages(tree), [tree]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listWikiBetaPagesTree(accountId, workspaceId);
+      setTree(result);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const handleCreate = useCallback(
+    async (targetParentPageId?: string | null) => {
+      const rawTitle = targetParentPageId ? window.prompt("子頁標題") : title;
+      if (!rawTitle) {
+        return;
+      }
+
+      const finalTitle = rawTitle.trim();
+      if (!finalTitle) {
+        return;
+      }
+      try {
+        await createWikiBetaPage({
+          accountId,
+          workspaceId,
+          title: finalTitle,
+          parentPageId: targetParentPageId ?? (parentPageId || null),
+        });
+
+        setTitle("");
+        setParentPageId("");
+        await refresh();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "create page failed";
+        setError(message);
+      }
+    },
+    [accountId, parentPageId, refresh, title, workspaceId],
+  );
+
+  const handleRename = useCallback(
+    async (pageId: string, currentTitle: string) => {
+      const nextTitle = window.prompt("新的頁面標題", currentTitle);
+      if (!nextTitle || !nextTitle.trim()) {
+        return;
+      }
+      try {
+        await renameWikiBetaPage({ accountId, pageId, title: nextTitle });
+        await refresh();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "rename page failed";
+        setError(message);
+      }
+    },
+    [accountId, refresh],
+  );
+
+  const handleMove = useCallback(
+    async (pageId: string, currentParentId: string | null) => {
+      const raw = window.prompt(
+        "輸入新的 parent page id，留空代表 root",
+        currentParentId ?? "",
+      );
+      if (raw === null) {
+        return;
+      }
+      try {
+        await moveWikiBetaPage({
+          accountId,
+          pageId,
+          targetParentPageId: raw.trim() ? raw.trim() : null,
+        });
+        await refresh();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "move page failed";
+        setError(message);
+      }
+    },
+    [accountId, refresh],
+  );
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Pages MVP</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Page Tree</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          目前為最小可行版本：建立、重新命名、移動頁面。slug 由 namespace policy 推導，操作會發佈 domain event。
+        </p>
+      </div>
+
+      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto_auto]">
+        <input
+          type="text"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="輸入頁面標題"
+          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
+        />
+        <select
+          value={parentPageId}
+          onChange={(event) => setParentPageId(event.target.value)}
+          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
+          aria-label="Select parent page"
+        >
+          <option value="">Root</option>
+          {pageOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => void handleCreate(null)}
+          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          建立頁面
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          載入頁面樹中...
+        </div>
+      ) : error ? (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+      ) : tree.length === 0 ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未建立頁面，先新增第一個 root page。
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {tree.map((node) => (
+            <PageTreeNode
+              key={node.id}
+              node={node}
+              onCreateChild={(pageId) => void handleCreate(pageId)}
+              onRename={(pageId, currentTitle) => void handleRename(pageId, currentTitle)}
+              onMove={(pageId, currentParentId) => void handleMove(pageId, currentParentId)}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 `````
 
 ## File: modules/retrieval/api/index.ts
@@ -67816,73 +67250,1113 @@ export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query
 export { FirebaseRagRetrievalRepository } from "../infrastructure/firebase/FirebaseRagRetrievalRepository";
 export { GenkitRagGenerationRepository } from "../infrastructure/genkit/GenkitRagGenerationRepository";
 
+// ── WikiBeta RAG types (transitional — owned by retrieval domain) ─────────────
+export type {
+  WikiBetaCitation,
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../domain/entities/WikiBetaRagTypes";
+
+// ── WikiBeta RAG use-cases (transitional) ─────────────────────────────────────
+export {
+  runWikiBetaRagQuery,
+  reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments,
+} from "../application/use-cases/wiki-beta-rag.use-case";
+
 // ── UI components ─────────────────────────────────────────────────────────────
 export { RagQueryView } from "../interfaces/components/RagQueryView";
 export { RagView } from "../interfaces/components/RagView";
 `````
 
-## File: modules/retrieval/infrastructure/genkit/GenkitRagGenerationRepository.ts
+## File: modules/retrieval/interfaces/components/RagQueryView.tsx
 `````typescript
-import type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "../../domain/repositories/RagGenerationRepository";
-import { aiClient, getConfiguredGenkitModel } from "./client";
+"use client";
 
-function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
-  const pageLabel = typeof input.page === "number" ? ` page:${input.page}` : "";
-  return `[doc:${input.docId} chunk:${input.chunkIndex}${pageLabel} taxonomy:${input.taxonomy}]\n${input.text}`;
+import { useState } from "react";
+import { Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@ui-shadcn/ui/accordion";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import {
+  runWikiBetaRagQuery,
+  type WikiBetaCitation,
+} from "../../api";
+
+interface RagQueryViewProps {
+  readonly workspaceId?: string;
 }
 
-function buildPrompt(input: GenerateRagAnswerInput) {
-  const context = input.chunks.map((chunk) => formatChunkForPrompt(chunk)).join("\n\n---\n\n");
+/** Minimal RAG query chat interface. Uses local useState only – no streaming, no global state. */
+export function RagQueryView({ workspaceId }: RagQueryViewProps) {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
 
-  return [
-    "Use the retrieved context to answer the user query.",
-    "If the context is incomplete, answer conservatively and keep citations grounded in the retrieved chunks.",
-    `User query: ${input.userQuery}`,
-    "Retrieved context:",
-    context,
-  ].join("\n\n");
-}
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
+  const [queried, setQueried] = useState(false);
 
-export class GenkitRagGenerationRepository implements RagGenerationRepository {
-  async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
+  async function handleSubmit() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("請先輸入問題");
+      return;
+    }
+    if (authState.status !== "authenticated" || authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
+      toast.error("請先以真實帳號登入才能執行 RAG 查詢");
+      return;
+    }
+    if (!activeAccountId) {
+      toast.error("目前沒有 active account，無法執行 RAG 查詢");
+      return;
+    }
+    if (!effectiveWorkspaceId) {
+      toast.error("請先選擇工作區，再執行 RAG 查詢");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await aiClient.generate({
-        prompt: buildPrompt(input),
-        system:
-          "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.",
-        ...(input.model ? { model: input.model } : {}),
+      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
+        requireReady: true,
       });
-
-      return {
-        ok: true,
-        data: {
-          answer: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          citations: input.chunks.map((chunk) => ({
-            docId: chunk.docId,
-            chunkIndex: chunk.chunkIndex,
-            ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
-            reason: `Retrieved from ${chunk.taxonomy} context with score ${chunk.score.toFixed(2)}.`,
-          })),
-        },
-      };
+      // Compatibility fallback for older vectors without ready status.
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
+      }
+      setAnswer(result.answer);
+      setCitations(result.citations);
+      setQueried(true);
     } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "FLOW_MODEL_PROVIDER_ERROR",
-          message:
-            error instanceof Error ? error.message : `Unexpected RAG generation error: ${String(error)}`,
-          context: { traceId: input.traceId },
-        },
-      };
+      console.error(error);
+      toast.error("呼叫 rag_query 失敗");
+    } finally {
+      setLoading(false);
     }
   }
+
+  return (
+    <div className="space-y-4">
+      {/* Query input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>
+            輸入問題，取得 AI 回答與引用來源。
+            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
+            }}
+            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
+            rows={4}
+          />
+          <Button onClick={() => void handleSubmit()} disabled={loading}>
+            {loading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 size-4" />
+            )}
+            {loading ? "查詢中..." : "送出查詢"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Answer */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Answer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Citations */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Citations</CardTitle>
+            <CardDescription>
+              {citations.length === 0
+                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
+                : `${citations.length} 筆引用來源`}
+            </CardDescription>
+          </CardHeader>
+          {citations.length > 0 && (
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {citations.map((citation, index) => (
+                  <AccordionItem
+                    key={`${citation.doc_id ?? "doc"}-${index}`}
+                    value={`citation-${index}`}
+                  >
+                    <AccordionTrigger className="text-sm font-medium">
+                      <span className="flex items-center gap-2">
+                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
+                        {citation.provider && (
+                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            {citation.provider}
+                          </span>
+                        )}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          )}
+        </Card>
+      )}
+    </div>
+  );
 }
+`````
+
+## File: modules/retrieval/interfaces/components/RagView.tsx
+`````typescript
+"use client";
+
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  FileUp,
+  Loader2,
+  Pencil,
+  Search,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { runWikiBetaRagQuery, type WikiBetaCitation } from "../../api";
+import type { AssetLiveDocument as WikiBetaLiveDocument } from "@/modules/asset/api";
+import { useDocumentsSnapshot } from "@/modules/asset/api";
+
+interface WikiBetaRagViewProps {
+  readonly onBack: () => void;
+  readonly mode?: "all" | "query" | "reindex" | "documents";
+  readonly workspaceId?: string;
+  readonly showBackButton?: boolean;
+}
+
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const WATCH_PATH = "uploads/";
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+
+const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+
+function formatDate(value: Date | null): string {
+  if (!value) return "-";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (isRecord(error)) {
+    const direct = error.message;
+    if (typeof direct === "string" && direct.trim()) return direct;
+    const nestedMessage = objectOrEmpty(error.details).message;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) return nestedMessage;
+  }
+  return "未知錯誤";
+}
+
+function StatusBadge({ status, errorMessage }: { status: string; errorMessage: string }) {
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> 完成
+      </span>
+    );
+  }
+  if (status === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> 處理中
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={errorMessage || "未知錯誤"}
+      >
+        <XCircle className="size-3" /> 錯誤
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{status || "-"}</span>;
+}
+
+function RagBadge({ status, error }: { status: string; error: string }) {
+  if (status === "ready") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> Ready
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={error || "未知錯誤"}
+      >
+        <XCircle className="size-3" /> Error
+      </span>
+    );
+  }
+  if (status) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> {status}
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">-</span>;
+}
+
+export function RagView({
+  onBack,
+  mode = "all",
+  workspaceId,
+  showBackButton = true,
+}: WikiBetaRagViewProps) {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() || "";
+  const showQueryCard = mode === "all" || mode === "query";
+  const showDocumentsCard = mode === "documents";
+  const showDocsSection = mode === "all" || showDocumentsCard;
+
+  const [query, setQuery] = useState("");
+  const [topK, setTopK] = useState("4");
+  const [loadingAnswer, setLoadingAnswer] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
+  const [cacheMode, setCacheMode] = useState<"hit" | "miss">("miss");
+  const [vectorHits, setVectorHits] = useState(0);
+  const [searchHits, setSearchHits] = useState(0);
+  const [accountScope, setAccountScope] = useState("(未查詢)");
+
+  const { docs, loading: loadingDocs, pendingDocs, addPending, removePending } = useDocumentsSnapshot(
+    activeAccountId,
+    effectiveWorkspaceId || undefined,
+  );
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const appendLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString("zh-TW", { hour12: false });
+    setLogs((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 100));
+  }, []);
+
+  async function handleAsk() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("請先輸入問題");
+      return;
+    }
+
+    setLoadingAnswer(true);
+    try {
+      if (authState.status !== "authenticated") {
+        toast.error("請先以真實帳號登入才能執行 RAG 查詢");
+        return;
+      }
+      if (authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
+        toast.error("請先以真實帳號登入才能執行 RAG 查詢（Dev-demo 帳號無法使用此功能）");
+        return;
+      }
+      if (!activeAccountId) {
+        toast.error("目前沒有 active account，無法執行 RAG 查詢");
+        return;
+      }
+      if (!effectiveWorkspaceId) {
+        toast.error("請先選擇工作區，再執行 RAG 查詢");
+        return;
+      }
+      const parsedTopK = Number(topK);
+      const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
+      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
+        requireReady: true,
+      });
+
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        appendLog("主要查詢無可用引用，啟用相容模式重試 (require_ready=false, max_age_days=3650)");
+        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
+      }
+
+      setAnswer(result.answer);
+      setCitations(result.citations);
+      setCacheMode(result.cache);
+      setVectorHits(result.vectorHits);
+      setSearchHits(result.searchHits);
+      setAccountScope(result.accountScope);
+      appendLog(`RAG 查詢完成：hits vector=${result.vectorHits}, search=${result.searchHits}`);
+    } catch (error) {
+      console.error(error);
+      const detail = getErrorMessage(error);
+      toast.error(`呼叫 rag_query 失敗：${detail}`);
+      appendLog(`RAG 查詢失敗：${detail}`);
+    } finally {
+      setLoadingAnswer(false);
+    }
+  }
+
+  function buildUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function handleFileChange(file: File | null) {
+    if (!file) { setSelectedFile(null); return; }
+    if (!(file.type in ACCEPTED_MIME)) {
+      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
+    setUploading(true);
+    let pendingDocId = "";
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      pendingDocId = docId;
+
+      addPending({
+        id: docId,
+        filename: selectedFile.name,
+        workspaceId: effectiveWorkspaceId,
+        sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`,
+        jsonGcsUri: "",
+        pageCount: 0,
+        status: "processing",
+        ragStatus: "",
+        uploadedAt: new Date(),
+        errorMessage: "",
+        ragError: "",
+        isClientPending: true,
+      });
+
+      const customMetadata: Record<string, string> = {
+        account_id: activeAccountId,
+        filename: selectedFile.name,
+        original_filename: selectedFile.name,
+        display_name: selectedFile.name,
+      };
+      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
+
+      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
+      toast.success("上傳成功，背景已開始解析與入庫");
+      appendLog(`上傳成功：${selectedFile.name} -> ${uploadPath}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      console.error(error);
+      toast.error("上傳失敗");
+      appendLog(`上傳失敗：${selectedFile.name}`);
+      if (pendingDocId) removePending(pendingDocId);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(doc: WikiBetaLiveDocument) {
+    if (!activeAccountId) return;
+    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
+
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      if (doc.sourceGcsUri) {
+        try {
+          await storageApi.deleteObject(storageApi.ref(storage, doc.sourceGcsUri));
+        } catch {
+          // ignore storage-not-found
+        }
+      }
+      if (doc.jsonGcsUri) {
+        try {
+          await storageApi.deleteObject(storageApi.ref(storage, doc.jsonGcsUri));
+        } catch {
+          // ignore storage-not-found
+        }
+      }
+      const db = getFirebaseFirestore();
+      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
+      toast.success("文件已刪除");
+      appendLog(`刪除文件：${doc.filename}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("刪除失敗");
+      appendLog(`刪除失敗：${doc.filename}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleRename(doc: WikiBetaLiveDocument) {
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法更名"); return; }
+    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
+    if (!nextName || nextName === doc.filename) return;
+
+    setRenamingId(doc.id);
+    try {
+      const db = getFirebaseFirestore();
+      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
+        title: nextName,
+        "source.filename": nextName,
+        "metadata.filename": nextName,
+        updatedAt: firestoreApi.serverTimestamp(),
+      });
+      toast.success("文件名稱已更新");
+      appendLog(`更名文件：${doc.filename} -> ${nextName}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("更名失敗");
+      appendLog(`更名失敗：${doc.filename}`);
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+  async function handleViewOriginal(doc: WikiBetaLiveDocument) {
+    if (!doc.sourceGcsUri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
+      window.open(url, "_blank", "noopener,noreferrer");
+      appendLog(`開啟原始檔：${doc.filename}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("無法開啟原始檔");
+      appendLog(`開啟原始檔失敗：${doc.filename}`);
+    }
+  }
+
+  const filteredDocs = useMemo(
+    () => [...pendingDocs, ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id))],
+    [docs, pendingDocs],
+  );
+
+  const statusSummary = useMemo(() => ({
+    total: filteredDocs.length,
+    processing: filteredDocs.filter((item) => item.status === "processing").length,
+    completed: filteredDocs.filter((item) => item.status === "completed").length,
+    errors: filteredDocs.filter((item) => item.status === "error").length,
+    ragReady: filteredDocs.filter((item) => item.ragStatus === "ready").length,
+    ragError: filteredDocs.filter((item) => item.ragStatus === "error").length,
+  }), [filteredDocs]);
+
+  const filteredReadyCount = useMemo(
+    () => filteredDocs.filter((item) => item.ragStatus === "ready").length,
+    [filteredDocs],
+  );
+
+  return (
+    <div className="space-y-4">
+      {showBackButton ? (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button>
+        </div>
+      ) : null}
+
+      {showQueryCard ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>直接呼叫 py_fn rag_query callable，取得回答與引用來源。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="請輸入問題，例如：總結最近三份文件的重要重點"
+            rows={4}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="w-28"
+              value={topK}
+              onChange={(event) => setTopK(event.target.value)}
+              inputMode="numeric"
+              placeholder="top_k"
+            />
+            <Button onClick={() => void handleAsk()} disabled={loadingAnswer}>
+              {loadingAnswer ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Search className="mr-2 size-4" />}
+              送出查詢
+            </Button>
+          </div>
+
+          <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Answer</p>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "尚未查詢"}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border/60 px-2 py-1">cache: {cacheMode}</span>
+              <span className="rounded-full border border-border/60 px-2 py-1">scope: {accountScope}</span>
+              <span className="rounded-full border border-border/60 px-2 py-1">vector hits: {vectorHits}</span>
+              <span className="rounded-full border border-border/60 px-2 py-1">search hits: {searchHits}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Citations</p>
+            {citations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">尚無引用來源</p>
+            ) : (
+              citations.map((citation, index) => (
+                <div key={`${citation.doc_id ?? "doc"}-${index}`} className="rounded-md border border-border/60 p-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{citation.filename || citation.doc_id || "未命名文件"}</p>
+                    <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                      {citation.provider || "unknown"}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{citation.text || "(無節錄)"}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      ) : null}
+
+      {showDocsSection ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload File</CardTitle>
+          <CardDescription>
+            {effectiveWorkspaceId
+              ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
+              : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label
+            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => { event.preventDefault(); setDragging(false); handleFileChange(event.dataTransfer.files?.[0] ?? null); }}
+            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
+              dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
+            }`}
+          >
+            <FileUp className="size-7 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
+              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={Object.keys(ACCEPTED_MIME).join(",")}
+              className="sr-only"
+              onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => void handleUpload()} disabled={uploading || !selectedFile || !activeAccountId}>
+              {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {uploading ? "上傳中..." : "上傳並啟動解析"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+              disabled={uploading}
+            >
+              清除
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      ) : null}
+
+      {showDocsSection ? (
+      <section className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="rounded-md border border-border/60 bg-card p-3">
+          <p className="text-xs text-muted-foreground">全部</p>
+          <p className="text-lg font-semibold">{statusSummary.total}</p>
+        </div>
+        <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
+          <p className="text-xs text-blue-700">處理中</p>
+          <p className="text-lg font-semibold text-blue-700">{statusSummary.processing}</p>
+        </div>
+        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <p className="text-xs text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold text-emerald-700">{statusSummary.completed}</p>
+        </div>
+        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
+          <p className="text-xs text-destructive">解析錯誤</p>
+          <p className="text-lg font-semibold text-destructive">{statusSummary.errors}</p>
+        </div>
+        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <p className="text-xs text-emerald-700">RAG Ready</p>
+          <p className="text-lg font-semibold text-emerald-700">{statusSummary.ragReady}</p>
+        </div>
+        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
+          <p className="text-xs text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold text-destructive">{statusSummary.ragError}</p>
+        </div>
+      </section>
+      ) : null}
+
+      {showDocsSection ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>檔案列表 + 解析狀態</CardTitle>
+          <CardDescription>
+            account: {activeAccountId || "(未選擇)"}
+            {` / scope: ${effectiveWorkspaceId ? `workspace:${effectiveWorkspaceId}` : "account 全覽"} / docs: ${filteredDocs.length} 筆 / RAG ready: ${filteredReadyCount} 筆。`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[920px] text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingDocs ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">讀取中...</td>
+                  </tr>
+                ) : filteredDocs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      目前沒有可用文件。上傳後會在此顯示解析狀態。
+                    </td>
+                  </tr>
+                ) : (
+                  filteredDocs.map((doc) => (
+                    <tr key={doc.id} className="border-b border-border/40 last:border-0">
+                      <td className="px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-foreground" title={doc.filename}>
+                            {doc.filename}
+                            {doc.isClientPending ? (
+                              <span className="ml-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700">
+                                pending
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="text-xs text-muted-foreground">id: {doc.id}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.errorMessage} />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <RagBadge status={doc.ragStatus} error={doc.ragError} />
+                      </td>
+                      <td className="px-3 py-2.5 text-xs">{doc.pageCount || "-"}</td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{formatDate(doc.uploadedAt)}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void handleViewOriginal(doc)}
+                            disabled={!doc.sourceGcsUri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleRename(doc)}
+                            disabled={renamingId === doc.id}
+                            title="更名"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            {renamingId === doc.id ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(doc)}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      ) : null}
+
+      {showDocsSection ? (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FileText className="size-4" /> Runtime Console</CardTitle>
+          <CardDescription>顯示上傳與 CRUD 操作紀錄。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setLogs([])}>清除 Console</Button>
+            <span className="text-xs text-muted-foreground">{logs.length} 筆</span>
+          </div>
+          {logs.length === 0 ? (
+            <p className="text-xs text-muted-foreground">尚無紀錄</p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-3">
+              {logs.map((line, index) => (
+                <p key={`${line}-${index}`} className="font-mono text-xs leading-5 text-foreground/90">{line}</p>
+              ))}
+            </div>
+          )}
+          <div className="flex items-start gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-blue-700">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+            文件列表使用 Firestore 即時監聽，自動保持最新狀態。
+          </div>
+        </CardContent>
+      </Card>
+      ) : null}
+    </div>
+  );
+}
+`````
+
+## File: modules/wiki-beta/interfaces/components/WikiBetaOverviewView.tsx
+`````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { buildWikiBetaContentTree } from "@/modules/workspace/api";
+import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "@/modules/workspace/api";
+
+const QUICK_ACCESS = [
+  {
+    href: "/wiki-beta/pages",
+    title: "Pages",
+    description: "層級頁面結構、命名與移動管理。",
+    icon: FileText,
+  },
+  {
+    href: "/wiki-beta/libraries",
+    title: "Libraries",
+    description: "欄位模型與資料列維護。",
+    icon: Database,
+  },
+  {
+    href: "/wiki-beta/documents",
+    title: "Documents",
+    description: "文件上傳、處理與索引狀態。",
+    icon: BookOpen,
+  },
+  {
+    href: "/wiki-beta/rag-query",
+    title: "RAG Query",
+    description: "知識問答與引用檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export function WikiBetaOverviewView() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiBetaAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiBetaAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiBetaAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiBetaContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Account Wiki-Beta Dashboard</CardTitle>
+          <CardDescription>顯示目前 active account 底下的 Wiki-Beta 範圍，並提供 account-level 與 workspace-level 的進入點。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki-Beta</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account，點擊後直接進入該 workspace 的 Wiki-Beta 範圍。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Link key={workspace.workspaceId} href={workspace.href}>
+                  <Card className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+`````
+
+## File: modules/workspace/api/index.ts
+`````typescript
+/**
+ * workspace 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
+ */
+
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+  WorkspacePersonnel,
+} from "../domain/entities/Workspace";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../interfaces/queries/workspace.queries";
+
+// ─── WikiBeta content-tree types (transitional — workspace-owned) ─────────────
+
+export type {
+  WikiBetaAccountContentNode,
+  WikiBetaAccountSeed,
+  WikiBetaAccountType,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaWorkspaceRef,
+} from "../domain/entities/WikiBetaContentTree";
+
+// ─── WikiBeta content-tree use-case (transitional) ────────────────────────────
+
+export { buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
+
+export { createWorkspace } from "../interfaces/_actions/workspace.actions";
+
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+
+export {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
 `````
 
 ## File: docs/architecture/README.md
@@ -68091,24 +68565,23 @@ flowchart TB
     class Firestore,Storage,CoreData,KnowledgeData,StructuredData,AssetData,TaxonomyData data;
 `````
 
-## File: modules/wiki-beta/api/index.ts
+## File: modules/asset/api/index.ts
 `````typescript
 /**
- * Module: wiki-beta
+ * Module: asset
  * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the WikiBeta domain.
+ * Purpose: Public cross-module API boundary for the Asset domain.
  *
  * Other modules MUST import from here — never from domain/, application/,
  * infrastructure/, or interfaces/ directly.
  */
 
-// ─── Core entity types ────────────────────────────────────────────────────────
+// --- Core entity types -------------------------------------------------------
 
-export type {
-  WikiBetaPage,
-  WikiBetaPageStatus,
-  WikiBetaPageTreeNode,
-} from "../domain/entities/wiki-beta-page.types";
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+
+// --- WikiBeta library entity types (transitional — owned by asset domain) ----
 
 export type {
   WikiBetaLibrary,
@@ -68116,34 +68589,14 @@ export type {
   WikiBetaLibraryFieldType,
   WikiBetaLibraryRow,
   WikiBetaLibraryStatus,
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
 } from "../domain/entities/wiki-beta-library.types";
 
-export type {
-  WikiBetaWorkspaceRef,
-  WikiBetaWorkspaceContentNode,
-  WikiBetaContentItemNode,
-  // Document / RAG types — re-exported for use by asset and retrieval modules
-  WikiBetaParsedDocument,
-  WikiBetaReindexInput,
-  WikiBetaCitation,
-  WikiBetaRagQueryResult,
-} from "../domain/entities/wiki-beta.types";
+// --- WikiBeta library use-cases (transitional) --------------------------------
 
-// ─── Application functions — exposed for cross-module orchestration ───────────
-
-export {
-  runWikiBetaRagQuery,
-  reindexWikiBetaDocument,
-  listWikiBetaParsedDocuments,
-} from "../application/use-cases/wiki-beta-rag.use-case";
-
-export {
-  createWikiBetaPage,
-  listWikiBetaPagesTree,
-  moveWikiBetaPage,
-  renameWikiBetaPage,
-} from "../application/use-cases/wiki-beta-pages.use-case";
-
+export type { WikiBetaLibrarySnapshot } from "../application/use-cases/wiki-beta-libraries.use-case";
 export {
   addWikiBetaLibraryField,
   createWikiBetaLibrary,
@@ -68152,42 +68605,66 @@ export {
   listWikiBetaLibraries,
 } from "../application/use-cases/wiki-beta-libraries.use-case";
 
-export { buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";
+// --- Document snapshot types (owned by asset) --------------------------------
 
-// ─── Additional types for page/library inputs ─────────────────────────────────
+export type { AssetDocument, AssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
+export { useDocumentsSnapshot, mapToAssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
 
+// --- Query functions ---------------------------------------------------------
+
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+
+// --- UI components (cross-module public) -------------------------------------
+
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { AssetDocumentsView } from "../interfaces/components/AssetDocumentsView";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+`````
+
+## File: modules/content/api/index.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the Content domain.
+ */
+
+export { ContentFacade, contentFacade } from "./content-facade";
 export type {
+  ContentCreatePageParams,
+  ContentRenamePageParams,
+  ContentMovePageParams,
+  ContentAddBlockParams,
+  ContentUpdateBlockParams,
+} from "./content-facade";
+
+export { ContentApi } from "./content-api";
+
+// ── WikiBeta page types (transitional — owned by content domain) ──────────────
+export type {
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
   CreateWikiBetaPageInput,
-  MoveWikiBetaPageInput,
   RenameWikiBetaPageInput,
+  MoveWikiBetaPageInput,
 } from "../domain/entities/wiki-beta-page.types";
 
-export type {
-  AddWikiBetaLibraryFieldInput,
-  CreateWikiBetaLibraryInput,
-  CreateWikiBetaLibraryRowInput,
-} from "../domain/entities/wiki-beta-library.types";
+// ── WikiBeta page use-cases (transitional) ────────────────────────────────────
+export {
+  createWikiBetaPage,
+  listWikiBetaPagesTree,
+  moveWikiBetaPage,
+  renameWikiBetaPage,
+} from "../application/use-cases/wiki-beta-pages.use-case";
 
-export type {
-  WikiBetaAccountContentNode,
-  WikiBetaAccountSeed,
-} from "../domain/entities/wiki-beta.types";
-
-// ─── UI components ────────────────────────────────────────────────────────────
-
-// wiki-beta-native component
-export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
-export { WikiBetaOverviewView } from "../interfaces/components/WikiBetaOverviewView";
-
-// Transitional re-exports — delegate to canonical bounded-context modules
-export { WikiBetaBlockEditorView } from "../interfaces/components/WikiBetaBlockEditorView";
-export { WikiBetaDocumentsView } from "../interfaces/components/WikiBetaDocumentsView";
-export { WikiBetaLibrariesView } from "../interfaces/components/WikiBetaLibrariesView";
-export { WikiBetaLibraryTableView } from "../interfaces/components/WikiBetaLibraryTableView";
-export { WikiBetaPagesDnDView } from "../interfaces/components/WikiBetaPagesDnDView";
-export { WikiBetaPagesView } from "../interfaces/components/WikiBetaPagesView";
-export { WikiBetaRagQueryView } from "../interfaces/components/WikiBetaRagQueryView";
-export { WikiBetaRagView } from "../interfaces/components/WikiBetaRagView";
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+export { PagesView } from "../interfaces/components/PagesView";
+export { PagesDnDView } from "../interfaces/components/PagesDnDView";
 `````
 
 ## File: .github/instructions/app/app-router-parallel-routes.instructions.md
@@ -68616,6 +69093,109 @@ flowchart TB
     class PublicRoot,Dashboard,WorkspaceHub,WorkspaceDetail,AiChat,WikiBeta,Organization,Settings route;
     class Start,Auth,SelectWorkspace,Membership,Shell,Intent,PageFlow,DatabaseFlow,FileFlow,SearchFlow,AdminFlow flow;
     class Accounts,Organizations,Workspaces,WorkspaceTasks,WorkspaceIssues,Notifications,AuditLogs,TokenSignals,Finance,FileDocuments data;
+`````
+
+## File: modules/wiki-beta/api/index.ts
+`````typescript
+/**
+ * Module: wiki-beta
+ * Layer: api/barrel
+ * Purpose: Transitional cross-module facade — all domain logic has been moved
+ *          to canonical bounded-context modules. This barrel re-exports from
+ *          those modules so existing consumers continue to compile unchanged.
+ *
+ * Ownership map:
+ *   pages / page types       → modules/content
+ *   libraries / library types → modules/asset
+ *   RAG / citation types      → modules/retrieval
+ *   content-tree types        → modules/workspace
+ *   WikiBetaOverviewView      → wiki-beta (consumes workspace API)
+ *   WikiBetaWorkspaceView     → wiki-beta (consumes retrieval API)
+ */
+
+// ─── Page types + use-cases (now owned by modules/content) ───────────────────
+
+export type {
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
+  CreateWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+} from "@/modules/content/api";
+
+export {
+  createWikiBetaPage,
+  listWikiBetaPagesTree,
+  moveWikiBetaPage,
+  renameWikiBetaPage,
+} from "@/modules/content/api";
+
+// ─── Library types + use-cases (now owned by modules/asset) ──────────────────
+
+export type {
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+  WikiBetaLibrarySnapshot,
+} from "@/modules/asset/api";
+
+export {
+  addWikiBetaLibraryField,
+  createWikiBetaLibrary,
+  createWikiBetaLibraryRow,
+  getWikiBetaLibrarySnapshot,
+  listWikiBetaLibraries,
+} from "@/modules/asset/api";
+
+// ─── RAG types + use-cases (now owned by modules/retrieval) ──────────────────
+
+export type {
+  WikiBetaCitation,
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "@/modules/retrieval/api";
+
+export {
+  runWikiBetaRagQuery,
+  reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments,
+} from "@/modules/retrieval/api";
+
+// ─── Content-tree types + use-case (now owned by modules/workspace) ───────────
+
+export type {
+  WikiBetaAccountContentNode,
+  WikiBetaAccountSeed,
+  WikiBetaAccountType,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaWorkspaceRef,
+} from "@/modules/workspace/api";
+
+export { buildWikiBetaContentTree } from "@/modules/workspace/api";
+
+// ─── UI components ────────────────────────────────────────────────────────────
+
+// wiki-beta-native components (still live in this module)
+export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
+export { WikiBetaOverviewView } from "../interfaces/components/WikiBetaOverviewView";
+
+// Transitional re-exports — delegate to canonical bounded-context modules
+export { WikiBetaBlockEditorView } from "../interfaces/components/WikiBetaBlockEditorView";
+export { WikiBetaDocumentsView } from "../interfaces/components/WikiBetaDocumentsView";
+export { WikiBetaLibrariesView } from "../interfaces/components/WikiBetaLibrariesView";
+export { WikiBetaLibraryTableView } from "../interfaces/components/WikiBetaLibraryTableView";
+export { WikiBetaPagesDnDView } from "../interfaces/components/WikiBetaPagesDnDView";
+export { WikiBetaPagesView } from "../interfaces/components/WikiBetaPagesView";
+export { WikiBetaRagQueryView } from "../interfaces/components/WikiBetaRagQueryView";
+export { WikiBetaRagView } from "../interfaces/components/WikiBetaRagView";
 `````
 
 ## File: .github/agents/app/README.md
