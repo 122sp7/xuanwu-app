@@ -7,7 +7,7 @@ System diagrams and conceptual explanations that clarify architecture and decisi
 | Subdirectory | Content | Entry |
 | --- | --- | --- |
 | [diagrams/](./diagrams/) | Architecture, data, flow, and state diagrams | [diagrams/README.md](./diagrams/README.md) |
-| [explanation/](./explanation/) | Detailed explanations of design rationale | index.js |
+| [explanation/](./explanation/) | Detailed explanations of design rationale | [explanation/README.md](./explanation/README.md) |
 
 ## Reading Order
 

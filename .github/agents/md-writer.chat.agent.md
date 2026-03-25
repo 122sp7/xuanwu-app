@@ -41,7 +41,7 @@ Apply the full `md-*` prompt pipeline to target documents, evolving them toward 
 ```
 .github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
 .github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,index.js,README.md}
+docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
 ```
 
 ## Guardrails

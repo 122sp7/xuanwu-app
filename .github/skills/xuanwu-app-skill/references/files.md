@@ -257,7 +257,7 @@ Apply the full `md-*` prompt pipeline to target documents, evolving them toward 
 ```
 .github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
 .github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,index.js,README.md}
+docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
 ```
 
 ## Guardrails
@@ -1506,7 +1506,7 @@ description: Orchestrate full Markdown optimization pipeline (Leaf → Root)
 ```
 .github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
 .github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,index.js,README.md}
+docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
 ```
 
 ## Execution Order (Leaf → Root)
@@ -56299,45 +56299,6 @@ match /scheduleMdddFlowProjections/{requestId} {
 - 將 best-effort 寫入路徑升級為可恢復的生產級流程
 `````
 
-## File: docs/decision-architecture/index.js
-`````javascript
-const adr = Object.freeze({
-  adr001RagUploadStorageAndDocumentLifecycle: "docs/decision-architecture/adr/ADR-001-rag-upload-storage-and-document-lifecycle.md",
-  adr002RagUploadStorageAndNaming: "docs/decision-architecture/adr/ADR-002-rag-upload-storage-and-naming.md",
-  adr003RagFirestoreDataModelAndLifecycle: "docs/decision-architecture/adr/ADR-003-rag-firestore-data-model-and-lifecycle.md",
-  adr004RagQueryRetrievalAndEnterpriseEnhancements: "docs/decision-architecture/adr/ADR-004-rag-query-retrieval-and-enterprise-enhancements.md",
-  adr005RagIngestionExecutionContract: "docs/decision-architecture/adr/ADR-005-rag-ingestion-execution-contract.md",
-  adr006RagQueryExecutionContract: "docs/decision-architecture/adr/ADR-006-rag-query-execution-contract.md",
-  adr007RagOptionalEnhancementsRollout: "docs/decision-architecture/adr/ADR-007-rag-optional-enhancements-rollout.md",
-  adr008RagObservabilitySloAndAcceptance: "docs/decision-architecture/adr/ADR-008-rag-observability-slo-and-acceptance.md",
-  adr009RagFirestoreIndexMatrix: "docs/decision-architecture/adr/ADR-009-rag-firestore-index-matrix.md",
-  adr010RagUploadAndWorkerEventContract: "docs/decision-architecture/adr/ADR-010-rag-upload-and-worker-event-contract.md",
-  adr011RagGenkitFlowContract: "docs/decision-architecture/adr/ADR-011-rag-genkit-flow-contract.md",
-  adr012FunctionsPythonDirectoryPlacement: "docs/decision-architecture/adr/ADR-012-functions-python-directory-placement.md",
-});
-
-const architecture = Object.freeze({
-  aiKnowledgePlatformArchitecture: "docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md",
-  daily: "docs/decision-architecture/architecture/daily.md",
-  event: "docs/decision-architecture/architecture/event.md",
-  namespace: "docs/decision-architecture/architecture/namespace.md",
-  schedule: "docs/decision-architecture/architecture/schedule.md",
-});
-
-const markdown = Object.freeze({
-  ...adr,
-  ...architecture,
-});
-
-const assets = Object.freeze({});
-
-module.exports = Object.freeze({
-  adr,
-  architecture,
-  markdown,
-  assets,
-});
-`````
 
 ## File: docs/development-reference/development/development-process.md
 `````markdown
@@ -57040,94 +57001,6 @@ A: 目前 event bus adapter 為 noop scaffold。完整訂閱實作（例如 Fire
 | 整體架構指南 | `agents/knowledge-base.md` |
 `````
 
-## File: docs/development-reference/index.js
-`````javascript
-const development = Object.freeze({
-  branchStrategy: "docs/development-reference/development/branch-strategy.md",
-  codeStyle: "docs/development-reference/development/code-style.md",
-  developmentProcess: "docs/development-reference/development/development-process.md",
-  modulesImplementationGuide: "docs/development-reference/development/modules-implementation-guide.md",
-  readme: "docs/development-reference/development/README.md",
-});
-
-const event = Object.freeze({
-  developmentGuide: "docs/development-reference/event/development-guide.md",
-  userManual: "docs/development-reference/event/user-manual.md",
-});
-
-const namespace = Object.freeze({
-  developmentGuide: "docs/development-reference/namespace/development-guide.md",
-  userManual: "docs/development-reference/namespace/user-manual.md",
-});
-
-const reference = Object.freeze({
-  ai: Object.freeze({
-    customizationsIndex: "docs/development-reference/reference/ai/customizations-index.md",
-    handoffMatrix: "docs/development-reference/reference/ai/handoff-matrix.md",
-    implementationPlanTemplate: "docs/development-reference/reference/ai/implementation-plan-template.md",
-    legacyCustomizationsMigration: "docs/development-reference/reference/ai/legacy-customizations-migration.md",
-    planSchema: "docs/development-reference/reference/ai/plan-schema.md",
-  }),
-  developmentContracts: Object.freeze({
-    acceptanceContract: "docs/development-reference/reference/development-contracts/acceptance-contract.md",
-    auditContract: "docs/development-reference/reference/development-contracts/audit-contract.md",
-    billingContract: "docs/development-reference/reference/development-contracts/billing-contract.md",
-    dailyContract: "docs/development-reference/reference/development-contracts/daily-contract.md",
-    eventContract: "docs/development-reference/reference/development-contracts/event-contract.md",
-    namespaceContract: "docs/development-reference/reference/development-contracts/namespace-contract.md",
-    overview: "docs/development-reference/reference/development-contracts/overview.md",
-    parserContract: "docs/development-reference/reference/development-contracts/parser-contract.md",
-    ragIngestionContract: "docs/development-reference/reference/development-contracts/rag-ingestion-contract.md",
-    scheduleContract: "docs/development-reference/reference/development-contracts/schedule-contract.md",
-  }),
-});
-
-const specification = Object.freeze({
-  readme: "docs/development-reference/specification/README.md",
-  systemOverview: "docs/development-reference/specification/system-overview.md",
-});
-
-const markdown = Object.freeze({
-  developmentBranchStrategy: development.branchStrategy,
-  developmentCodeStyle: development.codeStyle,
-  developmentDevelopmentProcess: development.developmentProcess,
-  developmentModulesImplementationGuide: development.modulesImplementationGuide,
-  developmentReadme: development.readme,
-  eventDevelopmentGuide: event.developmentGuide,
-  eventUserManual: event.userManual,
-  namespaceDevelopmentGuide: namespace.developmentGuide,
-  namespaceUserManual: namespace.userManual,
-  referenceAiCustomizationsIndex: reference.ai.customizationsIndex,
-  referenceAiHandoffMatrix: reference.ai.handoffMatrix,
-  referenceAiImplementationPlanTemplate: reference.ai.implementationPlanTemplate,
-  referenceAiLegacyCustomizationsMigration: reference.ai.legacyCustomizationsMigration,
-  referenceAiPlanSchema: reference.ai.planSchema,
-  developmentContractsAcceptance: reference.developmentContracts.acceptanceContract,
-  developmentContractsAudit: reference.developmentContracts.auditContract,
-  developmentContractsBilling: reference.developmentContracts.billingContract,
-  developmentContractsDaily: reference.developmentContracts.dailyContract,
-  developmentContractsEvent: reference.developmentContracts.eventContract,
-  developmentContractsNamespace: reference.developmentContracts.namespaceContract,
-  developmentContractsOverview: reference.developmentContracts.overview,
-  developmentContractsParser: reference.developmentContracts.parserContract,
-  developmentContractsRagIngestion: reference.developmentContracts.ragIngestionContract,
-  developmentContractsSchedule: reference.developmentContracts.scheduleContract,
-  specificationReadme: specification.readme,
-  specificationSystemOverview: specification.systemOverview,
-});
-
-const assets = Object.freeze({});
-
-module.exports = Object.freeze({
-  development,
-  event,
-  namespace,
-  reference,
-  specification,
-  markdown,
-  assets,
-});
-`````
 
 ## File: docs/development-reference/namespace/development-guide.md
 `````markdown
@@ -59054,56 +58927,6 @@ The workflow is complete when all of the following are true:
 - [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
 `````
 
-## File: docs/how-to-user/index.js
-`````javascript
-const howTo = Object.freeze({
-  organizeDocsForAi: "docs/how-to-user/how-to/organize-docs-for-ai.md",
-  recoverAgentFlow: "docs/how-to-user/how-to/recover-agent-flow.md",
-  startFeatureDelivery: "docs/how-to-user/how-to/start-feature-delivery.md",
-  updateCustomizations: "docs/how-to-user/how-to/update-customizations.md",
-});
-
-const uiUx = Object.freeze({
-  componentPatterns: "docs/how-to-user/ui-ux/component-patterns.md",
-  designSystem: "docs/how-to-user/ui-ux/design-system.md",
-  informationArchitecture: "docs/how-to-user/ui-ux/information-architecture.md",
-  readme: "docs/how-to-user/ui-ux/README.md",
-  uxPrinciples: "docs/how-to-user/ui-ux/ux-principles.md",
-  wireframes: "docs/how-to-user/ui-ux/wireframes.md",
-});
-
-const userManual = Object.freeze({
-  adminGuide: "docs/how-to-user/user-manual/admin-guide.md",
-  readme: "docs/how-to-user/user-manual/README.md",
-  userGuide: "docs/how-to-user/user-manual/user-guide.md",
-});
-
-const markdown = Object.freeze({
-  howToOrganizeDocsForAi: howTo.organizeDocsForAi,
-  howToRecoverAgentFlow: howTo.recoverAgentFlow,
-  howToStartFeatureDelivery: howTo.startFeatureDelivery,
-  howToUpdateCustomizations: howTo.updateCustomizations,
-  uiUxComponentPatterns: uiUx.componentPatterns,
-  uiUxDesignSystem: uiUx.designSystem,
-  uiUxInformationArchitecture: uiUx.informationArchitecture,
-  uiUxReadme: uiUx.readme,
-  uiUxUxPrinciples: uiUx.uxPrinciples,
-  uiUxWireframes: uiUx.wireframes,
-  userManualAdminGuide: userManual.adminGuide,
-  userManualReadme: userManual.readme,
-  userManualUserGuide: userManual.userGuide,
-});
-
-const assets = Object.freeze({});
-
-module.exports = Object.freeze({
-  howTo,
-  uiUx,
-  userManual,
-  markdown,
-  assets,
-});
-`````
 
 ## File: docs/how-to-user/README.md
 `````markdown
@@ -59139,41 +58962,6 @@ End-user documentation, administrator guides, UI/UX design, and operation workfl
 - [../development-reference/README.md](../development-reference/README.md) — Development guides
 `````
 
-## File: docs/index.js
-`````javascript
-/* eslint-disable @typescript-eslint/no-require-imports */
-const decisionArchitecture = require("./decision-architecture");
-const developmentReference = require("./development-reference");
-const diagramsEventsExplanations = require("./diagrams-events-explanations");
-const howToUser = require("./how-to-user");
-
-const readme = "docs/README.md";
-
-const markdown = Object.freeze({
-  readme,
-  ...decisionArchitecture.markdown,
-  ...developmentReference.markdown,
-  ...diagramsEventsExplanations.markdown,
-  ...howToUser.markdown,
-});
-
-const assets = Object.freeze({
-  ...decisionArchitecture.assets,
-  ...developmentReference.assets,
-  ...diagramsEventsExplanations.assets,
-  ...howToUser.assets,
-});
-
-module.exports = Object.freeze({
-  readme,
-  decisionArchitecture,
-  developmentReference,
-  diagramsEventsExplanations,
-  howToUser,
-  markdown,
-  assets,
-});
-`````
 
 ## File: docs/README.md
 `````markdown
@@ -72075,69 +71863,6 @@ npm run lint -- --fix
 - **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
 `````
 
-## File: docs/diagrams-events-explanations/index.js
-`````javascript
-const diagrams = Object.freeze({
-  agentArchitectureCommanderSubagents: "docs/diagrams-events-explanations/diagrams/agent-architecture-commander-subagents.mermaid",
-  aiKnowledgePlatformArchitecture: "docs/diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png",
-  apiDataFlow: "docs/diagrams-events-explanations/diagrams/api-data-flow.mermaid",
-  authStateMachine: "docs/diagrams-events-explanations/diagrams/auth-state-machine.mermaid",
-  coreLogic: "docs/diagrams-events-explanations/diagrams/core-logic.mermaid",
-  erdModel: "docs/diagrams-events-explanations/diagrams/erd-model.mermaid",
-  eventBusMessageFlow: "docs/diagrams-events-explanations/diagrams/event-bus-message-flow.mermaid",
-  firestoreCollectionPathStructure: "docs/diagrams-events-explanations/diagrams/firestore-collection-path-structure.mermaid",
-  kbIngestionPipelineStateMachine: "docs/diagrams-events-explanations/diagrams/kb-ingestion-pipeline-state-machine.mermaid",
-  nextjsAppRouterStructure: "docs/diagrams-events-explanations/diagrams/nextjs-app-router-structure.mermaid",
-  projectDerivation: "docs/diagrams-events-explanations/diagrams/project-derivation.mermaid",
-  ragEnterpriseE2e: "docs/diagrams-events-explanations/diagrams/rag-enterprise-e2e.mermaid",
-  readme: "docs/diagrams-events-explanations/diagrams/README.md",
-  securityRulesDecisionFlow: "docs/diagrams-events-explanations/diagrams/security-rules-decision-flow.mermaid",
-  stateMachine: "docs/diagrams-events-explanations/diagrams/state-machine.mermaid",
-  systemArchitectureOverviewCombined: "docs/diagrams-events-explanations/diagrams/system-architecture-overview-combined.mermaid",
-  systemMultiWorkspaceHierarchy: "docs/diagrams-events-explanations/diagrams/system-multi-workspace-hierarchy.mermaid",
-  workspaceInteractionFlow: "docs/diagrams-events-explanations/diagrams/workspace-interaction-flow.mermaid",
-  workspaceInternalDataModel: "docs/diagrams-events-explanations/diagrams/workspace-internal-data-model.mermaid",
-});
-
-const explanation = Object.freeze({
-  agenticDeliveryModel: "docs/diagrams-events-explanations/explanation/agentic-delivery-model.md",
-  developmentContractGovernance: "docs/diagrams-events-explanations/explanation/development-contract-governance.md",
-});
-
-const markdown = Object.freeze({
-  diagramsReadme: diagrams.readme,
-  explanationAgenticDeliveryModel: explanation.agenticDeliveryModel,
-  explanationDevelopmentContractGovernance: explanation.developmentContractGovernance,
-});
-
-const assets = Object.freeze({
-  agentArchitectureCommanderSubagents: diagrams.agentArchitectureCommanderSubagents,
-  aiKnowledgePlatformArchitecture: diagrams.aiKnowledgePlatformArchitecture,
-  apiDataFlow: diagrams.apiDataFlow,
-  authStateMachine: diagrams.authStateMachine,
-  coreLogic: diagrams.coreLogic,
-  erdModel: diagrams.erdModel,
-  eventBusMessageFlow: diagrams.eventBusMessageFlow,
-  firestoreCollectionPathStructure: diagrams.firestoreCollectionPathStructure,
-  kbIngestionPipelineStateMachine: diagrams.kbIngestionPipelineStateMachine,
-  nextjsAppRouterStructure: diagrams.nextjsAppRouterStructure,
-  projectDerivation: diagrams.projectDerivation,
-  ragEnterpriseE2e: diagrams.ragEnterpriseE2e,
-  securityRulesDecisionFlow: diagrams.securityRulesDecisionFlow,
-  stateMachine: diagrams.stateMachine,
-  systemArchitectureOverviewCombined: diagrams.systemArchitectureOverviewCombined,
-  systemMultiWorkspaceHierarchy: diagrams.systemMultiWorkspaceHierarchy,
-  workspaceInteractionFlow: diagrams.workspaceInteractionFlow,
-  workspaceInternalDataModel: diagrams.workspaceInternalDataModel,
-});
-
-module.exports = Object.freeze({
-  diagrams,
-  explanation,
-  markdown,
-  assets,
-});
-`````
 
 ## File: docs/how-to-user/how-to/update-customizations.md
 `````markdown
