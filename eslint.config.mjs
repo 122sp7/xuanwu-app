@@ -94,43 +94,73 @@ const eslintConfig = defineConfig([
       "boundaries/include": moduleFileGlobs,
       "boundaries/elements": [
         {
+          type: "module-api",
+          pattern: "modules/*/api/**/*",
+          capture: ["module"],
+        },
+        {
           type: "module-domain",
           pattern: "modules/*/domain/**/*",
+          capture: ["module"],
         },
         {
           type: "module-application",
           pattern: "modules/*/application/**/*",
+          capture: ["module"],
         },
         {
           type: "module-infrastructure",
           pattern: "modules/*/infrastructure/**/*",
+          capture: ["module"],
         },
         {
           type: "module-interfaces",
           pattern: "modules/*/interfaces/**/*",
+          capture: ["module"],
         },
       ],
     },
     rules: {
-      "boundaries/dependencies": [
+      "boundaries/element-types": [
         "error",
         {
-          default: "allow",
+          default: "disallow",
           rules: [
             {
-              from: { type: "module-domain" },
-              disallow: { to: { type: ["module-application", "module-infrastructure", "module-interfaces"] } },
-              message: "Domain files may depend only on domain files and shared packages, not on application, infrastructure, or interfaces layers.",
+              from: ["module-domain", "module-application", "module-infrastructure", "module-interfaces"],
+              allow: ["module-api"],
+              message: "Cross-module imports must go through `modules/<target>/api`.",
             },
             {
-              from: { type: "module-application" },
-              disallow: { to: { type: ["module-infrastructure", "module-interfaces"] } },
-              message: "Application files may depend on domain files, but not directly on infrastructure or interfaces layers.",
+              from: ["module-domain"],
+              allow: [["module-domain", { module: "${from.module}" }]],
+              message: "Domain may only depend on domain of the same module.",
             },
             {
-              from: { type: "module-infrastructure" },
-              disallow: { to: { type: ["module-interfaces"] } },
-              message: "Infrastructure files may not depend on interfaces files.",
+              from: ["module-application"],
+              allow: [
+                ["module-application", { module: "${from.module}" }],
+                ["module-domain", { module: "${from.module}" }],
+              ],
+              message: "Application may depend only on application/domain in the same module.",
+            },
+            {
+              from: ["module-infrastructure"],
+              allow: [
+                ["module-infrastructure", { module: "${from.module}" }],
+                ["module-application", { module: "${from.module}" }],
+                ["module-domain", { module: "${from.module}" }],
+              ],
+              message: "Infrastructure may depend only on infrastructure/application/domain in the same module.",
+            },
+            {
+              from: ["module-interfaces"],
+              allow: [
+                ["module-interfaces", { module: "${from.module}" }],
+                ["module-application", { module: "${from.module}" }],
+                ["module-domain", { module: "${from.module}" }],
+              ],
+              message: "Interfaces may depend only on interfaces/application/domain in the same module.",
             },
           ],
         },
