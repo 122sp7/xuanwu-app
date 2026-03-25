@@ -7,32 +7,47 @@ flowchart LR
 
     subgraph DomainA["Domain A - DOMAIN_ID_A"]
         direction TB
+        A_IF["interfaces/\nUI adapter / route / action"]
         A_API["api/\ncontracts + facade"]
         A_APP["application/\nuse cases"]
-        A_DOM["domain/\nentities + rules"]
-        A_INF["infrastructure/\nadapters"]
-        A_API --> A_APP --> A_DOM
-        A_INF --> A_DOM
+        A_DOM["domain/\nentities + domain services"]
+        A_PORT["domain/ports + repositories\nrequired abstractions"]
+        A_INF["infrastructure/\nexternal adapters"]
+
+        A_IF --> A_API --> A_APP --> A_DOM
+        A_APP --> A_PORT
+        A_INF --> A_PORT
+        A_PORT --> A_DOM
     end
 
     subgraph DomainB["Domain B - DOMAIN_ID_B"]
         direction TB
+        B_IF["interfaces/\nUI adapter / route / action"]
         B_API["api/\ncontracts + facade"]
         B_APP["application/\nuse cases"]
-        B_DOM["domain/\nentities + rules"]
-        B_INF["infrastructure/\nadapters"]
-        B_API --> B_APP --> B_DOM
-        B_INF --> B_DOM
+        B_DOM["domain/\nentities + domain services"]
+        B_PORT["domain/ports + repositories\nrequired abstractions"]
+        B_INF["infrastructure/\nexternal adapters"]
+
+        B_IF --> B_API --> B_APP --> B_DOM
+        B_APP --> B_PORT
+        B_INF --> B_PORT
+        B_PORT --> B_DOM
     end
 
     subgraph DomainC["Domain C - DOMAIN_ID_C"]
         direction TB
+        C_IF["interfaces/\nUI adapter / route / action"]
         C_API["api/\ncontracts + facade"]
         C_APP["application/\nuse cases"]
-        C_DOM["domain/\nentities + rules"]
-        C_INF["infrastructure/\nadapters"]
-        C_API --> C_APP --> C_DOM
-        C_INF --> C_DOM
+        C_DOM["domain/\nentities + domain services"]
+        C_PORT["domain/ports + repositories\nrequired abstractions"]
+        C_INF["infrastructure/\nexternal adapters"]
+
+        C_IF --> C_API --> C_APP --> C_DOM
+        C_APP --> C_PORT
+        C_INF --> C_PORT
+        C_PORT --> C_DOM
     end
 
     App --> A_API
@@ -43,7 +58,7 @@ flowchart LR
     B_API -. "API call only" .-> C_API
     C_API -. "API call only" .-> A_API
 
-    Forbidden["Forbidden:\nNo direct import to another domain's application/domain/infrastructure"]
+    Forbidden["Forbidden:\nNo direct import to another domain internals\n(interfaces/application/domain/ports/infrastructure)"]
     Forbidden -. never .-> A_APP
     Forbidden -. never .-> B_DOM
     Forbidden -. never .-> C_INF
@@ -52,10 +67,12 @@ flowchart LR
     classDef api fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
     classDef layer fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
     classDef infra fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
+    classDef port fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.2px;
     classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
 
     class App app;
     class A_API,B_API,C_API api;
-    class A_APP,A_DOM,B_APP,B_DOM,C_APP,C_DOM layer;
+    class A_IF,A_APP,A_DOM,B_IF,B_APP,B_DOM,C_IF,C_APP,C_DOM layer;
+    class A_PORT,B_PORT,C_PORT port;
     class A_INF,B_INF,C_INF infra;
     class Forbidden warn;
