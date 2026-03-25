@@ -1,7 +1,7 @@
 ---
 name: implement-feature
 description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
-agent: Implementer
+agent: Domain Lead
 argument-hint: Provide approved plan reference and tasks to execute.
 ---
 

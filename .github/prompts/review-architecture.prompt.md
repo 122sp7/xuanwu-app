@@ -1,7 +1,7 @@
 ---
 name: review-architecture
 description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
-agent: Reviewer
+agent: Quality Lead
 argument-hint: Provide plan reference, changed files, and architecture concerns.
 ---
 

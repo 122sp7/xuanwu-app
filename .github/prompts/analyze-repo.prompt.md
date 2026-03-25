@@ -1,7 +1,7 @@
 ---
 name: analyze-repo
 description: Analyze repository structure, ownership boundaries, and change impact before implementation.
-agent: serena-coding-agent
+agent: Serena Strategist
 argument-hint: Provide target area, goal, and constraints.
 ---
 

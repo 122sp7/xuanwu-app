@@ -1,7 +1,7 @@
 ---
 name: review-code
 description: Perform risk-first code review for correctness, regressions, and missing validation.
-agent: Reviewer
+agent: Quality Lead
 argument-hint: Provide change summary, touched files, and known risk areas.
 ---
 
