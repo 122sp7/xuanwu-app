@@ -31,14 +31,14 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, *.log, firebase-debug.log, .env*, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .tmp-*, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-974 files | 75,229 lines
+976 files | 77,180 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
@@ -48,13 +48,14 @@ This skill contains the following reference files:
 | No Extension | 66 | 120 |
 | Python | 49 | 3,532 |
 | MERMAID | 33 | 2,488 |
-| JSON | 8 | 598 |
+| JSON | 10 | 2,549 |
 | JavaScript | 5 | 260 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 338 |
 | Other | 8 | 1,079 |
 
 **Largest files:**
+- `.tmp-eslint-config.json` (1,932 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (972 lines)
 - `docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` (942 lines)
 - `modules/Architecture.md` (942 lines)
@@ -64,4 +65,3 @@ This skill contains the following reference files:
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/app-rail.tsx` (669 lines)
 - `modules/wiki-beta/interfaces/components/WikiBetaRagView.tsx` (660 lines)
-- `app/(shell)/_components/customize-navigation-dialog.tsx` (610 lines)
