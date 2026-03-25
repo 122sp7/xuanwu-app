@@ -94,6 +94,11 @@ const eslintConfig = defineConfig([
       "boundaries/include": moduleFileGlobs,
       "boundaries/elements": [
         {
+          type: "module-root",
+          pattern: "modules/*/index.ts",
+          capture: ["module"],
+        },
+        {
           type: "module-api",
           pattern: "modules/*/api/**/*",
           capture: ["module"],
@@ -130,6 +135,22 @@ const eslintConfig = defineConfig([
               from: ["module-domain", "module-application", "module-infrastructure", "module-interfaces"],
               allow: ["module-api"],
               message: "Cross-module imports must go through `modules/<target>/api`.",
+            },
+            {
+              from: ["module-domain", "module-application", "module-infrastructure", "module-interfaces"],
+              allow: [["module-root", { module: "${from.module}" }]],
+              message: "Module root barrel is allowed only for the same module.",
+            },
+            {
+              from: ["module-api"],
+              allow: [
+                ["module-api", { module: "${from.module}" }],
+                ["module-domain", { module: "${from.module}" }],
+                ["module-application", { module: "${from.module}" }],
+                ["module-interfaces", { module: "${from.module}" }],
+                ["module-infrastructure", { module: "${from.module}" }],
+              ],
+              message: "API layer may depend only on same-module layers.",
             },
             {
               from: ["module-domain"],
@@ -180,7 +201,11 @@ const eslintConfig = defineConfig([
                 "@/modules/*/infrastructure/**",
                 "@/modules/*/interfaces/**",
               ],
-              message: "Cross-module dependencies must go through the target module public boundary (`@/modules/<module>` or `api/`), not an internal layer path.",
+              message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+            },
+            {
+              group: ["@/modules/*"],
+              message: "Within modules/, cross-module imports must use `@/modules/<module>/api` instead of root barrel.",
             },
           ],
         },
