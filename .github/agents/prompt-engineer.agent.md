@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Organize Knowledge Base
-		agent: KB Architect
-		prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
-	- label: Refine Tool Strategy
-		agent: Tool Caller
-		prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
+  - label: Organize Knowledge Base
+    agent: KB Architect
+    prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
+  - label: Refine Tool Strategy
+    agent: Tool Caller
+    prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
 
 ---
 

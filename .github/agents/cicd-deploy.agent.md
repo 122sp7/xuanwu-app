@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Run Quality Gate
-		agent: Quality Lead
-		prompt: Review release readiness, residual risk, and validation coverage for this pipeline or deploy change.
-	- label: Plan Schema Rollout
-		agent: Schema Migration Agent
-		prompt: Plan compatibility windows, rollout phases, and rollback requirements for the schema-related deployment scope.
-	- label: Review Repo Setup
-		agent: Repo Architect Agent
-		prompt: Review the repository automation structure and agentic project configuration involved in this delivery flow.
+  - label: Run Quality Gate
+    agent: Quality Lead
+    prompt: Review release readiness, residual risk, and validation coverage for this pipeline or deploy change.
+  - label: Plan Schema Rollout
+    agent: Schema Migration Agent
+    prompt: Plan compatibility windows, rollout phases, and rollback requirements for the schema-related deployment scope.
+  - label: Review Repo Setup
+    agent: Repo Architect Agent
+    prompt: Review the repository automation structure and agentic project configuration involved in this delivery flow.
 
 ---
 

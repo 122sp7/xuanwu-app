@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Refine Genkit Flow
-		agent: Genkit Flow Agent
-		prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
-	- label: Review RAG Boundary
-		agent: RAG Lead
-		prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
+  - label: Refine Genkit Flow
+    agent: Genkit Flow Agent
+    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
+  - label: Review RAG Boundary
+    agent: RAG Lead
+    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
 
 ---
 

@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Enforce Lint Rules
-		agent: Lint Rule Enforcer
-		prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
-	- label: Verify Browser Flows
-		agent: E2E QA Agent
-		prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
-	- label: Expand Test Scenarios
-		agent: Test Scenario Writer
-		prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
+  - label: Enforce Lint Rules
+    agent: Lint Rule Enforcer
+    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
+  - label: Expand Test Scenarios
+    agent: Test Scenario Writer
+    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
 
 ---
 

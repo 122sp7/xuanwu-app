@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Route To Domain Lead
-		agent: Domain Lead
-		prompt: Continue with a domain-ownership and module-boundary decision for this scoped task.
-	- label: Route To Frontend Lead
-		agent: Frontend Lead
-		prompt: Continue with route composition, UI ownership, and app-layer implementation for this scoped task.
-	- label: Route To RAG Lead
-		agent: RAG Lead
-		prompt: Continue with retrieval, ingestion, and worker-boundary planning for this scoped task.
+  - label: Route To Domain Lead
+    agent: Domain Lead
+    prompt: Continue with a domain-ownership and module-boundary decision for this scoped task.
+  - label: Route To Frontend Lead
+    agent: Frontend Lead
+    prompt: Continue with route composition, UI ownership, and app-layer implementation for this scoped task.
+  - label: Route To RAG Lead
+    agent: RAG Lead
+    prompt: Continue with retrieval, ingestion, and worker-boundary planning for this scoped task.
 
 ---
 

@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Refactor Module Boundary
-		agent: MDDD Architect
-		prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
-	- label: Update Contracts
-		agent: TS Interface Writer
-		prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
+  - label: Refactor Module Boundary
+    agent: MDDD Architect
+    prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
 
 ---
 

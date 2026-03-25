@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Update Contracts
-		agent: TS Interface Writer
-		prompt: Update or review the DTO and command-result contracts used by this server action.
-	- label: Review Domain Boundary
-		agent: Domain Lead
-		prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the DTO and command-result contracts used by this server action.
+  - label: Review Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
 
 ---
 

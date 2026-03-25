@@ -5,15 +5,15 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: vscode
 handoffs:
-	- label: Review Firestore Schema
-		agent: Firestore Schema Agent
-		prompt: Review the data model and access paths that this security-rules change must protect.
-	- label: Verify Browser Impact
-		agent: E2E QA Agent
-		prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
-	- label: Run Quality Review
-		agent: Quality Lead
-		prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
+  - label: Review Firestore Schema
+    agent: Firestore Schema Agent
+    prompt: Review the data model and access paths that this security-rules change must protect.
+  - label: Verify Browser Impact
+    agent: E2E QA Agent
+    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
 
 ---
 
