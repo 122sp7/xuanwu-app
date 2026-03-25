@@ -24,16 +24,16 @@ graph TD
   end
 
   %% ══════════════════════════════════════════════════════
-  %% LAYER 1 — kg（Wiki 層，graph 為保留字故改名 kg）
+  %% LAYER 1 — knowledge-graph（Wiki 層）
   %% ══════════════════════════════════════════════════════
-  subgraph KG["kg — knowledge-graph（↔ Wiki）"]
+  subgraph KG["knowledge-graph（↔ Wiki）"]
     direction TB
     KG1["PageLink · Backlink · Relation"]
     KG2["Category · Tag · Namespace · Redirect"]
     KG3["Ontology · Schema · VersionGraph"]
   end
 
-  %% content → kg：pageId 參照
+  %% content → knowledge-graph：pageId 參照
   CT -- "pageId ref" --> KG
 
   %% ══════════════════════════════════════════════════════
@@ -115,9 +115,9 @@ graph TD
       T1["search-tool → retrieval/api"]
       T2["create-doc-tool → content/api"]
       T3["summarize-tool → retrieval/api"]
-      T4["auto-link-tool → kg/api"]
-      T5["auto-tag-tool → kg/api"]
-      T6["kg-query-tool → kg/api"]
+      T4["auto-link-tool → knowledge-graph/api"]
+      T5["auto-tag-tool → knowledge-graph/api"]
+      T6["knowledge-graph-query-tool → knowledge-graph/api"]
       T7["external-api-connector"]
     end
 
@@ -167,7 +167,7 @@ graph TD
   subgraph FS["Firestore Collection Ownership"]
     direction LR
     FS_CT["content owns\npages · blocks\ndatabases · comments · versions"]
-    FS_KG["kg owns\npage_links · relations\ncategories · tags · templates"]
+    FS_KG["knowledge-graph owns\npage_links · relations\ncategories · tags · templates"]
     FS_KN["knowledge owns\nembeddings · chunks\ningestion_jobs"]
     FS_RT["retrieval owns\nsessions · memory\ncitation_logs"]
   end
