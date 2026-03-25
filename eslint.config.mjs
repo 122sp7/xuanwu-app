@@ -291,6 +291,34 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── Strict module entrypoint enforcement ───────────────────────────────
+  {
+    files: [
+      "app/**/*.{ts,tsx,js,jsx}",
+      "providers/**/*.{ts,tsx,js,jsx}",
+      "debug/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/*",
+                "@/modules/*/**",
+                "!@/modules/*/api",
+                "!@/modules/*/api/**",
+                "!@/modules/system",
+                "!@/modules/system/*",
+              ],
+              message: "Module imports must use `@/modules/<module>/api` only (except approved system facade).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
   {
     files: moduleFileGlobs,
@@ -302,6 +330,17 @@ const eslintConfig = defineConfig([
             {
               group: ["**/index", "**/index.ts", "**/index.tsx"],
               message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+            },
+            {
+              group: [
+                "@/modules/*",
+                "@/modules/*/**",
+                "!@/modules/*/api",
+                "!@/modules/*/api/**",
+                "!@/modules/system",
+                "!@/modules/system/*",
+              ],
+              message: "Module imports must use `@/modules/<module>/api` only (except approved system facade).",
             },
             {
               group: [

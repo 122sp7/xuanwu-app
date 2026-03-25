@@ -1,5 +1,5 @@
 ---
-title: Xuanwu — AI Knowledge Platform Architecture (v2)
+title: Xuanwu — AI Knowledge Platform Architecture (v3)
 ---
 graph TD
 
@@ -45,11 +45,12 @@ graph TD
     KN2["2 Clean：noise · encoding · language detect"]
     KN3["3 Taxonomy：auto-tag · classify · metadata"]
     KN4["4 Chunk：semantic · hierarchical · overlap"]
-    KN5["5 Embed：model select · batch generation"]
-    KN6["6 Persist：vector store · metadata · registry"]
-    KN7["7 Mark Ready：status = indexed"]
+    KN4b["5 Chunk Metadata：source_doc_id · section · page_number · chunk_index"]
+    KN5["6 Embed：model select · batch generation"]
+    KN6["7 Persist：vector store · metadata · registry"]
+    KN7["8 Mark Ready：status = indexed"]
     KN8(["Status Machine：uploaded → parsing → chunking → embedding → indexed → stale → re-indexing"])
-    KN1 --> KN2 --> KN3 --> KN4 --> KN5 --> KN6 --> KN7
+    KN1 --> KN2 --> KN3 --> KN4 --> KN4b --> KN5 --> KN6 --> KN7
   end
 
   CT -- "doc content" --> KN
@@ -77,6 +78,14 @@ graph TD
       HR3 --> HR4
     end
 
+    subgraph MDR["Multi-Document Reasoning Layer"]
+      MDR1["Bridge Reasoning：A → B → C 鏈式推理"]
+      MDR2["Comparison Reasoning：A vs B 比較推理"]
+      MDR3["Compositional Reasoning：多條件組合推理"]
+      MDR4["Temporal Reasoning：時間序列推理"]
+      MDR5["Cross-Doc Analysis：Contradiction · Completion · Timeline"]
+    end
+
     subgraph MEM["AI Memory Layer"]
       MEM1["Semantic Memory（Vector DB · long-term）"]
       MEM2["Episodic Memory（sessions · mid-term）"]
@@ -90,7 +99,8 @@ graph TD
     end
 
     QU --> HR
-    HR --> CIT
+    HR --> MDR
+    MDR --> CIT
     MEM --> HR
   end
 
@@ -147,7 +157,7 @@ graph TD
     L_IF["interfaces/\nNext.js Route Handler\nFirebase CF Trigger\n薄層 無業務邏輯"]
     L_AP["application/\nUse Case\nCommand / Query Handler\nEvent Publisher"]
     L_DO["domain/\nEntity · Value Object\nRepository Interface\nDomain Service · Event"]
-    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flow · SDK"]
+    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flows：\n  QueryPlannerFlow\n  RetrievalFlow\n  IngestionFlow\n  AgentOrchestratorFlow\n  CitationFlow"]
     L_API["api/\npublic contract\nTypeScript types\nfunction signatures\n唯一對外出口"]
 
     L_IF --> L_AP
@@ -188,9 +198,10 @@ graph TD
   class WS1,WS2,WS3 wsStyle
   class CT1,CT2,CT3 ctStyle
   class KG1,KG2,KG3 kgStyle
-  class KN1,KN2,KN3,KN4,KN5,KN6,KN7,KN8 knStyle
+  class KN1,KN2,KN3,KN4,KN4b,KN5,KN6,KN7,KN8 knStyle
   class QU1,QU2,QU3 rtStyle
   class HR1,HR2,HR3,HR4 rtStyle
+  class MDR1,MDR2,MDR3,MDR4,MDR5 rtStyle
   class MEM1,MEM2,MEM3 rtStyle
   class CIT1,CIT2,CIT3 rtStyle
   class R1,R2,R3,R4 agStyle
