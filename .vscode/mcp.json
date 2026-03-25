@@ -30,7 +30,13 @@
 				"start-mcp-server",
 				"serena@latest",
 				"--context",
-				"ide-assistant"
+				"ide-assistant",
+				"--mode",
+				"autonomous",
+				"--skills-dir",
+				"~/.github/skills",
+				"--project",
+				"~/."
 			],
 			"gallery": "https://api.mcp.github.com",
 			"version": "1.0.0"
