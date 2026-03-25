@@ -16,7 +16,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   getNotificationsForRecipient,
-} from "@/modules/notification";
+} from "@/modules/notification/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
 import { TranslationSwitcher } from "./translation-switcher";

@@ -19,3 +19,19 @@ export {
   getWorkspacesForAccount,
   subscribeToWorkspacesForAccount,
 } from "../interfaces/queries/workspace.queries";
+
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
+
+export { createWorkspace } from "../interfaces/_actions/workspace.actions";
+
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+
+export {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
