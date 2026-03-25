@@ -32,7 +32,53 @@
     "useGitignore": true,
     "useDotIgnore": true,
     "useDefaultPatterns": true,
-    "customPatterns": []
+    "customPatterns": [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "dist/**",
+      "coverage/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".opencode/**",
+
+      "*.log",
+      "firebase-debug.log",
+
+      ".env*",
+
+      ".DS_Store",
+      "Thumbs.db",
+
+      "*.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "skills-lock.json",
+
+      "*.tsbuildinfo",
+      ".tmp-*",
+
+      ".git/**",
+      ".github/workflows/**",
+
+      "public/**",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz"
+    ]
   },
   "security": {
     "enableSecurityCheck": true

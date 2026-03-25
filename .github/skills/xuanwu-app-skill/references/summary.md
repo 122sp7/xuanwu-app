@@ -1,4 +1,4 @@
-This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
 
 # Summary
 
@@ -31,30 +31,30 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, *.log, firebase-debug.log, .env*, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .tmp-*, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-1021 files | 78,176 lines
+974 files | 75,229 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 361 | 20,022 |
-| Markdown | 342 | 28,423 |
+| TypeScript | 368 | 20,065 |
+| Markdown | 312 | 27,892 |
 | TypeScript (TSX) | 121 | 18,839 |
-| No Extension | 76 | 131 |
+| No Extension | 66 | 120 |
 | Python | 49 | 3,532 |
 | MERMAID | 33 | 2,488 |
-| JSON | 13 | 2,700 |
-| SVG | 7 | 185 |
+| JSON | 8 | 598 |
 | JavaScript | 5 | 260 |
-| YAML | 4 | 341 |
-| Other | 10 | 1,255 |
+| RULES | 2 | 18 |
+| JavaScript (ESM) | 2 | 338 |
+| Other | 8 | 1,079 |
 
 **Largest files:**
-- `.tmp-eslint-config.json` (1,932 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (972 lines)
 - `docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` (942 lines)
 - `modules/Architecture.md` (942 lines)
@@ -64,3 +64,4 @@ This skill contains the following reference files:
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/app-rail.tsx` (669 lines)
 - `modules/wiki-beta/interfaces/components/WikiBetaRagView.tsx` (660 lines)
+- `app/(shell)/_components/customize-navigation-dialog.tsx` (610 lines)

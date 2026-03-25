@@ -1,54 +1,7 @@
 /**
- * @deprecated Moved to modules/knowledge-graph/api/knowledge-graph-api.ts
- * This module (knowledge) is being repurposed for Layer 2 Ingestion Pipeline.
+ * @deprecated This file has moved to modules/knowledge-graph/api/knowledge-graph-api.ts
+ * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
+ * No new code should be added here.
  */
 export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
 export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
-
-
-/** Shape of the graph payload defined in APIContract.md */
-export interface GraphDataDTO {
-  nodes: Array<{ id: string; label: string; group: string }>;
-  edges: Array<{ from: string; to: string; type: string }>;
-}
-
-export class KnowledgeApi {
-  private readonly graphRepo: InMemoryGraphRepository;
-  readonly linkExtractor: LinkExtractorService;
-
-  constructor(eventBus: SimpleEventBus) {
-    this.graphRepo = new InMemoryGraphRepository();
-    this.linkExtractor = new LinkExtractorService(this.graphRepo);
-    this.linkExtractor.registerOn(eventBus);
-  }
-
-  /** Return all nodes currently in the graph. */
-  async listNodes(): Promise<GraphNode[]> {
-    return this.graphRepo.listNodes();
-  }
-
-  /** Return all links currently in the graph. */
-  async listLinks(): Promise<Link[]> {
-    return this.graphRepo.listLinks();
-  }
-
-  /** Return outgoing explicit links from a given source page. */
-  async getOutgoingLinks(pageId: string): Promise<Link[]> {
-    return this.graphRepo.findLinksBySourceId(pageId);
-  }
-
-  /**
-   * Return a GraphDataDTO summarising the full in-memory graph.
-   * Shape matches the APIContract: `{ nodes: [...], edges: [...] }`.
-   */
-  async getGraphData(): Promise<GraphDataDTO> {
-    const [nodes, links] = await Promise.all([
-      this.graphRepo.listNodes(),
-      this.graphRepo.listLinks(),
-    ]);
-    return {
-      nodes: nodes.map((n) => ({ id: n.id, label: n.label, group: n.type })),
-      edges: links.map((l) => ({ from: l.sourceId, to: l.targetId, type: l.type })),
-    };
-  }
-}
