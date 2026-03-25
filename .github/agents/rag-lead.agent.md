@@ -1,12 +1,29 @@
 ---
 name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Normalize Ingestion
+		agent: doc-ingest
+		prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
+	- label: Design Chunk Strategy
+		agent: chunk-strategist
+		prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
+	- label: Write Embeddings
+		agent: embedding-writer
+		prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
 
 ---
 
 # RAG Lead
+
+## Target Scope
+
+- `py_fn/**`
+- `modules/retrieval/**`
+- `modules/knowledge/**`
 
 ## Focus
 

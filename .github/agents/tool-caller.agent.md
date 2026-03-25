@@ -1,12 +1,30 @@
 ---
 name: Tool Caller
 description: Select and sequence tools with least privilege, evidence-first execution, and bounded scope per task.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Re-plan With Serena
+		agent: serena-strategist
+		prompt: Re-plan the task with Serena-first discovery and boundary checks before more tool calls.
+	- label: Review Quality Risk
+		agent: quality-lead
+		prompt: Review whether the evidence gathered so far is sufficient for quality and release decisions.
+	- label: Review Repo Structure
+		agent: repo-architect
+		prompt: Review whether the task needs repository-level scaffolding, customization, or structural cleanup.
 
 ---
 
 # Tool Caller
+
+## Target Scope
+
+- `.github/**`
+- `app/**`
+- `modules/**`
+- tool sequencing and evidence flow across the workspace
 
 ## Mission
 

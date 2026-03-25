@@ -3,10 +3,26 @@ name: Parallel Routes Agent
 description: Build and refactor app parallel-route UI slots with one-way data flow and API-only module consumption.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Review Frontend Composition
+		agent: frontend-lead
+		prompt: Review the route-level composition, ownership, and API consumption for this parallel-route scope.
+	- label: Compose UI States
+		agent: shadcn-composer
+		prompt: Compose or refine the UI primitives and interaction states used in this parallel-route slot.
+	- label: Verify End-to-End
+		agent: e2e-qa
+		prompt: Verify the affected slot behavior, rendering, and interactions in the browser.
 
 ---
 
 # Parallel Routes Agent
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
 
 ## Mission
 

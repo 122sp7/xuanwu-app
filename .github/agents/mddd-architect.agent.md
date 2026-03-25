@@ -3,10 +3,27 @@ name: MDDD Architect
 description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Confirm Domain Ownership
+		agent: domain-lead
+		prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
+	- label: Update Contracts
+		agent: ts-interface-writer
+		prompt: Update or review the public DTO and contract surface affected by this module refactor.
+	- label: Run Quality Review
+		agent: quality-lead
+		prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
 
 ---
 
 # MDDD Architect
+
+## Target Scope
+
+- `modules/**`
+- `packages/shared-types/**`
+- `packages/api-contracts/**`
 
 ## Mission
 

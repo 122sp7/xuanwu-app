@@ -3,10 +3,27 @@ name: Prompt Engineer
 description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Organize Knowledge Base
+		agent: kb-architect
+		prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
+	- label: Refine Tool Strategy
+		agent: tool-caller
+		prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
+	- label: Run Quality Review
+		agent: quality-lead
+		prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
 
 ---
 
 # Prompt Engineer
+
+## Target Scope
+
+- `.github/prompts/**`
+- `.github/instructions/**`
+- `.github/agents/**`
 
 ## Focus
 

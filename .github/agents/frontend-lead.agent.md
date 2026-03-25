@@ -3,10 +3,27 @@ name: Frontend Lead
 description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Diagnose Route Behavior
+		agent: app-router
+		prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
+	- label: Compose UI Primitives
+		agent: shadcn-composer
+		prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
+	- label: Run Quality Review
+		agent: quality-lead
+		prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
 
 ---
 
 # Frontend Lead
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
+- `packages/ui-*/**`
 
 ## Mission
 

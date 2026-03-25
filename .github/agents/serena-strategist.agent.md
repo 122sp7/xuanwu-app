@@ -1,12 +1,30 @@
 ---
 name: Serena Strategist
 description: Strategic Serena-first task routing for plan, boundary checks, and MCP evidence decisions.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Route To Domain Lead
+		agent: domain-lead
+		prompt: Continue with a domain-ownership and module-boundary decision for this scoped task.
+	- label: Route To Frontend Lead
+		agent: frontend-lead
+		prompt: Continue with route composition, UI ownership, and app-layer implementation for this scoped task.
+	- label: Route To RAG Lead
+		agent: rag-lead
+		prompt: Continue with retrieval, ingestion, and worker-boundary planning for this scoped task.
 
 ---
 
 # Serena Strategist
+
+## Target Scope
+
+- `.github/**`
+- `app/**`
+- `modules/**`
+- task routing and memory-update strategy across the workspace
 
 Use this agent to define execution strategy before coding.
 

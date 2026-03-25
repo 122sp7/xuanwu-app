@@ -4,10 +4,27 @@ description: Compose and refactor UI components using shadcn patterns while pres
 argument-hint: Describe component goal, target route, and required interaction states.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Review Frontend Ownership
+		agent: frontend-lead
+		prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
+	- label: Refine Parallel Routes
+		agent: parallel-routes
+		prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
+	- label: Verify End-to-End
+		agent: e2e-qa
+		prompt: Verify the interaction states and browser behavior for this UI change.
 
 ---
 
 # Shadcn Composer
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/components/**`
+- `packages/ui-shadcn/**`
 
 ## Workflow
 

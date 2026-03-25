@@ -3,10 +3,29 @@ name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Check Domain Boundary
+		agent: domain-lead
+		prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
+	- label: Review Frontend Impact
+		agent: frontend-lead
+		prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
+	- label: Summarize Quality Risk
+		agent: quality-lead
+		prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
 
 ---
 
 # Lint Rule Enforcer
+
+## Target Scope
+
+- `app/**`
+- `modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
 
 ## Mission
 

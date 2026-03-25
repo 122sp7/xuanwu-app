@@ -3,10 +3,28 @@ name: Support Architect
 description: Design support workflows, escalation paths, and operational boundaries across modules, docs, and QA evidence.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Re-scope With Serena
+		agent: serena-strategist
+		prompt: Re-scope this support issue into a boundary-safe execution plan with the right owner and validation path.
+	- label: Review Quality Risk
+		agent: quality-lead
+		prompt: Review the confirmed failure modes, residual risk, and release impact for this support-driven task.
+	- label: Update Knowledge Base
+		agent: kb-architect
+		prompt: Capture the reusable support resolution pattern in the knowledge base without adding redundant noise.
 
 ---
 
 # Support Architect
+
+## Target Scope
+
+- `app/**`
+- `modules/**`
+- `docs/**`
+- support workflows, escalation notes, and QA follow-up guidance
 
 ## Mission
 

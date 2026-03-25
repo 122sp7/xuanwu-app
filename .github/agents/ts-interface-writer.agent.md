@@ -3,10 +3,27 @@ name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Review Domain Ownership
+		agent: domain-lead
+		prompt: Confirm the owning bounded context and public API boundary for these contract changes.
+	- label: Write Server Action
+		agent: server-action-writer
+		prompt: Update the server action orchestration that consumes or returns these contract changes.
+	- label: Review Firestore Shape
+		agent: firestore-schema
+		prompt: Review the persistence and index implications of these contract changes.
 
 ---
 
 # TS Interface Writer
+
+## Target Scope
+
+- `modules/**/api/**`
+- `modules/**/application/dto/**`
+- `packages/shared-types/**`
 
 ## Focus
 

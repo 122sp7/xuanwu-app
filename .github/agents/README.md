@@ -1,10 +1,43 @@
-# Agents Decomposition Map
+# Xuanwu Agents
 
-This folder contains the active decomposed agent set. Legacy sources from `.github/agents/xx` have been semantically consolidated and retired.
+This folder contains the active workspace custom agents for VS Code Copilot.
 
-## Source-to-target mapping
+## Official Frontmatter
 
-| Source in xx | Decomposed targets |
+Context7 confirms these `.agent.md` frontmatter fields are supported by VS Code custom agents:
+
+| Property | Importance | Official meaning | Xuanwu convention |
+| --- | --- | --- | --- |
+| `name` | Required in practice | Agent display name | Keep unique, stable, and human-readable |
+| `description` | Critical | Discovery text and chat placeholder | Use strong trigger phrases so routing works reliably |
+| `tools` | Critical | Allowed built-in, MCP, or extension tools | Keep smallest effective tool set; remove duplicates |
+| `target` | Important | Target environment: `vscode` or `github-copilot` | Use `vscode` for workspace agents in this repo |
+| `handoffs` | Important | Suggested next-agent transitions | Use 2 to 3 clear workflow handoffs per agent |
+
+## Xuanwu Agent Structure
+
+Each agent file should follow this pattern:
+
+1. YAML frontmatter with `name`, `description`, `tools`, `model`, `target`, and `handoffs`
+2. A `# Agent Name` heading
+3. A `## Target Scope` section for the folders or workspace areas the agent is responsible for
+4. Role-specific workflow, guardrails, and output rules
+
+## Target Scope Rule
+
+Official `target` does not mean folder ownership. It only sets the environment target.
+
+In this repository, folder responsibility is documented in each agent body under `## Target Scope`.
+
+## Handoff Rule
+
+- Handoffs should point to the target agent file identifier, such as `quality-lead` or `server-action-writer`
+- Labels should describe the next action, not repeat the target name mechanically
+- Prompts should be short and task-forward so the next agent can start immediately
+
+## Source-to-Target Mapping
+
+| Legacy source | Current target agents |
 | --- | --- |
 | `serena.agent.md` | `serena-strategist.agent.md` |
 | `commander.agent.md` | `tool-caller.agent.md`, `support-architect.agent.md` |
@@ -16,46 +49,16 @@ This folder contains the active decomposed agent set. Legacy sources from `.gith
 | `component.agent.md` | `shadcn-composer.agent.md` |
 | `rag-vector.agent.md` | `rag-lead.agent.md`, `doc-ingest.agent.md`, `chunk-strategist.agent.md`, `embedding-writer.agent.md`, `genkit-flow.agent.md`, `ai-genkit-lead.agent.md` |
 | `e2e-qa.agent.md` | `e2e-qa.agent.md`, `test-scenario-writer.agent.md` |
-| `reviewer.agent.md` + `qa.agent.md` | `quality-lead.agent.md`, `lint-rule-enforcer.agent.md` |
-| `planner-docs.agent.md` + `md-writer.agent.md` | `kb-architect.agent.md`, `prompt-engineer.agent.md` |
-| `repo-architect.agent.md` | `cicd-deploy.agent.md`, `schema-migration.agent.md` |
+| `reviewer.agent.md` and `qa.agent.md` | `quality-lead.agent.md`, `lint-rule-enforcer.agent.md` |
+| `planner-docs.agent.md` and `md-writer.agent.md` | `kb-architect.agent.md`, `prompt-engineer.agent.md` |
+| `repo-architect.agent.md` | `repo-architect.agent.md`, `cicd-deploy.agent.md`, `schema-migration.agent.md` |
 
-## Target set
+## Maintenance Rules
 
-- `ai-genkit-lead.agent.md`
-- `app-router.agent.md`
-- `billing-architect.agent.md`
-- `chunk-strategist.agent.md`
-- `cicd-deploy.agent.md`
-- `doc-ingest.agent.md`
-- `domain-lead.agent.md`
-- `e2e-qa.agent.md`
-- `embedding-writer.agent.md`
-- `firestore-schema.agent.md`
-- `frontend-lead.agent.md`
-- `genkit-flow.agent.md`
-- `kb-architect.agent.md`
-- `lint-rule-enforcer.agent.md`
-- `mddd-architect.agent.md`
-- `parallel-routes.agent.md`
-- `prompt-engineer.agent.md`
-- `quality-lead.agent.md`
-- `rag-lead.agent.md`
-- `schema-migration.agent.md`
-- `security-rules.agent.md`
-- `serena-strategist.agent.md`
-- `server-action-writer.agent.md`
-- `shadcn-composer.agent.md`
-- `support-architect.agent.md`
-- `test-scenario-writer.agent.md`
-- `tool-caller.agent.md`
-- `ts-interface-writer.agent.md`
-
-## Migration Status
-
-- Legacy source folder `xx/` was used as migration input only.
-- Semantic value was merged into the target agents listed above.
-- Keep future updates on target agents only; do not reintroduce `xx/` mirrors.
+- Keep agent names unique. Duplicate visible names create routing and handoff ambiguity.
+- Keep agent bodies concise. Put repository-global policy in `.github/copilot-instructions.md` or scoped `.instructions.md` files.
+- Update handoffs when agent responsibilities move.
+- Update Serena memory after non-trivial agent-configuration changes.
 
 Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values

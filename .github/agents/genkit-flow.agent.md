@@ -1,12 +1,29 @@
 ---
 name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Review AI Ownership
+		agent: ai-genkit-lead
+		prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
+	- label: Review RAG Contract
+		agent: rag-lead
+		prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
+	- label: Run Quality Review
+		agent: quality-lead
+		prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
 
 ---
 
 # Genkit Flow Agent
+
+## Target Scope
+
+- `modules/ai/**`
+- `app/**`
+- `modules/retrieval/**`
 
 ## Focus
 

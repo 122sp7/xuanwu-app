@@ -3,10 +3,29 @@ name: Quality Lead
 description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
 tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Enforce Lint Rules
+		agent: lint-rule-enforcer
+		prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
+	- label: Verify Browser Flows
+		agent: e2e-qa
+		prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
+	- label: Expand Test Scenarios
+		agent: test-scenario-writer
+		prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
 
 ---
 
 # Quality Lead
+
+## Target Scope
+
+- `app/**`
+- `modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
 
 ## Mission
 

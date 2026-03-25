@@ -3,10 +3,27 @@ name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Refine Prompt Contracts
+		agent: prompt-engineer
+		prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
+	- label: Align Support Playbooks
+		agent: support-architect
+		prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
+	- label: Run Quality Review
+		agent: quality-lead
+		prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
 
 ---
 
 # KB Architect
+
+## Target Scope
+
+- `docs/**`
+- `.github/prompts/**`
+- `.github/instructions/**`
 
 ## Focus
 
