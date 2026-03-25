@@ -14,3 +14,4 @@ argument-hint: Provide route/feature scope, observed slowness, and baseline expe
 3. Propose ranked fixes by impact and complexity.
 4. Define validation for improvement claims.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

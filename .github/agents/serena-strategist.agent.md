@@ -24,3 +24,5 @@ Use this agent to define execution strategy before coding.
 - Keep plans boundary-safe and least-change.
 - Do not start implementation while scope is still ambiguous.
 - Do not invoke broad MCP tools when built-in repository context is sufficient.
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

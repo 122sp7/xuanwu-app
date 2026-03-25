@@ -14,3 +14,4 @@ argument-hint: Provide target docs scope and expected documentation outcome.
 3. Convert prose to rules/tables where possible.
 4. Update folder index/README after leaf updates.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

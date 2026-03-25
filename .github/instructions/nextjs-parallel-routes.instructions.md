@@ -11,3 +11,4 @@ applyTo: 'app/**/*.{ts,tsx}'
 - Avoid hidden coupling between unrelated slots.
 - Consume cross-domain behavior through module APIs only.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

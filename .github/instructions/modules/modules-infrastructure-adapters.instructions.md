@@ -23,3 +23,5 @@ Use this instruction for `modules/*/infrastructure` files.
 ## Validation
 
 - Re-check dependency direction after import changes.
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

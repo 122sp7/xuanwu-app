@@ -31,3 +31,5 @@ Shape module structures without breaking bounded contexts.
 - Boundary impact
 - Files changed
 - Validation evidence
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

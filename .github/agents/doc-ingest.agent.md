@@ -15,3 +15,4 @@ target: 'vscode'
 - Align outputs with chunk and embedding contracts.
 - Flag notable format-loss risk when source conversion may affect downstream retrieval.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

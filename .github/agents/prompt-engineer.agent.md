@@ -19,3 +19,4 @@ target: 'vscode'
 - Keep prompts task-focused and testable.
 - Avoid broad ambiguous directives.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

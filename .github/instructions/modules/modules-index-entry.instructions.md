@@ -22,3 +22,5 @@ Use this instruction for module root `index.ts` files.
 ## Validation
 
 - Verify that app-layer or cross-module imports still resolve through the intended public surface.
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

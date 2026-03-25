@@ -13,3 +13,4 @@ argument-hint: Provide module scope, behaviors to verify, and known regression r
 - Keep tests deterministic and isolated.
 - Prioritize behavior contracts over implementation details.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

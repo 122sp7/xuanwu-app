@@ -19,3 +19,4 @@ target: 'vscode'
 - Keep flow contracts explicit.
 - Avoid leaking worker-only logic into app orchestration.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

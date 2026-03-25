@@ -14,3 +14,4 @@ argument-hint: Provide collections, fields, query patterns, and migration constr
 3. Plan migration or compatibility path.
 4. Validate read/write behavior and regressions.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

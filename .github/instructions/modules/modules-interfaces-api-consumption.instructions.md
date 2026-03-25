@@ -23,3 +23,5 @@ Use this instruction for `modules/*/interfaces` files.
 ## Validation
 
 - Re-check imports for accidental reach-through before finishing.
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

@@ -11,3 +11,4 @@ applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
 - Capture reproducible evidence for failures.
 - Separate confirmed defects from enhancement suggestions.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

@@ -21,3 +21,4 @@ target: 'vscode'
 - Keep styling and behavior consistent with app composition boundaries.
 - Validate interactive states and accessibility basics.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

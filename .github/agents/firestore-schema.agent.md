@@ -14,3 +14,4 @@ target: 'vscode'
 - Keep schema and index plans aligned with read and write paths.
 - Track migration impact and backward compatibility.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

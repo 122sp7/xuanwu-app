@@ -14,3 +14,4 @@ argument-hint: Provide API intent, owner module, consumers, and compatibility co
 - Include compatibility and migration strategy.
 - Specify validation and documentation updates.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

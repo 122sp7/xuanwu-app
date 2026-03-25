@@ -9,3 +9,4 @@ argument-hint: Provide plan reference, changed files, and architecture concerns.
 
 Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

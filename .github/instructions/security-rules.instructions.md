@@ -16,3 +16,4 @@ applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,
 - Broad wildcard allows without actor checks.
 - Hidden coupling to UI-side assumptions.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

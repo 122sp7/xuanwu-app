@@ -32,3 +32,5 @@ Create or refactor a route slice in `app/` that composes one feature block and k
 - Module APIs consumed
 - Validation run
 - Any remaining route-state or boundary risks
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

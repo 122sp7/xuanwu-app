@@ -11,3 +11,4 @@ applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
 - Keep semantic markup and keyboard accessibility intact.
 - Keep component concerns separate from business rules.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

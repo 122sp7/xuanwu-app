@@ -21,3 +21,4 @@ applyTo: '{app,modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Avoid implicit schema drift across modules.
 - Preserve source and chunk metadata traceability for audit and citation needs.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

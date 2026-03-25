@@ -26,3 +26,5 @@ target: 'vscode'
 
 - Run lint for boundary and import changes.
 - Run build when public types or exports are touched.
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

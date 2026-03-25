@@ -431,3 +431,5 @@ Customization:
   - Create file-specific rules in .github/instructions/
   - Build reusable prompts in .github/prompts/
 ```
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

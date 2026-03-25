@@ -13,3 +13,4 @@ applyTo: 'app/**/*.{ts,tsx}'
 - Use package aliases and avoid legacy import families.
 - Keep `app/` as composition ownership, not domain-rule ownership.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

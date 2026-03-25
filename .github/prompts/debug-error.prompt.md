@@ -20,3 +20,4 @@ argument-hint: Provide error message, route/module, and reproduction steps.
 3. Propose minimal fix plus regression checks.
 4. State validation commands to confirm resolution.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

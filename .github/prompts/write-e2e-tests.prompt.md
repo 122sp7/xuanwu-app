@@ -15,3 +15,4 @@ argument-hint: Provide URL/route, target user flow, and acceptance criteria.
 
 Collect evidence for failures and include clear reproduction steps.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

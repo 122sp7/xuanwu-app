@@ -14,3 +14,4 @@ target: 'vscode'
 - Ensure consistent vector metadata.
 - Validate write path and retrieval compatibility.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

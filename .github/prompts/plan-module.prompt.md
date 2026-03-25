@@ -14,3 +14,4 @@ argument-hint: Provide module scope, operation type, and migration constraints.
 3. Map API/event consumers and migration path.
 4. Define validation and docs updates.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

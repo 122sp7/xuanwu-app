@@ -26,3 +26,5 @@ Use this instruction for work in `app/`.
 
 - Run the app-level commands from `agents/commands.md` that match the touched files.
 - If routing or public API usage changes, update affected docs or prompt/instruction references in the same change.
+
+Tags: #use skill context7 #use skill xuanwu-app-skill

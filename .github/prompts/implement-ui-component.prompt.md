@@ -14,3 +14,4 @@ argument-hint: Provide component goal, route scope, and interaction states.
 3. Implement states: loading, empty, error, success.
 4. Validate accessibility and interaction behavior.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

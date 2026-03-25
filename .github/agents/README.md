@@ -57,3 +57,4 @@ This folder contains the active decomposed agent set. Legacy sources from `.gith
 - Semantic value was merged into the target agents listed above.
 - Keep future updates on target agents only; do not reintroduce `xx/` mirrors.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

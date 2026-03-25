@@ -11,3 +11,4 @@ applyTo: '{modules/ai/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
 - Keep user-facing orchestration in Next.js.
 - Delegate heavy ingestion/embedding to worker-side pipelines.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

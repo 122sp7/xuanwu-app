@@ -14,3 +14,4 @@ argument-hint: Provide access scenarios, actor roles, and constrained resources.
 3. Validate with scenario-based checks.
 4. Report residual access risks.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

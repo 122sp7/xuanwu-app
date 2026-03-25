@@ -9,3 +9,4 @@ argument-hint: Describe desired outcome, constraints, and affected modules.
 
 Use the implementation plan template and include scope, ownership, risks, validation, and non-goals.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

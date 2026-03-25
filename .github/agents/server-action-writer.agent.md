@@ -14,3 +14,4 @@ target: 'vscode'
 - Place business rules in module use cases.
 - Preserve consistent command-result response shape.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

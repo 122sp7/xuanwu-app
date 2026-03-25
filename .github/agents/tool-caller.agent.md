@@ -26,3 +26,4 @@ Call the smallest effective tool set in the right order and stop unnecessary too
 - Keep tool calls narrow and task-specific.
 - Avoid destructive or broad commands when a scoped alternative exists.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

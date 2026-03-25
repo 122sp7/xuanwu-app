@@ -27,3 +27,4 @@ applyTo: '.github/prompts/**/*.prompt.md'
 - Avoid copying repository-global policy into each prompt.
 - Prefer short executable steps over long background text.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

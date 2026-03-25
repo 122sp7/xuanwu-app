@@ -16,3 +16,4 @@ applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Fix new lint errors introduced by your change.
 - Do not hide violations by broad rule disables.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill

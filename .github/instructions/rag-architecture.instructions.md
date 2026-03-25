@@ -11,3 +11,4 @@ applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx
 - Keep retrieval metadata auditable and source-traceable.
 - Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
 
+Tags: #use skill context7 #use skill xuanwu-app-skill
