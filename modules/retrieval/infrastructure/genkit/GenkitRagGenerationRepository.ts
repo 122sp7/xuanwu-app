@@ -3,7 +3,7 @@ import type {
   GenerateRagAnswerResult,
   RagGenerationRepository,
 } from "../../domain/repositories/RagGenerationRepository";
-import { aiClient, getConfiguredGenkitModel } from "@/modules/ai/infrastructure/genkit/client";
+import { aiClient, getConfiguredGenkitModel } from "./client";
 
 function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
   const pageLabel = typeof input.page === "number" ? ` page:${input.page}` : "";

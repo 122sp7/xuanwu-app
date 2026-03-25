@@ -1,13 +1,7 @@
-import type { RagRetrievedChunk } from "../entities/RagQuery";
-
-export interface RetrieveRagChunksInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly normalizedQuery: string;
-  readonly taxonomy?: string;
-  readonly topK: number;
-}
-
-export interface RagRetrievalRepository {
-  retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]>;
-}
+/**
+ * @deprecated Retrieval repository contracts moved to modules/retrieval.
+ */
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "@/modules/retrieval/api";

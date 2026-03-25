@@ -114,7 +114,17 @@
   - switched `modules/ai/interfaces/_actions/ai.actions.ts` to consume retrieval-owned `AnswerRagQueryUseCase` and `FirebaseRagRetrievalRepository`,
   - converted `modules/ai/application/use-cases/answer-rag-query.use-case.ts` into a temporary compatibility bridge re-export.
 - Validation for phase4 increment passed: targeted ESLint clean and full `npm run build` success.
-- Next recommended implementation step: continue phase4 by migrating `RagGenerationRepository` implementation ownership (or adapter ownership) and then deprecate redundant retrieval-side contracts under `modules/ai/domain`.
+- Completed phase4 retrieval-generation increment on 2026-03-25:
+  - added retrieval-owned `GenkitRagGenerationRepository` and retrieval-local genkit client under `modules/retrieval/infrastructure/genkit`,
+  - updated `modules/retrieval/api/index.ts` to export the new generation adapter,
+  - switched `modules/ai/interfaces/_actions/ai.actions.ts` to use retrieval-owned generation adapter for `answerRagQuery`.
+- Validation for phase4 retrieval-generation increment passed: focused ESLint clean and full `npm run build` success.
+- Completed phase4 retrieval-cleanup increment on 2026-03-25:
+  - converted `modules/ai/domain/entities/RagQuery.ts` into deprecated bridge type re-exports from `modules/retrieval/api`,
+  - converted `modules/ai/domain/repositories/RagRetrievalRepository.ts` into deprecated bridge type re-exports,
+  - converted `modules/ai/infrastructure/firebase/FirebaseRagRetrievalRepository.ts` into deprecated bridge re-export from `modules/retrieval/api`.
+- Validation for phase4 retrieval-cleanup increment passed: focused ESLint and full `npm run build` success.
+- Next recommended implementation step: update development-contract docs and module docs to reflect retrieval ownership and reduced ai scope, then proceed to agent-side extraction work.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.
