@@ -1,0 +1,13 @@
+---
+description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs Parallel Routes
+
+## Rules
+
+- Keep slot-level state isolated.
+- Avoid hidden coupling between unrelated slots.
+- Consume cross-domain behavior through module APIs only.
+

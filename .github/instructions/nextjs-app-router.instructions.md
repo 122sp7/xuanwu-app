@@ -1,0 +1,13 @@
+---
+description: 'Next.js App Router composition rules for route slices and ownership boundaries.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs App Router
+
+## Rules
+
+- Keep route files focused on composition and rendering.
+- Prefer Server Components unless client interactivity is required.
+- Keep business logic in modules and consume via module APIs.
+

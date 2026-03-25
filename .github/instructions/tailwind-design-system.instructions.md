@@ -1,0 +1,13 @@
+---
+description: 'Tailwind design-system consistency rules for tokens, spacing, and responsive behavior.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
+---
+
+# Tailwind Design System
+
+## Rules
+
+- Reuse established tokens and utility conventions.
+- Keep spacing and typography scales consistent.
+- Avoid ad-hoc one-off style patterns without rationale.
+
