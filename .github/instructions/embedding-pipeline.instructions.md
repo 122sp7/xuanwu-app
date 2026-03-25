@@ -17,4 +17,4 @@ Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore 
 - Validate converted markdown quality before chunking.
 - Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

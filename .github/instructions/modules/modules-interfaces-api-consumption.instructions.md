@@ -24,4 +24,4 @@ Use this instruction for `modules/*/interfaces` files.
 
 - Re-check imports for accidental reach-through before finishing.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

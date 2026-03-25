@@ -14,4 +14,4 @@ target: 'vscode'
 2. Run pipeline commands and capture outcomes.
 3. Report release readiness and rollback strategy.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

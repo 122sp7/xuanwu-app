@@ -14,4 +14,4 @@ argument-hint: Provide source format, target pipeline, and quality constraints.
 3. Validate structure quality for chunking.
 4. Output ingestion summary and loss-risk notes.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

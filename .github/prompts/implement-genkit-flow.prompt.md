@@ -14,4 +14,4 @@ argument-hint: Provide flow intent, inputs/outputs, and target runtime.
 3. Integrate with retrieval or action boundaries safely.
 4. Validate flow behavior and fallback paths.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

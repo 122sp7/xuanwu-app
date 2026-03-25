@@ -25,4 +25,4 @@ Turn support issues into bounded implementation and verification tasks.
 - Require reproducible evidence for high-impact incidents.
 - Keep playbooks and docs updated with resolution patterns.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

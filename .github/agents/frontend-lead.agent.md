@@ -18,4 +18,4 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 - Consume module behavior via module api only.
 - Prefer server components unless client interactivity is required.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

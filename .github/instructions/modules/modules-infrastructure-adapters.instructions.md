@@ -24,4 +24,4 @@ Use this instruction for `modules/*/infrastructure` files.
 
 - Re-check dependency direction after import changes.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

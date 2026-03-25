@@ -18,4 +18,4 @@ Design billing ownership and API contracts before feature implementation.
 - Preserve auditability and settlement invariants.
 - Expose cross-module billing behavior only through billing api.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

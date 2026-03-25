@@ -14,4 +14,4 @@ target: 'vscode'
 - Metadata fields for retrieval and attribution
 - Domain-specific segmentation rules
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

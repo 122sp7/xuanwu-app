@@ -20,4 +20,4 @@ target: 'vscode'
 - Do not leak private infrastructure/entity internals into public API contracts.
 - Coordinate contract changes with consumer updates in the same change.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

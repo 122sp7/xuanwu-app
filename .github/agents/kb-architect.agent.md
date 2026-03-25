@@ -25,4 +25,4 @@ target: 'vscode'
 - Do not change technical meaning while restructuring docs.
 - Keep docs aligned with current module boundaries and contracts.
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 

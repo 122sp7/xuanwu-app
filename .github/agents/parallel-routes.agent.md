@@ -32,4 +32,4 @@ Compose route slots that remain isolated, predictable, and boundary-safe.
 - Files changed
 - Validation performed
 
-Tags: #use skill context7 #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
