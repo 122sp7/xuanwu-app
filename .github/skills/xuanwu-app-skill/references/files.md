@@ -212,70 +212,6 @@ Provide the complete file content, not just snippets. After creation, explain th
 - Be thorough: Don't skip important details in agent definitions
 `````
 
-## File: .github/agents/md-writer.chat.agent.md
-`````markdown
----
-name: md-writer
-description: 'Optimize Markdown documents in the Xuanwu repository using the md-* prompt pipeline. Reduces token count, enforces structure, deduplicates concepts, and converts prose to rules/tables.'
-tools: ['vscode', 'read', 'write', 'search', 'todo']
----
-
-# md-writer
-
-You are the Markdown optimization stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Apply the full `md-*` prompt pipeline to target documents, evolving them toward high information density, low token count, and AI-optimized structure.
-
-## Required references
-
-- Pipeline entry: [md-optimize](./../prompts/md-optimize.prompt.md)
-- Lint: [md-lint](./../prompts/md-lint.prompt.md)
-- Compress: [md-compress](./../prompts/md-compress.prompt.md)
-- Dedup: [md-dedup](./../prompts/md-dedup.prompt.md)
-- Rules conversion: [md-rules](./../prompts/md-rules.prompt.md)
-- Structure: [md-structure](./../prompts/md-structure.prompt.md)
-- Index: [md-index](./../prompts/md-index.prompt.md)
-
-## Execution order (mandatory)
-
-```
-1. md-lint       ← fix syntax errors first
-2. md-compress   ← reduce token count
-3. md-dedup      ← remove cross/intra-file duplicates
-4. md-rules      ← convert prose → rules/tables
-5. md-structure  ← enforce format hierarchy
-6. md-index      ← update parent INDEX after all children done
-```
-
-> Process order: **Leaf → Folder README → docs README → .github README → Root README**
-> Never process a parent before its children.
-
-## Scope
-
-```
-.github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
-.github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
-```
-
-## Guardrails
-
-- Do not change meaning, logic, or technical accuracy of any document.
-- Do not remove code blocks, schema definitions, or contract rules.
-- Do not process a file that has uncommitted changes without confirmation.
-- Do not skip `md-lint` — syntax errors break all downstream passes.
-- Do not merge files unless explicitly instructed.
-
-## Output expectations
-
-- Report token delta (before / after) per file when measurable.
-- List all dedup actions in the dedup log format defined in `md-dedup`.
-- Flag any file that exceeds token budget after compression for manual review.
-- If scope is ambiguous, ask which folder or file to target before starting.
-`````
-
 ## File: .github/agents/modules-architect.agent.md
 `````markdown
 ---
@@ -1489,55 +1425,6 @@ description: Lint Markdown syntax, validate links, and enforce formatting consis
 ```
 
 Severity levels: `error` (must fix before other passes) · `warn` (fix in same pass) · `info` (optional)
-`````
-
-## File: .github/prompts/md-optimize.prompt.md
-`````markdown
----
-mode: agent
-tools: [markitdown, filesystem]
-description: Orchestrate full Markdown optimization pipeline (Leaf → Root)
----
-
-# md-optimize — Master Pipeline
-
-## Scope
-
-```
-.github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
-.github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
-```
-
-## Execution Order (Leaf → Root)
-
-```
-1. Leaf documents        → md-compress + md-dedup + md-rules + md-lint
-2. Folder README/INDEX   → md-index + md-structure
-3. docs/README.md        → md-index + md-structure
-4. .github/README.md     → md-index + md-structure
-5. Root README.md        → md-index + md-structure
-```
-
-> ⚠️ Never process parent before children — broken references cascade upward.
-
-## Per-File Checklist
-
-- [ ] Run `md-lint` → fix syntax errors first
-- [ ] Run `md-compress` → reduce token count
-- [ ] Run `md-dedup` → remove duplicate concepts
-- [ ] Run `md-rules` → convert prose to rules/tables
-- [ ] Run `md-structure` → enforce format hierarchy
-- [ ] Update parent `md-index` after all children done
-
-## Success Metrics
-
-| Metric | Target |
-|---|---|
-| Token Efficiency | ↓ tokens, same info |
-| Information Density | ↑ info per line |
-| Computational Efficiency | simpler parse tree |
-| Throughput | faster AI scan |
 `````
 
 ## File: .github/prompts/md-rules.prompt.md
@@ -5697,6 +5584,102 @@ function Profile({ name }: { name: string }) {
 ```
 `````
 
+## File: .github/terminology-glossary.md
+`````markdown
+---
+title: Terminology Glossary
+description: Xuanwu terminology for token/prompt/context efficiency, system performance, optimization, and AI/RAG systems.
+---
+
+# Terminology Glossary
+
+Reference for Xuanwu project terminology across token efficiency, system performance, and knowledge engineering.
+
+## Token / Prompt / Context Efficiency
+
+- **Token Efficiency** (Token 效率)
+- **Context Efficiency** (上下文效率)
+- **Prompt Efficiency** (提示詞效率)
+- **Compression Efficiency** (壓縮效率)
+- **Summarization Efficiency** (摘要效率)
+- **Retrieval Efficiency** (檢索效率)
+- **Embedding Efficiency** (向量化效率)
+
+## System / Computational Efficiency
+
+- **Computational Efficiency** (計算效率)
+- **Algorithmic Efficiency** (演算法效率)
+- **Memory Efficiency** (記憶體效率)
+- **Storage Efficiency** (儲存效率)
+- **Network Efficiency** (網路效率)
+- **Cache Efficiency** (快取效率)
+- **Rendering Efficiency** (渲染效率)
+- **Build Efficiency** (建置效率)
+
+## Optimization Terms
+
+- **Efficiency Optimization** (效率優化)
+- **Throughput Optimization** (吞吐量優化)
+- **Latency Optimization** (延遲優化)
+- **Cost Optimization** (成本優化)
+- **Performance Optimization** (效能優化)
+- **Query Optimization** (查詢優化)
+- **Pipeline Optimization** (管線優化)
+
+## Performance Metrics
+
+- **Throughput** (吞吐量)
+- **Latency** (延遲)
+- **Response Time** (回應時間)
+- **Execution Time** (執行時間)
+- **Memory Usage** (記憶體使用)
+- **CPU Utilization** (CPU 使用率)
+- **Cache Hit Rate** (快取命中率)
+- **Token Cost** (Token 成本)
+
+## AI / RAG / Knowledge System
+
+- **Retrieval Performance** (檢索效能)
+- **Context Window Utilization** (上下文窗口利用率)
+- **Document Compression** (文件壓縮)
+- **Context Packing** (上下文打包)
+- **Token Budgeting** (Token 預算控制)
+- **Context Pruning** (上下文剪枝)
+- **Deduplication** (去重)
+- **Canonicalization** (正規化)
+
+## Token / Prompt / Context Operations
+
+- **Token Packing** — 將零散資訊壓縮到最少 token
+- **Token Pruning** — 去掉無用 token
+- **Context Assembly** — 將相關 chunks 組合成可用上下文
+- **Context Chunking** — 把大文檔切成適合檢索的塊
+- **Prompt Refactoring** — 優化 prompt 結構與邏輯
+- **Context Deduplication** — 防止重複 token
+
+## Retrieval / RAG
+
+- **Chunk Efficiency** — 每個 chunk 使用的 token 是否有效
+- **Retrieval Compression** — 檢索結果只保留核心資訊
+- **Context Relevance** — token 是否提供有用訊息
+- **Embedding Optimization** — 降低向量索引 token 消耗
+
+## Documentation Engineering
+
+- **Knowledge Compression** (知識壓縮)
+- **Knowledge Refactoring** (知識重構)
+- **Documentation Chunking** (文件分塊)
+- **Documentation Deduplication** (文件去重)
+- **Documentation Normalization** (文件正規化)
+
+## Core Metrics
+
+- **Token Utilization Rate** (Token 利用率)
+- **Useful Token Ratio** — 只計算有用資訊的 token
+- **Token Footprint** (Token 佔用量)
+- **Token Overhead** (Token 開銷)
+`````
+
 ## File: .gitignore
 `````
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
@@ -5945,6 +5928,80 @@ See [`agents/rules/`](agents/rules/) for the complete set of architecture, quali
 ## File: agents/prompts
 `````
 ../.github/prompts
+`````
+
+## File: agents/README.md
+`````markdown
+# Xuanwu MDDD Architecture Knowledge System
+
+> Module-Driven Domain Design (MDDD) agent knowledge base for xuanwu-app.
+> This directory teaches AI agents how to navigate, understand, and contribute to the codebase.
+
+For the formal Copilot delivery workflow, see [docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) and [docs/how-to-user/how-to/start-feature-delivery.md](../docs/how-to-user/how-to/start-feature-delivery.md).
+
+- **[knowledge-base.md](knowledge-base.md)** — Domain knowledge, module boundaries, and architectural patterns
+- **[commands.md](commands.md)** — Build, lint, deploy, and development command reference
+
+## Rules Index
+
+### Architecture
+
+- [architecture-module-structure](rules/architecture-module-structure.md) — Four-layer module layout (domain / application / infrastructure / interfaces)
+- [architecture-dependency-direction](rules/architecture-dependency-direction.md) — UI → Application → Domain ← Infrastructure
+- [architecture-module-boundaries](rules/architecture-module-boundaries.md) — Module public API via `modules/<module-name>/api/`
+- [architecture-package-boundaries](rules/architecture-package-boundaries.md) — `packages/*` as stable public boundaries
+- [architecture-hexagonal-ports](rules/architecture-hexagonal-ports.md) — Ports pattern for cross-cutting concerns
+
+### Code Quality
+
+- [quality-imports](rules/quality-imports.md) — `@alias` imports, no legacy paths
+- [quality-simplicity](rules/quality-simplicity.md) — Keep code simple
+- [quality-code-review](rules/quality-code-review.md) — Code review standards
+- [quality-error-handling](rules/quality-error-handling.md) — `CommandResult` / `DomainError` patterns
+- [quality-code-comments](rules/quality-code-comments.md) — Comment guidelines
+- [quality-pr-creation](rules/quality-pr-creation.md) — Pull request best practices
+
+### Data Layer
+
+- [data-repository-pattern](rules/data-repository-pattern.md) — Interface in `domain/`, implementation in `infrastructure/`
+- [data-dto-boundaries](rules/data-dto-boundaries.md) — DTOs at layer boundaries
+- [data-firebase-collections](rules/data-firebase-collections.md) — Firebase Firestore patterns
+
+### API Design
+
+- [api-module-surface](rules/api-module-surface.md) — Module API surface via `api/` boundary
+- [api-contracts](rules/api-contracts.md) — `@api-contracts` route registry patterns
+
+### Performance
+
+- [performance-avoid-quadratic](rules/performance-avoid-quadratic.md) — Avoid O(n²) algorithms
+
+### Testing
+
+- [testing-coverage](rules/testing-coverage.md) — Test coverage requirements
+- [testing-mocking](rules/testing-mocking.md) — Mock services and integrations
+
+### Design Patterns
+
+- [patterns-use-case](rules/patterns-use-case.md) — One use case per file
+- [patterns-domain-events](rules/patterns-domain-events.md) — Domain event publishing
+- [patterns-domain-services](rules/patterns-domain-services.md) — Domain service encapsulation
+- [patterns-dependency-injection](rules/patterns-dependency-injection.md) — Constructor injection
+
+### CI/CD
+
+- [ci-type-check-first](rules/ci-type-check-first.md) — Type-check before tests
+- [ci-git-workflow](rules/ci-git-workflow.md) — Git and CI workflow
+
+### Culture
+
+- [culture-accountability](rules/culture-accountability.md) — Engineering accountability
+- [culture-leverage-ai](rules/culture-leverage-ai.md) — AI tooling practices
+
+### Reference
+
+- [reference-file-locations](rules/reference-file-locations.md) — Key file paths
+- [reference-local-dev](rules/reference-local-dev.md) — Local development setup
 `````
 
 ## File: agents/rules
@@ -7635,68 +7692,6 @@ export default function WorkspacePage() {
 }
 `````
 
-## File: app/debug/arch-demo/_actions/demo.actions.ts
-`````typescript
-"use server";
-
-/**
- * app/debug/arch-demo/_actions/demo.actions.ts
- *
- * Architecture Phase 3 — Server Actions for the /debug/arch-demo page.
- *
- * MDDD boundary rule:
- *   Imports ONLY from `@/modules/system` (which re-exports via api/ paths).
- *   Never reaches into domain/, application/, or infrastructure/ layers.
- */
-
-import { revalidatePath } from "next/cache";
-
-import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "@/modules/system";
-import type { GraphDataDTO } from "@/modules/knowledge-graph/api/knowledge-graph-api";
-
-// ── Form-bound Server Actions (return void — re-render via revalidatePath) ──
-
-/**
- * Create a new in-memory page.
- */
-export async function createPageAction(formData: FormData): Promise<void> {
-  const title = (formData.get("title") as string | null)?.trim() || "Untitled";
-  await contentApi.createPage(DEMO_ACCOUNT_ID, title);
-  revalidatePath("/debug/arch-demo");
-}
-
-/**
- * Add a block to an existing page.
- */
-export async function addBlockAction(formData: FormData): Promise<void> {
-  const pageId = (formData.get("pageId") as string | null)?.trim() ?? "";
-  const text = (formData.get("text") as string | null) ?? "";
-  if (!pageId) return;
-  await contentApi.addBlock(DEMO_ACCOUNT_ID, pageId, text);
-  revalidatePath("/debug/arch-demo");
-}
-
-/**
- * Update a block's text content.
- * If the text contains [[WikiLinks]], the event bus propagates the change to
- * KnowledgeGraphApi, which extracts new graph nodes and edges.
- */
-export async function updateBlockAction(formData: FormData): Promise<void> {
-  const blockId = (formData.get("blockId") as string | null)?.trim() ?? "";
-  const text = (formData.get("text") as string | null) ?? "";
-  if (!blockId) return;
-  await contentApi.updateBlock(DEMO_ACCOUNT_ID, blockId, text);
-  revalidatePath("/debug/arch-demo");
-}
-
-/**
- * Expose the current graph data for programmatic use.
- */
-export async function getGraphDataAction(): Promise<GraphDataDTO> {
-  return knowledgeApi.getGraphData();
-}
-`````
-
 ## File: app/globals.css
 `````css
 @import "tailwindcss";
@@ -8240,6 +8235,55 @@ env:
     value: "45000"
 `````
 
+## File: CLAUDE.md
+`````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 20+ bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [agents/commands.md](agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[agents/knowledge-base.md](agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
+`````
+
 ## File: CODE_OF_CONDUCT.md
 `````markdown
 # Contributor Covenant Code of Conduct
@@ -8399,6 +8443,125 @@ https://www.contributor-covenant.org/translations.
   "menuAccent": "subtle",
   "registries": {}
 }
+`````
+
+## File: CONTRIBUTING.md
+`````markdown
+# Contributing to Xuanwu App
+
+Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
+
+## House Rules
+
+### 👥 Prevent Work Duplication
+
+Before opening a new issue or PR, check whether it already exists in [Issues](../../issues) or [Pull Requests](../../pulls).
+
+### ✅ Work on Approved Issues
+
+For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
+
+### 🚫 One Concern per PR
+
+Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
+
+### 📚 Write for Future Readers
+
+Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
+
+### ✅ Summarize Your PR
+
+Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
+
+### 🧪 Describe What Was Tested
+
+Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Setup
+
+```bash
+npm install
+npm run dev      # Start Next.js dev server (port 3000)
+```
+
+### Validation
+
+Before pushing, ensure these all pass:
+
+```bash
+npm run lint     # ESLint — must have 0 errors
+npm run build    # Next.js production build + TypeScript type-check
+```
+
+For the Python worker:
+
+```bash
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+---
+
+## Architecture Conventions
+
+This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
+
+- [`agents/README.md`](agents/README.md) — rules index
+- [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
+- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
+
+### Key Rules
+
+- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must be framework-free.
+- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
+- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
+
+### File Naming
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Domain entity | `PascalCase.ts` | `Organization.ts` |
+| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
+| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
+| Use case | `my-use-case.ts` | `create-workspace.ts` |
+| Server Action | `*.actions.ts` | `workspace.actions.ts` |
+| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
+
+---
+
+## Making a Pull Request
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused, incremental changes.
+3. Ensure `npm run lint` and `npm run build` pass with no new errors.
+4. Fill out the PR description with intent, changes, and testing notes.
+5. Link related issues with `Closes #N` or `Refs #N`.
+6. Request a review.
+
+---
+
+## Spec-Driven Development
+
+For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/how-to-user/how-to/start-feature-delivery.md`](docs/how-to-user/how-to/start-feature-delivery.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 `````
 
 ## File: docs/decision-architecture/adr/ADR-001-rag-upload-storage-and-document-lifecycle.md
@@ -10049,6 +10212,78 @@ StreamEvent
 - 每次模型切換需回歸 citation 與 streaming 相容性。
 `````
 
+## File: docs/decision-architecture/adr/ADR-012-functions-python-directory-placement.md
+`````markdown
+# ADR 012: `py_fn` 目錄位置決策
+
+## 狀態 (Status)
+
+**Accepted**
+
+## 背景 (Context)
+
+在 MDDD 架構遷移（Phase 1–8）完成後，所有 TypeScript 工具函式庫已從 `libs/` 移至 `packages/`
+下的對應套件。完成後 `libs/` 目錄僅剩 `libs/firebase/py_fn/` 這一個子目錄，
+使得 `libs/` 的存在語意不再成立——它原本是存放 TypeScript 工具整合層的目錄。
+
+此時有必要決定 `py_fn` 的最終放置位置。
+
+## 問題
+
+- `libs/` 目錄原本代表「TypeScript 工具整合層」，遷移後已語意失效
+- `py_fn` 不是 TypeScript 套件，無法放入 `packages/`
+- 三層路徑 `libs/firebase/py_fn/` 對 Python 工作目錄而言過深且不直觀
+- 需要找一個能清楚傳達「這是獨立部署單元」的位置
+
+## 決策 (Decision)
+
+將 `libs/firebase/py_fn/` 移至專案根目錄的 `py_fn/`。
+
+**理由：**
+
+1. **Firebase 慣例**：Firebase CLI 預設 functions codebase 位於專案根目錄（如 `functions/`）；
+   `py_fn/` 直接對應 `firebase.json` 中的 codebase 名稱 `py_fn`。
+
+2. **清除語意混淆**：`libs/` 是 TypeScript 工具層，Python worker runtime 不屬於此分類。
+
+3. **第一等部署單元**：放在根目錄明確傳達此目錄是獨立部署單元，而非輔助工具庫。
+
+4. **簡化路徑**：`py_fn/` 比 `libs/firebase/py_fn/` 更短、更易引用。
+
+5. **清理空目錄**：移除後 `libs/firebase/` 和 `libs/` 均為空，可直接刪除。
+
+## 範圍
+
+**不屬於此 ADR 的決策：**
+
+- `py_fn` 內部結構（由各 Python ADR 規範）
+- 部署流程（`firebase.json` `source` 欄位已同步更新）
+- 與 TypeScript 的互動合約（由各 RAG ADR 規範）
+
+## 後果 (Consequences)
+
+### 正面
+
+- `libs/` 目錄正式清空並刪除，移除遷移後的殘餘路徑
+- `py_fn/` 在根目錄一目了然，與其他 Firebase 設定檔同層
+- `firebase.json` source 路徑更短：`"source": "py_fn"`
+
+### 負面 / 注意事項
+
+- 所有引用舊路徑的文件、記憶體、合約均已同步更新
+- 歷史 ADR 中對已退休之 `libs/firebase/functions`（TypeScript）的引用保持不變（歷史記錄）
+
+## 更新清單
+
+以下檔案已同步更新，將 `libs/firebase/py_fn` 替換為 `py_fn`：
+
+- `firebase.json` — `source` 欄位
+- `packages/README.md` — Migration History 新增條目與說明
+- `docs/decision-architecture/adr/ADR-001, ADR-009, ADR-010` — 跨 runtime 邊界引用
+- `docs/development-reference/reference/development-contracts/overview.md, rag-ingestion-contract.md`
+- `py_fn/README.md, AGENT.md, docs/decision-architecture/adr/*` — 內部自我引用
+`````
+
 ## File: docs/decision-architecture/architecture/daily.md
 `````markdown
 ---
@@ -10402,6 +10637,865 @@ Daily 設計成功，不是因為它像 Instagram，而是因為它讓組織與�
 - Daily 成為組織營運節奏的一級入口，而非另一個孤立分頁
 `````
 
+## File: docs/decision-architecture/architecture/event.md
+`````markdown
+---
+title: Event Core architecture
+description: Target architecture for the event-core domain — canonical domain event capture, persistence, dispatch, and aggregate correlation in Xuanwu MDDD.
+status: "🚧 Developing"
+---
+
+# Event Core 領域事件架構規範
+
+> **文件編號**：XUANWU-EVENT-SPEC-001
+> **適用系統**：xuanwu-app — 領域事件捕捉、持久化與派送核心
+> **版本**：v1.0.0
+> **最後更新**：2026-03-20
+> **維護責任方**：Event Core Owner / 平台架構委員會
+> **開發狀態**：🚧 Developing — 積極開發中
+
+---
+
+## 0. 目前已上線範圍
+
+目前 Event Core 已具備最小可運作的領域事件基礎骨架，作為後續全系統事件驅動設計的入口：
+
+- **DomainEvent 實體**：`modules/event/domain/entities/domain-event.entity.ts`
+  - 功能：事件 id、名稱、聚合類型、聚合 id、occurredAt、payload、metadata、派送狀態
+- **EventMetadata 值物件**：關聯 id、causation id、actor id、組織 / 工作區追蹤欄位
+- **Repository ports**：`IEventStoreRepository`（持久化）+ `IEventBusRepository`（派送）
+- **Domain service**：`dispatchPolicy`（純函式 — 重試判斷與 back-off 計算）
+- **Use Cases**：`PublishDomainEventUseCase`、`ListEventsByAggregateUseCase`
+- **In-memory adapters**：本地開發與測試用
+- **Noop event bus**：scaffold / 測試用
+
+### 0.1 本輪交付目標
+
+本輪先建立 Event Core 的完整設計文件：
+
+| 文件 | 路徑 |
+|------|------|
+| 架構設計（本文件） | `docs/decision-architecture/architecture/event.md` |
+| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
+| 開發指南 | `docs/development-reference/event/development-guide.md` |
+| 使用手冊 | `docs/development-reference/event/user-manual.md` |
+
+### 0.2 本輪不在交付範圍
+
+- Firestore / Redis 實作的 event store adapter
+- 真正的 message bus（Pub/Sub / Kafka / Cloud Tasks）adapter
+- Event sourcing 完整 aggregate rebuild
+- Dead-letter queue / 補償事務
+- Event replay 與時間旅行 debug
+- Cross-module event subscription / projection 自動觸發
+
+---
+
+## 1. 核心設計原則
+
+| 原則 | 說明 |
+|------|------|
+| **事件即真相** | `DomainEvent` 是系統狀態變更的唯一記錄，不依賴 UI 呼叫順序 |
+| **捕捉 → 持久化 → 派送** | 事件先寫入 store，再送出匯流排，保證 at-least-once 語意 |
+| **聚合根關聯** | 所有事件透過 `aggregateType` + `aggregateId` 組成可查詢的事件時間線 |
+| **純粹 domain** | Domain layer 不含任何 SDK/HTTP/DB 依賴，dispatch policy 以純函式表達 |
+| **可替換 adapter** | Infrastructure 可從 in-memory 替換為 Firestore、Pub/Sub，不影響 domain |
+
+---
+
+## 2. Event Core 整體架構
+
+### 2.1 模組邊界
+
+```
+app/(shell)/ 或 modules/*
+    ↓ (invoke server actions / use-cases)
+modules/event/interfaces/api/
+    ↓
+modules/event/application/use-cases/
+    ↓
+modules/event/domain/
+    ↑
+modules/event/infrastructure/
+```
+
+### 2.2 事件生命週期
+
+```
+捕捉（Capture）
+    → 建立 DomainEvent（entity + metadata）
+    → 驗證 eventName / aggregateType / aggregateId
+持久化（Persist）
+    → IEventStoreRepository.save(event)
+    → 狀態：undispatched
+派送（Dispatch）
+    → IEventBusRepository.publish(event)
+    → dispatchPolicy：retry eligibility + backoff
+    → 標記：IEventStoreRepository.markDispatched(id, dispatchedAt)
+觀察（Observe）
+    → 查詢 findUndispatched → 補償重試
+關聯（Correlate）
+    → findByAggregate(aggregateType, aggregateId)
+    → 重建事件時間線
+```
+
+---
+
+## 3. DomainEvent 資料模型
+
+### 3.1 DomainEvent 欄位
+
+| 欄位 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| `id` | `string` | ✅ | UUID v4，全域唯一 |
+| `eventName` | `string` | ✅ | 事件名稱，格式建議 `{Module}.{AggregateType}.{Action}` |
+| `aggregateType` | `string` | ✅ | 聚合根類型，例如 `WikiDocument`、`Task` |
+| `aggregateId` | `string` | ✅ | 聚合根 ID |
+| `occurredAt` | `Date` | ✅ | 事件實際發生時間 |
+| `payload` | `DomainEventPayload` | ✅ | 事件業務資料（`Record<string, unknown>`） |
+| `metadata` | `EventMetadata` | ❌ | 追蹤與關聯欄位（correlationId、actorId 等） |
+| `dispatchedAt` | `Date \| null` | ❌ | 成功派送時間；null 代表尚未派送 |
+
+### 3.2 EventMetadata 欄位
+
+| 欄位 | 說明 |
+|------|------|
+| `correlationId` | 跨服務追蹤用 correlation id |
+| `causationId` | 觸發此事件的上游事件 id |
+| `actorId` | 發起事件的 accountId |
+| `organizationId` | 所屬組織（多租戶隔離） |
+| `workspaceId` | 所屬工作區（null = 組織層） |
+| `traceId` | 分散式追蹤 id（OpenTelemetry） |
+
+### 3.3 eventName 命名規範
+
+```
+{ModulePrefix}.{AggregateType}.{PastTenseAction}
+
+範例：
+  Wiki.WikiDocument.Created
+  Task.Task.Assigned
+  Schedule.ScheduleRequest.Submitted
+  Billing.Invoice.Issued
+```
+
+---
+
+## 4. 關鍵技術觀念
+
+### 4.1 Outbox Pattern（目標）
+
+為確保 at-least-once 派送語意，目標實作採用 outbox 模式：
+
+```
+write-side use-case:
+  1. 寫入業務 aggregate（例如 Firestore document）
+  2. 在同一 transaction 中寫入 domain_events（status: undispatched）
+
+背景任務（outbox worker）:
+  1. findUndispatched(limit)
+  2. IEventBusRepository.publish(event)
+  3. markDispatched(id, dispatchedAt)
+```
+
+> ❗ 目前骨架直接在 use-case 中呼叫 publish，尚未實作 outbox transaction。
+
+### 4.2 Dispatch Policy（純函式）
+
+`dispatchPolicy` 住在 domain/services，保持純函式：
+
+```typescript
+// 判斷是否應重試
+shouldRetry({ attemptCount: 2, lastAttemptAt: new Date() }, { maxRetries: 3, baseDelayMs: 500 })
+// → true
+
+// 計算下次延遲（exponential back-off）
+nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: new Date() }, { maxRetries: 3, baseDelayMs: 500 })
+// → 1000ms
+```
+
+### 4.3 Infrastructure 配置
+
+```typescript
+// modules/event/infrastructure/persistence/config.ts
+EVENT_CORE_CONFIG = {
+  DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 },
+  STORE:    { TABLE: 'domain_events' },
+}
+```
+
+---
+
+## 5. 模組結構（目標）
+
+```
+modules/event/
+├── domain/
+│   ├── entities/
+│   │   └── domain-event.entity.ts     # DomainEvent class + DomainEventPayload
+│   ├── repositories/
+│   │   ├── ievent-bus.repository.ts   # IEventBusRepository port
+│   │   └── ievent-store.repository.ts # IEventStoreRepository port
+│   ├── services/
+│   │   └── dispatch-policy.ts        # shouldRetry, nextRetryDelayMs (pure)
+│   └── value-objects/
+│       └── event-metadata.vo.ts      # EventMetadata
+├── application/
+│   └── use-cases/
+│       ├── publish-domain-event.ts   # PublishDomainEventUseCase
+│       └── list-events-by-aggregate.ts # ListEventsByAggregateUseCase
+├── infrastructure/
+│   ├── persistence/
+│   │   └── config.ts                 # EVENT_CORE_CONFIG
+│   └── repositories/
+│       ├── in-memory-event-store.repository.ts
+│       └── noop-event-bus.repository.ts
+├── interfaces/
+│   └── api/
+│       └── event.controller.ts       # EventController
+├── index.ts                          # 模組公開 API
+├── README.md
+└── AGENT.md
+```
+
+---
+
+## 6. 一句話總結
+
+```
+事件進來：Capture → Persist（undispatched） → Dispatch → markDispatched
+
+事件查詢：findByAggregate → 重建事件時間線
+
+事件重試：findUndispatched → dispatchPolicy → publish → markDispatched
+```
+
+---
+
+## 7. 變更記錄
+
+| 版本 | 日期 | 變更說明 | 作者 |
+|------|------|----------|------|
+| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 Event Core 目標架構、DomainEvent 資料模型、Outbox Pattern、dispatch policy | xuanwu-app 架構委員會 |
+`````
+
+## File: docs/decision-architecture/architecture/namespace.md
+`````markdown
+---
+title: Namespace Core architecture
+description: Target architecture for the namespace-core domain — canonical named-scope registration, slug validation, and resolution for multi-tenant resource addressing in Xuanwu.
+status: "🚧 Developing"
+---
+
+# Namespace Core 命名空間架構規範
+
+> **文件編號**：XUANWU-NS-SPEC-001
+> **適用系統**：xuanwu-app — 多租戶命名空間管理核心
+> **版本**：v1.0.0
+> **最後更新**：2026-03-20
+> **維護責任方**：Namespace Core Owner / 平台架構委員會
+> **開發狀態**：🚧 Developing — 積極開發中
+
+---
+
+## 0. 目前已上線範圍
+
+目前 Namespace Core 已具備最小可運作的命名空間骨架，作為後續 URL 路由與多租戶資源定址的基礎：
+
+- **Namespace 實體**：`modules/namespace/domain/entities/namespace.entity.ts`
+  - 功能：id、slug、kind（organization / workspace）、ownerAccountId、organizationId、status
+- **NamespaceSlug 值物件**：slug 格式驗證（3-63 字元，小寫英數字加連字號）
+- **slug-policy domain service**：純函式 — `deriveSlugCandidate`、`isValidSlug`
+- **INamespaceRepository port**：save / findById / findBySlug / findByOrganization / existsBySlug
+- **Use Cases**：`RegisterNamespaceUseCase`（寫入 + 衝突檢查）、`ResolveNamespaceUseCase`（讀取）
+- **In-memory adapter**：本地開發與測試用
+
+### 0.1 本輪交付目標
+
+本輪先建立 Namespace Core 的完整設計文件：
+
+| 文件 | 路徑 |
+|------|------|
+| 架構設計（本文件） | `docs/decision-architecture/architecture/namespace.md` |
+| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
+| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
+| 使用手冊 | `docs/development-reference/namespace/user-manual.md` |
+
+### 0.2 本輪不在交付範圍
+
+- Firestore adapter 實作（`FirebaseNamespaceRepository`）
+- Namespace slug 變更（rename）流程與舊連結重定向
+- 跨租戶 slug 衝突的全域唯一性保證（目前僅 kind 層級）
+- Namespace 事件（NamespaceRegistered / NamespaceSuspended）與 event-core 整合
+- 組織管理 UI 中的 slug 設定介面
+
+---
+
+## 1. 核心設計原則
+
+| 原則 | 說明 |
+|------|------|
+| **Slug 即地址** | 每個組織與工作區都有唯一、可閱讀的 slug，作為 URL 路由與 API 定址的基礎 |
+| **Kind 隔離** | `organization` slug 與 `workspace` slug 各自獨立，同 slug 在不同 kind 下不衝突 |
+| **不可變 ID** | Namespace `id` 一旦建立不得變更；slug 可透過受控流程更新（目前尚未實作） |
+| **純粹 domain** | Slug 驗證與推導邏輯均為純函式，不含任何 SDK/HTTP/DB 依賴 |
+| **可替換 adapter** | 從 in-memory 切換至 Firestore 不影響 domain 或 application 層 |
+
+---
+
+## 2. Namespace Core 整體架構
+
+### 2.1 模組邊界
+
+```
+modules/organization/ 或 modules/workspace/
+    ↓ (呼叫 RegisterNamespaceUseCase on create)
+modules/namespace/interfaces/api/
+    ↓
+modules/namespace/application/use-cases/
+    ↓
+modules/namespace/domain/
+    ↑
+modules/namespace/infrastructure/
+```
+
+### 2.2 Namespace 生命週期
+
+```
+建立（Register）
+    → deriveSlugCandidate（從 displayName 推導 slug 候選值）
+    → NamespaceSlug.create（驗證格式）
+    → existsBySlug（衝突檢查）
+    → save（持久化 Namespace，status: active）
+解析（Resolve）
+    → findBySlug(slug, kind) → Namespace 實體
+暫停（Suspend）
+    → namespace.suspend() → status: suspended
+恢復（Restore）
+    → namespace.restore() → status: active
+封存（Archive）
+    → namespace.archive() → status: archived
+```
+
+---
+
+## 3. Namespace 資料模型
+
+### 3.1 Namespace 欄位
+
+| 欄位 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| `id` | `string` | ✅ | UUID v4，全域唯一 |
+| `slug` | `NamespaceSlug` | ✅ | URL-safe slug（3-63 字元，小寫英數字 + 連字號） |
+| `kind` | `'organization' \| 'workspace'` | ✅ | 命名空間種類 |
+| `ownerAccountId` | `string` | ✅ | 建立者帳號 ID |
+| `organizationId` | `string` | ✅ | 所屬組織 ID（多租戶邊界） |
+| `status` | `'active' \| 'suspended' \| 'archived'` | ✅ | 命名空間狀態 |
+| `createdAt` | `Date` | ✅ | 建立時間 |
+| `updatedAt` | `Date` | ✅ | 最後更新時間 |
+
+### 3.2 NamespaceSlug 格式規範
+
+```
+規則：
+  - 長度：3–63 字元
+  - 允許字元：小寫英文字母 (a-z)、數字 (0-9)、連字號 (-)
+  - 不得以連字號開頭或結尾
+  - 不允許連續連字號（目前未強制，但推薦避免）
+
+合法範例：
+  my-organization
+  workspace-2024
+  acme-corp
+
+非法範例：
+  -org        （以連字號開頭）
+  org-        （以連字號結尾）
+  ab          （長度不足）
+  ORG_NAME    （含大寫與底線）
+```
+
+---
+
+## 4. Slug Policy（純函式）
+
+`slug-policy` 住在 domain/services，保持純函式：
+
+```typescript
+// 從顯示名稱推導 slug 候選值
+deriveSlugCandidate('My Organization 2024!')
+// → 'my-organization-2024'
+
+// 驗證 slug 格式
+isValidSlug('my-org')   // → true
+isValidSlug('-bad-')    // → false
+```
+
+---
+
+## 5. 模組結構（目標）
+
+```
+modules/namespace/
+├── domain/
+│   ├── entities/
+│   │   └── namespace.entity.ts           # Namespace class
+│   ├── repositories/
+│   │   └── inamespace.repository.ts      # INamespaceRepository port
+│   ├── services/
+│   │   └── slug-policy.ts               # deriveSlugCandidate, isValidSlug (純函式)
+│   └── value-objects/
+│       └── namespace-slug.vo.ts         # NamespaceSlug
+├── application/
+│   └── use-cases/
+│       ├── register-namespace.use-case.ts  # RegisterNamespaceUseCase
+│       └── resolve-namespace.use-case.ts   # ResolveNamespaceUseCase
+├── infrastructure/
+│   ├── persistence/
+│   │   └── config.ts                    # NAMESPACE_CORE_CONFIG
+│   └── repositories/
+│       └── in-memory-namespace.repository.ts
+├── interfaces/
+│   └── api/
+│       └── namespace.controller.ts      # NamespaceController
+├── index.ts
+├── README.md
+└── AGENT.md
+```
+
+---
+
+## 6. 一句話總結
+
+```
+Slug 進來：deriveSlugCandidate → NamespaceSlug.create → existsBySlug → save
+
+Slug 解析：findBySlug(slug, kind) → Namespace → route
+
+Slug 變更：（未實作）更新 slug → 建立舊 slug 重定向紀錄
+```
+
+---
+
+## 7. 變更記錄
+
+| 版本 | 日期 | 變更說明 | 作者 |
+|------|------|----------|------|
+| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 Namespace Core 目標架構、Namespace 資料模型、slug policy | xuanwu-app 架構委員會 |
+`````
+
+## File: docs/decision-architecture/architecture/schedule.md
+`````markdown
+---
+title: Schedule architecture
+description: Target MDDD architecture for the bidirectional resource-request scheduling system, including the currently shipped scope, domain model, Firestore data model, state machines, and event-driven design.
+status: "🏗️ Midway"
+---
+
+# 排程模組架構規範
+
+> **文件編號**：XUANWU-SCHED-SPEC-001
+> **適用系統**：xuanwu-app — 雙向資源請求排程系統
+> **版本**：v1.2.0
+> **最後更新**：2026-03-20
+> **維護責任方**：Schedule Module Owner / 平台架構委員會
+> **開發狀態**：🏗️ Midway — 開發部分完成
+
+---
+
+## 0. 目前已上線範圍
+
+目前已上線的是最小可運作切片（MVP write-side + projection），作為後續完整 MDDD 排程域的入口：
+
+- **工作區 UI**：`modules/schedule/interfaces/components/WorkspaceScheduleTab.tsx`
+  - 掛載位置：`modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
+  - 功能：新增資源請求（`scheduleRequests` 寫入 + `scheduleMdddFlowProjections` 初始 projection）
+- **組織 UI**：`app/(shell)/organization/schedule/page.tsx`
+  - 待分派（`submitted` 狀態的 projection 清單）+ 月曆週視圖
+- **開發契約**：`docs/development-reference/reference/development-contracts/schedule-contract.md`
+
+### 0.1 目前已交付（本輪完成）
+
+| 切片 | 說明 | 路徑 |
+|------|------|------|
+| 資源請求提交 | 工作區提交請求，寫入 `scheduleRequests` | `FirebaseScheduleRequestRepository.submit()` |
+| 資源請求取消 | 工作區取消自己提交的請求，更新 `scheduleRequests` 與 projection | `CancelScheduleRequestUseCase` + `cancelScheduleRequest()` |
+| 初始 projection 建立 | 提交成功後立即建立 `RequestCreated` projection | `schedule-request.actions.ts` → `FirebaseMdddProjectionRepository.project()` |
+| Projection 列表查詢 | 工作區查詢自身所有請求的 projection | `listWorkspaceScheduleMdddFlowProjections(workspaceId)` |
+| 組織待分派視圖 | 跨工作區聚合 `submitted` 狀態請求 | `OrganizationSchedulePage` |
+| 月曆週視圖 | 顯示已排程項目（`WorkspaceScheduleItem`） | `OrganizationSchedulePage` 月曆分頁 |
+
+### 0.2 本輪不在交付範圍
+
+以下仍屬後續階段，**本輪不假裝已完成**：
+
+- 組織端的請求審核 / 拒絕 / 關閉流程（完整 MDDD `Request` 生命週期）
+- 任務分解（`Task`）與候選人比對（`Match`）的完整引擎
+- 人工分派（`Assignment` offer/accept/reject）的 UI
+- 排程衝突偵測與時段重新分配
+- 跨工作區 Notification 路由（`organization:schedule:assigned`）
+- Temporal workflow 或 Cloud Functions 非同步觸發器
+
+### 0.3 正式缺口登記（current vs target）
+
+下表不是願景口號，而是**目前文件化的正式缺口清單**。後續所有 Schedule 變更都應明確對應到其中一項缺口，避免 UI 與 domain 邊界再次混雜。
+
+| 類別 | 目前已有 | 主要缺口 | 影響 |
+|------|----------|----------|------|
+| Request Intake | 工作區可提交/取消資源請求，並建立初始 projection | 缺少組織端 `under-review` / `accepted` / `rejected` / `closed` 完整生命週期 | 組織目前只能看到待分派，不能正式審核與結案 |
+| Task | `scheduleRequests` 可作為需求入口 | 尚未由 Request 分解出正式 `TaskAggregate` 與任務狀態流 | 無法進入可執行工作單元與後續配對 |
+| Match | 契約中已定義 matching engine 目標 | 尚未落地候選人資格篩選、評分、排序、cut-off | 組織端無法從需求走到候選人 shortlist |
+| Assignment | Projection 預留 `assignmentId` / `assignmentStatus` 欄位 | 尚未建立 offer / accept / reject / cancel 決策流與 UI | 尚無真正的人員指派流程 |
+| Schedule | 組織頁已有 booking list + calendar 顯示 | 尚未把 accepted assignment 轉成正式 `ScheduleAggregate` 與衝突偵測 | 月曆目前是既有 item read model，不是完整 fulfill flow 終點 |
+| Projection | 已有 `RequestCreated` / `RequestCancelled` 驅動的基本投影 | 尚缺 Task / Match / Assignment / Schedule 後續事件折疊與冪等保證 | UI 無法看到完整 Request → Fulfillment 進度 |
+| Integration | 當前由 action 同步補寫初始 projection | 尚缺 outbox / trigger / workflow orchestration / notification routing | 主寫入與投影仍存在 best-effort 風險 |
+
+### 0.4 目標狀態摘要
+
+Schedule 模組的目標不是「做一個更多按鈕的列表」，而是把下列流程落地成可審計的 MDDD flow：
+
+`Request -> Task -> Match -> Assignment -> Schedule`
+
+達成目標狀態前，任何新增 UI 都必須先回答：
+
+1. 它對應哪一個 aggregate 或 projection 階段？
+2. 狀態轉換是否已有 domain/application 契約？
+3. 讀模型是從 event-driven projection 來，還是只是暫時拼接？
+
+---
+
+## 1. 核心設計原則
+
+| 原則 | 說明 |
+|------|------|
+| **雙向分離** | 工作區負責 demand 側（提交需求），組織負責 supply 側（審核履行），兩側透過 projection 解耦 |
+| **Event-Sourced Projection** | `scheduleMdddFlowProjections` 僅由 domain event 驅動更新，UI 只讀 projection，不直接讀 aggregate |
+| **Aggregate 不可越界** | Request / Task / Assignment / Schedule 各自擁有獨立生命週期，不共享可變狀態 |
+| **Skills 可選（workspace 端）** | 簡單資源請求不強制技能需求；完整 MDDD flow 使用時才強制驗證 |
+| **Postiz 月曆類比** | 組織月曆視圖參照 Postiz calendar.tsx 的週視圖設計：24 小時橫列、每日欄位、今日高亮 |
+
+---
+
+## 2. 領域模型
+
+### 2.1 核心聚合（Aggregates）
+
+| 聚合 | 根實體 | 責任 | 主要欄位 |
+|------|--------|------|----------|
+| `RequestAggregate` | `Request` | 工作區需求的生命週期管理 | `requestId`, `workspaceId`, `organizationId`, `requiredSkills`, `status`, `notes` |
+| `TaskAggregate` | `Task` | 可執行工作單元，由 Request 分解而來 | `taskId`, `requestId`, `requiredSkills`, `requiredHeadcount`, `status` |
+| `MatchAggregate` | `Match` | 候選人評分與排名結果 | `matchId`, `taskId`, `candidateAccountUserId`, `score`, `rank` |
+| `AssignmentAggregate` | `Assignment` | 任務與被分派人的決策生命週期 | `assignmentId`, `taskId`, `assigneeAccountUserId`, `status` |
+| `ScheduleAggregate` | `Schedule` | 時段預留與執行計畫 | `scheduleId`, `assignmentId`, `calendarSlot`, `loadUnits`, `status` |
+
+### 2.2 投影讀模型（Projection）
+
+`ScheduleMdddFlowProjection` 是聚合跨狀態的跨段快照，供 UI 直接讀取：
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| `requestId` | `string` | 請求唯一識別碼 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `organizationId` | `string` | 所屬組織 |
+| `requestStatus` | `RequestStatus` | 請求當前狀態 |
+| `taskId` | `string \| null` | 對應任務 ID（Task 建立後填入） |
+| `taskStatus` | `TaskStatus \| null` | 任務當前狀態 |
+| `assignmentId` | `string \| null` | 對應分派 ID |
+| `assignmentStatus` | `AssignmentStatus \| null` | 分派當前狀態 |
+| `scheduleId` | `string \| null` | 對應排程 ID |
+| `scheduleStatus` | `ScheduleStatus \| null` | 排程當前狀態 |
+| `assigneeAccountUserId` | `string \| null` | 被分派人帳號 ID |
+| `lastReason` | `string \| null` | 最近一次拒絕或取消原因 |
+| `eventTypes` | `string[]` | 已發生的 domain event 類型列表 |
+| `updatedAtISO` | `string` | 最近更新時間（ISO 8601） |
+
+---
+
+## 3. Firestore 資料模型
+
+### 3.1 資源請求集合（`scheduleRequests`）
+
+**Collection Path**：`/scheduleRequests/{requestId}`
+
+| 欄位名 | 類型 | 必填 | 說明 |
+|--------|------|------|------|
+| `workspaceId` | `string` | ✅ | 提交請求的工作區 ID |
+| `organizationId` | `string` | ✅ | 所屬組織 ID |
+| `status` | `ScheduleRequestStatus` | ✅ | 請求狀態（`submitted` \| `cancelled` \| `closed`） |
+| `requiredSkills` | `SkillRequirement[]` | ✅ | 所需技能清單（可為空陣列） |
+| `proposedStartAtISO` | `string \| null` | ❌ | 期望開始時間 |
+| `notes` | `string` | ✅ | 需求說明 |
+| `submittedByAccountId` | `string` | ✅ | 提交者帳號 ID |
+| `submittedAtISO` | `string` | ✅ | 提交時間（ISO 8601） |
+| `createdAtISO` | `string` | ✅ | 建立時間 |
+| `updatedAtISO` | `string` | ✅ | 最後更新時間 |
+
+### 3.2 Projection 集合（`scheduleMdddFlowProjections`）
+
+**Collection Path**：`/scheduleMdddFlowProjections/{requestId}`
+
+欄位同 `ScheduleMdddFlowProjection` 介面定義。每次 domain event 透過 `FirebaseMdddProjectionRepository.project()` 以 `merge: true` 方式更新。
+
+**重要**：Projection 由 domain event 驅動，不由 UI 直接寫入（唯一例外：`schedule-request.actions.ts` 在成功提交後立即寫入初始 `RequestCreated` projection 以確保可見性）。
+
+### 3.3 MDDD Flow 集合（完整 flow 使用）
+
+| 集合 | 說明 |
+|------|------|
+| `scheduleMdddRequests` | MDDD Request 聚合文件 |
+| `scheduleMdddTasks` | MDDD Task 聚合文件 |
+| `scheduleMdddMatches` | Match 評分結果 |
+| `scheduleMdddAssignments` | Assignment 決策文件 |
+| `scheduleMdddSchedules` | Schedule 時段文件 |
+
+---
+
+## 4. 狀態機
+
+### 4.1 RequestStatus
+
+```
+draft ──→ submitted ──→ under-review ──→ accepted ──→ closed
+                   ↘                 ↘
+                    cancelled        rejected ──→ closed
+```
+
+| 狀態 | 觸發者 | 說明 |
+|------|--------|------|
+| `draft` | 工作區 | 草稿，尚未提交 |
+| `submitted` | 工作區 | 已提交，等待組織審核 |
+| `under-review` | 組織 | 審核中 |
+| `accepted` | 組織 | 審核通過，進入任務分解 |
+| `rejected` | 組織 | 審核拒絕 |
+| `cancelled` | 工作區 | 提交前取消 |
+| `closed` | 系統 | 已結束（完成或拒絕後關閉） |
+
+### 4.2 TaskStatus
+
+```
+open ──→ matching ──→ assignable ──→ assigned ──→ scheduled ──→ completed
+                                  ↘
+                                   cancelled
+```
+
+### 4.3 AssignmentStatus
+
+```
+pending-review ──→ proposed ──→ accepted ──→ completed
+                           ↘
+                            rejected / cancelled
+```
+
+### 4.4 ScheduleStatus
+
+```
+planned ──→ reserved ──→ active ──→ completed
+                    ↘
+                     cancelled / conflicted
+```
+
+---
+
+## 5. 事件驅動設計
+
+### 5.1 已實作 Domain Events
+
+| Event | 觸發時機 | 擁有聚合 |
+|-------|----------|----------|
+| `RequestCreated` | 請求提交成功後立即寫入 | `RequestAggregate` |
+| `RequestCancelled` | 工作區取消自己提交的請求後立即寫入 | `RequestAggregate` |
+| `RequestAccepted` | 組織審核通過 | `RequestAggregate` |
+| `RequestRejected` | 組織審核拒絕 | `RequestAggregate` |
+| `TaskMatched` | 候選人比對完成 | `TaskAggregate` |
+| `AssignmentAccepted` | 被分派人接受 | `AssignmentAggregate` |
+| `AssignmentRejected` | 被分派人拒絕 | `AssignmentAggregate` |
+| `ScheduleReserved` | 時段預留成功 | `ScheduleAggregate` |
+| `ScheduleCancelled` | 時段取消 | `ScheduleAggregate` |
+| `TaskCompleted` | 任務完成 | `TaskAggregate` |
+
+### 5.2 Event 消費路徑
+
+```
+Domain Event
+    │
+    ↓
+FirebaseMdddProjectionRepository.project(events)
+    │
+    ↓
+scheduleMdddFlowProjections/{requestId}  ← UI 讀取此集合
+```
+
+---
+
+## 6. 模組架構對映
+
+```
+modules/schedule/
+├── domain/
+│   ├── entities/          # ScheduleRequest, ScheduleItem, ScheduleEventType
+│   ├── repositories/      # ScheduleRequestRepository (port interface)
+│   ├── mddd/
+│   │   ├── entities/      # Request, Task, Match, Assignment, Schedule
+│   │   ├── value-objects/ # Projection, WorkflowStatuses, Requirements, Scheduling
+│   │   ├── services/      # matching-engine, scheduling-engine
+│   │   ├── events/        # ScheduleDomainEvents
+│   │   └── repositories/  # MDDD port interfaces
+├── application/
+│   └── use-cases/
+│       ├── submit-schedule-request.use-case.ts  # 目前已上線
+│       └── mddd/
+│           └── run-schedule-mddd-flow.use-case.ts  # 完整 MDDD flow
+├── infrastructure/
+│   └── firebase/
+│       ├── FirebaseScheduleRequestRepository.ts   # scheduleRequests 集合
+│       ├── FirebaseMdddProjectionRepository.ts    # scheduleMdddFlowProjections 集合
+│       └── Firebase*Repository.ts (其餘 MDDD 集合)
+└── interfaces/
+    ├── _actions/
+    │   ├── schedule-request.actions.ts  # 提交 + projection 初始化
+    │   └── schedule-mddd.actions.ts
+    ├── queries/
+    │   ├── schedule-mddd.queries.ts     # listWorkspaceScheduleMdddFlowProjections
+    │   └── schedule.queries.ts
+    └── components/
+        └── WorkspaceScheduleTab.tsx     # 工作區資源請求 UI
+```
+
+---
+
+## 7. 比對：Postiz 月曆模型 vs Xuanwu 排程模型
+
+Postiz 是社群媒體發文排程平台，其 `calendar.tsx`（1232 行）提供了成熟的週視圖月曆實作。以下是兩者設計的對映與借鑒點：
+
+| Postiz 概念 | Xuanwu 對映 | 借鑒點 |
+|-------------|-------------|--------|
+| Post（待排程發文）| ScheduleRequest（資源請求）| 佔位符可點擊，顯示詳細資訊 |
+| Calendar week grid | OrganizationSchedulePage 週月曆 | 24 小時橫列 + 每日欄位 |
+| Post status badge | RequestStatus badge | 顏色映射狀態語意 |
+| Temporal workflow | RunScheduleMdddFlowUseCase | 多步驟非同步 flow |
+| Integration（平台）| Workspace（工作區）| 多來源聚合顯示 |
+| Draft / Scheduled / Published | draft / submitted / accepted / closed | 類似單向狀態推進 |
+
+---
+
+## 8. 安全規則建議
+
+```javascript
+// firestore.rules — 排程集合存取控制（建議）
+match /scheduleRequests/{requestId} {
+  // 工作區成員可建立（組織成員驗證由應用層處理）
+  allow create: if isAuthenticated();
+  // 僅提交者和組織管理員可讀取
+  allow read: if isAuthenticated() && (
+    resource.data.submittedByAccountId == request.auth.uid ||
+    isOrgAdmin(resource.data.organizationId)
+  );
+  // 不允許直接更新（由 Server Action 處理）
+  allow update, delete: if false;
+}
+
+match /scheduleMdddFlowProjections/{requestId} {
+  // 讀取：工作區成員（投影查詢由 server-side 過濾）
+  allow read: if isAuthenticated();
+  // 寫入：僅後端（Server Actions / Admin SDK）
+  allow write: if false;
+}
+```
+
+---
+
+## 9. 索引設計
+
+### 9.1 Firestore 複合索引（必要）
+
+| Collection | 欄位組合 | 用途 |
+|------------|----------|------|
+| `scheduleMdddFlowProjections` | `workspaceId ASC` + `updatedAtISO DESC` | 工作區請求列表 |
+| `scheduleMdddFlowProjections` | `organizationId ASC` + `requestStatus ASC` + `updatedAtISO DESC` | 組織待分派視圖 |
+| `scheduleRequests` | `workspaceId ASC` + `submittedAtISO DESC` | 工作區歷史請求 |
+| `scheduleRequests` | `organizationId ASC` + `status ASC` | 組織審核佇列 |
+
+---
+
+## 10. 變更記錄
+
+| 版本 | 日期 | 變更說明 | 作者 |
+|------|------|----------|------|
+| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 MVP write-side + projection 設計 | xuanwu-app 架構委員會 |
+| v1.1.0 | 2026-03-20 | 補充 Postiz 月曆對映、Firestore 索引、安全規則、`requiredSkills` 可選說明 | Copilot |
+| v1.2.0 | 2026-03-20 | 正式補入 current vs target 缺口登記、目標狀態摘要與分階段 roadmap | Copilot |
+
+---
+
+## 11. 分階段 Roadmap（建議）
+
+### Phase 1 — Request Review
+
+- 補齊組織端 `under-review` / `accepted` / `rejected` / `closed`
+- 補齊對應 server actions、application use cases、projection events
+- 讓組織頁「待分派」不再只是 submitted 清單，而是有正式審核語意
+
+### Phase 2 — Task Decomposition
+
+- 將 `RequestAggregate` 轉成一個或多個 `TaskAggregate`
+- 定義 task readiness 與 task status state machine
+- 補齊 `taskId` / `taskStatus` projection folding
+
+### Phase 3 — Match Generation
+
+- 落地候選人 eligibility filter、availability pre-check、score breakdown
+- 產出可審核的 `Match` 排序結果
+- 補齊 UI 需要的 shortlist / disqualification read model
+
+### Phase 4 — Assignment Decision
+
+- 組織端 offer 指派、成員 accept / reject、系統 cancel / expire
+- 確立唯一 active assignment invariant
+- projection 可顯示 assignee、decision reason、deadline
+
+### Phase 5 — Schedule Allocation
+
+- 將 accepted assignment 轉成正式 `ScheduleAggregate`
+- 加入時段保留、衝突檢測、超載檢測、reschedule trail
+- 組織月曆顯示正式 fulfill flow 結果，而非僅顯示既有靜態 items
+
+### Phase 6 — Integration & Reliability
+
+- 將初始 projection bootstrap 改為可重播/冪等的事件整合
+- 補齊 notification routing、trigger/workflow orchestration、審計紀錄
+- 將 best-effort 寫入路徑升級為可恢復的生產級流程
+`````
+
+## File: docs/decision-architecture/README.md
+`````markdown
+# Decision Architecture
+
+Architectural decisions (ADRs), system designs, and domain models.
+
+## Core Content
+
+| Type | Count | Entry |
+| --- | --- | --- |
+| ADRs | 12 | [adr/](./adr/) — RAG (ADR-001-011), Python functions (ADR-012) |
+| Architectures | 5 | [architecture/](./architecture/) — AI Knowledge Platform, Daily, Event, Namespace, Schedule |
+
+## Quick Start
+
+- **System overview** → [architecture/ai-knowledge-platform-architecture.md](./architecture/ai-knowledge-platform-architecture.md)
+- **RAG details** → [adr/ADR-001...011](./adr/) (upload → ingestion → query → observability)
+- **Domain models** → [core-logic.mermaid](../diagrams-events-explanations/diagrams/core-logic.mermaid), [erd-model.mermaid](../diagrams-events-explanations/diagrams/erd-model.mermaid)
+- **Feature architecture** → [architecture/](./architecture/)
+
+## Related
+
+- [../development-reference/README.md](../development-reference/README.md) — Development guides & contracts
+- [../diagrams-events-explanations/diagrams/README.md](../diagrams-events-explanations/diagrams/README.md) — System diagrams
+
+- [docs/README.md](../README.md) — Documentation root
+- [docs/development-reference/reference/development-contracts/](../development-reference/reference/development-contracts/) — Implementation contracts derived from ADRs
+- [agents/knowledge-base.md](../../agents/knowledge-base.md) — Module inventory and MDDD structure
+`````
+
 ## File: docs/development-reference/development/branch-strategy.md
 `````markdown
 # 分支策略（Branch Strategy）
@@ -10607,6 +11701,285 @@ Xuanwu App 目前採用 **Firebase App Hosting** 自動部署，不維護獨立�
 - 若未來需要語義版本（Semantic Versioning），以 `vX.Y.Z` Git tag 為準。
 `````
 
+## File: docs/development-reference/development/development-process.md
+`````markdown
+# 開發流程（Development Process）
+
+> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
+
+---
+
+## 1. 流程總覽
+
+```
+需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
+```
+
+---
+
+## 2. 開發前準備
+
+### 2.1 環境設置
+
+```bash
+# 1. 安裝相依套件
+npm install
+
+# 2. 啟動開發伺服器
+npm run dev      # http://localhost:3000
+```
+
+> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
+
+### 2.2 必讀文件
+
+在開始任何功能開發前，請先確認：
+
+- [ ] [`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
+- [ ] [`agents/README.md`](../../../agents/README.md) — 架構規則索引
+- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀 [`docs/development-reference/reference/development-contracts/overview.md`](../reference/development-contracts/overview.md)
+
+### 2.3 建立分支
+
+```bash
+# 從 main 建立功能分支
+git checkout main
+git pull origin main
+git checkout -b feature/your-feature-name
+```
+
+分支命名規則見 [branch-strategy.md](./branch-strategy.md)。
+
+---
+
+## 3. MDDD 開發七步驟
+
+針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
+
+### Step 1：確認模組歸屬
+
+找出你的功能屬於哪個模組（`modules/*/`）：
+
+```
+modules/
+├── wiki-beta/    ← 知識庫、文件上傳、RAG
+├── workspace/    ← 工作區管理
+├── account/      ← 帳號管理
+├── organization/ ← 組織管理
+├── file/         ← 檔案生命週期
+...（20 個模組）
+```
+
+若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
+
+### Step 2：設計 Domain 層（entity / value object / repository interface）
+
+```typescript
+// modules/wiki-beta/domain/entities/wiki-beta-page.entity.ts
+export interface WikiBetaPageEntity {
+  readonly id: string;
+  readonly title: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+```
+
+> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
+
+### Step 3：實作 Application Use Case
+
+```typescript
+// modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
+export async function createWikiBetaPage(
+  input: CreateWikiBetaPageInput,
+  repo: IWikiBetaPageRepository
+): Promise<CommandResult<string>> {
+  // 業務邏輯在此
+  const page = buildPageEntity(input);
+  return repo.save(page);
+}
+```
+
+### Step 4：實作 Infrastructure Adapter
+
+```typescript
+// modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
+export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
+  async save(page: WikiBetaPageEntity): Promise<CommandResult<string>> {
+    const ref = await addDoc(
+      collection(db, `accounts/${page.accountId}/pages`),
+      pageToFirestore(page)
+    );
+    return { success: true, data: ref.id };
+  }
+}
+```
+
+### Step 5：建立 Server Action（接口層）
+
+```typescript
+// modules/wiki-beta/interfaces/_actions/wiki-beta-page.actions.ts
+"use server";
+
+export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
+  return createWikiBetaPage(input, new FirebaseWikiBetaPageRepository());
+}
+```
+
+### Step 6：實作 React 元件
+
+```tsx
+// modules/wiki-beta/interfaces/components/WikiBetaPagesView.tsx
+"use client";
+
+export function WikiBetaPagesView() {
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function handleCreate() {
+    setIsCreating(true);
+    const result = await createPageAction({ title: "新頁面", accountId });
+    if (result.success) {
+      toast.success("已建立頁面");
+      router.push(`/wiki-beta/pages/${result.data}`);
+    } else {
+      toast.error(`建立失敗：${result.error.message}`);
+    }
+    setIsCreating(false);
+  }
+
+  return (/* ... */);
+}
+```
+
+### Step 7：更新 index.ts 公開 API
+
+```typescript
+// modules/wiki-beta/index.ts
+export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
+export type { WikiBetaPageEntity } from "./domain/entities/wiki-beta-page.entity";
+```
+
+---
+
+## 4. 本地驗證清單
+
+每次提交前，確保通過以下驗證：
+
+```bash
+# 1. ESLint — 必須 0 errors
+npm run lint
+
+# 2. TypeScript + 生產建置
+npm run build
+
+# 3. Python Worker（若有變更）
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+**手動驗證**（依功能範圍）：
+
+- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
+- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
+- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
+- [ ] 確認 Loading 狀態正常（spinner + 禁用）
+- [ ] 空狀態 / 載入狀態正確顯示
+
+---
+
+## 5. PR 建立與 Review
+
+### 5.1 建立 PR
+
+```bash
+git push origin feature/your-feature-name
+# 在 GitHub 建立 PR → main
+```
+
+PR 描述需包含：
+- 目的（一句話說明）
+- `Closes #N`（若有 issue）
+- 變更內容清單
+- 測試方式說明
+
+### 5.2 Review 標準
+
+Review 者確認：
+
+| 項目 | 標準 |
+|---|---|
+| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
+| 型別安全 | 無 `any`；使用正確型別 |
+| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
+| 可近用性 | `aria-label`、鍵盤可操作 |
+| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
+| 測試 | lint + build 通過 |
+
+---
+
+## 6. 特殊情境流程
+
+### 6.1 跨 runtime 變更（Next.js + py_fn）
+
+若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
+
+1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
+2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
+3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
+
+### 6.2 資料模型變更
+
+修改 Firestore schema 時：
+
+1. 評估**向後相容性**：舊資料是否需要 migration？
+2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
+3. 更新 **Security Rules**（`firestore.rules`）。
+4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
+
+### 6.3 文件變更
+
+文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
+
+```bash
+git checkout -b docs/update-ui-ux-wireframes
+git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
+```
+
+---
+
+## 7. AI 輔助開發流程
+
+本專案整合 GitHub Copilot Agent 輔助開發：
+
+### 7.1 使用 Planner Agent（規劃階段）
+
+對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
+
+```
+在 Copilot Chat 輸入：
+「使用 @planner 規劃 wiki-beta pages CRUD 功能」
+```
+
+計畫格式見 [`docs/development-reference/reference/ai/implementation-plan-template.md`](../reference/ai/implementation-plan-template.md)。
+
+### 7.2 使用 Implementer Agent（實作階段）
+
+計畫審核後，交由 Implementer Agent 執行：
+
+```
+在 Copilot Chat 輸入：
+「使用 @implementer 按照計畫實作步驟 1-3」
+```
+
+### 7.3 Delivery Chain
+
+完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
+
+詳細說明見 [`docs/development-reference/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
+`````
+
 ## File: docs/development-reference/development/modules-implementation-guide.md
 `````markdown
 # Modules Implementation Guide
@@ -10807,6 +12180,788 @@ cd py_fn && python -m compileall -q . && python -m pytest tests/ -v
 
 - [../specification/README.md](../specification/README.md) — 規格與契約
 - [../../decision-architecture/adr/](../../decision-architecture/adr/) — 架構決策
+`````
+
+## File: docs/development-reference/event/development-guide.md
+`````markdown
+---
+title: Event Core development guide
+description: Developer guide for contributing to event-core — publishing domain events, implementing adapters, dispatch policy, and testing patterns.
+---
+
+# Event Core 開發指南
+
+> **文件版本**：v1.0.0
+> **最後更新**：2026-03-20
+> **目標讀者**：參與 `modules/event` 實作或在各模組中發布領域事件的工程師
+
+---
+
+## 前置閱讀
+
+開始任何 Event Core 相關實作前，請先閱讀：
+
+1. **架構規範**：`docs/decision-architecture/architecture/event.md`
+2. **開發契約**：`docs/development-reference/reference/development-contracts/event-contract.md`
+3. **整體架構指南**：`agents/knowledge-base.md`
+
+---
+
+## 1. 模組結構
+
+```
+modules/event/
+├── domain/
+│   ├── entities/
+│   │   └── domain-event.entity.ts       # DomainEvent class
+│   ├── repositories/
+│   │   ├── ievent-bus.repository.ts     # IEventBusRepository port
+│   │   └── ievent-store.repository.ts   # IEventStoreRepository port
+│   ├── services/
+│   │   └── dispatch-policy.ts           # shouldRetry, nextRetryDelayMs (純函式)
+│   └── value-objects/
+│       └── event-metadata.vo.ts         # EventMetadata
+├── application/
+│   └── use-cases/
+│       ├── publish-domain-event.ts      # PublishDomainEventUseCase
+│       └── list-events-by-aggregate.ts  # ListEventsByAggregateUseCase
+├── infrastructure/
+│   ├── persistence/
+│   │   └── config.ts                   # EVENT_CORE_CONFIG
+│   └── repositories/
+│       ├── in-memory-event-store.repository.ts
+│       └── noop-event-bus.repository.ts
+├── interfaces/
+│   └── api/
+│       └── event.controller.ts         # EventController
+└── index.ts
+```
+
+### 依賴方向（嚴格）
+
+```
+interfaces (api / controller)
+    ↓
+application (use-cases)
+    ↓
+domain (entities / repositories / services / value-objects)
+    ↑
+infrastructure (adapters)
+```
+
+> ❗ 禁止 domain 直接 import infrastructure；禁止 application 直接 import UI 元件；禁止任何層直接 import `@/modules/*`。
+
+---
+
+## 2. 從模組發布領域事件
+
+### 2.1 標準發布流程
+
+在任何模組的 write-side use-case 中注入 `PublishDomainEventUseCase`，在業務操作完成後發布事件：
+
+```typescript
+// modules/task/application/use-cases/assign-task.use-case.ts
+import { PublishDomainEventUseCase } from '@/modules/event'
+import type { ITaskRepository } from '../domain/repositories/itask.repository'
+
+export class AssignTaskUseCase {
+  constructor(
+    private readonly taskRepo: ITaskRepository,
+    private readonly publishEvent: PublishDomainEventUseCase,
+  ) {}
+
+  async execute(dto: { taskId: string; assigneeId: string; actorId: string }) {
+    const task = await this.taskRepo.findById(dto.taskId)
+    task.assign(dto.assigneeId)
+    await this.taskRepo.save(task)
+
+    await this.publishEvent.execute({
+      id:            crypto.randomUUID(),
+      eventName:     'Task.Task.Assigned',
+      aggregateType: 'Task',
+      aggregateId:   dto.taskId,
+      payload:       { assigneeId: dto.assigneeId },
+      metadata:      { actorId: dto.actorId },
+      occurredAt:    new Date(),
+    })
+  }
+}
+```
+
+### 2.2 eventName 命名規則
+
+```
+{ModulePrefix}.{AggregateType}.{PastTenseAction}
+
+合法範例：
+  Wiki.WikiDocument.Created
+  Task.Task.Assigned
+  Schedule.ScheduleRequest.Submitted
+  Billing.Invoice.Issued
+  Daily.DailyEntry.Published
+```
+
+---
+
+## 3. 實作新的 EventStore Adapter
+
+當需要從 in-memory 切換到真實持久層（Firestore、Postgres 等）時：
+
+### 3.1 建立 adapter
+
+```typescript
+// modules/{module}/infrastructure/firebase/FirebaseEventStoreRepository.ts
+import type { IEventStoreRepository } from '@/modules/event'
+import { DomainEvent } from '@/modules/event'
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore'
+
+export class FirebaseEventStoreRepository implements IEventStoreRepository {
+  private readonly db = getFirestore()
+
+  async save(event: DomainEvent): Promise<void> {
+    const ref = doc(collection(this.db, 'domain_events'), event.id)
+    await setDoc(ref, {
+      id:            event.id,
+      eventName:     event.eventName,
+      aggregateType: event.aggregateType,
+      aggregateId:   event.aggregateId,
+      occurredAt:    Timestamp.fromDate(event.occurredAt),
+      payload:       event.payload,
+      metadata:      event.metadata,
+      dispatchedAt:  event.dispatchedAt ? Timestamp.fromDate(event.dispatchedAt) : null,
+    })
+  }
+
+  async findById(id: string): Promise<DomainEvent | null> {
+    const snap = await getDoc(doc(collection(this.db, 'domain_events'), id))
+    if (!snap.exists()) return null
+    return this.toDomain(snap.data())
+  }
+
+  async findByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]> {
+    const q = query(
+      collection(this.db, 'domain_events'),
+      where('aggregateType', '==', aggregateType),
+      where('aggregateId', '==', aggregateId),
+      orderBy('occurredAt', 'asc'),
+    )
+    const snaps = await getDocs(q)
+    return snaps.docs.map((d) => this.toDomain(d.data()))
+  }
+
+  async findUndispatched(limitCount: number): Promise<DomainEvent[]> {
+    const q = query(
+      collection(this.db, 'domain_events'),
+      where('dispatchedAt', '==', null),
+      orderBy('occurredAt', 'asc'),
+      limit(limitCount),
+    )
+    const snaps = await getDocs(q)
+    return snaps.docs.map((d) => this.toDomain(d.data()))
+  }
+
+  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
+    const ref = doc(collection(this.db, 'domain_events'), id)
+    await updateDoc(ref, { dispatchedAt: Timestamp.fromDate(dispatchedAt) })
+  }
+
+  private toDomain(data: Record<string, unknown>): DomainEvent {
+    return new DomainEvent(
+      data.id as string,
+      data.eventName as string,
+      data.aggregateType as string,
+      data.aggregateId as string,
+      (data.occurredAt as Timestamp).toDate(),
+      data.payload as Record<string, unknown>,
+      data.metadata as Record<string, unknown>,
+      data.dispatchedAt ? (data.dispatchedAt as Timestamp).toDate() : null,
+    )
+  }
+}
+```
+
+### 3.2 注意事項
+
+- `findByAggregate` 需要 Firestore composite index：`aggregateType ASC` + `aggregateId ASC` + `occurredAt ASC`。
+- `findUndispatched` 需要 index：`dispatchedAt ASC` + `occurredAt ASC`。
+
+---
+
+## 4. 使用 Dispatch Policy
+
+dispatch policy 是 domain/services 的純函式，可在任何地方直接 import 使用：
+
+```typescript
+import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
+import { EVENT_CORE_CONFIG } from '@/modules/event/infrastructure/persistence/config'
+
+const policy = { maxRetries: EVENT_CORE_CONFIG.DISPATCH.RETRY_LIMIT, baseDelayMs: 500 }
+
+if (shouldRetry({ attemptCount: attempt, lastAttemptAt: new Date() }, policy)) {
+  const delay = nextRetryDelayMs({ attemptCount: attempt, lastAttemptAt: new Date() }, policy)
+  await sleep(delay)
+  // 重試派送
+}
+```
+
+---
+
+## 5. 測試模式
+
+### 5.1 使用 InMemoryEventStoreRepository
+
+```typescript
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from '@/modules/event'
+
+describe('AssignTaskUseCase', () => {
+  it('publishes Task.Task.Assigned event', async () => {
+    const store = new InMemoryEventStoreRepository()
+    const bus = new NoopEventBusRepository()
+    const publishEvent = new PublishDomainEventUseCase(store, bus)
+
+    // ... use-case execution
+
+    const events = await store.findByAggregate('Task', taskId)
+    expect(events).toHaveLength(1)
+    expect(events[0].eventName).toBe('Task.Task.Assigned')
+  })
+})
+```
+
+### 5.2 驗證 domain service 純函式
+
+```typescript
+import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
+
+describe('dispatchPolicy', () => {
+  const policy = { maxRetries: 3, baseDelayMs: 500 }
+
+  it('allows retry when attemptCount < maxRetries', () => {
+    expect(shouldRetry({ attemptCount: 2, lastAttemptAt: null }, policy)).toBe(true)
+  })
+
+  it('disallows retry when attemptCount >= maxRetries', () => {
+    expect(shouldRetry({ attemptCount: 3, lastAttemptAt: null }, policy)).toBe(false)
+  })
+
+  it('computes exponential delay', () => {
+    expect(nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: null }, policy)).toBe(1000)
+  })
+})
+```
+
+---
+
+## 6. 常見錯誤
+
+| 錯誤 | 原因 | 修正 |
+|------|------|------|
+| `eventName is required` | `eventName` 傳入空字串 | 確認 eventName 非空且有意義 |
+| `aggregateType is required` | 未傳入聚合類型 | 傳入 `'Task'`、`'WikiDocument'` 等具體類型 |
+| `aggregateId is required` | 未傳入聚合 ID | 傳入對應業務 ID |
+| dispatch 後仍顯示 undispatched | `markDispatched` 未執行 | 確認 `PublishDomainEventUseCase` 正確呼叫後確認 |
+
+---
+
+## 7. 驗證指令
+
+```bash
+# Lint
+npm run lint
+
+# Build
+npm run build
+```
+`````
+
+## File: docs/development-reference/event/user-manual.md
+`````markdown
+---
+title: Event Core user manual
+description: User manual for the Event Core domain — how domain events are captured, stored, and dispatched across Xuanwu modules.
+---
+
+# Event Core 使用手冊
+
+> **文件版本**：v1.0.0
+> **最後更新**：2026-03-20
+> **目標讀者**：工程師、平台架構師、模組 Owner
+
+---
+
+## 概覽
+
+Event Core 是 xuanwu-app 的**領域事件基礎**。它讓每個模組能以統一方式：
+
+- 📌 **捕捉**業務狀態變更（例如：任務指派、發票發出、文件建立）
+- 💾 **持久化**事件紀錄（事件即真相）
+- 📡 **派送**事件至其他模組（解耦模組間的直接依賴）
+- 🔍 **查詢**聚合根的完整事件時間線
+
+---
+
+## 事件是什麼？
+
+在 xuanwu-app 中，**Domain Event（領域事件）**代表一個業務事實——某件事**確實已發生**。
+
+範例：
+
+| 事件名稱 | 意義 |
+|---------|------|
+| `Task.Task.Assigned` | 某個任務被指派給成員 |
+| `Wiki.WikiDocument.Created` | 知識文件被建立 |
+| `Schedule.ScheduleRequest.Submitted` | 資源請求已提交 |
+| `Billing.Invoice.Issued` | 發票已開立 |
+
+---
+
+## 事件生命週期
+
+```
+1. 模組 write-side 完成業務操作
+        ↓
+2. 呼叫 PublishDomainEventUseCase
+        ↓
+3. 事件寫入 EventStore（狀態：undispatched）
+        ↓
+4. 事件發布至 EventBus
+        ↓
+5. 事件標記為 dispatched
+        ↓
+6. 訂閱方接收事件 → 更新 projection / 觸發 side-effect
+```
+
+---
+
+## 如何查詢某個聚合根的事件歷史？
+
+使用 `ListEventsByAggregateUseCase`（透過 `EventController`）：
+
+```typescript
+const events = await eventController.listByAggregate({
+  aggregateType: 'Task',
+  aggregateId:   'task_abc123',
+})
+// 回傳：按 occurredAt 升序排列的 DomainEvent[]
+```
+
+---
+
+## 事件追蹤欄位（EventMetadata）
+
+每個事件可攜帶追蹤用的 metadata：
+
+| 欄位 | 用途 |
+|------|------|
+| `correlationId` | 跨服務追蹤同一筆業務流程 |
+| `causationId` | 指出哪個事件觸發了這個事件 |
+| `actorId` | 誰執行了這個操作 |
+| `organizationId` | 多租戶隔離 |
+| `workspaceId` | 工作區範圍 |
+| `traceId` | 分散式追蹤 |
+
+---
+
+## 重試機制
+
+若事件派送失敗，系統依據 **dispatch policy** 決定是否重試：
+
+| 設定 | 預設值 |
+|------|--------|
+| 最大重試次數（`RETRY_LIMIT`） | 3 次 |
+| 批次查詢大小（`BATCH_SIZE`） | 100 |
+| 延遲策略 | Exponential back-off（指數退避） |
+
+---
+
+## 常見問題
+
+### Q: 事件會重複嗎？
+A: 系統保證 **at-least-once** 派送語意，代表事件可能重複派送。訂閱方應以 `event.id` 作為冪等鍵，避免重複處理同一事件。
+
+### Q: 能不能直接查 EventStore 而不用 use-case？
+A: 不建議。應透過 `EventController` → `ListEventsByAggregateUseCase` → `IEventStoreRepository` 的標準路徑，保持層次清晰。
+
+### Q: in-memory adapter 可以上線嗎？
+A: 不行。`InMemoryEventStoreRepository` 和 `NoopEventBusRepository` 僅用於本地開發和測試。生產環境需替換為 Firestore / Pub/Sub adapter。
+
+### Q: 我的模組需要訂閱事件怎麼做？
+A: 目前 event bus adapter 為 noop scaffold。完整訂閱實作（例如 Firestore trigger / Pub/Sub push）待後續 infrastructure adapter 完成後對接。
+
+---
+
+## 參考文件
+
+| 文件 | 路徑 |
+|------|------|
+| 架構設計 | `docs/decision-architecture/architecture/event.md` |
+| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
+| 開發指南 | `docs/development-reference/event/development-guide.md` |
+| 整體架構指南 | `agents/knowledge-base.md` |
+`````
+
+## File: docs/development-reference/namespace/development-guide.md
+`````markdown
+---
+title: Namespace Core development guide
+description: Developer guide for contributing to namespace-core — registering namespaces, implementing adapters, slug policy, and testing patterns.
+---
+
+# Namespace Core 開發指南
+
+> **文件版本**：v1.0.0
+> **最後更新**：2026-03-20
+> **目標讀者**：參與 `modules/namespace` 實作或在模組中使用命名空間功能的工程師
+
+---
+
+## 前置閱讀
+
+開始任何 Namespace Core 相關實作前，請先閱讀：
+
+1. **架構規範**：`docs/decision-architecture/architecture/namespace.md`
+2. **開發契約**：`docs/development-reference/reference/development-contracts/namespace-contract.md`
+3. **整體架構指南**：`agents/knowledge-base.md`
+
+---
+
+## 1. 模組結構
+
+```
+modules/namespace/
+├── domain/
+│   ├── entities/
+│   │   └── namespace.entity.ts              # Namespace class
+│   ├── repositories/
+│   │   └── inamespace.repository.ts         # INamespaceRepository port
+│   ├── services/
+│   │   └── slug-policy.ts                   # deriveSlugCandidate, isValidSlug（純函式）
+│   └── value-objects/
+│       └── namespace-slug.vo.ts             # NamespaceSlug
+├── application/
+│   └── use-cases/
+│       ├── register-namespace.use-case.ts   # RegisterNamespaceUseCase
+│       └── resolve-namespace.use-case.ts    # ResolveNamespaceUseCase
+├── infrastructure/
+│   ├── persistence/
+│   │   └── config.ts                       # NAMESPACE_CORE_CONFIG
+│   └── repositories/
+│       └── in-memory-namespace.repository.ts
+├── interfaces/
+│   └── api/
+│       └── namespace.controller.ts         # NamespaceController
+└── index.ts
+```
+
+### 依賴方向（嚴格）
+
+```
+interfaces (api / controller)
+    ↓
+application (use-cases)
+    ↓
+domain (entities / repositories / services / value-objects)
+    ↑
+infrastructure (adapters)
+```
+
+---
+
+## 2. 從模組建立命名空間
+
+當 organization 或 workspace 被建立時，應同步呼叫 `RegisterNamespaceUseCase`：
+
+```typescript
+// modules/organization/application/use-cases/create-organization.use-case.ts
+import { RegisterNamespaceUseCase, deriveSlugCandidate } from '@/modules/namespace'
+import type { IOrganizationRepository } from '../domain/repositories/iorganization.repository'
+import type { INamespaceRepository } from '@/modules/namespace'
+
+export class CreateOrganizationUseCase {
+  constructor(
+    private readonly orgRepo: IOrganizationRepository,
+    private readonly namespaceRepo: INamespaceRepository,
+  ) {}
+
+  async execute(dto: { id: string; displayName: string; ownerAccountId: string }) {
+    // 1. 建立組織實體
+    const org = new Organization(dto.id, dto.displayName, dto.ownerAccountId, new Date())
+    await this.orgRepo.save(org)
+
+    // 2. 推導並註冊命名空間 slug
+    const slugCandidate = deriveSlugCandidate(dto.displayName)
+    const registerNamespace = new RegisterNamespaceUseCase(this.namespaceRepo)
+    await registerNamespace.execute({
+      id:             crypto.randomUUID(),
+      slug:           slugCandidate,
+      kind:           'organization',
+      ownerAccountId: dto.ownerAccountId,
+      organizationId: dto.id,
+    })
+  }
+}
+```
+
+---
+
+## 3. Slug 推導與驗證
+
+使用 slug-policy 純函式處理 slug 邏輯：
+
+```typescript
+import { deriveSlugCandidate, isValidSlug, NamespaceSlug } from '@/modules/namespace'
+
+// 推導候選值
+const candidate = deriveSlugCandidate('My Organization 2024!')
+// → 'my-organization-2024'
+
+// 快速驗證格式
+if (!isValidSlug(candidate)) {
+  throw new Error('Derived slug is invalid')
+}
+
+// 建立 VO（更嚴格的驗證，含 length 檢查）
+const slug = NamespaceSlug.create(candidate)
+console.log(slug.value) // → 'my-organization-2024'
+```
+
+---
+
+## 4. 解析 Slug → Namespace
+
+```typescript
+import { ResolveNamespaceUseCase } from '@/modules/namespace'
+
+const resolveNamespace = new ResolveNamespaceUseCase(namespaceRepo)
+
+const namespace = await resolveNamespace.execute({
+  slug: 'my-organization-2024',
+  kind: 'organization',
+})
+
+if (!namespace) {
+  // 404 — slug 不存在
+}
+```
+
+---
+
+## 5. 實作 Firestore Adapter
+
+```typescript
+// modules/organization/infrastructure/firebase/FirebaseNamespaceRepository.ts
+import type { INamespaceRepository } from '@/modules/namespace'
+import { Namespace, NamespaceSlug } from '@/modules/namespace'
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore'
+import { NAMESPACE_CORE_CONFIG } from '@/modules/namespace/infrastructure/persistence/config'
+
+export class FirebaseNamespaceRepository implements INamespaceRepository {
+  private readonly db = getFirestore()
+  private readonly col = collection(this.db, NAMESPACE_CORE_CONFIG.STORE.COLLECTION)
+
+  async save(namespace: Namespace): Promise<void> {
+    await setDoc(doc(this.col, namespace.id), {
+      id:             namespace.id,
+      slug:           namespace.slug.value,
+      kind:           namespace.kind,
+      ownerAccountId: namespace.ownerAccountId,
+      organizationId: namespace.organizationId,
+      status:         namespace.status,
+      createdAt:      namespace.createdAt.toISOString(),
+      updatedAt:      namespace.updatedAt.toISOString(),
+    })
+  }
+
+  async findBySlug(slug: string, kind: string): Promise<Namespace | null> {
+    const q = query(this.col, where('slug', '==', slug), where('kind', '==', kind))
+    const snaps = await getDocs(q)
+    if (snaps.empty) return null
+    return this.toDomain(snaps.docs[0].data())
+  }
+
+  async existsBySlug(slug: string, kind: string): Promise<boolean> {
+    const q = query(this.col, where('slug', '==', slug), where('kind', '==', kind))
+    const snaps = await getDocs(q)
+    return !snaps.empty
+  }
+
+  // ... implement remaining methods
+
+  private toDomain(data: Record<string, unknown>): Namespace {
+    return new Namespace(
+      data.id as string,
+      NamespaceSlug.create(data.slug as string),
+      data.kind as 'organization' | 'workspace',
+      data.ownerAccountId as string,
+      data.organizationId as string,
+      data.status as 'active' | 'suspended' | 'archived',
+      new Date(data.createdAt as string),
+      new Date(data.updatedAt as string),
+    )
+  }
+}
+```
+
+---
+
+## 6. 測試模式
+
+```typescript
+import {
+  InMemoryNamespaceRepository,
+  RegisterNamespaceUseCase,
+  ResolveNamespaceUseCase,
+  deriveSlugCandidate,
+} from '@/modules/namespace'
+
+describe('RegisterNamespaceUseCase', () => {
+  it('registers a new namespace', async () => {
+    const repo = new InMemoryNamespaceRepository()
+    const useCase = new RegisterNamespaceUseCase(repo)
+
+    const ns = await useCase.execute({
+      id:             'ns_001',
+      slug:           deriveSlugCandidate('My Org'),
+      kind:           'organization',
+      ownerAccountId: 'acc_001',
+      organizationId: 'org_001',
+    })
+
+    expect(ns.slug.value).toBe('my-org')
+    expect(ns.status).toBe('active')
+  })
+
+  it('throws on slug collision', async () => {
+    const repo = new InMemoryNamespaceRepository()
+    const useCase = new RegisterNamespaceUseCase(repo)
+
+    await useCase.execute({ id: 'ns_001', slug: 'my-org', kind: 'organization', ownerAccountId: 'acc_001', organizationId: 'org_001' })
+
+    await expect(
+      useCase.execute({ id: 'ns_002', slug: 'my-org', kind: 'organization', ownerAccountId: 'acc_002', organizationId: 'org_002' }),
+    ).rejects.toThrow('already taken')
+  })
+})
+```
+
+---
+
+## 7. 驗證指令
+
+```bash
+npm run lint
+npm run build
+```
+`````
+
+## File: docs/development-reference/namespace/user-manual.md
+`````markdown
+---
+title: Namespace Core user manual
+description: User manual for the Namespace Core domain — how organization and workspace slugs work, how they are resolved, and what the lifecycle states mean.
+---
+
+# Namespace Core 使用手冊
+
+> **文件版本**：v1.0.0
+> **最後更新**：2026-03-20
+> **目標讀者**：工程師、平台架構師、模組 Owner
+
+---
+
+## 概覽
+
+Namespace Core 是 xuanwu-app 的**命名空間基礎**。它讓每個組織與工作區都有：
+
+- 🔤 **唯一可閱讀的 slug**（例如 `acme-corp`、`product-team`）
+- 🔗 **穩定的 URL 路由定址**（例如 `/acme-corp/product-team`）
+- 🏷️ **多租戶資源隔離**（透過 `organizationId` 邊界）
+
+---
+
+## 什麼是 Namespace？
+
+在 xuanwu-app 中，**Namespace（命名空間）**是一個為組織或工作區保留的具名範圍：
+
+| Kind | 說明 | 範例 slug |
+|------|------|-----------|
+| `organization` | 組織層命名空間 | `acme-corp` |
+| `workspace` | 工作區層命名空間 | `product-team` |
+
+---
+
+## Slug 規則
+
+| 規則 | 說明 |
+|------|------|
+| 長度 | 3–63 字元 |
+| 允許字元 | 小寫英文 `a-z`、數字 `0-9`、連字號 `-` |
+| 不允許 | 大寫字母、底線、連字號開頭/結尾 |
+| 唯一性 | 在相同 kind 下唯一 |
+
+---
+
+## Namespace 生命週期
+
+| 狀態 | 說明 |
+|------|------|
+| `active` | 正常使用中，slug 可被解析 |
+| `suspended` | 暫停，slug 暫時無法路由（仍保留） |
+| `archived` | 封存，slug 永久保留但不可再啟用 |
+
+---
+
+## 常見問題
+
+### Q: Slug 可以修改嗎？
+A: 目前尚未實作 slug 變更流程。Slug 一旦建立後暫時固定，未來實作時會同步建立舊 slug 重定向紀錄。
+
+### Q: 不同組織可以使用相同 slug 嗎？
+A: 在相同 kind（`organization` 或 `workspace`）下，slug 是全域唯一的，不允許重複使用。
+
+### Q: 封存的 namespace 的 slug 還能被新組織使用嗎？
+A: 不行。封存的 namespace 仍保留其 slug，新建立的命名空間無法使用已存在的 slug（包含封存狀態）。
+
+---
+
+## 參考文件
+
+| 文件 | 路徑 |
+|------|------|
+| 架構設計 | `docs/decision-architecture/architecture/namespace.md` |
+| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
+| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
+| 整體架構指南 | `agents/knowledge-base.md` |
+`````
+
+## File: docs/development-reference/README.md
+`````markdown
+# Development Reference
+
+Development guides, specifications, contracts, and planning for the Xuanwu App platform.
+
+## Organization
+
+- [development/](./development/) — Process, branching, code style → [development/README.md](./development/README.md)
+- [reference/](./reference/) — AI customization, plans, contracts → [reference/README.md](./reference/README.md)
+- [specification/](./specification/) — System specs, development contracts → [specification/README.md](./specification/README.md)
+- [event/](./event/) — Event Core developer guide and user manual
+- [namespace/](./namespace/) — Namespace Core developer guide and user manual
+
+## Quick Navigation
+
+- **Develop**: [development/development-process.md](./development/development-process.md)
+- **Plan**: [reference/ai/implementation-plan-template.md](./reference/ai/implementation-plan-template.md)
+- **Review contracts**: [specification/README.md](./specification/README.md)
+
+## Related
+
+- [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture & ADRs
+- [../diagrams-events-explanations/README.md](../diagrams-events-explanations/README.md) — Diagrams & explanations
 `````
 
 ## File: docs/development-reference/reference/ai/handoff-matrix.md
@@ -11083,6 +13238,48 @@ The Implementer should stop and request a plan revision when any of the followin
 The Reviewer should mark the implementation incomplete when code changes materially exceed the approved scope or when required validation and docs work were skipped.
 
 The QA stage should mark release readiness as partial or blocked when the validation plan cannot be mapped to executed scenarios and evidence.
+`````
+
+## File: docs/development-reference/reference/ai/README.md
+`````markdown
+# AI Customization Reference
+
+Copilot customization assets, delivery planning templates, schemas, and governance indices.
+
+## Primary Purpose
+
+This folder is the **docs-side reference** for the Xuanwu Copilot Delivery Suite. The operative assets live in [.github/](../../../../.github/), and this folder provides routing, ownership, and maintenance policy.
+
+## Core Files
+
+| File | Purpose | Audience |
+| --- | --- | --- |
+| [customizations-index.md](./customizations-index.md) | Primary index for all Copilot assets | Developers, maintainers |
+| [implementation-plan-template.md](./implementation-plan-template.md) | Standard markdown skeleton for plans | Planners, implementers |
+| [plan-schema.md](./plan-schema.md) | Field-level semantics and rules | Plan reviewers |
+| [handoff-matrix.md](./handoff-matrix.md) | Stage transitions and re-entry paths | All delivery stages |
+| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Deprecation and migration tracking | Maintainers |
+
+## Quick Navigation
+
+1. **To understand Copilot customizations**: Start with [customizations-index.md](./customizations-index.md)
+2. **To create a formal plan**: Use [implementation-plan-template.md](./implementation-plan-template.md)
+3. **To validate your plan**: Check against [plan-schema.md](./plan-schema.md)
+4. **To understand stage transitions**: Read [handoff-matrix.md](./handoff-matrix.md)
+5. **To track legacy migrations**: See [legacy-customizations-migration.md](./legacy-customizations-migration.md)
+
+## Scope
+
+- This folder is **reference only** — do not edit files here without updating `.github/` in the same change
+- If this folder conflicts with `.github/`, treat `.github/` as authoritative
+- Keep explanation and routing here; keep operative assets in `.github/`
+
+## Related
+
+- [../../README.md](../../README.md) — Development reference root
+- [../../../../../.github/copilot-instructions.md](../../../../../.github/copilot-instructions.md) — Copilot baseline
+- [../../../../../.github/README.md](../../../../../.github/README.md) — Operative root
+- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow
 `````
 
 ## File: docs/development-reference/reference/development-contracts/acceptance-contract.md
@@ -11801,6 +13998,349 @@ Adapters must read config, not hardcode.
 | Interfaces | controller facade | bypass application layer |
 `````
 
+## File: docs/development-reference/reference/development-contracts/namespace-contract.md
+`````markdown
+---
+title: Namespace Core development contract
+description: Implementation contract for the Namespace Core domain — canonical named-scope registration, slug validation, collision detection, and resolution for multi-tenant resource addressing.
+status: "🚧 Developing"
+---
+
+# Namespace Core development contract
+
+> **開發狀態**：🚧 Developing — 積極開發中
+
+## Purpose
+
+`modules/namespace` defines:
+- Uniform slug registration and validation (org/workspace level)
+- Slug → namespace resolution
+- Multi-tenant addressing layer
+- Human-readable URL routing foundation (`/{org-slug}/{workspace-slug}`)
+
+## Current owner and dependencies
+
+| Concern | Owner |
+| --- | --- |
+| Namespace entity | `modules/namespace/domain/entities` |
+| NamespaceSlug value object | `modules/namespace/domain/value-objects` |
+| Slug policy (pure) | `modules/namespace/domain/services` |
+| Namespace repository port | `modules/namespace/domain/repositories/INamespaceRepository` |
+| Register use-case | `modules/namespace/application/use-cases/RegisterNamespaceUseCase` |
+| Resolve use-case | `modules/namespace/application/use-cases/ResolveNamespaceUseCase` |
+| In-memory adapter | `modules/namespace/infrastructure/repositories/InMemoryNamespaceRepository` |
+
+## Bounded contexts
+
+| Context | Responsibility |
+| --- | --- |
+| Registration | Validate slug, check collision, persist |
+| Resolution | Translate slug + kind → namespace or null |
+| Lifecycle | Suspend, restore, archive records |
+| Derivation | Display name → slug candidate (pure)
+
+## Namespace entity contract
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | UUID v4 |
+| `slug` | `NamespaceSlug` | Validated VO |
+| `kind` | `org\|workspace` | Scope |
+| `ownerAccountId` | `string` | Registering user |
+| `organizationId` | `string` | Org boundary |
+| `status` | `active\|suspended\|archived` | State |
+| `createdAt` | `Date` | Registered |
+| `updatedAt` | `Date` | Updated |
+
+## NamespaceSlug value object contract
+
+**3–63 chars**: a-z, 0-9, hyphen. Cannot start/end with hyphen.
+
+```ts
+NamespaceSlug.create('my-org')  // ✓
+NamespaceSlug.create('-bad-')   // ✗
+NamespaceSlug.create('AB_CD')   // ✗
+```
+
+## Slug policy contract (pure functions)
+
+```typescript
+// domain/services/slug-policy.ts
+
+deriveSlugCandidate(displayName: string): string
+isValidSlug(slug: string): boolean
+```
+
+- Both functions are pure — no side effects, no external dependencies.
+- `deriveSlugCandidate` normalises a display name into a slug candidate (does not guarantee uniqueness).
+- `isValidSlug` validates the slug format without instantiating the VO.
+
+## INamespaceRepository contract
+
+```typescript
+interface INamespaceRepository {
+  save(namespace: Namespace): Promise<void>
+  findById(id: string): Promise<Namespace | null>
+  findBySlug(slug: string, kind: NamespaceKind): Promise<Namespace | null>
+  findByOrganization(organizationId: string): Promise<Namespace[]>
+  existsBySlug(slug: string, kind: NamespaceKind): Promise<boolean>
+}
+```
+
+- `findBySlug` must return the **active** namespace matching slug + kind; it must not return suspended or archived records as valid routing targets.
+- `existsBySlug` must check across all statuses (not just active) to prevent slug reuse after archive.
+- `findByOrganization` returns all namespaces for the org, unfiltered by status.
+
+## Collision detection contract
+
+```
+RegisterNamespaceUseCase.execute(dto):
+  1. NamespaceSlug.create(dto.slug)          ← format validation
+  2. existsBySlug(slug, kind)                ← collision check
+  3. if exists → throw "slug already taken"
+  4. new Namespace(..., status: 'active')    ← create entity
+  5. save(namespace)                         ← persist
+```
+
+- Collision check is scoped per `kind` — the same slug string is allowed once for `organization` and once for `workspace`.
+- Slug uniqueness is enforced at the application layer via the repository port, not in the domain entity.
+
+## Namespace lifecycle contract
+
+| `suspend()` | `active` → `suspended` | must be active |
+| `restore()` | `suspended` → `active` | must be suspended |
+| `archive()` | `active\|suspended` → `archived` | final
+
+## Infrastructure configuration contract
+
+```typescript
+NAMESPACE_CORE_CONFIG = {
+  STORE: { COLLECTION: 'namespaces' },
+  SLUG:  { MIN_LENGTH: 3, MAX_LENGTH: 63 },
+}
+```
+
+## Layer ownership
+
+| Layer | Owns | Must not |
+| --- | --- | --- |
+| Domain | entities, value objects, repository ports, slug-policy service | import SDK, HTTP, DB |
+| Application | use-cases, DTO composition, collision-check orchestration | directly import infrastructure or UI |
+| Infrastructure | namespace store adapter | leak provider details into domain |
+| Interfaces | controller facade | bypass application layer |
+`````
+
+## File: docs/development-reference/reference/development-contracts/parser-contract.md
+`````markdown
+---
+title: Parser development contract
+description: Implementation contract for parser module inputs, summary outputs, future parser job ownership, and acceptance rules.
+status: "🏗️ Midway"
+---
+
+# Parser development contract
+
+> **開發狀態**：🏗️ Midway — 開發部分完成
+
+## Scope
+
+Parser module: read-side summary of workspace parser readiness, source discovery, and future job ownership rules.
+
+## Current owner and dependencies
+
+| Concern | Owner |
+| --- | --- |
+| Parser summary derivation | `modules/parser` |
+| Asset readiness input | `modules/asset` query boundary |
+| Workspace capability and cover context | `modules/workspace` read model |
+
+## Current query contract
+
+### Entry point
+
+`getWorkspaceParserSignalSummary(workspace)` resolves asset data through the asset module and returns a `WorkspaceParserSummary`.
+
+### Output shape
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `supportedSources` | `number` | Sources for parser |
+| `readyAssetCount` | `number` | Usable assets |
+| `blockedReasons` | `string[]` | Not-ready reasons |
+| `nextActions` | `string[]` | Follow-ups |
+
+## Input contract
+
+Parser may use only:
+- Workspace cover/media
+- Workspace capability count
+- Asset-module items + lifecycle status
+
+❌ Forbidden: storage blobs, parser-job collections, RAG chunks
+
+Future parser execution creates parser-owned job contract:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `jobId` | `string` | UUID |
+| `workspaceId` | `string` | Scope |
+| `sourceFileId` | `string` | File ref |
+| `status` | `queued\|processing\|ready\|failed` | Lifecycle |
+| `triggeredByAccountId` | `string` | Audit |
+| `errorCode` | `string?` | Failure class |
+| `errorMessage` | `string?` | Failure detail |
+
+## State machine
+
+| `blocked` | derived | `ready` | From source readiness |
+| `ready` | derived/job | `processing`, `blocked` | |
+| `processing` | worker | `ready`, `failed` | Future |
+| `failed` | worker | `processing`, `blocked` | Future |
+
+## Invariants
+
+1. Summary = parser projection, not file shadow
+2. File metadata = canonical
+3. Execution state → parser records (not workspace entity)
+4. Query path: read-only, deterministic
+
+## Acceptance gates
+
+Before write-side, define:
+- Asset eligibility rules
+- Job storage (parser-owned infra)
+- File-module boundary (query/port)
+- Failure/retry semantics
+`````
+
+## File: docs/development-reference/reference/development-contracts/rag-ingestion-contract.md
+`````markdown
+---
+title: RAG ingestion development contract
+description: Authoritative cross-runtime contract for RAG upload registration, worker execution, lifecycle transitions, and acceptance gates.
+status: "🚧 Developing"
+---
+
+# RAG ingestion development contract
+
+> **開發狀態**：🚧 Developing — 積極開發中
+
+## Scope
+
+Authoritative cross-runtime contract for upload-to-worker boundary spanning Next.js registration, Firestore metadata, Python execution, and retrieval readiness.
+
+## Owning modules and runtimes
+
+| Responsibility | Owner |
+| --- | --- |
+| Upload registration and browser-facing orchestration | `modules/asset` and Next.js interfaces |
+| Ingestion registration and lifecycle intent | `modules/knowledge` |
+| Retrieval orchestration and answer generation | `modules/retrieval` |
+| Parsing, chunking, embedding, and lifecycle write-back | `py_fn` |
+
+## Canonical upload request
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `organizationId` | `string` | Tenant |
+| `workspaceId` | `string` | Retrieval scope |
+| `uploaderId` | `string` | Audit actor |
+| `sourceFileName` | `string` | File name |
+| `mimeType` | `string` | Parser routing |
+| `sizeBytes` | `number` | Size |
+| `checksum` | `string` | Idempotency |
+
+## Canonical `documents` metadata
+
+**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
+
+| `id` | `string` | Doc ID |
+| `organizationId` | `string` | Tenant |
+| `workspaceId` | `string` | Retrieval scope |
+| `title` | `string` | Display |
+| `sourceFileName` | `string` | File name |
+| `mimeType` | `string` | Parser routing |
+| `storagePath` | `string` | Storage pointer |
+| `checksum` | `string?` | Idempotency |
+| `taxonomy` | `string?` | Classification hint |
+| `status` | `uploaded\|processing\|ready\|failed\|archived` | Lifecycle |
+| `processingStartedAt` | `timestamp?` | Worker-owned |
+| `readyAt` | `timestamp?` | Worker-owned |
+| `failedAt` | `timestamp?` | Worker-owned |
+| `archivedAt` | `timestamp?` | Governance |
+| `errorCode` | `string?` | Failure class |
+| `errorMessage` | `string?` | Failure detail |
+| `createdAt` | `timestamp` | Registered |
+| `updatedAt` | `timestamp` | Updated |
+
+## Worker invocation boundary
+
+Firestore-driven: document `status=uploaded` triggers worker to resolve metadata, read artifact, set `processing`, persist chunks, write terminal status.
+
+Python callable bridge remains for internal/admin reprocess flows when `rawText` omitted, uses document `storagePath`.
+
+## Worker command fields
+
+| `documentId` | `string` | Correlation key |
+| `organizationId` | `string` | Tenant (reject if missing) |
+| `workspaceId` | `string` | Scope (reject if missing) |
+| `title` | `string` | Prompt/audit |
+| `sourceFileName` | `string` | Audit context |
+| `mimeType` | `string` | Router hint |
+| `storagePath` | `string` | Storage path |
+| `checksum` | `string?` | Idempotency |
+| `taxonomyHint` | `string?` | Pre-classify hint |
+
+## `chunks` persistence contract
+
+**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
+
+| `chunkId` | `string` | Deterministic ID |
+| `docId` | `string` | Parent doc ID |
+| `organizationId` | `string` | Tenant filter |
+| `workspaceId` | `string` | Workspace filter |
+| `chunkIndex` | `number` | Sequence |
+| `text` | `string` | Retrieval source |
+| `embedding` | `number[]` | Vector |
+| `taxonomy` | `string` | Filter field |
+| `page` | `number?` | Page ref |
+| `tags` | `string[]?` | Metadata |
+
+## Lifecycle state machine
+
+| `uploaded` | Next.js | `processing` | Registration only |
+| `processing` | Worker | `ready`, `failed` | Started |
+| `ready` | Worker/governance | `processing`, `archived` | Terminal success |
+| `failed` | Worker | `processing` | Retry |
+| `archived` | Governance | terminal | No self-revive |
+
+## Invariants
+
+1. `organizationId` + `workspaceId` on both documents + chunks
+2. Embeddings computed once, reused (org/workspace scoped)
+3. Workspace retrieval preferred (cheaper than org-scoped)
+4. Archive ≠ ingestion side-effect
+5. Worker: never persist chunks without terminal status
+6. Idempotency: `documentId + checksum`, reprocess replaces prior chunks
+
+## Legacy note
+
+Fallback to Firestore snapshot IDs (pre-MVP docs/chunks without duplicated `id`/`chunkId` still readable). No automatic backfill; legacy rows pick up duplicated fields on next reprocess.
+
+## Acceptance gates
+
+✓ DTOs, fields, command fields match this contract
+✓ Trigger path explicit (Firestore or callable, one primary)
+✓ Firestore indexes support documented patterns
+✓ Worker records all timestamps + classified errors
+
+## Open blockers
+
+- Replace compatibility callable with Firestore `status=uploaded` trigger
+- Consolidate ADR-010 with current `mimeType` + `sourceFileName` usage
+- Add archive/unarchive write-side before UI governance
+`````
+
 ## File: docs/development-reference/reference/development-contracts/schedule-contract.md
 `````markdown
 ---
@@ -12305,6 +14845,32 @@ A new scheduling/task slice is accepted only if:
 6. projection writes follow the event-ownership rules above; direct UI writes to projection collections are prohibited except via the initial `RequestCreated` bootstrap
 `````
 
+## File: docs/development-reference/reference/README.md
+`````markdown
+# Reference Index
+
+Technical reference, specifications, and planning templates.
+
+## Core Content
+
+| Area | Primary Files |
+| --- | --- |
+| [ai/](./ai/) | [customizations-index.md](./ai/customizations-index.md) — Copilot assets; [implementation-plan-template.md](./ai/implementation-plan-template.md) — Plan template |
+| [development-contracts/](./development-contracts/) | [overview.md](./development-contracts/overview.md) — RAG, parser, schedule, acceptance, billing, audit, event, namespace contracts |
+
+## Quick Start
+
+- **Build a plan**: [ai/implementation-plan-template.md](./ai/implementation-plan-template.md) + [ai/plan-schema.md](./ai/plan-schema.md)
+- **Understand stage flow**: [ai/handoff-matrix.md](./ai/handoff-matrix.md)
+- **Migrate legacy assets**: [ai/legacy-customizations-migration.md](./ai/legacy-customizations-migration.md)
+- **Review contracts**: [development-contracts/](./development-contracts/)
+
+## Related
+
+- [../../README.md](../../README.md) — Development reference root
+- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow
+`````
+
 ## File: docs/development-reference/specification/README.md
 `````markdown
 # 規格與契約索引
@@ -12676,6 +15242,139 @@ stateDiagram-v2
     end note
 `````
 
+## File: docs/diagrams-events-explanations/diagrams/core-logic.mermaid
+`````
+flowchart TD
+  %% Core logic skeleton for RAG architecture
+
+  subgraph UserFacing[Next.js User-Facing Runtime]
+    U1[User uploads document]
+    U2[Validate auth, tenant, workspace]
+    U3[Generate documentId and traceId]
+    U4[Write upload metadata]
+    U5[User sends query]
+    U6[Apply query gates]
+    U7[Assemble context and prompt]
+    U8[Stream response with citations]
+  end
+
+  subgraph CanonicalStores[Firebase Canonical Stores]
+    S1[(Storage: raw file)]
+    F1[(Firestore documents)]
+    F2[(Firestore chunks + embedding)]
+    F3[(Firestore queryCache optional)]
+    F4[(Firestore queryFeedback optional)]
+  end
+
+  subgraph WorkerRuntime[Cloud Functions Python Worker]
+    W1[Trigger when documents.status=uploaded]
+    W2[Set status=processing]
+    W3[Parse file]
+    W4[Clean and normalize text]
+    W5[Document taxonomy]
+    W6[Chunking]
+    W7[Embedding]
+    W8[Upsert chunks using documentId_chunkIndex]
+    W9[Set status=ready or failed]
+  end
+
+  U1 --> U2 --> U3
+  U3 --> S1
+  U3 --> U4 --> F1
+
+  F1 --> W1 --> W2 --> W3 --> W4 --> W5 --> W6 --> W7 --> W8 --> F2
+  W8 --> W9 --> F1
+
+  U5 --> U6 --> U7
+  U6 --> F1
+  U6 --> F2
+  U6 --> F3
+  U7 --> U8
+  U8 --> F4
+
+  classDef user fill:#E8F4FD,stroke:#1E88E5,color:#0D47A1;
+  classDef store fill:#E8F5E9,stroke:#43A047,color:#1B5E20;
+  classDef worker fill:#FFF8E1,stroke:#FB8C00,color:#E65100;
+
+  class U1,U2,U3,U4,U5,U6,U7,U8 user;
+  class S1,F1,F2,F3,F4 store;
+  class W1,W2,W3,W4,W5,W6,W7,W8,W9 worker;
+`````
+
+## File: docs/diagrams-events-explanations/diagrams/erd-model.mermaid
+`````
+erDiagram
+  DOCUMENTS ||--o{ CHUNKS : contains
+  DOCUMENTS ||--o{ QUERY_CACHE : serves
+  DOCUMENTS ||--o{ QUERY_FEEDBACK : receives
+
+  DOCUMENTS {
+    string id PK
+    string tenantId
+    string workspaceId
+    string title
+    string originalFilename
+    string contentType
+    string extension
+    number sizeBytes
+    string storageBucket
+    string storagePath
+    string checksum
+    string parser
+    string status
+    string taxonomy
+    string createdBy
+    datetime createdAt
+    datetime updatedAt
+    datetime processingStartedAt
+    datetime readyAt
+    datetime failedAt
+    datetime archivedAt
+    string errorCode
+    string errorMessage
+  }
+
+  CHUNKS {
+    string id PK
+    string tenantId
+    string workspaceId
+    string docId FK
+    number chunkIndex
+    string text
+    vector embedding
+    string taxonomy
+    number page
+    string tags
+    number tokenCount
+    number charCount
+    string sourceHeading
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  QUERY_CACHE {
+    string id PK
+    string tenantId
+    string workspaceId
+    string queryHash
+    string response
+    string retrievedChunkIds
+    datetime createdAt
+    datetime expiresAt
+  }
+
+  QUERY_FEEDBACK {
+    string id PK
+    string tenantId
+    string workspaceId
+    string queryHash
+    string responseId
+    string rating
+    string reason
+    datetime createdAt
+  }
+`````
+
 ## File: docs/diagrams-events-explanations/diagrams/event-bus-message-flow.mermaid
 `````
 %% Xuanwu event bus and pub-sub message flow
@@ -12883,6 +15582,367 @@ flowchart TB
     class PublicPage,Dashboard,WorkspaceHub,WorkspaceDetail,AIChat,DevTools,WikiPages,WikiDocuments,WikiLibraries,WikiNamespaces,WikiRagQuery,WikiRagReindex,SettingsIndex,SettingsGeneral,SettingsProfile,SettingsNotifications,OrgIndex,OrgMembers,OrgTeams,OrgPermissions,OrgWorkspaces,OrgSchedule,OrgDaily,OrgKnowledge,OrgAudit route;
 `````
 
+## File: docs/diagrams-events-explanations/diagrams/project-derivation.mermaid
+`````
+graph LR
+    classDef roleActor fill:#dcfce7,stroke:#16a34a,color:#14532d,font-weight:bold
+    classDef roleActorLite fill:#fef9c3,stroke:#ca8a04,color:#713f12,font-weight:bold
+    classDef systemActor fill:#f3e8ff,stroke:#a855f7,color:#6b21a8,font-weight:bold
+    classDef appUC fill:#eff6ff,stroke:#3b82f6,color:#1e40af
+    classDef domainUC fill:#f0fdf4,stroke:#22c55e,color:#166534
+    classDef dataUC fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
+    classDef opsUC fill:#fff7ed,stroke:#f97316,color:#9a3412
+    classDef aiUC fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+    classDef refUC fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 2
+
+    PlatformOwner((平台擁有者)):::roleActor
+    OrgAdmin((組織管理員)):::roleActor
+    WorkspaceAdmin((工作區管理員)):::roleActor
+    Member((成員)):::roleActorLite
+    Viewer((訪客)):::roleActorLite
+
+    NextJS((Next.js App Runtime)):::systemActor
+    Worker((Functions Python Worker)):::systemActor
+    Firestore((Firestore)):::systemActor
+    Storage((Firebase Storage)):::systemActor
+    Genkit((Genkit / LLM)):::systemActor
+
+    subgraph appLayer[🧭 App and Shell Layer]
+        APP1([公開入口與登入]):::appUC
+        APP2([Shell 佈局與工作區切換]):::appUC
+        APP3([Route Handler 與 Server Action]):::appUC
+        APP4([多提供者 Context 管理]):::appUC
+    end
+
+    subgraph identityOrg[🪪 Identity and Organization]
+        ID1([帳號註冊與登入識別]):::domainUC
+        ID2([角色與權限模型]):::domainUC
+        ID3([組織與成員管理]):::domainUC
+        ID4([租戶邊界驗證]):::domainUC
+    end
+
+    subgraph workspaceModule[🏢 Workspace]
+        WS1([建立工作區]):::domainUC
+        WS2([工作區設定與偏好]):::domainUC
+        WS3([工作區儀表板]):::domainUC
+        WS4([工作區層級活動彙整]):::domainUC
+    end
+
+    subgraph executionModules[📦 業務執行模組]
+        TK1([Task 任務生命週期]):::domainUC
+        TK2([Issue 問題追蹤]):::domainUC
+        TK3([Schedule 排程與指派]):::domainUC
+        TK4([Notification 通知中心]):::domainUC
+        TK5([Daily 日報與追蹤]):::domainUC
+        TK6([Acceptance 驗收記錄]):::domainUC
+        TK7([Audit 稽核事件]):::domainUC
+    end
+
+    subgraph knowledgeAI[🧠 Knowledge and AI]
+        KG1([File 上傳與文件管理]):::aiUC
+        KG2([Parser 文件解析]):::aiUC
+        KG3([Knowledge 索引與知識檢索]):::aiUC
+        KG4([RAG Query 編排與回覆]):::aiUC
+        KG5([引用與回饋循環]):::aiUC
+    end
+
+    subgraph businessSupport[💼 商務與支援模組]
+        BM1([Billing 計費週期]):::opsUC
+        BM2([Finance 應收應付]):::opsUC
+        BM3([Account 帳務資料]):::opsUC
+        BM4([Organization 組織治理策略]):::opsUC
+    end
+
+    subgraph coreData[🗂️ Canonical Data Resources]
+        D1([users]):::dataUC
+        D2([organizations]):::dataUC
+        D3([workspaces]):::dataUC
+        D4([tasks and issues]):::dataUC
+        D5([documents]):::dataUC
+        D6([chunks and embedding]):::dataUC
+        D7([queryCache and feedback]):::dataUC
+        D8([auditLogs and notifications]):::dataUC
+        D9([billing and finance records]):::dataUC
+    end
+
+    subgraph crossCutting[🔗 Cross-Cutting Contracts]
+        C1([租戶隔離 tenantId and workspaceId]):::refUC
+        C2([狀態機驅動 lifecycle contract]):::refUC
+        C3([事件與重試 idempotency]):::refUC
+        C4([觀測指標與 SLO gate]):::refUC
+        C5([MDDD 依賴方向守則]):::refUC
+    end
+
+    PlatformOwner --> APP2
+    PlatformOwner --> ID2
+    PlatformOwner --> BM1
+
+    OrgAdmin --> ID3
+    OrgAdmin --> WS1
+    OrgAdmin --> WS2
+    OrgAdmin --> BM2
+
+    WorkspaceAdmin --> WS3
+    WorkspaceAdmin --> TK1
+    WorkspaceAdmin --> TK2
+    WorkspaceAdmin --> TK3
+    WorkspaceAdmin --> KG1
+    WorkspaceAdmin --> KG4
+
+    Member --> TK1
+    Member --> TK2
+    Member --> TK3
+    Member --> TK4
+    Member --> KG4
+    Member --> KG5
+
+    Viewer --> WS3
+    Viewer --> TK4
+    Viewer --> KG5
+
+    APP1 --> NextJS
+    APP2 --> NextJS
+    APP3 --> NextJS
+    APP4 --> NextJS
+
+    NextJS --> ID1
+    NextJS --> ID4
+    NextJS --> WS3
+    NextJS --> TK1
+    NextJS --> TK2
+    NextJS --> TK3
+    NextJS --> TK4
+    NextJS --> KG1
+    NextJS --> KG4
+
+    KG1 --> Storage
+    KG1 --> D5
+    KG2 --> Worker
+    Worker --> KG2
+    Worker --> KG3
+    Worker --> D6
+    KG4 --> Genkit
+    KG4 --> D6
+    KG4 --> D7
+    KG5 --> D7
+
+    Firestore --> D1
+    Firestore --> D2
+    Firestore --> D3
+    Firestore --> D4
+    Firestore --> D5
+    Firestore --> D6
+    Firestore --> D7
+    Firestore --> D8
+    Firestore --> D9
+
+    TK1 --> D4
+    TK2 --> D4
+    TK3 --> D4
+    TK4 --> D8
+    TK6 --> D8
+    TK7 --> D8
+
+    BM1 --> D9
+    BM2 --> D9
+    BM3 --> D9
+    BM4 --> D2
+
+    ID1 -.-> C1
+    ID4 -.-> C1
+    WS1 -.-> C1
+    KG4 -.-> C1
+
+    TK1 -.-> C2
+    TK2 -.-> C2
+    KG1 -.-> C2
+    KG3 -.-> C2
+
+    Worker -.-> C3
+    KG2 -.-> C3
+    KG3 -.-> C3
+
+    NextJS -.-> C4
+    Worker -.-> C4
+    Genkit -.-> C4
+
+    APP3 -.-> C5
+    ID2 -.-> C5
+    TK1 -.-> C5
+    KG3 -.-> C5
+    BM1 -.-> C5
+`````
+
+## File: docs/diagrams-events-explanations/diagrams/rag-enterprise-e2e.mermaid
+`````
+flowchart TD
+  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
+  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
+  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
+  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
+  classDef naming fill:#fef2f2,stroke:#ef4444,color:#7f1d1d
+  classDef docai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
+  classDef accel fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+  classDef pyown fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,font-weight:bold
+  classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
+
+  subgraph ING[① Ingestion Pipeline - 資料進來]
+    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
+    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
+    I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
+  end
+
+  subgraph DOCAI[①A document_ai 核心用途與輸出]
+    DA1[讀取 raw 檔案 bytes]:::docai --> DA2[Document AI Layout Parser]:::docai --> DA3[抽取 text pages tables headings]:::docai --> DA4[輸出 layout artifact json]:::docai
+    DA3 --> DA5[正規化 normalize 與去雜訊]:::docai --> DA6[doc-level taxonomy]:::docai --> DA7[chunking 與 chunkIndex 決定]:::docai
+    DA7 --> DA8[chunk metadata 組裝 page taxonomy tags]:::docai --> DA9[輸出 chunk payload 給 embedding]:::docai
+    DA2 --> DA10{document_ai 失敗?}:::docai
+    DA10 -->|yes| DA11[回寫 documents status failed with errorCode errorMessage]:::docai
+    DA10 -->|no| DA5
+  end
+
+  subgraph QRY[② Query Pipeline - 查詢與 RAG]
+    subgraph QRYA[②A 查詢主線]
+      Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Index readiness gate]:::query --> Q6[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q7{Top-K chunks found?}:::query
+      Q7 -->|yes| Q8[Context 組裝 prompt building]:::query --> Q9[Genkit LLM 回答生成]:::query --> Q10[Streaming 回傳 Next.js UI]:::query
+    end
+    subgraph QRYB[②B 查詢回退與觀測]
+      Q7 -->|no| Q11[No-context fallback response]:::query
+      Q9 --> Q12[query traces latency and cost metrics]:::query
+    end
+  end
+
+  subgraph OPT[③ Optional 強化 - 企業必備]
+    subgraph OPTA[③A Retrieval and Rerank]
+      O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
+      O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
+    end
+    subgraph OPTB[③B Cache and Feedback]
+      O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
+      O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
+    end
+  end
+
+  subgraph DATA[④ Firestore 資料結構核心]
+    subgraph DATAA[④A documents 契約]
+      D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
+    end
+    subgraph DATAB[④B chunks 契約]
+      D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
+    end
+  end
+
+  subgraph NAMING[④C 檔案命名與儲存結構契約]
+    N1[canonical documentId 與 originalFilename 分離]:::naming
+    N2[raw 檔固定命名 source plus ext]:::naming
+    N3[storagePath tenants slash tenantId slash workspaces slash workspaceId slash documents slash documentId slash raw slash source ext]:::naming
+    N4[derived 輸出放在 derived 子目錄]:::naming
+    N5[chunk upsert key documentId underscore chunkIndex]:::naming
+    N6[documents 必填 tenantId workspaceId checksum storagePath]:::naming
+  end
+
+  subgraph KEY[⑤ 關鍵觀念濃縮]
+    subgraph KEYA[⑤A Retrieval 原則]
+      K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
+      K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
+      K3[Vector Search 在 query 做 每次查詢]:::keypoint
+    end
+    subgraph KEYB[⑤B Runtime 原則]
+      K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
+      K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
+    end
+  end
+
+  subgraph SUM[⑥B 一句話總結]
+    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
+    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
+  end
+
+  subgraph OWN[⑥A Runtime Ownership]
+    R1[綠色框 = Next.js 主責節點]:::nxown
+    R2[藍色框 = py_fn 主責節點]:::pyown
+  end
+
+  subgraph LINKRULE[⑥C 線路規則]
+    L1[實線 = 主流程執行順序]:::summary
+    L2[虛線 = 契約或能力映射]:::keypoint
+    L3[跨區連線優先以區塊級映射呈現]:::keypoint
+  end
+
+  subgraph ACCEL[⑦ package.json 可直接降低開發難度]
+    subgraph ACCELA[⑦A 開發迭代工具]
+      A1[scripts dev build lint 降低本地迭代摩擦]:::accel
+      A4[zod 契約驗證 可用於 UploadRequest QueryInput WorkerEvent]:::accel
+      A5[tanstack react-query 快速實作 query 快取 重試 與狀態同步]:::accel
+      A7[xstate plus zustand 可把複雜流程狀態與 UI 狀態拆分管理]:::accel
+      A8[axios 可統一 infrastructure adapter 的 HTTP 呼叫]:::accel
+      A9[tailwind plus shadcn 加速介面與後台工具頁建置]:::accel
+    end
+    subgraph ACCELB[⑦B 部署與基礎設施]
+      A2[scripts deploy:functions:python deploy:firestore:indexes deploy:rules 降低部署心智負擔]:::accel
+    end
+    subgraph ACCELC[⑦C RAG 流程能力]
+      A3[genkit plus google-genai 直接支援 Query Flow 與 LLM orchestration]:::accel
+      A6[upstash redis vector 可支援 Optional Cache 與 Retrieval 擴充]:::accel
+    end
+  end
+
+  I4 -.-> DA1
+  DA9 -.-> I11
+  DA11 -.-> I16
+
+  ING -.-> DATA
+  QRY -.-> DATA
+  NAMING -.-> ING
+  NAMING -.-> DATA
+  QRY -.-> OPT
+
+  DA4 -.-> N4
+  DA11 -.-> D1
+
+  S1 -.-> ING
+  S2 -.-> QRY
+
+  ACCELA -.-> ING
+  ACCELA -.-> QRY
+  ACCELB -.-> ING
+  ACCELC -.-> QRY
+  ACCELC -.-> OPT
+
+  class I1,I3,Q1,Q2,Q10,Q11 nxown
+  class I4,I11,I12,I15,I16,DA1,DA2,DA3,DA4,DA5,DA6,DA7,DA8,DA9,DA10,DA11 pyown
+`````
+
+## File: docs/diagrams-events-explanations/diagrams/README.md
+`````markdown
+# Diagrams Index
+
+架構、流程、資料與狀態機圖的統一入口。一張圖描述一個視角，讓產品、架構、實作讀者快速定位。
+
+## 圖表分類
+
+| 分類 | 圖表 |
+| --- | --- |
+| System | [system-architecture-overview-combined.mermaid](./system-architecture-overview-combined.mermaid), [system-multi-workspace-hierarchy.mermaid](./system-multi-workspace-hierarchy.mermaid), [ai-knowledge-platform-architecture.png](./ai-knowledge-platform-architecture.png) |
+| Workspace | [workspace-internal-data-model.mermaid](./workspace-internal-data-model.mermaid), [workspace-interaction-flow.mermaid](./workspace-interaction-flow.mermaid) |
+| Data & Runtime | [firestore-collection-path-structure.mermaid](./firestore-collection-path-structure.mermaid), [api-data-flow.mermaid](./api-data-flow.mermaid) |
+| Auth & Security | [auth-state-machine.mermaid](./auth-state-machine.mermaid), [security-rules-decision-flow.mermaid](./security-rules-decision-flow.mermaid) |
+| Knowledge & Events | [kb-ingestion-pipeline-state-machine.mermaid](./kb-ingestion-pipeline-state-machine.mermaid), [event-bus-message-flow.mermaid](./event-bus-message-flow.mermaid) |
+| Next.js & Agents | [nextjs-app-router-structure.mermaid](./nextjs-app-router-structure.mermaid), [agent-architecture-commander-subagents.mermaid](./agent-architecture-commander-subagents.mermaid) |
+| Domain Models | [core-logic.mermaid](./core-logic.mermaid), [erd-model.mermaid](./erd-model.mermaid), [project-derivation.mermaid](./project-derivation.mermaid), [rag-enterprise-e2e.mermaid](./rag-enterprise-e2e.mermaid), [state-machine.mermaid](./state-machine.mermaid) |
+
+## 建議閱讀順序
+
+開始於系統概觀，然後深入工作區、資料、認證、知識流程。
+
+## 相關文件
+
+- [docs/decision-architecture/architecture/](../../decision-architecture/architecture/)
+- [docs/development-reference/development/modules-implementation-guide.md](../../development-reference/development/modules-implementation-guide.md)
+`````
+
 ## File: docs/diagrams-events-explanations/diagrams/security-rules-decision-flow.mermaid
 `````
 %% Xuanwu security rules decision flow
@@ -12930,6 +15990,51 @@ flowchart TD
     class AllowRead,AllowWrite allow;
     class DenyAuth,DenyScope,DenyRole,DenyPolicy,DenyResource,DenyWrite,DenyConstraint deny;
     class DevBypass note;
+`````
+
+## File: docs/diagrams-events-explanations/diagrams/state-machine.mermaid
+`````
+stateDiagram-v2
+  [*] --> Uploaded
+
+  Uploaded --> Processing: Worker accepted
+  Uploaded --> Failed: Invalid metadata or artifact missing
+
+  Processing --> Ready: Parse, chunk, embed, persist success
+  Processing --> Failed: Runtime or provider error
+
+  Failed --> Processing: Retry policy or manual retry
+  Ready --> Processing: Reprocess request
+  Ready --> Archived: Archive request
+
+  Archived --> [*]
+
+  state Processing {
+    [*] --> Parse
+    Parse --> Clean
+    Clean --> Taxonomy
+    Taxonomy --> Chunk
+    Chunk --> Embed
+    Embed --> PersistChunks
+    PersistChunks --> [*]
+  }
+
+  note right of Uploaded
+    Required gates:
+    - tenantId
+    - workspaceId
+    - checksum
+    - storagePath
+  end note
+
+  note right of Processing
+    Idempotency key:
+    documentId + checksum + chunkIndex
+  end note
+
+  note right of Ready
+    Query can read only Ready docs
+  end note
 `````
 
 ## File: docs/diagrams-events-explanations/diagrams/system-architecture-overview-combined.mermaid
@@ -13369,6 +16474,121 @@ erDiagram
     }
 `````
 
+## File: docs/diagrams-events-explanations/explanation/agentic-delivery-model.md
+`````markdown
+---
+title: Agentic delivery model
+description: Explanation of the Xuanwu Copilot Delivery Suite, including why delivery work is split across planning, implementation, review, and QA stages.
+---
+
+# Agentic delivery model
+
+The Xuanwu Copilot Delivery Suite exists to make AI-assisted delivery predictable in a repository that already enforces MDDD, runtime boundaries, and contract-first workflows. The goal is not to add more personas. The goal is to stop complex work from collapsing into one long chat session with mixed responsibilities.
+
+## Why a delivery model is needed
+
+This repository already has strong architectural guidance, but architecture guidance alone does not tell an agent how to deliver a change end to end. Without a formal delivery model, the same session tends to mix:
+
+- requirement discovery,
+- plan creation,
+- code writing,
+- architecture review,
+- and QA verification.
+
+That mixing creates three common failures:
+
+1. implementation starts before scope is stable,
+2. review happens too late and becomes expensive,
+3. QA evidence is reduced to a vague summary instead of a release gate.
+
+## Why the workflow is split into four stages
+
+The suite uses four delivery stages:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Each stage owns one kind of decision.
+
+### Planner
+
+The Planner turns a request into an implementation contract for the current task. It identifies owners, runtime boundaries, affected areas, validation, and documentation impact before code changes begin.
+
+### Implementer
+
+The Implementer executes the approved plan. It writes code, updates docs, and runs the validation defined by the plan. It does not expand scope on its own.
+
+### Reviewer
+
+The Reviewer checks whether the implementation is actually acceptable. This includes correctness, MDDD alignment, contract compliance, regression risk, and missing validation or documentation.
+
+### QA
+
+QA verifies what was delivered, what failed, what evidence exists, and whether release risk remains. QA is separated from review because verification and critique are not the same activity.
+
+## Why planning is formal instead of conversational
+
+The implementation plan is not a casual summary. It is the shared input contract for the Implementer, Reviewer, and QA stages.
+
+That is why the suite includes both:
+
+- [implementation-plan-template.md](../../../development-reference/reference/ai/implementation-plan-template.md)
+- [plan-schema.md](../../../development-reference/reference/ai/plan-schema.md)
+
+The template defines the shape contributors read. The schema defines the fields that later stages rely on. Together they stop the plan from becoming an inconsistent free-form note.
+
+## Why agents and prompts both exist
+
+Agents define persistent roles, tool limits, and handoff behavior. Prompts define task-specific entry points and recovery paths.
+
+The suite needs both because real delivery work does not always follow one uninterrupted path. A contributor might need to:
+
+- start from a new feature request,
+- rerun review only,
+- rerun QA only,
+- or recover after an interrupted session.
+
+The prompts handle those operational paths without weakening the role boundaries encoded in the agents.
+
+## Why the model fits Xuanwu architecture
+
+The model is intentionally aligned with the repository's existing architecture rules.
+
+- The Planner identifies the owning module, runtime, and contract.
+- The Implementer keeps changes inside `interfaces -> application -> domain <- infrastructure`.
+- The Reviewer checks that the change respects MDDD boundaries and does not create accidental ownership in UI or adapter code.
+- QA verifies the delivered behavior rather than trusting architectural intent alone.
+
+This is especially important in Xuanwu because workflows can cross:
+
+- Next.js and `py_fn`,
+- multiple business modules,
+- and contract-governed domains such as RAG, schedule, daily, billing, and audit.
+
+## Why recovery is a first-class design concern
+
+Long AI-assisted tasks fail in ordinary ways:
+
+- the chat session becomes noisy,
+- the current request goes off track,
+- a contributor wants to restart from the plan,
+- or a later stage needs to rerun independently.
+
+The suite treats recovery as part of the design, not as an afterthought. That is why it ships with re-entry prompts and operational how-to documents, not just personas.
+
+## Governance principle
+
+The delivery suite should evolve like the rest of the repository:
+
+- architecture rules stay in the existing authoritative files,
+- delivery workflow rules stay in the AI documentation set,
+- and legacy assets are retired through explicit migration notes instead of silent drift.
+
+If a workflow change alters responsibility boundaries, required validation, or handoff behavior, update the delivery documents in the same change.
+`````
+
 ## File: docs/diagrams-events-explanations/explanation/development-contract-governance.md
 `````markdown
 ---
@@ -13427,6 +16647,378 @@ If the change is breaking, update the contract in the same pull request as the c
 ## What to avoid
 
 Do not use development contracts to duplicate every ADR verbatim. Do not store implementation detail that belongs only in one adapter. Do not mix explanation, tutorial, and reference styles in the same page. The contract page should stay short enough that a contributor can use it as an implementation checklist before opening code.
+`````
+
+## File: docs/diagrams-events-explanations/explanation/README.md
+`````markdown
+# Explanations & Governance
+
+Conceptual explanations, architectural rationale, and governance documentation.
+
+## Core Content
+
+- [development-contract-governance.md](./development-contract-governance.md) — Development contract purpose, maintenance, and governance
+- [agentic-delivery-model.md](./agentic-delivery-model.md) — Agentic delivery suite design and rationale
+
+## Related
+
+- [../../README.md](../../README.md) — Root: diagrams, events, explanations
+- [../diagrams/README.md](../diagrams/README.md) — System architecture diagrams
+- [../../development-reference/reference/development-contracts/overview.md](../../development-reference/reference/development-contracts/overview.md) — Development contracts overview
+`````
+
+## File: docs/how-to-user/how-to/organize-docs-for-ai.md
+`````markdown
+---
+title: Organize repository docs for AI
+description: How to structure, summarize, index, and maintain Xuanwu App documentation so AI tools can route and read the right material quickly.
+---
+
+# Organize repository docs for AI
+
+Use this guide when you want Xuanwu App documents to be easier for Copilot, agents, and retrieval workflows to understand.
+
+## Goal
+
+Turn scattered documents into a predictable knowledge flow:
+
+1. collect and classify,
+2. add table-of-contents and summaries,
+3. maintain an index with metadata,
+4. separate overview from detail,
+5. optionally enable retrieval,
+6. guide AI with the right prompt entry points,
+7. keep everything current.
+
+## Recommended storage layout in this repository
+
+Use the existing docs structure instead of adding a parallel documentation tree.
+
+| Content type | Primary location | Why |
+| --- | --- | --- |
+| High-level architecture and rationale | [docs/decision-architecture/](../../decision-architecture/) | Design intent, ADRs, system architecture |
+| Development workflows and technical references | [docs/development-reference/](../../development-reference/) | Implementation rules, contracts, specifications |
+| Diagrams and explanations | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) | Visual and explanatory support material |
+| User-facing guides and operator flows | [docs/how-to-user/](../../how-to-user/) | How-to and manual content |
+| Agent and repo operating rules | [agents/](../../agents/) and [.github/](../../.github/) | AI instructions, command references, workflow assets |
+
+Do not create a new root-level docs bucket unless the existing structure cannot express the ownership clearly.
+
+## Step 1: Collect and classify
+
+Before editing content, decide the document's home by intent, not by filename.
+
+| Question | Place it here |
+| --- | --- |
+| Is this about architecture decisions or rationale? | [docs/decision-architecture/](../../decision-architecture/) |
+| Is this a rule, contract, specification, or engineering reference? | [docs/development-reference/](../../development-reference/) |
+| Is this a how-to, operator guide, or user manual? | [docs/how-to-user/](../../how-to-user/) |
+| Is this mainly a diagram or visual explanation? | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) |
+
+When consolidating files:
+
+- remove duplicate copies,
+- archive or delete stale drafts,
+- keep one canonical source per topic,
+- update the nearest README when a file moves.
+
+## Step 2: Add a table of contents and section summaries
+
+Every long Markdown file should have:
+
+1. a short introduction that explains what the file is for,
+2. a predictable heading hierarchy,
+3. a one- or two-line summary at the start of each major section.
+
+Recommended pattern:
+
+```md
+# Title
+
+One paragraph summary of what this document covers and when to read it.
+
+## Section A
+
+Short summary of why this section matters.
+
+### Detail A.1
+```
+
+Prefer explicit headings over hidden or tool-specific TOC syntax. In this repository, clear headings and index pages are more reliable than relying on `[TOC]` rendering.
+
+## Step 3: Maintain an index with metadata
+
+For each folder that acts as a document hub, keep a README index table. At minimum, include:
+
+| File | Topic | Keywords | Summary |
+| --- | --- | --- | --- |
+| `example.md` | runtime boundary | nextjs, worker, rag | Explains which runtime owns each step. |
+
+For larger collections, use this richer schema:
+
+| File | Type | Layer | Topic | Keywords | Summary | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| `rag-ingestion-contract.md` | reference | mid | RAG ingestion | rag, ingestion, worker, firestore | Canonical upload-to-worker contract. | active |
+
+Field guidance:
+
+- File: canonical path from the current folder
+- Type: tutorial, how-to, reference, explanation
+- Layer: high, mid, low
+- Topic: main subject area
+- Keywords: search-oriented terms an AI would likely match
+- Summary: one sentence with the decision-relevant point
+- Status: active, draft, legacy, archived
+
+## Step 4: Separate high, mid, and low layers
+
+AI tools should read the smallest useful layer first.
+
+| Layer | Purpose | Typical files in this repo |
+| --- | --- | --- |
+| High | Fast orientation and routing | [docs/README.md](../../README.md), [docs/development-reference/specification/system-overview.md](../../development-reference/specification/system-overview.md), [agents/knowledge-base.md](../../agents/knowledge-base.md) |
+| Mid | Implementation guidance and workflows | contracts, development READMEs, AI workflow references |
+| Low | Raw detail and supporting artifacts | ADRs, diagrams, logs, detailed specs |
+
+Apply this reading rule:
+
+1. Start from a README or overview page.
+2. Move to the specific contract, guide, or reference page.
+3. Only then open detailed diagrams, ADRs, or low-level artifacts.
+
+## Step 5: Optional retrieval and embeddings
+
+If the documentation set becomes too large for direct reading:
+
+1. chunk by heading boundaries,
+2. store chunk metadata with path, section title, topic, and keywords,
+3. index the chunks in a vector store,
+4. return the most relevant sections before loading full files.
+
+Recommended chunk metadata:
+
+| Field | Purpose |
+| --- | --- |
+| `path` | file location |
+| `title` | document title |
+| `section` | heading path |
+| `layer` | high, mid, low |
+| `topic` | business or technical topic |
+| `keywords` | retrieval hints |
+| `summary` | short routing hint |
+
+## Step 6: Give AI a stable entry prompt
+
+Use a consistent instruction pattern when asking AI to work from docs.
+
+Example prompt:
+
+```text
+先讀 llms.txt 與 docs/README.md，根據摘要與關鍵字定位最相關文件。
+先回報你選了哪些高層文件，再下鑽到契約或細節文件。
+如果找到多份重複來源，請指出 canonical file。
+```
+
+For this repository, preferred entry order is:
+
+1. [llms.txt](../../llms.txt)
+2. [docs/README.md](../../README.md)
+3. nearest folder README
+4. specific contract, guide, or reference page
+5. supporting ADRs or diagrams
+
+## Step 7: Keep it current
+
+Whenever a new document is added or moved, update in the same change:
+
+1. the nearest README index,
+2. any affected root index such as [docs/README.md](../../README.md),
+3. summaries and keywords,
+4. AI entry points such as [llms.txt](../../llms.txt) if routing changes materially.
+
+Use this maintenance checklist:
+
+- Is there exactly one canonical file for the topic?
+- Does the document start with a summary?
+- Is the heading structure easy to chunk by section?
+- Is the document indexed from the nearest README?
+- Does the file belong to the correct high, mid, or low layer?
+- Would an AI know when to open this file from its title, summary, and keywords alone?
+
+## Minimum standard for new docs
+
+Every new important document should provide all of the following:
+
+- title,
+- one-paragraph summary,
+- clear headings,
+- index entry in a nearby README,
+- keywords or topic wording that matches likely search terms,
+- a stable canonical location.
+
+## Related references
+
+- [docs/README.md](../../README.md)
+- [docs/development-reference/reference/ai/customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
+- [agents/knowledge-base.md](../../agents/knowledge-base.md)
+`````
+
+## File: docs/how-to-user/how-to/README.md
+`````markdown
+# How-To Guides
+
+Procedural guides for Xuanwu App platform and AI-assisted development workflows.
+
+## AI Workflow Guides
+
+- **Start a feature** → [start-feature-delivery.md](./start-feature-delivery.md)
+- **Recover workflow** → [recover-agent-flow.md](./recover-agent-flow.md)
+- **Update customizations** → [update-customizations.md](./update-customizations.md)
+- **Organize documentation** → [organize-docs-for-ai.md](./organize-docs-for-ai.md)
+
+## Related
+
+- [../README.md](../README.md) — How-to-user root
+- [../../development-reference/reference/ai/implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md) — Plan template
+`````
+
+## File: docs/how-to-user/how-to/recover-agent-flow.md
+`````markdown
+---
+title: Recover an interrupted agent flow
+description: How to recover the formal Copilot delivery workflow after interruption, context reset, or stage-specific reruns.
+---
+
+# Recover an interrupted agent flow
+
+Use this guide when the formal delivery workflow was interrupted or needs to resume from a later stage.
+
+## Common recovery cases
+
+### Case 1: Planning is done, but implementation has not started or the session was lost
+
+- Use `/implement-plan`.
+- Provide the plan file or paste the plan text.
+
+### Case 2: Implementation is partially complete and review must restart
+
+- Use `/review-changes`.
+- Provide the plan reference and a concise change summary.
+
+### Case 3: Review passed, but QA must rerun
+
+- Use `/run-qa`.
+- Provide the plan reference, current change summary, and any known risk areas.
+
+### Case 4: The stage is unclear or the chat history is polluted
+
+- Use `/resume-delivery`.
+- Provide the last known stage, plan reference, and any outstanding findings.
+
+## Recovery rules
+
+- Do not restart from Planner unless scope, owner, runtime, or validation requirements changed materially.
+- Do not use QA to infer missing implementation state. Reconstruct the stage first.
+- If the plan cannot be located or no longer reflects the intended scope, rerun planning explicitly instead of guessing.
+- Prefer a durable saved plan reference over chat history when reconstructing delivery state across sessions.
+
+## Related references
+
+- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
+- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
+`````
+
+## File: docs/how-to-user/how-to/start-feature-delivery.md
+`````markdown
+---
+title: Start feature delivery with Copilot
+description: How to use the Xuanwu Copilot Delivery Suite for a formal feature workflow.
+---
+
+# Start feature delivery with Copilot
+
+Use this workflow when the requested change is non-trivial, crosses module boundaries, changes a public workflow, or needs formal review and QA gates.
+
+## When to use this flow
+
+Use the formal delivery flow when one or more of the following are true:
+
+- the change touches more than one module or package,
+- the change affects runtime ownership,
+- a contract-governed workflow is involved,
+- the change needs explicit review and QA evidence,
+- or the task is large enough that implementation should not begin from an ad hoc chat summary.
+
+## Start the workflow
+
+1. Open a fresh chat session.
+2. Run `/plan-feature`.
+3. Provide the request, constraints, and any relevant file or document context.
+4. Review the implementation plan before starting implementation.
+5. If the work will span multiple sessions, save the approved plan in a durable location instead of relying on chat history alone.
+
+## Plan persistence
+
+- If you use the built-in Plan agent, VS Code keeps the generated plan in session memory as `plan.md` for the current conversation only.
+- If you use the Xuanwu Planner agent or expect the work to continue in a later session, store the approved plan in a repository document, issue comment, or other durable reference before implementation starts.
+- Reuse that saved plan when invoking `/implement-plan`, `/review-changes`, `/run-qa`, or `/resume-delivery`.
+
+## Move through the stages
+
+1. Planner produces the formal plan.
+2. Use the `Start Implementation` handoff or run `/implement-plan`.
+3. After implementation, use the `Review Implementation` handoff or run `/review-changes`.
+4. After review passes, use the `Run QA` handoff or run `/run-qa`.
+
+## What “done” means
+
+The workflow is complete when all of the following are true:
+
+- required implementation tasks are complete,
+- required validation has actually run,
+- required docs are updated,
+- review findings are cleared or explicitly accepted,
+- QA has produced evidence and a release recommendation.
+
+## Related references
+
+- [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
+- [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
+- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
+`````
+
+## File: docs/how-to-user/README.md
+`````markdown
+# User Guides & Documentation
+
+End-user documentation, administrator guides, UI/UX design, and operation workflows.
+
+## Organization
+
+| Subdirectory | Content | Entry |
+| --- | --- | --- |
+| [how-to/](./how-to/) | How-to guides and operational workflows | [how-to/README.md](./how-to/README.md) |
+| [ui-ux/](./ui-ux/) | UI design, UX principles, components | [ui-ux/README.md](./ui-ux/README.md) |
+| [user-manual/](./user-manual/) | End-user and admin guides | [user-manual/README.md](./user-manual/README.md) |
+
+## Reading Order
+
+1. **For end users**: [user-manual/user-guide.md](./user-manual/user-guide.md)
+2. **For administrators**: [user-manual/admin-guide.md](./user-manual/admin-guide.md)
+3. **For designers**: [ui-ux/README.md](./ui-ux/README.md)
+4. **For AI/Copilot workflow**: [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
+
+## Quick Start
+
+- **I'm a user**: Start with [user-manual/user-guide.md](./user-manual/user-guide.md)
+- **I'm an admin**: Start with [user-manual/admin-guide.md](./user-manual/admin-guide.md)
+- **I need design specs**: Read [ui-ux/README.md](./ui-ux/README.md)
+- **I'm using Copilot**: See [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
+
+## Related
+
+- [../.github/README.md](../../.github/README.md) — Copilot customization assets
+- [../development-reference/README.md](../development-reference/README.md) — Development guides
 `````
 
 ## File: docs/how-to-user/ui-ux/component-patterns.md
@@ -15378,6 +18970,63 @@ Pages 支援巢狀層級（Parent-Child）。在頁面清單中，子頁面顯�
 - **鍵盤捷徑**：大多數對話框可用 `Esc` 關閉，Dropdown 可用 `↑↓` 導覽、`Enter` 選擇。
 `````
 
+## File: docs/README.md
+`````markdown
+# Xuanwu App 文件入口
+
+`docs/` 是 Xuanwu App 的文件總入口，負責路由到架構、開發參考、圖解說明與使用指南。
+
+## 讀取原則
+
+- 先讀總覽，再進子目錄。
+- 先讀 High-level，再讀契約與細節。
+- 主題若屬於 Copilot/agent/prompt/skill/workflow，優先讀 [.github/README.md](../.github/README.md)。
+
+## 文件地圖
+
+| 目錄 | 內容 | Index | 主要讀者 |
+| --- | --- | --- | --- |
+| [decision-architecture/](./decision-architecture/) | ADR、Architecture | [decision-architecture/README.md](./decision-architecture/README.md) | 架構師、Tech Lead |
+| [development-reference/](./development-reference/) | Development、Reference、Specification、Event、Namespace | [development-reference/README.md](./development-reference/README.md) | 工程師、PM |
+| [diagrams-events-explanations/](./diagrams-events-explanations/) | Diagrams、Explanation | [diagrams-events-explanations/README.md](./diagrams-events-explanations/README.md) | 架構師、工程師 |
+| [how-to-user/](./how-to-user/) | How-to、UI/UX、User Manual | [how-to-user/README.md](./how-to-user/README.md) | 使用者、工程師、設計師 |
+
+## 建議閱讀順序
+
+1. [../llms.txt](../llms.txt)
+2. [README.md](./README.md)
+3. 目標子目錄的 README
+4. 對應契約或規格
+5. ADR 與圖表補充
+
+## 核心入口
+
+| 主題 | 文件 |
+| --- | --- |
+| 系統高階架構 | [decision-architecture/architecture/ai-knowledge-platform-architecture.md](./decision-architecture/architecture/ai-knowledge-platform-architecture.md) |
+| 模組實作邊界 | [development-reference/development/modules-implementation-guide.md](./development-reference/development/modules-implementation-guide.md) |
+| 架構視覺圖 | [diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png](./diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png) |
+| 系統全局規格 | [development-reference/specification/system-overview.md](./development-reference/specification/system-overview.md) |
+
+## Diataxis 對位
+
+| 類型 | 問題 | 主要位置 |
+| --- | --- | --- |
+| Tutorial | 如何學習 | `how-to-user/how-to/`, `how-to-user/user-manual/` |
+| How-to | 如何完成特定任務 | `how-to-user/how-to/` |
+| Reference | 規格與定義是什麼 | `development-reference/reference/`, `development-reference/specification/`, `how-to-user/ui-ux/` |
+| Explanation | 為什麼這樣設計 | `diagrams-events-explanations/explanation/`, `decision-architecture/adr/` |
+
+## 維護規則
+
+新增、搬移、刪除文件時，請在同一個變更內同步更新：
+
+1. 最近的 README 索引
+2. [../llms.txt](../llms.txt)（若路由改變）
+3. [README.md](./README.md)（若總入口改變）
+4. 文件的主題、關鍵字與分層資訊
+`````
+
 ## File: firebase.apphosting.json
 `````json
 {
@@ -15720,6 +19369,256 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
       allow read, write: if true;
+    }
+  }
+}
+`````
+
+## File: llms.txt
+`````
+# Xuanwu App
+
+Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
+
+This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
+
+## Primary repository truths
+
+- AGENTS.md: repository-wide operating rules
+- .github/copilot-instructions.md: Copilot delivery baseline
+- agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
+- agents/commands.md: build, lint, test, and deployment commands
+- docs/README.md: documentation root index
+
+## Documentation reading order
+
+Read from high level to detail:
+
+1. docs/README.md
+2. docs/development-reference/specification/system-overview.md
+3. agents/knowledge-base.md
+4. docs/development-reference/reference/development-contracts/overview.md
+5. the nearest docs README in the relevant subfolder
+6. the specific contract, guide, or architecture page
+7. diagrams or ADRs only after the relevant higher-level page is identified
+
+## Topic routing
+
+- Repository rules and contribution workflow:
+  - AGENTS.md
+  - CONTRIBUTING.md
+  - agents/README.md
+- Architecture and module boundaries:
+  - agents/knowledge-base.md
+  - docs/decision-architecture/architecture/
+  - docs/decision-architecture/adr/
+- Development workflows and implementation rules:
+  - docs/development-reference/development/README.md
+  - docs/development-reference/reference/
+- Contract-governed workflows:
+  - docs/development-reference/reference/development-contracts/overview.md
+  - specific contract pages in docs/development-reference/reference/development-contracts/
+- AI workflow and Copilot customization assets:
+  - docs/development-reference/reference/ai/customizations-index.md
+  - docs/how-to-user/how-to/
+  - .github/skills/
+- Diagrams and explanatory support:
+  - docs/diagrams-events-explanations/diagrams/README.md
+  - docs/diagrams-events-explanations/explanation/
+
+## Document layers
+
+- High layer:
+  - docs/README.md
+  - docs/development-reference/specification/system-overview.md
+  - agents/knowledge-base.md
+- Mid layer:
+  - folder READMEs
+  - development guides
+  - contract indexes
+  - how-to guides
+- Low layer:
+  - ADRs
+  - detailed diagrams
+  - deep technical explanations
+
+Use the smallest useful layer first.
+
+## Documentation organization rule
+
+When adding or changing docs:
+
+1. keep one canonical file per topic,
+2. add a short summary near the top,
+3. use clear headings for section-based chunking,
+4. update the nearest README index,
+5. update docs/README.md or this file if routing changes.
+
+## AI working rule
+
+If a question is broad, inspect summaries and README indexes before opening detailed files.
+If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
+`````
+
+## File: modules/account/application/use-cases/account.use-cases.ts
+`````typescript
+/**
+ * Account Use Cases — pure business workflows.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { AccountRepository } from "../../domain/repositories/AccountRepository";
+import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import { identityApi } from "@/modules/identity/api";
+
+// ─── Create Account ───────────────────────────────────────────────────────────
+
+export class CreateUserAccountUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(userId: string, name: string, email: string): Promise<CommandResult> {
+    try {
+      await this.accountRepo.save({
+        id: userId,
+        name,
+        email,
+        accountType: "user",
+      });
+      return commandSuccess(userId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_USER_ACCOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to create user account",
+      );
+    }
+  }
+}
+
+// ─── Update Profile ───────────────────────────────────────────────────────────
+
+export class UpdateUserProfileUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult> {
+    try {
+      await this.accountRepo.updateProfile(userId, data);
+      return commandSuccess(userId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_USER_PROFILE_FAILED",
+        err instanceof Error ? err.message : "Failed to update user profile",
+      );
+    }
+  }
+}
+
+// ─── Credit Wallet ────────────────────────────────────────────────────────────
+
+export class CreditWalletUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(
+    accountId: string,
+    amount: number,
+    description: string,
+  ): Promise<CommandResult> {
+    try {
+      if (amount <= 0) {
+        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Credit amount must be positive");
+      }
+      const tx = await this.accountRepo.creditWallet(accountId, amount, description);
+      return commandSuccess(tx.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WALLET_CREDIT_FAILED",
+        err instanceof Error ? err.message : "Failed to credit wallet",
+      );
+    }
+  }
+}
+
+// ─── Debit Wallet ─────────────────────────────────────────────────────────────
+
+export class DebitWalletUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(
+    accountId: string,
+    amount: number,
+    description: string,
+  ): Promise<CommandResult> {
+    try {
+      if (amount <= 0) {
+        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Debit amount must be positive");
+      }
+      const balance = await this.accountRepo.getWalletBalance(accountId);
+      if (balance < amount) {
+        return commandFailureFrom("WALLET_INSUFFICIENT_FUNDS", "Insufficient wallet balance");
+      }
+      const tx = await this.accountRepo.debitWallet(accountId, amount, description);
+      return commandSuccess(tx.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WALLET_DEBIT_FAILED",
+        err instanceof Error ? err.message : "Failed to debit wallet",
+      );
+    }
+  }
+}
+
+// ─── Assign Role ──────────────────────────────────────────────────────────────
+
+export class AssignAccountRoleUseCase {
+  constructor(
+    private readonly accountRepo: AccountRepository,
+  ) {}
+
+  async execute(
+    accountId: string,
+    role: OrganizationRole,
+    grantedBy: string,
+    traceId?: string,
+  ): Promise<CommandResult> {
+    try {
+      const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
+      // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+        ...(traceId ? { traceId } : {}),
+      });
+      return commandSuccess(record.accountId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "ASSIGN_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to assign role",
+      );
+    }
+  }
+}
+
+// ─── Revoke Role ──────────────────────────────────────────────────────────────
+
+export class RevokeAccountRoleUseCase {
+  constructor(
+    private readonly accountRepo: AccountRepository,
+  ) {}
+
+  async execute(accountId: string): Promise<CommandResult> {
+    try {
+      await this.accountRepo.revokeRole(accountId);
+      // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+      });
+      return commandSuccess(accountId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REVOKE_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to revoke role",
+      );
     }
   }
 }
@@ -16641,6 +20540,381 @@ export function subscribeToAccountsForUser(
 
 `````
 
+## File: modules/agent/api/index.ts
+`````typescript
+/**
+ * modules/agent — public API barrel.
+ */
+
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+
+export type {
+  AgentResponse,
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../domain/entities/AgentGeneration";
+
+export type { AgentRepository } from "../domain/repositories/AgentRepository";
+export { GenerateAgentResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
+export { GenkitAgentRepository } from "../infrastructure/genkit/GenkitAgentRepository";
+
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "@/modules/retrieval/api";
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "@/modules/retrieval/api";
+
+export type { RagRetrievalRepository, RetrieveRagChunksInput } from "@/modules/retrieval/api";
+
+export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+
+export { answerRagQuery, generateAgentResponse } from "../interfaces/_actions/agent.actions";
+`````
+
+## File: modules/agent/application/index.ts
+`````typescript
+export { GenerateAgentResponseUseCase } from "./use-cases/generate-agent-response.use-case";
+export { AnswerRagQueryUseCase } from "./use-cases/answer-rag-query.use-case";
+`````
+
+## File: modules/agent/application/use-cases/answer-rag-query.use-case.ts
+`````typescript
+/**
+ * @deprecated AnswerRagQueryUseCase ownership is in modules/retrieval.
+ */
+export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/application/use-cases/generate-agent-response.use-case.ts
+`````typescript
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+
+export class GenerateAgentResponseUseCase {
+  constructor(private readonly agentRepository: AgentRepository) {}
+
+  async execute(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
+    const prompt = input.prompt.trim();
+    if (!prompt) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_PROMPT_REQUIRED",
+          message: "Agent prompt is required.",
+        },
+      };
+    }
+
+    return this.agentRepository.generateResponse({
+      ...input,
+      prompt,
+      ...(typeof input.system === "string" ? { system: input.system.trim() } : {}),
+    });
+  }
+}
+`````
+
+## File: modules/agent/domain/entities/AgentGeneration.ts
+`````typescript
+import type { DomainError } from "@shared-types";
+
+export interface GenerateAgentResponseInput {
+  readonly prompt: string;
+  readonly model?: string;
+  readonly system?: string;
+}
+
+export interface AgentResponse {
+  readonly text: string;
+  readonly model: string;
+  readonly finishReason?: string;
+}
+
+export type GenerateAgentResponseResult =
+  | { ok: true; data: AgentResponse }
+  | { ok: false; error: DomainError };
+`````
+
+## File: modules/agent/domain/entities/message.ts
+`````typescript
+/**
+ * modules/agent — domain entity: Message
+ */
+
+import type { ID } from "@shared-types";
+
+export type MessageRole = "user" | "assistant" | "system";
+
+export interface Message {
+  readonly id: ID;
+  readonly role: MessageRole;
+  readonly content: string;
+  readonly createdAt: string;
+}
+`````
+
+## File: modules/agent/domain/entities/RagQuery.ts
+`````typescript
+/**
+ * @deprecated Retrieval query contracts moved to modules/retrieval.
+ */
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/domain/entities/thread.ts
+`````typescript
+/**
+ * modules/agent — domain entity: Thread
+ */
+
+import type { ID } from "@shared-types";
+import type { Message } from "./message";
+
+export interface Thread {
+  readonly id: ID;
+  readonly messages: Message[];
+  readonly createdAt: string;
+}
+`````
+
+## File: modules/agent/domain/index.ts
+`````typescript
+export type {
+  AgentResponse,
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "./entities/AgentGeneration";
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "./entities/RagQuery";
+export type { AgentRepository } from "./repositories/AgentRepository";
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "./repositories/RagGenerationRepository";
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "./repositories/RagRetrievalRepository";
+`````
+
+## File: modules/agent/domain/repositories/AgentRepository.ts
+`````typescript
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../entities/AgentGeneration";
+
+export interface AgentRepository {
+  generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult>;
+}
+`````
+
+## File: modules/agent/domain/repositories/RagGenerationRepository.ts
+`````typescript
+/**
+ * @deprecated RAG generation contracts moved to modules/retrieval.
+ */
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/domain/repositories/RagRetrievalRepository.ts
+`````typescript
+/**
+ * @deprecated Retrieval repository contracts moved to modules/retrieval.
+ */
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/index.ts
+`````typescript
+export * from "./domain";
+export * from "./application";
+export * from "./infrastructure";
+export * from "./interfaces";
+`````
+
+## File: modules/agent/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
+`````typescript
+/**
+ * @deprecated Retrieval adapter ownership moved to modules/retrieval.
+ */
+export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/infrastructure/firebase/index.ts
+`````typescript
+export { FirebaseRagRetrievalRepository } from "./FirebaseRagRetrievalRepository";
+`````
+
+## File: modules/agent/infrastructure/genkit/client.ts
+`````typescript
+/**
+ * @module modules/agent/infrastructure/genkit/client
+ */
+
+import { googleAI } from "@genkit-ai/google-genai";
+import { genkit } from "genkit";
+
+const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
+
+export type GenkitClientOptions = {
+  model?: string;
+};
+
+export function getConfiguredGenkitModel(model?: string) {
+  return model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL;
+}
+
+export function createGenkitClient(options?: GenkitClientOptions) {
+  return genkit({
+    plugins: [googleAI()],
+    model: getConfiguredGenkitModel(options?.model),
+  });
+}
+
+export const agentClient = createGenkitClient();
+`````
+
+## File: modules/agent/infrastructure/genkit/GenkitAgentRepository.ts
+`````typescript
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+import { agentClient, getConfiguredGenkitModel } from "./client";
+
+export class GenkitAgentRepository implements AgentRepository {
+  async generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
+    try {
+      const response = await agentClient.generate({
+        prompt: input.prompt,
+        ...(input.system ? { system: input.system } : {}),
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      return {
+        ok: true,
+        data: {
+          text: response.text,
+          model: getConfiguredGenkitModel(input.model),
+          finishReason: response.finishReason ? String(response.finishReason) : undefined,
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_GENERATE_FAILED",
+          message:
+            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
+        },
+      };
+    }
+  }
+}
+`````
+
+## File: modules/agent/infrastructure/genkit/index.ts
+`````typescript
+/**
+ * @module modules/agent/infrastructure/genkit
+ */
+
+export {
+  agentClient,
+  createGenkitClient,
+  getConfiguredGenkitModel,
+  type GenkitClientOptions,
+} from "./client";
+export { GenkitAgentRepository } from "./GenkitAgentRepository";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+`````
+
+## File: modules/agent/infrastructure/index.ts
+`````typescript
+export * from "./firebase";
+export * from "./genkit";
+`````
+
+## File: modules/agent/interfaces/_actions/agent.actions.ts
+`````typescript
+"use server";
+
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/retrieval/api";
+import { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+import { GenerateAgentResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
+import { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+import { GenkitAgentRepository } from "../../infrastructure/genkit/GenkitAgentRepository";
+import { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+
+export async function generateAgentResponse(
+  input: GenerateAgentResponseInput,
+): Promise<GenerateAgentResponseResult> {
+  const useCase = new GenerateAgentResponseUseCase(new GenkitAgentRepository());
+  return useCase.execute(input);
+}
+
+export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+  const useCase = new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalRepository(),
+    new GenkitRagGenerationRepository(),
+  );
+  return useCase.execute(input);
+}
+`````
+
+## File: modules/agent/interfaces/index.ts
+`````typescript
+export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
+`````
+
 ## File: modules/ai/AGENT.md
 `````markdown
 # AI Domain Agent Rules
@@ -16676,11 +20950,9 @@ output:
 ## File: modules/ai/api/index.ts
 `````typescript
 /**
- * modules/ai — public API barrel.
+ * @deprecated modules/ai API moved to modules/agent/api.
  */
-
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
+export * from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/application/.gitkeep
@@ -16690,178 +20962,18 @@ export type { Thread } from "../domain/entities/thread";
 
 ## File: modules/ai/application/index.ts
 `````typescript
-export { GenerateAIResponseUseCase } from "./use-cases/generate-ai-response.use-case";
-export { AnswerRagQueryUseCase } from "./use-cases/answer-rag-query.use-case";
-`````
-
-## File: modules/ai/application/use-cases/answer-rag-query.use-case.ts
-`````typescript
-import { randomUUID } from "node:crypto";
-
-import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
-import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
-import type {
-  AnswerRagQueryInput,
-  AnswerRagQueryResult,
-  RagRetrievalSummary,
-} from "../../domain/entities/RagQuery";
-
-// Keep the default retrieval window small enough for prompt assembly while still leaving
-// a broader cap for future rerank experiments on the same contract.
-const DEFAULT_TOP_K = 5;
-const MAX_TOP_K = 10;
-
-function normalizeTopK(value?: number) {
-  if (value === undefined) {
-    return DEFAULT_TOP_K;
-  }
-
-  if (!Number.isFinite(value)) {
-    return DEFAULT_TOP_K;
-  }
-
-  return Math.min(MAX_TOP_K, Math.max(1, Math.trunc(value)));
-}
-
-export class AnswerRagQueryUseCase {
-  constructor(
-    private readonly ragRetrievalRepository: RagRetrievalRepository,
-    private readonly ragGenerationRepository: RagGenerationRepository,
-  ) {}
-
-  async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-    const organizationId = input.organizationId.trim();
-    const workspaceId = input.workspaceId?.trim() || undefined;
-    const userQuery = input.userQuery.trim();
-    const taxonomy = input.taxonomy?.trim() || undefined;
-    const topK = normalizeTopK(input.topK);
-    const traceId = `rag-trace-${randomUUID()}`;
-    const scope = workspaceId ? "workspace" : "organization";
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: {
-          code: "QUERY_FILTER_SCOPE_MISSING",
-          message: "Organization is required for RAG queries.",
-          context: { traceId, scope: "organizationId" },
-        },
-      };
-    }
-
-    if (!userQuery) {
-      return {
-        ok: false,
-        error: {
-          code: "QUERY_INVALID_INPUT",
-          message: "User query is required.",
-          context: { traceId },
-        },
-      };
-    }
-
-    const chunks = await this.ragRetrievalRepository.retrieve({
-      organizationId,
-      ...(workspaceId ? { workspaceId } : {}),
-      normalizedQuery: userQuery.toLowerCase(),
-      taxonomy,
-      topK,
-    });
-
-    if (chunks.length === 0) {
-      return {
-        ok: false,
-        error: {
-          code: "NO_RELEVANT_CHUNKS",
-          message:
-            "No ready chunks matched the current organization/workspace scope. Verify ingestion completed and documents are marked ready before querying.",
-          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
-        },
-      };
-    }
-
-    const generation = await this.ragGenerationRepository.generate({
-      traceId,
-      organizationId,
-      ...(workspaceId ? { workspaceId } : {}),
-      userQuery,
-      chunks,
-      model: input.model,
-    });
-
-    if (!generation.ok) {
-      return generation;
-    }
-
-    const retrievalSummary: RagRetrievalSummary = {
-      mode: "skeleton-metadata-filter",
-      scope,
-      retrievedChunkCount: chunks.length,
-      topK,
-      ...(taxonomy ? { taxonomy } : {}),
-    };
-
-    return {
-      ok: true,
-      data: {
-        answer: generation.data.answer,
-        citations: generation.data.citations,
-        retrievalSummary,
-        model: generation.data.model,
-        traceId,
-        events: [
-          {
-            type: "token",
-            traceId,
-            payload: generation.data.answer,
-          },
-          ...generation.data.citations.map((citation) => ({
-            type: "citation" as const,
-            traceId,
-            payload: citation,
-          })),
-          {
-            type: "done",
-            traceId,
-            payload: retrievalSummary,
-          },
-        ],
-      },
-    };
-  }
-}
+export {
+	GenerateAgentResponseUseCase as GenerateAIResponseUseCase,
+	AnswerRagQueryUseCase,
+} from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/application/use-cases/generate-ai-response.use-case.ts
 `````typescript
-import type {
-  GenerateAIResponseInput,
-  GenerateAIResponseResult,
-} from "../../domain/entities/AIGeneration";
-import type { AIRepository } from "../../domain/repositories/AIRepository";
-
-export class GenerateAIResponseUseCase {
-  constructor(private readonly aiRepository: AIRepository) {}
-
-  async execute(input: GenerateAIResponseInput): Promise<GenerateAIResponseResult> {
-    const prompt = input.prompt.trim();
-    if (!prompt) {
-      return {
-        ok: false,
-        error: {
-          code: "AI_PROMPT_REQUIRED",
-          message: "AI prompt is required.",
-        },
-      };
-    }
-
-    return this.aiRepository.generateResponse({
-      ...input,
-      prompt,
-      ...(typeof input.system === "string" ? { system: input.system.trim() } : {}),
-    });
-  }
-}
+/**
+ * @deprecated AI response use-case moved to modules/agent.
+ */
+export { GenerateAgentResponseUseCase as GenerateAIResponseUseCase } from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/domain/.gitkeep
@@ -16871,140 +20983,38 @@ export class GenerateAIResponseUseCase {
 
 ## File: modules/ai/domain/entities/AIGeneration.ts
 `````typescript
-import type { DomainError } from "@shared-types";
-
-export interface GenerateAIResponseInput {
-  readonly prompt: string;
-  readonly model?: string;
-  readonly system?: string;
-}
-
-export interface AIResponse {
-  readonly text: string;
-  readonly model: string;
-  readonly finishReason?: string;
-}
-
-export type GenerateAIResponseResult =
-  | { ok: true; data: AIResponse }
-  | { ok: false; error: DomainError };
+/**
+ * @deprecated AI generation contracts moved to modules/agent.
+ */
+export type {
+  AgentResponse as AIResponse,
+  GenerateAgentResponseInput as GenerateAIResponseInput,
+  GenerateAgentResponseResult as GenerateAIResponseResult,
+} from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/domain/entities/message.ts
 `````typescript
 /**
- * modules/ai — domain entity: Message
- *
- * A single message exchanged within an AI conversation Thread.
+ * @deprecated Message contract moved to modules/agent.
  */
-
-import type { ID } from "@shared-types";
-
-/** Who authored the message */
-export type MessageRole = "user" | "assistant" | "system";
-
-/** A single turn in a conversation */
-export interface Message {
-  /** Unique identifier */
-  readonly id: ID;
-  /** Author role */
-  readonly role: MessageRole;
-  /** Text content of the message */
-  readonly content: string;
-  /** Timestamp (ISO 8601) */
-  readonly createdAt: string;
-}
-`````
-
-## File: modules/ai/domain/entities/RagQuery.ts
-`````typescript
-import type { DomainError } from "@shared-types";
-
-export interface RagRetrievedChunk {
-  readonly chunkId: string;
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly taxonomy: string;
-  readonly text: string;
-  readonly score: number;
-}
-
-export interface RagCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-
-export interface RagRetrievalSummary {
-  readonly mode: "skeleton-metadata-filter";
-  readonly scope: "organization" | "workspace";
-  readonly retrievedChunkCount: number;
-  readonly topK: number;
-  readonly taxonomy?: string;
-}
-
-export interface RagStreamEvent {
-  readonly type: "token" | "citation" | "done" | "error";
-  readonly traceId: string;
-  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
-}
-
-export interface AnswerRagQueryInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly taxonomy?: string;
-  readonly topK?: number;
-  readonly model?: string;
-}
-
-export interface AnswerRagQueryOutput {
-  readonly answer: string;
-  readonly citations: readonly RagCitation[];
-  readonly retrievalSummary: RagRetrievalSummary;
-  readonly model: string;
-  readonly traceId: string;
-  readonly events: readonly RagStreamEvent[];
-}
-
-export type AnswerRagQueryResult =
-  | { ok: true; data: AnswerRagQueryOutput }
-  | { ok: false; error: DomainError };
+export type { Message, MessageRole } from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/domain/entities/thread.ts
 `````typescript
 /**
- * modules/ai — domain entity: Thread
- *
- * A Thread is the aggregate that groups a sequence of Messages for a single
- * AI conversation session.
+ * @deprecated Thread contract moved to modules/agent.
  */
-
-import type { ID } from "@shared-types";
-import type { Message } from "./message";
-
-/** An AI conversation thread */
-export interface Thread {
-  /** Unique identifier */
-  readonly id: ID;
-  /** Ordered list of messages in this thread */
-  readonly messages: Message[];
-  /** Timestamp the thread was created (ISO 8601) */
-  readonly createdAt: string;
-}
+export type { Thread } from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/domain/index.ts
 `````typescript
 export type {
-  AIResponse,
-  GenerateAIResponseInput,
-  GenerateAIResponseResult,
-} from "./entities/AIGeneration";
-export type {
+  AgentResponse as AIResponse,
+  GenerateAgentResponseInput as GenerateAIResponseInput,
+  GenerateAgentResponseResult as GenerateAIResponseResult,
   AnswerRagQueryInput,
   AnswerRagQueryOutput,
   AnswerRagQueryResult,
@@ -17012,221 +21022,48 @@ export type {
   RagRetrievedChunk,
   RagRetrievalSummary,
   RagStreamEvent,
-} from "./entities/RagQuery";
-export type { AIRepository } from "./repositories/AIRepository";
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+  AgentRepository as AIRepository,
+} from "@/modules/agent/api";
+`````
+
+## File: modules/ai/domain/repositories/AIRepository.ts
+`````typescript
+/**
+ * @deprecated AI repository contract moved to modules/agent.
+ */
+export type { AgentRepository as AIRepository } from "@/modules/agent/api";
+`````
+
+## File: modules/ai/domain/repositories/RagGenerationRepository.ts
+`````typescript
+/**
+ * @deprecated RAG generation contracts moved to modules/retrieval.
+ */
 export type {
   GenerateRagAnswerInput,
   GenerateRagAnswerOutput,
   GenerateRagAnswerResult,
   RagGenerationRepository,
-} from "./repositories/RagGenerationRepository";
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "./repositories/RagRetrievalRepository";
-`````
-
-## File: modules/ai/domain/repositories/AIRepository.ts
-`````typescript
-import type { GenerateAIResponseInput, GenerateAIResponseResult } from "../entities/AIGeneration";
-
-export interface AIRepository {
-  generateResponse(input: GenerateAIResponseInput): Promise<GenerateAIResponseResult>;
-}
-`````
-
-## File: modules/ai/domain/repositories/RagGenerationRepository.ts
-`````typescript
-import type { DomainError } from "@shared-types";
-
-import type { RagCitation, RagRetrievedChunk } from "../entities/RagQuery";
-
-export interface GenerateRagAnswerInput {
-  readonly traceId: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly chunks: readonly RagRetrievedChunk[];
-  readonly model?: string;
-}
-
-export interface GenerateRagAnswerOutput {
-  readonly answer: string;
-  readonly citations: readonly RagCitation[];
-  readonly model: string;
-}
-
-export type GenerateRagAnswerResult =
-  | { ok: true; data: GenerateRagAnswerOutput }
-  | { ok: false; error: DomainError };
-
-export interface RagGenerationRepository {
-  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
-}
-`````
-
-## File: modules/ai/domain/repositories/RagRetrievalRepository.ts
-`````typescript
-import type { RagRetrievedChunk } from "../entities/RagQuery";
-
-export interface RetrieveRagChunksInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly normalizedQuery: string;
-  readonly taxonomy?: string;
-  readonly topK: number;
-}
-
-export interface RagRetrievalRepository {
-  retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]>;
-}
+} from "@/modules/retrieval/api";
 `````
 
 ## File: modules/ai/index.ts
 `````typescript
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
+/**
+ * @deprecated modules/ai ownership moved to modules/agent.
+ */
+export * from "@/modules/agent";
 `````
 
 ## File: modules/ai/infrastructure/.gitkeep
 `````
 
-`````
-
-## File: modules/ai/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
-`````typescript
-import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { RagRetrievedChunk } from "../../domain/entities/RagQuery";
-import type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "../../domain/repositories/RagRetrievalRepository";
-
-interface FirestoreRagDocument {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly status?: string;
-  readonly taxonomy?: string;
-}
-
-// Over-fetch ready documents so the skeleton retriever can survive organization/workspace
-// filtering and still leave enough candidates for chunk scoring before generation.
-const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
-const MIN_DOCUMENT_LIMIT = 20;
-// Pull a wider chunk candidate set because taxonomy and score filtering can drop many results
-// before the final top-k prompt window is assembled.
-const CHUNK_OVER_FETCH_MULTIPLIER = 10;
-const MIN_CHUNK_LIMIT = 50;
-
-interface FirestoreRagChunk {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly docId?: string;
-  readonly text?: string;
-  readonly taxonomy?: string;
-  readonly page?: number;
-  readonly chunkIndex?: number;
-}
-
-function tokenize(value: string): readonly string[] {
-  // The regex keeps ASCII letters/digits plus the basic CJK Unified Ideographs block
-  // (`\u4e00-\u9fff`), which covers common Chinese characters but excludes the wider CJK
-  // extensions, supplementary ideographs, and compatibility ideographs.
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
-    .map((token) => token.trim())
-    .filter(Boolean);
-}
-
-function scoreChunk(queryTokens: readonly string[], text: string) {
-  if (queryTokens.length === 0) {
-    return 0;
-  }
-
-  const haystack = tokenize(text);
-  if (haystack.length === 0) {
-    return 0;
-  }
-
-  const matches = queryTokens.filter((token) => haystack.includes(token)).length;
-  return matches / queryTokens.length;
-}
-
-export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
-    // Prefer workspace-scoped retrieval whenever the caller has that boundary available.
-    // Organization-only scope is reserved for deliberate cross-workspace discovery flows;
-    // it broadens collection-group scans across every workspace in the organization and
-    // should therefore be treated as the higher-cost, broader-recall mode.
-    const documentsQuery = query(
-      collectionGroup(this.db, "documents"),
-      where("organizationId", "==", input.organizationId),
-      where("status", "==", "ready"),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
-    );
-
-    const documentSnapshots = await getDocs(documentsQuery);
-    const readyDocumentIds = new Set(
-      documentSnapshots.docs
-        .filter((snapshot) => {
-          const data = snapshot.data() as FirestoreRagDocument;
-          return data.status === "ready";
-        })
-        .map((snapshot) => snapshot.id),
-    );
-
-    if (readyDocumentIds.size === 0) {
-      return [];
-    }
-
-    const chunkQuery = query(
-      collectionGroup(this.db, "chunks"),
-      where("organizationId", "==", input.organizationId),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
-    );
-
-    const chunkSnapshots = await getDocs(chunkQuery);
-    const queryTokens = tokenize(input.normalizedQuery);
-
-    return chunkSnapshots.docs
-      .map((snapshot) => {
-        const data = snapshot.data() as FirestoreRagChunk;
-        const text = typeof data.text === "string" ? data.text : "";
-        const docId = typeof data.docId === "string" ? data.docId : "";
-        return {
-          chunkId: snapshot.id,
-          docId,
-          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
-          page: typeof data.page === "number" ? data.page : undefined,
-          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
-          text,
-          score: scoreChunk(queryTokens, text),
-          organizationId:
-            typeof data.organizationId === "string" ? data.organizationId : undefined,
-          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-        };
-      })
-      .filter(
-        (chunk) =>
-          chunk.docId && readyDocumentIds.has(chunk.docId) && chunk.score > 0,
-      )
-      .sort((left, right) => right.score - left.score)
-      .slice(0, input.topK)
-      .map(({ organizationId: _organizationId, workspaceId: _workspaceId, ...chunk }) => chunk);
-  }
-}
 `````
 
 ## File: modules/ai/infrastructure/firebase/index.ts
@@ -17237,187 +21074,50 @@ export { FirebaseRagRetrievalRepository } from "./FirebaseRagRetrievalRepository
 ## File: modules/ai/infrastructure/genkit/client.ts
 `````typescript
 /**
- * @module modules/ai/infrastructure/genkit/client
+ * @deprecated AI genkit client moved to modules/agent.
  */
-
-import { googleAI } from "@genkit-ai/google-genai";
-import { genkit } from "genkit";
-
-const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
-
-export type GenkitClientOptions = {
-  model?: string;
-};
-
-export function getConfiguredGenkitModel(model?: string) {
-  return model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL;
-}
-
-export function createGenkitClient(options?: GenkitClientOptions) {
-  return genkit({
-    plugins: [googleAI()],
-    model: getConfiguredGenkitModel(options?.model),
-  });
-}
-
-export const aiClient = createGenkitClient();
+export {
+  agentClient as aiClient,
+  createGenkitClient,
+  getConfiguredGenkitModel,
+  type GenkitClientOptions,
+} from "@/modules/agent/infrastructure/genkit/client";
 `````
 
 ## File: modules/ai/infrastructure/genkit/GenkitAIRepository.ts
 `````typescript
-import type {
-  GenerateAIResponseInput,
-  GenerateAIResponseResult,
-} from "../../domain/entities/AIGeneration";
-import type { AIRepository } from "../../domain/repositories/AIRepository";
-import { aiClient, getConfiguredGenkitModel } from "./client";
-
-export class GenkitAIRepository implements AIRepository {
-  async generateResponse(input: GenerateAIResponseInput): Promise<GenerateAIResponseResult> {
-    try {
-      const response = await aiClient.generate({
-        prompt: input.prompt,
-        ...(input.system ? { system: input.system } : {}),
-        ...(input.model ? { model: input.model } : {}),
-      });
-
-      return {
-        ok: true,
-        data: {
-          text: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          finishReason: response.finishReason ? String(response.finishReason) : undefined,
-        },
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "AI_GENERATE_FAILED",
-          message:
-            error instanceof Error ? error.message : `Unexpected AI generation error: ${String(error)}`,
-        },
-      };
-    }
-  }
-}
+/**
+ * @deprecated AI generation adapter moved to modules/agent.
+ */
+export { GenkitAgentRepository as GenkitAIRepository } from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/infrastructure/genkit/GenkitRagGenerationRepository.ts
 `````typescript
-import type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "../../domain/repositories/RagGenerationRepository";
-import { aiClient, getConfiguredGenkitModel } from "./client";
-
-function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
-  const pageLabel = typeof input.page === "number" ? ` page:${input.page}` : "";
-  return `[doc:${input.docId} chunk:${input.chunkIndex}${pageLabel} taxonomy:${input.taxonomy}]\n${input.text}`;
-}
-
-function buildPrompt(input: GenerateRagAnswerInput) {
-  const context = input.chunks.map((chunk) => formatChunkForPrompt(chunk)).join("\n\n---\n\n");
-
-  return [
-    "Use the retrieved context to answer the user query.",
-    "If the context is incomplete, answer conservatively and keep citations grounded in the retrieved chunks.",
-    `User query: ${input.userQuery}`,
-    "Retrieved context:",
-    context,
-  ].join("\n\n");
-}
-
-export class GenkitRagGenerationRepository implements RagGenerationRepository {
-  async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
-    try {
-      const response = await aiClient.generate({
-        prompt: buildPrompt(input),
-        system:
-          "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.",
-        ...(input.model ? { model: input.model } : {}),
-      });
-
-      return {
-        ok: true,
-        data: {
-          answer: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          citations: input.chunks.map((chunk) => ({
-            docId: chunk.docId,
-            chunkIndex: chunk.chunkIndex,
-            ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
-            reason: `Retrieved from ${chunk.taxonomy} context with score ${chunk.score.toFixed(2)}.`,
-          })),
-        },
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "FLOW_MODEL_PROVIDER_ERROR",
-          message:
-            error instanceof Error ? error.message : `Unexpected RAG generation error: ${String(error)}`,
-          context: { traceId: input.traceId },
-        },
-      };
-    }
-  }
-}
+/**
+ * @deprecated RAG generation adapter moved to modules/retrieval.
+ */
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
 `````
 
 ## File: modules/ai/infrastructure/genkit/index.ts
 `````typescript
 /**
- * @module modules/ai/infrastructure/genkit
+ * @deprecated AI genkit infrastructure moved to modules/agent.
  */
-
 export {
   aiClient,
   createGenkitClient,
   getConfiguredGenkitModel,
   type GenkitClientOptions,
-} from "./client";
-export { GenkitAIRepository } from "./GenkitAIRepository";
-export { GenkitRagGenerationRepository } from "./GenkitRagGenerationRepository";
+  GenkitAIRepository,
+  GenkitRagGenerationRepository,
+} from "@/modules/agent/api";
 `````
 
 ## File: modules/ai/infrastructure/index.ts
 `````typescript
-export * from "./firebase";
-export * from "./genkit";
-`````
-
-## File: modules/ai/interfaces/_actions/ai.actions.ts
-`````typescript
-"use server";
-
-import type {
-  GenerateAIResponseInput,
-  GenerateAIResponseResult,
-} from "../../domain/entities/AIGeneration";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "../../domain/entities/RagQuery";
-import { AnswerRagQueryUseCase } from "../../application/use-cases/answer-rag-query.use-case";
-import { GenerateAIResponseUseCase } from "../../application/use-cases/generate-ai-response.use-case";
-import { FirebaseRagRetrievalRepository } from "../../infrastructure/firebase/FirebaseRagRetrievalRepository";
-import { GenkitAIRepository } from "../../infrastructure/genkit/GenkitAIRepository";
-import { GenkitRagGenerationRepository } from "../../infrastructure/genkit/GenkitRagGenerationRepository";
-
-export async function generateAIResponse(
-  input: GenerateAIResponseInput,
-): Promise<GenerateAIResponseResult> {
-  const useCase = new GenerateAIResponseUseCase(new GenkitAIRepository());
-  return useCase.execute(input);
-}
-
-export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-  const useCase = new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalRepository(),
-    new GenkitRagGenerationRepository(),
-  );
-  return useCase.execute(input);
-}
+export * from "@/modules/agent/infrastructure";
 `````
 
 ## File: modules/ai/interfaces/.gitkeep
@@ -17553,2703 +21253,87 @@ interface GraphDataDTO {
 - `getSimilarBlocks(text: string, threshold: number): Promise<Result<ScoredBlockDTO[]>>`
 `````
 
-## File: modules/asset/api/index.ts
+## File: modules/content/api/content-api.ts
 `````typescript
 /**
- * Module: asset
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Asset domain.
+ * Module: content
+ * Layer: api (cross-module facade)
+ * Purpose: ContentApi — lightweight facade that wires in-memory adapters and
+ *          exposes the minimal surface needed by the demo-flow script and by
+ *          other modules that communicate through the event bus.
  *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+ * This is intentionally separate from ContentFacade (which uses Firebase).
+ * ContentApi uses InMemory repos so it can run without any external service.
  */
 
-// --- Core entity types -------------------------------------------------------
+import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+import type { ContentBlock } from "../domain/entities/content-block.entity";
+import type { ContentPage } from "../domain/entities/content-page.entity";
+import { BlockService } from "../application/block-service";
+import {
+  InMemoryContentPageRepository,
+  InMemoryContentBlockRepository,
+} from "../infrastructure/InMemoryContentRepository";
 
-// --- Query functions ---------------------------------------------------------
+export class ContentApi {
+  private readonly pageRepo: InMemoryContentPageRepository;
+  private readonly blockRepo: InMemoryContentBlockRepository;
+  private readonly blockService: BlockService;
 
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
-
-// --- UI components (cross-module public) -------------------------------------
-
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-`````
-
-## File: modules/asset/application/dto/file.dto.ts
-`````typescript
-import type { File } from "../../domain/entities/File";
-import type { RagDocumentStatus } from "../../domain/repositories/RagDocumentRepository";
-
-export interface WorkspaceFileListItemDto {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly name: string;
-  readonly status: File["status"];
-  readonly kind: File["classification"];
-  readonly source: string;
-  readonly detail: string;
-  readonly href?: string;
-}
-
-export interface UploadInitFileInputDto {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-  readonly fileName: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly idempotencyKey?: string;
-}
-
-export interface UploadInitFileOutputDto {
-  readonly fileId: string;
-  readonly versionId: string;
-  readonly uploadPath: string;
-  readonly uploadToken: string;
-  readonly expiresAtISO: string;
-}
-
-export interface UploadCompleteFileInputDto {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-  readonly fileId: string;
-  readonly versionId: string;
-}
-
-export interface UploadCompleteFileOutputDto {
-  readonly fileId: string;
-  readonly versionId: string;
-  readonly status: "active";
-  readonly ragDocumentId: string;
-  readonly ragDocumentStatus: RagDocumentStatus;
-}
-
-export type FileCommandErrorCode =
-  | "FILE_WORKSPACE_REQUIRED"
-  | "FILE_ORGANIZATION_REQUIRED"
-  | "FILE_ACTOR_REQUIRED"
-  | "FILE_NAME_REQUIRED"
-  | "FILE_ID_REQUIRED"
-  | "FILE_VERSION_REQUIRED"
-  | "FILE_VERSION_NOT_FOUND"
-  | "FILE_INVALID_SIZE"
-  | "FILE_NOT_FOUND"
-  | "FILE_SCOPE_MISMATCH"
-  | "FILE_STATUS_CONFLICT"
-  | "FILE_RAG_REGISTRATION_FAILED";
-`````
-
-## File: modules/asset/application/dto/rag-document.dto.ts
-`````typescript
-export interface RegisterUploadedRagDocumentInputDto {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  /** Account ID of the actor who uploaded this document. */
-  readonly accountId: string;
-  readonly title: string;
-  readonly sourceFileName: string;
-  readonly mimeType: string;
-  readonly storagePath: string;
-  readonly sizeBytes?: number;
-  readonly checksum?: string;
-  readonly taxonomy?: string;
-  readonly category?: string;
-  readonly department?: string;
-  readonly tags?: readonly string[];
-  readonly language?: string;
-  readonly accessControl?: readonly string[];
-  readonly versionGroupId?: string;
-  readonly versionNumber?: number;
-  readonly updateLog?: string;
-  readonly expiresAtISO?: string;
-}
-
-export interface RegisterUploadedRagDocumentOutputDto {
-  readonly documentId: string;
-  readonly status: "uploaded";
-  readonly registeredAtISO: string;
-}
-
-export type RegisterUploadedRagDocumentResult =
-  | {
-      ok: true;
-      data: RegisterUploadedRagDocumentOutputDto;
-      commandId: string;
-    }
-  | {
-      ok: false;
-      error: {
-        code:
-          | "RAG_ORGANIZATION_REQUIRED"
-          | "RAG_WORKSPACE_REQUIRED"
-          | "RAG_ACCOUNT_ID_REQUIRED"
-          | "RAG_TITLE_REQUIRED"
-          | "RAG_FILE_NAME_REQUIRED"
-          | "RAG_MIME_TYPE_REQUIRED"
-          | "RAG_STORAGE_PATH_REQUIRED";
-        message: string;
-      };
-      commandId: string;
-    };
-`````
-
-## File: modules/asset/application/index.ts
-`````typescript
-export * from "./dto/file.dto";
-export * from "./dto/rag-document.dto";
-export * from "./use-cases/list-workspace-files.use-case";
-export * from "./use-cases/upload-init-file.use-case";
-export * from "./use-cases/upload-complete-file.use-case";
-export * from "./use-cases/register-uploaded-rag-document.use-case";
-`````
-
-## File: modules/asset/application/use-cases/list-workspace-files.use-case.ts
-`````typescript
-import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
-import type { WorkspaceFileListItemDto } from "../dto/file.dto";
-
-const DEFAULT_FILE_SOURCE = "file-module";
-const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
-
-export class ListWorkspaceFilesUseCase {
-  constructor(private readonly fileRepository: FileRepository) {}
-
-  async execute(scope: ListWorkspaceFilesScope): Promise<WorkspaceFileListItemDto[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    const actorAccountId = scope.actorAccountId.trim();
-
-    if (!workspaceId || !organizationId || !actorAccountId) {
-      return [];
-    }
-
-    const files = await this.fileRepository.listByWorkspace({
-      workspaceId,
-      organizationId,
-      actorAccountId,
-    });
-
-    return files.map((file) => ({
-      id: file.id,
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      name: file.name,
-      status: file.status,
-      kind: file.classification,
-      source: file.source ?? DEFAULT_FILE_SOURCE,
-      detail: file.detail ?? DEFAULT_FILE_DETAIL,
-      href: file.href,
-    }));
+  constructor(eventBus: SimpleEventBus) {
+    this.pageRepo = new InMemoryContentPageRepository();
+    this.blockRepo = new InMemoryContentBlockRepository();
+    this.blockService = new BlockService(this.blockRepo, eventBus);
   }
-}
-`````
 
-## File: modules/asset/application/use-cases/register-uploaded-rag-document.use-case.ts
-`````typescript
-import { randomUUID } from "node:crypto";
+  /** Create a new page in the in-memory store. */
+  async createPage(
+    accountId: string,
+    title: string,
+    createdByUserId = "system",
+  ): Promise<ContentPage> {
+    return this.pageRepo.create({ accountId, title, createdByUserId });
+  }
 
-import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentOutputDto,
-} from "../dto/rag-document.dto";
-
-type RegisterUploadedRagDocumentUseCaseResult =
-  | { ok: true; data: RegisterUploadedRagDocumentOutputDto }
-  | {
-      ok: false;
-      error: {
-        code:
-          | "RAG_ORGANIZATION_REQUIRED"
-          | "RAG_WORKSPACE_REQUIRED"
-          | "RAG_ACCOUNT_ID_REQUIRED"
-          | "RAG_TITLE_REQUIRED"
-          | "RAG_FILE_NAME_REQUIRED"
-          | "RAG_MIME_TYPE_REQUIRED"
-          | "RAG_STORAGE_PATH_REQUIRED";
-        message: string;
-      };
-    };
-
-export class RegisterUploadedRagDocumentUseCase {
-  constructor(private readonly ragDocumentRepository: RagDocumentRepository) {}
-
-  async execute(
-    input: RegisterUploadedRagDocumentInputDto,
-  ): Promise<RegisterUploadedRagDocumentUseCaseResult> {
-    const organizationId = input.organizationId.trim();
-    const workspaceId = input.workspaceId.trim();
-    const accountId = input.accountId.trim();
-    const title = input.title.trim();
-    const sourceFileName = input.sourceFileName.trim();
-    const mimeType = input.mimeType.trim();
-    const storagePath = input.storagePath.trim();
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: { code: "RAG_ORGANIZATION_REQUIRED", message: "Organization is required." },
-      };
-    }
-
-    if (!workspaceId) {
-      return {
-        ok: false,
-        error: { code: "RAG_WORKSPACE_REQUIRED", message: "Workspace is required." },
-      };
-    }
-
-    if (!accountId) {
-      return {
-        ok: false,
-        error: { code: "RAG_ACCOUNT_ID_REQUIRED", message: "Account ID is required." },
-      };
-    }
-
-    if (!title) {
-      return {
-        ok: false,
-        error: { code: "RAG_TITLE_REQUIRED", message: "Document title is required." },
-      };
-    }
-
-    if (!sourceFileName) {
-      return {
-        ok: false,
-        error: { code: "RAG_FILE_NAME_REQUIRED", message: "Source file name is required." },
-      };
-    }
-
-    if (!mimeType) {
-      return {
-        ok: false,
-        error: { code: "RAG_MIME_TYPE_REQUIRED", message: "Mime type is required." },
-      };
-    }
-
-    if (!storagePath) {
-      return {
-        ok: false,
-        error: { code: "RAG_STORAGE_PATH_REQUIRED", message: "Storage path is required." },
-      };
-    }
-
-    const nowISO = new Date().toISOString();
-    const documentId = `rag-document-${randomUUID()}`;
-    const versionGroupId = input.versionGroupId?.trim() ? input.versionGroupId.trim() : documentId;
-
-    await this.ragDocumentRepository.saveUploaded({
-      id: documentId,
-      organizationId,
-      workspaceId,
+  /** Add a block to an existing page and return the new block. */
+  async addBlock(accountId: string, pageId: string, text: string): Promise<ContentBlock> {
+    return this.blockRepo.add({
       accountId,
-      displayName: sourceFileName,
-      title,
-      sourceFileName,
-      mimeType,
-      storagePath,
-      sizeBytes: input.sizeBytes ?? 0,
-      status: "uploaded",
-      checksum: input.checksum?.trim() || undefined,
-      taxonomy: input.taxonomy?.trim() || undefined,
-      category: input.category?.trim() || undefined,
-      department: input.department?.trim() || undefined,
-      tags: input.tags ?? [],
-      language: input.language?.trim() || undefined,
-      accessControl: input.accessControl ?? [],
-      versionGroupId,
-      versionNumber: input.versionNumber ?? 1,
-      isLatest: true,
-      updateLog: input.updateLog?.trim() || undefined,
-      expiresAtISO: input.expiresAtISO?.trim() || undefined,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
+      pageId,
+      content: { type: "text", text },
     });
-
-    return {
-      ok: true,
-      data: {
-        documentId,
-        status: "uploaded",
-        registeredAtISO: nowISO,
-      },
-    };
-  }
-}
-`````
-
-## File: modules/asset/application/use-cases/upload-complete-file.use-case.ts
-`````typescript
-import type { File } from "../../domain/entities/File";
-import type { FileRepository } from "../../domain/repositories/FileRepository";
-import { completeUploadFile } from "../../domain/services/complete-upload-file";
-import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
-import type {
-  FileCommandErrorCode,
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-} from "../dto/file.dto";
-import { RegisterUploadedRagDocumentUseCase } from "./register-uploaded-rag-document.use-case";
-
-type UploadCompleteFileUseCaseResult =
-  | { ok: true; data: UploadCompleteFileOutputDto }
-  | { ok: false; error: { code: FileCommandErrorCode; message: string } };
-
-function isFileScopeMatch(input: {
-  readonly file: File;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-  readonly versionId: string;
-}): boolean {
-  return (
-    input.file.workspaceId === input.workspaceId &&
-    input.file.organizationId === input.organizationId &&
-    input.file.accountId === input.actorAccountId &&
-    input.file.currentVersionId === input.versionId
-  );
-}
-
-function isFileAlreadyCompleted(file: File): boolean {
-  return file.source === "file-upload-complete";
-}
-
-export class UploadCompleteFileUseCase {
-  constructor(
-    private readonly fileRepository: FileRepository,
-    private readonly ragDocumentRepository: RagDocumentRepository,
-  ) {}
-
-  async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteFileUseCaseResult> {
-    const workspaceId = input.workspaceId.trim();
-    const organizationId = input.organizationId.trim();
-    const actorAccountId = input.actorAccountId.trim();
-    const fileId = input.fileId.trim();
-    const versionId = input.versionId.trim();
-
-    if (!workspaceId) {
-      return {
-        ok: false,
-        error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." },
-      };
-    }
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." },
-      };
-    }
-
-    if (!actorAccountId) {
-      return {
-        ok: false,
-        error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." },
-      };
-    }
-
-    if (!fileId) {
-      return {
-        ok: false,
-        error: { code: "FILE_ID_REQUIRED", message: "File id is required." },
-      };
-    }
-
-    if (!versionId) {
-      return {
-        ok: false,
-        error: { code: "FILE_VERSION_REQUIRED", message: "Version id is required." },
-      };
-    }
-
-    const file = await this.fileRepository.findById(fileId);
-    if (!file) {
-      return {
-        ok: false,
-        error: { code: "FILE_NOT_FOUND", message: "File metadata not found." },
-      };
-    }
-
-    const version = await this.fileRepository.findVersion(fileId, versionId);
-    if (!version) {
-      return {
-        ok: false,
-        error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." },
-      };
-    }
-
-    if (
-      !isFileScopeMatch({
-        file,
-        workspaceId,
-        organizationId,
-        actorAccountId,
-        versionId,
-      })
-    ) {
-      return {
-        ok: false,
-        error: {
-          code: "FILE_SCOPE_MISMATCH",
-          message: "Upload completion scope does not match file metadata.",
-        },
-      };
-    }
-
-    if (file.status !== "active") {
-      return {
-        ok: false,
-        error: {
-          code: "FILE_STATUS_CONFLICT",
-          message: "File upload completion requires an active file record.",
-        },
-      };
-    }
-
-    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
-      organizationId,
-      workspaceId,
-      storagePath: version.storagePath,
-    });
-
-    const nextFile =
-      isFileAlreadyCompleted(file)
-        ? file
-        : completeUploadFile({
-            file,
-            completedAtISO: new Date().toISOString(),
-          });
-
-    if (!isFileAlreadyCompleted(file)) {
-      await this.fileRepository.save(nextFile);
-    }
-
-    const ragDocument =
-      existingRagDocument === null
-        ? await (async () => {
-            const registerUploadedRagDocumentUseCase = new RegisterUploadedRagDocumentUseCase(
-              this.ragDocumentRepository,
-            );
-            const ragDocumentResult = await registerUploadedRagDocumentUseCase.execute({
-              organizationId,
-              workspaceId,
-              accountId: actorAccountId,
-              title: file.name,
-              sourceFileName: file.name,
-              mimeType: file.mimeType,
-              storagePath: version.storagePath,
-              sizeBytes: file.sizeBytes,
-              checksum: version.checksum,
-              versionNumber: version.versionNumber,
-            });
-            if (!ragDocumentResult.ok) {
-              return ragDocumentResult;
-            }
-
-            return {
-              ok: true as const,
-              data: {
-                documentId: ragDocumentResult.data.documentId,
-                status: ragDocumentResult.data.status,
-              },
-            };
-          })()
-        : {
-            ok: true as const,
-            data: {
-              documentId: existingRagDocument.id,
-              status: existingRagDocument.status,
-            },
-          };
-
-    if (ragDocument.ok === false) {
-      return {
-        ok: false,
-        error: {
-          code: "FILE_RAG_REGISTRATION_FAILED",
-          message: ragDocument.error.message,
-        },
-      };
-    }
-
-    return {
-      ok: true,
-      data: {
-        fileId: nextFile.id,
-        versionId: nextFile.currentVersionId,
-        status: "active",
-        ragDocumentId: ragDocument.data.documentId,
-        ragDocumentStatus: ragDocument.data.status,
-      },
-    };
-  }
-}
-`````
-
-## File: modules/asset/application/use-cases/upload-init-file.use-case.ts
-`````typescript
-import { randomBytes, randomUUID } from "node:crypto";
-
-import type { File } from "../../domain/entities/File";
-import type { FileVersion } from "../../domain/entities/FileVersion";
-import type { FileRepository } from "../../domain/repositories/FileRepository";
-import type {
-  FileCommandErrorCode,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../dto/file.dto";
-
-type UploadInitFileUseCaseResult =
-  | { ok: true; data: UploadInitFileOutputDto }
-  | { ok: false; error: { code: FileCommandErrorCode; message: string } };
-
-function inferClassification(mimeType: string): File["classification"] {
-  if (mimeType.startsWith("image/")) {
-    return "image";
   }
 
-  if (mimeType.includes("json")) {
-    return "manifest";
-  }
-
-  return "other";
-}
-
-function buildUploadPath(
-  organizationId: string,
-  workspaceId: string,
-  fileId: string,
-  fileName: string,
-) {
-  const encodedName = encodeURIComponent(fileName.replace(/\s+/g, "-"));
-  return `organizations/${organizationId}/workspaces/${workspaceId}/files/${fileId}/${encodedName}`;
-}
-
-export class UploadInitFileUseCase {
-  constructor(private readonly fileRepository: FileRepository) {}
-
-  async execute(input: UploadInitFileInputDto): Promise<UploadInitFileUseCaseResult> {
-    const workspaceId = input.workspaceId.trim();
-    const organizationId = input.organizationId.trim();
-    const actorAccountId = input.actorAccountId.trim();
-    const fileName = input.fileName.trim();
-
-    if (!workspaceId) {
-      return {
-        ok: false,
-        error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." },
-      };
-    }
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." },
-      };
-    }
-
-    if (!actorAccountId) {
-      return {
-        ok: false,
-        error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." },
-      };
-    }
-
-    if (!fileName) {
-      return {
-        ok: false,
-        error: { code: "FILE_NAME_REQUIRED", message: "File name is required." },
-      };
-    }
-
-    if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) {
-      return {
-        ok: false,
-        error: { code: "FILE_INVALID_SIZE", message: "File size must be a positive number." },
-      };
-    }
-
-    const createdAtISO = new Date().toISOString();
-    const fileId = `file-${randomUUID()}`;
-    const versionId = `file-version-${randomUUID()}`;
-    const uploadPath = buildUploadPath(organizationId, workspaceId, fileId, fileName);
-
-    const file: File = {
-      id: fileId,
-      workspaceId,
-      organizationId,
-      accountId: actorAccountId,
-      name: fileName,
-      mimeType: input.mimeType,
-      sizeBytes: input.sizeBytes,
-      classification: inferClassification(input.mimeType),
-      tags: [],
-      currentVersionId: versionId,
-      status: "active",
-      source: "file-upload-init",
-      detail: "File metadata persisted before binary upload is completed.",
-      createdAtISO,
-      updatedAtISO: createdAtISO,
-    };
-
-    const version: FileVersion = {
-      id: versionId,
-      fileId,
-      versionNumber: 1,
-      status: "pending",
-      storagePath: uploadPath,
-      createdAtISO,
-    };
-
-    await this.fileRepository.save(file, [version]);
-
-    return {
-      ok: true,
-      data: {
-        fileId,
-        versionId,
-        uploadPath,
-        uploadToken: randomBytes(32).toString("base64url"),
-        expiresAtISO: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      },
-    };
-  }
-}
-`````
-
-## File: modules/asset/domain/entities/AuditRecord.ts
-`````typescript
-export type FileAuditAction =
-  | "upload_init"
-  | "upload_complete"
-  | "list_files"
-  | "download_url_issued"
-  | "archive"
-  | "restore";
-
-export interface AuditRecord {
-  readonly id: string;
-  readonly fileId?: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-  readonly action: FileAuditAction;
-  readonly occurredAtISO: string;
-  readonly detail?: string;
-}
-`````
-
-## File: modules/asset/domain/entities/File.ts
-`````typescript
-export type FileStatus = "active" | "archived" | "deleted";
-
-export interface File {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly classification: "image" | "manifest" | "record" | "other";
-  readonly tags: readonly string[];
-  readonly currentVersionId: string;
-  readonly retentionPolicyId?: string;
-  readonly status: FileStatus;
-  readonly source?: string;
-  readonly detail?: string;
-  readonly href?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-  readonly deletedAtISO?: string;
-}
-
-const ARCHIVEABLE_STATUS: readonly FileStatus[] = ["active"];
-const RESTOREABLE_STATUS: readonly FileStatus[] = ["archived"];
-
-export function canArchiveFile(file: File): boolean {
-  return ARCHIVEABLE_STATUS.includes(file.status);
-}
-
-export function canRestoreFile(file: File): boolean {
-  return RESTOREABLE_STATUS.includes(file.status);
-}
-`````
-
-## File: modules/asset/domain/entities/FileVersion.ts
-`````typescript
-export type FileVersionStatus = "pending" | "stored" | "active" | "superseded";
-
-export interface FileVersion {
-  readonly id: string;
-  readonly fileId: string;
-  readonly versionNumber: number;
-  readonly status: FileVersionStatus;
-  readonly storagePath: string;
-  readonly checksum?: string;
-  readonly createdAtISO: string;
-}
-
-export function isVersionImmutable(version: FileVersion): boolean {
-  return version.status === "active" || version.status === "superseded";
-}
-`````
-
-## File: modules/asset/domain/entities/PermissionSnapshot.ts
-`````typescript
-export interface PermissionSnapshot {
-  readonly actorAccountId: string;
-  readonly actorRole: string;
-  readonly organizationPolicyVersion: number;
-  readonly workspaceGrantVersion: number;
-  readonly canRead: boolean;
-  readonly canUpload: boolean;
-  readonly canDownload: boolean;
-  readonly canArchive: boolean;
-  readonly canRestore: boolean;
-  readonly resolvedAtISO: string;
-}
-`````
-
-## File: modules/asset/domain/entities/RetentionPolicy.ts
-`````typescript
-export interface RetentionPolicy {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly retentionDays: number;
-  readonly legalHold: boolean;
-  readonly purgeMode: "soft-delete" | "hard-delete";
-  readonly updatedAtISO: string;
-}
-`````
-
-## File: modules/asset/domain/index.ts
-`````typescript
-export * from "./entities/File";
-export * from "./entities/FileVersion";
-export * from "./entities/PermissionSnapshot";
-export * from "./entities/RetentionPolicy";
-export * from "./entities/AuditRecord";
-export * from "./repositories/FileRepository";
-export * from "./repositories/RagDocumentRepository";
-export * from "./ports/ActorContextPort";
-export * from "./ports/WorkspaceGrantPort";
-export * from "./ports/OrganizationPolicyPort";
-export * from "./services/resolve-file-organization-id";
-export * from "./services/complete-upload-file";
-`````
-
-## File: modules/asset/domain/ports/ActorContextPort.ts
-`````typescript
-export interface ActorFileContext {
-  readonly actorAccountId: string;
-  readonly actorRole: string;
-  readonly organizationIds: readonly string[];
-}
-
-export interface ActorContextPort {
-  getActorFileContext(actorAccountId: string): ActorFileContext | null;
-}
-`````
-
-## File: modules/asset/domain/ports/OrganizationPolicyPort.ts
-`````typescript
-import type { RetentionPolicy } from "../entities/RetentionPolicy";
-
-export interface OrganizationFilePolicySnapshot {
-  readonly organizationId: string;
-  readonly policyVersion: number;
-  readonly denyRead: boolean;
-  readonly denyUpload: boolean;
-  readonly denyDownload: boolean;
-  readonly denyArchive: boolean;
-  readonly denyRestore: boolean;
-  readonly retentionPolicy?: RetentionPolicy;
-}
-
-export interface OrganizationPolicyPort {
-  getOrganizationFilePolicy(organizationId: string): OrganizationFilePolicySnapshot | null;
-}
-`````
-
-## File: modules/asset/domain/ports/WorkspaceGrantPort.ts
-`````typescript
-export interface WorkspaceGrantSnapshot {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly grantVersion: number;
-  readonly canRead: boolean;
-  readonly canUpload: boolean;
-  readonly canDownload: boolean;
-  readonly canArchive: boolean;
-  readonly canRestore: boolean;
-}
-
-export interface WorkspaceGrantPort {
-  getWorkspaceGrantSnapshot(workspaceId: string, actorAccountId: string): WorkspaceGrantSnapshot | null;
-}
-`````
-
-## File: modules/asset/domain/repositories/FileRepository.ts
-`````typescript
-import type { File } from "../entities/File";
-import type { FileVersion } from "../entities/FileVersion";
-
-export interface ListWorkspaceFilesScope {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-}
-
-export interface FileRepository {
-  findById(fileId: string): Promise<File | null>;
-  findVersion(fileId: string, versionId: string): Promise<FileVersion | null>;
-  listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]>;
-  save(file: File, versions?: readonly FileVersion[]): Promise<void>;
-}
-`````
-
-## File: modules/asset/domain/repositories/RagDocumentRepository.ts
-`````typescript
-export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed" | "archived";
-
-export const ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS: Readonly<
-  Record<RagDocumentStatus, readonly RagDocumentStatus[]>
-> = {
-  uploaded: ["processing"],
-  processing: ["ready", "failed"],
-  ready: ["processing", "archived"],
-  failed: ["processing"],
-  archived: [],
-};
-
-export function canTransitionRagDocumentStatus(
-  fromStatus: RagDocumentStatus,
-  toStatus: RagDocumentStatus,
-): boolean {
-  return ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
-}
-
-/**
- * RAG document record stored in Firestore at:
- * /knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
- *
- * Fields align with knowledge.md §2.1 (files collection spec).
- */
-export interface RagDocumentRecord {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  /** User-visible file name (preserves original filename semantics). */
-  readonly displayName: string;
-  /** System / legacy title (same as displayName for initial uploads). */
-  readonly title: string;
-  readonly sourceFileName: string;
-  readonly mimeType: string;
-  readonly storagePath: string;
-  readonly sizeBytes: number;
-  readonly status: RagDocumentStatus;
-  /** Error detail written back when status is "failed". */
-  readonly statusMessage?: string;
-  readonly checksum?: string;
-  /** Semantic document taxonomy / category hierarchy (e.g. "規章制度"). */
-  readonly taxonomy?: string;
-  readonly category?: string;
-  readonly department?: string;
-  readonly tags?: readonly string[];
-  /** Primary language of the document content (ISO 639-1, e.g. "zh-TW"). */
-  readonly language?: string;
-  /** Allowed OrganizationRole values or accountId allowlist for RBAC. */
-  readonly accessControl?: readonly string[];
   /**
-   * Version group identifier — all versions of the same logical document share
-   * this ID.  Defaults to the document's own id for the first upload.
+   * Update a block's text content.
+   * Publishes `ContentUpdatedEvent` via the event bus so downstream modules
+   * (e.g. knowledge) can react.
    */
-  readonly versionGroupId: string;
-  /** 1-based version counter within the versionGroupId. */
-  readonly versionNumber: number;
-  /** True when this record is the current canonical version for its group. */
-  readonly isLatest: boolean;
-  /** Free-text description of what changed in this version. */
-  readonly updateLog?: string;
-  /** Account ID of the person who uploaded this document. */
-  readonly accountId: string;
-  /** Total chunk count — written back by the ingestion worker after processing. */
-  readonly chunkCount?: number;
-  /** ISO-8601 timestamp set by the ingestion worker when indexing completes. */
-  readonly indexedAtISO?: string;
-  /** ISO-8601 expiry timestamp; the document is auto-archived when reached. */
-  readonly expiresAtISO?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface RagDocumentRepository {
-  findByStoragePath(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly storagePath: string;
-  }): Promise<RagDocumentRecord | null>;
-  findByWorkspace(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly RagDocumentRecord[]>;
-  saveUploaded(record: RagDocumentRecord): Promise<void>;
-}
-`````
-
-## File: modules/asset/domain/services/complete-upload-file.ts
-`````typescript
-import type { File } from "../entities/File";
-
-interface CompleteUploadFileInput {
-  readonly file: File;
-  readonly completedAtISO: string;
-}
-
-export function completeUploadFile(input: CompleteUploadFileInput): File {
-  return {
-    ...input.file,
-    status: "active",
-    updatedAtISO: input.completedAtISO,
-    source: "file-upload-complete",
-    detail: "File upload completed; status set to active and metadata timestamp finalized.",
-  };
-}
-`````
-
-## File: modules/asset/domain/services/resolve-file-organization-id.ts
-`````typescript
-export function resolveFileOrganizationId(
-  accountType: "user" | "organization",
-  accountId: string,
-): string {
-  return accountType === "organization" ? accountId : `personal:${accountId}`;
-}
-`````
-
-## File: modules/asset/index.ts
-`````typescript
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
-`````
-
-## File: modules/asset/infrastructure/firebase/FirebaseFileRepository.ts
-`````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-  writeBatch,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { File } from "../../domain/entities/File";
-import type { FileVersion } from "../../domain/entities/FileVersion";
-import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
-
-const FILE_COLLECTION = "workspaceFiles";
-const VERSION_SUBCOLLECTION = "versions";
-
-interface FirestoreFileDocument {
-  readonly workspaceId?: string;
-  readonly organizationId?: string;
-  readonly accountId?: string;
-  readonly name?: string;
-  readonly mimeType?: string;
-  readonly sizeBytes?: number;
-  readonly classification?: File["classification"];
-  readonly tags?: readonly string[];
-  readonly currentVersionId?: string;
-  readonly retentionPolicyId?: string;
-  readonly status?: File["status"];
-  readonly source?: string;
-  readonly detail?: string;
-  readonly href?: string;
-  readonly createdAtISO?: string;
-  readonly updatedAtISO?: string;
-  readonly deletedAtISO?: string;
-}
-
-interface FirestoreFileVersionDocument {
-  readonly fileId?: string;
-  readonly versionNumber?: number;
-  readonly status?: FileVersion["status"];
-  readonly storagePath?: string;
-  readonly checksum?: string;
-  readonly createdAtISO?: string;
-}
-
-function isFileStatus(value: unknown): value is File["status"] {
-  return value === "active" || value === "archived" || value === "deleted";
-}
-
-function isFileClassification(value: unknown): value is File["classification"] {
-  return value === "image" || value === "manifest" || value === "record" || value === "other";
-}
-
-function toStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) {
-    return [];
+  async updateBlock(
+    accountId: string,
+    blockId: string,
+    text: string,
+  ): Promise<ContentBlock | null> {
+    return this.blockService.updateBlock({ accountId, blockId, text });
   }
 
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function toFileEntity(fileId: string, data: FirestoreFileDocument): File {
-  return {
-    id: fileId,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
-    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
-    classification: isFileClassification(data.classification) ? data.classification : "other",
-    tags: toStringArray(data.tags),
-    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
-    retentionPolicyId:
-      typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
-    status: isFileStatus(data.status) ? data.status : "active",
-    source: typeof data.source === "string" ? data.source : undefined,
-    detail: typeof data.detail === "string" ? data.detail : undefined,
-    href: typeof data.href === "string" ? data.href : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
-  };
-}
-
-function isFileVersionStatus(value: unknown): value is FileVersion["status"] {
-  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
-}
-
-function toFileVersionEntity(versionId: string, data: FirestoreFileVersionDocument): FileVersion {
-  return {
-    id: versionId,
-    fileId: typeof data.fileId === "string" ? data.fileId : "",
-    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
-    status: isFileVersionStatus(data.status) ? data.status : "pending",
-    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
-    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-  };
-}
-
-export class FirebaseFileRepository implements FileRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, FILE_COLLECTION);
+  /** Return all pages for an account. */
+  async listPages(accountId: string): Promise<ContentPage[]> {
+    return this.pageRepo.listByAccountId(accountId);
   }
 
-  async findById(fileId: string): Promise<File | null> {
-    const normalizedFileId = fileId.trim();
-    if (!normalizedFileId) {
-      return null;
-    }
-
-    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedFileId));
-    if (!snapshot.exists()) {
-      return null;
-    }
-
-    return toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument);
-  }
-
-  async findVersion(fileId: string, versionId: string): Promise<FileVersion | null> {
-    const normalizedFileId = fileId.trim();
-    const normalizedVersionId = versionId.trim();
-    if (!normalizedFileId || !normalizedVersionId) {
-      return null;
-    }
-
-    const snapshot = await getDoc(
-      doc(this.db, FILE_COLLECTION, normalizedFileId, VERSION_SUBCOLLECTION, normalizedVersionId),
-    );
-    if (!snapshot.exists()) {
-      return null;
-    }
-
-    return toFileVersionEntity(snapshot.id, snapshot.data() as FirestoreFileVersionDocument);
-  }
-
-  async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    if (!workspaceId) {
-      return [];
-    }
-
-    const snapshots = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-        where("organizationId", "==", organizationId),
-      ),
-    );
-
-    return snapshots.docs
-      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument))
-      .sort((left, right) => right.updatedAtISO.localeCompare(left.updatedAtISO));
-  }
-
-  async save(file: File, versions: readonly FileVersion[] = []): Promise<void> {
-    const batch = writeBatch(this.db);
-    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
-
-    batch.set(fileRef, {
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      accountId: file.accountId,
-      name: file.name,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      classification: file.classification,
-      tags: [...file.tags],
-      currentVersionId: file.currentVersionId,
-      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
-      status: file.status,
-      ...(file.source ? { source: file.source } : {}),
-      ...(file.detail ? { detail: file.detail } : {}),
-      ...(file.href ? { href: file.href } : {}),
-      createdAtISO: file.createdAtISO,
-      updatedAtISO: file.updatedAtISO,
-      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
-    });
-
-    versions.forEach((version) => {
-      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
-        fileId: version.fileId,
-        versionNumber: version.versionNumber,
-        status: version.status,
-        storagePath: version.storagePath,
-        ...(version.checksum ? { checksum: version.checksum } : {}),
-        createdAtISO: version.createdAtISO,
-      });
-    });
-
-    await batch.commit();
+  /** Return the page with all its blocks (flat list, ordered). */
+  async getPageStructure(
+    accountId: string,
+    pageId: string,
+  ): Promise<{ page: ContentPage; blocks: ContentBlock[] } | null> {
+    const page = await this.pageRepo.findById(accountId, pageId);
+    if (!page) return null;
+    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
+    return { page, blocks };
   }
 }
-`````
-
-## File: modules/asset/infrastructure/firebase/FirebaseRagDocumentRepository.ts
-`````typescript
-import {
-  collection,
-  doc,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type {
-  RagDocumentRecord,
-  RagDocumentRepository,
-} from "../../domain/repositories/RagDocumentRepository";
-
-function buildKnowledgeDocumentRef(input: {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-}) {
-  return doc(
-    getFirestore(firebaseClientApp),
-    "knowledge_base",
-    input.organizationId,
-    "workspaces",
-    input.workspaceId,
-    "documents",
-    input.documentId,
-  );
-}
-
-function buildKnowledgeDocumentsCollection(input: {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-}) {
-  return collection(
-    getFirestore(firebaseClientApp),
-    "knowledge_base",
-    input.organizationId,
-    "workspaces",
-    input.workspaceId,
-    "documents",
-  );
-}
-
-function toStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function toRagDocumentRecord(
-  documentId: string,
-  data: Record<string, unknown>,
-  fallbackScope: { organizationId: string; workspaceId: string },
-): RagDocumentRecord {
-  return {
-    id: documentId,
-    organizationId:
-      typeof data.organizationId === "string" ? data.organizationId : fallbackScope.organizationId,
-    workspaceId:
-      typeof data.workspaceId === "string" ? data.workspaceId : fallbackScope.workspaceId,
-    displayName:
-      (typeof data.displayName === "string" && data.displayName) ||
-      (typeof data.sourceFileName === "string" && data.sourceFileName) ||
-      "",
-    title: typeof data.title === "string" ? data.title : "",
-    sourceFileName: typeof data.sourceFileName === "string" ? data.sourceFileName : "",
-    mimeType:
-      typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
-    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
-    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
-    status:
-      data.status === "uploaded" ||
-      data.status === "processing" ||
-      data.status === "ready" ||
-      data.status === "failed" ||
-      data.status === "archived"
-        ? data.status
-        : "uploaded",
-    statusMessage:
-      typeof data.statusMessage === "string" ? data.statusMessage : undefined,
-    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
-    taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : undefined,
-    category: typeof data.category === "string" ? data.category : undefined,
-    department: typeof data.department === "string" ? data.department : undefined,
-    tags: toStringArray(data.tags),
-    language: typeof data.language === "string" ? data.language : undefined,
-    accessControl: toStringArray(data.accessControl),
-    versionGroupId: typeof data.versionGroupId === "string" ? data.versionGroupId : documentId,
-    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 1,
-    isLatest: typeof data.isLatest === "boolean" ? data.isLatest : true,
-    updateLog: typeof data.updateLog === "string" ? data.updateLog : undefined,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
-    indexedAtISO:
-      typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
-    expiresAtISO:
-      typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRagDocumentRepository implements RagDocumentRepository {
-  async findByStoragePath(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly storagePath: string;
-  }): Promise<RagDocumentRecord | null> {
-    const snapshots = await getDocs(
-      query(
-        buildKnowledgeDocumentsCollection({
-          organizationId: scope.organizationId,
-          workspaceId: scope.workspaceId,
-        }),
-        where("storagePath", "==", scope.storagePath),
-        limit(1),
-      ),
-    );
-    const [firstMatch] = snapshots.docs;
-    if (!firstMatch) {
-      return null;
-    }
-
-    return toRagDocumentRecord(firstMatch.id, firstMatch.data() as Record<string, unknown>, {
-      organizationId: scope.organizationId,
-      workspaceId: scope.workspaceId,
-    });
-  }
-
-  async findByWorkspace(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly RagDocumentRecord[]> {
-    const snapshots = await getDocs(
-      query(
-        buildKnowledgeDocumentsCollection({
-          organizationId: scope.organizationId,
-          workspaceId: scope.workspaceId,
-        }),
-        orderBy("createdAtISO", "desc"),
-      ),
-    );
-
-    return snapshots.docs.map((docSnap) =>
-      toRagDocumentRecord(docSnap.id, docSnap.data() as Record<string, unknown>, {
-        organizationId: scope.organizationId,
-        workspaceId: scope.workspaceId,
-      }),
-    );
-  }
-
-  async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    const documentRef = buildKnowledgeDocumentRef({
-      organizationId: record.organizationId,
-      workspaceId: record.workspaceId,
-      documentId: record.id,
-    });
-
-    await setDoc(documentRef, {
-      // Duplicate the document id in the payload so collection-group consumers can project
-      // a stable field without depending on Firestore snapshot metadata.
-      id: record.id,
-      organizationId: record.organizationId,
-      workspaceId: record.workspaceId,
-      displayName: record.displayName,
-      title: record.title,
-      sourceFileName: record.sourceFileName,
-      mimeType: record.mimeType,
-      storagePath: record.storagePath,
-      sizeBytes: record.sizeBytes,
-      status: record.status,
-      ...(record.statusMessage ? { statusMessage: record.statusMessage } : {}),
-      ...(record.checksum ? { checksum: record.checksum } : {}),
-      ...(record.taxonomy ? { taxonomy: record.taxonomy } : {}),
-      ...(record.category ? { category: record.category } : {}),
-      ...(record.department ? { department: record.department } : {}),
-      tags: record.tags ?? [],
-      ...(record.language ? { language: record.language } : {}),
-      accessControl: record.accessControl ?? [],
-      versionGroupId: record.versionGroupId,
-      versionNumber: record.versionNumber,
-      isLatest: record.isLatest,
-      ...(record.updateLog ? { updateLog: record.updateLog } : {}),
-      accountId: record.accountId,
-      ...(record.chunkCount !== undefined ? { chunkCount: record.chunkCount } : {}),
-      ...(record.indexedAtISO ? { indexedAtISO: record.indexedAtISO } : {}),
-      ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
-      createdAtISO: record.createdAtISO,
-      updatedAtISO: record.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-`````
-
-## File: modules/asset/infrastructure/index.ts
-`````typescript
-export * from "./firebase/FirebaseFileRepository";
-export * from "./firebase/FirebaseRagDocumentRepository";
-`````
-
-## File: modules/asset/interfaces/_actions/file.actions.ts
-`````typescript
-"use server";
-
-import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../application/dto/file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../application/dto/rag-document.dto";
-import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-uploaded-rag-document.use-case";
-import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-complete-file.use-case";
-import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import type { FileCommandResult } from "../contracts/file-command-result";
-
-function createCommandId(idempotencyKey?: string) {
-  const normalized = idempotencyKey?.trim();
-  if (normalized) {
-    return normalized;
-  }
-
-  return `file-upload-init-${crypto.randomUUID()}`;
-}
-
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<FileCommandResult<UploadInitFileOutputDto>> {
-  const commandId = createCommandId(input.idempotencyKey);
-  const useCase = new UploadInitFileUseCase(new FirebaseFileRepository());
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
-  const useCase = new UploadCompleteFileUseCase(
-    new FirebaseFileRepository(),
-    new FirebaseRagDocumentRepository(),
-  );
-  const commandId = createCommandId(input.versionId);
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult> {
-  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentRepository());
-  const commandId = createCommandId(input.storagePath);
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-`````
-
-## File: modules/asset/interfaces/components/WorkspaceFilesTab.tsx
-`````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-
-import type { WorkspaceEntity } from "@/modules/workspace";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { getWorkspaceFiles } from "../queries/file.queries";
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { getFirebaseStorage } from "@integration-firebase";
-
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
-
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[WorkspaceFilesTab] Failed to load file metadata:",
-          error instanceof Error ? error.message : "unknown error",
-        );
-      }
-
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFiles() {
-      await reloadFiles();
-      if (cancelled) {
-        return;
-      }
-    }
-
-    void loadFiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      const storage = getFirebaseStorage();
-      const storageRef = ref(storage, initResult.data.uploadPath);
-      await uploadBytes(storageRef, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      await getDownloadURL(storageRef);
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(
-        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
-      );
-
-      await reloadFiles();
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
-      }
-      setUploadState("error");
-      setUploadMessage(
-        error instanceof Error
-          ? `Storage upload failed: ${error.message}`
-          : "Storage upload failed unexpectedly.",
-      );
-    }
-  }
-
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (!nextFile) {
-                  return;
-                }
-
-                void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p
-              className={`mt-3 text-xs ${
-                uploadState === "error" ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入已持久化的檔案資料，請稍後再試。
-          </p>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
-            </div>
-          )}
-
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
-                      {asset.status}
-                    </Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">
-                        Open asset
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-`````
-
-## File: modules/asset/interfaces/contracts/file-command-result.ts
-`````typescript
-import type { FileCommandErrorCode } from "../../application/dto/file.dto";
-
-export type FileCommandResult<TData> =
-  | {
-      ok: true;
-      data: TData;
-      commandId: string;
-    }
-  | {
-      ok: false;
-      error: {
-        code: FileCommandErrorCode;
-        message: string;
-      };
-      commandId: string;
-    };
-`````
-
-## File: modules/asset/interfaces/index.ts
-`````typescript
-export * from "./components/WorkspaceFilesTab";
-export * from "./queries/file.queries";
-export * from "./_actions/file.actions";
-export * from "./contracts/file-command-result";
-`````
-
-## File: modules/asset/interfaces/queries/file.queries.ts
-`````typescript
-import type { WorkspaceEntity } from "@/modules/workspace";
-
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
-
-export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
-  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-
-  return listWorkspaceFilesUseCase.execute({
-    workspaceId: workspace.id,
-    organizationId,
-    actorAccountId: workspace.accountId,
-  });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-  const repo = new FirebaseRagDocumentRepository();
-
-  return repo.findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
-}
-`````
-
-## File: modules/asset/README.md
-`````markdown
-# File Module MDDD + Hexagonal Implementation Plan
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-**核心原則：檔案模組只擁有檔案生命週期、版本、授權快照與保留策略的業務規則，account / workspace / organization 只提供身分、協作情境與治理政策，所有存取判斷一律經由 file application use case 透過 ports 解算。**
-
----
-
-## 1) 問題陳述與目標 / 非目標
-
-### 問題陳述
-目前 `modules/file` 已完成第一階段解耦，但仍缺少完整生命週期能力：
-
-- `WorkspaceFilesTab` 已走 file module query，不再依賴 workspace projection
-- 讀取路徑已從 workspace 衍生訊號拆離，但 canonical write-side / lifecycle（upload/download/version/retention）仍未完整落地
-- account、workspace、organization 在檔案領域的責任邊界尚未被明確建模
-- 檔案權限、版本、保留、稽核、下載連結生命週期都沒有正式 aggregate / port / use case
-- 如果直接在 app/router 或 UI 補功能，會進一步惡化 coupling，違反本專案的 MDDD + Hexagonal 依賴方向
-
-### 目標
-1. 將 `modules/file` 定義為正式 bounded context，具備可演進的 `domain / application / infrastructure / interfaces` 分層。
-2. 一次釐清 account、workspace、organization、file 四者在檔案領域的責任邊界。
-3. 建立最小可行資料模型，支援：
-   - upload-init / upload-complete
-   - list-files
-   - get-download-url
-   - archive-file / restore-file
-   - versioning / audit / retention
-4. 明確定義權限解算優先序與 default deny 原則。
-5. 提供可直接開工的 migration plan，先拆掉目前 `WorkspaceOperationalSignals` 對檔案顯示的耦合。
-6. 確保所有外部依賴（Firebase / Firestore / Storage / signed URL / notification / audit）只存在 infrastructure。
-
-### 非目標
-1. 本次方案**不**直接實作完整 Document AI / Parser / RAG ingestion pipeline；那是 parser / py_fn 的責任。
-2. 本次方案**不**定義新的 UI 視覺設計系統；UI 僅需接正式 query / action。
-3. 本次方案**不**讓 account / workspace / organization 模組去「接管」檔案生命週期。
-4. 本次方案**不**在第一個 PR 就完成全文檢索、DLP、病毒掃描、跨區域複寫。
-5. 本次方案**不**把權限規則散落在 router、server action、React component、Firebase Rules 各處重複實作。
-
----
-
-## 2) account / workspace / organization / file 職責矩陣
-
-| 邊界 | 擁有資料 | 可執行行為 | 禁止責任 |
-| --- | --- | --- | --- |
-| `account` | `accountId`、身份狀態、角色指派結果、成員資格、使用者偏好 | 發起 upload / download / archive / restore 請求；作為 actor 被授權；持有 personal scope 的擁有者資訊 | 不可擁有 organization 檔案政策；不可直接決定 workspace 檔案可見性；不可實作檔案生命週期規則 |
-| `workspace` | `workspaceId`、協作情境、成員關係、workspace grants、檔案掛載上下文 | 定義檔案與某個 workspace 的協作歸屬；提供 workspace-level grant；決定哪些檔案在該 workspace 被列出 | 不可擁有 blob/storage path；不可實作版本規則；不可繞過 organization policy 發放權限 |
-| `organization` | `organizationId`、租戶邊界、治理政策、保留政策基線、分類基線、legal hold / compliance policy | 提供 tenant boundary；定義最高優先權 hard deny / retention baseline / classification baseline | 不可直接持有檔案版本資料；不可把檔案列表實作成 organization page fan-out 邏輯；不可在 UI 內解權限 |
-| `file` | 檔案 metadata、版本、storage pointer、permission snapshot、retention outcome、download token issuance、audit payload | 管理 upload session、版本建立、列檔、下載連結、封存、還原、軟刪除、權限快照、稽核事件發送 | 不可成為 identity source；不可管理 organization/team/workspace lifecycle；不可直接 import 他模組 domain 來解決規則 |
-
-### 邊界補充
-- `organization` 是**租戶與治理邊界**。
-- `workspace` 是**協作與掛載邊界**。
-- `account` 是**actor 與主體邊界**。
-- `file` 是**檔案生命週期與存取決策邊界**。
-
----
-
-## 3) 10 條不可違反架構規則
-
-1. `app/` 與 route handler / server action 只能協調輸入輸出，不得實作檔案業務規則。
-2. `modules/file/interfaces/*` 只能呼叫 `application/use-cases`，不得直接存取 Firebase / Firestore / Storage。
-3. `modules/file/application/*` 不得 import Firebase SDK、Next.js runtime API、React hook、UI component。
-4. `modules/file/domain/*` 必須保持 pure TypeScript，不得 import `workspace` / `organization` / `account` 的 domain symbols。
-5. 檔案權限判斷只能在 file application + domain 內完成，且必須 default deny。
-6. 任何下載連結、上傳 URL、Storage path、metadata 寫入只能由 infrastructure adapter 產生。
-7. 檔案版本是 immutable；更新內容只能新增 `FileVersion`，不可原地改寫舊版本 metadata。
-8. `archive / restore / soft delete / purge` 只能透過 `File` aggregate 狀態轉移，UI 不可直接 patch status。
-9. 與 account / workspace / organization / audit / notification 的互動只能透過 ports，不能直接跨模組 repository 實作或 domain import。
-10. 任何跨租戶請求只要 `organizationId` 不一致，必須在最外層 use case 直接拒絕，不能依賴 UI 過濾或 Storage path 猜測。
-
----
-
-## 4) file module 分層目錄草案與檔案命名建議
-
-```text
-modules/file/
-├── README.md
-├── index.ts
-├── domain/
-│   ├── entities/
-│   │   ├── File.ts
-│   │   ├── FileVersion.ts
-│   │   ├── PermissionSnapshot.ts
-│   │   ├── RetentionPolicy.ts
-│   │   └── AuditRecord.ts
-│   ├── value-objects/
-│   │   ├── FileId.ts
-│   │   ├── FileScope.ts
-│   │   ├── FileStatus.ts
-│   │   ├── FilePermission.ts
-│   │   └── StorageObjectPath.ts
-│   ├── repositories/
-│   │   ├── FileRepository.ts
-│   │   ├── FileVersionRepository.ts
-│   │   ├── UploadSessionRepository.ts
-│   │   └── PermissionSnapshotRepository.ts
-│   └── ports/
-│       ├── ActorContextPort.ts
-│       ├── WorkspaceGrantPort.ts
-│       ├── OrganizationPolicyPort.ts
-│       ├── BlobStoragePort.ts
-│       ├── DownloadUrlSignerPort.ts
-│       ├── AuditSinkPort.ts
-│       └── NotificationPort.ts
-├── application/
-│   ├── dto/
-│   │   ├── init-upload.dto.ts
-│   │   ├── complete-upload.dto.ts
-│   │   ├── list-files.dto.ts
-│   │   ├── get-download-url.dto.ts
-│   │   ├── archive-file.dto.ts
-│   │   └── restore-file.dto.ts
-│   └── use-cases/
-│       ├── init-file-upload.use-case.ts
-│       ├── complete-file-upload.use-case.ts
-│       ├── list-workspace-files.use-case.ts
-│       ├── list-organization-files.use-case.ts
-│       ├── get-file-download-url.use-case.ts
-│       ├── archive-file.use-case.ts
-│       ├── restore-file.use-case.ts
-│       └── resolve-file-permissions.use-case.ts
-├── infrastructure/
-│   ├── firebase/
-│   │   ├── FirebaseFileRepository.ts
-│   │   ├── FirebaseFileVersionRepository.ts
-│   │   ├── FirebaseUploadSessionRepository.ts
-│   │   ├── FirebasePermissionSnapshotRepository.ts
-│   │   ├── FirebaseBlobStorageAdapter.ts
-│   │   ├── FirebaseDownloadUrlSigner.ts
-│   │   └── mappers/
-│   │       ├── file-document.mapper.ts
-│   │       ├── file-version-document.mapper.ts
-│   │       ├── permission-snapshot-document.mapper.ts
-│   │       └── retention-policy-document.mapper.ts
-│   ├── integration/
-│   │   ├── AccountActorContextAdapter.ts
-│   │   ├── WorkspaceGrantAdapter.ts
-│   │   ├── OrganizationPolicyAdapter.ts
-│   │   ├── AuditSinkAdapter.ts
-│   │   └── NotificationAdapter.ts
-├── interfaces/
-│   ├── _actions/
-│   │   └── file.actions.ts
-│   ├── queries/
-│   │   └── file.queries.ts
-│   ├── components/
-│   │   ├── WorkspaceFilesTab.tsx
-│   │   └── OrganizationFilesTab.tsx
-│   └── presenters/
-│       └── file.presenter.ts
-```
-
-### 檔名命名原則
-- entity：名詞單數，直接反映 aggregate / entity 名稱
-- use case：`verb-object.use-case.ts`
-- Firebase adapter：`Firebase<Thing>Repository.ts` / `Firebase<Thing>Adapter.ts`
-- DTO：`<command>.dto.ts`
-- interface entry：集中在 `file.actions.ts` / `file.queries.ts`
-- legacy bridge：只能暫存於 `infrastructure/legacy/`，禁止長期存在
-
----
-
-## 5) 最小可行資料模型
-
-> 原則：檔案 metadata 與權限 / 保留 / 稽核是 file module 的 canonical source；organization / workspace / account 只提供 reference 與 policy input。
-
-### `File`
-
-```ts
-interface File {
-  id: string;
-  organizationId: string;
-  workspaceId?: string;
-  ownerAccountId: string;
-  createdByAccountId: string;
-  currentVersionId: string;
-  currentVersionNumber: number;
-  name: string;
-  normalizedName: string;
-  extension?: string;
-  contentType: string;
-  sizeBytes: number;
-  checksumSha256: string;
-  status: "INITIATED" | "UPLOADING" | "AVAILABLE" | "ARCHIVED" | "SOFT_DELETED" | "PURGED";
-  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
-  classification: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
-  tags: string[];
-  permissionSnapshotId: string;
-  retentionPolicyId: string;
-  legalHold: boolean;
-  archivedAt?: Timestamp;
-  deletedAt?: Timestamp;
-  purgeAt?: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-#### `File` 狀態機
-
-```text
-INITIATED -> UPLOADING -> AVAILABLE -> ARCHIVED -> AVAILABLE
-AVAILABLE -> SOFT_DELETED -> AVAILABLE
-SOFT_DELETED -> PURGED
-INITIATED -> PURGED     (expired upload session cleanup)
-```
-
-#### 狀態規則
-- `INITIATED`: 已發 upload-init，但 blob 尚未確認完成
-- `UPLOADING`: 已取得 upload target，尚未 complete
-- `AVAILABLE`: 可列出、可下載（前提是權限解算通過）
-- `ARCHIVED`: 不出現在預設列表，但可 restore
-- `SOFT_DELETED`: 對 UI 隱藏，可在保留期內 restore
-- `PURGED`: 終態；metadata 可保留精簡 tombstone，但 blob 與版本不可再使用
-
-### `FileVersion`
-
-```ts
-interface FileVersion {
-  id: string;
-  fileId: string;
-  organizationId: string;
-  workspaceId?: string;
-  versionNumber: number;
-  storagePath: string;
-  storageBucket: string;
-  objectGeneration?: string;
-  sizeBytes: number;
-  contentType: string;
-  checksumSha256: string;
-  sourceFileName: string;
-  uploadedByAccountId: string;
-  status: "PENDING_UPLOAD" | "STORED" | "ACTIVE" | "SUPERSEDED" | "PURGED";
-  createdAt: Timestamp;
-}
-```
-
-#### `FileVersion` 狀態機
-```text
-PENDING_UPLOAD -> STORED -> ACTIVE -> SUPERSEDED
-ACTIVE -> PURGED
-SUPERSEDED -> PURGED
-```
-
-### `PermissionSnapshot`
-
-```ts
-interface PermissionSnapshot {
-  id: string;
-  fileId: string;
-  organizationId: string;
-  workspaceId?: string;
-  defaultEffect: "DENY";
-  organizationPolicyVersion: number;
-  workspaceGrantVersion?: number;
-  actorContextVersion: number;
-  allowedPermissions: string[];
-  deniedPermissions: string[];
-  computedAt: Timestamp;
-}
-```
-
-### `RetentionPolicy`
-
-```ts
-interface RetentionPolicy {
-  id: string;
-  organizationId: string;
-  workspaceId?: string;
-  scope: "ORGANIZATION" | "WORKSPACE" | "FILE";
-  archiveAfterDays?: number;
-  deleteAfterDays?: number;
-  purgeAfterDays?: number;
-  legalHold: boolean;
-  policyVersion: number;
-  inheritedFromId?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-### `AuditRecord`
-
-```ts
-interface AuditRecord {
-  id: string;
-  organizationId: string;
-  workspaceId?: string;
-  fileId: string;
-  versionId?: string;
-  actorAccountId: string;
-  action:
-    | "UPLOAD_INIT"
-    | "UPLOAD_COMPLETE"
-    | "LIST"
-    | "DOWNLOAD_URL_ISSUED"
-    | "ARCHIVE"
-    | "RESTORE"
-    | "DELETE"
-    | "PURGE";
-  result: "SUCCESS" | "DENIED" | "FAILED";
-  reason?: string;
-  correlationId: string;
-  idempotencyKey?: string;
-  metadata?: Record<string, unknown>;
-  occurredAt: Timestamp;
-}
-```
-
-### Firestore collection 建議
-
-```text
-fileDocuments/{fileId}
-fileDocuments/{fileId}/versions/{versionId}
-filePermissionSnapshots/{snapshotId}
-fileRetentionPolicies/{policyId}
-fileUploadSessions/{uploadSessionId}
-fileAuditRecords/{auditRecordId}
-```
-
-### 索引建議
-
-1. `fileDocuments`: `(organizationId, workspaceId, status, updatedAt desc)`
-2. `fileDocuments`: `(organizationId, ownerAccountId, status, createdAt desc)`
-3. `fileDocuments`: `(organizationId, classification, status, updatedAt desc)`
-4. `versions`: `(fileId, versionNumber desc)`
-5. `fileAuditRecords`: `(organizationId, workspaceId, occurredAt desc)`
-6. `fileAuditRecords`: `(fileId, occurredAt desc)`
-7. `fileRetentionPolicies`: `(organizationId, scope, policyVersion desc)`
-8. `fileUploadSessions`: `(organizationId, expiresAt asc, status)` for cleanup
-
----
-
-## 6) 權限解算演算法
-
-### 解算輸入
-- `organization policy`
-- `workspace grants`（若檔案綁定 workspace）
-- `account role / membership`
-- `file visibility / classification / legalHold`
-- `requested permission`（`READ`, `DOWNLOAD`, `WRITE`, `ARCHIVE`, `RESTORE`, `DELETE`, `MANAGE_RETENTION`, `SHARE`）
-
-### 優先序
-1. **Tenant boundary**：`organizationId` 不一致立即 deny
-2. **Organization policy explicit deny**：最高優先權，任何其他 allow 都不能覆蓋
-3. **Legal hold / retention hard rule**：若 action 觸犯保留規則，直接 deny
-4. **Workspace explicit deny**：只能在 organization 允許範圍內進一步收斂
-5. **Account role capability**：actor 必須擁有執行該 action 的 role capability
-6. **Workspace allow / organization allow**：至少需要一個顯式 allow，否則 default deny
-7. **File visibility filter**：若檔案是 `PRIVATE`，額外要求 owner 或具 delegated privilege
-
-### 衝突處理原則
-- `deny > allow`
-- `organization deny > workspace allow`
-- `workspace deny > account role allow`
-- `account role` 只提供 capability，不單獨成為 allow 來源
-- 沒有 explicit allow 時一律 `DENY`
-
-### 偽程式碼
-
-```ts
-function resolvePermission(input: ResolvePermissionInput): PermissionDecision {
-  const {
-    actor,
-    file,
-    requestedPermission,
-    organizationPolicy,
-    workspaceGrant,
-  } = input;
-
-  if (actor.organizationId !== file.organizationId) {
-    return deny("FILE_CROSS_TENANT_ACCESS", "Actor and file belong to different organizations");
-  }
-
-  if (organizationPolicy.denies(requestedPermission, file.classification)) {
-    return deny("FILE_ORG_POLICY_DENY", "Organization policy denied permission");
-  }
-
-  if (file.legalHold && requestedPermission === "DELETE") {
-    return deny("FILE_LEGAL_HOLD_ACTIVE", "File is under legal hold");
-  }
-
-  if (workspaceGrant?.denies(requestedPermission, actor.accountId)) {
-    return deny("FILE_WORKSPACE_GRANT_DENY", "Workspace grant denied permission");
-  }
-
-  if (!actor.capabilities.includes(mapPermissionToCapability(requestedPermission))) {
-    return deny("FILE_ACCOUNT_CAPABILITY_MISSING", "Actor role does not include required capability");
-  }
-
-  const orgAllows = organizationPolicy.allows(requestedPermission, file.visibility, file.classification);
-  const workspaceAllows = file.workspaceId
-    ? workspaceGrant?.allows(requestedPermission, actor.accountId) ?? false
-    : false;
-
-  const visibilityAllows = checkVisibilityRule(file, actor, requestedPermission);
-
-  if (!visibilityAllows) {
-    return deny("FILE_VISIBILITY_RESTRICTED", "File visibility rule rejected permission");
-  }
-
-  if (orgAllows || workspaceAllows) {
-    return allow();
-  }
-
-  return deny("FILE_DEFAULT_DENY", "No explicit allow matched");
-}
-```
-
----
-
-## 7) 端到端流程設計
-
-### 共用錯誤碼
-
-| 錯誤碼 | 說明 |
-| --- | --- |
-| `FILE_NOT_FOUND` | 找不到 file 或 version |
-| `FILE_PERMISSION_DENIED` | 權限解算拒絕 |
-| `FILE_INVALID_STATE` | 狀態轉移不合法 |
-| `FILE_CROSS_TENANT_ACCESS` | 跨 organization 邊界 |
-| `FILE_UPLOAD_SESSION_EXPIRED` | upload session 過期 |
-| `FILE_IDEMPOTENCY_CONFLICT` | 同一 idempotency key 但 payload 不同 |
-| `FILE_STORAGE_WRITE_FAILED` | Storage 寫入失敗 |
-| `FILE_STORAGE_OBJECT_MISSING` | upload-complete 時找不到 blob |
-| `FILE_DOWNLOAD_URL_EXPIRED` | 嘗試使用過期下載 URL |
-| `FILE_RETENTION_BLOCKED` | retention / legal hold 阻擋 |
-
-### A. `upload-init`
-
-#### Input DTO
-```ts
-interface InitFileUploadInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  checksumSha256: string;
-  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
-  classification?: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
-  tags?: string[];
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface InitFileUploadOutput {
-  fileId: string;
-  versionId: string;
-  uploadSessionId: string;
-  uploadUrl: string;
-  uploadHttpMethod: "PUT";
-  storagePath: string;
-  expiresAt: string;
-}
-```
-
-#### Idempotency
-- key scope: `(organizationId, actorAccountId, idempotencyKey, command=upload-init)`
-- same key + same payload -> 回傳先前結果
-- same key + different payload -> `FILE_IDEMPOTENCY_CONFLICT`
-
-### B. `upload-complete`
-
-#### Input DTO
-```ts
-interface CompleteFileUploadInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  versionId: string;
-  uploadSessionId: string;
-  checksumSha256: string;
-  sizeBytes: number;
-  storageObjectGeneration?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface CompleteFileUploadOutput {
-  fileId: string;
-  versionId: string;
-  status: "AVAILABLE";
-}
-```
-
-#### Idempotency
-- key scope: `(organizationId, fileId, uploadSessionId, idempotencyKey, command=upload-complete)`
-- 若 session 已完成且 checksum 相同 -> 回傳 success
-- 若 blob metadata 與 session 不符 -> `FILE_STORAGE_OBJECT_MISSING` 或 `FILE_INVALID_STATE`
-
-### C. `list-files`
-
-#### Input DTO
-```ts
-interface ListFilesInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  statuses?: Array<"AVAILABLE" | "ARCHIVED" | "SOFT_DELETED">;
-  search?: string;
-  tags?: string[];
-  page: number;
-  limit: number;
-}
-```
-
-#### Output DTO
-```ts
-interface ListFilesOutput {
-  data: Array<{
-    id: string;
-    name: string;
-    status: string;
-    currentVersionNumber: number;
-    contentType: string;
-    sizeBytes: number;
-    visibility: string;
-    classification: string;
-    updatedAt: string;
-  }>;
-  total: number;
-  page: number;
-  limit: number;
-}
-```
-
-#### Idempotency
-- query，不需要 idempotency key
-- server-side 一律重新解權限，不可使用前端快取直接信任
-
-### D. `get-download-url`
-
-#### Input DTO
-```ts
-interface GetFileDownloadUrlInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  versionId?: string;
-  reason?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface GetFileDownloadUrlOutput {
-  fileId: string;
-  versionId: string;
-  downloadUrl: string;
-  expiresAt: string;
-}
-```
-
-#### Idempotency
-- 若同一 key 在有效時間內重放，可回傳相同 URL 或重新簽發但寫同一 audit correlationId
-- URL TTL 建議 5~15 分鐘，過期必須重新申請
-
-### E. `archive-file`
-
-#### Input DTO
-```ts
-interface ArchiveFileInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  reason?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface ArchiveFileOutput {
-  fileId: string;
-  status: "ARCHIVED";
-}
-```
-
-#### Idempotency
-- 同一 file 已是 `ARCHIVED` 視為成功重放
-- archive 不搬移 blob，只更新 metadata / audit / notification
-
-### F. `restore-file`
-
-#### Input DTO
-```ts
-interface RestoreFileInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  reason?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface RestoreFileOutput {
-  fileId: string;
-  status: "AVAILABLE";
-}
-```
-
-#### Idempotency
-- 同一 file 已是 `AVAILABLE` 視為成功重放
-- 若已 `PURGED`，不得 restore，回 `FILE_INVALID_STATE`
-
----
-
-## 8) Storage path 與檔名命名規範
-
-### 核心規範
-1. 第一層一定是 tenant boundary，不允許 accountId 當第一層。
-2. storage path 必須 immutable；archive / restore 不移動 blob。
-3. 人類可讀檔名只能放最後一段，且前面必須先有 canonical IDs。
-4. 不允許單純使用原始檔名當 object key。
-5. 必須包含 version segment，避免覆寫。
-6. 必須帶 checksum short hash 或 nonce，防碰撞且可稽核。
-
-### 建議 path
-
-#### Temporary upload session
-```text
-tenants/{organizationId}/upload-sessions/{uploadSessionId}/incoming/{nonce}
-```
-
-#### Final blob path
-```text
-tenants/{organizationId}/workspaces/{workspaceIdOr_org}/files/{fileId}/versions/v{versionNumber}/{versionId}_{checksum12}_{slugifiedName}
-```
-
-#### 範例
-```text
-tenants/org_123/workspaces/ws_456/files/file_789/versions/v3/ver_003_a1b2c3d4e5f6_design-spec.pdf
-```
-
-### 檔名規範
-- `slugifiedName` 只能保留小寫英數、短橫線、最後副檔名
-- 長度上限建議 96 chars（不含前綴 IDs）
-- 原始檔名完整值保留在 Firestore metadata `sourceFileName`
-- storage path 只用於定位，不用於顯示名稱權威來源
-
-### 可稽核要求
-- 每個 `FileVersion` 必須保存 `storageBucket + storagePath + objectGeneration + checksumSha256`
-- 每次簽發下載連結必須寫入 `AuditRecord`
-
----
-
-## 9) interfaces 層契約草案
-
-### Server Actions
-
-```ts
-// modules/file/interfaces/_actions/file.actions.ts
-export async function initFileUpload(input: InitFileUploadInput): Promise<CommandResult>
-export async function completeFileUpload(input: CompleteFileUploadInput): Promise<CommandResult>
-export async function archiveFile(input: ArchiveFileInput): Promise<CommandResult>
-export async function restoreFile(input: RestoreFileInput): Promise<CommandResult>
-```
-
-### Query Wrappers
-
-```ts
-// modules/file/interfaces/queries/file.queries.ts
-export async function getWorkspaceFiles(input: ListFilesInput): Promise<ListFilesOutput>
-export async function getOrganizationFiles(input: ListFilesInput): Promise<ListFilesOutput>
-export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promise<GetFileDownloadUrlOutput>
-```
-
-### `CommandResult` 格式範例
-
-```ts
-// success
-{
-  success: true,
-  aggregateId: "file_789",
-  version: 3,
-}
-
-// failure
-{
-  success: false,
-  error: {
-    code: "FILE_PERMISSION_DENIED",
-    message: "Actor is not allowed to archive this file",
-    context: {
-      fileId: "file_789",
-      requestedPermission: "ARCHIVE",
-    },
-  },
-}
-```
-
-### REST 對外映射（若未來需要 route handlers）
-- `POST /api/files/upload-init`
-- `POST /api/files/upload-complete`
-- `GET /api/files`
-- `POST /api/files/:fileId/download-url`
-- `POST /api/files/:fileId/archive`
-- `POST /api/files/:fileId/restore`
-
-> Route handler 只做 transport mapping；真正規則仍在 file application use cases。
-
----
-
-## 10) 與既有模組整合方式（只能透過哪些 port）
-
-| 既有模組 | file module 可依賴的 port | 允許取得的資訊 | 禁止方式 |
-| --- | --- | --- | --- |
-| `account / identity` | `ActorContextPort` | actor accountId、organization membership、role capabilities、account status | 禁止 import `modules/account/domain/*` 或 `modules/identity/domain/*` |
-| `workspace` | `WorkspaceGrantPort` | workspace 是否存在、所屬 organization、workspace grants、member scope | 禁止從 `WorkspaceOperationalSignals` 直接取衍生檔案資料 |
-| `organization` | `OrganizationPolicyPort` | retention baseline、classification baseline、hard deny / hard allow policy、legal hold policy | 禁止直接 fan-out organization 頁面資料作為 canonical policy source |
-| `audit` | `AuditSinkPort` | append-only audit 寫入口 | 禁止 file module 自行寫 organization 頁 UI read model |
-| `notification` | `NotificationPort` | 非同步通知發送（例如 upload 完成、封存、還原） | 禁止在 use case 內直接 import notification repository |
-
-### 明確整合原則
-- file application 只知道 port interface，不知道他模組具體 repository / Firebase adapter。
-- cross-module read model 一律由 file infrastructure 的 adapter 包裝。
-- 目前 active read path 已不再依賴 legacy workspace projection；若後續仍需過渡 adapter，必須明確標記 phase-out 並避免重新掛回 `WorkspaceOperationalSignals`。
-
----
-
-## 11) 三階段 Migration Plan
-
-## Phase 1 — 模組骨架 + UI 解耦（先拆 coupling）
-
-### 變更範圍
-- 建立 `modules/file/domain / application / infrastructure / interfaces` 正式骨架
-- 建立 `list-workspace-files.use-case.ts` 與 `file.queries.ts`
-- 將 `WorkspaceFilesTab` 從 `getWorkspaceFileAssets(workspace)` 改為 `getWorkspaceFiles(...)`
-- 目前 read path 已由 `FirebaseFileRepository` 提供，舊 bridge 已可移除
-
-### 風險
-- 讀取結果與既有 UI 顯示不一致
-- 在 canonical Firestore model 完成前，既有 metadata 映射策略可能需要持續校正
-
-### 回滾
-- 回退 `WorkspaceFilesTab` 對 `getWorkspaceFiles` 的使用，改回上一版 file query implementation（不重掛 workspace projection）
-
-### 驗證命令
-- `npm run lint`
-- `npm run build`
-
-### 完成定義
-- `WorkspaceFilesTab` 不再直接 import `WorkspaceOperationalSignals`
-- file module 擁有自己的 query entrypoint
-- 所有 file 顯示路徑已經從 UI -> file interfaces -> file application -> file infrastructure 走通
-
----
-
-## Phase 2 — Canonical Firestore model + upload/download lifecycle
-
-### 變更範圍
-- 落地 `File / FileVersion / UploadSession / PermissionSnapshot` Firestore collections
-- 實作 `init-file-upload.use-case.ts`、`complete-file-upload.use-case.ts`、`get-file-download-url.use-case.ts`
-- 實作 Firebase Storage adapter 與 signer
-- 延續清理與 canonical model 衝突的舊 metadata 轉接邏輯（`LegacyWorkspaceFileAssetBridge` 已移除）
-
-### 風險
-- signed URL 與 metadata 寫入不一致
-- upload-complete 可能遇到 blob 已存在但 metadata 未提交的半完成狀態
-
-### 回滾
-- 停用新 upload actions，保留 read-only 查詢
-- upload session collection 可用 TTL cleanup 回收未完成資料
-- 保留 legacy read bridge 作為 fallback，直到 canonical collection 穩定
-
-### 驗證命令
-- `npm run lint`
-- `npm run build`
-
-### 完成定義
-- 檔案 metadata 已由 file module 自己持有
-- workspace file list 改讀 `fileDocuments`
-- download URL 只由 file module signer 發放
-
----
-
-## Phase 3 — governance / retention / archive / restore / organization aggregation
-
-### 變更範圍
-- 實作 `archive-file.use-case.ts`、`restore-file.use-case.ts`
-- 實作 organization-level list query 與 retention policy resolution
-- 串接 audit / notification ports
-- 將 organization / workspace file lists 統一切到 file read model
-
-### 風險
-- policy resolution 與 UI 預期不一致
-- archive / restore / soft delete 對歷史版本顯示造成混淆
-
-### 回滾
-- archive / restore actions 可 feature-flag 關閉
-- organization list 可暫時回退為只讀 workspace aggregation，但 canonical policy 不回退
-
-### 驗證命令
-- `npm run lint`
-- `npm run build`
-
-### 完成定義
-- organization file list 顯示的是該 organization 底下所有 workspace / org-scope files 的正式聚合結果
-- 權限、保留、稽核、通知都經由 file module ports
-- legacy bridge 完全移除
-
----
-
-## 12) 測試策略矩陣
-
-> 目前 `package.json` 尚無 test script；以下矩陣是正式模組落地時必須補齊的測試面，工具選型需遵循當下 repo 標準，不在本方案內新增測試框架決策。
-
-| Layer | 主要測試標的 | 必測案例 |
-| --- | --- | --- |
-| `domain` | `File` / `FileVersion` / `RetentionPolicy` 狀態與不變式 | 狀態衝突、版本不可覆寫、軟刪除後不可直接下載、purged 不可 restore |
-| `application` | use cases + permission resolution | 權限衝突（org deny vs workspace allow）、default deny、跨租戶隔離、legal hold 阻擋 delete、版本回朔時 currentVersion 不被污染 |
-| `interfaces` | action/query contract | DTO validation、錯誤碼映射、CommandResult shape、過期下載連結要求重新簽發 |
-| `infrastructure` | Firestore / Storage adapters | storage path 命名、防碰撞、metadata round-trip、signed URL TTL、upload session 冪等重放 |
-
-### 至少要覆蓋的情境
-1. **權限衝突**：organization deny + workspace allow -> deny
-2. **跨租戶隔離**：actor.organizationId != file.organizationId -> deny
-3. **過期下載連結**：過期後重新申請成功，舊連結不可再信任
-4. **版本回朔**：恢復到舊版本時不覆寫歷史 version record，而是切換 currentVersion pointer 或新增 restore version
-5. **軟刪除與還原**：soft delete 後預設列表不可見，restore 後重新可見
-6. **封存與還原**：archive 不移動 blob，只改 metadata；restore 成功後列表重新出現
-
----
-
-## 13) 第一個 PR 就能做的任務拆解清單
-
-> 目標：先把 `modules/file` 從 interface-only 變成正式模組骨架，並優先拆掉 `WorkspaceOperationalSignals` 對檔案 UI 的耦合。
-
-### P0 — 建立正式模組骨架
-1. **新增** `modules/file/domain/entities/File.ts`
-   - Symbol: `File`, `FileStatus`, `archive()`, `restore()`
-   - 驗收：有明確狀態轉移規則，禁止非法 transition
-2. **新增** `modules/file/domain/entities/FileVersion.ts`
-   - Symbol: `FileVersion`, `FileVersionStatus`
-   - 驗收：版本 immutable，只有 status 可從 pending -> stored -> active/superseded
-3. **新增** `modules/file/domain/repositories/FileRepository.ts`
-   - Symbol: `FileRepository`
-   - 驗收：至少定義 `findById`, `listByWorkspace`, `save`
-4. **新增** `modules/file/domain/ports/ActorContextPort.ts`
-   - Symbol: `ActorContextPort`
-   - 驗收：可提供 account role / org membership 的最小 contract
-5. **新增** `modules/file/domain/ports/WorkspaceGrantPort.ts`
-   - Symbol: `WorkspaceGrantPort`
-   - 驗收：可提供 workspace 所屬 organization 與 grants contract
-6. **新增** `modules/file/domain/ports/OrganizationPolicyPort.ts`
-   - Symbol: `OrganizationPolicyPort`
-   - 驗收：可提供 retention / classification / deny policy contract
-
-### P1 — 落地 read-side 最小 use case
-7. **新增** `modules/file/application/use-cases/list-workspace-files.use-case.ts`
-   - Symbol: `ListWorkspaceFilesUseCase`
-   - 驗收：不 import Firebase / React / Next.js
-8. **移除** `modules/file/infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`
-   - Symbol: `LegacyWorkspaceFileAssetBridge`
-   - 驗收：不再保留對 `WorkspaceOperationalSignals` 的檔案投影依賴
-9. **新增** `modules/file/interfaces/queries/file.queries.ts`
-   - Symbol: `getWorkspaceFiles`
-   - 驗收：對外回傳 stable DTO，供 UI 使用
-10. **更新** `modules/file/index.ts`
-   - Symbol export：`WorkspaceFilesTab` + `getWorkspaceFiles`
-   - 驗收：file module 有自己的 public API
-
-### P2 — 拆掉 UI 對 workspace domain signal 的直連
-11. **更新** `modules/file/interfaces/components/WorkspaceFilesTab.tsx`
-   - 變更：移除 `getWorkspaceFileAssets(workspace)` import
-   - 改為：呼叫 `getWorkspaceFiles({ organizationId, workspaceId, actorAccountId, ... })`
-   - 驗收：UI 不再直連 workspace domain signal
-12. **必要時新增** `modules/file/interfaces/presenters/file.presenter.ts`
-   - Symbol: `toWorkspaceFileCardViewModel`
-   - 驗收：UI 格式轉換不留在 use case / infrastructure
-
-### 第一個 PR 驗收條件
-- `modules/file` 不再是 interface-only 模組
-- `WorkspaceFilesTab` 不再 import `WorkspaceOperationalSignals`
-- file 模組具備至少一條正式 read path：UI -> file query -> file use case -> file infra bridge
-- `npm run lint` 通過
-- `npm run build` 通過
-
----
-
-## 建議的第一個實作切片（結論）
-
-**先做 read-side 解耦，不先做 upload command。**
-
-原因：
-- 目前最嚴重的架構問題不是少一個上傳 API，而是 file UI 還掛在 workspace domain 衍生函式上。
-- 先拆 coupling，才能讓後續 upload / version / permission / retention 都有正確落點。
-- 這也是最小、最安全、最符合本專案 MDDD 遷移順序的第一個 PR。
 `````
 
 ## File: modules/content/api/content-facade.ts
@@ -20411,6 +21495,27 @@ export class ContentFacade {
 }
 
 export const contentFacade = new ContentFacade();
+`````
+
+## File: modules/content/api/index.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the Content domain.
+ */
+
+export { ContentFacade, contentFacade } from "./content-facade";
+export type {
+  ContentCreatePageParams,
+  ContentRenamePageParams,
+  ContentMovePageParams,
+  ContentAddBlockParams,
+  ContentUpdateBlockParams,
+} from "./content-facade";
+
+export { ContentApi } from "./content-api";
 `````
 
 ## File: modules/content/application/block-service.ts
@@ -22622,2270 +23727,9 @@ export class EventController {
 }
 `````
 
-## File: modules/file/application/dto/rag-document.dto.ts
-`````typescript
-export interface RegisterUploadedRagDocumentInputDto {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  /** Account ID of the actor who uploaded this document. */
-  readonly accountId: string;
-  readonly title: string;
-  readonly sourceFileName: string;
-  readonly mimeType: string;
-  readonly storagePath: string;
-  readonly sizeBytes?: number;
-  readonly checksum?: string;
-  readonly taxonomy?: string;
-  readonly category?: string;
-  readonly department?: string;
-  readonly tags?: readonly string[];
-  readonly language?: string;
-  readonly accessControl?: readonly string[];
-  readonly versionGroupId?: string;
-  readonly versionNumber?: number;
-  readonly updateLog?: string;
-  readonly expiresAtISO?: string;
-}
-
-export interface RegisterUploadedRagDocumentOutputDto {
-  readonly documentId: string;
-  readonly status: "uploaded";
-  readonly registeredAtISO: string;
-}
-
-export type RegisterUploadedRagDocumentResult =
-  | {
-      ok: true;
-      data: RegisterUploadedRagDocumentOutputDto;
-      commandId: string;
-    }
-  | {
-      ok: false;
-      error: {
-        code:
-          | "RAG_ORGANIZATION_REQUIRED"
-          | "RAG_WORKSPACE_REQUIRED"
-          | "RAG_ACCOUNT_ID_REQUIRED"
-          | "RAG_TITLE_REQUIRED"
-          | "RAG_FILE_NAME_REQUIRED"
-          | "RAG_MIME_TYPE_REQUIRED"
-          | "RAG_STORAGE_PATH_REQUIRED";
-        message: string;
-      };
-      commandId: string;
-    };
-`````
-
-## File: modules/file/application/index.ts
-`````typescript
-export * from "./dto/file.dto";
-export * from "./dto/rag-document.dto";
-export * from "./use-cases/list-workspace-files.use-case";
-export * from "./use-cases/upload-init-file.use-case";
-export * from "./use-cases/upload-complete-file.use-case";
-export * from "./use-cases/register-uploaded-rag-document.use-case";
-`````
-
-## File: modules/file/application/use-cases/list-workspace-files.use-case.ts
-`````typescript
-import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
-import type { WorkspaceFileListItemDto } from "../dto/file.dto";
-
-const DEFAULT_FILE_SOURCE = "file-module";
-const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
-
-export class ListWorkspaceFilesUseCase {
-  constructor(private readonly fileRepository: FileRepository) {}
-
-  async execute(scope: ListWorkspaceFilesScope): Promise<WorkspaceFileListItemDto[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    const actorAccountId = scope.actorAccountId.trim();
-
-    if (!workspaceId || !organizationId || !actorAccountId) {
-      return [];
-    }
-
-    const files = await this.fileRepository.listByWorkspace({
-      workspaceId,
-      organizationId,
-      actorAccountId,
-    });
-
-    return files.map((file) => ({
-      id: file.id,
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      name: file.name,
-      status: file.status,
-      kind: file.classification,
-      source: file.source ?? DEFAULT_FILE_SOURCE,
-      detail: file.detail ?? DEFAULT_FILE_DETAIL,
-      href: file.href,
-    }));
-  }
-}
-`````
-
-## File: modules/file/application/use-cases/register-uploaded-rag-document.use-case.ts
-`````typescript
-import { randomUUID } from "node:crypto";
-
-import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentOutputDto,
-} from "../dto/rag-document.dto";
-
-type RegisterUploadedRagDocumentUseCaseResult =
-  | { ok: true; data: RegisterUploadedRagDocumentOutputDto }
-  | {
-      ok: false;
-      error: {
-        code:
-          | "RAG_ORGANIZATION_REQUIRED"
-          | "RAG_WORKSPACE_REQUIRED"
-          | "RAG_ACCOUNT_ID_REQUIRED"
-          | "RAG_TITLE_REQUIRED"
-          | "RAG_FILE_NAME_REQUIRED"
-          | "RAG_MIME_TYPE_REQUIRED"
-          | "RAG_STORAGE_PATH_REQUIRED";
-        message: string;
-      };
-    };
-
-export class RegisterUploadedRagDocumentUseCase {
-  constructor(private readonly ragDocumentRepository: RagDocumentRepository) {}
-
-  async execute(
-    input: RegisterUploadedRagDocumentInputDto,
-  ): Promise<RegisterUploadedRagDocumentUseCaseResult> {
-    const organizationId = input.organizationId.trim();
-    const workspaceId = input.workspaceId.trim();
-    const accountId = input.accountId.trim();
-    const title = input.title.trim();
-    const sourceFileName = input.sourceFileName.trim();
-    const mimeType = input.mimeType.trim();
-    const storagePath = input.storagePath.trim();
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: { code: "RAG_ORGANIZATION_REQUIRED", message: "Organization is required." },
-      };
-    }
-
-    if (!workspaceId) {
-      return {
-        ok: false,
-        error: { code: "RAG_WORKSPACE_REQUIRED", message: "Workspace is required." },
-      };
-    }
-
-    if (!accountId) {
-      return {
-        ok: false,
-        error: { code: "RAG_ACCOUNT_ID_REQUIRED", message: "Account ID is required." },
-      };
-    }
-
-    if (!title) {
-      return {
-        ok: false,
-        error: { code: "RAG_TITLE_REQUIRED", message: "Document title is required." },
-      };
-    }
-
-    if (!sourceFileName) {
-      return {
-        ok: false,
-        error: { code: "RAG_FILE_NAME_REQUIRED", message: "Source file name is required." },
-      };
-    }
-
-    if (!mimeType) {
-      return {
-        ok: false,
-        error: { code: "RAG_MIME_TYPE_REQUIRED", message: "Mime type is required." },
-      };
-    }
-
-    if (!storagePath) {
-      return {
-        ok: false,
-        error: { code: "RAG_STORAGE_PATH_REQUIRED", message: "Storage path is required." },
-      };
-    }
-
-    const nowISO = new Date().toISOString();
-    const documentId = `rag-document-${randomUUID()}`;
-    const versionGroupId = input.versionGroupId?.trim() ? input.versionGroupId.trim() : documentId;
-
-    await this.ragDocumentRepository.saveUploaded({
-      id: documentId,
-      organizationId,
-      workspaceId,
-      accountId,
-      displayName: sourceFileName,
-      title,
-      sourceFileName,
-      mimeType,
-      storagePath,
-      sizeBytes: input.sizeBytes ?? 0,
-      status: "uploaded",
-      checksum: input.checksum?.trim() || undefined,
-      taxonomy: input.taxonomy?.trim() || undefined,
-      category: input.category?.trim() || undefined,
-      department: input.department?.trim() || undefined,
-      tags: input.tags ?? [],
-      language: input.language?.trim() || undefined,
-      accessControl: input.accessControl ?? [],
-      versionGroupId,
-      versionNumber: input.versionNumber ?? 1,
-      isLatest: true,
-      updateLog: input.updateLog?.trim() || undefined,
-      expiresAtISO: input.expiresAtISO?.trim() || undefined,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    });
-
-    return {
-      ok: true,
-      data: {
-        documentId,
-        status: "uploaded",
-        registeredAtISO: nowISO,
-      },
-    };
-  }
-}
-`````
-
-## File: modules/file/domain/entities/AuditRecord.ts
-`````typescript
-export type FileAuditAction =
-  | "upload_init"
-  | "upload_complete"
-  | "list_files"
-  | "download_url_issued"
-  | "archive"
-  | "restore";
-
-export interface AuditRecord {
-  readonly id: string;
-  readonly fileId?: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-  readonly action: FileAuditAction;
-  readonly occurredAtISO: string;
-  readonly detail?: string;
-}
-`````
-
-## File: modules/file/domain/entities/File.ts
-`````typescript
-export type FileStatus = "active" | "archived" | "deleted";
-
-export interface File {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly classification: "image" | "manifest" | "record" | "other";
-  readonly tags: readonly string[];
-  readonly currentVersionId: string;
-  readonly retentionPolicyId?: string;
-  readonly status: FileStatus;
-  readonly source?: string;
-  readonly detail?: string;
-  readonly href?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-  readonly deletedAtISO?: string;
-}
-
-const ARCHIVEABLE_STATUS: readonly FileStatus[] = ["active"];
-const RESTOREABLE_STATUS: readonly FileStatus[] = ["archived"];
-
-export function canArchiveFile(file: File): boolean {
-  return ARCHIVEABLE_STATUS.includes(file.status);
-}
-
-export function canRestoreFile(file: File): boolean {
-  return RESTOREABLE_STATUS.includes(file.status);
-}
-`````
-
-## File: modules/file/domain/entities/FileVersion.ts
-`````typescript
-export type FileVersionStatus = "pending" | "stored" | "active" | "superseded";
-
-export interface FileVersion {
-  readonly id: string;
-  readonly fileId: string;
-  readonly versionNumber: number;
-  readonly status: FileVersionStatus;
-  readonly storagePath: string;
-  readonly checksum?: string;
-  readonly createdAtISO: string;
-}
-
-export function isVersionImmutable(version: FileVersion): boolean {
-  return version.status === "active" || version.status === "superseded";
-}
-`````
-
-## File: modules/file/domain/entities/PermissionSnapshot.ts
-`````typescript
-export interface PermissionSnapshot {
-  readonly actorAccountId: string;
-  readonly actorRole: string;
-  readonly organizationPolicyVersion: number;
-  readonly workspaceGrantVersion: number;
-  readonly canRead: boolean;
-  readonly canUpload: boolean;
-  readonly canDownload: boolean;
-  readonly canArchive: boolean;
-  readonly canRestore: boolean;
-  readonly resolvedAtISO: string;
-}
-`````
-
-## File: modules/file/domain/entities/RetentionPolicy.ts
-`````typescript
-export interface RetentionPolicy {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly retentionDays: number;
-  readonly legalHold: boolean;
-  readonly purgeMode: "soft-delete" | "hard-delete";
-  readonly updatedAtISO: string;
-}
-`````
-
-## File: modules/file/domain/index.ts
-`````typescript
-export * from "./entities/File";
-export * from "./entities/FileVersion";
-export * from "./entities/PermissionSnapshot";
-export * from "./entities/RetentionPolicy";
-export * from "./entities/AuditRecord";
-export * from "./repositories/FileRepository";
-export * from "./repositories/RagDocumentRepository";
-export * from "./ports/ActorContextPort";
-export * from "./ports/WorkspaceGrantPort";
-export * from "./ports/OrganizationPolicyPort";
-export * from "./services/resolve-file-organization-id";
-export * from "./services/complete-upload-file";
-`````
-
-## File: modules/file/domain/ports/ActorContextPort.ts
-`````typescript
-export interface ActorFileContext {
-  readonly actorAccountId: string;
-  readonly actorRole: string;
-  readonly organizationIds: readonly string[];
-}
-
-export interface ActorContextPort {
-  getActorFileContext(actorAccountId: string): ActorFileContext | null;
-}
-`````
-
-## File: modules/file/domain/ports/OrganizationPolicyPort.ts
-`````typescript
-import type { RetentionPolicy } from "../entities/RetentionPolicy";
-
-export interface OrganizationFilePolicySnapshot {
-  readonly organizationId: string;
-  readonly policyVersion: number;
-  readonly denyRead: boolean;
-  readonly denyUpload: boolean;
-  readonly denyDownload: boolean;
-  readonly denyArchive: boolean;
-  readonly denyRestore: boolean;
-  readonly retentionPolicy?: RetentionPolicy;
-}
-
-export interface OrganizationPolicyPort {
-  getOrganizationFilePolicy(organizationId: string): OrganizationFilePolicySnapshot | null;
-}
-`````
-
-## File: modules/file/domain/ports/WorkspaceGrantPort.ts
-`````typescript
-export interface WorkspaceGrantSnapshot {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly grantVersion: number;
-  readonly canRead: boolean;
-  readonly canUpload: boolean;
-  readonly canDownload: boolean;
-  readonly canArchive: boolean;
-  readonly canRestore: boolean;
-}
-
-export interface WorkspaceGrantPort {
-  getWorkspaceGrantSnapshot(workspaceId: string, actorAccountId: string): WorkspaceGrantSnapshot | null;
-}
-`````
-
-## File: modules/file/domain/repositories/FileRepository.ts
-`````typescript
-import type { File } from "../entities/File";
-import type { FileVersion } from "../entities/FileVersion";
-
-export interface ListWorkspaceFilesScope {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-}
-
-export interface FileRepository {
-  findById(fileId: string): Promise<File | null>;
-  findVersion(fileId: string, versionId: string): Promise<FileVersion | null>;
-  listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]>;
-  save(file: File, versions?: readonly FileVersion[]): Promise<void>;
-}
-`````
-
-## File: modules/file/domain/repositories/RagDocumentRepository.ts
-`````typescript
-export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed" | "archived";
-
-export const ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS: Readonly<
-  Record<RagDocumentStatus, readonly RagDocumentStatus[]>
-> = {
-  uploaded: ["processing"],
-  processing: ["ready", "failed"],
-  ready: ["processing", "archived"],
-  failed: ["processing"],
-  archived: [],
-};
-
-export function canTransitionRagDocumentStatus(
-  fromStatus: RagDocumentStatus,
-  toStatus: RagDocumentStatus,
-): boolean {
-  return ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
-}
-
-/**
- * RAG document record stored in Firestore at:
- * /knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
- *
- * Fields align with knowledge.md §2.1 (files collection spec).
- */
-export interface RagDocumentRecord {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  /** User-visible file name (preserves original filename semantics). */
-  readonly displayName: string;
-  /** System / legacy title (same as displayName for initial uploads). */
-  readonly title: string;
-  readonly sourceFileName: string;
-  readonly mimeType: string;
-  readonly storagePath: string;
-  readonly sizeBytes: number;
-  readonly status: RagDocumentStatus;
-  /** Error detail written back when status is "failed". */
-  readonly statusMessage?: string;
-  readonly checksum?: string;
-  /** Semantic document taxonomy / category hierarchy (e.g. "規章制度"). */
-  readonly taxonomy?: string;
-  readonly category?: string;
-  readonly department?: string;
-  readonly tags?: readonly string[];
-  /** Primary language of the document content (ISO 639-1, e.g. "zh-TW"). */
-  readonly language?: string;
-  /** Allowed OrganizationRole values or accountId allowlist for RBAC. */
-  readonly accessControl?: readonly string[];
-  /**
-   * Version group identifier — all versions of the same logical document share
-   * this ID.  Defaults to the document's own id for the first upload.
-   */
-  readonly versionGroupId: string;
-  /** 1-based version counter within the versionGroupId. */
-  readonly versionNumber: number;
-  /** True when this record is the current canonical version for its group. */
-  readonly isLatest: boolean;
-  /** Free-text description of what changed in this version. */
-  readonly updateLog?: string;
-  /** Account ID of the person who uploaded this document. */
-  readonly accountId: string;
-  /** Total chunk count — written back by the ingestion worker after processing. */
-  readonly chunkCount?: number;
-  /** ISO-8601 timestamp set by the ingestion worker when indexing completes. */
-  readonly indexedAtISO?: string;
-  /** ISO-8601 expiry timestamp; the document is auto-archived when reached. */
-  readonly expiresAtISO?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface RagDocumentRepository {
-  findByStoragePath(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly storagePath: string;
-  }): Promise<RagDocumentRecord | null>;
-  findByWorkspace(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly RagDocumentRecord[]>;
-  saveUploaded(record: RagDocumentRecord): Promise<void>;
-}
-`````
-
-## File: modules/file/domain/services/complete-upload-file.ts
-`````typescript
-import type { File } from "../entities/File";
-
-interface CompleteUploadFileInput {
-  readonly file: File;
-  readonly completedAtISO: string;
-}
-
-export function completeUploadFile(input: CompleteUploadFileInput): File {
-  return {
-    ...input.file,
-    status: "active",
-    updatedAtISO: input.completedAtISO,
-    source: "file-upload-complete",
-    detail: "File upload completed; status set to active and metadata timestamp finalized.",
-  };
-}
-`````
-
-## File: modules/file/domain/services/resolve-file-organization-id.ts
-`````typescript
-export function resolveFileOrganizationId(
-  accountType: "user" | "organization",
-  accountId: string,
-): string {
-  return accountType === "organization" ? accountId : `personal:${accountId}`;
-}
-`````
-
-## File: modules/file/index.ts
-`````typescript
-/**
- * @deprecated modules/file is retired. Use @/modules/asset/api instead.
- */
-export * from "./api/index";
-`````
-
-## File: modules/file/infrastructure/firebase/FirebaseFileRepository.ts
-`````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-  writeBatch,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { File } from "../../domain/entities/File";
-import type { FileVersion } from "../../domain/entities/FileVersion";
-import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
-
-const FILE_COLLECTION = "workspaceFiles";
-const VERSION_SUBCOLLECTION = "versions";
-
-interface FirestoreFileDocument {
-  readonly workspaceId?: string;
-  readonly organizationId?: string;
-  readonly accountId?: string;
-  readonly name?: string;
-  readonly mimeType?: string;
-  readonly sizeBytes?: number;
-  readonly classification?: File["classification"];
-  readonly tags?: readonly string[];
-  readonly currentVersionId?: string;
-  readonly retentionPolicyId?: string;
-  readonly status?: File["status"];
-  readonly source?: string;
-  readonly detail?: string;
-  readonly href?: string;
-  readonly createdAtISO?: string;
-  readonly updatedAtISO?: string;
-  readonly deletedAtISO?: string;
-}
-
-interface FirestoreFileVersionDocument {
-  readonly fileId?: string;
-  readonly versionNumber?: number;
-  readonly status?: FileVersion["status"];
-  readonly storagePath?: string;
-  readonly checksum?: string;
-  readonly createdAtISO?: string;
-}
-
-function isFileStatus(value: unknown): value is File["status"] {
-  return value === "active" || value === "archived" || value === "deleted";
-}
-
-function isFileClassification(value: unknown): value is File["classification"] {
-  return value === "image" || value === "manifest" || value === "record" || value === "other";
-}
-
-function toStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function toFileEntity(fileId: string, data: FirestoreFileDocument): File {
-  return {
-    id: fileId,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
-    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
-    classification: isFileClassification(data.classification) ? data.classification : "other",
-    tags: toStringArray(data.tags),
-    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
-    retentionPolicyId:
-      typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
-    status: isFileStatus(data.status) ? data.status : "active",
-    source: typeof data.source === "string" ? data.source : undefined,
-    detail: typeof data.detail === "string" ? data.detail : undefined,
-    href: typeof data.href === "string" ? data.href : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
-  };
-}
-
-function isFileVersionStatus(value: unknown): value is FileVersion["status"] {
-  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
-}
-
-function toFileVersionEntity(versionId: string, data: FirestoreFileVersionDocument): FileVersion {
-  return {
-    id: versionId,
-    fileId: typeof data.fileId === "string" ? data.fileId : "",
-    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
-    status: isFileVersionStatus(data.status) ? data.status : "pending",
-    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
-    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-  };
-}
-
-export class FirebaseFileRepository implements FileRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, FILE_COLLECTION);
-  }
-
-  async findById(fileId: string): Promise<File | null> {
-    const normalizedFileId = fileId.trim();
-    if (!normalizedFileId) {
-      return null;
-    }
-
-    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedFileId));
-    if (!snapshot.exists()) {
-      return null;
-    }
-
-    return toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument);
-  }
-
-  async findVersion(fileId: string, versionId: string): Promise<FileVersion | null> {
-    const normalizedFileId = fileId.trim();
-    const normalizedVersionId = versionId.trim();
-    if (!normalizedFileId || !normalizedVersionId) {
-      return null;
-    }
-
-    const snapshot = await getDoc(
-      doc(this.db, FILE_COLLECTION, normalizedFileId, VERSION_SUBCOLLECTION, normalizedVersionId),
-    );
-    if (!snapshot.exists()) {
-      return null;
-    }
-
-    return toFileVersionEntity(snapshot.id, snapshot.data() as FirestoreFileVersionDocument);
-  }
-
-  async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    if (!workspaceId) {
-      return [];
-    }
-
-    const snapshots = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-        where("organizationId", "==", organizationId),
-      ),
-    );
-
-    return snapshots.docs
-      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument))
-      .sort((left, right) => right.updatedAtISO.localeCompare(left.updatedAtISO));
-  }
-
-  async save(file: File, versions: readonly FileVersion[] = []): Promise<void> {
-    const batch = writeBatch(this.db);
-    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
-
-    batch.set(fileRef, {
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      accountId: file.accountId,
-      name: file.name,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      classification: file.classification,
-      tags: [...file.tags],
-      currentVersionId: file.currentVersionId,
-      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
-      status: file.status,
-      ...(file.source ? { source: file.source } : {}),
-      ...(file.detail ? { detail: file.detail } : {}),
-      ...(file.href ? { href: file.href } : {}),
-      createdAtISO: file.createdAtISO,
-      updatedAtISO: file.updatedAtISO,
-      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
-    });
-
-    versions.forEach((version) => {
-      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
-        fileId: version.fileId,
-        versionNumber: version.versionNumber,
-        status: version.status,
-        storagePath: version.storagePath,
-        ...(version.checksum ? { checksum: version.checksum } : {}),
-        createdAtISO: version.createdAtISO,
-      });
-    });
-
-    await batch.commit();
-  }
-}
-`````
-
-## File: modules/file/infrastructure/firebase/FirebaseRagDocumentRepository.ts
-`````typescript
-import {
-  collection,
-  doc,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type {
-  RagDocumentRecord,
-  RagDocumentRepository,
-} from "../../domain/repositories/RagDocumentRepository";
-
-function buildKnowledgeDocumentRef(input: {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-}) {
-  return doc(
-    getFirestore(firebaseClientApp),
-    "knowledge_base",
-    input.organizationId,
-    "workspaces",
-    input.workspaceId,
-    "documents",
-    input.documentId,
-  );
-}
-
-function buildKnowledgeDocumentsCollection(input: {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-}) {
-  return collection(
-    getFirestore(firebaseClientApp),
-    "knowledge_base",
-    input.organizationId,
-    "workspaces",
-    input.workspaceId,
-    "documents",
-  );
-}
-
-function toStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function toRagDocumentRecord(
-  documentId: string,
-  data: Record<string, unknown>,
-  fallbackScope: { organizationId: string; workspaceId: string },
-): RagDocumentRecord {
-  return {
-    id: documentId,
-    organizationId:
-      typeof data.organizationId === "string" ? data.organizationId : fallbackScope.organizationId,
-    workspaceId:
-      typeof data.workspaceId === "string" ? data.workspaceId : fallbackScope.workspaceId,
-    displayName:
-      (typeof data.displayName === "string" && data.displayName) ||
-      (typeof data.sourceFileName === "string" && data.sourceFileName) ||
-      "",
-    title: typeof data.title === "string" ? data.title : "",
-    sourceFileName: typeof data.sourceFileName === "string" ? data.sourceFileName : "",
-    mimeType:
-      typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
-    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
-    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
-    status:
-      data.status === "uploaded" ||
-      data.status === "processing" ||
-      data.status === "ready" ||
-      data.status === "failed" ||
-      data.status === "archived"
-        ? data.status
-        : "uploaded",
-    statusMessage:
-      typeof data.statusMessage === "string" ? data.statusMessage : undefined,
-    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
-    taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : undefined,
-    category: typeof data.category === "string" ? data.category : undefined,
-    department: typeof data.department === "string" ? data.department : undefined,
-    tags: toStringArray(data.tags),
-    language: typeof data.language === "string" ? data.language : undefined,
-    accessControl: toStringArray(data.accessControl),
-    versionGroupId: typeof data.versionGroupId === "string" ? data.versionGroupId : documentId,
-    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 1,
-    isLatest: typeof data.isLatest === "boolean" ? data.isLatest : true,
-    updateLog: typeof data.updateLog === "string" ? data.updateLog : undefined,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
-    indexedAtISO:
-      typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
-    expiresAtISO:
-      typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRagDocumentRepository implements RagDocumentRepository {
-  async findByStoragePath(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly storagePath: string;
-  }): Promise<RagDocumentRecord | null> {
-    const snapshots = await getDocs(
-      query(
-        buildKnowledgeDocumentsCollection({
-          organizationId: scope.organizationId,
-          workspaceId: scope.workspaceId,
-        }),
-        where("storagePath", "==", scope.storagePath),
-        limit(1),
-      ),
-    );
-    const [firstMatch] = snapshots.docs;
-    if (!firstMatch) {
-      return null;
-    }
-
-    return toRagDocumentRecord(firstMatch.id, firstMatch.data() as Record<string, unknown>, {
-      organizationId: scope.organizationId,
-      workspaceId: scope.workspaceId,
-    });
-  }
-
-  async findByWorkspace(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly RagDocumentRecord[]> {
-    const snapshots = await getDocs(
-      query(
-        buildKnowledgeDocumentsCollection({
-          organizationId: scope.organizationId,
-          workspaceId: scope.workspaceId,
-        }),
-        orderBy("createdAtISO", "desc"),
-      ),
-    );
-
-    return snapshots.docs.map((docSnap) =>
-      toRagDocumentRecord(docSnap.id, docSnap.data() as Record<string, unknown>, {
-        organizationId: scope.organizationId,
-        workspaceId: scope.workspaceId,
-      }),
-    );
-  }
-
-  async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    const documentRef = buildKnowledgeDocumentRef({
-      organizationId: record.organizationId,
-      workspaceId: record.workspaceId,
-      documentId: record.id,
-    });
-
-    await setDoc(documentRef, {
-      // Duplicate the document id in the payload so collection-group consumers can project
-      // a stable field without depending on Firestore snapshot metadata.
-      id: record.id,
-      organizationId: record.organizationId,
-      workspaceId: record.workspaceId,
-      displayName: record.displayName,
-      title: record.title,
-      sourceFileName: record.sourceFileName,
-      mimeType: record.mimeType,
-      storagePath: record.storagePath,
-      sizeBytes: record.sizeBytes,
-      status: record.status,
-      ...(record.statusMessage ? { statusMessage: record.statusMessage } : {}),
-      ...(record.checksum ? { checksum: record.checksum } : {}),
-      ...(record.taxonomy ? { taxonomy: record.taxonomy } : {}),
-      ...(record.category ? { category: record.category } : {}),
-      ...(record.department ? { department: record.department } : {}),
-      tags: record.tags ?? [],
-      ...(record.language ? { language: record.language } : {}),
-      accessControl: record.accessControl ?? [],
-      versionGroupId: record.versionGroupId,
-      versionNumber: record.versionNumber,
-      isLatest: record.isLatest,
-      ...(record.updateLog ? { updateLog: record.updateLog } : {}),
-      accountId: record.accountId,
-      ...(record.chunkCount !== undefined ? { chunkCount: record.chunkCount } : {}),
-      ...(record.indexedAtISO ? { indexedAtISO: record.indexedAtISO } : {}),
-      ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
-      createdAtISO: record.createdAtISO,
-      updatedAtISO: record.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-`````
-
-## File: modules/file/infrastructure/index.ts
-`````typescript
-export * from "./firebase/FirebaseFileRepository";
-export * from "./firebase/FirebaseRagDocumentRepository";
-`````
-
-## File: modules/file/interfaces/_actions/file.actions.ts
-`````typescript
-"use server";
-
-import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../application/dto/file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../application/dto/rag-document.dto";
-import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-uploaded-rag-document.use-case";
-import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-complete-file.use-case";
-import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import type { FileCommandResult } from "../contracts/file-command-result";
-
-function createCommandId(idempotencyKey?: string) {
-  const normalized = idempotencyKey?.trim();
-  if (normalized) {
-    return normalized;
-  }
-
-  return `file-upload-init-${crypto.randomUUID()}`;
-}
-
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<FileCommandResult<UploadInitFileOutputDto>> {
-  const commandId = createCommandId(input.idempotencyKey);
-  const useCase = new UploadInitFileUseCase(new FirebaseFileRepository());
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
-  const useCase = new UploadCompleteFileUseCase(
-    new FirebaseFileRepository(),
-    new FirebaseRagDocumentRepository(),
-  );
-  const commandId = createCommandId(input.versionId);
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult> {
-  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentRepository());
-  const commandId = createCommandId(input.storagePath);
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-`````
-
-## File: modules/file/interfaces/components/WorkspaceFilesTab.tsx
-`````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-
-import type { WorkspaceEntity } from "@/modules/workspace";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { getWorkspaceFiles } from "../queries/file.queries";
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { getFirebaseStorage } from "@integration-firebase";
-
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
-
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[WorkspaceFilesTab] Failed to load file metadata:",
-          error instanceof Error ? error.message : "unknown error",
-        );
-      }
-
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFiles() {
-      await reloadFiles();
-      if (cancelled) {
-        return;
-      }
-    }
-
-    void loadFiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      const storage = getFirebaseStorage();
-      const storageRef = ref(storage, initResult.data.uploadPath);
-      await uploadBytes(storageRef, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      await getDownloadURL(storageRef);
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(
-        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
-      );
-
-      await reloadFiles();
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
-      }
-      setUploadState("error");
-      setUploadMessage(
-        error instanceof Error
-          ? `Storage upload failed: ${error.message}`
-          : "Storage upload failed unexpectedly.",
-      );
-    }
-  }
-
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (!nextFile) {
-                  return;
-                }
-
-                void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p
-              className={`mt-3 text-xs ${
-                uploadState === "error" ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入已持久化的檔案資料，請稍後再試。
-          </p>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
-            </div>
-          )}
-
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
-                      {asset.status}
-                    </Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">
-                        Open asset
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-`````
-
-## File: modules/file/interfaces/index.ts
-`````typescript
-export * from "./components/WorkspaceFilesTab";
-export * from "./queries/file.queries";
-export * from "./_actions/file.actions";
-export * from "./contracts/file-command-result";
-`````
-
-## File: modules/file/interfaces/queries/file.queries.ts
-`````typescript
-import type { WorkspaceEntity } from "@/modules/workspace";
-
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
-
-export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
-  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-
-  return listWorkspaceFilesUseCase.execute({
-    workspaceId: workspace.id,
-    organizationId,
-    actorAccountId: workspace.accountId,
-  });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-  const repo = new FirebaseRagDocumentRepository();
-
-  return repo.findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
-}
-`````
-
-## File: modules/file/README.md
-`````markdown
-# File Module MDDD + Hexagonal Implementation Plan
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-**核心原則：檔案模組只擁有檔案生命週期、版本、授權快照與保留策略的業務規則，account / workspace / organization 只提供身分、協作情境與治理政策，所有存取判斷一律經由 file application use case 透過 ports 解算。**
-
----
-
-## 1) 問題陳述與目標 / 非目標
-
-### 問題陳述
-目前 `modules/file` 已完成第一階段解耦，但仍缺少完整生命週期能力：
-
-- `WorkspaceFilesTab` 已走 file module query，不再依賴 workspace projection
-- 讀取路徑已從 workspace 衍生訊號拆離，但 canonical write-side / lifecycle（upload/download/version/retention）仍未完整落地
-- account、workspace、organization 在檔案領域的責任邊界尚未被明確建模
-- 檔案權限、版本、保留、稽核、下載連結生命週期都沒有正式 aggregate / port / use case
-- 如果直接在 app/router 或 UI 補功能，會進一步惡化 coupling，違反本專案的 MDDD + Hexagonal 依賴方向
-
-### 目標
-1. 將 `modules/file` 定義為正式 bounded context，具備可演進的 `domain / application / infrastructure / interfaces` 分層。
-2. 一次釐清 account、workspace、organization、file 四者在檔案領域的責任邊界。
-3. 建立最小可行資料模型，支援：
-   - upload-init / upload-complete
-   - list-files
-   - get-download-url
-   - archive-file / restore-file
-   - versioning / audit / retention
-4. 明確定義權限解算優先序與 default deny 原則。
-5. 提供可直接開工的 migration plan，先拆掉目前 `WorkspaceOperationalSignals` 對檔案顯示的耦合。
-6. 確保所有外部依賴（Firebase / Firestore / Storage / signed URL / notification / audit）只存在 infrastructure。
-
-### 非目標
-1. 本次方案**不**直接實作完整 Document AI / Parser / RAG ingestion pipeline；那是 parser / py_fn 的責任。
-2. 本次方案**不**定義新的 UI 視覺設計系統；UI 僅需接正式 query / action。
-3. 本次方案**不**讓 account / workspace / organization 模組去「接管」檔案生命週期。
-4. 本次方案**不**在第一個 PR 就完成全文檢索、DLP、病毒掃描、跨區域複寫。
-5. 本次方案**不**把權限規則散落在 router、server action、React component、Firebase Rules 各處重複實作。
-
----
-
-## 2) account / workspace / organization / file 職責矩陣
-
-| 邊界 | 擁有資料 | 可執行行為 | 禁止責任 |
-| --- | --- | --- | --- |
-| `account` | `accountId`、身份狀態、角色指派結果、成員資格、使用者偏好 | 發起 upload / download / archive / restore 請求；作為 actor 被授權；持有 personal scope 的擁有者資訊 | 不可擁有 organization 檔案政策；不可直接決定 workspace 檔案可見性；不可實作檔案生命週期規則 |
-| `workspace` | `workspaceId`、協作情境、成員關係、workspace grants、檔案掛載上下文 | 定義檔案與某個 workspace 的協作歸屬；提供 workspace-level grant；決定哪些檔案在該 workspace 被列出 | 不可擁有 blob/storage path；不可實作版本規則；不可繞過 organization policy 發放權限 |
-| `organization` | `organizationId`、租戶邊界、治理政策、保留政策基線、分類基線、legal hold / compliance policy | 提供 tenant boundary；定義最高優先權 hard deny / retention baseline / classification baseline | 不可直接持有檔案版本資料；不可把檔案列表實作成 organization page fan-out 邏輯；不可在 UI 內解權限 |
-| `file` | 檔案 metadata、版本、storage pointer、permission snapshot、retention outcome、download token issuance、audit payload | 管理 upload session、版本建立、列檔、下載連結、封存、還原、軟刪除、權限快照、稽核事件發送 | 不可成為 identity source；不可管理 organization/team/workspace lifecycle；不可直接 import 他模組 domain 來解決規則 |
-
-### 邊界補充
-- `organization` 是**租戶與治理邊界**。
-- `workspace` 是**協作與掛載邊界**。
-- `account` 是**actor 與主體邊界**。
-- `file` 是**檔案生命週期與存取決策邊界**。
-
----
-
-## 3) 10 條不可違反架構規則
-
-1. `app/` 與 route handler / server action 只能協調輸入輸出，不得實作檔案業務規則。
-2. `modules/file/interfaces/*` 只能呼叫 `application/use-cases`，不得直接存取 Firebase / Firestore / Storage。
-3. `modules/file/application/*` 不得 import Firebase SDK、Next.js runtime API、React hook、UI component。
-4. `modules/file/domain/*` 必須保持 pure TypeScript，不得 import `workspace` / `organization` / `account` 的 domain symbols。
-5. 檔案權限判斷只能在 file application + domain 內完成，且必須 default deny。
-6. 任何下載連結、上傳 URL、Storage path、metadata 寫入只能由 infrastructure adapter 產生。
-7. 檔案版本是 immutable；更新內容只能新增 `FileVersion`，不可原地改寫舊版本 metadata。
-8. `archive / restore / soft delete / purge` 只能透過 `File` aggregate 狀態轉移，UI 不可直接 patch status。
-9. 與 account / workspace / organization / audit / notification 的互動只能透過 ports，不能直接跨模組 repository 實作或 domain import。
-10. 任何跨租戶請求只要 `organizationId` 不一致，必須在最外層 use case 直接拒絕，不能依賴 UI 過濾或 Storage path 猜測。
-
----
-
-## 4) file module 分層目錄草案與檔案命名建議
-
-```text
-modules/file/
-├── README.md
-├── index.ts
-├── domain/
-│   ├── entities/
-│   │   ├── File.ts
-│   │   ├── FileVersion.ts
-│   │   ├── PermissionSnapshot.ts
-│   │   ├── RetentionPolicy.ts
-│   │   └── AuditRecord.ts
-│   ├── value-objects/
-│   │   ├── FileId.ts
-│   │   ├── FileScope.ts
-│   │   ├── FileStatus.ts
-│   │   ├── FilePermission.ts
-│   │   └── StorageObjectPath.ts
-│   ├── repositories/
-│   │   ├── FileRepository.ts
-│   │   ├── FileVersionRepository.ts
-│   │   ├── UploadSessionRepository.ts
-│   │   └── PermissionSnapshotRepository.ts
-│   └── ports/
-│       ├── ActorContextPort.ts
-│       ├── WorkspaceGrantPort.ts
-│       ├── OrganizationPolicyPort.ts
-│       ├── BlobStoragePort.ts
-│       ├── DownloadUrlSignerPort.ts
-│       ├── AuditSinkPort.ts
-│       └── NotificationPort.ts
-├── application/
-│   ├── dto/
-│   │   ├── init-upload.dto.ts
-│   │   ├── complete-upload.dto.ts
-│   │   ├── list-files.dto.ts
-│   │   ├── get-download-url.dto.ts
-│   │   ├── archive-file.dto.ts
-│   │   └── restore-file.dto.ts
-│   └── use-cases/
-│       ├── init-file-upload.use-case.ts
-│       ├── complete-file-upload.use-case.ts
-│       ├── list-workspace-files.use-case.ts
-│       ├── list-organization-files.use-case.ts
-│       ├── get-file-download-url.use-case.ts
-│       ├── archive-file.use-case.ts
-│       ├── restore-file.use-case.ts
-│       └── resolve-file-permissions.use-case.ts
-├── infrastructure/
-│   ├── firebase/
-│   │   ├── FirebaseFileRepository.ts
-│   │   ├── FirebaseFileVersionRepository.ts
-│   │   ├── FirebaseUploadSessionRepository.ts
-│   │   ├── FirebasePermissionSnapshotRepository.ts
-│   │   ├── FirebaseBlobStorageAdapter.ts
-│   │   ├── FirebaseDownloadUrlSigner.ts
-│   │   └── mappers/
-│   │       ├── file-document.mapper.ts
-│   │       ├── file-version-document.mapper.ts
-│   │       ├── permission-snapshot-document.mapper.ts
-│   │       └── retention-policy-document.mapper.ts
-│   ├── integration/
-│   │   ├── AccountActorContextAdapter.ts
-│   │   ├── WorkspaceGrantAdapter.ts
-│   │   ├── OrganizationPolicyAdapter.ts
-│   │   ├── AuditSinkAdapter.ts
-│   │   └── NotificationAdapter.ts
-├── interfaces/
-│   ├── _actions/
-│   │   └── file.actions.ts
-│   ├── queries/
-│   │   └── file.queries.ts
-│   ├── components/
-│   │   ├── WorkspaceFilesTab.tsx
-│   │   └── OrganizationFilesTab.tsx
-│   └── presenters/
-│       └── file.presenter.ts
-```
-
-### 檔名命名原則
-- entity：名詞單數，直接反映 aggregate / entity 名稱
-- use case：`verb-object.use-case.ts`
-- Firebase adapter：`Firebase<Thing>Repository.ts` / `Firebase<Thing>Adapter.ts`
-- DTO：`<command>.dto.ts`
-- interface entry：集中在 `file.actions.ts` / `file.queries.ts`
-- legacy bridge：只能暫存於 `infrastructure/legacy/`，禁止長期存在
-
----
-
-## 5) 最小可行資料模型
-
-> 原則：檔案 metadata 與權限 / 保留 / 稽核是 file module 的 canonical source；organization / workspace / account 只提供 reference 與 policy input。
-
-### `File`
-
-```ts
-interface File {
-  id: string;
-  organizationId: string;
-  workspaceId?: string;
-  ownerAccountId: string;
-  createdByAccountId: string;
-  currentVersionId: string;
-  currentVersionNumber: number;
-  name: string;
-  normalizedName: string;
-  extension?: string;
-  contentType: string;
-  sizeBytes: number;
-  checksumSha256: string;
-  status: "INITIATED" | "UPLOADING" | "AVAILABLE" | "ARCHIVED" | "SOFT_DELETED" | "PURGED";
-  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
-  classification: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
-  tags: string[];
-  permissionSnapshotId: string;
-  retentionPolicyId: string;
-  legalHold: boolean;
-  archivedAt?: Timestamp;
-  deletedAt?: Timestamp;
-  purgeAt?: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-#### `File` 狀態機
-
-```text
-INITIATED -> UPLOADING -> AVAILABLE -> ARCHIVED -> AVAILABLE
-AVAILABLE -> SOFT_DELETED -> AVAILABLE
-SOFT_DELETED -> PURGED
-INITIATED -> PURGED     (expired upload session cleanup)
-```
-
-#### 狀態規則
-- `INITIATED`: 已發 upload-init，但 blob 尚未確認完成
-- `UPLOADING`: 已取得 upload target，尚未 complete
-- `AVAILABLE`: 可列出、可下載（前提是權限解算通過）
-- `ARCHIVED`: 不出現在預設列表，但可 restore
-- `SOFT_DELETED`: 對 UI 隱藏，可在保留期內 restore
-- `PURGED`: 終態；metadata 可保留精簡 tombstone，但 blob 與版本不可再使用
-
-### `FileVersion`
-
-```ts
-interface FileVersion {
-  id: string;
-  fileId: string;
-  organizationId: string;
-  workspaceId?: string;
-  versionNumber: number;
-  storagePath: string;
-  storageBucket: string;
-  objectGeneration?: string;
-  sizeBytes: number;
-  contentType: string;
-  checksumSha256: string;
-  sourceFileName: string;
-  uploadedByAccountId: string;
-  status: "PENDING_UPLOAD" | "STORED" | "ACTIVE" | "SUPERSEDED" | "PURGED";
-  createdAt: Timestamp;
-}
-```
-
-#### `FileVersion` 狀態機
-```text
-PENDING_UPLOAD -> STORED -> ACTIVE -> SUPERSEDED
-ACTIVE -> PURGED
-SUPERSEDED -> PURGED
-```
-
-### `PermissionSnapshot`
-
-```ts
-interface PermissionSnapshot {
-  id: string;
-  fileId: string;
-  organizationId: string;
-  workspaceId?: string;
-  defaultEffect: "DENY";
-  organizationPolicyVersion: number;
-  workspaceGrantVersion?: number;
-  actorContextVersion: number;
-  allowedPermissions: string[];
-  deniedPermissions: string[];
-  computedAt: Timestamp;
-}
-```
-
-### `RetentionPolicy`
-
-```ts
-interface RetentionPolicy {
-  id: string;
-  organizationId: string;
-  workspaceId?: string;
-  scope: "ORGANIZATION" | "WORKSPACE" | "FILE";
-  archiveAfterDays?: number;
-  deleteAfterDays?: number;
-  purgeAfterDays?: number;
-  legalHold: boolean;
-  policyVersion: number;
-  inheritedFromId?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-### `AuditRecord`
-
-```ts
-interface AuditRecord {
-  id: string;
-  organizationId: string;
-  workspaceId?: string;
-  fileId: string;
-  versionId?: string;
-  actorAccountId: string;
-  action:
-    | "UPLOAD_INIT"
-    | "UPLOAD_COMPLETE"
-    | "LIST"
-    | "DOWNLOAD_URL_ISSUED"
-    | "ARCHIVE"
-    | "RESTORE"
-    | "DELETE"
-    | "PURGE";
-  result: "SUCCESS" | "DENIED" | "FAILED";
-  reason?: string;
-  correlationId: string;
-  idempotencyKey?: string;
-  metadata?: Record<string, unknown>;
-  occurredAt: Timestamp;
-}
-```
-
-### Firestore collection 建議
-
-```text
-fileDocuments/{fileId}
-fileDocuments/{fileId}/versions/{versionId}
-filePermissionSnapshots/{snapshotId}
-fileRetentionPolicies/{policyId}
-fileUploadSessions/{uploadSessionId}
-fileAuditRecords/{auditRecordId}
-```
-
-### 索引建議
-
-1. `fileDocuments`: `(organizationId, workspaceId, status, updatedAt desc)`
-2. `fileDocuments`: `(organizationId, ownerAccountId, status, createdAt desc)`
-3. `fileDocuments`: `(organizationId, classification, status, updatedAt desc)`
-4. `versions`: `(fileId, versionNumber desc)`
-5. `fileAuditRecords`: `(organizationId, workspaceId, occurredAt desc)`
-6. `fileAuditRecords`: `(fileId, occurredAt desc)`
-7. `fileRetentionPolicies`: `(organizationId, scope, policyVersion desc)`
-8. `fileUploadSessions`: `(organizationId, expiresAt asc, status)` for cleanup
-
----
-
-## 6) 權限解算演算法
-
-### 解算輸入
-- `organization policy`
-- `workspace grants`（若檔案綁定 workspace）
-- `account role / membership`
-- `file visibility / classification / legalHold`
-- `requested permission`（`READ`, `DOWNLOAD`, `WRITE`, `ARCHIVE`, `RESTORE`, `DELETE`, `MANAGE_RETENTION`, `SHARE`）
-
-### 優先序
-1. **Tenant boundary**：`organizationId` 不一致立即 deny
-2. **Organization policy explicit deny**：最高優先權，任何其他 allow 都不能覆蓋
-3. **Legal hold / retention hard rule**：若 action 觸犯保留規則，直接 deny
-4. **Workspace explicit deny**：只能在 organization 允許範圍內進一步收斂
-5. **Account role capability**：actor 必須擁有執行該 action 的 role capability
-6. **Workspace allow / organization allow**：至少需要一個顯式 allow，否則 default deny
-7. **File visibility filter**：若檔案是 `PRIVATE`，額外要求 owner 或具 delegated privilege
-
-### 衝突處理原則
-- `deny > allow`
-- `organization deny > workspace allow`
-- `workspace deny > account role allow`
-- `account role` 只提供 capability，不單獨成為 allow 來源
-- 沒有 explicit allow 時一律 `DENY`
-
-### 偽程式碼
-
-```ts
-function resolvePermission(input: ResolvePermissionInput): PermissionDecision {
-  const {
-    actor,
-    file,
-    requestedPermission,
-    organizationPolicy,
-    workspaceGrant,
-  } = input;
-
-  if (actor.organizationId !== file.organizationId) {
-    return deny("FILE_CROSS_TENANT_ACCESS", "Actor and file belong to different organizations");
-  }
-
-  if (organizationPolicy.denies(requestedPermission, file.classification)) {
-    return deny("FILE_ORG_POLICY_DENY", "Organization policy denied permission");
-  }
-
-  if (file.legalHold && requestedPermission === "DELETE") {
-    return deny("FILE_LEGAL_HOLD_ACTIVE", "File is under legal hold");
-  }
-
-  if (workspaceGrant?.denies(requestedPermission, actor.accountId)) {
-    return deny("FILE_WORKSPACE_GRANT_DENY", "Workspace grant denied permission");
-  }
-
-  if (!actor.capabilities.includes(mapPermissionToCapability(requestedPermission))) {
-    return deny("FILE_ACCOUNT_CAPABILITY_MISSING", "Actor role does not include required capability");
-  }
-
-  const orgAllows = organizationPolicy.allows(requestedPermission, file.visibility, file.classification);
-  const workspaceAllows = file.workspaceId
-    ? workspaceGrant?.allows(requestedPermission, actor.accountId) ?? false
-    : false;
-
-  const visibilityAllows = checkVisibilityRule(file, actor, requestedPermission);
-
-  if (!visibilityAllows) {
-    return deny("FILE_VISIBILITY_RESTRICTED", "File visibility rule rejected permission");
-  }
-
-  if (orgAllows || workspaceAllows) {
-    return allow();
-  }
-
-  return deny("FILE_DEFAULT_DENY", "No explicit allow matched");
-}
-```
-
----
-
-## 7) 端到端流程設計
-
-### 共用錯誤碼
-
-| 錯誤碼 | 說明 |
-| --- | --- |
-| `FILE_NOT_FOUND` | 找不到 file 或 version |
-| `FILE_PERMISSION_DENIED` | 權限解算拒絕 |
-| `FILE_INVALID_STATE` | 狀態轉移不合法 |
-| `FILE_CROSS_TENANT_ACCESS` | 跨 organization 邊界 |
-| `FILE_UPLOAD_SESSION_EXPIRED` | upload session 過期 |
-| `FILE_IDEMPOTENCY_CONFLICT` | 同一 idempotency key 但 payload 不同 |
-| `FILE_STORAGE_WRITE_FAILED` | Storage 寫入失敗 |
-| `FILE_STORAGE_OBJECT_MISSING` | upload-complete 時找不到 blob |
-| `FILE_DOWNLOAD_URL_EXPIRED` | 嘗試使用過期下載 URL |
-| `FILE_RETENTION_BLOCKED` | retention / legal hold 阻擋 |
-
-### A. `upload-init`
-
-#### Input DTO
-```ts
-interface InitFileUploadInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  checksumSha256: string;
-  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
-  classification?: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
-  tags?: string[];
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface InitFileUploadOutput {
-  fileId: string;
-  versionId: string;
-  uploadSessionId: string;
-  uploadUrl: string;
-  uploadHttpMethod: "PUT";
-  storagePath: string;
-  expiresAt: string;
-}
-```
-
-#### Idempotency
-- key scope: `(organizationId, actorAccountId, idempotencyKey, command=upload-init)`
-- same key + same payload -> 回傳先前結果
-- same key + different payload -> `FILE_IDEMPOTENCY_CONFLICT`
-
-### B. `upload-complete`
-
-#### Input DTO
-```ts
-interface CompleteFileUploadInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  versionId: string;
-  uploadSessionId: string;
-  checksumSha256: string;
-  sizeBytes: number;
-  storageObjectGeneration?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface CompleteFileUploadOutput {
-  fileId: string;
-  versionId: string;
-  status: "AVAILABLE";
-}
-```
-
-#### Idempotency
-- key scope: `(organizationId, fileId, uploadSessionId, idempotencyKey, command=upload-complete)`
-- 若 session 已完成且 checksum 相同 -> 回傳 success
-- 若 blob metadata 與 session 不符 -> `FILE_STORAGE_OBJECT_MISSING` 或 `FILE_INVALID_STATE`
-
-### C. `list-files`
-
-#### Input DTO
-```ts
-interface ListFilesInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  statuses?: Array<"AVAILABLE" | "ARCHIVED" | "SOFT_DELETED">;
-  search?: string;
-  tags?: string[];
-  page: number;
-  limit: number;
-}
-```
-
-#### Output DTO
-```ts
-interface ListFilesOutput {
-  data: Array<{
-    id: string;
-    name: string;
-    status: string;
-    currentVersionNumber: number;
-    contentType: string;
-    sizeBytes: number;
-    visibility: string;
-    classification: string;
-    updatedAt: string;
-  }>;
-  total: number;
-  page: number;
-  limit: number;
-}
-```
-
-#### Idempotency
-- query，不需要 idempotency key
-- server-side 一律重新解權限，不可使用前端快取直接信任
-
-### D. `get-download-url`
-
-#### Input DTO
-```ts
-interface GetFileDownloadUrlInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  versionId?: string;
-  reason?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface GetFileDownloadUrlOutput {
-  fileId: string;
-  versionId: string;
-  downloadUrl: string;
-  expiresAt: string;
-}
-```
-
-#### Idempotency
-- 若同一 key 在有效時間內重放，可回傳相同 URL 或重新簽發但寫同一 audit correlationId
-- URL TTL 建議 5~15 分鐘，過期必須重新申請
-
-### E. `archive-file`
-
-#### Input DTO
-```ts
-interface ArchiveFileInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  reason?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface ArchiveFileOutput {
-  fileId: string;
-  status: "ARCHIVED";
-}
-```
-
-#### Idempotency
-- 同一 file 已是 `ARCHIVED` 視為成功重放
-- archive 不搬移 blob，只更新 metadata / audit / notification
-
-### F. `restore-file`
-
-#### Input DTO
-```ts
-interface RestoreFileInput {
-  organizationId: string;
-  workspaceId?: string;
-  actorAccountId: string;
-  fileId: string;
-  reason?: string;
-  idempotencyKey: string;
-}
-```
-
-#### Output DTO
-```ts
-interface RestoreFileOutput {
-  fileId: string;
-  status: "AVAILABLE";
-}
-```
-
-#### Idempotency
-- 同一 file 已是 `AVAILABLE` 視為成功重放
-- 若已 `PURGED`，不得 restore，回 `FILE_INVALID_STATE`
-
----
-
-## 8) Storage path 與檔名命名規範
-
-### 核心規範
-1. 第一層一定是 tenant boundary，不允許 accountId 當第一層。
-2. storage path 必須 immutable；archive / restore 不移動 blob。
-3. 人類可讀檔名只能放最後一段，且前面必須先有 canonical IDs。
-4. 不允許單純使用原始檔名當 object key。
-5. 必須包含 version segment，避免覆寫。
-6. 必須帶 checksum short hash 或 nonce，防碰撞且可稽核。
-
-### 建議 path
-
-#### Temporary upload session
-```text
-tenants/{organizationId}/upload-sessions/{uploadSessionId}/incoming/{nonce}
-```
-
-#### Final blob path
-```text
-tenants/{organizationId}/workspaces/{workspaceIdOr_org}/files/{fileId}/versions/v{versionNumber}/{versionId}_{checksum12}_{slugifiedName}
-```
-
-#### 範例
-```text
-tenants/org_123/workspaces/ws_456/files/file_789/versions/v3/ver_003_a1b2c3d4e5f6_design-spec.pdf
-```
-
-### 檔名規範
-- `slugifiedName` 只能保留小寫英數、短橫線、最後副檔名
-- 長度上限建議 96 chars（不含前綴 IDs）
-- 原始檔名完整值保留在 Firestore metadata `sourceFileName`
-- storage path 只用於定位，不用於顯示名稱權威來源
-
-### 可稽核要求
-- 每個 `FileVersion` 必須保存 `storageBucket + storagePath + objectGeneration + checksumSha256`
-- 每次簽發下載連結必須寫入 `AuditRecord`
-
----
-
-## 9) interfaces 層契約草案
-
-### Server Actions
-
-```ts
-// modules/file/interfaces/_actions/file.actions.ts
-export async function initFileUpload(input: InitFileUploadInput): Promise<CommandResult>
-export async function completeFileUpload(input: CompleteFileUploadInput): Promise<CommandResult>
-export async function archiveFile(input: ArchiveFileInput): Promise<CommandResult>
-export async function restoreFile(input: RestoreFileInput): Promise<CommandResult>
-```
-
-### Query Wrappers
-
-```ts
-// modules/file/interfaces/queries/file.queries.ts
-export async function getWorkspaceFiles(input: ListFilesInput): Promise<ListFilesOutput>
-export async function getOrganizationFiles(input: ListFilesInput): Promise<ListFilesOutput>
-export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promise<GetFileDownloadUrlOutput>
-```
-
-### `CommandResult` 格式範例
-
-```ts
-// success
-{
-  success: true,
-  aggregateId: "file_789",
-  version: 3,
-}
-
-// failure
-{
-  success: false,
-  error: {
-    code: "FILE_PERMISSION_DENIED",
-    message: "Actor is not allowed to archive this file",
-    context: {
-      fileId: "file_789",
-      requestedPermission: "ARCHIVE",
-    },
-  },
-}
-```
-
-### REST 對外映射（若未來需要 route handlers）
-- `POST /api/files/upload-init`
-- `POST /api/files/upload-complete`
-- `GET /api/files`
-- `POST /api/files/:fileId/download-url`
-- `POST /api/files/:fileId/archive`
-- `POST /api/files/:fileId/restore`
-
-> Route handler 只做 transport mapping；真正規則仍在 file application use cases。
-
----
-
-## 10) 與既有模組整合方式（只能透過哪些 port）
-
-| 既有模組 | file module 可依賴的 port | 允許取得的資訊 | 禁止方式 |
-| --- | --- | --- | --- |
-| `account / identity` | `ActorContextPort` | actor accountId、organization membership、role capabilities、account status | 禁止 import `modules/account/domain/*` 或 `modules/identity/domain/*` |
-| `workspace` | `WorkspaceGrantPort` | workspace 是否存在、所屬 organization、workspace grants、member scope | 禁止從 `WorkspaceOperationalSignals` 直接取衍生檔案資料 |
-| `organization` | `OrganizationPolicyPort` | retention baseline、classification baseline、hard deny / hard allow policy、legal hold policy | 禁止直接 fan-out organization 頁面資料作為 canonical policy source |
-| `audit` | `AuditSinkPort` | append-only audit 寫入口 | 禁止 file module 自行寫 organization 頁 UI read model |
-| `notification` | `NotificationPort` | 非同步通知發送（例如 upload 完成、封存、還原） | 禁止在 use case 內直接 import notification repository |
-
-### 明確整合原則
-- file application 只知道 port interface，不知道他模組具體 repository / Firebase adapter。
-- cross-module read model 一律由 file infrastructure 的 adapter 包裝。
-- 目前 active read path 已不再依賴 legacy workspace projection；若後續仍需過渡 adapter，必須明確標記 phase-out 並避免重新掛回 `WorkspaceOperationalSignals`。
-
----
-
-## 11) 三階段 Migration Plan
-
-## Phase 1 — 模組骨架 + UI 解耦（先拆 coupling）
-
-### 變更範圍
-- 建立 `modules/file/domain / application / infrastructure / interfaces` 正式骨架
-- 建立 `list-workspace-files.use-case.ts` 與 `file.queries.ts`
-- 將 `WorkspaceFilesTab` 從 `getWorkspaceFileAssets(workspace)` 改為 `getWorkspaceFiles(...)`
-- 目前 read path 已由 `FirebaseFileRepository` 提供，舊 bridge 已可移除
-
-### 風險
-- 讀取結果與既有 UI 顯示不一致
-- 在 canonical Firestore model 完成前，既有 metadata 映射策略可能需要持續校正
-
-### 回滾
-- 回退 `WorkspaceFilesTab` 對 `getWorkspaceFiles` 的使用，改回上一版 file query implementation（不重掛 workspace projection）
-
-### 驗證命令
-- `npm run lint`
-- `npm run build`
-
-### 完成定義
-- `WorkspaceFilesTab` 不再直接 import `WorkspaceOperationalSignals`
-- file module 擁有自己的 query entrypoint
-- 所有 file 顯示路徑已經從 UI -> file interfaces -> file application -> file infrastructure 走通
-
----
-
-## Phase 2 — Canonical Firestore model + upload/download lifecycle
-
-### 變更範圍
-- 落地 `File / FileVersion / UploadSession / PermissionSnapshot` Firestore collections
-- 實作 `init-file-upload.use-case.ts`、`complete-file-upload.use-case.ts`、`get-file-download-url.use-case.ts`
-- 實作 Firebase Storage adapter 與 signer
-- 延續清理與 canonical model 衝突的舊 metadata 轉接邏輯（`LegacyWorkspaceFileAssetBridge` 已移除）
-
-### 風險
-- signed URL 與 metadata 寫入不一致
-- upload-complete 可能遇到 blob 已存在但 metadata 未提交的半完成狀態
-
-### 回滾
-- 停用新 upload actions，保留 read-only 查詢
-- upload session collection 可用 TTL cleanup 回收未完成資料
-- 保留 legacy read bridge 作為 fallback，直到 canonical collection 穩定
-
-### 驗證命令
-- `npm run lint`
-- `npm run build`
-
-### 完成定義
-- 檔案 metadata 已由 file module 自己持有
-- workspace file list 改讀 `fileDocuments`
-- download URL 只由 file module signer 發放
-
----
-
-## Phase 3 — governance / retention / archive / restore / organization aggregation
-
-### 變更範圍
-- 實作 `archive-file.use-case.ts`、`restore-file.use-case.ts`
-- 實作 organization-level list query 與 retention policy resolution
-- 串接 audit / notification ports
-- 將 organization / workspace file lists 統一切到 file read model
-
-### 風險
-- policy resolution 與 UI 預期不一致
-- archive / restore / soft delete 對歷史版本顯示造成混淆
-
-### 回滾
-- archive / restore actions 可 feature-flag 關閉
-- organization list 可暫時回退為只讀 workspace aggregation，但 canonical policy 不回退
-
-### 驗證命令
-- `npm run lint`
-- `npm run build`
-
-### 完成定義
-- organization file list 顯示的是該 organization 底下所有 workspace / org-scope files 的正式聚合結果
-- 權限、保留、稽核、通知都經由 file module ports
-- legacy bridge 完全移除
-
----
-
-## 12) 測試策略矩陣
-
-> 目前 `package.json` 尚無 test script；以下矩陣是正式模組落地時必須補齊的測試面，工具選型需遵循當下 repo 標準，不在本方案內新增測試框架決策。
-
-| Layer | 主要測試標的 | 必測案例 |
-| --- | --- | --- |
-| `domain` | `File` / `FileVersion` / `RetentionPolicy` 狀態與不變式 | 狀態衝突、版本不可覆寫、軟刪除後不可直接下載、purged 不可 restore |
-| `application` | use cases + permission resolution | 權限衝突（org deny vs workspace allow）、default deny、跨租戶隔離、legal hold 阻擋 delete、版本回朔時 currentVersion 不被污染 |
-| `interfaces` | action/query contract | DTO validation、錯誤碼映射、CommandResult shape、過期下載連結要求重新簽發 |
-| `infrastructure` | Firestore / Storage adapters | storage path 命名、防碰撞、metadata round-trip、signed URL TTL、upload session 冪等重放 |
-
-### 至少要覆蓋的情境
-1. **權限衝突**：organization deny + workspace allow -> deny
-2. **跨租戶隔離**：actor.organizationId != file.organizationId -> deny
-3. **過期下載連結**：過期後重新申請成功，舊連結不可再信任
-4. **版本回朔**：恢復到舊版本時不覆寫歷史 version record，而是切換 currentVersion pointer 或新增 restore version
-5. **軟刪除與還原**：soft delete 後預設列表不可見，restore 後重新可見
-6. **封存與還原**：archive 不移動 blob，只改 metadata；restore 成功後列表重新出現
-
----
-
-## 13) 第一個 PR 就能做的任務拆解清單
-
-> 目標：先把 `modules/file` 從 interface-only 變成正式模組骨架，並優先拆掉 `WorkspaceOperationalSignals` 對檔案 UI 的耦合。
-
-### P0 — 建立正式模組骨架
-1. **新增** `modules/file/domain/entities/File.ts`
-   - Symbol: `File`, `FileStatus`, `archive()`, `restore()`
-   - 驗收：有明確狀態轉移規則，禁止非法 transition
-2. **新增** `modules/file/domain/entities/FileVersion.ts`
-   - Symbol: `FileVersion`, `FileVersionStatus`
-   - 驗收：版本 immutable，只有 status 可從 pending -> stored -> active/superseded
-3. **新增** `modules/file/domain/repositories/FileRepository.ts`
-   - Symbol: `FileRepository`
-   - 驗收：至少定義 `findById`, `listByWorkspace`, `save`
-4. **新增** `modules/file/domain/ports/ActorContextPort.ts`
-   - Symbol: `ActorContextPort`
-   - 驗收：可提供 account role / org membership 的最小 contract
-5. **新增** `modules/file/domain/ports/WorkspaceGrantPort.ts`
-   - Symbol: `WorkspaceGrantPort`
-   - 驗收：可提供 workspace 所屬 organization 與 grants contract
-6. **新增** `modules/file/domain/ports/OrganizationPolicyPort.ts`
-   - Symbol: `OrganizationPolicyPort`
-   - 驗收：可提供 retention / classification / deny policy contract
-
-### P1 — 落地 read-side 最小 use case
-7. **新增** `modules/file/application/use-cases/list-workspace-files.use-case.ts`
-   - Symbol: `ListWorkspaceFilesUseCase`
-   - 驗收：不 import Firebase / React / Next.js
-8. **移除** `modules/file/infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`
-   - Symbol: `LegacyWorkspaceFileAssetBridge`
-   - 驗收：不再保留對 `WorkspaceOperationalSignals` 的檔案投影依賴
-9. **新增** `modules/file/interfaces/queries/file.queries.ts`
-   - Symbol: `getWorkspaceFiles`
-   - 驗收：對外回傳 stable DTO，供 UI 使用
-10. **更新** `modules/file/index.ts`
-   - Symbol export：`WorkspaceFilesTab` + `getWorkspaceFiles`
-   - 驗收：file module 有自己的 public API
-
-### P2 — 拆掉 UI 對 workspace domain signal 的直連
-11. **更新** `modules/file/interfaces/components/WorkspaceFilesTab.tsx`
-   - 變更：移除 `getWorkspaceFileAssets(workspace)` import
-   - 改為：呼叫 `getWorkspaceFiles({ organizationId, workspaceId, actorAccountId, ... })`
-   - 驗收：UI 不再直連 workspace domain signal
-12. **必要時新增** `modules/file/interfaces/presenters/file.presenter.ts`
-   - Symbol: `toWorkspaceFileCardViewModel`
-   - 驗收：UI 格式轉換不留在 use case / infrastructure
-
-### 第一個 PR 驗收條件
-- `modules/file` 不再是 interface-only 模組
-- `WorkspaceFilesTab` 不再 import `WorkspaceOperationalSignals`
-- file 模組具備至少一條正式 read path：UI -> file query -> file use case -> file infra bridge
-- `npm run lint` 通過
-- `npm run build` 通過
-
----
-
-## 建議的第一個實作切片（結論）
-
-**先做 read-side 解耦，不先做 upload command。**
-
-原因：
-- 目前最嚴重的架構問題不是少一個上傳 API，而是 file UI 還掛在 workspace domain 衍生函式上。
-- 先拆 coupling，才能讓後續 upload / version / permission / retention 都有正確落點。
-- 這也是最小、最安全、最符合本專案 MDDD 遷移順序的第一個 PR。
-`````
-
 ## File: modules/graph/.gitkeep
 `````
 
-`````
-
-## File: modules/graph/api/index.ts
-`````typescript
-/**
- * @deprecated modules/graph is retired.
- * Import from @/modules/knowledge-graph/api instead.
- */
-export type {
-  GraphViewConfig,
-  GraphLayout,
-} from "../../knowledge-graph/api";
 `````
 
 ## File: modules/graph/domain/entities/view-config.ts
@@ -24919,6 +23763,44 @@ export interface GraphViewConfig {
   /** Maximum graph depth to render from the focus node */
   readonly maxDepth: number;
 }
+`````
+
+## File: modules/identity/api/index.ts
+`````typescript
+/**
+ * identity 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
+ */
+
+import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
+
+// ─── DTO ──────────────────────────────────────────────────────────────────────
+
+/** 發送 Token Refresh 訊號所需的輸入參數。 */
+export interface EmitTokenRefreshSignalInput {
+  accountId: string;
+  reason: TokenRefreshReason;
+  traceId?: string;
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const identityApi = {
+  /**
+   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
+   * 應在角色或政策變更後呼叫。
+   */
+  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
+  },
+} as const;
 `````
 
 ## File: modules/identity/application/identity-error-message.ts
@@ -25515,39 +24397,6 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 ## File: modules/identity/ports/.gitkeep
 `````
 
-`````
-
-## File: modules/knowledge-graph/domain/entities/view-config.ts
-`````typescript
-/**
- * modules/knowledge-graph — domain entity: GraphViewConfig
- *
- * Describes the visual configuration for rendering a knowledge graph.
- * This is a pure data type; rendering logic lives in the interfaces layer.
- */
-
-import type { ID } from "@shared-types";
-
-/** Layout algorithm for positioning nodes */
-export type GraphLayout = "force-directed" | "hierarchical" | "radial";
-
-/** Visual configuration for a knowledge-graph view */
-export interface GraphViewConfig {
-  /** Identifier for this configuration */
-  readonly id: ID;
-  /** Human-readable name */
-  readonly label: string;
-  /** Layout algorithm to apply */
-  readonly layout: GraphLayout;
-  /** IDs of nodes that should be visible; empty means show all */
-  readonly visibleNodeIds: ID[];
-  /** ID of the node to center / focus the view on (optional) */
-  readonly focusNodeId?: ID;
-  /** Whether to show edge labels */
-  readonly showEdgeLabels: boolean;
-  /** Maximum graph depth to render from the focus node */
-  readonly maxDepth: number;
-}
 `````
 
 ## File: modules/knowledge/.gitkeep
@@ -26417,6 +25266,71 @@ export async function getNotificationsForRecipient(
 ## File: modules/notification/ports/.gitkeep
 `````
 
+`````
+
+## File: modules/organization/api/index.ts
+`````typescript
+/**
+ * organization 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
+ */
+
+import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
+
+// ─── DTOs ─────────────────────────────────────────────────────────────────────
+
+/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
+export interface OrganizationMemberDTO {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
+  presence: "active" | "away" | "offline";
+  isExternal?: boolean;
+}
+
+/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
+export interface OrganizationTeamDTO {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const organizationApi = {
+  /**
+   * 取得指定組織的所有成員清單。
+   */
+  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
+    const members = await orgRepo.getMembers(organizationId);
+    return members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      presence: m.presence,
+      isExternal: m.isExternal,
+    }));
+  },
+
+  /**
+   * 取得指定組織的所有團隊清單。
+   */
+  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
+    const teams = await orgRepo.getTeams(organizationId);
+    return teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      memberIds: t.memberIds,
+    }));
+  },
+} as const;
 `````
 
 ## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
@@ -28124,93 +27038,9 @@ export interface IEventBus {
 - **Vector DB**: 優先使用 `UpstashVectorAdapter` 透過 HTTP REST API 進行操作，保持 Edge Runtime 相容性。
 `````
 
-## File: modules/retrieval/api/index.ts
-`````typescript
-/**
- * modules/retrieval — public API barrel.
- *
- * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
- * Other modules MUST import from here only.
- */
-
-export type {
-  IVectorStore,
-  VectorDocument,
-  VectorSearchResult,
-} from "../domain/ports/vector-store";
-`````
-
-## File: modules/retrieval/domain/ports/vector-store.ts
-`````typescript
-/**
- * modules/retrieval — domain port: IVectorStore
- *
- * Hexagonal architecture port that abstracts the underlying vector database
- * (e.g. Upstash Vector, Pinecone).  Infrastructure layer must implement this
- * interface; no concrete SDK details belong here.
- */
-
-/** A document to index in the vector store */
-export interface VectorDocument {
-  /** Unique identifier (e.g. BlockId or PageId) */
-  readonly id: string;
-  /** Raw text content used to generate the embedding */
-  readonly content: string;
-  /** Arbitrary metadata for filtering (e.g. { pageId, workspaceId }) */
-  readonly metadata?: Record<string, string | number | boolean>;
-}
-
-/** A search result returned by the vector store */
-export interface VectorSearchResult {
-  /** The matched document's ID */
-  readonly id: string;
-  /** Similarity score (0–1, higher is more similar) */
-  readonly score: number;
-  /** Metadata attached to the matched document */
-  readonly metadata?: Record<string, string | number | boolean>;
-}
-
-/**
- * Port that every vector-store adapter must satisfy.
- * Domain and application layers depend ONLY on this interface.
- */
-export interface IVectorStore {
-  /**
-   * Insert or update documents in the vector store.
-   * Embeddings are computed by the adapter implementation.
-   */
-  upsert(documents: VectorDocument[]): Promise<void>;
-
-  /**
-   * Find the top-K documents most similar to the query text.
-   * @param query   - Natural-language query string
-   * @param k       - Number of results to return
-   * @param filter  - Optional metadata filter
-   */
-  search(
-    query: string,
-    k: number,
-    filter?: Record<string, string | number | boolean>,
-  ): Promise<VectorSearchResult[]>;
-}
-`````
-
 ## File: modules/search/.gitkeep
 `````
 
-`````
-
-## File: modules/search/api/index.ts
-`````typescript
-/**
- * @deprecated modules/search is retired.
- * Import from @/modules/retrieval/api instead.
- */
-export type {
-  IVectorStore,
-  VectorDocument,
-  VectorSearchResult,
-} from "../../retrieval/api";
 `````
 
 ## File: modules/search/domain/ports/vector-store.ts
@@ -48320,6 +47150,94 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()
 `````
 
+## File: README.md
+`````markdown
+# Xuanwu App
+
+A Next.js 16 knowledge-management and AI-assisted workspace platform built on Firebase, following the **Module-Driven Domain Design (MDDD)** architecture.
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
+| Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
+| AI / RAG | Google Genkit, Document AI, Upstash Vector |
+| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
+| Realtime | Upstash Redis, QStash |
+
+## Project Structure
+
+```
+xuanwu-app/
+├── app/              # Next.js App Router pages, layouts, route handlers
+├── modules/          # 20 MDDD business modules (bounded contexts)
+├── packages/         # Stable shared packages with TypeScript aliases
+├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
+├── agents/           # AI agent knowledge base and rules
+└── docs/             # Architecture docs, ADRs, design documents
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Install
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+npm run dev        # Start Next.js dev server (port 3000)
+npm run build      # Production build (includes TypeScript type-check)
+npm run lint       # Run ESLint
+```
+
+### Firebase Deployment
+
+```bash
+npm run deploy:firebase              # Deploy all Firebase resources
+npm run deploy:functions:python      # Deploy Python Cloud Functions only
+npm run deploy:rules                 # Deploy Firestore + Storage rules
+```
+
+See [`agents/commands.md`](agents/commands.md) for the full command reference.
+
+## Architecture
+
+This project follows **Module-Driven Domain Design (MDDD)**:
+
+- Each business capability is a self-contained module under `modules/`.
+- Each `modules/<module-name>/` is an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `UI → Application → Domain ← Infrastructure`.
+- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
+- Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
+
+See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## AI Delivery Workflow
+
+This repository includes a formal Copilot delivery workflow for non-trivial changes.
+
+- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
+- Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+`````
+
 ## File: scripts/demo-flow.ts
 `````typescript
 /**
@@ -48727,6 +47645,70 @@ export default {
 ../.github/skills
 `````
 
+## File: .github/agents/md-writer.chat.agent.md
+`````markdown
+---
+name: md-writer
+description: 'Optimize Markdown documents in the Xuanwu repository using the md-* prompt pipeline. Reduces token count, enforces structure, deduplicates concepts, and converts prose to rules/tables.'
+tools: ['vscode', 'read', 'write', 'search', 'todo']
+---
+
+# md-writer
+
+You are the Markdown optimization stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Apply the full `md-*` prompt pipeline to target documents, evolving them toward high information density, low token count, and AI-optimized structure.
+
+## Required references
+
+- Pipeline entry: [md-optimize](./../prompts/md-optimize.prompt.md)
+- Lint: [md-lint](./../prompts/md-lint.prompt.md)
+- Compress: [md-compress](./../prompts/md-compress.prompt.md)
+- Dedup: [md-dedup](./../prompts/md-dedup.prompt.md)
+- Rules conversion: [md-rules](./../prompts/md-rules.prompt.md)
+- Structure: [md-structure](./../prompts/md-structure.prompt.md)
+- Index: [md-index](./../prompts/md-index.prompt.md)
+
+## Execution order (mandatory)
+
+```
+1. md-lint       ← fix syntax errors first
+2. md-compress   ← reduce token count
+3. md-dedup      ← remove cross/intra-file duplicates
+4. md-rules      ← convert prose → rules/tables
+5. md-structure  ← enforce format hierarchy
+6. md-index      ← update parent INDEX after all children done
+```
+
+> Process order: **Leaf → Folder README → docs README → .github README → Root README**
+> Never process a parent before its children.
+
+## Scope
+
+```
+.github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
+.github/{copilot-instructions.md,README.md}
+docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
+```
+
+## Guardrails
+
+- Do not change meaning, logic, or technical accuracy of any document.
+- Do not remove code blocks, schema definitions, or contract rules.
+- Do not process a file that has uncommitted changes without confirmation.
+- Do not skip `md-lint` — syntax errors break all downstream passes.
+- Do not merge files unless explicitly instructed.
+
+## Output expectations
+
+- Report token delta (before / after) per file when measurable.
+- List all dedup actions in the dedup log format defined in `md-dedup`.
+- Flag any file that exceeds token budget after compression for manual review.
+- If scope is ambiguous, ask which folder or file to target before starting.
+`````
+
 ## File: .github/agents/planner.chat.agent.md
 `````markdown
 ---
@@ -48911,6 +47893,135 @@ Required categories:
 - Keep analysis concise and decision-oriented.
 - Prefer short checklists over duplicated prose.
 - Link detailed references instead of copying handbooks.
+`````
+
+## File: .github/prompts/md-optimize.prompt.md
+`````markdown
+---
+mode: agent
+tools: [markitdown, filesystem]
+description: Orchestrate full Markdown optimization pipeline (Leaf → Root)
+---
+
+# md-optimize — Master Pipeline
+
+## Scope
+
+```
+.github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
+.github/{copilot-instructions.md,README.md}
+docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
+```
+
+## Execution Order (Leaf → Root)
+
+```
+1. Leaf documents        → md-compress + md-dedup + md-rules + md-lint
+2. Folder README/INDEX   → md-index + md-structure
+3. docs/README.md        → md-index + md-structure
+4. .github/README.md     → md-index + md-structure
+5. Root README.md        → md-index + md-structure
+```
+
+> ⚠️ Never process parent before children — broken references cascade upward.
+
+## Per-File Checklist
+
+- [ ] Run `md-lint` → fix syntax errors first
+- [ ] Run `md-compress` → reduce token count
+- [ ] Run `md-dedup` → remove duplicate concepts
+- [ ] Run `md-rules` → convert prose to rules/tables
+- [ ] Run `md-structure` → enforce format hierarchy
+- [ ] Update parent `md-index` after all children done
+
+## Success Metrics
+
+| Metric | Target |
+|---|---|
+| Token Efficiency | ↓ tokens, same info |
+| Information Density | ↑ info per line |
+| Computational Efficiency | simpler parse tree |
+| Throughput | faster AI scan |
+`````
+
+## File: .github/prompts/serena-agent.prompt.md
+`````markdown
+---
+name: serena-coding-agent
+description: >
+  System prompt and workflow instructions for Serena MCP coding agent.
+  Defines how the agent should onboard projects, search symbols, check references,
+  and modify code minimally and safely.
+agent: serena
+argument-hint: Optional arguments can be provided for project paths or modules.
+---
+
+# Workflow
+- First onboard the project
+- Use semantic search to locate relevant code
+- Use symbol search instead of file search
+- Before editing, check symbol references
+- Prefer insert_after_symbol instead of rewriting files
+- Keep changes minimal and localized
+- Update types and interfaces if needed
+
+# Best Practices
+Before implementing new features:
+- Search for existing services, repositories, and DTOs.
+- Reuse existing modules when possible.
+- Follow module boundaries.
+`````
+
+## File: .github/README.md
+`````markdown
+# .github Customization Index
+
+Operational index for repository-scoped customization assets.
+
+## Commander flow (fast path)
+
+1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
+2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
+3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
+4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
+
+## Boundary
+
+- Keep executable customization assets in `.github/`.
+- Keep explanation, governance, and lifecycle context in `docs/`.
+- Update both locations together when behavior changes.
+- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
+
+## Folder map
+
+| Path | Purpose | Index |
+| --- | --- | --- |
+| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
+| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
+| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
+| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
+| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
+| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
+| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
+| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
+| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
+
+## Core files
+
+| File | Role |
+| --- | --- |
+| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
+| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
+| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
+| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
+| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
+
+## Maintenance
+
+- Use relative links.
+- Keep one concrete entry file per folder.
+- Keep placeholders as plain text, not fake links.
+- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/skills/deploy-to-vercel/resources/deploy-codex.sh
@@ -54299,176 +53410,6 @@ Limiting font sizes creates visual consistency. Use `fontWeight` (bold/semibold)
 and grayscale colors for hierarchy instead.
 `````
 
-## File: .github/terminology-glossary.md
-`````markdown
----
-title: Terminology Glossary
-description: Xuanwu terminology for token/prompt/context efficiency, system performance, optimization, and AI/RAG systems.
----
-
-# Terminology Glossary
-
-Reference for Xuanwu project terminology across token efficiency, system performance, and knowledge engineering.
-
-## Token / Prompt / Context Efficiency
-
-- **Token Efficiency** (Token 效率)
-- **Context Efficiency** (上下文效率)
-- **Prompt Efficiency** (提示詞效率)
-- **Compression Efficiency** (壓縮效率)
-- **Summarization Efficiency** (摘要效率)
-- **Retrieval Efficiency** (檢索效率)
-- **Embedding Efficiency** (向量化效率)
-
-## System / Computational Efficiency
-
-- **Computational Efficiency** (計算效率)
-- **Algorithmic Efficiency** (演算法效率)
-- **Memory Efficiency** (記憶體效率)
-- **Storage Efficiency** (儲存效率)
-- **Network Efficiency** (網路效率)
-- **Cache Efficiency** (快取效率)
-- **Rendering Efficiency** (渲染效率)
-- **Build Efficiency** (建置效率)
-
-## Optimization Terms
-
-- **Efficiency Optimization** (效率優化)
-- **Throughput Optimization** (吞吐量優化)
-- **Latency Optimization** (延遲優化)
-- **Cost Optimization** (成本優化)
-- **Performance Optimization** (效能優化)
-- **Query Optimization** (查詢優化)
-- **Pipeline Optimization** (管線優化)
-
-## Performance Metrics
-
-- **Throughput** (吞吐量)
-- **Latency** (延遲)
-- **Response Time** (回應時間)
-- **Execution Time** (執行時間)
-- **Memory Usage** (記憶體使用)
-- **CPU Utilization** (CPU 使用率)
-- **Cache Hit Rate** (快取命中率)
-- **Token Cost** (Token 成本)
-
-## AI / RAG / Knowledge System
-
-- **Retrieval Performance** (檢索效能)
-- **Context Window Utilization** (上下文窗口利用率)
-- **Document Compression** (文件壓縮)
-- **Context Packing** (上下文打包)
-- **Token Budgeting** (Token 預算控制)
-- **Context Pruning** (上下文剪枝)
-- **Deduplication** (去重)
-- **Canonicalization** (正規化)
-
-## Token / Prompt / Context Operations
-
-- **Token Packing** — 將零散資訊壓縮到最少 token
-- **Token Pruning** — 去掉無用 token
-- **Context Assembly** — 將相關 chunks 組合成可用上下文
-- **Context Chunking** — 把大文檔切成適合檢索的塊
-- **Prompt Refactoring** — 優化 prompt 結構與邏輯
-- **Context Deduplication** — 防止重複 token
-
-## Retrieval / RAG
-
-- **Chunk Efficiency** — 每個 chunk 使用的 token 是否有效
-- **Retrieval Compression** — 檢索結果只保留核心資訊
-- **Context Relevance** — token 是否提供有用訊息
-- **Embedding Optimization** — 降低向量索引 token 消耗
-
-## Documentation Engineering
-
-- **Knowledge Compression** (知識壓縮)
-- **Knowledge Refactoring** (知識重構)
-- **Documentation Chunking** (文件分塊)
-- **Documentation Deduplication** (文件去重)
-- **Documentation Normalization** (文件正規化)
-
-## Core Metrics
-
-- **Token Utilization Rate** (Token 利用率)
-- **Useful Token Ratio** — 只計算有用資訊的 token
-- **Token Footprint** (Token 佔用量)
-- **Token Overhead** (Token 開銷)
-`````
-
-## File: agents/README.md
-`````markdown
-# Xuanwu MDDD Architecture Knowledge System
-
-> Module-Driven Domain Design (MDDD) agent knowledge base for xuanwu-app.
-> This directory teaches AI agents how to navigate, understand, and contribute to the codebase.
-
-For the formal Copilot delivery workflow, see [docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) and [docs/how-to-user/how-to/start-feature-delivery.md](../docs/how-to-user/how-to/start-feature-delivery.md).
-
-- **[knowledge-base.md](knowledge-base.md)** — Domain knowledge, module boundaries, and architectural patterns
-- **[commands.md](commands.md)** — Build, lint, deploy, and development command reference
-
-## Rules Index
-
-### Architecture
-
-- [architecture-module-structure](rules/architecture-module-structure.md) — Four-layer module layout (domain / application / infrastructure / interfaces)
-- [architecture-dependency-direction](rules/architecture-dependency-direction.md) — UI → Application → Domain ← Infrastructure
-- [architecture-module-boundaries](rules/architecture-module-boundaries.md) — Module public API via `modules/<module-name>/api/`
-- [architecture-package-boundaries](rules/architecture-package-boundaries.md) — `packages/*` as stable public boundaries
-- [architecture-hexagonal-ports](rules/architecture-hexagonal-ports.md) — Ports pattern for cross-cutting concerns
-
-### Code Quality
-
-- [quality-imports](rules/quality-imports.md) — `@alias` imports, no legacy paths
-- [quality-simplicity](rules/quality-simplicity.md) — Keep code simple
-- [quality-code-review](rules/quality-code-review.md) — Code review standards
-- [quality-error-handling](rules/quality-error-handling.md) — `CommandResult` / `DomainError` patterns
-- [quality-code-comments](rules/quality-code-comments.md) — Comment guidelines
-- [quality-pr-creation](rules/quality-pr-creation.md) — Pull request best practices
-
-### Data Layer
-
-- [data-repository-pattern](rules/data-repository-pattern.md) — Interface in `domain/`, implementation in `infrastructure/`
-- [data-dto-boundaries](rules/data-dto-boundaries.md) — DTOs at layer boundaries
-- [data-firebase-collections](rules/data-firebase-collections.md) — Firebase Firestore patterns
-
-### API Design
-
-- [api-module-surface](rules/api-module-surface.md) — Module API surface via `api/` boundary
-- [api-contracts](rules/api-contracts.md) — `@api-contracts` route registry patterns
-
-### Performance
-
-- [performance-avoid-quadratic](rules/performance-avoid-quadratic.md) — Avoid O(n²) algorithms
-
-### Testing
-
-- [testing-coverage](rules/testing-coverage.md) — Test coverage requirements
-- [testing-mocking](rules/testing-mocking.md) — Mock services and integrations
-
-### Design Patterns
-
-- [patterns-use-case](rules/patterns-use-case.md) — One use case per file
-- [patterns-domain-events](rules/patterns-domain-events.md) — Domain event publishing
-- [patterns-domain-services](rules/patterns-domain-services.md) — Domain service encapsulation
-- [patterns-dependency-injection](rules/patterns-dependency-injection.md) — Constructor injection
-
-### CI/CD
-
-- [ci-type-check-first](rules/ci-type-check-first.md) — Type-check before tests
-- [ci-git-workflow](rules/ci-git-workflow.md) — Git and CI workflow
-
-### Culture
-
-- [culture-accountability](rules/culture-accountability.md) — Engineering accountability
-- [culture-leverage-ai](rules/culture-leverage-ai.md) — AI tooling practices
-
-### Reference
-
-- [reference-file-locations](rules/reference-file-locations.md) — Key file paths
-- [reference-local-dev](rules/reference-local-dev.md) — Local development setup
-`````
-
 ## File: app/(public)/page.tsx
 `````typescript
 "use client";
@@ -57608,6 +56549,68 @@ export default function SettingsProfilePage() {
 }
 `````
 
+## File: app/debug/arch-demo/_actions/demo.actions.ts
+`````typescript
+"use server";
+
+/**
+ * app/debug/arch-demo/_actions/demo.actions.ts
+ *
+ * Architecture Phase 3 — Server Actions for the /debug/arch-demo page.
+ *
+ * MDDD boundary rule:
+ *   Imports ONLY from `@/modules/system` (which re-exports via api/ paths).
+ *   Never reaches into domain/, application/, or infrastructure/ layers.
+ */
+
+import { revalidatePath } from "next/cache";
+
+import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "@/modules/system";
+import type { GraphDataDTO } from "@/modules/knowledge-graph/api/knowledge-graph-api";
+
+// ── Form-bound Server Actions (return void — re-render via revalidatePath) ──
+
+/**
+ * Create a new in-memory page.
+ */
+export async function createPageAction(formData: FormData): Promise<void> {
+  const title = (formData.get("title") as string | null)?.trim() || "Untitled";
+  await contentApi.createPage(DEMO_ACCOUNT_ID, title);
+  revalidatePath("/debug/arch-demo");
+}
+
+/**
+ * Add a block to an existing page.
+ */
+export async function addBlockAction(formData: FormData): Promise<void> {
+  const pageId = (formData.get("pageId") as string | null)?.trim() ?? "";
+  const text = (formData.get("text") as string | null) ?? "";
+  if (!pageId) return;
+  await contentApi.addBlock(DEMO_ACCOUNT_ID, pageId, text);
+  revalidatePath("/debug/arch-demo");
+}
+
+/**
+ * Update a block's text content.
+ * If the text contains [[WikiLinks]], the event bus propagates the change to
+ * KnowledgeGraphApi, which extracts new graph nodes and edges.
+ */
+export async function updateBlockAction(formData: FormData): Promise<void> {
+  const blockId = (formData.get("blockId") as string | null)?.trim() ?? "";
+  const text = (formData.get("text") as string | null) ?? "";
+  if (!blockId) return;
+  await contentApi.updateBlock(DEMO_ACCOUNT_ID, blockId, text);
+  revalidatePath("/debug/arch-demo");
+}
+
+/**
+ * Expose the current graph data for programmatic use.
+ */
+export async function getGraphDataAction(): Promise<GraphDataDTO> {
+  return knowledgeApi.getGraphData();
+}
+`````
+
 ## File: app/debug/arch-demo/page.tsx
 `````typescript
 /**
@@ -58095,2180 +57098,6 @@ export function useApp() {
 }
 `````
 
-## File: CLAUDE.md
-`````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 20+ bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [agents/commands.md](agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[agents/knowledge-base.md](agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
-`````
-
-## File: CONTRIBUTING.md
-`````markdown
-# Contributing to Xuanwu App
-
-Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
-
-## House Rules
-
-### 👥 Prevent Work Duplication
-
-Before opening a new issue or PR, check whether it already exists in [Issues](../../issues) or [Pull Requests](../../pulls).
-
-### ✅ Work on Approved Issues
-
-For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
-
-### 🚫 One Concern per PR
-
-Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
-
-### 📚 Write for Future Readers
-
-Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
-
-### ✅ Summarize Your PR
-
-Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
-
-### 🧪 Describe What Was Tested
-
-Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Setup
-
-```bash
-npm install
-npm run dev      # Start Next.js dev server (port 3000)
-```
-
-### Validation
-
-Before pushing, ensure these all pass:
-
-```bash
-npm run lint     # ESLint — must have 0 errors
-npm run build    # Next.js production build + TypeScript type-check
-```
-
-For the Python worker:
-
-```bash
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
----
-
-## Architecture Conventions
-
-This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
-
-- [`agents/README.md`](agents/README.md) — rules index
-- [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
-- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
-
-### Key Rules
-
-- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must be framework-free.
-- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
-- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
-
-### File Naming
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Domain entity | `PascalCase.ts` | `Organization.ts` |
-| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
-| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Use case | `my-use-case.ts` | `create-workspace.ts` |
-| Server Action | `*.actions.ts` | `workspace.actions.ts` |
-| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
-
----
-
-## Making a Pull Request
-
-1. Fork the repository and create a branch from `main`.
-2. Make focused, incremental changes.
-3. Ensure `npm run lint` and `npm run build` pass with no new errors.
-4. Fill out the PR description with intent, changes, and testing notes.
-5. Link related issues with `Closes #N` or `Refs #N`.
-6. Request a review.
-
----
-
-## Spec-Driven Development
-
-For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## AI Delivery Workflow
-
-For larger or cross-module changes, prefer the formal Copilot delivery workflow:
-
-- Plan first with [`docs/how-to-user/how-to/start-feature-delivery.md`](docs/how-to-user/how-to/start-feature-delivery.md)
-- Use the implementation plan as the execution contract for implementation, review, and QA
-- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
-`````
-
-## File: docs/decision-architecture/adr/ADR-012-functions-python-directory-placement.md
-`````markdown
-# ADR 012: `py_fn` 目錄位置決策
-
-## 狀態 (Status)
-
-**Accepted**
-
-## 背景 (Context)
-
-在 MDDD 架構遷移（Phase 1–8）完成後，所有 TypeScript 工具函式庫已從 `libs/` 移至 `packages/`
-下的對應套件。完成後 `libs/` 目錄僅剩 `libs/firebase/py_fn/` 這一個子目錄，
-使得 `libs/` 的存在語意不再成立——它原本是存放 TypeScript 工具整合層的目錄。
-
-此時有必要決定 `py_fn` 的最終放置位置。
-
-## 問題
-
-- `libs/` 目錄原本代表「TypeScript 工具整合層」，遷移後已語意失效
-- `py_fn` 不是 TypeScript 套件，無法放入 `packages/`
-- 三層路徑 `libs/firebase/py_fn/` 對 Python 工作目錄而言過深且不直觀
-- 需要找一個能清楚傳達「這是獨立部署單元」的位置
-
-## 決策 (Decision)
-
-將 `libs/firebase/py_fn/` 移至專案根目錄的 `py_fn/`。
-
-**理由：**
-
-1. **Firebase 慣例**：Firebase CLI 預設 functions codebase 位於專案根目錄（如 `functions/`）；
-   `py_fn/` 直接對應 `firebase.json` 中的 codebase 名稱 `py_fn`。
-
-2. **清除語意混淆**：`libs/` 是 TypeScript 工具層，Python worker runtime 不屬於此分類。
-
-3. **第一等部署單元**：放在根目錄明確傳達此目錄是獨立部署單元，而非輔助工具庫。
-
-4. **簡化路徑**：`py_fn/` 比 `libs/firebase/py_fn/` 更短、更易引用。
-
-5. **清理空目錄**：移除後 `libs/firebase/` 和 `libs/` 均為空，可直接刪除。
-
-## 範圍
-
-**不屬於此 ADR 的決策：**
-
-- `py_fn` 內部結構（由各 Python ADR 規範）
-- 部署流程（`firebase.json` `source` 欄位已同步更新）
-- 與 TypeScript 的互動合約（由各 RAG ADR 規範）
-
-## 後果 (Consequences)
-
-### 正面
-
-- `libs/` 目錄正式清空並刪除，移除遷移後的殘餘路徑
-- `py_fn/` 在根目錄一目了然，與其他 Firebase 設定檔同層
-- `firebase.json` source 路徑更短：`"source": "py_fn"`
-
-### 負面 / 注意事項
-
-- 所有引用舊路徑的文件、記憶體、合約均已同步更新
-- 歷史 ADR 中對已退休之 `libs/firebase/functions`（TypeScript）的引用保持不變（歷史記錄）
-
-## 更新清單
-
-以下檔案已同步更新，將 `libs/firebase/py_fn` 替換為 `py_fn`：
-
-- `firebase.json` — `source` 欄位
-- `packages/README.md` — Migration History 新增條目與說明
-- `docs/decision-architecture/adr/ADR-001, ADR-009, ADR-010` — 跨 runtime 邊界引用
-- `docs/development-reference/reference/development-contracts/overview.md, rag-ingestion-contract.md`
-- `py_fn/README.md, AGENT.md, docs/decision-architecture/adr/*` — 內部自我引用
-`````
-
-## File: docs/decision-architecture/architecture/event.md
-`````markdown
----
-title: Event Core architecture
-description: Target architecture for the event-core domain — canonical domain event capture, persistence, dispatch, and aggregate correlation in Xuanwu MDDD.
-status: "🚧 Developing"
----
-
-# Event Core 領域事件架構規範
-
-> **文件編號**：XUANWU-EVENT-SPEC-001
-> **適用系統**：xuanwu-app — 領域事件捕捉、持久化與派送核心
-> **版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Event Core Owner / 平台架構委員會
-> **開發狀態**：🚧 Developing — 積極開發中
-
----
-
-## 0. 目前已上線範圍
-
-目前 Event Core 已具備最小可運作的領域事件基礎骨架，作為後續全系統事件驅動設計的入口：
-
-- **DomainEvent 實體**：`modules/event/domain/entities/domain-event.entity.ts`
-  - 功能：事件 id、名稱、聚合類型、聚合 id、occurredAt、payload、metadata、派送狀態
-- **EventMetadata 值物件**：關聯 id、causation id、actor id、組織 / 工作區追蹤欄位
-- **Repository ports**：`IEventStoreRepository`（持久化）+ `IEventBusRepository`（派送）
-- **Domain service**：`dispatchPolicy`（純函式 — 重試判斷與 back-off 計算）
-- **Use Cases**：`PublishDomainEventUseCase`、`ListEventsByAggregateUseCase`
-- **In-memory adapters**：本地開發與測試用
-- **Noop event bus**：scaffold / 測試用
-
-### 0.1 本輪交付目標
-
-本輪先建立 Event Core 的完整設計文件：
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計（本文件） | `docs/decision-architecture/architecture/event.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
-| 開發指南 | `docs/development-reference/event/development-guide.md` |
-| 使用手冊 | `docs/development-reference/event/user-manual.md` |
-
-### 0.2 本輪不在交付範圍
-
-- Firestore / Redis 實作的 event store adapter
-- 真正的 message bus（Pub/Sub / Kafka / Cloud Tasks）adapter
-- Event sourcing 完整 aggregate rebuild
-- Dead-letter queue / 補償事務
-- Event replay 與時間旅行 debug
-- Cross-module event subscription / projection 自動觸發
-
----
-
-## 1. 核心設計原則
-
-| 原則 | 說明 |
-|------|------|
-| **事件即真相** | `DomainEvent` 是系統狀態變更的唯一記錄，不依賴 UI 呼叫順序 |
-| **捕捉 → 持久化 → 派送** | 事件先寫入 store，再送出匯流排，保證 at-least-once 語意 |
-| **聚合根關聯** | 所有事件透過 `aggregateType` + `aggregateId` 組成可查詢的事件時間線 |
-| **純粹 domain** | Domain layer 不含任何 SDK/HTTP/DB 依賴，dispatch policy 以純函式表達 |
-| **可替換 adapter** | Infrastructure 可從 in-memory 替換為 Firestore、Pub/Sub，不影響 domain |
-
----
-
-## 2. Event Core 整體架構
-
-### 2.1 模組邊界
-
-```
-app/(shell)/ 或 modules/*
-    ↓ (invoke server actions / use-cases)
-modules/event/interfaces/api/
-    ↓
-modules/event/application/use-cases/
-    ↓
-modules/event/domain/
-    ↑
-modules/event/infrastructure/
-```
-
-### 2.2 事件生命週期
-
-```
-捕捉（Capture）
-    → 建立 DomainEvent（entity + metadata）
-    → 驗證 eventName / aggregateType / aggregateId
-持久化（Persist）
-    → IEventStoreRepository.save(event)
-    → 狀態：undispatched
-派送（Dispatch）
-    → IEventBusRepository.publish(event)
-    → dispatchPolicy：retry eligibility + backoff
-    → 標記：IEventStoreRepository.markDispatched(id, dispatchedAt)
-觀察（Observe）
-    → 查詢 findUndispatched → 補償重試
-關聯（Correlate）
-    → findByAggregate(aggregateType, aggregateId)
-    → 重建事件時間線
-```
-
----
-
-## 3. DomainEvent 資料模型
-
-### 3.1 DomainEvent 欄位
-
-| 欄位 | 型別 | 必填 | 說明 |
-|------|------|------|------|
-| `id` | `string` | ✅ | UUID v4，全域唯一 |
-| `eventName` | `string` | ✅ | 事件名稱，格式建議 `{Module}.{AggregateType}.{Action}` |
-| `aggregateType` | `string` | ✅ | 聚合根類型，例如 `WikiDocument`、`Task` |
-| `aggregateId` | `string` | ✅ | 聚合根 ID |
-| `occurredAt` | `Date` | ✅ | 事件實際發生時間 |
-| `payload` | `DomainEventPayload` | ✅ | 事件業務資料（`Record<string, unknown>`） |
-| `metadata` | `EventMetadata` | ❌ | 追蹤與關聯欄位（correlationId、actorId 等） |
-| `dispatchedAt` | `Date \| null` | ❌ | 成功派送時間；null 代表尚未派送 |
-
-### 3.2 EventMetadata 欄位
-
-| 欄位 | 說明 |
-|------|------|
-| `correlationId` | 跨服務追蹤用 correlation id |
-| `causationId` | 觸發此事件的上游事件 id |
-| `actorId` | 發起事件的 accountId |
-| `organizationId` | 所屬組織（多租戶隔離） |
-| `workspaceId` | 所屬工作區（null = 組織層） |
-| `traceId` | 分散式追蹤 id（OpenTelemetry） |
-
-### 3.3 eventName 命名規範
-
-```
-{ModulePrefix}.{AggregateType}.{PastTenseAction}
-
-範例：
-  Wiki.WikiDocument.Created
-  Task.Task.Assigned
-  Schedule.ScheduleRequest.Submitted
-  Billing.Invoice.Issued
-```
-
----
-
-## 4. 關鍵技術觀念
-
-### 4.1 Outbox Pattern（目標）
-
-為確保 at-least-once 派送語意，目標實作採用 outbox 模式：
-
-```
-write-side use-case:
-  1. 寫入業務 aggregate（例如 Firestore document）
-  2. 在同一 transaction 中寫入 domain_events（status: undispatched）
-
-背景任務（outbox worker）:
-  1. findUndispatched(limit)
-  2. IEventBusRepository.publish(event)
-  3. markDispatched(id, dispatchedAt)
-```
-
-> ❗ 目前骨架直接在 use-case 中呼叫 publish，尚未實作 outbox transaction。
-
-### 4.2 Dispatch Policy（純函式）
-
-`dispatchPolicy` 住在 domain/services，保持純函式：
-
-```typescript
-// 判斷是否應重試
-shouldRetry({ attemptCount: 2, lastAttemptAt: new Date() }, { maxRetries: 3, baseDelayMs: 500 })
-// → true
-
-// 計算下次延遲（exponential back-off）
-nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: new Date() }, { maxRetries: 3, baseDelayMs: 500 })
-// → 1000ms
-```
-
-### 4.3 Infrastructure 配置
-
-```typescript
-// modules/event/infrastructure/persistence/config.ts
-EVENT_CORE_CONFIG = {
-  DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 },
-  STORE:    { TABLE: 'domain_events' },
-}
-```
-
----
-
-## 5. 模組結構（目標）
-
-```
-modules/event/
-├── domain/
-│   ├── entities/
-│   │   └── domain-event.entity.ts     # DomainEvent class + DomainEventPayload
-│   ├── repositories/
-│   │   ├── ievent-bus.repository.ts   # IEventBusRepository port
-│   │   └── ievent-store.repository.ts # IEventStoreRepository port
-│   ├── services/
-│   │   └── dispatch-policy.ts        # shouldRetry, nextRetryDelayMs (pure)
-│   └── value-objects/
-│       └── event-metadata.vo.ts      # EventMetadata
-├── application/
-│   └── use-cases/
-│       ├── publish-domain-event.ts   # PublishDomainEventUseCase
-│       └── list-events-by-aggregate.ts # ListEventsByAggregateUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                 # EVENT_CORE_CONFIG
-│   └── repositories/
-│       ├── in-memory-event-store.repository.ts
-│       └── noop-event-bus.repository.ts
-├── interfaces/
-│   └── api/
-│       └── event.controller.ts       # EventController
-├── index.ts                          # 模組公開 API
-├── README.md
-└── AGENT.md
-```
-
----
-
-## 6. 一句話總結
-
-```
-事件進來：Capture → Persist（undispatched） → Dispatch → markDispatched
-
-事件查詢：findByAggregate → 重建事件時間線
-
-事件重試：findUndispatched → dispatchPolicy → publish → markDispatched
-```
-
----
-
-## 7. 變更記錄
-
-| 版本 | 日期 | 變更說明 | 作者 |
-|------|------|----------|------|
-| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 Event Core 目標架構、DomainEvent 資料模型、Outbox Pattern、dispatch policy | xuanwu-app 架構委員會 |
-`````
-
-## File: docs/decision-architecture/architecture/namespace.md
-`````markdown
----
-title: Namespace Core architecture
-description: Target architecture for the namespace-core domain — canonical named-scope registration, slug validation, and resolution for multi-tenant resource addressing in Xuanwu.
-status: "🚧 Developing"
----
-
-# Namespace Core 命名空間架構規範
-
-> **文件編號**：XUANWU-NS-SPEC-001
-> **適用系統**：xuanwu-app — 多租戶命名空間管理核心
-> **版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Namespace Core Owner / 平台架構委員會
-> **開發狀態**：🚧 Developing — 積極開發中
-
----
-
-## 0. 目前已上線範圍
-
-目前 Namespace Core 已具備最小可運作的命名空間骨架，作為後續 URL 路由與多租戶資源定址的基礎：
-
-- **Namespace 實體**：`modules/namespace/domain/entities/namespace.entity.ts`
-  - 功能：id、slug、kind（organization / workspace）、ownerAccountId、organizationId、status
-- **NamespaceSlug 值物件**：slug 格式驗證（3-63 字元，小寫英數字加連字號）
-- **slug-policy domain service**：純函式 — `deriveSlugCandidate`、`isValidSlug`
-- **INamespaceRepository port**：save / findById / findBySlug / findByOrganization / existsBySlug
-- **Use Cases**：`RegisterNamespaceUseCase`（寫入 + 衝突檢查）、`ResolveNamespaceUseCase`（讀取）
-- **In-memory adapter**：本地開發與測試用
-
-### 0.1 本輪交付目標
-
-本輪先建立 Namespace Core 的完整設計文件：
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計（本文件） | `docs/decision-architecture/architecture/namespace.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
-| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
-| 使用手冊 | `docs/development-reference/namespace/user-manual.md` |
-
-### 0.2 本輪不在交付範圍
-
-- Firestore adapter 實作（`FirebaseNamespaceRepository`）
-- Namespace slug 變更（rename）流程與舊連結重定向
-- 跨租戶 slug 衝突的全域唯一性保證（目前僅 kind 層級）
-- Namespace 事件（NamespaceRegistered / NamespaceSuspended）與 event-core 整合
-- 組織管理 UI 中的 slug 設定介面
-
----
-
-## 1. 核心設計原則
-
-| 原則 | 說明 |
-|------|------|
-| **Slug 即地址** | 每個組織與工作區都有唯一、可閱讀的 slug，作為 URL 路由與 API 定址的基礎 |
-| **Kind 隔離** | `organization` slug 與 `workspace` slug 各自獨立，同 slug 在不同 kind 下不衝突 |
-| **不可變 ID** | Namespace `id` 一旦建立不得變更；slug 可透過受控流程更新（目前尚未實作） |
-| **純粹 domain** | Slug 驗證與推導邏輯均為純函式，不含任何 SDK/HTTP/DB 依賴 |
-| **可替換 adapter** | 從 in-memory 切換至 Firestore 不影響 domain 或 application 層 |
-
----
-
-## 2. Namespace Core 整體架構
-
-### 2.1 模組邊界
-
-```
-modules/organization/ 或 modules/workspace/
-    ↓ (呼叫 RegisterNamespaceUseCase on create)
-modules/namespace/interfaces/api/
-    ↓
-modules/namespace/application/use-cases/
-    ↓
-modules/namespace/domain/
-    ↑
-modules/namespace/infrastructure/
-```
-
-### 2.2 Namespace 生命週期
-
-```
-建立（Register）
-    → deriveSlugCandidate（從 displayName 推導 slug 候選值）
-    → NamespaceSlug.create（驗證格式）
-    → existsBySlug（衝突檢查）
-    → save（持久化 Namespace，status: active）
-解析（Resolve）
-    → findBySlug(slug, kind) → Namespace 實體
-暫停（Suspend）
-    → namespace.suspend() → status: suspended
-恢復（Restore）
-    → namespace.restore() → status: active
-封存（Archive）
-    → namespace.archive() → status: archived
-```
-
----
-
-## 3. Namespace 資料模型
-
-### 3.1 Namespace 欄位
-
-| 欄位 | 型別 | 必填 | 說明 |
-|------|------|------|------|
-| `id` | `string` | ✅ | UUID v4，全域唯一 |
-| `slug` | `NamespaceSlug` | ✅ | URL-safe slug（3-63 字元，小寫英數字 + 連字號） |
-| `kind` | `'organization' \| 'workspace'` | ✅ | 命名空間種類 |
-| `ownerAccountId` | `string` | ✅ | 建立者帳號 ID |
-| `organizationId` | `string` | ✅ | 所屬組織 ID（多租戶邊界） |
-| `status` | `'active' \| 'suspended' \| 'archived'` | ✅ | 命名空間狀態 |
-| `createdAt` | `Date` | ✅ | 建立時間 |
-| `updatedAt` | `Date` | ✅ | 最後更新時間 |
-
-### 3.2 NamespaceSlug 格式規範
-
-```
-規則：
-  - 長度：3–63 字元
-  - 允許字元：小寫英文字母 (a-z)、數字 (0-9)、連字號 (-)
-  - 不得以連字號開頭或結尾
-  - 不允許連續連字號（目前未強制，但推薦避免）
-
-合法範例：
-  my-organization
-  workspace-2024
-  acme-corp
-
-非法範例：
-  -org        （以連字號開頭）
-  org-        （以連字號結尾）
-  ab          （長度不足）
-  ORG_NAME    （含大寫與底線）
-```
-
----
-
-## 4. Slug Policy（純函式）
-
-`slug-policy` 住在 domain/services，保持純函式：
-
-```typescript
-// 從顯示名稱推導 slug 候選值
-deriveSlugCandidate('My Organization 2024!')
-// → 'my-organization-2024'
-
-// 驗證 slug 格式
-isValidSlug('my-org')   // → true
-isValidSlug('-bad-')    // → false
-```
-
----
-
-## 5. 模組結構（目標）
-
-```
-modules/namespace/
-├── domain/
-│   ├── entities/
-│   │   └── namespace.entity.ts           # Namespace class
-│   ├── repositories/
-│   │   └── inamespace.repository.ts      # INamespaceRepository port
-│   ├── services/
-│   │   └── slug-policy.ts               # deriveSlugCandidate, isValidSlug (純函式)
-│   └── value-objects/
-│       └── namespace-slug.vo.ts         # NamespaceSlug
-├── application/
-│   └── use-cases/
-│       ├── register-namespace.use-case.ts  # RegisterNamespaceUseCase
-│       └── resolve-namespace.use-case.ts   # ResolveNamespaceUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                    # NAMESPACE_CORE_CONFIG
-│   └── repositories/
-│       └── in-memory-namespace.repository.ts
-├── interfaces/
-│   └── api/
-│       └── namespace.controller.ts      # NamespaceController
-├── index.ts
-├── README.md
-└── AGENT.md
-```
-
----
-
-## 6. 一句話總結
-
-```
-Slug 進來：deriveSlugCandidate → NamespaceSlug.create → existsBySlug → save
-
-Slug 解析：findBySlug(slug, kind) → Namespace → route
-
-Slug 變更：（未實作）更新 slug → 建立舊 slug 重定向紀錄
-```
-
----
-
-## 7. 變更記錄
-
-| 版本 | 日期 | 變更說明 | 作者 |
-|------|------|----------|------|
-| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 Namespace Core 目標架構、Namespace 資料模型、slug policy | xuanwu-app 架構委員會 |
-`````
-
-## File: docs/decision-architecture/architecture/schedule.md
-`````markdown
----
-title: Schedule architecture
-description: Target MDDD architecture for the bidirectional resource-request scheduling system, including the currently shipped scope, domain model, Firestore data model, state machines, and event-driven design.
-status: "🏗️ Midway"
----
-
-# 排程模組架構規範
-
-> **文件編號**：XUANWU-SCHED-SPEC-001
-> **適用系統**：xuanwu-app — 雙向資源請求排程系統
-> **版本**：v1.2.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Schedule Module Owner / 平台架構委員會
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
----
-
-## 0. 目前已上線範圍
-
-目前已上線的是最小可運作切片（MVP write-side + projection），作為後續完整 MDDD 排程域的入口：
-
-- **工作區 UI**：`modules/schedule/interfaces/components/WorkspaceScheduleTab.tsx`
-  - 掛載位置：`modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
-  - 功能：新增資源請求（`scheduleRequests` 寫入 + `scheduleMdddFlowProjections` 初始 projection）
-- **組織 UI**：`app/(shell)/organization/schedule/page.tsx`
-  - 待分派（`submitted` 狀態的 projection 清單）+ 月曆週視圖
-- **開發契約**：`docs/development-reference/reference/development-contracts/schedule-contract.md`
-
-### 0.1 目前已交付（本輪完成）
-
-| 切片 | 說明 | 路徑 |
-|------|------|------|
-| 資源請求提交 | 工作區提交請求，寫入 `scheduleRequests` | `FirebaseScheduleRequestRepository.submit()` |
-| 資源請求取消 | 工作區取消自己提交的請求，更新 `scheduleRequests` 與 projection | `CancelScheduleRequestUseCase` + `cancelScheduleRequest()` |
-| 初始 projection 建立 | 提交成功後立即建立 `RequestCreated` projection | `schedule-request.actions.ts` → `FirebaseMdddProjectionRepository.project()` |
-| Projection 列表查詢 | 工作區查詢自身所有請求的 projection | `listWorkspaceScheduleMdddFlowProjections(workspaceId)` |
-| 組織待分派視圖 | 跨工作區聚合 `submitted` 狀態請求 | `OrganizationSchedulePage` |
-| 月曆週視圖 | 顯示已排程項目（`WorkspaceScheduleItem`） | `OrganizationSchedulePage` 月曆分頁 |
-
-### 0.2 本輪不在交付範圍
-
-以下仍屬後續階段，**本輪不假裝已完成**：
-
-- 組織端的請求審核 / 拒絕 / 關閉流程（完整 MDDD `Request` 生命週期）
-- 任務分解（`Task`）與候選人比對（`Match`）的完整引擎
-- 人工分派（`Assignment` offer/accept/reject）的 UI
-- 排程衝突偵測與時段重新分配
-- 跨工作區 Notification 路由（`organization:schedule:assigned`）
-- Temporal workflow 或 Cloud Functions 非同步觸發器
-
-### 0.3 正式缺口登記（current vs target）
-
-下表不是願景口號，而是**目前文件化的正式缺口清單**。後續所有 Schedule 變更都應明確對應到其中一項缺口，避免 UI 與 domain 邊界再次混雜。
-
-| 類別 | 目前已有 | 主要缺口 | 影響 |
-|------|----------|----------|------|
-| Request Intake | 工作區可提交/取消資源請求，並建立初始 projection | 缺少組織端 `under-review` / `accepted` / `rejected` / `closed` 完整生命週期 | 組織目前只能看到待分派，不能正式審核與結案 |
-| Task | `scheduleRequests` 可作為需求入口 | 尚未由 Request 分解出正式 `TaskAggregate` 與任務狀態流 | 無法進入可執行工作單元與後續配對 |
-| Match | 契約中已定義 matching engine 目標 | 尚未落地候選人資格篩選、評分、排序、cut-off | 組織端無法從需求走到候選人 shortlist |
-| Assignment | Projection 預留 `assignmentId` / `assignmentStatus` 欄位 | 尚未建立 offer / accept / reject / cancel 決策流與 UI | 尚無真正的人員指派流程 |
-| Schedule | 組織頁已有 booking list + calendar 顯示 | 尚未把 accepted assignment 轉成正式 `ScheduleAggregate` 與衝突偵測 | 月曆目前是既有 item read model，不是完整 fulfill flow 終點 |
-| Projection | 已有 `RequestCreated` / `RequestCancelled` 驅動的基本投影 | 尚缺 Task / Match / Assignment / Schedule 後續事件折疊與冪等保證 | UI 無法看到完整 Request → Fulfillment 進度 |
-| Integration | 當前由 action 同步補寫初始 projection | 尚缺 outbox / trigger / workflow orchestration / notification routing | 主寫入與投影仍存在 best-effort 風險 |
-
-### 0.4 目標狀態摘要
-
-Schedule 模組的目標不是「做一個更多按鈕的列表」，而是把下列流程落地成可審計的 MDDD flow：
-
-`Request -> Task -> Match -> Assignment -> Schedule`
-
-達成目標狀態前，任何新增 UI 都必須先回答：
-
-1. 它對應哪一個 aggregate 或 projection 階段？
-2. 狀態轉換是否已有 domain/application 契約？
-3. 讀模型是從 event-driven projection 來，還是只是暫時拼接？
-
----
-
-## 1. 核心設計原則
-
-| 原則 | 說明 |
-|------|------|
-| **雙向分離** | 工作區負責 demand 側（提交需求），組織負責 supply 側（審核履行），兩側透過 projection 解耦 |
-| **Event-Sourced Projection** | `scheduleMdddFlowProjections` 僅由 domain event 驅動更新，UI 只讀 projection，不直接讀 aggregate |
-| **Aggregate 不可越界** | Request / Task / Assignment / Schedule 各自擁有獨立生命週期，不共享可變狀態 |
-| **Skills 可選（workspace 端）** | 簡單資源請求不強制技能需求；完整 MDDD flow 使用時才強制驗證 |
-| **Postiz 月曆類比** | 組織月曆視圖參照 Postiz calendar.tsx 的週視圖設計：24 小時橫列、每日欄位、今日高亮 |
-
----
-
-## 2. 領域模型
-
-### 2.1 核心聚合（Aggregates）
-
-| 聚合 | 根實體 | 責任 | 主要欄位 |
-|------|--------|------|----------|
-| `RequestAggregate` | `Request` | 工作區需求的生命週期管理 | `requestId`, `workspaceId`, `organizationId`, `requiredSkills`, `status`, `notes` |
-| `TaskAggregate` | `Task` | 可執行工作單元，由 Request 分解而來 | `taskId`, `requestId`, `requiredSkills`, `requiredHeadcount`, `status` |
-| `MatchAggregate` | `Match` | 候選人評分與排名結果 | `matchId`, `taskId`, `candidateAccountUserId`, `score`, `rank` |
-| `AssignmentAggregate` | `Assignment` | 任務與被分派人的決策生命週期 | `assignmentId`, `taskId`, `assigneeAccountUserId`, `status` |
-| `ScheduleAggregate` | `Schedule` | 時段預留與執行計畫 | `scheduleId`, `assignmentId`, `calendarSlot`, `loadUnits`, `status` |
-
-### 2.2 投影讀模型（Projection）
-
-`ScheduleMdddFlowProjection` 是聚合跨狀態的跨段快照，供 UI 直接讀取：
-
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| `requestId` | `string` | 請求唯一識別碼 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `organizationId` | `string` | 所屬組織 |
-| `requestStatus` | `RequestStatus` | 請求當前狀態 |
-| `taskId` | `string \| null` | 對應任務 ID（Task 建立後填入） |
-| `taskStatus` | `TaskStatus \| null` | 任務當前狀態 |
-| `assignmentId` | `string \| null` | 對應分派 ID |
-| `assignmentStatus` | `AssignmentStatus \| null` | 分派當前狀態 |
-| `scheduleId` | `string \| null` | 對應排程 ID |
-| `scheduleStatus` | `ScheduleStatus \| null` | 排程當前狀態 |
-| `assigneeAccountUserId` | `string \| null` | 被分派人帳號 ID |
-| `lastReason` | `string \| null` | 最近一次拒絕或取消原因 |
-| `eventTypes` | `string[]` | 已發生的 domain event 類型列表 |
-| `updatedAtISO` | `string` | 最近更新時間（ISO 8601） |
-
----
-
-## 3. Firestore 資料模型
-
-### 3.1 資源請求集合（`scheduleRequests`）
-
-**Collection Path**：`/scheduleRequests/{requestId}`
-
-| 欄位名 | 類型 | 必填 | 說明 |
-|--------|------|------|------|
-| `workspaceId` | `string` | ✅ | 提交請求的工作區 ID |
-| `organizationId` | `string` | ✅ | 所屬組織 ID |
-| `status` | `ScheduleRequestStatus` | ✅ | 請求狀態（`submitted` \| `cancelled` \| `closed`） |
-| `requiredSkills` | `SkillRequirement[]` | ✅ | 所需技能清單（可為空陣列） |
-| `proposedStartAtISO` | `string \| null` | ❌ | 期望開始時間 |
-| `notes` | `string` | ✅ | 需求說明 |
-| `submittedByAccountId` | `string` | ✅ | 提交者帳號 ID |
-| `submittedAtISO` | `string` | ✅ | 提交時間（ISO 8601） |
-| `createdAtISO` | `string` | ✅ | 建立時間 |
-| `updatedAtISO` | `string` | ✅ | 最後更新時間 |
-
-### 3.2 Projection 集合（`scheduleMdddFlowProjections`）
-
-**Collection Path**：`/scheduleMdddFlowProjections/{requestId}`
-
-欄位同 `ScheduleMdddFlowProjection` 介面定義。每次 domain event 透過 `FirebaseMdddProjectionRepository.project()` 以 `merge: true` 方式更新。
-
-**重要**：Projection 由 domain event 驅動，不由 UI 直接寫入（唯一例外：`schedule-request.actions.ts` 在成功提交後立即寫入初始 `RequestCreated` projection 以確保可見性）。
-
-### 3.3 MDDD Flow 集合（完整 flow 使用）
-
-| 集合 | 說明 |
-|------|------|
-| `scheduleMdddRequests` | MDDD Request 聚合文件 |
-| `scheduleMdddTasks` | MDDD Task 聚合文件 |
-| `scheduleMdddMatches` | Match 評分結果 |
-| `scheduleMdddAssignments` | Assignment 決策文件 |
-| `scheduleMdddSchedules` | Schedule 時段文件 |
-
----
-
-## 4. 狀態機
-
-### 4.1 RequestStatus
-
-```
-draft ──→ submitted ──→ under-review ──→ accepted ──→ closed
-                   ↘                 ↘
-                    cancelled        rejected ──→ closed
-```
-
-| 狀態 | 觸發者 | 說明 |
-|------|--------|------|
-| `draft` | 工作區 | 草稿，尚未提交 |
-| `submitted` | 工作區 | 已提交，等待組織審核 |
-| `under-review` | 組織 | 審核中 |
-| `accepted` | 組織 | 審核通過，進入任務分解 |
-| `rejected` | 組織 | 審核拒絕 |
-| `cancelled` | 工作區 | 提交前取消 |
-| `closed` | 系統 | 已結束（完成或拒絕後關閉） |
-
-### 4.2 TaskStatus
-
-```
-open ──→ matching ──→ assignable ──→ assigned ──→ scheduled ──→ completed
-                                  ↘
-                                   cancelled
-```
-
-### 4.3 AssignmentStatus
-
-```
-pending-review ──→ proposed ──→ accepted ──→ completed
-                           ↘
-                            rejected / cancelled
-```
-
-### 4.4 ScheduleStatus
-
-```
-planned ──→ reserved ──→ active ──→ completed
-                    ↘
-                     cancelled / conflicted
-```
-
----
-
-## 5. 事件驅動設計
-
-### 5.1 已實作 Domain Events
-
-| Event | 觸發時機 | 擁有聚合 |
-|-------|----------|----------|
-| `RequestCreated` | 請求提交成功後立即寫入 | `RequestAggregate` |
-| `RequestCancelled` | 工作區取消自己提交的請求後立即寫入 | `RequestAggregate` |
-| `RequestAccepted` | 組織審核通過 | `RequestAggregate` |
-| `RequestRejected` | 組織審核拒絕 | `RequestAggregate` |
-| `TaskMatched` | 候選人比對完成 | `TaskAggregate` |
-| `AssignmentAccepted` | 被分派人接受 | `AssignmentAggregate` |
-| `AssignmentRejected` | 被分派人拒絕 | `AssignmentAggregate` |
-| `ScheduleReserved` | 時段預留成功 | `ScheduleAggregate` |
-| `ScheduleCancelled` | 時段取消 | `ScheduleAggregate` |
-| `TaskCompleted` | 任務完成 | `TaskAggregate` |
-
-### 5.2 Event 消費路徑
-
-```
-Domain Event
-    │
-    ↓
-FirebaseMdddProjectionRepository.project(events)
-    │
-    ↓
-scheduleMdddFlowProjections/{requestId}  ← UI 讀取此集合
-```
-
----
-
-## 6. 模組架構對映
-
-```
-modules/schedule/
-├── domain/
-│   ├── entities/          # ScheduleRequest, ScheduleItem, ScheduleEventType
-│   ├── repositories/      # ScheduleRequestRepository (port interface)
-│   ├── mddd/
-│   │   ├── entities/      # Request, Task, Match, Assignment, Schedule
-│   │   ├── value-objects/ # Projection, WorkflowStatuses, Requirements, Scheduling
-│   │   ├── services/      # matching-engine, scheduling-engine
-│   │   ├── events/        # ScheduleDomainEvents
-│   │   └── repositories/  # MDDD port interfaces
-├── application/
-│   └── use-cases/
-│       ├── submit-schedule-request.use-case.ts  # 目前已上線
-│       └── mddd/
-│           └── run-schedule-mddd-flow.use-case.ts  # 完整 MDDD flow
-├── infrastructure/
-│   └── firebase/
-│       ├── FirebaseScheduleRequestRepository.ts   # scheduleRequests 集合
-│       ├── FirebaseMdddProjectionRepository.ts    # scheduleMdddFlowProjections 集合
-│       └── Firebase*Repository.ts (其餘 MDDD 集合)
-└── interfaces/
-    ├── _actions/
-    │   ├── schedule-request.actions.ts  # 提交 + projection 初始化
-    │   └── schedule-mddd.actions.ts
-    ├── queries/
-    │   ├── schedule-mddd.queries.ts     # listWorkspaceScheduleMdddFlowProjections
-    │   └── schedule.queries.ts
-    └── components/
-        └── WorkspaceScheduleTab.tsx     # 工作區資源請求 UI
-```
-
----
-
-## 7. 比對：Postiz 月曆模型 vs Xuanwu 排程模型
-
-Postiz 是社群媒體發文排程平台，其 `calendar.tsx`（1232 行）提供了成熟的週視圖月曆實作。以下是兩者設計的對映與借鑒點：
-
-| Postiz 概念 | Xuanwu 對映 | 借鑒點 |
-|-------------|-------------|--------|
-| Post（待排程發文）| ScheduleRequest（資源請求）| 佔位符可點擊，顯示詳細資訊 |
-| Calendar week grid | OrganizationSchedulePage 週月曆 | 24 小時橫列 + 每日欄位 |
-| Post status badge | RequestStatus badge | 顏色映射狀態語意 |
-| Temporal workflow | RunScheduleMdddFlowUseCase | 多步驟非同步 flow |
-| Integration（平台）| Workspace（工作區）| 多來源聚合顯示 |
-| Draft / Scheduled / Published | draft / submitted / accepted / closed | 類似單向狀態推進 |
-
----
-
-## 8. 安全規則建議
-
-```javascript
-// firestore.rules — 排程集合存取控制（建議）
-match /scheduleRequests/{requestId} {
-  // 工作區成員可建立（組織成員驗證由應用層處理）
-  allow create: if isAuthenticated();
-  // 僅提交者和組織管理員可讀取
-  allow read: if isAuthenticated() && (
-    resource.data.submittedByAccountId == request.auth.uid ||
-    isOrgAdmin(resource.data.organizationId)
-  );
-  // 不允許直接更新（由 Server Action 處理）
-  allow update, delete: if false;
-}
-
-match /scheduleMdddFlowProjections/{requestId} {
-  // 讀取：工作區成員（投影查詢由 server-side 過濾）
-  allow read: if isAuthenticated();
-  // 寫入：僅後端（Server Actions / Admin SDK）
-  allow write: if false;
-}
-```
-
----
-
-## 9. 索引設計
-
-### 9.1 Firestore 複合索引（必要）
-
-| Collection | 欄位組合 | 用途 |
-|------------|----------|------|
-| `scheduleMdddFlowProjections` | `workspaceId ASC` + `updatedAtISO DESC` | 工作區請求列表 |
-| `scheduleMdddFlowProjections` | `organizationId ASC` + `requestStatus ASC` + `updatedAtISO DESC` | 組織待分派視圖 |
-| `scheduleRequests` | `workspaceId ASC` + `submittedAtISO DESC` | 工作區歷史請求 |
-| `scheduleRequests` | `organizationId ASC` + `status ASC` | 組織審核佇列 |
-
----
-
-## 10. 變更記錄
-
-| 版本 | 日期 | 變更說明 | 作者 |
-|------|------|----------|------|
-| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 MVP write-side + projection 設計 | xuanwu-app 架構委員會 |
-| v1.1.0 | 2026-03-20 | 補充 Postiz 月曆對映、Firestore 索引、安全規則、`requiredSkills` 可選說明 | Copilot |
-| v1.2.0 | 2026-03-20 | 正式補入 current vs target 缺口登記、目標狀態摘要與分階段 roadmap | Copilot |
-
----
-
-## 11. 分階段 Roadmap（建議）
-
-### Phase 1 — Request Review
-
-- 補齊組織端 `under-review` / `accepted` / `rejected` / `closed`
-- 補齊對應 server actions、application use cases、projection events
-- 讓組織頁「待分派」不再只是 submitted 清單，而是有正式審核語意
-
-### Phase 2 — Task Decomposition
-
-- 將 `RequestAggregate` 轉成一個或多個 `TaskAggregate`
-- 定義 task readiness 與 task status state machine
-- 補齊 `taskId` / `taskStatus` projection folding
-
-### Phase 3 — Match Generation
-
-- 落地候選人 eligibility filter、availability pre-check、score breakdown
-- 產出可審核的 `Match` 排序結果
-- 補齊 UI 需要的 shortlist / disqualification read model
-
-### Phase 4 — Assignment Decision
-
-- 組織端 offer 指派、成員 accept / reject、系統 cancel / expire
-- 確立唯一 active assignment invariant
-- projection 可顯示 assignee、decision reason、deadline
-
-### Phase 5 — Schedule Allocation
-
-- 將 accepted assignment 轉成正式 `ScheduleAggregate`
-- 加入時段保留、衝突檢測、超載檢測、reschedule trail
-- 組織月曆顯示正式 fulfill flow 結果，而非僅顯示既有靜態 items
-
-### Phase 6 — Integration & Reliability
-
-- 將初始 projection bootstrap 改為可重播/冪等的事件整合
-- 補齊 notification routing、trigger/workflow orchestration、審計紀錄
-- 將 best-effort 寫入路徑升級為可恢復的生產級流程
-`````
-
-
-## File: docs/development-reference/development/development-process.md
-`````markdown
-# 開發流程（Development Process）
-
-> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
-
----
-
-## 1. 流程總覽
-
-```
-需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
-```
-
----
-
-## 2. 開發前準備
-
-### 2.1 環境設置
-
-```bash
-# 1. 安裝相依套件
-npm install
-
-# 2. 啟動開發伺服器
-npm run dev      # http://localhost:3000
-```
-
-> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
-
-### 2.2 必讀文件
-
-在開始任何功能開發前，請先確認：
-
-- [ ] [`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
-- [ ] [`agents/README.md`](../../../agents/README.md) — 架構規則索引
-- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀 [`docs/development-reference/reference/development-contracts/overview.md`](../reference/development-contracts/overview.md)
-
-### 2.3 建立分支
-
-```bash
-# 從 main 建立功能分支
-git checkout main
-git pull origin main
-git checkout -b feature/your-feature-name
-```
-
-分支命名規則見 [branch-strategy.md](./branch-strategy.md)。
-
----
-
-## 3. MDDD 開發七步驟
-
-針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
-
-### Step 1：確認模組歸屬
-
-找出你的功能屬於哪個模組（`modules/*/`）：
-
-```
-modules/
-├── wiki-beta/    ← 知識庫、文件上傳、RAG
-├── workspace/    ← 工作區管理
-├── account/      ← 帳號管理
-├── organization/ ← 組織管理
-├── file/         ← 檔案生命週期
-...（20 個模組）
-```
-
-若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
-
-### Step 2：設計 Domain 層（entity / value object / repository interface）
-
-```typescript
-// modules/wiki-beta/domain/entities/wiki-beta-page.entity.ts
-export interface WikiBetaPageEntity {
-  readonly id: string;
-  readonly title: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-```
-
-> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
-
-### Step 3：實作 Application Use Case
-
-```typescript
-// modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
-export async function createWikiBetaPage(
-  input: CreateWikiBetaPageInput,
-  repo: IWikiBetaPageRepository
-): Promise<CommandResult<string>> {
-  // 業務邏輯在此
-  const page = buildPageEntity(input);
-  return repo.save(page);
-}
-```
-
-### Step 4：實作 Infrastructure Adapter
-
-```typescript
-// modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
-export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
-  async save(page: WikiBetaPageEntity): Promise<CommandResult<string>> {
-    const ref = await addDoc(
-      collection(db, `accounts/${page.accountId}/pages`),
-      pageToFirestore(page)
-    );
-    return { success: true, data: ref.id };
-  }
-}
-```
-
-### Step 5：建立 Server Action（接口層）
-
-```typescript
-// modules/wiki-beta/interfaces/_actions/wiki-beta-page.actions.ts
-"use server";
-
-export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
-  return createWikiBetaPage(input, new FirebaseWikiBetaPageRepository());
-}
-```
-
-### Step 6：實作 React 元件
-
-```tsx
-// modules/wiki-beta/interfaces/components/WikiBetaPagesView.tsx
-"use client";
-
-export function WikiBetaPagesView() {
-  const [isCreating, setIsCreating] = useState(false);
-
-  async function handleCreate() {
-    setIsCreating(true);
-    const result = await createPageAction({ title: "新頁面", accountId });
-    if (result.success) {
-      toast.success("已建立頁面");
-      router.push(`/wiki-beta/pages/${result.data}`);
-    } else {
-      toast.error(`建立失敗：${result.error.message}`);
-    }
-    setIsCreating(false);
-  }
-
-  return (/* ... */);
-}
-```
-
-### Step 7：更新 index.ts 公開 API
-
-```typescript
-// modules/wiki-beta/index.ts
-export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
-export type { WikiBetaPageEntity } from "./domain/entities/wiki-beta-page.entity";
-```
-
----
-
-## 4. 本地驗證清單
-
-每次提交前，確保通過以下驗證：
-
-```bash
-# 1. ESLint — 必須 0 errors
-npm run lint
-
-# 2. TypeScript + 生產建置
-npm run build
-
-# 3. Python Worker（若有變更）
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-**手動驗證**（依功能範圍）：
-
-- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
-- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
-- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
-- [ ] 確認 Loading 狀態正常（spinner + 禁用）
-- [ ] 空狀態 / 載入狀態正確顯示
-
----
-
-## 5. PR 建立與 Review
-
-### 5.1 建立 PR
-
-```bash
-git push origin feature/your-feature-name
-# 在 GitHub 建立 PR → main
-```
-
-PR 描述需包含：
-- 目的（一句話說明）
-- `Closes #N`（若有 issue）
-- 變更內容清單
-- 測試方式說明
-
-### 5.2 Review 標準
-
-Review 者確認：
-
-| 項目 | 標準 |
-|---|---|
-| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
-| 型別安全 | 無 `any`；使用正確型別 |
-| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
-| 可近用性 | `aria-label`、鍵盤可操作 |
-| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
-| 測試 | lint + build 通過 |
-
----
-
-## 6. 特殊情境流程
-
-### 6.1 跨 runtime 變更（Next.js + py_fn）
-
-若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
-
-1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
-2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
-3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
-
-### 6.2 資料模型變更
-
-修改 Firestore schema 時：
-
-1. 評估**向後相容性**：舊資料是否需要 migration？
-2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
-3. 更新 **Security Rules**（`firestore.rules`）。
-4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
-
-### 6.3 文件變更
-
-文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
-
-```bash
-git checkout -b docs/update-ui-ux-wireframes
-git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
-```
-
----
-
-## 7. AI 輔助開發流程
-
-本專案整合 GitHub Copilot Agent 輔助開發：
-
-### 7.1 使用 Planner Agent（規劃階段）
-
-對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
-
-```
-在 Copilot Chat 輸入：
-「使用 @planner 規劃 wiki-beta pages CRUD 功能」
-```
-
-計畫格式見 [`docs/development-reference/reference/ai/implementation-plan-template.md`](../reference/ai/implementation-plan-template.md)。
-
-### 7.2 使用 Implementer Agent（實作階段）
-
-計畫審核後，交由 Implementer Agent 執行：
-
-```
-在 Copilot Chat 輸入：
-「使用 @implementer 按照計畫實作步驟 1-3」
-```
-
-### 7.3 Delivery Chain
-
-完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
-
-詳細說明見 [`docs/development-reference/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
-`````
-
-## File: docs/development-reference/event/development-guide.md
-`````markdown
----
-title: Event Core development guide
-description: Developer guide for contributing to event-core — publishing domain events, implementing adapters, dispatch policy, and testing patterns.
----
-
-# Event Core 開發指南
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：參與 `modules/event` 實作或在各模組中發布領域事件的工程師
-
----
-
-## 前置閱讀
-
-開始任何 Event Core 相關實作前，請先閱讀：
-
-1. **架構規範**：`docs/decision-architecture/architecture/event.md`
-2. **開發契約**：`docs/development-reference/reference/development-contracts/event-contract.md`
-3. **整體架構指南**：`agents/knowledge-base.md`
-
----
-
-## 1. 模組結構
-
-```
-modules/event/
-├── domain/
-│   ├── entities/
-│   │   └── domain-event.entity.ts       # DomainEvent class
-│   ├── repositories/
-│   │   ├── ievent-bus.repository.ts     # IEventBusRepository port
-│   │   └── ievent-store.repository.ts   # IEventStoreRepository port
-│   ├── services/
-│   │   └── dispatch-policy.ts           # shouldRetry, nextRetryDelayMs (純函式)
-│   └── value-objects/
-│       └── event-metadata.vo.ts         # EventMetadata
-├── application/
-│   └── use-cases/
-│       ├── publish-domain-event.ts      # PublishDomainEventUseCase
-│       └── list-events-by-aggregate.ts  # ListEventsByAggregateUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                   # EVENT_CORE_CONFIG
-│   └── repositories/
-│       ├── in-memory-event-store.repository.ts
-│       └── noop-event-bus.repository.ts
-├── interfaces/
-│   └── api/
-│       └── event.controller.ts         # EventController
-└── index.ts
-```
-
-### 依賴方向（嚴格）
-
-```
-interfaces (api / controller)
-    ↓
-application (use-cases)
-    ↓
-domain (entities / repositories / services / value-objects)
-    ↑
-infrastructure (adapters)
-```
-
-> ❗ 禁止 domain 直接 import infrastructure；禁止 application 直接 import UI 元件；禁止任何層直接 import `@/modules/*`。
-
----
-
-## 2. 從模組發布領域事件
-
-### 2.1 標準發布流程
-
-在任何模組的 write-side use-case 中注入 `PublishDomainEventUseCase`，在業務操作完成後發布事件：
-
-```typescript
-// modules/task/application/use-cases/assign-task.use-case.ts
-import { PublishDomainEventUseCase } from '@/modules/event'
-import type { ITaskRepository } from '../domain/repositories/itask.repository'
-
-export class AssignTaskUseCase {
-  constructor(
-    private readonly taskRepo: ITaskRepository,
-    private readonly publishEvent: PublishDomainEventUseCase,
-  ) {}
-
-  async execute(dto: { taskId: string; assigneeId: string; actorId: string }) {
-    const task = await this.taskRepo.findById(dto.taskId)
-    task.assign(dto.assigneeId)
-    await this.taskRepo.save(task)
-
-    await this.publishEvent.execute({
-      id:            crypto.randomUUID(),
-      eventName:     'Task.Task.Assigned',
-      aggregateType: 'Task',
-      aggregateId:   dto.taskId,
-      payload:       { assigneeId: dto.assigneeId },
-      metadata:      { actorId: dto.actorId },
-      occurredAt:    new Date(),
-    })
-  }
-}
-```
-
-### 2.2 eventName 命名規則
-
-```
-{ModulePrefix}.{AggregateType}.{PastTenseAction}
-
-合法範例：
-  Wiki.WikiDocument.Created
-  Task.Task.Assigned
-  Schedule.ScheduleRequest.Submitted
-  Billing.Invoice.Issued
-  Daily.DailyEntry.Published
-```
-
----
-
-## 3. 實作新的 EventStore Adapter
-
-當需要從 in-memory 切換到真實持久層（Firestore、Postgres 等）時：
-
-### 3.1 建立 adapter
-
-```typescript
-// modules/{module}/infrastructure/firebase/FirebaseEventStoreRepository.ts
-import type { IEventStoreRepository } from '@/modules/event'
-import { DomainEvent } from '@/modules/event'
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore'
-
-export class FirebaseEventStoreRepository implements IEventStoreRepository {
-  private readonly db = getFirestore()
-
-  async save(event: DomainEvent): Promise<void> {
-    const ref = doc(collection(this.db, 'domain_events'), event.id)
-    await setDoc(ref, {
-      id:            event.id,
-      eventName:     event.eventName,
-      aggregateType: event.aggregateType,
-      aggregateId:   event.aggregateId,
-      occurredAt:    Timestamp.fromDate(event.occurredAt),
-      payload:       event.payload,
-      metadata:      event.metadata,
-      dispatchedAt:  event.dispatchedAt ? Timestamp.fromDate(event.dispatchedAt) : null,
-    })
-  }
-
-  async findById(id: string): Promise<DomainEvent | null> {
-    const snap = await getDoc(doc(collection(this.db, 'domain_events'), id))
-    if (!snap.exists()) return null
-    return this.toDomain(snap.data())
-  }
-
-  async findByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]> {
-    const q = query(
-      collection(this.db, 'domain_events'),
-      where('aggregateType', '==', aggregateType),
-      where('aggregateId', '==', aggregateId),
-      orderBy('occurredAt', 'asc'),
-    )
-    const snaps = await getDocs(q)
-    return snaps.docs.map((d) => this.toDomain(d.data()))
-  }
-
-  async findUndispatched(limitCount: number): Promise<DomainEvent[]> {
-    const q = query(
-      collection(this.db, 'domain_events'),
-      where('dispatchedAt', '==', null),
-      orderBy('occurredAt', 'asc'),
-      limit(limitCount),
-    )
-    const snaps = await getDocs(q)
-    return snaps.docs.map((d) => this.toDomain(d.data()))
-  }
-
-  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
-    const ref = doc(collection(this.db, 'domain_events'), id)
-    await updateDoc(ref, { dispatchedAt: Timestamp.fromDate(dispatchedAt) })
-  }
-
-  private toDomain(data: Record<string, unknown>): DomainEvent {
-    return new DomainEvent(
-      data.id as string,
-      data.eventName as string,
-      data.aggregateType as string,
-      data.aggregateId as string,
-      (data.occurredAt as Timestamp).toDate(),
-      data.payload as Record<string, unknown>,
-      data.metadata as Record<string, unknown>,
-      data.dispatchedAt ? (data.dispatchedAt as Timestamp).toDate() : null,
-    )
-  }
-}
-```
-
-### 3.2 注意事項
-
-- `findByAggregate` 需要 Firestore composite index：`aggregateType ASC` + `aggregateId ASC` + `occurredAt ASC`。
-- `findUndispatched` 需要 index：`dispatchedAt ASC` + `occurredAt ASC`。
-
----
-
-## 4. 使用 Dispatch Policy
-
-dispatch policy 是 domain/services 的純函式，可在任何地方直接 import 使用：
-
-```typescript
-import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
-import { EVENT_CORE_CONFIG } from '@/modules/event/infrastructure/persistence/config'
-
-const policy = { maxRetries: EVENT_CORE_CONFIG.DISPATCH.RETRY_LIMIT, baseDelayMs: 500 }
-
-if (shouldRetry({ attemptCount: attempt, lastAttemptAt: new Date() }, policy)) {
-  const delay = nextRetryDelayMs({ attemptCount: attempt, lastAttemptAt: new Date() }, policy)
-  await sleep(delay)
-  // 重試派送
-}
-```
-
----
-
-## 5. 測試模式
-
-### 5.1 使用 InMemoryEventStoreRepository
-
-```typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from '@/modules/event'
-
-describe('AssignTaskUseCase', () => {
-  it('publishes Task.Task.Assigned event', async () => {
-    const store = new InMemoryEventStoreRepository()
-    const bus = new NoopEventBusRepository()
-    const publishEvent = new PublishDomainEventUseCase(store, bus)
-
-    // ... use-case execution
-
-    const events = await store.findByAggregate('Task', taskId)
-    expect(events).toHaveLength(1)
-    expect(events[0].eventName).toBe('Task.Task.Assigned')
-  })
-})
-```
-
-### 5.2 驗證 domain service 純函式
-
-```typescript
-import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
-
-describe('dispatchPolicy', () => {
-  const policy = { maxRetries: 3, baseDelayMs: 500 }
-
-  it('allows retry when attemptCount < maxRetries', () => {
-    expect(shouldRetry({ attemptCount: 2, lastAttemptAt: null }, policy)).toBe(true)
-  })
-
-  it('disallows retry when attemptCount >= maxRetries', () => {
-    expect(shouldRetry({ attemptCount: 3, lastAttemptAt: null }, policy)).toBe(false)
-  })
-
-  it('computes exponential delay', () => {
-    expect(nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: null }, policy)).toBe(1000)
-  })
-})
-```
-
----
-
-## 6. 常見錯誤
-
-| 錯誤 | 原因 | 修正 |
-|------|------|------|
-| `eventName is required` | `eventName` 傳入空字串 | 確認 eventName 非空且有意義 |
-| `aggregateType is required` | 未傳入聚合類型 | 傳入 `'Task'`、`'WikiDocument'` 等具體類型 |
-| `aggregateId is required` | 未傳入聚合 ID | 傳入對應業務 ID |
-| dispatch 後仍顯示 undispatched | `markDispatched` 未執行 | 確認 `PublishDomainEventUseCase` 正確呼叫後確認 |
-
----
-
-## 7. 驗證指令
-
-```bash
-# Lint
-npm run lint
-
-# Build
-npm run build
-```
-`````
-
-## File: docs/development-reference/event/user-manual.md
-`````markdown
----
-title: Event Core user manual
-description: User manual for the Event Core domain — how domain events are captured, stored, and dispatched across Xuanwu modules.
----
-
-# Event Core 使用手冊
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：工程師、平台架構師、模組 Owner
-
----
-
-## 概覽
-
-Event Core 是 xuanwu-app 的**領域事件基礎**。它讓每個模組能以統一方式：
-
-- 📌 **捕捉**業務狀態變更（例如：任務指派、發票發出、文件建立）
-- 💾 **持久化**事件紀錄（事件即真相）
-- 📡 **派送**事件至其他模組（解耦模組間的直接依賴）
-- 🔍 **查詢**聚合根的完整事件時間線
-
----
-
-## 事件是什麼？
-
-在 xuanwu-app 中，**Domain Event（領域事件）**代表一個業務事實——某件事**確實已發生**。
-
-範例：
-
-| 事件名稱 | 意義 |
-|---------|------|
-| `Task.Task.Assigned` | 某個任務被指派給成員 |
-| `Wiki.WikiDocument.Created` | 知識文件被建立 |
-| `Schedule.ScheduleRequest.Submitted` | 資源請求已提交 |
-| `Billing.Invoice.Issued` | 發票已開立 |
-
----
-
-## 事件生命週期
-
-```
-1. 模組 write-side 完成業務操作
-        ↓
-2. 呼叫 PublishDomainEventUseCase
-        ↓
-3. 事件寫入 EventStore（狀態：undispatched）
-        ↓
-4. 事件發布至 EventBus
-        ↓
-5. 事件標記為 dispatched
-        ↓
-6. 訂閱方接收事件 → 更新 projection / 觸發 side-effect
-```
-
----
-
-## 如何查詢某個聚合根的事件歷史？
-
-使用 `ListEventsByAggregateUseCase`（透過 `EventController`）：
-
-```typescript
-const events = await eventController.listByAggregate({
-  aggregateType: 'Task',
-  aggregateId:   'task_abc123',
-})
-// 回傳：按 occurredAt 升序排列的 DomainEvent[]
-```
-
----
-
-## 事件追蹤欄位（EventMetadata）
-
-每個事件可攜帶追蹤用的 metadata：
-
-| 欄位 | 用途 |
-|------|------|
-| `correlationId` | 跨服務追蹤同一筆業務流程 |
-| `causationId` | 指出哪個事件觸發了這個事件 |
-| `actorId` | 誰執行了這個操作 |
-| `organizationId` | 多租戶隔離 |
-| `workspaceId` | 工作區範圍 |
-| `traceId` | 分散式追蹤 |
-
----
-
-## 重試機制
-
-若事件派送失敗，系統依據 **dispatch policy** 決定是否重試：
-
-| 設定 | 預設值 |
-|------|--------|
-| 最大重試次數（`RETRY_LIMIT`） | 3 次 |
-| 批次查詢大小（`BATCH_SIZE`） | 100 |
-| 延遲策略 | Exponential back-off（指數退避） |
-
----
-
-## 常見問題
-
-### Q: 事件會重複嗎？
-A: 系統保證 **at-least-once** 派送語意，代表事件可能重複派送。訂閱方應以 `event.id` 作為冪等鍵，避免重複處理同一事件。
-
-### Q: 能不能直接查 EventStore 而不用 use-case？
-A: 不建議。應透過 `EventController` → `ListEventsByAggregateUseCase` → `IEventStoreRepository` 的標準路徑，保持層次清晰。
-
-### Q: in-memory adapter 可以上線嗎？
-A: 不行。`InMemoryEventStoreRepository` 和 `NoopEventBusRepository` 僅用於本地開發和測試。生產環境需替換為 Firestore / Pub/Sub adapter。
-
-### Q: 我的模組需要訂閱事件怎麼做？
-A: 目前 event bus adapter 為 noop scaffold。完整訂閱實作（例如 Firestore trigger / Pub/Sub push）待後續 infrastructure adapter 完成後對接。
-
----
-
-## 參考文件
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計 | `docs/decision-architecture/architecture/event.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
-| 開發指南 | `docs/development-reference/event/development-guide.md` |
-| 整體架構指南 | `agents/knowledge-base.md` |
-`````
-
-
-## File: docs/development-reference/namespace/development-guide.md
-`````markdown
----
-title: Namespace Core development guide
-description: Developer guide for contributing to namespace-core — registering namespaces, implementing adapters, slug policy, and testing patterns.
----
-
-# Namespace Core 開發指南
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：參與 `modules/namespace` 實作或在模組中使用命名空間功能的工程師
-
----
-
-## 前置閱讀
-
-開始任何 Namespace Core 相關實作前，請先閱讀：
-
-1. **架構規範**：`docs/decision-architecture/architecture/namespace.md`
-2. **開發契約**：`docs/development-reference/reference/development-contracts/namespace-contract.md`
-3. **整體架構指南**：`agents/knowledge-base.md`
-
----
-
-## 1. 模組結構
-
-```
-modules/namespace/
-├── domain/
-│   ├── entities/
-│   │   └── namespace.entity.ts              # Namespace class
-│   ├── repositories/
-│   │   └── inamespace.repository.ts         # INamespaceRepository port
-│   ├── services/
-│   │   └── slug-policy.ts                   # deriveSlugCandidate, isValidSlug（純函式）
-│   └── value-objects/
-│       └── namespace-slug.vo.ts             # NamespaceSlug
-├── application/
-│   └── use-cases/
-│       ├── register-namespace.use-case.ts   # RegisterNamespaceUseCase
-│       └── resolve-namespace.use-case.ts    # ResolveNamespaceUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                       # NAMESPACE_CORE_CONFIG
-│   └── repositories/
-│       └── in-memory-namespace.repository.ts
-├── interfaces/
-│   └── api/
-│       └── namespace.controller.ts         # NamespaceController
-└── index.ts
-```
-
-### 依賴方向（嚴格）
-
-```
-interfaces (api / controller)
-    ↓
-application (use-cases)
-    ↓
-domain (entities / repositories / services / value-objects)
-    ↑
-infrastructure (adapters)
-```
-
----
-
-## 2. 從模組建立命名空間
-
-當 organization 或 workspace 被建立時，應同步呼叫 `RegisterNamespaceUseCase`：
-
-```typescript
-// modules/organization/application/use-cases/create-organization.use-case.ts
-import { RegisterNamespaceUseCase, deriveSlugCandidate } from '@/modules/namespace'
-import type { IOrganizationRepository } from '../domain/repositories/iorganization.repository'
-import type { INamespaceRepository } from '@/modules/namespace'
-
-export class CreateOrganizationUseCase {
-  constructor(
-    private readonly orgRepo: IOrganizationRepository,
-    private readonly namespaceRepo: INamespaceRepository,
-  ) {}
-
-  async execute(dto: { id: string; displayName: string; ownerAccountId: string }) {
-    // 1. 建立組織實體
-    const org = new Organization(dto.id, dto.displayName, dto.ownerAccountId, new Date())
-    await this.orgRepo.save(org)
-
-    // 2. 推導並註冊命名空間 slug
-    const slugCandidate = deriveSlugCandidate(dto.displayName)
-    const registerNamespace = new RegisterNamespaceUseCase(this.namespaceRepo)
-    await registerNamespace.execute({
-      id:             crypto.randomUUID(),
-      slug:           slugCandidate,
-      kind:           'organization',
-      ownerAccountId: dto.ownerAccountId,
-      organizationId: dto.id,
-    })
-  }
-}
-```
-
----
-
-## 3. Slug 推導與驗證
-
-使用 slug-policy 純函式處理 slug 邏輯：
-
-```typescript
-import { deriveSlugCandidate, isValidSlug, NamespaceSlug } from '@/modules/namespace'
-
-// 推導候選值
-const candidate = deriveSlugCandidate('My Organization 2024!')
-// → 'my-organization-2024'
-
-// 快速驗證格式
-if (!isValidSlug(candidate)) {
-  throw new Error('Derived slug is invalid')
-}
-
-// 建立 VO（更嚴格的驗證，含 length 檢查）
-const slug = NamespaceSlug.create(candidate)
-console.log(slug.value) // → 'my-organization-2024'
-```
-
----
-
-## 4. 解析 Slug → Namespace
-
-```typescript
-import { ResolveNamespaceUseCase } from '@/modules/namespace'
-
-const resolveNamespace = new ResolveNamespaceUseCase(namespaceRepo)
-
-const namespace = await resolveNamespace.execute({
-  slug: 'my-organization-2024',
-  kind: 'organization',
-})
-
-if (!namespace) {
-  // 404 — slug 不存在
-}
-```
-
----
-
-## 5. 實作 Firestore Adapter
-
-```typescript
-// modules/organization/infrastructure/firebase/FirebaseNamespaceRepository.ts
-import type { INamespaceRepository } from '@/modules/namespace'
-import { Namespace, NamespaceSlug } from '@/modules/namespace'
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore'
-import { NAMESPACE_CORE_CONFIG } from '@/modules/namespace/infrastructure/persistence/config'
-
-export class FirebaseNamespaceRepository implements INamespaceRepository {
-  private readonly db = getFirestore()
-  private readonly col = collection(this.db, NAMESPACE_CORE_CONFIG.STORE.COLLECTION)
-
-  async save(namespace: Namespace): Promise<void> {
-    await setDoc(doc(this.col, namespace.id), {
-      id:             namespace.id,
-      slug:           namespace.slug.value,
-      kind:           namespace.kind,
-      ownerAccountId: namespace.ownerAccountId,
-      organizationId: namespace.organizationId,
-      status:         namespace.status,
-      createdAt:      namespace.createdAt.toISOString(),
-      updatedAt:      namespace.updatedAt.toISOString(),
-    })
-  }
-
-  async findBySlug(slug: string, kind: string): Promise<Namespace | null> {
-    const q = query(this.col, where('slug', '==', slug), where('kind', '==', kind))
-    const snaps = await getDocs(q)
-    if (snaps.empty) return null
-    return this.toDomain(snaps.docs[0].data())
-  }
-
-  async existsBySlug(slug: string, kind: string): Promise<boolean> {
-    const q = query(this.col, where('slug', '==', slug), where('kind', '==', kind))
-    const snaps = await getDocs(q)
-    return !snaps.empty
-  }
-
-  // ... implement remaining methods
-
-  private toDomain(data: Record<string, unknown>): Namespace {
-    return new Namespace(
-      data.id as string,
-      NamespaceSlug.create(data.slug as string),
-      data.kind as 'organization' | 'workspace',
-      data.ownerAccountId as string,
-      data.organizationId as string,
-      data.status as 'active' | 'suspended' | 'archived',
-      new Date(data.createdAt as string),
-      new Date(data.updatedAt as string),
-    )
-  }
-}
-```
-
----
-
-## 6. 測試模式
-
-```typescript
-import {
-  InMemoryNamespaceRepository,
-  RegisterNamespaceUseCase,
-  ResolveNamespaceUseCase,
-  deriveSlugCandidate,
-} from '@/modules/namespace'
-
-describe('RegisterNamespaceUseCase', () => {
-  it('registers a new namespace', async () => {
-    const repo = new InMemoryNamespaceRepository()
-    const useCase = new RegisterNamespaceUseCase(repo)
-
-    const ns = await useCase.execute({
-      id:             'ns_001',
-      slug:           deriveSlugCandidate('My Org'),
-      kind:           'organization',
-      ownerAccountId: 'acc_001',
-      organizationId: 'org_001',
-    })
-
-    expect(ns.slug.value).toBe('my-org')
-    expect(ns.status).toBe('active')
-  })
-
-  it('throws on slug collision', async () => {
-    const repo = new InMemoryNamespaceRepository()
-    const useCase = new RegisterNamespaceUseCase(repo)
-
-    await useCase.execute({ id: 'ns_001', slug: 'my-org', kind: 'organization', ownerAccountId: 'acc_001', organizationId: 'org_001' })
-
-    await expect(
-      useCase.execute({ id: 'ns_002', slug: 'my-org', kind: 'organization', ownerAccountId: 'acc_002', organizationId: 'org_002' }),
-    ).rejects.toThrow('already taken')
-  })
-})
-```
-
----
-
-## 7. 驗證指令
-
-```bash
-npm run lint
-npm run build
-```
-`````
-
-## File: docs/development-reference/namespace/user-manual.md
-`````markdown
----
-title: Namespace Core user manual
-description: User manual for the Namespace Core domain — how organization and workspace slugs work, how they are resolved, and what the lifecycle states mean.
----
-
-# Namespace Core 使用手冊
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：工程師、平台架構師、模組 Owner
-
----
-
-## 概覽
-
-Namespace Core 是 xuanwu-app 的**命名空間基礎**。它讓每個組織與工作區都有：
-
-- 🔤 **唯一可閱讀的 slug**（例如 `acme-corp`、`product-team`）
-- 🔗 **穩定的 URL 路由定址**（例如 `/acme-corp/product-team`）
-- 🏷️ **多租戶資源隔離**（透過 `organizationId` 邊界）
-
----
-
-## 什麼是 Namespace？
-
-在 xuanwu-app 中，**Namespace（命名空間）**是一個為組織或工作區保留的具名範圍：
-
-| Kind | 說明 | 範例 slug |
-|------|------|-----------|
-| `organization` | 組織層命名空間 | `acme-corp` |
-| `workspace` | 工作區層命名空間 | `product-team` |
-
----
-
-## Slug 規則
-
-| 規則 | 說明 |
-|------|------|
-| 長度 | 3–63 字元 |
-| 允許字元 | 小寫英文 `a-z`、數字 `0-9`、連字號 `-` |
-| 不允許 | 大寫字母、底線、連字號開頭/結尾 |
-| 唯一性 | 在相同 kind 下唯一 |
-
----
-
-## Namespace 生命週期
-
-| 狀態 | 說明 |
-|------|------|
-| `active` | 正常使用中，slug 可被解析 |
-| `suspended` | 暫停，slug 暫時無法路由（仍保留） |
-| `archived` | 封存，slug 永久保留但不可再啟用 |
-
----
-
-## 常見問題
-
-### Q: Slug 可以修改嗎？
-A: 目前尚未實作 slug 變更流程。Slug 一旦建立後暫時固定，未來實作時會同步建立舊 slug 重定向紀錄。
-
-### Q: 不同組織可以使用相同 slug 嗎？
-A: 在相同 kind（`organization` 或 `workspace`）下，slug 是全域唯一的，不允許重複使用。
-
-### Q: 封存的 namespace 的 slug 還能被新組織使用嗎？
-A: 不行。封存的 namespace 仍保留其 slug，新建立的命名空間無法使用已存在的 slug（包含封存狀態）。
-
----
-
-## 參考文件
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計 | `docs/decision-architecture/architecture/namespace.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
-| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
-| 整體架構指南 | `agents/knowledge-base.md` |
-`````
-
-## File: docs/development-reference/README.md
-`````markdown
-# Development Reference
-
-Development guides, specifications, contracts, and planning for the Xuanwu App platform.
-
-## Organization
-
-- [development/](./development/) — Process, branching, code style → [development/README.md](./development/README.md)
-- [reference/](./reference/) — AI customization, plans, contracts → [reference/README.md](./reference/README.md)
-- [specification/](./specification/) — System specs, development contracts → [specification/README.md](./specification/README.md)
-- [event/](./event/) — Event Core developer guide and user manual
-- [namespace/](./namespace/) — Namespace Core developer guide and user manual
-
-## Quick Navigation
-
-- **Develop**: [development/development-process.md](./development/development-process.md)
-- **Plan**: [reference/ai/implementation-plan-template.md](./reference/ai/implementation-plan-template.md)
-- **Review contracts**: [specification/README.md](./specification/README.md)
-
-## Related
-
-- [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture & ADRs
-- [../diagrams-events-explanations/README.md](../diagrams-events-explanations/README.md) — Diagrams & explanations
-`````
-
-## File: docs/development-reference/reference/ai/README.md
-`````markdown
-# AI Customization Reference
-
-Copilot customization assets, delivery planning templates, schemas, and governance indices.
-
-## Primary Purpose
-
-This folder is the **docs-side reference** for the Xuanwu Copilot Delivery Suite. The operative assets live in [.github/](../../../../.github/), and this folder provides routing, ownership, and maintenance policy.
-
-## Core Files
-
-| File | Purpose | Audience |
-| --- | --- | --- |
-| [customizations-index.md](./customizations-index.md) | Primary index for all Copilot assets | Developers, maintainers |
-| [implementation-plan-template.md](./implementation-plan-template.md) | Standard markdown skeleton for plans | Planners, implementers |
-| [plan-schema.md](./plan-schema.md) | Field-level semantics and rules | Plan reviewers |
-| [handoff-matrix.md](./handoff-matrix.md) | Stage transitions and re-entry paths | All delivery stages |
-| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Deprecation and migration tracking | Maintainers |
-
-## Quick Navigation
-
-1. **To understand Copilot customizations**: Start with [customizations-index.md](./customizations-index.md)
-2. **To create a formal plan**: Use [implementation-plan-template.md](./implementation-plan-template.md)
-3. **To validate your plan**: Check against [plan-schema.md](./plan-schema.md)
-4. **To understand stage transitions**: Read [handoff-matrix.md](./handoff-matrix.md)
-5. **To track legacy migrations**: See [legacy-customizations-migration.md](./legacy-customizations-migration.md)
-
-## Scope
-
-- This folder is **reference only** — do not edit files here without updating `.github/` in the same change
-- If this folder conflicts with `.github/`, treat `.github/` as authoritative
-- Keep explanation and routing here; keep operative assets in `.github/`
-
-## Related
-
-- [../../README.md](../../README.md) — Development reference root
-- [../../../../../.github/copilot-instructions.md](../../../../../.github/copilot-instructions.md) — Copilot baseline
-- [../../../../../.github/README.md](../../../../../.github/README.md) — Operative root
-- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow
-`````
-
 ## File: docs/development-reference/reference/development-contracts/audit-contract.md
 `````markdown
 ---
@@ -60356,138 +57185,6 @@ Before expanding integrations, define:
 - Minimum structured metadata for enterprise investigations
 `````
 
-## File: docs/development-reference/reference/development-contracts/namespace-contract.md
-`````markdown
----
-title: Namespace Core development contract
-description: Implementation contract for the Namespace Core domain — canonical named-scope registration, slug validation, collision detection, and resolution for multi-tenant resource addressing.
-status: "🚧 Developing"
----
-
-# Namespace Core development contract
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-## Purpose
-
-`modules/namespace` defines:
-- Uniform slug registration and validation (org/workspace level)
-- Slug → namespace resolution
-- Multi-tenant addressing layer
-- Human-readable URL routing foundation (`/{org-slug}/{workspace-slug}`)
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Namespace entity | `modules/namespace/domain/entities` |
-| NamespaceSlug value object | `modules/namespace/domain/value-objects` |
-| Slug policy (pure) | `modules/namespace/domain/services` |
-| Namespace repository port | `modules/namespace/domain/repositories/INamespaceRepository` |
-| Register use-case | `modules/namespace/application/use-cases/RegisterNamespaceUseCase` |
-| Resolve use-case | `modules/namespace/application/use-cases/ResolveNamespaceUseCase` |
-| In-memory adapter | `modules/namespace/infrastructure/repositories/InMemoryNamespaceRepository` |
-
-## Bounded contexts
-
-| Context | Responsibility |
-| --- | --- |
-| Registration | Validate slug, check collision, persist |
-| Resolution | Translate slug + kind → namespace or null |
-| Lifecycle | Suspend, restore, archive records |
-| Derivation | Display name → slug candidate (pure)
-
-## Namespace entity contract
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | `string` | UUID v4 |
-| `slug` | `NamespaceSlug` | Validated VO |
-| `kind` | `org\|workspace` | Scope |
-| `ownerAccountId` | `string` | Registering user |
-| `organizationId` | `string` | Org boundary |
-| `status` | `active\|suspended\|archived` | State |
-| `createdAt` | `Date` | Registered |
-| `updatedAt` | `Date` | Updated |
-
-## NamespaceSlug value object contract
-
-**3–63 chars**: a-z, 0-9, hyphen. Cannot start/end with hyphen.
-
-```ts
-NamespaceSlug.create('my-org')  // ✓
-NamespaceSlug.create('-bad-')   // ✗
-NamespaceSlug.create('AB_CD')   // ✗
-```
-
-## Slug policy contract (pure functions)
-
-```typescript
-// domain/services/slug-policy.ts
-
-deriveSlugCandidate(displayName: string): string
-isValidSlug(slug: string): boolean
-```
-
-- Both functions are pure — no side effects, no external dependencies.
-- `deriveSlugCandidate` normalises a display name into a slug candidate (does not guarantee uniqueness).
-- `isValidSlug` validates the slug format without instantiating the VO.
-
-## INamespaceRepository contract
-
-```typescript
-interface INamespaceRepository {
-  save(namespace: Namespace): Promise<void>
-  findById(id: string): Promise<Namespace | null>
-  findBySlug(slug: string, kind: NamespaceKind): Promise<Namespace | null>
-  findByOrganization(organizationId: string): Promise<Namespace[]>
-  existsBySlug(slug: string, kind: NamespaceKind): Promise<boolean>
-}
-```
-
-- `findBySlug` must return the **active** namespace matching slug + kind; it must not return suspended or archived records as valid routing targets.
-- `existsBySlug` must check across all statuses (not just active) to prevent slug reuse after archive.
-- `findByOrganization` returns all namespaces for the org, unfiltered by status.
-
-## Collision detection contract
-
-```
-RegisterNamespaceUseCase.execute(dto):
-  1. NamespaceSlug.create(dto.slug)          ← format validation
-  2. existsBySlug(slug, kind)                ← collision check
-  3. if exists → throw "slug already taken"
-  4. new Namespace(..., status: 'active')    ← create entity
-  5. save(namespace)                         ← persist
-```
-
-- Collision check is scoped per `kind` — the same slug string is allowed once for `organization` and once for `workspace`.
-- Slug uniqueness is enforced at the application layer via the repository port, not in the domain entity.
-
-## Namespace lifecycle contract
-
-| `suspend()` | `active` → `suspended` | must be active |
-| `restore()` | `suspended` → `active` | must be suspended |
-| `archive()` | `active\|suspended` → `archived` | final
-
-## Infrastructure configuration contract
-
-```typescript
-NAMESPACE_CORE_CONFIG = {
-  STORE: { COLLECTION: 'namespaces' },
-  SLUG:  { MIN_LENGTH: 3, MAX_LENGTH: 63 },
-}
-```
-
-## Layer ownership
-
-| Layer | Owns | Must not |
-| --- | --- | --- |
-| Domain | entities, value objects, repository ports, slug-policy service | import SDK, HTTP, DB |
-| Application | use-cases, DTO composition, collision-check orchestration | directly import infrastructure or UI |
-| Infrastructure | namespace store adapter | leak provider details into domain |
-| Interfaces | controller facade | bypass application layer |
-`````
-
 ## File: docs/development-reference/reference/development-contracts/overview.md
 `````markdown
 ---
@@ -60503,7 +57200,7 @@ Contracts that remove implementation ambiguity. Each contract names: owning modu
 
 | Contract | Status | Primary owner | Current shape | Main blocker removed |
 | --- | --- | --- | --- | --- |
-| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/file` + `modules/ai` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
+| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/asset` + `modules/knowledge` + `modules/retrieval` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
 | [Parser contract](./parser-contract.md) | 🏗️ Midway | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
 | [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + projection on submit | Split ownership: derived items, persisted requests, projection read model |
 | [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification digest → workspace feed + org aggregation | Clarify feed, interaction, promotion boundaries |
@@ -60532,914 +57229,6 @@ Implementation areas rely on implied boundaries. Contracts convert these into ex
 See [Development contract governance](../../../diagrams-events-explanations/explanation/development-contract-governance.md) for maintenance rules.
 `````
 
-## File: docs/development-reference/reference/development-contracts/parser-contract.md
-`````markdown
----
-title: Parser development contract
-description: Implementation contract for parser module inputs, summary outputs, future parser job ownership, and acceptance rules.
-status: "🏗️ Midway"
----
-
-# Parser development contract
-
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
-## Scope
-
-Parser module: read-side summary of workspace parser readiness, source discovery, and future job ownership rules.
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Parser summary derivation | `modules/parser` |
-| File readiness input | `modules/file` query boundary |
-| Workspace capability and cover context | `modules/workspace` read model |
-
-## Current query contract
-
-### Entry point
-
-`getWorkspaceParserSignalSummary(workspace)` resolves file data through the file module and returns a `WorkspaceParserSummary`.
-
-### Output shape
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `supportedSources` | `number` | Sources for parser |
-| `readyAssetCount` | `number` | Usable assets |
-| `blockedReasons` | `string[]` | Not-ready reasons |
-| `nextActions` | `string[]` | Follow-ups |
-
-## Input contract
-
-Parser may use only:
-- Workspace cover/media
-- Workspace capability count
-- File-module items + lifecycle status
-
-❌ Forbidden: storage blobs, parser-job collections, RAG chunks
-
-Future parser execution creates parser-owned job contract:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `jobId` | `string` | UUID |
-| `workspaceId` | `string` | Scope |
-| `sourceFileId` | `string` | File ref |
-| `status` | `queued\|processing\|ready\|failed` | Lifecycle |
-| `triggeredByAccountId` | `string` | Audit |
-| `errorCode` | `string?` | Failure class |
-| `errorMessage` | `string?` | Failure detail |
-
-## State machine
-
-| `blocked` | derived | `ready` | From source readiness |
-| `ready` | derived/job | `processing`, `blocked` | |
-| `processing` | worker | `ready`, `failed` | Future |
-| `failed` | worker | `processing`, `blocked` | Future |
-
-## Invariants
-
-1. Summary = parser projection, not file shadow
-2. File metadata = canonical
-3. Execution state → parser records (not workspace entity)
-4. Query path: read-only, deterministic
-
-## Acceptance gates
-
-Before write-side, define:
-- Asset eligibility rules
-- Job storage (parser-owned infra)
-- File-module boundary (query/port)
-- Failure/retry semantics
-`````
-
-## File: docs/development-reference/reference/development-contracts/rag-ingestion-contract.md
-`````markdown
----
-title: RAG ingestion development contract
-description: Authoritative cross-runtime contract for RAG upload registration, worker execution, lifecycle transitions, and acceptance gates.
-status: "🚧 Developing"
----
-
-# RAG ingestion development contract
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-## Scope
-
-Authoritative cross-runtime contract for upload-to-worker boundary spanning Next.js registration, Firestore metadata, Python execution, and retrieval readiness.
-
-## Owning modules and runtimes
-
-| Responsibility | Owner |
-| --- | --- |
-| Upload registration and browser-facing orchestration | `modules/file` and Next.js interfaces |
-| Retrieval orchestration and answer generation | `modules/ai` |
-| Parsing, chunking, embedding, and lifecycle write-back | `py_fn` |
-
-## Canonical upload request
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `organizationId` | `string` | Tenant |
-| `workspaceId` | `string` | Retrieval scope |
-| `uploaderId` | `string` | Audit actor |
-| `sourceFileName` | `string` | File name |
-| `mimeType` | `string` | Parser routing |
-| `sizeBytes` | `number` | Size |
-| `checksum` | `string` | Idempotency |
-
-## Canonical `documents` metadata
-
-**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
-
-| `id` | `string` | Doc ID |
-| `organizationId` | `string` | Tenant |
-| `workspaceId` | `string` | Retrieval scope |
-| `title` | `string` | Display |
-| `sourceFileName` | `string` | File name |
-| `mimeType` | `string` | Parser routing |
-| `storagePath` | `string` | Storage pointer |
-| `checksum` | `string?` | Idempotency |
-| `taxonomy` | `string?` | Classification hint |
-| `status` | `uploaded\|processing\|ready\|failed\|archived` | Lifecycle |
-| `processingStartedAt` | `timestamp?` | Worker-owned |
-| `readyAt` | `timestamp?` | Worker-owned |
-| `failedAt` | `timestamp?` | Worker-owned |
-| `archivedAt` | `timestamp?` | Governance |
-| `errorCode` | `string?` | Failure class |
-| `errorMessage` | `string?` | Failure detail |
-| `createdAt` | `timestamp` | Registered |
-| `updatedAt` | `timestamp` | Updated |
-
-## Worker invocation boundary
-
-Firestore-driven: document `status=uploaded` triggers worker to resolve metadata, read artifact, set `processing`, persist chunks, write terminal status.
-
-Python callable bridge remains for internal/admin reprocess flows when `rawText` omitted, uses document `storagePath`.
-
-## Worker command fields
-
-| `documentId` | `string` | Correlation key |
-| `organizationId` | `string` | Tenant (reject if missing) |
-| `workspaceId` | `string` | Scope (reject if missing) |
-| `title` | `string` | Prompt/audit |
-| `sourceFileName` | `string` | Audit context |
-| `mimeType` | `string` | Router hint |
-| `storagePath` | `string` | Storage path |
-| `checksum` | `string?` | Idempotency |
-| `taxonomyHint` | `string?` | Pre-classify hint |
-
-## `chunks` persistence contract
-
-**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
-
-| `chunkId` | `string` | Deterministic ID |
-| `docId` | `string` | Parent doc ID |
-| `organizationId` | `string` | Tenant filter |
-| `workspaceId` | `string` | Workspace filter |
-| `chunkIndex` | `number` | Sequence |
-| `text` | `string` | Retrieval source |
-| `embedding` | `number[]` | Vector |
-| `taxonomy` | `string` | Filter field |
-| `page` | `number?` | Page ref |
-| `tags` | `string[]?` | Metadata |
-
-## Lifecycle state machine
-
-| `uploaded` | Next.js | `processing` | Registration only |
-| `processing` | Worker | `ready`, `failed` | Started |
-| `ready` | Worker/governance | `processing`, `archived` | Terminal success |
-| `failed` | Worker | `processing` | Retry |
-| `archived` | Governance | terminal | No self-revive |
-
-## Invariants
-
-1. `organizationId` + `workspaceId` on both documents + chunks
-2. Embeddings computed once, reused (org/workspace scoped)
-3. Workspace retrieval preferred (cheaper than org-scoped)
-4. Archive ≠ ingestion side-effect
-5. Worker: never persist chunks without terminal status
-6. Idempotency: `documentId + checksum`, reprocess replaces prior chunks
-
-## Legacy note
-
-Fallback to Firestore snapshot IDs (pre-MVP docs/chunks without duplicated `id`/`chunkId` still readable). No automatic backfill; legacy rows pick up duplicated fields on next reprocess.
-
-## Acceptance gates
-
-✓ DTOs, fields, command fields match this contract
-✓ Trigger path explicit (Firestore or callable, one primary)
-✓ Firestore indexes support documented patterns
-✓ Worker records all timestamps + classified errors
-
-## Open blockers
-
-- Replace compatibility callable with Firestore `status=uploaded` trigger
-- Consolidate ADR-010 with current `mimeType` + `sourceFileName` usage
-- Add archive/unarchive write-side before UI governance
-`````
-
-## File: docs/development-reference/reference/README.md
-`````markdown
-# Reference Index
-
-Technical reference, specifications, and planning templates.
-
-## Core Content
-
-| Area | Primary Files |
-| --- | --- |
-| [ai/](./ai/) | [customizations-index.md](./ai/customizations-index.md) — Copilot assets; [implementation-plan-template.md](./ai/implementation-plan-template.md) — Plan template |
-| [development-contracts/](./development-contracts/) | [overview.md](./development-contracts/overview.md) — RAG, parser, schedule, acceptance, billing, audit, event, namespace contracts |
-
-## Quick Start
-
-- **Build a plan**: [ai/implementation-plan-template.md](./ai/implementation-plan-template.md) + [ai/plan-schema.md](./ai/plan-schema.md)
-- **Understand stage flow**: [ai/handoff-matrix.md](./ai/handoff-matrix.md)
-- **Migrate legacy assets**: [ai/legacy-customizations-migration.md](./ai/legacy-customizations-migration.md)
-- **Review contracts**: [development-contracts/](./development-contracts/)
-
-## Related
-
-- [../../README.md](../../README.md) — Development reference root
-- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/core-logic.mermaid
-`````
-flowchart TD
-  %% Core logic skeleton for RAG architecture
-
-  subgraph UserFacing[Next.js User-Facing Runtime]
-    U1[User uploads document]
-    U2[Validate auth, tenant, workspace]
-    U3[Generate documentId and traceId]
-    U4[Write upload metadata]
-    U5[User sends query]
-    U6[Apply query gates]
-    U7[Assemble context and prompt]
-    U8[Stream response with citations]
-  end
-
-  subgraph CanonicalStores[Firebase Canonical Stores]
-    S1[(Storage: raw file)]
-    F1[(Firestore documents)]
-    F2[(Firestore chunks + embedding)]
-    F3[(Firestore queryCache optional)]
-    F4[(Firestore queryFeedback optional)]
-  end
-
-  subgraph WorkerRuntime[Cloud Functions Python Worker]
-    W1[Trigger when documents.status=uploaded]
-    W2[Set status=processing]
-    W3[Parse file]
-    W4[Clean and normalize text]
-    W5[Document taxonomy]
-    W6[Chunking]
-    W7[Embedding]
-    W8[Upsert chunks using documentId_chunkIndex]
-    W9[Set status=ready or failed]
-  end
-
-  U1 --> U2 --> U3
-  U3 --> S1
-  U3 --> U4 --> F1
-
-  F1 --> W1 --> W2 --> W3 --> W4 --> W5 --> W6 --> W7 --> W8 --> F2
-  W8 --> W9 --> F1
-
-  U5 --> U6 --> U7
-  U6 --> F1
-  U6 --> F2
-  U6 --> F3
-  U7 --> U8
-  U8 --> F4
-
-  classDef user fill:#E8F4FD,stroke:#1E88E5,color:#0D47A1;
-  classDef store fill:#E8F5E9,stroke:#43A047,color:#1B5E20;
-  classDef worker fill:#FFF8E1,stroke:#FB8C00,color:#E65100;
-
-  class U1,U2,U3,U4,U5,U6,U7,U8 user;
-  class S1,F1,F2,F3,F4 store;
-  class W1,W2,W3,W4,W5,W6,W7,W8,W9 worker;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/erd-model.mermaid
-`````
-erDiagram
-  DOCUMENTS ||--o{ CHUNKS : contains
-  DOCUMENTS ||--o{ QUERY_CACHE : serves
-  DOCUMENTS ||--o{ QUERY_FEEDBACK : receives
-
-  DOCUMENTS {
-    string id PK
-    string tenantId
-    string workspaceId
-    string title
-    string originalFilename
-    string contentType
-    string extension
-    number sizeBytes
-    string storageBucket
-    string storagePath
-    string checksum
-    string parser
-    string status
-    string taxonomy
-    string createdBy
-    datetime createdAt
-    datetime updatedAt
-    datetime processingStartedAt
-    datetime readyAt
-    datetime failedAt
-    datetime archivedAt
-    string errorCode
-    string errorMessage
-  }
-
-  CHUNKS {
-    string id PK
-    string tenantId
-    string workspaceId
-    string docId FK
-    number chunkIndex
-    string text
-    vector embedding
-    string taxonomy
-    number page
-    string tags
-    number tokenCount
-    number charCount
-    string sourceHeading
-    datetime createdAt
-    datetime updatedAt
-  }
-
-  QUERY_CACHE {
-    string id PK
-    string tenantId
-    string workspaceId
-    string queryHash
-    string response
-    string retrievedChunkIds
-    datetime createdAt
-    datetime expiresAt
-  }
-
-  QUERY_FEEDBACK {
-    string id PK
-    string tenantId
-    string workspaceId
-    string queryHash
-    string responseId
-    string rating
-    string reason
-    datetime createdAt
-  }
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/project-derivation.mermaid
-`````
-graph LR
-    classDef roleActor fill:#dcfce7,stroke:#16a34a,color:#14532d,font-weight:bold
-    classDef roleActorLite fill:#fef9c3,stroke:#ca8a04,color:#713f12,font-weight:bold
-    classDef systemActor fill:#f3e8ff,stroke:#a855f7,color:#6b21a8,font-weight:bold
-    classDef appUC fill:#eff6ff,stroke:#3b82f6,color:#1e40af
-    classDef domainUC fill:#f0fdf4,stroke:#22c55e,color:#166534
-    classDef dataUC fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
-    classDef opsUC fill:#fff7ed,stroke:#f97316,color:#9a3412
-    classDef aiUC fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-    classDef refUC fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 2
-
-    PlatformOwner((平台擁有者)):::roleActor
-    OrgAdmin((組織管理員)):::roleActor
-    WorkspaceAdmin((工作區管理員)):::roleActor
-    Member((成員)):::roleActorLite
-    Viewer((訪客)):::roleActorLite
-
-    NextJS((Next.js App Runtime)):::systemActor
-    Worker((Functions Python Worker)):::systemActor
-    Firestore((Firestore)):::systemActor
-    Storage((Firebase Storage)):::systemActor
-    Genkit((Genkit / LLM)):::systemActor
-
-    subgraph appLayer[🧭 App and Shell Layer]
-        APP1([公開入口與登入]):::appUC
-        APP2([Shell 佈局與工作區切換]):::appUC
-        APP3([Route Handler 與 Server Action]):::appUC
-        APP4([多提供者 Context 管理]):::appUC
-    end
-
-    subgraph identityOrg[🪪 Identity and Organization]
-        ID1([帳號註冊與登入識別]):::domainUC
-        ID2([角色與權限模型]):::domainUC
-        ID3([組織與成員管理]):::domainUC
-        ID4([租戶邊界驗證]):::domainUC
-    end
-
-    subgraph workspaceModule[🏢 Workspace]
-        WS1([建立工作區]):::domainUC
-        WS2([工作區設定與偏好]):::domainUC
-        WS3([工作區儀表板]):::domainUC
-        WS4([工作區層級活動彙整]):::domainUC
-    end
-
-    subgraph executionModules[📦 業務執行模組]
-        TK1([Task 任務生命週期]):::domainUC
-        TK2([Issue 問題追蹤]):::domainUC
-        TK3([Schedule 排程與指派]):::domainUC
-        TK4([Notification 通知中心]):::domainUC
-        TK5([Daily 日報與追蹤]):::domainUC
-        TK6([Acceptance 驗收記錄]):::domainUC
-        TK7([Audit 稽核事件]):::domainUC
-    end
-
-    subgraph knowledgeAI[🧠 Knowledge and AI]
-        KG1([File 上傳與文件管理]):::aiUC
-        KG2([Parser 文件解析]):::aiUC
-        KG3([Knowledge 索引與知識檢索]):::aiUC
-        KG4([RAG Query 編排與回覆]):::aiUC
-        KG5([引用與回饋循環]):::aiUC
-    end
-
-    subgraph businessSupport[💼 商務與支援模組]
-        BM1([Billing 計費週期]):::opsUC
-        BM2([Finance 應收應付]):::opsUC
-        BM3([Account 帳務資料]):::opsUC
-        BM4([Organization 組織治理策略]):::opsUC
-    end
-
-    subgraph coreData[🗂️ Canonical Data Resources]
-        D1([users]):::dataUC
-        D2([organizations]):::dataUC
-        D3([workspaces]):::dataUC
-        D4([tasks and issues]):::dataUC
-        D5([documents]):::dataUC
-        D6([chunks and embedding]):::dataUC
-        D7([queryCache and feedback]):::dataUC
-        D8([auditLogs and notifications]):::dataUC
-        D9([billing and finance records]):::dataUC
-    end
-
-    subgraph crossCutting[🔗 Cross-Cutting Contracts]
-        C1([租戶隔離 tenantId and workspaceId]):::refUC
-        C2([狀態機驅動 lifecycle contract]):::refUC
-        C3([事件與重試 idempotency]):::refUC
-        C4([觀測指標與 SLO gate]):::refUC
-        C5([MDDD 依賴方向守則]):::refUC
-    end
-
-    PlatformOwner --> APP2
-    PlatformOwner --> ID2
-    PlatformOwner --> BM1
-
-    OrgAdmin --> ID3
-    OrgAdmin --> WS1
-    OrgAdmin --> WS2
-    OrgAdmin --> BM2
-
-    WorkspaceAdmin --> WS3
-    WorkspaceAdmin --> TK1
-    WorkspaceAdmin --> TK2
-    WorkspaceAdmin --> TK3
-    WorkspaceAdmin --> KG1
-    WorkspaceAdmin --> KG4
-
-    Member --> TK1
-    Member --> TK2
-    Member --> TK3
-    Member --> TK4
-    Member --> KG4
-    Member --> KG5
-
-    Viewer --> WS3
-    Viewer --> TK4
-    Viewer --> KG5
-
-    APP1 --> NextJS
-    APP2 --> NextJS
-    APP3 --> NextJS
-    APP4 --> NextJS
-
-    NextJS --> ID1
-    NextJS --> ID4
-    NextJS --> WS3
-    NextJS --> TK1
-    NextJS --> TK2
-    NextJS --> TK3
-    NextJS --> TK4
-    NextJS --> KG1
-    NextJS --> KG4
-
-    KG1 --> Storage
-    KG1 --> D5
-    KG2 --> Worker
-    Worker --> KG2
-    Worker --> KG3
-    Worker --> D6
-    KG4 --> Genkit
-    KG4 --> D6
-    KG4 --> D7
-    KG5 --> D7
-
-    Firestore --> D1
-    Firestore --> D2
-    Firestore --> D3
-    Firestore --> D4
-    Firestore --> D5
-    Firestore --> D6
-    Firestore --> D7
-    Firestore --> D8
-    Firestore --> D9
-
-    TK1 --> D4
-    TK2 --> D4
-    TK3 --> D4
-    TK4 --> D8
-    TK6 --> D8
-    TK7 --> D8
-
-    BM1 --> D9
-    BM2 --> D9
-    BM3 --> D9
-    BM4 --> D2
-
-    ID1 -.-> C1
-    ID4 -.-> C1
-    WS1 -.-> C1
-    KG4 -.-> C1
-
-    TK1 -.-> C2
-    TK2 -.-> C2
-    KG1 -.-> C2
-    KG3 -.-> C2
-
-    Worker -.-> C3
-    KG2 -.-> C3
-    KG3 -.-> C3
-
-    NextJS -.-> C4
-    Worker -.-> C4
-    Genkit -.-> C4
-
-    APP3 -.-> C5
-    ID2 -.-> C5
-    TK1 -.-> C5
-    KG3 -.-> C5
-    BM1 -.-> C5
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/rag-enterprise-e2e.mermaid
-`````
-flowchart TD
-  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
-  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
-  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
-  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
-  classDef naming fill:#fef2f2,stroke:#ef4444,color:#7f1d1d
-  classDef docai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
-  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
-  classDef accel fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
-  classDef pyown fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,font-weight:bold
-  classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
-
-  subgraph ING[① Ingestion Pipeline - 資料進來]
-    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
-    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
-    I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
-  end
-
-  subgraph DOCAI[①A document_ai 核心用途與輸出]
-    DA1[讀取 raw 檔案 bytes]:::docai --> DA2[Document AI Layout Parser]:::docai --> DA3[抽取 text pages tables headings]:::docai --> DA4[輸出 layout artifact json]:::docai
-    DA3 --> DA5[正規化 normalize 與去雜訊]:::docai --> DA6[doc-level taxonomy]:::docai --> DA7[chunking 與 chunkIndex 決定]:::docai
-    DA7 --> DA8[chunk metadata 組裝 page taxonomy tags]:::docai --> DA9[輸出 chunk payload 給 embedding]:::docai
-    DA2 --> DA10{document_ai 失敗?}:::docai
-    DA10 -->|yes| DA11[回寫 documents status failed with errorCode errorMessage]:::docai
-    DA10 -->|no| DA5
-  end
-
-  subgraph QRY[② Query Pipeline - 查詢與 RAG]
-    subgraph QRYA[②A 查詢主線]
-      Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Index readiness gate]:::query --> Q6[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q7{Top-K chunks found?}:::query
-      Q7 -->|yes| Q8[Context 組裝 prompt building]:::query --> Q9[Genkit LLM 回答生成]:::query --> Q10[Streaming 回傳 Next.js UI]:::query
-    end
-    subgraph QRYB[②B 查詢回退與觀測]
-      Q7 -->|no| Q11[No-context fallback response]:::query
-      Q9 --> Q12[query traces latency and cost metrics]:::query
-    end
-  end
-
-  subgraph OPT[③ Optional 強化 - 企業必備]
-    subgraph OPTA[③A Retrieval and Rerank]
-      O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
-      O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
-    end
-    subgraph OPTB[③B Cache and Feedback]
-      O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
-      O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
-    end
-  end
-
-  subgraph DATA[④ Firestore 資料結構核心]
-    subgraph DATAA[④A documents 契約]
-      D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
-    end
-    subgraph DATAB[④B chunks 契約]
-      D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
-    end
-  end
-
-  subgraph NAMING[④C 檔案命名與儲存結構契約]
-    N1[canonical documentId 與 originalFilename 分離]:::naming
-    N2[raw 檔固定命名 source plus ext]:::naming
-    N3[storagePath tenants slash tenantId slash workspaces slash workspaceId slash documents slash documentId slash raw slash source ext]:::naming
-    N4[derived 輸出放在 derived 子目錄]:::naming
-    N5[chunk upsert key documentId underscore chunkIndex]:::naming
-    N6[documents 必填 tenantId workspaceId checksum storagePath]:::naming
-  end
-
-  subgraph KEY[⑤ 關鍵觀念濃縮]
-    subgraph KEYA[⑤A Retrieval 原則]
-      K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
-      K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
-      K3[Vector Search 在 query 做 每次查詢]:::keypoint
-    end
-    subgraph KEYB[⑤B Runtime 原則]
-      K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
-      K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
-    end
-  end
-
-  subgraph SUM[⑥B 一句話總結]
-    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
-    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
-  end
-
-  subgraph OWN[⑥A Runtime Ownership]
-    R1[綠色框 = Next.js 主責節點]:::nxown
-    R2[藍色框 = py_fn 主責節點]:::pyown
-  end
-
-  subgraph LINKRULE[⑥C 線路規則]
-    L1[實線 = 主流程執行順序]:::summary
-    L2[虛線 = 契約或能力映射]:::keypoint
-    L3[跨區連線優先以區塊級映射呈現]:::keypoint
-  end
-
-  subgraph ACCEL[⑦ package.json 可直接降低開發難度]
-    subgraph ACCELA[⑦A 開發迭代工具]
-      A1[scripts dev build lint 降低本地迭代摩擦]:::accel
-      A4[zod 契約驗證 可用於 UploadRequest QueryInput WorkerEvent]:::accel
-      A5[tanstack react-query 快速實作 query 快取 重試 與狀態同步]:::accel
-      A7[xstate plus zustand 可把複雜流程狀態與 UI 狀態拆分管理]:::accel
-      A8[axios 可統一 infrastructure adapter 的 HTTP 呼叫]:::accel
-      A9[tailwind plus shadcn 加速介面與後台工具頁建置]:::accel
-    end
-    subgraph ACCELB[⑦B 部署與基礎設施]
-      A2[scripts deploy:functions:python deploy:firestore:indexes deploy:rules 降低部署心智負擔]:::accel
-    end
-    subgraph ACCELC[⑦C RAG 流程能力]
-      A3[genkit plus google-genai 直接支援 Query Flow 與 LLM orchestration]:::accel
-      A6[upstash redis vector 可支援 Optional Cache 與 Retrieval 擴充]:::accel
-    end
-  end
-
-  I4 -.-> DA1
-  DA9 -.-> I11
-  DA11 -.-> I16
-
-  ING -.-> DATA
-  QRY -.-> DATA
-  NAMING -.-> ING
-  NAMING -.-> DATA
-  QRY -.-> OPT
-
-  DA4 -.-> N4
-  DA11 -.-> D1
-
-  S1 -.-> ING
-  S2 -.-> QRY
-
-  ACCELA -.-> ING
-  ACCELA -.-> QRY
-  ACCELB -.-> ING
-  ACCELC -.-> QRY
-  ACCELC -.-> OPT
-
-  class I1,I3,Q1,Q2,Q10,Q11 nxown
-  class I4,I11,I12,I15,I16,DA1,DA2,DA3,DA4,DA5,DA6,DA7,DA8,DA9,DA10,DA11 pyown
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/README.md
-`````markdown
-# Diagrams Index
-
-架構、流程、資料與狀態機圖的統一入口。一張圖描述一個視角，讓產品、架構、實作讀者快速定位。
-
-## 圖表分類
-
-| 分類 | 圖表 |
-| --- | --- |
-| System | [system-architecture-overview-combined.mermaid](./system-architecture-overview-combined.mermaid), [system-multi-workspace-hierarchy.mermaid](./system-multi-workspace-hierarchy.mermaid), [ai-knowledge-platform-architecture.png](./ai-knowledge-platform-architecture.png) |
-| Workspace | [workspace-internal-data-model.mermaid](./workspace-internal-data-model.mermaid), [workspace-interaction-flow.mermaid](./workspace-interaction-flow.mermaid) |
-| Data & Runtime | [firestore-collection-path-structure.mermaid](./firestore-collection-path-structure.mermaid), [api-data-flow.mermaid](./api-data-flow.mermaid) |
-| Auth & Security | [auth-state-machine.mermaid](./auth-state-machine.mermaid), [security-rules-decision-flow.mermaid](./security-rules-decision-flow.mermaid) |
-| Knowledge & Events | [kb-ingestion-pipeline-state-machine.mermaid](./kb-ingestion-pipeline-state-machine.mermaid), [event-bus-message-flow.mermaid](./event-bus-message-flow.mermaid) |
-| Next.js & Agents | [nextjs-app-router-structure.mermaid](./nextjs-app-router-structure.mermaid), [agent-architecture-commander-subagents.mermaid](./agent-architecture-commander-subagents.mermaid) |
-| Domain Models | [core-logic.mermaid](./core-logic.mermaid), [erd-model.mermaid](./erd-model.mermaid), [project-derivation.mermaid](./project-derivation.mermaid), [rag-enterprise-e2e.mermaid](./rag-enterprise-e2e.mermaid), [state-machine.mermaid](./state-machine.mermaid) |
-
-## 建議閱讀順序
-
-開始於系統概觀，然後深入工作區、資料、認證、知識流程。
-
-## 相關文件
-
-- [docs/decision-architecture/architecture/](../../decision-architecture/architecture/)
-- [docs/development-reference/development/modules-implementation-guide.md](../../development-reference/development/modules-implementation-guide.md)
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/state-machine.mermaid
-`````
-stateDiagram-v2
-  [*] --> Uploaded
-
-  Uploaded --> Processing: Worker accepted
-  Uploaded --> Failed: Invalid metadata or artifact missing
-
-  Processing --> Ready: Parse, chunk, embed, persist success
-  Processing --> Failed: Runtime or provider error
-
-  Failed --> Processing: Retry policy or manual retry
-  Ready --> Processing: Reprocess request
-  Ready --> Archived: Archive request
-
-  Archived --> [*]
-
-  state Processing {
-    [*] --> Parse
-    Parse --> Clean
-    Clean --> Taxonomy
-    Taxonomy --> Chunk
-    Chunk --> Embed
-    Embed --> PersistChunks
-    PersistChunks --> [*]
-  }
-
-  note right of Uploaded
-    Required gates:
-    - tenantId
-    - workspaceId
-    - checksum
-    - storagePath
-  end note
-
-  note right of Processing
-    Idempotency key:
-    documentId + checksum + chunkIndex
-  end note
-
-  note right of Ready
-    Query can read only Ready docs
-  end note
-`````
-
-## File: docs/diagrams-events-explanations/explanation/agentic-delivery-model.md
-`````markdown
----
-title: Agentic delivery model
-description: Explanation of the Xuanwu Copilot Delivery Suite, including why delivery work is split across planning, implementation, review, and QA stages.
----
-
-# Agentic delivery model
-
-The Xuanwu Copilot Delivery Suite exists to make AI-assisted delivery predictable in a repository that already enforces MDDD, runtime boundaries, and contract-first workflows. The goal is not to add more personas. The goal is to stop complex work from collapsing into one long chat session with mixed responsibilities.
-
-## Why a delivery model is needed
-
-This repository already has strong architectural guidance, but architecture guidance alone does not tell an agent how to deliver a change end to end. Without a formal delivery model, the same session tends to mix:
-
-- requirement discovery,
-- plan creation,
-- code writing,
-- architecture review,
-- and QA verification.
-
-That mixing creates three common failures:
-
-1. implementation starts before scope is stable,
-2. review happens too late and becomes expensive,
-3. QA evidence is reduced to a vague summary instead of a release gate.
-
-## Why the workflow is split into four stages
-
-The suite uses four delivery stages:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Each stage owns one kind of decision.
-
-### Planner
-
-The Planner turns a request into an implementation contract for the current task. It identifies owners, runtime boundaries, affected areas, validation, and documentation impact before code changes begin.
-
-### Implementer
-
-The Implementer executes the approved plan. It writes code, updates docs, and runs the validation defined by the plan. It does not expand scope on its own.
-
-### Reviewer
-
-The Reviewer checks whether the implementation is actually acceptable. This includes correctness, MDDD alignment, contract compliance, regression risk, and missing validation or documentation.
-
-### QA
-
-QA verifies what was delivered, what failed, what evidence exists, and whether release risk remains. QA is separated from review because verification and critique are not the same activity.
-
-## Why planning is formal instead of conversational
-
-The implementation plan is not a casual summary. It is the shared input contract for the Implementer, Reviewer, and QA stages.
-
-That is why the suite includes both:
-
-- [implementation-plan-template.md](../../../development-reference/reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../../development-reference/reference/ai/plan-schema.md)
-
-The template defines the shape contributors read. The schema defines the fields that later stages rely on. Together they stop the plan from becoming an inconsistent free-form note.
-
-## Why agents and prompts both exist
-
-Agents define persistent roles, tool limits, and handoff behavior. Prompts define task-specific entry points and recovery paths.
-
-The suite needs both because real delivery work does not always follow one uninterrupted path. A contributor might need to:
-
-- start from a new feature request,
-- rerun review only,
-- rerun QA only,
-- or recover after an interrupted session.
-
-The prompts handle those operational paths without weakening the role boundaries encoded in the agents.
-
-## Why the model fits Xuanwu architecture
-
-The model is intentionally aligned with the repository's existing architecture rules.
-
-- The Planner identifies the owning module, runtime, and contract.
-- The Implementer keeps changes inside `interfaces -> application -> domain <- infrastructure`.
-- The Reviewer checks that the change respects MDDD boundaries and does not create accidental ownership in UI or adapter code.
-- QA verifies the delivered behavior rather than trusting architectural intent alone.
-
-This is especially important in Xuanwu because workflows can cross:
-
-- Next.js and `py_fn`,
-- multiple business modules,
-- and contract-governed domains such as RAG, schedule, daily, billing, and audit.
-
-## Why recovery is a first-class design concern
-
-Long AI-assisted tasks fail in ordinary ways:
-
-- the chat session becomes noisy,
-- the current request goes off track,
-- a contributor wants to restart from the plan,
-- or a later stage needs to rerun independently.
-
-The suite treats recovery as part of the design, not as an afterthought. That is why it ships with re-entry prompts and operational how-to documents, not just personas.
-
-## Governance principle
-
-The delivery suite should evolve like the rest of the repository:
-
-- architecture rules stay in the existing authoritative files,
-- delivery workflow rules stay in the AI documentation set,
-- and legacy assets are retired through explicit migration notes instead of silent drift.
-
-If a workflow change alters responsibility boundaries, required validation, or handoff behavior, update the delivery documents in the same change.
-`````
-
-## File: docs/diagrams-events-explanations/explanation/README.md
-`````markdown
-# Explanations & Governance
-
-Conceptual explanations, architectural rationale, and governance documentation.
-
-## Core Content
-
-- [development-contract-governance.md](./development-contract-governance.md) — Development contract purpose, maintenance, and governance
-- [agentic-delivery-model.md](./agentic-delivery-model.md) — Agentic delivery suite design and rationale
-
-## Related
-
-- [../../README.md](../../README.md) — Root: diagrams, events, explanations
-- [../diagrams/README.md](../diagrams/README.md) — System architecture diagrams
-- [../../development-reference/reference/development-contracts/overview.md](../../development-reference/reference/development-contracts/overview.md) — Development contracts overview
-`````
-
 ## File: docs/diagrams-events-explanations/README.md
 `````markdown
 # Diagrams & Explanations
@@ -61451,7 +57240,7 @@ System diagrams and conceptual explanations that clarify architecture and decisi
 | Subdirectory | Content | Entry |
 | --- | --- | --- |
 | [diagrams/](./diagrams/) | Architecture, data, flow, and state diagrams | [diagrams/README.md](./diagrams/README.md) |
-| [explanation/](./explanation/) | Detailed explanations of design rationale | index.js |
+| [explanation/](./explanation/) | Detailed explanations of design rationale | [explanation/README.md](./explanation/README.md) |
 
 ## Reading Order
 
@@ -61472,503 +57261,68 @@ System diagrams and conceptual explanations that clarify architecture and decisi
 - [../development-reference/specification/README.md](../development-reference/specification/README.md) — System specifications
 `````
 
-## File: docs/how-to-user/how-to/organize-docs-for-ai.md
+## File: docs/how-to-user/how-to/update-customizations.md
 `````markdown
 ---
-title: Organize repository docs for AI
-description: How to structure, summarize, index, and maintain Xuanwu App documentation so AI tools can route and read the right material quickly.
+title: Update AI customizations
+description: Maintenance guide for changing the Xuanwu Copilot Delivery Suite without breaking workflow contracts.
 ---
 
-# Organize repository docs for AI
+# Update AI customizations
 
-Use this guide when you want Xuanwu App documents to be easier for Copilot, agents, and retrieval workflows to understand.
+This guide is for maintainers who need to change agents, prompts, baseline instructions, or planning contract documents.
 
-## Goal
+## Update order
 
-Turn scattered documents into a predictable knowledge flow:
+When changing the delivery workflow, update files in this order:
 
-1. collect and classify,
-2. add table-of-contents and summaries,
-3. maintain an index with metadata,
-4. separate overview from detail,
-5. optionally enable retrieval,
-6. guide AI with the right prompt entry points,
-7. keep everything current.
+1. authoritative references,
+2. planning contract documents,
+3. agents,
+4. prompts,
+5. operational docs and index pages.
 
-## Recommended storage layout in this repository
+## If you change the plan structure
 
-Use the existing docs structure instead of adding a parallel documentation tree.
-
-| Content type | Primary location | Why |
-| --- | --- | --- |
-| High-level architecture and rationale | [docs/decision-architecture/](../../decision-architecture/) | Design intent, ADRs, system architecture |
-| Development workflows and technical references | [docs/development-reference/](../../development-reference/) | Implementation rules, contracts, specifications |
-| Diagrams and explanations | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) | Visual and explanatory support material |
-| User-facing guides and operator flows | [docs/how-to-user/](../../how-to-user/) | How-to and manual content |
-| Agent and repo operating rules | [agents/](../../agents/) and [.github/](../../.github/) | AI instructions, command references, workflow assets |
-
-Do not create a new root-level docs bucket unless the existing structure cannot express the ownership clearly.
-
-## Step 1: Collect and classify
-
-Before editing content, decide the document's home by intent, not by filename.
-
-| Question | Place it here |
-| --- | --- |
-| Is this about architecture decisions or rationale? | [docs/decision-architecture/](../../decision-architecture/) |
-| Is this a rule, contract, specification, or engineering reference? | [docs/development-reference/](../../development-reference/) |
-| Is this a how-to, operator guide, or user manual? | [docs/how-to-user/](../../how-to-user/) |
-| Is this mainly a diagram or visual explanation? | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) |
-
-When consolidating files:
-
-- remove duplicate copies,
-- archive or delete stale drafts,
-- keep one canonical source per topic,
-- update the nearest README when a file moves.
-
-## Step 2: Add a table of contents and section summaries
-
-Every long Markdown file should have:
-
-1. a short introduction that explains what the file is for,
-2. a predictable heading hierarchy,
-3. a one- or two-line summary at the start of each major section.
-
-Recommended pattern:
-
-```md
-# Title
-
-One paragraph summary of what this document covers and when to read it.
-
-## Section A
-
-Short summary of why this section matters.
-
-### Detail A.1
-```
-
-Prefer explicit headings over hidden or tool-specific TOC syntax. In this repository, clear headings and index pages are more reliable than relying on `[TOC]` rendering.
-
-## Step 3: Maintain an index with metadata
-
-For each folder that acts as a document hub, keep a README index table. At minimum, include:
-
-| File | Topic | Keywords | Summary |
-| --- | --- | --- | --- |
-| `example.md` | runtime boundary | nextjs, worker, rag | Explains which runtime owns each step. |
-
-For larger collections, use this richer schema:
-
-| File | Type | Layer | Topic | Keywords | Summary | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| `rag-ingestion-contract.md` | reference | mid | RAG ingestion | rag, ingestion, worker, firestore | Canonical upload-to-worker contract. | active |
-
-Field guidance:
-
-- File: canonical path from the current folder
-- Type: tutorial, how-to, reference, explanation
-- Layer: high, mid, low
-- Topic: main subject area
-- Keywords: search-oriented terms an AI would likely match
-- Summary: one sentence with the decision-relevant point
-- Status: active, draft, legacy, archived
-
-## Step 4: Separate high, mid, and low layers
-
-AI tools should read the smallest useful layer first.
-
-| Layer | Purpose | Typical files in this repo |
-| --- | --- | --- |
-| High | Fast orientation and routing | [docs/README.md](../../README.md), [docs/development-reference/specification/system-overview.md](../../development-reference/specification/system-overview.md), [agents/knowledge-base.md](../../agents/knowledge-base.md) |
-| Mid | Implementation guidance and workflows | contracts, development READMEs, AI workflow references |
-| Low | Raw detail and supporting artifacts | ADRs, diagrams, logs, detailed specs |
-
-Apply this reading rule:
-
-1. Start from a README or overview page.
-2. Move to the specific contract, guide, or reference page.
-3. Only then open detailed diagrams, ADRs, or low-level artifacts.
-
-## Step 5: Optional retrieval and embeddings
-
-If the documentation set becomes too large for direct reading:
-
-1. chunk by heading boundaries,
-2. store chunk metadata with path, section title, topic, and keywords,
-3. index the chunks in a vector store,
-4. return the most relevant sections before loading full files.
-
-Recommended chunk metadata:
-
-| Field | Purpose |
-| --- | --- |
-| `path` | file location |
-| `title` | document title |
-| `section` | heading path |
-| `layer` | high, mid, low |
-| `topic` | business or technical topic |
-| `keywords` | retrieval hints |
-| `summary` | short routing hint |
-
-## Step 6: Give AI a stable entry prompt
-
-Use a consistent instruction pattern when asking AI to work from docs.
-
-Example prompt:
-
-```text
-先讀 llms.txt 與 docs/README.md，根據摘要與關鍵字定位最相關文件。
-先回報你選了哪些高層文件，再下鑽到契約或細節文件。
-如果找到多份重複來源，請指出 canonical file。
-```
-
-For this repository, preferred entry order is:
-
-1. [llms.txt](../../llms.txt)
-2. [docs/README.md](../../README.md)
-3. nearest folder README
-4. specific contract, guide, or reference page
-5. supporting ADRs or diagrams
-
-## Step 7: Keep it current
-
-Whenever a new document is added or moved, update in the same change:
-
-1. the nearest README index,
-2. any affected root index such as [docs/README.md](../../README.md),
-3. summaries and keywords,
-4. AI entry points such as [llms.txt](../../llms.txt) if routing changes materially.
-
-Use this maintenance checklist:
-
-- Is there exactly one canonical file for the topic?
-- Does the document start with a summary?
-- Is the heading structure easy to chunk by section?
-- Is the document indexed from the nearest README?
-- Does the file belong to the correct high, mid, or low layer?
-- Would an AI know when to open this file from its title, summary, and keywords alone?
-
-## Minimum standard for new docs
-
-Every new important document should provide all of the following:
-
-- title,
-- one-paragraph summary,
-- clear headings,
-- index entry in a nearby README,
-- keywords or topic wording that matches likely search terms,
-- a stable canonical location.
-
-## Related references
-
-- [docs/README.md](../../README.md)
-- [docs/development-reference/reference/ai/customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-- [agents/knowledge-base.md](../../agents/knowledge-base.md)
-`````
-
-## File: docs/how-to-user/how-to/README.md
-`````markdown
-# How-To Guides
-
-Procedural guides for Xuanwu App platform and AI-assisted development workflows.
-
-## AI Workflow Guides
-
-- **Start a feature** → [start-feature-delivery.md](./start-feature-delivery.md)
-- **Recover workflow** → [recover-agent-flow.md](./recover-agent-flow.md)
-- **Update customizations** → [update-customizations.md](./update-customizations.md)
-- **Organize documentation** → [organize-docs-for-ai.md](./organize-docs-for-ai.md)
-
-## Related
-
-- [../README.md](../README.md) — How-to-user root
-- [../../development-reference/reference/ai/implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md) — Plan template
-`````
-
-## File: docs/how-to-user/how-to/recover-agent-flow.md
-`````markdown
----
-title: Recover an interrupted agent flow
-description: How to recover the formal Copilot delivery workflow after interruption, context reset, or stage-specific reruns.
----
-
-# Recover an interrupted agent flow
-
-Use this guide when the formal delivery workflow was interrupted or needs to resume from a later stage.
-
-## Common recovery cases
-
-### Case 1: Planning is done, but implementation has not started or the session was lost
-
-- Use `/implement-plan`.
-- Provide the plan file or paste the plan text.
-
-### Case 2: Implementation is partially complete and review must restart
-
-- Use `/review-changes`.
-- Provide the plan reference and a concise change summary.
-
-### Case 3: Review passed, but QA must rerun
-
-- Use `/run-qa`.
-- Provide the plan reference, current change summary, and any known risk areas.
-
-### Case 4: The stage is unclear or the chat history is polluted
-
-- Use `/resume-delivery`.
-- Provide the last known stage, plan reference, and any outstanding findings.
-
-## Recovery rules
-
-- Do not restart from Planner unless scope, owner, runtime, or validation requirements changed materially.
-- Do not use QA to infer missing implementation state. Reconstruct the stage first.
-- If the plan cannot be located or no longer reflects the intended scope, rerun planning explicitly instead of guessing.
-- Prefer a durable saved plan reference over chat history when reconstructing delivery state across sessions.
-
-## Related references
-
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
-- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-`````
-
-## File: docs/how-to-user/how-to/start-feature-delivery.md
-`````markdown
----
-title: Start feature delivery with Copilot
-description: How to use the Xuanwu Copilot Delivery Suite for a formal feature workflow.
----
-
-# Start feature delivery with Copilot
-
-Use this workflow when the requested change is non-trivial, crosses module boundaries, changes a public workflow, or needs formal review and QA gates.
-
-## When to use this flow
-
-Use the formal delivery flow when one or more of the following are true:
-
-- the change touches more than one module or package,
-- the change affects runtime ownership,
-- a contract-governed workflow is involved,
-- the change needs explicit review and QA evidence,
-- or the task is large enough that implementation should not begin from an ad hoc chat summary.
-
-## Start the workflow
-
-1. Open a fresh chat session.
-2. Run `/plan-feature`.
-3. Provide the request, constraints, and any relevant file or document context.
-4. Review the implementation plan before starting implementation.
-5. If the work will span multiple sessions, save the approved plan in a durable location instead of relying on chat history alone.
-
-## Plan persistence
-
-- If you use the built-in Plan agent, VS Code keeps the generated plan in session memory as `plan.md` for the current conversation only.
-- If you use the Xuanwu Planner agent or expect the work to continue in a later session, store the approved plan in a repository document, issue comment, or other durable reference before implementation starts.
-- Reuse that saved plan when invoking `/implement-plan`, `/review-changes`, `/run-qa`, or `/resume-delivery`.
-
-## Move through the stages
-
-1. Planner produces the formal plan.
-2. Use the `Start Implementation` handoff or run `/implement-plan`.
-3. After implementation, use the `Review Implementation` handoff or run `/review-changes`.
-4. After review passes, use the `Run QA` handoff or run `/run-qa`.
-
-## What “done” means
-
-The workflow is complete when all of the following are true:
-
-- required implementation tasks are complete,
-- required validation has actually run,
-- required docs are updated,
-- review findings are cleared or explicitly accepted,
-- QA has produced evidence and a release recommendation.
-
-## Related references
+Update all of the following in the same change:
 
 - [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
 - [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
-`````
+- [.github/agents/planner.agent.md](../../.github/agents/planner.agent.md)
+- planning prompts under [.github/prompts](../../.github/prompts)
+- any operational docs that explain planning or recovery
 
+## If you change a handoff rule
 
-## File: docs/how-to-user/README.md
-`````markdown
-# User Guides & Documentation
+Update all of the following in the same change:
 
-End-user documentation, administrator guides, UI/UX design, and operation workflows.
+- the relevant `.agent.md` file,
+- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md),
+- [agentic-delivery-model.md](../../diagrams-events-explanations/explanation/agentic-delivery-model.md) if rationale changed,
+- recovery guidance if the valid re-entry path changed.
 
-## Organization
+## If you add or retire an asset
 
-| Subdirectory | Content | Entry |
-| --- | --- | --- |
-| [how-to/](./how-to/) | How-to guides and operational workflows | [how-to/README.md](./how-to/README.md) |
-| [ui-ux/](./ui-ux/) | UI design, UX principles, components | [ui-ux/README.md](./ui-ux/README.md) |
-| [user-manual/](./user-manual/) | End-user and admin guides | [user-manual/README.md](./user-manual/README.md) |
+Update all of the following in the same change:
 
-## Reading Order
+- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
+- [legacy-customizations-migration.md](../../development-reference/reference/ai/legacy-customizations-migration.md) when applicable
+- README or contributing guidance if contributor-facing entry points changed
 
-1. **For end users**: [user-manual/user-guide.md](./user-manual/user-guide.md)
-2. **For administrators**: [user-manual/admin-guide.md](./user-manual/admin-guide.md)
-3. **For designers**: [ui-ux/README.md](./ui-ux/README.md)
-4. **For AI/Copilot workflow**: [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
+## Validation expectations
 
-## Quick Start
+- Check links between docs and customization files.
+- Ensure agent and prompt names match the intended invocation model.
+- Ensure no active custom agents share the same visible name unless the duplication is intentional and documented.
+- Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
+- Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
+- Keep authoritative sources and workflow docs aligned.
 
-- **I'm a user**: Start with [user-manual/user-guide.md](./user-manual/user-guide.md)
-- **I'm an admin**: Start with [user-manual/admin-guide.md](./user-manual/admin-guide.md)
-- **I need design specs**: Read [ui-ux/README.md](./ui-ux/README.md)
-- **I'm using Copilot**: See [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
+## Handling conflicts with docs
 
-## Related
-
-- [../.github/README.md](../../.github/README.md) — Copilot customization assets
-- [../development-reference/README.md](../development-reference/README.md) — Development guides
-`````
-
-
-## File: docs/README.md
-`````markdown
-# Xuanwu App 文件入口
-
-`docs/` 是 Xuanwu App 的文件總入口，負責路由到架構、開發參考、圖解說明與使用指南。
-
-## 讀取原則
-
-- 先讀總覽，再進子目錄。
-- 先讀 High-level，再讀契約與細節。
-- 主題若屬於 Copilot/agent/prompt/skill/workflow，優先讀 [.github/README.md](../.github/README.md)。
-
-## 文件地圖
-
-| 目錄 | 內容 | Index | 主要讀者 |
-| --- | --- | --- | --- |
-| [decision-architecture/](./decision-architecture/) | ADR、Architecture | [decision-architecture/README.md](./decision-architecture/README.md) | 架構師、Tech Lead |
-| [development-reference/](./development-reference/) | Development、Reference、Specification、Event、Namespace | [development-reference/README.md](./development-reference/README.md) | 工程師、PM |
-| [diagrams-events-explanations/](./diagrams-events-explanations/) | Diagrams、Explanation | [diagrams-events-explanations/README.md](./diagrams-events-explanations/README.md) | 架構師、工程師 |
-| [how-to-user/](./how-to-user/) | How-to、UI/UX、User Manual | [how-to-user/README.md](./how-to-user/README.md) | 使用者、工程師、設計師 |
-
-## 建議閱讀順序
-
-1. [../llms.txt](../llms.txt)
-2. [README.md](./README.md)
-3. 目標子目錄的 README
-4. 對應契約或規格
-5. ADR 與圖表補充
-
-## 核心入口
-
-| 主題 | 文件 |
-| --- | --- |
-| 系統高階架構 | [decision-architecture/architecture/ai-knowledge-platform-architecture.md](./decision-architecture/architecture/ai-knowledge-platform-architecture.md) |
-| 模組實作邊界 | [development-reference/development/modules-implementation-guide.md](./development-reference/development/modules-implementation-guide.md) |
-| 架構視覺圖 | [diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png](./diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png) |
-| 系統全局規格 | [development-reference/specification/system-overview.md](./development-reference/specification/system-overview.md) |
-
-## Diataxis 對位
-
-| 類型 | 問題 | 主要位置 |
-| --- | --- | --- |
-| Tutorial | 如何學習 | `how-to-user/how-to/`, `how-to-user/user-manual/` |
-| How-to | 如何完成特定任務 | `how-to-user/how-to/` |
-| Reference | 規格與定義是什麼 | `development-reference/reference/`, `development-reference/specification/`, `how-to-user/ui-ux/` |
-| Explanation | 為什麼這樣設計 | `diagrams-events-explanations/explanation/`, `decision-architecture/adr/` |
-
-## 維護規則
-
-新增、搬移、刪除文件時，請在同一個變更內同步更新：
-
-1. 最近的 README 索引
-2. [../llms.txt](../llms.txt)（若路由改變）
-3. [README.md](./README.md)（若總入口改變）
-4. 文件的主題、關鍵字與分層資訊
-`````
-
-## File: llms.txt
-`````
-# Xuanwu App
-
-Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
-
-This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
-
-## Primary repository truths
-
-- AGENTS.md: repository-wide operating rules
-- .github/copilot-instructions.md: Copilot delivery baseline
-- agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
-- agents/commands.md: build, lint, test, and deployment commands
-- docs/README.md: documentation root index
-
-## Documentation reading order
-
-Read from high level to detail:
-
-1. docs/README.md
-2. docs/development-reference/specification/system-overview.md
-3. agents/knowledge-base.md
-4. docs/development-reference/reference/development-contracts/overview.md
-5. the nearest docs README in the relevant subfolder
-6. the specific contract, guide, or architecture page
-7. diagrams or ADRs only after the relevant higher-level page is identified
-
-## Topic routing
-
-- Repository rules and contribution workflow:
-  - AGENTS.md
-  - CONTRIBUTING.md
-  - agents/README.md
-- Architecture and module boundaries:
-  - agents/knowledge-base.md
-  - docs/decision-architecture/architecture/
-  - docs/decision-architecture/adr/
-- Development workflows and implementation rules:
-  - docs/development-reference/development/README.md
-  - docs/development-reference/reference/
-- Contract-governed workflows:
-  - docs/development-reference/reference/development-contracts/overview.md
-  - specific contract pages in docs/development-reference/reference/development-contracts/
-- AI workflow and Copilot customization assets:
-  - docs/development-reference/reference/ai/customizations-index.md
-  - docs/how-to-user/how-to/
-  - .github/skills/
-- Diagrams and explanatory support:
-  - docs/diagrams-events-explanations/diagrams/README.md
-  - docs/diagrams-events-explanations/explanation/
-
-## Document layers
-
-- High layer:
-  - docs/README.md
-  - docs/development-reference/specification/system-overview.md
-  - agents/knowledge-base.md
-- Mid layer:
-  - folder READMEs
-  - development guides
-  - contract indexes
-  - how-to guides
-- Low layer:
-  - ADRs
-  - detailed diagrams
-  - deep technical explanations
-
-Use the smallest useful layer first.
-
-## Documentation organization rule
-
-When adding or changing docs:
-
-1. keep one canonical file per topic,
-2. add a short summary near the top,
-3. use clear headings for section-based chunking,
-4. update the nearest README index,
-5. update docs/README.md or this file if routing changes.
-
-## AI working rule
-
-If a question is broad, inspect summaries and README indexes before opening detailed files.
-If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
+- When merge conflicts happen between `.github/` assets and docs mirrors, keep the `.github/` version.
+- Adjust the docs-side index or links after resolving the conflict to match `.github/` instead of copying file bodies.
+- Remove duplicated excerpts to reduce future diff noise.
 `````
 
 ## File: modules/account/api/index.ts
@@ -62009,323 +57363,101 @@ export {
 } from "../interfaces/queries/account.queries";
 `````
 
-## File: modules/account/application/use-cases/account.use-cases.ts
-`````typescript
-/**
- * Account Use Cases — pure business workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { AccountRepository } from "../../domain/repositories/AccountRepository";
-import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
-import { identityApi } from "@/modules/identity/api";
-
-// ─── Create Account ───────────────────────────────────────────────────────────
-
-export class CreateUserAccountUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(userId: string, name: string, email: string): Promise<CommandResult> {
-    try {
-      await this.accountRepo.save({
-        id: userId,
-        name,
-        email,
-        accountType: "user",
-      });
-      return commandSuccess(userId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_USER_ACCOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to create user account",
-      );
-    }
-  }
-}
-
-// ─── Update Profile ───────────────────────────────────────────────────────────
-
-export class UpdateUserProfileUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult> {
-    try {
-      await this.accountRepo.updateProfile(userId, data);
-      return commandSuccess(userId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_USER_PROFILE_FAILED",
-        err instanceof Error ? err.message : "Failed to update user profile",
-      );
-    }
-  }
-}
-
-// ─── Credit Wallet ────────────────────────────────────────────────────────────
-
-export class CreditWalletUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Credit amount must be positive");
-      }
-      const tx = await this.accountRepo.creditWallet(accountId, amount, description);
-      return commandSuccess(tx.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WALLET_CREDIT_FAILED",
-        err instanceof Error ? err.message : "Failed to credit wallet",
-      );
-    }
-  }
-}
-
-// ─── Debit Wallet ─────────────────────────────────────────────────────────────
-
-export class DebitWalletUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Debit amount must be positive");
-      }
-      const balance = await this.accountRepo.getWalletBalance(accountId);
-      if (balance < amount) {
-        return commandFailureFrom("WALLET_INSUFFICIENT_FUNDS", "Insufficient wallet balance");
-      }
-      const tx = await this.accountRepo.debitWallet(accountId, amount, description);
-      return commandSuccess(tx.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WALLET_DEBIT_FAILED",
-        err instanceof Error ? err.message : "Failed to debit wallet",
-      );
-    }
-  }
-}
-
-// ─── Assign Role ──────────────────────────────────────────────────────────────
-
-export class AssignAccountRoleUseCase {
-  constructor(
-    private readonly accountRepo: AccountRepository,
-  ) {}
-
-  async execute(
-    accountId: string,
-    role: OrganizationRole,
-    grantedBy: string,
-    traceId?: string,
-  ): Promise<CommandResult> {
-    try {
-      const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
-      // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "role:changed",
-        ...(traceId ? { traceId } : {}),
-      });
-      return commandSuccess(record.accountId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ASSIGN_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to assign role",
-      );
-    }
-  }
-}
-
-// ─── Revoke Role ──────────────────────────────────────────────────────────────
-
-export class RevokeAccountRoleUseCase {
-  constructor(
-    private readonly accountRepo: AccountRepository,
-  ) {}
-
-  async execute(accountId: string): Promise<CommandResult> {
-    try {
-      await this.accountRepo.revokeRole(accountId);
-      // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "role:changed",
-      });
-      return commandSuccess(accountId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REVOKE_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to revoke role",
-      );
-    }
-  }
-}
-`````
-
 ## File: modules/agent/.gitkeep
 `````
 
 `````
 
-## File: modules/content/api/content-api.ts
+## File: modules/ai/application/use-cases/answer-rag-query.use-case.ts
 `````typescript
 /**
- * Module: content
- * Layer: api (cross-module facade)
- * Purpose: ContentApi — lightweight facade that wires in-memory adapters and
- *          exposes the minimal surface needed by the demo-flow script and by
- *          other modules that communicate through the event bus.
- *
- * This is intentionally separate from ContentFacade (which uses Firebase).
- * ContentApi uses InMemory repos so it can run without any external service.
+ * @deprecated AnswerRagQueryUseCase ownership has moved to modules/retrieval.
+ * Keep this bridge temporarily for compatibility within the ai module.
  */
-
-import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
-
-import type { ContentBlock } from "../domain/entities/content-block.entity";
-import type { ContentPage } from "../domain/entities/content-page.entity";
-import { BlockService } from "../application/block-service";
-import {
-  InMemoryContentPageRepository,
-  InMemoryContentBlockRepository,
-} from "../infrastructure/InMemoryContentRepository";
-
-export class ContentApi {
-  private readonly pageRepo: InMemoryContentPageRepository;
-  private readonly blockRepo: InMemoryContentBlockRepository;
-  private readonly blockService: BlockService;
-
-  constructor(eventBus: SimpleEventBus) {
-    this.pageRepo = new InMemoryContentPageRepository();
-    this.blockRepo = new InMemoryContentBlockRepository();
-    this.blockService = new BlockService(this.blockRepo, eventBus);
-  }
-
-  /** Create a new page in the in-memory store. */
-  async createPage(
-    accountId: string,
-    title: string,
-    createdByUserId = "system",
-  ): Promise<ContentPage> {
-    return this.pageRepo.create({ accountId, title, createdByUserId });
-  }
-
-  /** Add a block to an existing page and return the new block. */
-  async addBlock(accountId: string, pageId: string, text: string): Promise<ContentBlock> {
-    return this.blockRepo.add({
-      accountId,
-      pageId,
-      content: { type: "text", text },
-    });
-  }
-
-  /**
-   * Update a block's text content.
-   * Publishes `ContentUpdatedEvent` via the event bus so downstream modules
-   * (e.g. knowledge) can react.
-   */
-  async updateBlock(
-    accountId: string,
-    blockId: string,
-    text: string,
-  ): Promise<ContentBlock | null> {
-    return this.blockService.updateBlock({ accountId, blockId, text });
-  }
-
-  /** Return all pages for an account. */
-  async listPages(accountId: string): Promise<ContentPage[]> {
-    return this.pageRepo.listByAccountId(accountId);
-  }
-
-  /** Return the page with all its blocks (flat list, ordered). */
-  async getPageStructure(
-    accountId: string,
-    pageId: string,
-  ): Promise<{ page: ContentPage; blocks: ContentBlock[] } | null> {
-    const page = await this.pageRepo.findById(accountId, pageId);
-    if (!page) return null;
-    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
-    return { page, blocks };
-  }
-}
+export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
 `````
 
-## File: modules/content/api/index.ts
+## File: modules/ai/domain/entities/RagQuery.ts
 `````typescript
 /**
- * Module: content
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the Content domain.
+ * @deprecated Retrieval query contracts moved to modules/retrieval.
  */
-
-export { ContentFacade, contentFacade } from "./content-facade";
 export type {
-  ContentCreatePageParams,
-  ContentRenamePageParams,
-  ContentMovePageParams,
-  ContentAddBlockParams,
-  ContentUpdateBlockParams,
-} from "./content-facade";
-
-export { ContentApi } from "./content-api";
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "@/modules/retrieval/api";
 `````
 
-## File: modules/event/api/index.ts
+## File: modules/ai/domain/repositories/RagRetrievalRepository.ts
 `````typescript
 /**
- * Module: event
+ * @deprecated Retrieval repository contracts moved to modules/retrieval.
+ */
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "@/modules/retrieval/api";
+`````
+
+## File: modules/ai/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
+`````typescript
+/**
+ * @deprecated Retrieval adapter ownership moved to modules/retrieval.
+ */
+export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+`````
+
+## File: modules/ai/interfaces/_actions/ai.actions.ts
+`````typescript
+"use server";
+
+import type {
+  GenerateAgentResponseInput,
+  GenerateAgentResponseResult,
+} from "@/modules/agent/api";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/agent/api";
+import { answerRagQuery, generateAgentResponse } from "@/modules/agent/api";
+
+export async function generateAIResponse(
+  input: GenerateAgentResponseInput,
+): Promise<GenerateAgentResponseResult> {
+  return generateAgentResponse(input);
+}
+
+export { answerRagQuery };
+`````
+
+## File: modules/asset/api/index.ts
+`````typescript
+/**
+ * Module: asset
  * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Event domain.
+ * Purpose: Public cross-module API boundary for the Asset domain.
  *
- * Other modules use this boundary to publish and subscribe to domain events.
  * Other modules MUST import from here — never from domain/, application/,
  * infrastructure/, or interfaces/ directly.
  */
 
-// ─── Core entity ──────────────────────────────────────────────────────────────
+// --- Core entity types -------------------------------------------------------
 
-export { DomainEvent } from "../domain/entities/domain-event.entity";
-export type { DomainEventPayload } from "../domain/entities/domain-event.entity";
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
 
-// ─── Domain ports ─────────────────────────────────────────────────────────────
+// --- Query functions ---------------------------------------------------------
 
-export type { IEventBusRepository } from "../domain/repositories/ievent-bus.repository";
-export type { IEventStoreRepository } from "../domain/repositories/ievent-store.repository";
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
 
-// ─── Value objects ────────────────────────────────────────────────────────────
+// --- UI components (cross-module public) -------------------------------------
 
-export type { EventMetadata } from "../domain/value-objects/event-metadata.vo";
-
-// ─── Use cases ────────────────────────────────────────────────────────────────
-
-export { PublishDomainEventUseCase } from "../application/use-cases/publish-domain-event";
-export type { PublishDomainEventDTO } from "../application/use-cases/publish-domain-event";
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
 `````
 
-## File: modules/file/api/index.ts
-`````typescript
-/**
- * @deprecated modules/file is retired. Use @/modules/asset/api instead.
- */
-export type { File, FileStatus } from "../../asset/domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../../asset/domain/entities/FileVersion";
-export { getWorkspaceFiles } from "../../asset/interfaces/queries/file.queries";
-export { WorkspaceFilesTab } from "../../asset/interfaces/components/WorkspaceFilesTab";
-`````
-
-## File: modules/file/application/dto/file.dto.ts
+## File: modules/asset/application/dto/file.dto.ts
 `````typescript
 import type { File } from "../../domain/entities/File";
 import type { RagDocumentStatus } from "../../domain/repositories/RagDocumentRepository";
@@ -62391,7 +57523,246 @@ export type FileCommandErrorCode =
   | "FILE_RAG_REGISTRATION_FAILED";
 `````
 
-## File: modules/file/application/use-cases/upload-complete-file.use-case.ts
+## File: modules/asset/application/dto/rag-document.dto.ts
+`````typescript
+export interface RegisterUploadedRagDocumentInputDto {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  /** Account ID of the actor who uploaded this document. */
+  readonly accountId: string;
+  readonly title: string;
+  readonly sourceFileName: string;
+  readonly mimeType: string;
+  readonly storagePath: string;
+  readonly sizeBytes?: number;
+  readonly checksum?: string;
+  readonly taxonomy?: string;
+  readonly category?: string;
+  readonly department?: string;
+  readonly tags?: readonly string[];
+  readonly language?: string;
+  readonly accessControl?: readonly string[];
+  readonly versionGroupId?: string;
+  readonly versionNumber?: number;
+  readonly updateLog?: string;
+  readonly expiresAtISO?: string;
+}
+
+export interface RegisterUploadedRagDocumentOutputDto {
+  readonly documentId: string;
+  readonly status: "uploaded";
+  readonly registeredAtISO: string;
+}
+
+export type RegisterUploadedRagDocumentResult =
+  | {
+      ok: true;
+      data: RegisterUploadedRagDocumentOutputDto;
+      commandId: string;
+    }
+  | {
+      ok: false;
+      error: {
+        code:
+          | "RAG_ORGANIZATION_REQUIRED"
+          | "RAG_WORKSPACE_REQUIRED"
+          | "RAG_ACCOUNT_ID_REQUIRED"
+          | "RAG_TITLE_REQUIRED"
+          | "RAG_FILE_NAME_REQUIRED"
+          | "RAG_MIME_TYPE_REQUIRED"
+          | "RAG_STORAGE_PATH_REQUIRED";
+        message: string;
+      };
+      commandId: string;
+    };
+`````
+
+## File: modules/asset/application/index.ts
+`````typescript
+export * from "./dto/file.dto";
+export * from "./dto/rag-document.dto";
+export * from "./use-cases/list-workspace-files.use-case";
+export * from "./use-cases/upload-init-file.use-case";
+export * from "./use-cases/upload-complete-file.use-case";
+export * from "./use-cases/register-uploaded-rag-document.use-case";
+`````
+
+## File: modules/asset/application/use-cases/list-workspace-files.use-case.ts
+`````typescript
+import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
+import type { WorkspaceFileListItemDto } from "../dto/file.dto";
+
+const DEFAULT_FILE_SOURCE = "file-module";
+const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
+
+export class ListWorkspaceFilesUseCase {
+  constructor(private readonly fileRepository: FileRepository) {}
+
+  async execute(scope: ListWorkspaceFilesScope): Promise<WorkspaceFileListItemDto[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    const actorAccountId = scope.actorAccountId.trim();
+
+    if (!workspaceId || !organizationId || !actorAccountId) {
+      return [];
+    }
+
+    const files = await this.fileRepository.listByWorkspace({
+      workspaceId,
+      organizationId,
+      actorAccountId,
+    });
+
+    return files.map((file) => ({
+      id: file.id,
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      name: file.name,
+      status: file.status,
+      kind: file.classification,
+      source: file.source ?? DEFAULT_FILE_SOURCE,
+      detail: file.detail ?? DEFAULT_FILE_DETAIL,
+      href: file.href,
+    }));
+  }
+}
+`````
+
+## File: modules/asset/application/use-cases/register-uploaded-rag-document.use-case.ts
+`````typescript
+import { randomUUID } from "node:crypto";
+
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentOutputDto,
+} from "../dto/rag-document.dto";
+
+type RegisterUploadedRagDocumentUseCaseResult =
+  | { ok: true; data: RegisterUploadedRagDocumentOutputDto }
+  | {
+      ok: false;
+      error: {
+        code:
+          | "RAG_ORGANIZATION_REQUIRED"
+          | "RAG_WORKSPACE_REQUIRED"
+          | "RAG_ACCOUNT_ID_REQUIRED"
+          | "RAG_TITLE_REQUIRED"
+          | "RAG_FILE_NAME_REQUIRED"
+          | "RAG_MIME_TYPE_REQUIRED"
+          | "RAG_STORAGE_PATH_REQUIRED";
+        message: string;
+      };
+    };
+
+export class RegisterUploadedRagDocumentUseCase {
+  constructor(private readonly ragDocumentRepository: RagDocumentRepository) {}
+
+  async execute(
+    input: RegisterUploadedRagDocumentInputDto,
+  ): Promise<RegisterUploadedRagDocumentUseCaseResult> {
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId.trim();
+    const accountId = input.accountId.trim();
+    const title = input.title.trim();
+    const sourceFileName = input.sourceFileName.trim();
+    const mimeType = input.mimeType.trim();
+    const storagePath = input.storagePath.trim();
+
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: { code: "RAG_ORGANIZATION_REQUIRED", message: "Organization is required." },
+      };
+    }
+
+    if (!workspaceId) {
+      return {
+        ok: false,
+        error: { code: "RAG_WORKSPACE_REQUIRED", message: "Workspace is required." },
+      };
+    }
+
+    if (!accountId) {
+      return {
+        ok: false,
+        error: { code: "RAG_ACCOUNT_ID_REQUIRED", message: "Account ID is required." },
+      };
+    }
+
+    if (!title) {
+      return {
+        ok: false,
+        error: { code: "RAG_TITLE_REQUIRED", message: "Document title is required." },
+      };
+    }
+
+    if (!sourceFileName) {
+      return {
+        ok: false,
+        error: { code: "RAG_FILE_NAME_REQUIRED", message: "Source file name is required." },
+      };
+    }
+
+    if (!mimeType) {
+      return {
+        ok: false,
+        error: { code: "RAG_MIME_TYPE_REQUIRED", message: "Mime type is required." },
+      };
+    }
+
+    if (!storagePath) {
+      return {
+        ok: false,
+        error: { code: "RAG_STORAGE_PATH_REQUIRED", message: "Storage path is required." },
+      };
+    }
+
+    const nowISO = new Date().toISOString();
+    const documentId = `rag-document-${randomUUID()}`;
+    const versionGroupId = input.versionGroupId?.trim() ? input.versionGroupId.trim() : documentId;
+
+    await this.ragDocumentRepository.saveUploaded({
+      id: documentId,
+      organizationId,
+      workspaceId,
+      accountId,
+      displayName: sourceFileName,
+      title,
+      sourceFileName,
+      mimeType,
+      storagePath,
+      sizeBytes: input.sizeBytes ?? 0,
+      status: "uploaded",
+      checksum: input.checksum?.trim() || undefined,
+      taxonomy: input.taxonomy?.trim() || undefined,
+      category: input.category?.trim() || undefined,
+      department: input.department?.trim() || undefined,
+      tags: input.tags ?? [],
+      language: input.language?.trim() || undefined,
+      accessControl: input.accessControl ?? [],
+      versionGroupId,
+      versionNumber: input.versionNumber ?? 1,
+      isLatest: true,
+      updateLog: input.updateLog?.trim() || undefined,
+      expiresAtISO: input.expiresAtISO?.trim() || undefined,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    return {
+      ok: true,
+      data: {
+        documentId,
+        status: "uploaded",
+        registeredAtISO: nowISO,
+      },
+    };
+  }
+}
+`````
+
+## File: modules/asset/application/use-cases/upload-complete-file.use-case.ts
 `````typescript
 import type { File } from "../../domain/entities/File";
 import type { FileRepository } from "../../domain/repositories/FileRepository";
@@ -62599,7 +57970,7 @@ export class UploadCompleteFileUseCase {
 }
 `````
 
-## File: modules/file/application/use-cases/upload-init-file.use-case.ts
+## File: modules/asset/application/use-cases/upload-init-file.use-case.ts
 `````typescript
 import { randomBytes, randomUUID } from "node:crypto";
 
@@ -62730,7 +58101,735 @@ export class UploadInitFileUseCase {
 }
 `````
 
-## File: modules/file/interfaces/contracts/file-command-result.ts
+## File: modules/asset/domain/entities/AuditRecord.ts
+`````typescript
+export type FileAuditAction =
+  | "upload_init"
+  | "upload_complete"
+  | "list_files"
+  | "download_url_issued"
+  | "archive"
+  | "restore";
+
+export interface AuditRecord {
+  readonly id: string;
+  readonly fileId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+  readonly action: FileAuditAction;
+  readonly occurredAtISO: string;
+  readonly detail?: string;
+}
+`````
+
+## File: modules/asset/domain/entities/File.ts
+`````typescript
+export type FileStatus = "active" | "archived" | "deleted";
+
+export interface File {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification: "image" | "manifest" | "record" | "other";
+  readonly tags: readonly string[];
+  readonly currentVersionId: string;
+  readonly retentionPolicyId?: string;
+  readonly status: FileStatus;
+  readonly source?: string;
+  readonly detail?: string;
+  readonly href?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+  readonly deletedAtISO?: string;
+}
+
+const ARCHIVEABLE_STATUS: readonly FileStatus[] = ["active"];
+const RESTOREABLE_STATUS: readonly FileStatus[] = ["archived"];
+
+export function canArchiveFile(file: File): boolean {
+  return ARCHIVEABLE_STATUS.includes(file.status);
+}
+
+export function canRestoreFile(file: File): boolean {
+  return RESTOREABLE_STATUS.includes(file.status);
+}
+`````
+
+## File: modules/asset/domain/entities/FileVersion.ts
+`````typescript
+export type FileVersionStatus = "pending" | "stored" | "active" | "superseded";
+
+export interface FileVersion {
+  readonly id: string;
+  readonly fileId: string;
+  readonly versionNumber: number;
+  readonly status: FileVersionStatus;
+  readonly storagePath: string;
+  readonly checksum?: string;
+  readonly createdAtISO: string;
+}
+
+export function isVersionImmutable(version: FileVersion): boolean {
+  return version.status === "active" || version.status === "superseded";
+}
+`````
+
+## File: modules/asset/domain/entities/PermissionSnapshot.ts
+`````typescript
+export interface PermissionSnapshot {
+  readonly actorAccountId: string;
+  readonly actorRole: string;
+  readonly organizationPolicyVersion: number;
+  readonly workspaceGrantVersion: number;
+  readonly canRead: boolean;
+  readonly canUpload: boolean;
+  readonly canDownload: boolean;
+  readonly canArchive: boolean;
+  readonly canRestore: boolean;
+  readonly resolvedAtISO: string;
+}
+`````
+
+## File: modules/asset/domain/entities/RetentionPolicy.ts
+`````typescript
+export interface RetentionPolicy {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly retentionDays: number;
+  readonly legalHold: boolean;
+  readonly purgeMode: "soft-delete" | "hard-delete";
+  readonly updatedAtISO: string;
+}
+`````
+
+## File: modules/asset/domain/index.ts
+`````typescript
+export * from "./entities/File";
+export * from "./entities/FileVersion";
+export * from "./entities/PermissionSnapshot";
+export * from "./entities/RetentionPolicy";
+export * from "./entities/AuditRecord";
+export * from "./repositories/FileRepository";
+export * from "./repositories/RagDocumentRepository";
+export * from "./ports/ActorContextPort";
+export * from "./ports/WorkspaceGrantPort";
+export * from "./ports/OrganizationPolicyPort";
+export * from "./services/resolve-file-organization-id";
+export * from "./services/complete-upload-file";
+`````
+
+## File: modules/asset/domain/ports/ActorContextPort.ts
+`````typescript
+export interface ActorFileContext {
+  readonly actorAccountId: string;
+  readonly actorRole: string;
+  readonly organizationIds: readonly string[];
+}
+
+export interface ActorContextPort {
+  getActorFileContext(actorAccountId: string): ActorFileContext | null;
+}
+`````
+
+## File: modules/asset/domain/ports/OrganizationPolicyPort.ts
+`````typescript
+import type { RetentionPolicy } from "../entities/RetentionPolicy";
+
+export interface OrganizationFilePolicySnapshot {
+  readonly organizationId: string;
+  readonly policyVersion: number;
+  readonly denyRead: boolean;
+  readonly denyUpload: boolean;
+  readonly denyDownload: boolean;
+  readonly denyArchive: boolean;
+  readonly denyRestore: boolean;
+  readonly retentionPolicy?: RetentionPolicy;
+}
+
+export interface OrganizationPolicyPort {
+  getOrganizationFilePolicy(organizationId: string): OrganizationFilePolicySnapshot | null;
+}
+`````
+
+## File: modules/asset/domain/ports/WorkspaceGrantPort.ts
+`````typescript
+export interface WorkspaceGrantSnapshot {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly grantVersion: number;
+  readonly canRead: boolean;
+  readonly canUpload: boolean;
+  readonly canDownload: boolean;
+  readonly canArchive: boolean;
+  readonly canRestore: boolean;
+}
+
+export interface WorkspaceGrantPort {
+  getWorkspaceGrantSnapshot(workspaceId: string, actorAccountId: string): WorkspaceGrantSnapshot | null;
+}
+`````
+
+## File: modules/asset/domain/repositories/FileRepository.ts
+`````typescript
+import type { File } from "../entities/File";
+import type { FileVersion } from "../entities/FileVersion";
+
+export interface ListWorkspaceFilesScope {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+}
+
+export interface FileRepository {
+  findById(fileId: string): Promise<File | null>;
+  findVersion(fileId: string, versionId: string): Promise<FileVersion | null>;
+  listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]>;
+  save(file: File, versions?: readonly FileVersion[]): Promise<void>;
+}
+`````
+
+## File: modules/asset/domain/repositories/RagDocumentRepository.ts
+`````typescript
+export type RagDocumentStatus = "uploaded" | "processing" | "ready" | "failed" | "archived";
+
+export const ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS: Readonly<
+  Record<RagDocumentStatus, readonly RagDocumentStatus[]>
+> = {
+  uploaded: ["processing"],
+  processing: ["ready", "failed"],
+  ready: ["processing", "archived"],
+  failed: ["processing"],
+  archived: [],
+};
+
+export function canTransitionRagDocumentStatus(
+  fromStatus: RagDocumentStatus,
+  toStatus: RagDocumentStatus,
+): boolean {
+  return ALLOWED_RAG_DOCUMENT_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
+}
+
+/**
+ * RAG document record stored in Firestore at:
+ * /knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
+ *
+ * Fields align with knowledge.md §2.1 (files collection spec).
+ */
+export interface RagDocumentRecord {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  /** User-visible file name (preserves original filename semantics). */
+  readonly displayName: string;
+  /** System / legacy title (same as displayName for initial uploads). */
+  readonly title: string;
+  readonly sourceFileName: string;
+  readonly mimeType: string;
+  readonly storagePath: string;
+  readonly sizeBytes: number;
+  readonly status: RagDocumentStatus;
+  /** Error detail written back when status is "failed". */
+  readonly statusMessage?: string;
+  readonly checksum?: string;
+  /** Semantic document taxonomy / category hierarchy (e.g. "規章制度"). */
+  readonly taxonomy?: string;
+  readonly category?: string;
+  readonly department?: string;
+  readonly tags?: readonly string[];
+  /** Primary language of the document content (ISO 639-1, e.g. "zh-TW"). */
+  readonly language?: string;
+  /** Allowed OrganizationRole values or accountId allowlist for RBAC. */
+  readonly accessControl?: readonly string[];
+  /**
+   * Version group identifier — all versions of the same logical document share
+   * this ID.  Defaults to the document's own id for the first upload.
+   */
+  readonly versionGroupId: string;
+  /** 1-based version counter within the versionGroupId. */
+  readonly versionNumber: number;
+  /** True when this record is the current canonical version for its group. */
+  readonly isLatest: boolean;
+  /** Free-text description of what changed in this version. */
+  readonly updateLog?: string;
+  /** Account ID of the person who uploaded this document. */
+  readonly accountId: string;
+  /** Total chunk count — written back by the ingestion worker after processing. */
+  readonly chunkCount?: number;
+  /** ISO-8601 timestamp set by the ingestion worker when indexing completes. */
+  readonly indexedAtISO?: string;
+  /** ISO-8601 expiry timestamp; the document is auto-archived when reached. */
+  readonly expiresAtISO?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface RagDocumentRepository {
+  findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+  }): Promise<RagDocumentRecord | null>;
+  findByWorkspace(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly RagDocumentRecord[]>;
+  saveUploaded(record: RagDocumentRecord): Promise<void>;
+}
+`````
+
+## File: modules/asset/domain/services/complete-upload-file.ts
+`````typescript
+import type { File } from "../entities/File";
+
+interface CompleteUploadFileInput {
+  readonly file: File;
+  readonly completedAtISO: string;
+}
+
+export function completeUploadFile(input: CompleteUploadFileInput): File {
+  return {
+    ...input.file,
+    status: "active",
+    updatedAtISO: input.completedAtISO,
+    source: "file-upload-complete",
+    detail: "File upload completed; status set to active and metadata timestamp finalized.",
+  };
+}
+`````
+
+## File: modules/asset/domain/services/resolve-file-organization-id.ts
+`````typescript
+export function resolveFileOrganizationId(
+  accountType: "user" | "organization",
+  accountId: string,
+): string {
+  return accountType === "organization" ? accountId : `personal:${accountId}`;
+}
+`````
+
+## File: modules/asset/infrastructure/firebase/FirebaseFileRepository.ts
+`````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { File } from "../../domain/entities/File";
+import type { FileVersion } from "../../domain/entities/FileVersion";
+import type { FileRepository, ListWorkspaceFilesScope } from "../../domain/repositories/FileRepository";
+
+const FILE_COLLECTION = "workspaceFiles";
+const VERSION_SUBCOLLECTION = "versions";
+
+interface FirestoreFileDocument {
+  readonly workspaceId?: string;
+  readonly organizationId?: string;
+  readonly accountId?: string;
+  readonly name?: string;
+  readonly mimeType?: string;
+  readonly sizeBytes?: number;
+  readonly classification?: File["classification"];
+  readonly tags?: readonly string[];
+  readonly currentVersionId?: string;
+  readonly retentionPolicyId?: string;
+  readonly status?: File["status"];
+  readonly source?: string;
+  readonly detail?: string;
+  readonly href?: string;
+  readonly createdAtISO?: string;
+  readonly updatedAtISO?: string;
+  readonly deletedAtISO?: string;
+}
+
+interface FirestoreFileVersionDocument {
+  readonly fileId?: string;
+  readonly versionNumber?: number;
+  readonly status?: FileVersion["status"];
+  readonly storagePath?: string;
+  readonly checksum?: string;
+  readonly createdAtISO?: string;
+}
+
+function isFileStatus(value: unknown): value is File["status"] {
+  return value === "active" || value === "archived" || value === "deleted";
+}
+
+function isFileClassification(value: unknown): value is File["classification"] {
+  return value === "image" || value === "manifest" || value === "record" || value === "other";
+}
+
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function toFileEntity(fileId: string, data: FirestoreFileDocument): File {
+  return {
+    id: fileId,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    classification: isFileClassification(data.classification) ? data.classification : "other",
+    tags: toStringArray(data.tags),
+    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
+    retentionPolicyId:
+      typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
+    status: isFileStatus(data.status) ? data.status : "active",
+    source: typeof data.source === "string" ? data.source : undefined,
+    detail: typeof data.detail === "string" ? data.detail : undefined,
+    href: typeof data.href === "string" ? data.href : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
+  };
+}
+
+function isFileVersionStatus(value: unknown): value is FileVersion["status"] {
+  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
+}
+
+function toFileVersionEntity(versionId: string, data: FirestoreFileVersionDocument): FileVersion {
+  return {
+    id: versionId,
+    fileId: typeof data.fileId === "string" ? data.fileId : "",
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
+    status: isFileVersionStatus(data.status) ? data.status : "pending",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseFileRepository implements FileRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  private get collectionRef() {
+    return collection(this.db, FILE_COLLECTION);
+  }
+
+  async findById(fileId: string): Promise<File | null> {
+    const normalizedFileId = fileId.trim();
+    if (!normalizedFileId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedFileId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument);
+  }
+
+  async findVersion(fileId: string, versionId: string): Promise<FileVersion | null> {
+    const normalizedFileId = fileId.trim();
+    const normalizedVersionId = versionId.trim();
+    if (!normalizedFileId || !normalizedVersionId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(
+      doc(this.db, FILE_COLLECTION, normalizedFileId, VERSION_SUBCOLLECTION, normalizedVersionId),
+    );
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return toFileVersionEntity(snapshot.id, snapshot.data() as FirestoreFileVersionDocument);
+  }
+
+  async listByWorkspace(scope: ListWorkspaceFilesScope): Promise<readonly File[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    if (!workspaceId) {
+      return [];
+    }
+
+    const snapshots = await getDocs(
+      query(
+        this.collectionRef,
+        where("workspaceId", "==", workspaceId),
+        where("organizationId", "==", organizationId),
+      ),
+    );
+
+    return snapshots.docs
+      .map((snapshot) => toFileEntity(snapshot.id, snapshot.data() as FirestoreFileDocument))
+      .sort((left, right) => right.updatedAtISO.localeCompare(left.updatedAtISO));
+  }
+
+  async save(file: File, versions: readonly FileVersion[] = []): Promise<void> {
+    const batch = writeBatch(this.db);
+    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
+
+    batch.set(fileRef, {
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      accountId: file.accountId,
+      name: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      classification: file.classification,
+      tags: [...file.tags],
+      currentVersionId: file.currentVersionId,
+      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
+      status: file.status,
+      ...(file.source ? { source: file.source } : {}),
+      ...(file.detail ? { detail: file.detail } : {}),
+      ...(file.href ? { href: file.href } : {}),
+      createdAtISO: file.createdAtISO,
+      updatedAtISO: file.updatedAtISO,
+      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
+    });
+
+    versions.forEach((version) => {
+      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
+        fileId: version.fileId,
+        versionNumber: version.versionNumber,
+        status: version.status,
+        storagePath: version.storagePath,
+        ...(version.checksum ? { checksum: version.checksum } : {}),
+        createdAtISO: version.createdAtISO,
+      });
+    });
+
+    await batch.commit();
+  }
+}
+`````
+
+## File: modules/asset/infrastructure/firebase/FirebaseRagDocumentRepository.ts
+`````typescript
+import {
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type {
+  RagDocumentRecord,
+  RagDocumentRepository,
+} from "../../domain/repositories/RagDocumentRepository";
+
+function buildKnowledgeDocumentRef(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+}) {
+  return doc(
+    getFirestore(firebaseClientApp),
+    "knowledge_base",
+    input.organizationId,
+    "workspaces",
+    input.workspaceId,
+    "documents",
+    input.documentId,
+  );
+}
+
+function buildKnowledgeDocumentsCollection(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+}) {
+  return collection(
+    getFirestore(firebaseClientApp),
+    "knowledge_base",
+    input.organizationId,
+    "workspaces",
+    input.workspaceId,
+    "documents",
+  );
+}
+
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function toRagDocumentRecord(
+  documentId: string,
+  data: Record<string, unknown>,
+  fallbackScope: { organizationId: string; workspaceId: string },
+): RagDocumentRecord {
+  return {
+    id: documentId,
+    organizationId:
+      typeof data.organizationId === "string" ? data.organizationId : fallbackScope.organizationId,
+    workspaceId:
+      typeof data.workspaceId === "string" ? data.workspaceId : fallbackScope.workspaceId,
+    displayName:
+      (typeof data.displayName === "string" && data.displayName) ||
+      (typeof data.sourceFileName === "string" && data.sourceFileName) ||
+      "",
+    title: typeof data.title === "string" ? data.title : "",
+    sourceFileName: typeof data.sourceFileName === "string" ? data.sourceFileName : "",
+    mimeType:
+      typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    status:
+      data.status === "uploaded" ||
+      data.status === "processing" ||
+      data.status === "ready" ||
+      data.status === "failed" ||
+      data.status === "archived"
+        ? data.status
+        : "uploaded",
+    statusMessage:
+      typeof data.statusMessage === "string" ? data.statusMessage : undefined,
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : undefined,
+    category: typeof data.category === "string" ? data.category : undefined,
+    department: typeof data.department === "string" ? data.department : undefined,
+    tags: toStringArray(data.tags),
+    language: typeof data.language === "string" ? data.language : undefined,
+    accessControl: toStringArray(data.accessControl),
+    versionGroupId: typeof data.versionGroupId === "string" ? data.versionGroupId : documentId,
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 1,
+    isLatest: typeof data.isLatest === "boolean" ? data.isLatest : true,
+    updateLog: typeof data.updateLog === "string" ? data.updateLog : undefined,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
+    indexedAtISO:
+      typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
+    expiresAtISO:
+      typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseRagDocumentRepository implements RagDocumentRepository {
+  async findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+  }): Promise<RagDocumentRecord | null> {
+    const snapshots = await getDocs(
+      query(
+        buildKnowledgeDocumentsCollection({
+          organizationId: scope.organizationId,
+          workspaceId: scope.workspaceId,
+        }),
+        where("storagePath", "==", scope.storagePath),
+        limit(1),
+      ),
+    );
+    const [firstMatch] = snapshots.docs;
+    if (!firstMatch) {
+      return null;
+    }
+
+    return toRagDocumentRecord(firstMatch.id, firstMatch.data() as Record<string, unknown>, {
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+    });
+  }
+
+  async findByWorkspace(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly RagDocumentRecord[]> {
+    const snapshots = await getDocs(
+      query(
+        buildKnowledgeDocumentsCollection({
+          organizationId: scope.organizationId,
+          workspaceId: scope.workspaceId,
+        }),
+        orderBy("createdAtISO", "desc"),
+      ),
+    );
+
+    return snapshots.docs.map((docSnap) =>
+      toRagDocumentRecord(docSnap.id, docSnap.data() as Record<string, unknown>, {
+        organizationId: scope.organizationId,
+        workspaceId: scope.workspaceId,
+      }),
+    );
+  }
+
+  async saveUploaded(record: RagDocumentRecord): Promise<void> {
+    const documentRef = buildKnowledgeDocumentRef({
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      documentId: record.id,
+    });
+
+    await setDoc(documentRef, {
+      // Duplicate the document id in the payload so collection-group consumers can project
+      // a stable field without depending on Firestore snapshot metadata.
+      id: record.id,
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      displayName: record.displayName,
+      title: record.title,
+      sourceFileName: record.sourceFileName,
+      mimeType: record.mimeType,
+      storagePath: record.storagePath,
+      sizeBytes: record.sizeBytes,
+      status: record.status,
+      ...(record.statusMessage ? { statusMessage: record.statusMessage } : {}),
+      ...(record.checksum ? { checksum: record.checksum } : {}),
+      ...(record.taxonomy ? { taxonomy: record.taxonomy } : {}),
+      ...(record.category ? { category: record.category } : {}),
+      ...(record.department ? { department: record.department } : {}),
+      tags: record.tags ?? [],
+      ...(record.language ? { language: record.language } : {}),
+      accessControl: record.accessControl ?? [],
+      versionGroupId: record.versionGroupId,
+      versionNumber: record.versionNumber,
+      isLatest: record.isLatest,
+      ...(record.updateLog ? { updateLog: record.updateLog } : {}),
+      accountId: record.accountId,
+      ...(record.chunkCount !== undefined ? { chunkCount: record.chunkCount } : {}),
+      ...(record.indexedAtISO ? { indexedAtISO: record.indexedAtISO } : {}),
+      ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
+      createdAtISO: record.createdAtISO,
+      updatedAtISO: record.updatedAtISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+`````
+
+## File: modules/asset/infrastructure/index.ts
+`````typescript
+export * from "./firebase/FirebaseFileRepository";
+export * from "./firebase/FirebaseRagDocumentRepository";
+`````
+
+## File: modules/asset/interfaces/contracts/file-command-result.ts
 `````typescript
 import type { FileCommandErrorCode } from "../../application/dto/file.dto";
 
@@ -62748,6 +58847,964 @@ export type FileCommandResult<TData> =
       };
       commandId: string;
     };
+`````
+
+## File: modules/asset/interfaces/index.ts
+`````typescript
+export * from "./components/WorkspaceFilesTab";
+export * from "./queries/file.queries";
+export * from "./_actions/file.actions";
+export * from "./contracts/file-command-result";
+`````
+
+## File: modules/asset/README.md
+`````markdown
+# File Module MDDD + Hexagonal Implementation Plan
+
+> **開發狀態**：🚧 Developing — 積極開發中
+
+**核心原則：檔案模組只擁有檔案生命週期、版本、授權快照與保留策略的業務規則，account / workspace / organization 只提供身分、協作情境與治理政策，所有存取判斷一律經由 file application use case 透過 ports 解算。**
+
+---
+
+## 1) 問題陳述與目標 / 非目標
+
+### 問題陳述
+目前 `modules/file` 已完成第一階段解耦，但仍缺少完整生命週期能力：
+
+- `WorkspaceFilesTab` 已走 file module query，不再依賴 workspace projection
+- 讀取路徑已從 workspace 衍生訊號拆離，但 canonical write-side / lifecycle（upload/download/version/retention）仍未完整落地
+- account、workspace、organization 在檔案領域的責任邊界尚未被明確建模
+- 檔案權限、版本、保留、稽核、下載連結生命週期都沒有正式 aggregate / port / use case
+- 如果直接在 app/router 或 UI 補功能，會進一步惡化 coupling，違反本專案的 MDDD + Hexagonal 依賴方向
+
+### 目標
+1. 將 `modules/file` 定義為正式 bounded context，具備可演進的 `domain / application / infrastructure / interfaces` 分層。
+2. 一次釐清 account、workspace、organization、file 四者在檔案領域的責任邊界。
+3. 建立最小可行資料模型，支援：
+   - upload-init / upload-complete
+   - list-files
+   - get-download-url
+   - archive-file / restore-file
+   - versioning / audit / retention
+4. 明確定義權限解算優先序與 default deny 原則。
+5. 提供可直接開工的 migration plan，先拆掉目前 `WorkspaceOperationalSignals` 對檔案顯示的耦合。
+6. 確保所有外部依賴（Firebase / Firestore / Storage / signed URL / notification / audit）只存在 infrastructure。
+
+### 非目標
+1. 本次方案**不**直接實作完整 Document AI / Parser / RAG ingestion pipeline；那是 parser / py_fn 的責任。
+2. 本次方案**不**定義新的 UI 視覺設計系統；UI 僅需接正式 query / action。
+3. 本次方案**不**讓 account / workspace / organization 模組去「接管」檔案生命週期。
+4. 本次方案**不**在第一個 PR 就完成全文檢索、DLP、病毒掃描、跨區域複寫。
+5. 本次方案**不**把權限規則散落在 router、server action、React component、Firebase Rules 各處重複實作。
+
+---
+
+## 2) account / workspace / organization / file 職責矩陣
+
+| 邊界 | 擁有資料 | 可執行行為 | 禁止責任 |
+| --- | --- | --- | --- |
+| `account` | `accountId`、身份狀態、角色指派結果、成員資格、使用者偏好 | 發起 upload / download / archive / restore 請求；作為 actor 被授權；持有 personal scope 的擁有者資訊 | 不可擁有 organization 檔案政策；不可直接決定 workspace 檔案可見性；不可實作檔案生命週期規則 |
+| `workspace` | `workspaceId`、協作情境、成員關係、workspace grants、檔案掛載上下文 | 定義檔案與某個 workspace 的協作歸屬；提供 workspace-level grant；決定哪些檔案在該 workspace 被列出 | 不可擁有 blob/storage path；不可實作版本規則；不可繞過 organization policy 發放權限 |
+| `organization` | `organizationId`、租戶邊界、治理政策、保留政策基線、分類基線、legal hold / compliance policy | 提供 tenant boundary；定義最高優先權 hard deny / retention baseline / classification baseline | 不可直接持有檔案版本資料；不可把檔案列表實作成 organization page fan-out 邏輯；不可在 UI 內解權限 |
+| `file` | 檔案 metadata、版本、storage pointer、permission snapshot、retention outcome、download token issuance、audit payload | 管理 upload session、版本建立、列檔、下載連結、封存、還原、軟刪除、權限快照、稽核事件發送 | 不可成為 identity source；不可管理 organization/team/workspace lifecycle；不可直接 import 他模組 domain 來解決規則 |
+
+### 邊界補充
+- `organization` 是**租戶與治理邊界**。
+- `workspace` 是**協作與掛載邊界**。
+- `account` 是**actor 與主體邊界**。
+- `file` 是**檔案生命週期與存取決策邊界**。
+
+---
+
+## 3) 10 條不可違反架構規則
+
+1. `app/` 與 route handler / server action 只能協調輸入輸出，不得實作檔案業務規則。
+2. `modules/file/interfaces/*` 只能呼叫 `application/use-cases`，不得直接存取 Firebase / Firestore / Storage。
+3. `modules/file/application/*` 不得 import Firebase SDK、Next.js runtime API、React hook、UI component。
+4. `modules/file/domain/*` 必須保持 pure TypeScript，不得 import `workspace` / `organization` / `account` 的 domain symbols。
+5. 檔案權限判斷只能在 file application + domain 內完成，且必須 default deny。
+6. 任何下載連結、上傳 URL、Storage path、metadata 寫入只能由 infrastructure adapter 產生。
+7. 檔案版本是 immutable；更新內容只能新增 `FileVersion`，不可原地改寫舊版本 metadata。
+8. `archive / restore / soft delete / purge` 只能透過 `File` aggregate 狀態轉移，UI 不可直接 patch status。
+9. 與 account / workspace / organization / audit / notification 的互動只能透過 ports，不能直接跨模組 repository 實作或 domain import。
+10. 任何跨租戶請求只要 `organizationId` 不一致，必須在最外層 use case 直接拒絕，不能依賴 UI 過濾或 Storage path 猜測。
+
+---
+
+## 4) file module 分層目錄草案與檔案命名建議
+
+```text
+modules/file/
+├── README.md
+├── index.ts
+├── domain/
+│   ├── entities/
+│   │   ├── File.ts
+│   │   ├── FileVersion.ts
+│   │   ├── PermissionSnapshot.ts
+│   │   ├── RetentionPolicy.ts
+│   │   └── AuditRecord.ts
+│   ├── value-objects/
+│   │   ├── FileId.ts
+│   │   ├── FileScope.ts
+│   │   ├── FileStatus.ts
+│   │   ├── FilePermission.ts
+│   │   └── StorageObjectPath.ts
+│   ├── repositories/
+│   │   ├── FileRepository.ts
+│   │   ├── FileVersionRepository.ts
+│   │   ├── UploadSessionRepository.ts
+│   │   └── PermissionSnapshotRepository.ts
+│   └── ports/
+│       ├── ActorContextPort.ts
+│       ├── WorkspaceGrantPort.ts
+│       ├── OrganizationPolicyPort.ts
+│       ├── BlobStoragePort.ts
+│       ├── DownloadUrlSignerPort.ts
+│       ├── AuditSinkPort.ts
+│       └── NotificationPort.ts
+├── application/
+│   ├── dto/
+│   │   ├── init-upload.dto.ts
+│   │   ├── complete-upload.dto.ts
+│   │   ├── list-files.dto.ts
+│   │   ├── get-download-url.dto.ts
+│   │   ├── archive-file.dto.ts
+│   │   └── restore-file.dto.ts
+│   └── use-cases/
+│       ├── init-file-upload.use-case.ts
+│       ├── complete-file-upload.use-case.ts
+│       ├── list-workspace-files.use-case.ts
+│       ├── list-organization-files.use-case.ts
+│       ├── get-file-download-url.use-case.ts
+│       ├── archive-file.use-case.ts
+│       ├── restore-file.use-case.ts
+│       └── resolve-file-permissions.use-case.ts
+├── infrastructure/
+│   ├── firebase/
+│   │   ├── FirebaseFileRepository.ts
+│   │   ├── FirebaseFileVersionRepository.ts
+│   │   ├── FirebaseUploadSessionRepository.ts
+│   │   ├── FirebasePermissionSnapshotRepository.ts
+│   │   ├── FirebaseBlobStorageAdapter.ts
+│   │   ├── FirebaseDownloadUrlSigner.ts
+│   │   └── mappers/
+│   │       ├── file-document.mapper.ts
+│   │       ├── file-version-document.mapper.ts
+│   │       ├── permission-snapshot-document.mapper.ts
+│   │       └── retention-policy-document.mapper.ts
+│   ├── integration/
+│   │   ├── AccountActorContextAdapter.ts
+│   │   ├── WorkspaceGrantAdapter.ts
+│   │   ├── OrganizationPolicyAdapter.ts
+│   │   ├── AuditSinkAdapter.ts
+│   │   └── NotificationAdapter.ts
+├── interfaces/
+│   ├── _actions/
+│   │   └── file.actions.ts
+│   ├── queries/
+│   │   └── file.queries.ts
+│   ├── components/
+│   │   ├── WorkspaceFilesTab.tsx
+│   │   └── OrganizationFilesTab.tsx
+│   └── presenters/
+│       └── file.presenter.ts
+```
+
+### 檔名命名原則
+- entity：名詞單數，直接反映 aggregate / entity 名稱
+- use case：`verb-object.use-case.ts`
+- Firebase adapter：`Firebase<Thing>Repository.ts` / `Firebase<Thing>Adapter.ts`
+- DTO：`<command>.dto.ts`
+- interface entry：集中在 `file.actions.ts` / `file.queries.ts`
+- legacy bridge：只能暫存於 `infrastructure/legacy/`，禁止長期存在
+
+---
+
+## 5) 最小可行資料模型
+
+> 原則：檔案 metadata 與權限 / 保留 / 稽核是 file module 的 canonical source；organization / workspace / account 只提供 reference 與 policy input。
+
+### `File`
+
+```ts
+interface File {
+  id: string;
+  organizationId: string;
+  workspaceId?: string;
+  ownerAccountId: string;
+  createdByAccountId: string;
+  currentVersionId: string;
+  currentVersionNumber: number;
+  name: string;
+  normalizedName: string;
+  extension?: string;
+  contentType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  status: "INITIATED" | "UPLOADING" | "AVAILABLE" | "ARCHIVED" | "SOFT_DELETED" | "PURGED";
+  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
+  classification: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
+  tags: string[];
+  permissionSnapshotId: string;
+  retentionPolicyId: string;
+  legalHold: boolean;
+  archivedAt?: Timestamp;
+  deletedAt?: Timestamp;
+  purgeAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+#### `File` 狀態機
+
+```text
+INITIATED -> UPLOADING -> AVAILABLE -> ARCHIVED -> AVAILABLE
+AVAILABLE -> SOFT_DELETED -> AVAILABLE
+SOFT_DELETED -> PURGED
+INITIATED -> PURGED     (expired upload session cleanup)
+```
+
+#### 狀態規則
+- `INITIATED`: 已發 upload-init，但 blob 尚未確認完成
+- `UPLOADING`: 已取得 upload target，尚未 complete
+- `AVAILABLE`: 可列出、可下載（前提是權限解算通過）
+- `ARCHIVED`: 不出現在預設列表，但可 restore
+- `SOFT_DELETED`: 對 UI 隱藏，可在保留期內 restore
+- `PURGED`: 終態；metadata 可保留精簡 tombstone，但 blob 與版本不可再使用
+
+### `FileVersion`
+
+```ts
+interface FileVersion {
+  id: string;
+  fileId: string;
+  organizationId: string;
+  workspaceId?: string;
+  versionNumber: number;
+  storagePath: string;
+  storageBucket: string;
+  objectGeneration?: string;
+  sizeBytes: number;
+  contentType: string;
+  checksumSha256: string;
+  sourceFileName: string;
+  uploadedByAccountId: string;
+  status: "PENDING_UPLOAD" | "STORED" | "ACTIVE" | "SUPERSEDED" | "PURGED";
+  createdAt: Timestamp;
+}
+```
+
+#### `FileVersion` 狀態機
+```text
+PENDING_UPLOAD -> STORED -> ACTIVE -> SUPERSEDED
+ACTIVE -> PURGED
+SUPERSEDED -> PURGED
+```
+
+### `PermissionSnapshot`
+
+```ts
+interface PermissionSnapshot {
+  id: string;
+  fileId: string;
+  organizationId: string;
+  workspaceId?: string;
+  defaultEffect: "DENY";
+  organizationPolicyVersion: number;
+  workspaceGrantVersion?: number;
+  actorContextVersion: number;
+  allowedPermissions: string[];
+  deniedPermissions: string[];
+  computedAt: Timestamp;
+}
+```
+
+### `RetentionPolicy`
+
+```ts
+interface RetentionPolicy {
+  id: string;
+  organizationId: string;
+  workspaceId?: string;
+  scope: "ORGANIZATION" | "WORKSPACE" | "FILE";
+  archiveAfterDays?: number;
+  deleteAfterDays?: number;
+  purgeAfterDays?: number;
+  legalHold: boolean;
+  policyVersion: number;
+  inheritedFromId?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+### `AuditRecord`
+
+```ts
+interface AuditRecord {
+  id: string;
+  organizationId: string;
+  workspaceId?: string;
+  fileId: string;
+  versionId?: string;
+  actorAccountId: string;
+  action:
+    | "UPLOAD_INIT"
+    | "UPLOAD_COMPLETE"
+    | "LIST"
+    | "DOWNLOAD_URL_ISSUED"
+    | "ARCHIVE"
+    | "RESTORE"
+    | "DELETE"
+    | "PURGE";
+  result: "SUCCESS" | "DENIED" | "FAILED";
+  reason?: string;
+  correlationId: string;
+  idempotencyKey?: string;
+  metadata?: Record<string, unknown>;
+  occurredAt: Timestamp;
+}
+```
+
+### Firestore collection 建議
+
+```text
+fileDocuments/{fileId}
+fileDocuments/{fileId}/versions/{versionId}
+filePermissionSnapshots/{snapshotId}
+fileRetentionPolicies/{policyId}
+fileUploadSessions/{uploadSessionId}
+fileAuditRecords/{auditRecordId}
+```
+
+### 索引建議
+
+1. `fileDocuments`: `(organizationId, workspaceId, status, updatedAt desc)`
+2. `fileDocuments`: `(organizationId, ownerAccountId, status, createdAt desc)`
+3. `fileDocuments`: `(organizationId, classification, status, updatedAt desc)`
+4. `versions`: `(fileId, versionNumber desc)`
+5. `fileAuditRecords`: `(organizationId, workspaceId, occurredAt desc)`
+6. `fileAuditRecords`: `(fileId, occurredAt desc)`
+7. `fileRetentionPolicies`: `(organizationId, scope, policyVersion desc)`
+8. `fileUploadSessions`: `(organizationId, expiresAt asc, status)` for cleanup
+
+---
+
+## 6) 權限解算演算法
+
+### 解算輸入
+- `organization policy`
+- `workspace grants`（若檔案綁定 workspace）
+- `account role / membership`
+- `file visibility / classification / legalHold`
+- `requested permission`（`READ`, `DOWNLOAD`, `WRITE`, `ARCHIVE`, `RESTORE`, `DELETE`, `MANAGE_RETENTION`, `SHARE`）
+
+### 優先序
+1. **Tenant boundary**：`organizationId` 不一致立即 deny
+2. **Organization policy explicit deny**：最高優先權，任何其他 allow 都不能覆蓋
+3. **Legal hold / retention hard rule**：若 action 觸犯保留規則，直接 deny
+4. **Workspace explicit deny**：只能在 organization 允許範圍內進一步收斂
+5. **Account role capability**：actor 必須擁有執行該 action 的 role capability
+6. **Workspace allow / organization allow**：至少需要一個顯式 allow，否則 default deny
+7. **File visibility filter**：若檔案是 `PRIVATE`，額外要求 owner 或具 delegated privilege
+
+### 衝突處理原則
+- `deny > allow`
+- `organization deny > workspace allow`
+- `workspace deny > account role allow`
+- `account role` 只提供 capability，不單獨成為 allow 來源
+- 沒有 explicit allow 時一律 `DENY`
+
+### 偽程式碼
+
+```ts
+function resolvePermission(input: ResolvePermissionInput): PermissionDecision {
+  const {
+    actor,
+    file,
+    requestedPermission,
+    organizationPolicy,
+    workspaceGrant,
+  } = input;
+
+  if (actor.organizationId !== file.organizationId) {
+    return deny("FILE_CROSS_TENANT_ACCESS", "Actor and file belong to different organizations");
+  }
+
+  if (organizationPolicy.denies(requestedPermission, file.classification)) {
+    return deny("FILE_ORG_POLICY_DENY", "Organization policy denied permission");
+  }
+
+  if (file.legalHold && requestedPermission === "DELETE") {
+    return deny("FILE_LEGAL_HOLD_ACTIVE", "File is under legal hold");
+  }
+
+  if (workspaceGrant?.denies(requestedPermission, actor.accountId)) {
+    return deny("FILE_WORKSPACE_GRANT_DENY", "Workspace grant denied permission");
+  }
+
+  if (!actor.capabilities.includes(mapPermissionToCapability(requestedPermission))) {
+    return deny("FILE_ACCOUNT_CAPABILITY_MISSING", "Actor role does not include required capability");
+  }
+
+  const orgAllows = organizationPolicy.allows(requestedPermission, file.visibility, file.classification);
+  const workspaceAllows = file.workspaceId
+    ? workspaceGrant?.allows(requestedPermission, actor.accountId) ?? false
+    : false;
+
+  const visibilityAllows = checkVisibilityRule(file, actor, requestedPermission);
+
+  if (!visibilityAllows) {
+    return deny("FILE_VISIBILITY_RESTRICTED", "File visibility rule rejected permission");
+  }
+
+  if (orgAllows || workspaceAllows) {
+    return allow();
+  }
+
+  return deny("FILE_DEFAULT_DENY", "No explicit allow matched");
+}
+```
+
+---
+
+## 7) 端到端流程設計
+
+### 共用錯誤碼
+
+| 錯誤碼 | 說明 |
+| --- | --- |
+| `FILE_NOT_FOUND` | 找不到 file 或 version |
+| `FILE_PERMISSION_DENIED` | 權限解算拒絕 |
+| `FILE_INVALID_STATE` | 狀態轉移不合法 |
+| `FILE_CROSS_TENANT_ACCESS` | 跨 organization 邊界 |
+| `FILE_UPLOAD_SESSION_EXPIRED` | upload session 過期 |
+| `FILE_IDEMPOTENCY_CONFLICT` | 同一 idempotency key 但 payload 不同 |
+| `FILE_STORAGE_WRITE_FAILED` | Storage 寫入失敗 |
+| `FILE_STORAGE_OBJECT_MISSING` | upload-complete 時找不到 blob |
+| `FILE_DOWNLOAD_URL_EXPIRED` | 嘗試使用過期下載 URL |
+| `FILE_RETENTION_BLOCKED` | retention / legal hold 阻擋 |
+
+### A. `upload-init`
+
+#### Input DTO
+```ts
+interface InitFileUploadInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  visibility: "PRIVATE" | "WORKSPACE" | "ORGANIZATION";
+  classification?: "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
+  tags?: string[];
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface InitFileUploadOutput {
+  fileId: string;
+  versionId: string;
+  uploadSessionId: string;
+  uploadUrl: string;
+  uploadHttpMethod: "PUT";
+  storagePath: string;
+  expiresAt: string;
+}
+```
+
+#### Idempotency
+- key scope: `(organizationId, actorAccountId, idempotencyKey, command=upload-init)`
+- same key + same payload -> 回傳先前結果
+- same key + different payload -> `FILE_IDEMPOTENCY_CONFLICT`
+
+### B. `upload-complete`
+
+#### Input DTO
+```ts
+interface CompleteFileUploadInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  versionId: string;
+  uploadSessionId: string;
+  checksumSha256: string;
+  sizeBytes: number;
+  storageObjectGeneration?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface CompleteFileUploadOutput {
+  fileId: string;
+  versionId: string;
+  status: "AVAILABLE";
+}
+```
+
+#### Idempotency
+- key scope: `(organizationId, fileId, uploadSessionId, idempotencyKey, command=upload-complete)`
+- 若 session 已完成且 checksum 相同 -> 回傳 success
+- 若 blob metadata 與 session 不符 -> `FILE_STORAGE_OBJECT_MISSING` 或 `FILE_INVALID_STATE`
+
+### C. `list-files`
+
+#### Input DTO
+```ts
+interface ListFilesInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  statuses?: Array<"AVAILABLE" | "ARCHIVED" | "SOFT_DELETED">;
+  search?: string;
+  tags?: string[];
+  page: number;
+  limit: number;
+}
+```
+
+#### Output DTO
+```ts
+interface ListFilesOutput {
+  data: Array<{
+    id: string;
+    name: string;
+    status: string;
+    currentVersionNumber: number;
+    contentType: string;
+    sizeBytes: number;
+    visibility: string;
+    classification: string;
+    updatedAt: string;
+  }>;
+  total: number;
+  page: number;
+  limit: number;
+}
+```
+
+#### Idempotency
+- query，不需要 idempotency key
+- server-side 一律重新解權限，不可使用前端快取直接信任
+
+### D. `get-download-url`
+
+#### Input DTO
+```ts
+interface GetFileDownloadUrlInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  versionId?: string;
+  reason?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface GetFileDownloadUrlOutput {
+  fileId: string;
+  versionId: string;
+  downloadUrl: string;
+  expiresAt: string;
+}
+```
+
+#### Idempotency
+- 若同一 key 在有效時間內重放，可回傳相同 URL 或重新簽發但寫同一 audit correlationId
+- URL TTL 建議 5~15 分鐘，過期必須重新申請
+
+### E. `archive-file`
+
+#### Input DTO
+```ts
+interface ArchiveFileInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  reason?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface ArchiveFileOutput {
+  fileId: string;
+  status: "ARCHIVED";
+}
+```
+
+#### Idempotency
+- 同一 file 已是 `ARCHIVED` 視為成功重放
+- archive 不搬移 blob，只更新 metadata / audit / notification
+
+### F. `restore-file`
+
+#### Input DTO
+```ts
+interface RestoreFileInput {
+  organizationId: string;
+  workspaceId?: string;
+  actorAccountId: string;
+  fileId: string;
+  reason?: string;
+  idempotencyKey: string;
+}
+```
+
+#### Output DTO
+```ts
+interface RestoreFileOutput {
+  fileId: string;
+  status: "AVAILABLE";
+}
+```
+
+#### Idempotency
+- 同一 file 已是 `AVAILABLE` 視為成功重放
+- 若已 `PURGED`，不得 restore，回 `FILE_INVALID_STATE`
+
+---
+
+## 8) Storage path 與檔名命名規範
+
+### 核心規範
+1. 第一層一定是 tenant boundary，不允許 accountId 當第一層。
+2. storage path 必須 immutable；archive / restore 不移動 blob。
+3. 人類可讀檔名只能放最後一段，且前面必須先有 canonical IDs。
+4. 不允許單純使用原始檔名當 object key。
+5. 必須包含 version segment，避免覆寫。
+6. 必須帶 checksum short hash 或 nonce，防碰撞且可稽核。
+
+### 建議 path
+
+#### Temporary upload session
+```text
+tenants/{organizationId}/upload-sessions/{uploadSessionId}/incoming/{nonce}
+```
+
+#### Final blob path
+```text
+tenants/{organizationId}/workspaces/{workspaceIdOr_org}/files/{fileId}/versions/v{versionNumber}/{versionId}_{checksum12}_{slugifiedName}
+```
+
+#### 範例
+```text
+tenants/org_123/workspaces/ws_456/files/file_789/versions/v3/ver_003_a1b2c3d4e5f6_design-spec.pdf
+```
+
+### 檔名規範
+- `slugifiedName` 只能保留小寫英數、短橫線、最後副檔名
+- 長度上限建議 96 chars（不含前綴 IDs）
+- 原始檔名完整值保留在 Firestore metadata `sourceFileName`
+- storage path 只用於定位，不用於顯示名稱權威來源
+
+### 可稽核要求
+- 每個 `FileVersion` 必須保存 `storageBucket + storagePath + objectGeneration + checksumSha256`
+- 每次簽發下載連結必須寫入 `AuditRecord`
+
+---
+
+## 9) interfaces 層契約草案
+
+### Server Actions
+
+```ts
+// modules/file/interfaces/_actions/file.actions.ts
+export async function initFileUpload(input: InitFileUploadInput): Promise<CommandResult>
+export async function completeFileUpload(input: CompleteFileUploadInput): Promise<CommandResult>
+export async function archiveFile(input: ArchiveFileInput): Promise<CommandResult>
+export async function restoreFile(input: RestoreFileInput): Promise<CommandResult>
+```
+
+### Query Wrappers
+
+```ts
+// modules/file/interfaces/queries/file.queries.ts
+export async function getWorkspaceFiles(input: ListFilesInput): Promise<ListFilesOutput>
+export async function getOrganizationFiles(input: ListFilesInput): Promise<ListFilesOutput>
+export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promise<GetFileDownloadUrlOutput>
+```
+
+### `CommandResult` 格式範例
+
+```ts
+// success
+{
+  success: true,
+  aggregateId: "file_789",
+  version: 3,
+}
+
+// failure
+{
+  success: false,
+  error: {
+    code: "FILE_PERMISSION_DENIED",
+    message: "Actor is not allowed to archive this file",
+    context: {
+      fileId: "file_789",
+      requestedPermission: "ARCHIVE",
+    },
+  },
+}
+```
+
+### REST 對外映射（若未來需要 route handlers）
+- `POST /api/files/upload-init`
+- `POST /api/files/upload-complete`
+- `GET /api/files`
+- `POST /api/files/:fileId/download-url`
+- `POST /api/files/:fileId/archive`
+- `POST /api/files/:fileId/restore`
+
+> Route handler 只做 transport mapping；真正規則仍在 file application use cases。
+
+---
+
+## 10) 與既有模組整合方式（只能透過哪些 port）
+
+| 既有模組 | file module 可依賴的 port | 允許取得的資訊 | 禁止方式 |
+| --- | --- | --- | --- |
+| `account / identity` | `ActorContextPort` | actor accountId、organization membership、role capabilities、account status | 禁止 import `modules/account/domain/*` 或 `modules/identity/domain/*` |
+| `workspace` | `WorkspaceGrantPort` | workspace 是否存在、所屬 organization、workspace grants、member scope | 禁止從 `WorkspaceOperationalSignals` 直接取衍生檔案資料 |
+| `organization` | `OrganizationPolicyPort` | retention baseline、classification baseline、hard deny / hard allow policy、legal hold policy | 禁止直接 fan-out organization 頁面資料作為 canonical policy source |
+| `audit` | `AuditSinkPort` | append-only audit 寫入口 | 禁止 file module 自行寫 organization 頁 UI read model |
+| `notification` | `NotificationPort` | 非同步通知發送（例如 upload 完成、封存、還原） | 禁止在 use case 內直接 import notification repository |
+
+### 明確整合原則
+- file application 只知道 port interface，不知道他模組具體 repository / Firebase adapter。
+- cross-module read model 一律由 file infrastructure 的 adapter 包裝。
+- 目前 active read path 已不再依賴 legacy workspace projection；若後續仍需過渡 adapter，必須明確標記 phase-out 並避免重新掛回 `WorkspaceOperationalSignals`。
+
+---
+
+## 11) 三階段 Migration Plan
+
+## Phase 1 — 模組骨架 + UI 解耦（先拆 coupling）
+
+### 變更範圍
+- 建立 `modules/file/domain / application / infrastructure / interfaces` 正式骨架
+- 建立 `list-workspace-files.use-case.ts` 與 `file.queries.ts`
+- 將 `WorkspaceFilesTab` 從 `getWorkspaceFileAssets(workspace)` 改為 `getWorkspaceFiles(...)`
+- 目前 read path 已由 `FirebaseFileRepository` 提供，舊 bridge 已可移除
+
+### 風險
+- 讀取結果與既有 UI 顯示不一致
+- 在 canonical Firestore model 完成前，既有 metadata 映射策略可能需要持續校正
+
+### 回滾
+- 回退 `WorkspaceFilesTab` 對 `getWorkspaceFiles` 的使用，改回上一版 file query implementation（不重掛 workspace projection）
+
+### 驗證命令
+- `npm run lint`
+- `npm run build`
+
+### 完成定義
+- `WorkspaceFilesTab` 不再直接 import `WorkspaceOperationalSignals`
+- file module 擁有自己的 query entrypoint
+- 所有 file 顯示路徑已經從 UI -> file interfaces -> file application -> file infrastructure 走通
+
+---
+
+## Phase 2 — Canonical Firestore model + upload/download lifecycle
+
+### 變更範圍
+- 落地 `File / FileVersion / UploadSession / PermissionSnapshot` Firestore collections
+- 實作 `init-file-upload.use-case.ts`、`complete-file-upload.use-case.ts`、`get-file-download-url.use-case.ts`
+- 實作 Firebase Storage adapter 與 signer
+- 延續清理與 canonical model 衝突的舊 metadata 轉接邏輯（`LegacyWorkspaceFileAssetBridge` 已移除）
+
+### 風險
+- signed URL 與 metadata 寫入不一致
+- upload-complete 可能遇到 blob 已存在但 metadata 未提交的半完成狀態
+
+### 回滾
+- 停用新 upload actions，保留 read-only 查詢
+- upload session collection 可用 TTL cleanup 回收未完成資料
+- 保留 legacy read bridge 作為 fallback，直到 canonical collection 穩定
+
+### 驗證命令
+- `npm run lint`
+- `npm run build`
+
+### 完成定義
+- 檔案 metadata 已由 file module 自己持有
+- workspace file list 改讀 `fileDocuments`
+- download URL 只由 file module signer 發放
+
+---
+
+## Phase 3 — governance / retention / archive / restore / organization aggregation
+
+### 變更範圍
+- 實作 `archive-file.use-case.ts`、`restore-file.use-case.ts`
+- 實作 organization-level list query 與 retention policy resolution
+- 串接 audit / notification ports
+- 將 organization / workspace file lists 統一切到 file read model
+
+### 風險
+- policy resolution 與 UI 預期不一致
+- archive / restore / soft delete 對歷史版本顯示造成混淆
+
+### 回滾
+- archive / restore actions 可 feature-flag 關閉
+- organization list 可暫時回退為只讀 workspace aggregation，但 canonical policy 不回退
+
+### 驗證命令
+- `npm run lint`
+- `npm run build`
+
+### 完成定義
+- organization file list 顯示的是該 organization 底下所有 workspace / org-scope files 的正式聚合結果
+- 權限、保留、稽核、通知都經由 file module ports
+- legacy bridge 完全移除
+
+---
+
+## 12) 測試策略矩陣
+
+> 目前 `package.json` 尚無 test script；以下矩陣是正式模組落地時必須補齊的測試面，工具選型需遵循當下 repo 標準，不在本方案內新增測試框架決策。
+
+| Layer | 主要測試標的 | 必測案例 |
+| --- | --- | --- |
+| `domain` | `File` / `FileVersion` / `RetentionPolicy` 狀態與不變式 | 狀態衝突、版本不可覆寫、軟刪除後不可直接下載、purged 不可 restore |
+| `application` | use cases + permission resolution | 權限衝突（org deny vs workspace allow）、default deny、跨租戶隔離、legal hold 阻擋 delete、版本回朔時 currentVersion 不被污染 |
+| `interfaces` | action/query contract | DTO validation、錯誤碼映射、CommandResult shape、過期下載連結要求重新簽發 |
+| `infrastructure` | Firestore / Storage adapters | storage path 命名、防碰撞、metadata round-trip、signed URL TTL、upload session 冪等重放 |
+
+### 至少要覆蓋的情境
+1. **權限衝突**：organization deny + workspace allow -> deny
+2. **跨租戶隔離**：actor.organizationId != file.organizationId -> deny
+3. **過期下載連結**：過期後重新申請成功，舊連結不可再信任
+4. **版本回朔**：恢復到舊版本時不覆寫歷史 version record，而是切換 currentVersion pointer 或新增 restore version
+5. **軟刪除與還原**：soft delete 後預設列表不可見，restore 後重新可見
+6. **封存與還原**：archive 不移動 blob，只改 metadata；restore 成功後列表重新出現
+
+---
+
+## 13) 第一個 PR 就能做的任務拆解清單
+
+> 目標：先把 `modules/file` 從 interface-only 變成正式模組骨架，並優先拆掉 `WorkspaceOperationalSignals` 對檔案 UI 的耦合。
+
+### P0 — 建立正式模組骨架
+1. **新增** `modules/file/domain/entities/File.ts`
+   - Symbol: `File`, `FileStatus`, `archive()`, `restore()`
+   - 驗收：有明確狀態轉移規則，禁止非法 transition
+2. **新增** `modules/file/domain/entities/FileVersion.ts`
+   - Symbol: `FileVersion`, `FileVersionStatus`
+   - 驗收：版本 immutable，只有 status 可從 pending -> stored -> active/superseded
+3. **新增** `modules/file/domain/repositories/FileRepository.ts`
+   - Symbol: `FileRepository`
+   - 驗收：至少定義 `findById`, `listByWorkspace`, `save`
+4. **新增** `modules/file/domain/ports/ActorContextPort.ts`
+   - Symbol: `ActorContextPort`
+   - 驗收：可提供 account role / org membership 的最小 contract
+5. **新增** `modules/file/domain/ports/WorkspaceGrantPort.ts`
+   - Symbol: `WorkspaceGrantPort`
+   - 驗收：可提供 workspace 所屬 organization 與 grants contract
+6. **新增** `modules/file/domain/ports/OrganizationPolicyPort.ts`
+   - Symbol: `OrganizationPolicyPort`
+   - 驗收：可提供 retention / classification / deny policy contract
+
+### P1 — 落地 read-side 最小 use case
+7. **新增** `modules/file/application/use-cases/list-workspace-files.use-case.ts`
+   - Symbol: `ListWorkspaceFilesUseCase`
+   - 驗收：不 import Firebase / React / Next.js
+8. **移除** `modules/file/infrastructure/legacy/LegacyWorkspaceFileAssetBridge.ts`
+   - Symbol: `LegacyWorkspaceFileAssetBridge`
+   - 驗收：不再保留對 `WorkspaceOperationalSignals` 的檔案投影依賴
+9. **新增** `modules/file/interfaces/queries/file.queries.ts`
+   - Symbol: `getWorkspaceFiles`
+   - 驗收：對外回傳 stable DTO，供 UI 使用
+10. **更新** `modules/file/index.ts`
+   - Symbol export：`WorkspaceFilesTab` + `getWorkspaceFiles`
+   - 驗收：file module 有自己的 public API
+
+### P2 — 拆掉 UI 對 workspace domain signal 的直連
+11. **更新** `modules/file/interfaces/components/WorkspaceFilesTab.tsx`
+   - 變更：移除 `getWorkspaceFileAssets(workspace)` import
+   - 改為：呼叫 `getWorkspaceFiles({ organizationId, workspaceId, actorAccountId, ... })`
+   - 驗收：UI 不再直連 workspace domain signal
+12. **必要時新增** `modules/file/interfaces/presenters/file.presenter.ts`
+   - Symbol: `toWorkspaceFileCardViewModel`
+   - 驗收：UI 格式轉換不留在 use case / infrastructure
+
+### 第一個 PR 驗收條件
+- `modules/file` 不再是 interface-only 模組
+- `WorkspaceFilesTab` 不再 import `WorkspaceOperationalSignals`
+- file 模組具備至少一條正式 read path：UI -> file query -> file use case -> file infra bridge
+- `npm run lint` 通過
+- `npm run build` 通過
+
+---
+
+## 建議的第一個實作切片（結論）
+
+**先做 read-side 解耦，不先做 upload command。**
+
+原因：
+- 目前最嚴重的架構問題不是少一個上傳 API，而是 file UI 還掛在 workspace domain 衍生函式上。
+- 先拆 coupling，才能讓後續 upload / version / permission / retention 都有正確落點。
+- 這也是最小、最安全、最符合本專案 MDDD 遷移順序的第一個 PR。
+`````
+
+## File: modules/event/api/index.ts
+`````typescript
+/**
+ * Module: event
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Event domain.
+ *
+ * Other modules use this boundary to publish and subscribe to domain events.
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Core entity ──────────────────────────────────────────────────────────────
+
+export { DomainEvent } from "../domain/entities/domain-event.entity";
+export type { DomainEventPayload } from "../domain/entities/domain-event.entity";
+
+// ─── Domain ports ─────────────────────────────────────────────────────────────
+
+export type { IEventBusRepository } from "../domain/repositories/ievent-bus.repository";
+export type { IEventStoreRepository } from "../domain/repositories/ievent-store.repository";
+
+// ─── Value objects ────────────────────────────────────────────────────────────
+
+export type { EventMetadata } from "../domain/value-objects/event-metadata.vo";
+
+// ─── Use cases ────────────────────────────────────────────────────────────────
+
+export { PublishDomainEventUseCase } from "../application/use-cases/publish-domain-event";
+export type { PublishDomainEventDTO } from "../application/use-cases/publish-domain-event";
+`````
+
+## File: modules/graph/api/index.ts
+`````typescript
+/**
+ * @deprecated modules/graph is retired.
+ * Import from @/modules/knowledge-graph/api instead.
+ */
+export type {
+  GraphViewConfig,
+  GraphLayout,
+} from "../../knowledge-graph/api";
 `````
 
 ## File: modules/graph/Graph-ERD.mermaid
@@ -63344,44 +60401,6 @@ pending     --[REMOVE]-->      removed
 </svg>
 `````
 
-## File: modules/identity/api/index.ts
-`````typescript
-/**
- * identity 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
- */
-
-import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
-
-// ─── DTO ──────────────────────────────────────────────────────────────────────
-
-/** 發送 Token Refresh 訊號所需的輸入參數。 */
-export interface EmitTokenRefreshSignalInput {
-  accountId: string;
-  reason: TokenRefreshReason;
-  traceId?: string;
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const identityApi = {
-  /**
-   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
-   * 應在角色或政策變更後呼叫。
-   */
-  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
-  },
-} as const;
-`````
-
 ## File: modules/identity/index.ts
 `````typescript
 /**
@@ -63416,22 +60435,6 @@ export { useTokenRefreshListener } from "./interfaces/hooks/useTokenRefreshListe
 ## File: modules/knowledge-graph/.gitkeep
 `````
 
-`````
-
-## File: modules/knowledge-graph/api/index.ts
-`````typescript
-/**
- * modules/knowledge-graph — public API barrel.
- */
-
-export type { Link, LinkType } from "../domain/entities/link";
-export type { GraphNode, GraphNodeType } from "../domain/entities/graph-node";
-export type { GraphRepository } from "../domain/repositories/GraphRepository";
-export { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
-export { LinkExtractorService } from "../application/link-extractor.service";
-export { KnowledgeGraphApi } from "./knowledge-graph-api";
-export type { GraphDataDTO } from "./knowledge-graph-api";
-export type { GraphViewConfig, GraphLayout } from "../domain/entities/view-config";
 `````
 
 ## File: modules/knowledge-graph/api/knowledge-graph-api.ts
@@ -63640,6 +60643,39 @@ export interface Link {
 }
 `````
 
+## File: modules/knowledge-graph/domain/entities/view-config.ts
+`````typescript
+/**
+ * modules/knowledge-graph — domain entity: GraphViewConfig
+ *
+ * Describes the visual configuration for rendering a knowledge graph.
+ * This is a pure data type; rendering logic lives in the interfaces layer.
+ */
+
+import type { ID } from "@shared-types";
+
+/** Layout algorithm for positioning nodes */
+export type GraphLayout = "force-directed" | "hierarchical" | "radial";
+
+/** Visual configuration for a knowledge-graph view */
+export interface GraphViewConfig {
+  /** Identifier for this configuration */
+  readonly id: ID;
+  /** Human-readable name */
+  readonly label: string;
+  /** Layout algorithm to apply */
+  readonly layout: GraphLayout;
+  /** IDs of nodes that should be visible; empty means show all */
+  readonly visibleNodeIds: ID[];
+  /** ID of the node to center / focus the view on (optional) */
+  readonly focusNodeId?: ID;
+  /** Whether to show edge labels */
+  readonly showEdgeLabels: boolean;
+  /** Maximum graph depth to render from the focus node */
+  readonly maxDepth: number;
+}
+`````
+
 ## File: modules/knowledge-graph/domain/repositories/GraphRepository.ts
 `````typescript
 /**
@@ -63724,6 +60760,184 @@ export class InMemoryGraphRepository implements GraphRepository {
 }
 `````
 
+## File: modules/knowledge/api/knowledge-ingestion-api.ts
+`````typescript
+import { AdvanceIngestionStageUseCase } from "../application/use-cases/advance-ingestion-stage.use-case";
+import {
+  RegisterIngestionDocumentUseCase,
+  type RegisterIngestionDocumentInput,
+} from "../application/use-cases/register-ingestion-document.use-case";
+import type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
+import { InMemoryIngestionJobRepository } from "../infrastructure/InMemoryIngestionJobRepository";
+
+export class KnowledgeIngestionApi {
+  private readonly repository = new InMemoryIngestionJobRepository();
+  private readonly registerUseCase = new RegisterIngestionDocumentUseCase(this.repository);
+  private readonly advanceUseCase = new AdvanceIngestionStageUseCase(this.repository);
+
+  async registerDocument(input: RegisterIngestionDocumentInput): Promise<
+    | { ok: true; data: IngestionJob }
+    | { ok: false; error: { code: string; message: string } }
+  > {
+    return this.registerUseCase.execute(input);
+  }
+
+  async advanceStage(input: {
+    readonly documentId: string;
+    readonly nextStatus: IngestionStatus;
+    readonly statusMessage?: string;
+  }): Promise<
+    | { ok: true; data: IngestionJob }
+    | { ok: false; error: { code: string; message: string } }
+  > {
+    return this.advanceUseCase.execute(input);
+  }
+
+  async listWorkspaceJobs(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly IngestionJob[]> {
+    return this.repository.listByWorkspace(input);
+  }
+}
+`````
+
+## File: modules/knowledge/application/use-cases/advance-ingestion-stage.use-case.ts
+`````typescript
+import {
+  canTransitionIngestionStatus,
+  type IngestionJob,
+  type IngestionStatus,
+} from "../../domain/entities/IngestionJob";
+import type { IngestionJobRepository } from "../../domain/repositories/IngestionJobRepository";
+
+export interface AdvanceIngestionStageInput {
+  readonly documentId: string;
+  readonly nextStatus: IngestionStatus;
+  readonly statusMessage?: string;
+}
+
+export type AdvanceIngestionStageResult =
+  | { ok: true; data: IngestionJob }
+  | { ok: false; error: { code: string; message: string } };
+
+export class AdvanceIngestionStageUseCase {
+  constructor(private readonly ingestionJobRepository: IngestionJobRepository) {}
+
+  async execute(input: AdvanceIngestionStageInput): Promise<AdvanceIngestionStageResult> {
+    const documentId = input.documentId.trim();
+
+    if (!documentId) {
+      return { ok: false, error: { code: "KN_DOCUMENT_REQUIRED", message: "Document id is required." } };
+    }
+
+    const job = await this.ingestionJobRepository.findByDocumentId(documentId);
+    if (!job) {
+      return { ok: false, error: { code: "KN_DOCUMENT_NOT_FOUND", message: "Ingestion document not found." } };
+    }
+
+    if (!canTransitionIngestionStatus(job.status, input.nextStatus)) {
+      return {
+        ok: false,
+        error: {
+          code: "KN_INVALID_STATUS_TRANSITION",
+          message: `Cannot transition ingestion status from ${job.status} to ${input.nextStatus}.`,
+        },
+      };
+    }
+
+    const updated = await this.ingestionJobRepository.updateStatus({
+      documentId,
+      status: input.nextStatus,
+      statusMessage: input.statusMessage,
+      updatedAtISO: new Date().toISOString(),
+    });
+
+    if (!updated) {
+      return { ok: false, error: { code: "KN_UPDATE_FAILED", message: "Failed to update ingestion status." } };
+    }
+
+    return { ok: true, data: updated };
+  }
+}
+`````
+
+## File: modules/knowledge/application/use-cases/register-ingestion-document.use-case.ts
+`````typescript
+import { randomUUID } from "node:crypto";
+
+import type { IngestionDocument } from "../../domain/entities/IngestionDocument";
+import type { IngestionJob } from "../../domain/entities/IngestionJob";
+import type { IngestionJobRepository } from "../../domain/repositories/IngestionJobRepository";
+
+export interface RegisterIngestionDocumentInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly title: string;
+  readonly mimeType: string;
+}
+
+export type RegisterIngestionDocumentResult =
+  | { ok: true; data: IngestionJob }
+  | { ok: false; error: { code: string; message: string } };
+
+export class RegisterIngestionDocumentUseCase {
+  constructor(private readonly ingestionJobRepository: IngestionJobRepository) {}
+
+  async execute(input: RegisterIngestionDocumentInput): Promise<RegisterIngestionDocumentResult> {
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId.trim();
+    const sourceFileId = input.sourceFileId.trim();
+    const title = input.title.trim();
+    const mimeType = input.mimeType.trim();
+
+    if (!organizationId) {
+      return { ok: false, error: { code: "KN_ORGANIZATION_REQUIRED", message: "Organization is required." } };
+    }
+
+    if (!workspaceId) {
+      return { ok: false, error: { code: "KN_WORKSPACE_REQUIRED", message: "Workspace is required." } };
+    }
+
+    if (!sourceFileId) {
+      return { ok: false, error: { code: "KN_SOURCE_FILE_REQUIRED", message: "Source file id is required." } };
+    }
+
+    if (!title) {
+      return { ok: false, error: { code: "KN_TITLE_REQUIRED", message: "Document title is required." } };
+    }
+
+    if (!mimeType) {
+      return { ok: false, error: { code: "KN_MIME_TYPE_REQUIRED", message: "Mime type is required." } };
+    }
+
+    const now = new Date().toISOString();
+    const document: IngestionDocument = {
+      id: randomUUID(),
+      organizationId,
+      workspaceId,
+      sourceFileId,
+      title,
+      mimeType,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+
+    const job: IngestionJob = {
+      id: randomUUID(),
+      document,
+      status: "uploaded",
+      updatedAtISO: now,
+    };
+
+    await this.ingestionJobRepository.save(job);
+
+    return { ok: true, data: job };
+  }
+}
+`````
+
 ## File: modules/knowledge/domain/entities/graph-node.ts
 `````typescript
 /**
@@ -63731,6 +60945,78 @@ export class InMemoryGraphRepository implements GraphRepository {
  * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
  * No new code should be added here.
  */
+`````
+
+## File: modules/knowledge/domain/entities/IngestionChunk.ts
+`````typescript
+export interface IngestionChunk {
+  readonly id: string;
+  readonly documentId: string;
+  readonly chunkIndex: number;
+  readonly content: string;
+  readonly metadata: {
+    readonly sourceDocId: string;
+    readonly section?: string;
+    readonly pageNumber?: number;
+  };
+}
+`````
+
+## File: modules/knowledge/domain/entities/IngestionDocument.ts
+`````typescript
+export interface IngestionDocument {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly title: string;
+  readonly mimeType: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+`````
+
+## File: modules/knowledge/domain/entities/IngestionJob.ts
+`````typescript
+import type { IngestionDocument } from "./IngestionDocument";
+
+export type IngestionStatus =
+  | "uploaded"
+  | "parsing"
+  | "chunking"
+  | "embedding"
+  | "indexed"
+  | "stale"
+  | "re-indexing"
+  | "failed";
+
+export const ALLOWED_INGESTION_STATUS_TRANSITIONS: Readonly<
+  Record<IngestionStatus, readonly IngestionStatus[]>
+> = {
+  uploaded: ["parsing", "failed"],
+  parsing: ["chunking", "failed"],
+  chunking: ["embedding", "failed"],
+  embedding: ["indexed", "failed"],
+  indexed: ["stale", "re-indexing"],
+  stale: ["re-indexing"],
+  "re-indexing": ["parsing", "failed"],
+  failed: ["re-indexing"],
+};
+
+export function canTransitionIngestionStatus(
+  fromStatus: IngestionStatus,
+  toStatus: IngestionStatus,
+): boolean {
+  return ALLOWED_INGESTION_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
+}
+
+export interface IngestionJob {
+  readonly id: string;
+  readonly document: IngestionDocument;
+  readonly status: IngestionStatus;
+  readonly statusMessage?: string;
+  readonly updatedAtISO: string;
+}
 `````
 
 ## File: modules/knowledge/domain/entities/link.ts
@@ -63749,6 +61035,81 @@ export class InMemoryGraphRepository implements GraphRepository {
  * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
  * No new code should be added here.
  */
+`````
+
+## File: modules/knowledge/domain/repositories/IngestionJobRepository.ts
+`````typescript
+import type { IngestionJob, IngestionStatus } from "../entities/IngestionJob";
+
+export interface IngestionJobRepository {
+  findByDocumentId(documentId: string): Promise<IngestionJob | null>;
+  listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly IngestionJob[]>;
+  save(job: IngestionJob): Promise<void>;
+  updateStatus(input: {
+    readonly documentId: string;
+    readonly status: IngestionStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<IngestionJob | null>;
+}
+`````
+
+## File: modules/knowledge/infrastructure/InMemoryIngestionJobRepository.ts
+`````typescript
+import type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
+import type { IngestionJobRepository } from "../domain/repositories/IngestionJobRepository";
+
+export class InMemoryIngestionJobRepository implements IngestionJobRepository {
+  private readonly jobsByDocumentId = new Map<string, IngestionJob>();
+
+  async findByDocumentId(documentId: string): Promise<IngestionJob | null> {
+    return this.jobsByDocumentId.get(documentId) ?? null;
+  }
+
+  async listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly IngestionJob[]> {
+    return [...this.jobsByDocumentId.values()].filter(
+      (job) =>
+        job.document.organizationId === input.organizationId &&
+        job.document.workspaceId === input.workspaceId,
+    );
+  }
+
+  async save(job: IngestionJob): Promise<void> {
+    this.jobsByDocumentId.set(job.document.id, job);
+  }
+
+  async updateStatus(input: {
+    readonly documentId: string;
+    readonly status: IngestionStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<IngestionJob | null> {
+    const current = this.jobsByDocumentId.get(input.documentId);
+    if (!current) {
+      return null;
+    }
+
+    const updated: IngestionJob = {
+      ...current,
+      status: input.status,
+      statusMessage: input.statusMessage,
+      updatedAtISO: input.updatedAtISO,
+      document: {
+        ...current.document,
+        updatedAtISO: input.updatedAtISO,
+      },
+    };
+
+    this.jobsByDocumentId.set(input.documentId, updated);
+    return updated;
+  }
+}
 `````
 
 ## File: modules/namespace/api/index.ts
@@ -63804,108 +61165,509 @@ export { dispatchNotification } from "../interfaces/_actions/notification.action
 export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
 `````
 
-## File: modules/organization/api/index.ts
-`````typescript
-/**
- * organization 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
- */
-
-import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
-
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
-
-/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
-export interface OrganizationMemberDTO {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
-  presence: "active" | "away" | "offline";
-  isExternal?: boolean;
-}
-
-/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
-export interface OrganizationTeamDTO {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const organizationApi = {
-  /**
-   * 取得指定組織的所有成員清單。
-   */
-  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
-    const members = await orgRepo.getMembers(organizationId);
-    return members.map((m) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-      presence: m.presence,
-      isExternal: m.isExternal,
-    }));
-  },
-
-  /**
-   * 取得指定組織的所有團隊清單。
-   */
-  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
-    const teams = await orgRepo.getTeams(organizationId);
-    return teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      memberIds: t.memberIds,
-    }));
-  },
-} as const;
-`````
-
 ## File: modules/retrieval/.gitkeep
 `````
 
 `````
 
-## File: modules/wiki-beta/api/index.ts
+## File: modules/retrieval/application/use-cases/answer-rag-query.use-case.ts
+`````typescript
+import { randomUUID } from "node:crypto";
+
+import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
+import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
+import type {
+  AnswerRagQueryInput,
+  AnswerRagQueryResult,
+  RagRetrievalSummary,
+} from "../../domain/entities/RagQuery";
+
+const DEFAULT_TOP_K = 5;
+const MAX_TOP_K = 10;
+
+function normalizeTopK(value?: number) {
+  if (value === undefined) {
+    return DEFAULT_TOP_K;
+  }
+
+  if (!Number.isFinite(value)) {
+    return DEFAULT_TOP_K;
+  }
+
+  return Math.min(MAX_TOP_K, Math.max(1, Math.trunc(value)));
+}
+
+export class AnswerRagQueryUseCase {
+  constructor(
+    private readonly ragRetrievalRepository: RagRetrievalRepository,
+    private readonly ragGenerationRepository: RagGenerationRepository,
+  ) {}
+
+  async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId?.trim() || undefined;
+    const userQuery = input.userQuery.trim();
+    const taxonomy = input.taxonomy?.trim() || undefined;
+    const topK = normalizeTopK(input.topK);
+    const traceId = `rag-trace-${randomUUID()}`;
+    const scope = workspaceId ? "workspace" : "organization";
+
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: {
+          code: "QUERY_FILTER_SCOPE_MISSING",
+          message: "Organization is required for RAG queries.",
+          context: { traceId, scope: "organizationId" },
+        },
+      };
+    }
+
+    if (!userQuery) {
+      return {
+        ok: false,
+        error: {
+          code: "QUERY_INVALID_INPUT",
+          message: "User query is required.",
+          context: { traceId },
+        },
+      };
+    }
+
+    const chunks = await this.ragRetrievalRepository.retrieve({
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
+      normalizedQuery: userQuery.toLowerCase(),
+      taxonomy,
+      topK,
+    });
+
+    if (chunks.length === 0) {
+      return {
+        ok: false,
+        error: {
+          code: "NO_RELEVANT_CHUNKS",
+          message:
+            "No ready chunks matched the current organization/workspace scope. Verify ingestion completed and documents are marked ready before querying.",
+          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
+        },
+      };
+    }
+
+    const generation = await this.ragGenerationRepository.generate({
+      traceId,
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
+      userQuery,
+      chunks,
+      model: input.model,
+    });
+
+    if (!generation.ok) {
+      return generation;
+    }
+
+    const retrievalSummary: RagRetrievalSummary = {
+      mode: "skeleton-metadata-filter",
+      scope,
+      retrievedChunkCount: chunks.length,
+      topK,
+      ...(taxonomy ? { taxonomy } : {}),
+    };
+
+    return {
+      ok: true,
+      data: {
+        answer: generation.data.answer,
+        citations: generation.data.citations,
+        retrievalSummary,
+        model: generation.data.model,
+        traceId,
+        events: [
+          {
+            type: "token",
+            traceId,
+            payload: generation.data.answer,
+          },
+          ...generation.data.citations.map((citation) => ({
+            type: "citation" as const,
+            traceId,
+            payload: citation,
+          })),
+          {
+            type: "done",
+            traceId,
+            payload: retrievalSummary,
+          },
+        ],
+      },
+    };
+  }
+}
+`````
+
+## File: modules/retrieval/domain/entities/RagQuery.ts
+`````typescript
+import type { DomainError } from "@shared-types";
+
+export interface RagRetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly taxonomy: string;
+  readonly text: string;
+  readonly score: number;
+}
+
+export interface RagCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+export interface RagRetrievalSummary {
+  readonly mode: "skeleton-metadata-filter";
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+
+export interface RagStreamEvent {
+  readonly type: "token" | "citation" | "done" | "error";
+  readonly traceId: string;
+  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
+}
+
+export interface AnswerRagQueryInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly taxonomy?: string;
+  readonly topK?: number;
+  readonly model?: string;
+}
+
+export interface AnswerRagQueryOutput {
+  readonly answer: string;
+  readonly citations: readonly RagCitation[];
+  readonly retrievalSummary: RagRetrievalSummary;
+  readonly model: string;
+  readonly traceId: string;
+  readonly events: readonly RagStreamEvent[];
+}
+
+export type AnswerRagQueryResult =
+  | { ok: true; data: AnswerRagQueryOutput }
+  | { ok: false; error: DomainError };
+`````
+
+## File: modules/retrieval/domain/ports/vector-store.ts
 `````typescript
 /**
- * Module: wiki-beta
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the WikiBeta domain.
+ * modules/retrieval — domain port: IVectorStore
  *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+ * Hexagonal architecture port that abstracts the underlying vector database
+ * (e.g. Upstash Vector, Pinecone).  Infrastructure layer must implement this
+ * interface; no concrete SDK details belong here.
  */
 
-// ─── Core entity types ────────────────────────────────────────────────────────
+/** A document to index in the vector store */
+export interface VectorDocument {
+  /** Unique identifier (e.g. BlockId or PageId) */
+  readonly id: string;
+  /** Raw text content used to generate the embedding */
+  readonly content: string;
+  /** Arbitrary metadata for filtering (e.g. { pageId, workspaceId }) */
+  readonly metadata?: Record<string, string | number | boolean>;
+}
 
-export type {
-  WikiBetaPage,
-  WikiBetaPageStatus,
-  WikiBetaPageTreeNode,
-} from "../domain/entities/wiki-beta-page.types";
+/** A search result returned by the vector store */
+export interface VectorSearchResult {
+  /** The matched document's ID */
+  readonly id: string;
+  /** Similarity score (0–1, higher is more similar) */
+  readonly score: number;
+  /** Metadata attached to the matched document */
+  readonly metadata?: Record<string, string | number | boolean>;
+}
 
-export type {
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryFieldType,
-  WikiBetaLibraryRow,
-  WikiBetaLibraryStatus,
-} from "../domain/entities/wiki-beta-library.types";
+/**
+ * Port that every vector-store adapter must satisfy.
+ * Domain and application layers depend ONLY on this interface.
+ */
+export interface IVectorStore {
+  /**
+   * Insert or update documents in the vector store.
+   * Embeddings are computed by the adapter implementation.
+   */
+  upsert(documents: VectorDocument[]): Promise<void>;
 
+  /**
+   * Find the top-K documents most similar to the query text.
+   * @param query   - Natural-language query string
+   * @param k       - Number of results to return
+   * @param filter  - Optional metadata filter
+   */
+  search(
+    query: string,
+    k: number,
+    filter?: Record<string, string | number | boolean>,
+  ): Promise<VectorSearchResult[]>;
+}
+`````
+
+## File: modules/retrieval/domain/repositories/RagGenerationRepository.ts
+`````typescript
+import type { DomainError } from "@shared-types";
+
+import type { RagCitation, RagRetrievedChunk } from "../entities/RagQuery";
+
+export interface GenerateRagAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly RagRetrievedChunk[];
+  readonly model?: string;
+}
+
+export interface GenerateRagAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly RagCitation[];
+  readonly model: string;
+}
+
+export type GenerateRagAnswerResult =
+  | { ok: true; data: GenerateRagAnswerOutput }
+  | { ok: false; error: DomainError };
+
+export interface RagGenerationRepository {
+  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
+}
+`````
+
+## File: modules/retrieval/domain/repositories/RagRetrievalRepository.ts
+`````typescript
+import type { RagRetrievedChunk } from "../entities/RagQuery";
+
+export interface RetrieveRagChunksInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly normalizedQuery: string;
+  readonly taxonomy?: string;
+  readonly topK: number;
+}
+
+export interface RagRetrievalRepository {
+  retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]>;
+}
+`````
+
+## File: modules/retrieval/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
+`````typescript
+import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { RagRetrievedChunk } from "../../domain/entities/RagQuery";
+import type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "../../domain/repositories/RagRetrievalRepository";
+
+interface FirestoreRagDocument {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly status?: string;
+  readonly taxonomy?: string;
+}
+
+const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
+const MIN_DOCUMENT_LIMIT = 20;
+const CHUNK_OVER_FETCH_MULTIPLIER = 10;
+const MIN_CHUNK_LIMIT = 50;
+
+interface FirestoreRagChunk {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly docId?: string;
+  readonly text?: string;
+  readonly taxonomy?: string;
+  readonly page?: number;
+  readonly chunkIndex?: number;
+}
+
+function tokenize(value: string): readonly string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function scoreChunk(queryTokens: readonly string[], text: string) {
+  if (queryTokens.length === 0) {
+    return 0;
+  }
+
+  const haystack = tokenize(text);
+  if (haystack.length === 0) {
+    return 0;
+  }
+
+  const matches = queryTokens.filter((token) => haystack.includes(token)).length;
+  return matches / queryTokens.length;
+}
+
+export class FirebaseRagRetrievalRepository implements RagRetrievalRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]> {
+    const documentsQuery = query(
+      collectionGroup(this.db, "documents"),
+      where("organizationId", "==", input.organizationId),
+      where("status", "==", "ready"),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
+      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
+      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
+    );
+
+    const documentSnapshots = await getDocs(documentsQuery);
+    const readyDocumentIds = new Set(
+      documentSnapshots.docs
+        .filter((snapshot) => {
+          const data = snapshot.data() as FirestoreRagDocument;
+          return data.status === "ready";
+        })
+        .map((snapshot) => snapshot.id),
+    );
+
+    if (readyDocumentIds.size === 0) {
+      return [];
+    }
+
+    const chunkQuery = query(
+      collectionGroup(this.db, "chunks"),
+      where("organizationId", "==", input.organizationId),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
+      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
+      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
+    );
+
+    const chunkSnapshots = await getDocs(chunkQuery);
+    const queryTokens = tokenize(input.normalizedQuery);
+
+    return chunkSnapshots.docs
+      .map((snapshot) => {
+        const data = snapshot.data() as FirestoreRagChunk;
+        const text = typeof data.text === "string" ? data.text : "";
+        const docId = typeof data.docId === "string" ? data.docId : "";
+        return {
+          chunkId: snapshot.id,
+          docId,
+          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
+          page: typeof data.page === "number" ? data.page : undefined,
+          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
+          text,
+          score: scoreChunk(queryTokens, text),
+          organizationId:
+            typeof data.organizationId === "string" ? data.organizationId : undefined,
+          workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+        };
+      })
+      .filter(
+        (chunk) =>
+          chunk.docId && readyDocumentIds.has(chunk.docId) && chunk.score > 0,
+      )
+      .sort((left, right) => right.score - left.score)
+      .slice(0, input.topK)
+      .map(({ organizationId: _organizationId, workspaceId: _workspaceId, ...chunk }) => chunk);
+  }
+}
+`````
+
+## File: modules/retrieval/infrastructure/genkit/client.ts
+`````typescript
+import { genkit } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
+
+const DEFAULT_GENKIT_MODEL = "googleai/gemini-2.0-flash";
+const genkitModelFromEnv = process.env.GENKIT_MODEL?.trim();
+const configuredGenkitModel =
+  genkitModelFromEnv && genkitModelFromEnv.length > 0 ? genkitModelFromEnv : DEFAULT_GENKIT_MODEL;
+
+const hasGoogleAiApiKey =
+  typeof process.env.GOOGLE_GENAI_API_KEY === "string" &&
+  process.env.GOOGLE_GENAI_API_KEY.trim().length > 0;
+
+const plugins = hasGoogleAiApiKey ? [googleAI()] : [];
+
+export const aiClient = genkit({
+  plugins,
+  model: configuredGenkitModel,
+});
+
+export function getConfiguredGenkitModel(model?: string): string {
+  const normalized = model?.trim();
+  return normalized && normalized.length > 0 ? normalized : configuredGenkitModel;
+}
+`````
+
+## File: modules/search/api/index.ts
+`````typescript
+/**
+ * @deprecated modules/search is retired.
+ * Import from @/modules/retrieval/api instead.
+ */
 export type {
-  WikiBetaWorkspaceRef,
-  WikiBetaWorkspaceContentNode,
-  WikiBetaContentItemNode,
-} from "../domain/entities/wiki-beta.types";
+  IVectorStore,
+  VectorDocument,
+  VectorSearchResult,
+} from "../../retrieval/api";
+`````
+
+## File: modules/system.ts
+`````typescript
+/**
+ * modules/system.ts — Composition Root
+ *
+ * Architecture Phase 3: Interface Wiring
+ *
+ * Initialises and wires the singleton instances that power the
+ * Content → EventBus → Knowledge demo loop.
+ *
+ * Responsibilities:
+ *   1. Create the shared SimpleEventBus.
+ *   2. Create ContentApi (injected with the event bus).
+ *   3. Create KnowledgeApi (injected with the event bus; auto-subscribes
+ *      LinkExtractorService so it reacts to ContentUpdatedEvents).
+ *
+ * All state lives here — never in page files or global variables.
+ *
+ * MDDD boundary rule:
+ *   Imports only from the api/ barrel of each module and from
+ *   shared/infrastructure.  Never reaches into domain/, application/,
+ *   or infrastructure/ layers of other modules.
+ */
+
+import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
+import { ContentApi } from "./content/api/content-api";
+import { KnowledgeGraphApi } from "./knowledge-graph/api/knowledge-graph-api";
+
+// ── Shared account used by the in-memory demo ──────────────────────────────
+
+export const DEMO_ACCOUNT_ID = "demo-account";
+
+// ── Singleton instances ────────────────────────────────────────────────────
+
+const eventBus = new SimpleEventBus();
+export const contentApi = new ContentApi(eventBus);
+export const knowledgeApi = new KnowledgeGraphApi(eventBus);
+// KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
+// subscription is active as soon as the module is imported.
 `````
 
 ## File: modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta.repository.ts
@@ -68600,94 +66362,6 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 }
 `````
 
-## File: README.md
-`````markdown
-# Xuanwu App
-
-A Next.js 16 knowledge-management and AI-assisted workspace platform built on Firebase, following the **Module-Driven Domain Design (MDDD)** architecture.
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
-| Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
-| AI / RAG | Google Genkit, Document AI, Upstash Vector |
-| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
-| Realtime | Upstash Redis, QStash |
-
-## Project Structure
-
-```
-xuanwu-app/
-├── app/              # Next.js App Router pages, layouts, route handlers
-├── modules/          # 20 MDDD business modules (bounded contexts)
-├── packages/         # Stable shared packages with TypeScript aliases
-├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
-├── agents/           # AI agent knowledge base and rules
-└── docs/             # Architecture docs, ADRs, design documents
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Install
-
-```bash
-npm install
-```
-
-### Development
-
-```bash
-npm run dev        # Start Next.js dev server (port 3000)
-npm run build      # Production build (includes TypeScript type-check)
-npm run lint       # Run ESLint
-```
-
-### Firebase Deployment
-
-```bash
-npm run deploy:firebase              # Deploy all Firebase resources
-npm run deploy:functions:python      # Deploy Python Cloud Functions only
-npm run deploy:rules                 # Deploy Firestore + Storage rules
-```
-
-See [`agents/commands.md`](agents/commands.md) for the full command reference.
-
-## Architecture
-
-This project follows **Module-Driven Domain Design (MDDD)**:
-
-- Each business capability is a self-contained module under `modules/`.
-- Each `modules/<module-name>/` is an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `UI → Application → Domain ← Infrastructure`.
-- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
-- Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
-
-See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## AI Delivery Workflow
-
-This repository includes a formal Copilot delivery workflow for non-trivial changes.
-
-- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
-- Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
-
-## Code of Conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
-`````
-
 ## File: .github/agents/implementer.agent.md
 `````markdown
 ---
@@ -68928,6 +66602,116 @@ Present findings first, ordered by severity. Include:
 - affected area,
 - why it matters,
 - and whether the issue blocks QA or release.
+`````
+
+## File: .github/agents/serena.agent.md
+`````markdown
+---
+name: serena-coding-agent
+description: >
+  System prompt and workflow instructions for Serena MCP coding agent.
+  Defines how the agent should onboard projects, perform semantic search,
+  use symbol-level operations, check references before editing, and
+  modify code minimally and safely following module boundaries.
+  Integrates the xuanwu-app-skill for project-specific templates and patterns.
+agent: serena
+argument-hint: Optional arguments for project path or target modules.
+---
+
+# Serena MCP Coding Agent System Prompt
+
+## Workflow
+- First onboard the project using `onboard_project`
+- Use `semantic_search` to locate relevant code
+- Use `find_symbol` instead of file search
+- Before editing, check symbol references with `find_references`
+- Prefer `insert_after_symbol` instead of rewriting files
+- Keep changes minimal and localized
+- Update types and interfaces if needed
+- Use `use skill xuanwu-app-skill` to apply project-specific templates, conventions, and DTO/service patterns
+
+## Best Practices
+Before implementing new features:
+- Search for existing services, repositories, and DTOs
+- Reuse existing modules when possible
+- Follow module boundaries
+- Always operate on symbols instead of raw files
+- Check references before modifying public APIs
+- Keep changes localized and minimal
+- Update DTOs/interfaces when altering data structures
+
+## Common Commands / Tools
+- `onboard_project` — onboard entire project for symbol indexing
+- `semantic_search <query>` — find code semantically
+- `find_symbol <symbol>` — locate specific function/class/interface
+- `find_references <symbol>` — find all usages
+- `insert_after_symbol <symbol>` — insert code after a symbol
+- `replace_symbol_body <symbol>` — replace a function or class body
+- `list_symbols_in_file <file>` — list symbols in a file
+- `get_project_structure` — get module/folder structure
+- `create_file <path>` — create a new file
+- `rename_symbol <old> <new>` — rename symbol across references
+- `use skill xuanwu-app-skill` — apply the xuanwu-app-skill templates and conventions
+
+## Notes
+- Prefer symbol-level edits over raw text replacements
+- Always check references before modifying public APIs
+- Keep changes minimal and localized
+- Update DTOs/interfaces when altering data structures
+- Leverage `xuanwu-app-skill` for reusable patterns, code templates, and project-specific rules
+`````
+
+## File: .github/copilot-instructions.md
+`````markdown
+# Xuanwu Copilot Delivery Suite
+
+Baseline for Copilot agents to stay aligned with the repository and toolchain.
+
+## Authoritative Sources (read in order)
+
+1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
+2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
+3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
+4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
+5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
+6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
+
+## Operating rules (concise)
+
+- Plan first for cross-module, cross-runtime, or contract-governed work.  
+- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
+- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
+- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
+
+## Serena MCP — mandatory
+
+All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
+
+- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
+- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
+- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
+- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
+
+## Orchestration pattern
+
+1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
+2. Activate skills as needed:  
+   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
+   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
+   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
+   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
+   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
+   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
+3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
+
+## Validation
+
+- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
+- Do not close work until required checks and documentation updates are complete.  
+
+## Terminology
+
+See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
 `````
 
 ## File: .github/instructions/agent-skills.instructions.md
@@ -69265,58 +67049,6 @@ Preserve established order (do not reorder without updating ADRs):
 - Update `py_fn/README.md` when worker responsibilities, setup, or runtime contracts change.
 - Update ADRs when changing ingestion order, runtime ownership, persistence rules, or platform boundaries.
 - Keep terminology aligned with the existing ingestion, taxonomy, chunk, embedding, and document-status vocabulary already used in the repo.
-`````
-
-## File: .github/README.md
-`````markdown
-# .github Customization Index
-
-Operational index for repository-scoped customization assets.
-
-## Commander flow (fast path)
-
-1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
-2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
-3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
-4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
-
-## Boundary
-
-- Keep executable customization assets in `.github/`.
-- Keep explanation, governance, and lifecycle context in `docs/`.
-- Update both locations together when behavior changes.
-- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
-
-## Folder map
-
-| Path | Purpose | Index |
-| --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
-| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
-| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
-| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
-| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
-| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
-| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
-| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
-
-## Core files
-
-| File | Role |
-| --- | --- |
-| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
-| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
-| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
-| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
-| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
-
-## Maintenance
-
-- Use relative links.
-- Keep one concrete entry file per folder.
-- Keep placeholders as plain text, not fake links.
-- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/skills/documentation-writer/SKILL.md
@@ -74201,36 +71933,6 @@ AI 功能：
 > Notion（UI / Block / Database）+ Wiki（Knowledge Graph）+ NotebookLM（RAG / AI）= **AI Knowledge Platform**
 `````
 
-## File: docs/decision-architecture/README.md
-`````markdown
-# Decision Architecture
-
-Architectural decisions (ADRs), system designs, and domain models.
-
-## Core Content
-
-| Type | Count | Entry |
-| --- | --- | --- |
-| ADRs | 12 | [adr/](./adr/) — RAG (ADR-001-011), Python functions (ADR-012) |
-| Architectures | 5 | [architecture/](./architecture/) — AI Knowledge Platform, Daily, Event, Namespace, Schedule |
-
-## Quick Start
-
-- **System overview** → [architecture/ai-knowledge-platform-architecture.md](./architecture/ai-knowledge-platform-architecture.md)
-- **RAG details** → [adr/ADR-001...011](./adr/) (upload → ingestion → query → observability)
-- **Domain models** → [core-logic.mermaid](../diagrams-events-explanations/diagrams/core-logic.mermaid), [erd-model.mermaid](../diagrams-events-explanations/diagrams/erd-model.mermaid)
-- **Feature architecture** → [architecture/](./architecture/)
-
-## Related
-
-- [../development-reference/README.md](../development-reference/README.md) — Development guides & contracts
-- [../diagrams-events-explanations/diagrams/README.md](../diagrams-events-explanations/diagrams/README.md) — System diagrams
-
-- [docs/README.md](../README.md) — Documentation root
-- [docs/development-reference/reference/development-contracts/](../development-reference/reference/development-contracts/) — Implementation contracts derived from ADRs
-- [agents/knowledge-base.md](../../agents/knowledge-base.md) — Module inventory and MDDD structure
-`````
-
 ## File: docs/development-reference/development/code-style.md
 `````markdown
 # 程式碼風格指南（Code Style Guide）
@@ -74601,71 +72303,6 @@ npm run lint -- --fix
   - `agents/knowledge-base.md` 中的 ESLint 邊界表格
   - 本節清單（如新增/刪除常見規則）
 - **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
-`````
-
-
-## File: docs/how-to-user/how-to/update-customizations.md
-`````markdown
----
-title: Update AI customizations
-description: Maintenance guide for changing the Xuanwu Copilot Delivery Suite without breaking workflow contracts.
----
-
-# Update AI customizations
-
-This guide is for maintainers who need to change agents, prompts, baseline instructions, or planning contract documents.
-
-## Update order
-
-When changing the delivery workflow, update files in this order:
-
-1. authoritative references,
-2. planning contract documents,
-3. agents,
-4. prompts,
-5. operational docs and index pages.
-
-## If you change the plan structure
-
-Update all of the following in the same change:
-
-- [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
-- [.github/agents/planner.agent.md](../../.github/agents/planner.agent.md)
-- planning prompts under [.github/prompts](../../.github/prompts)
-- any operational docs that explain planning or recovery
-
-## If you change a handoff rule
-
-Update all of the following in the same change:
-
-- the relevant `.agent.md` file,
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md),
-- [agentic-delivery-model.md](../../diagrams-events-explanations/explanation/agentic-delivery-model.md) if rationale changed,
-- recovery guidance if the valid re-entry path changed.
-
-## If you add or retire an asset
-
-Update all of the following in the same change:
-
-- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-- [legacy-customizations-migration.md](../../development-reference/reference/ai/legacy-customizations-migration.md) when applicable
-- README or contributing guidance if contributor-facing entry points changed
-
-## Validation expectations
-
-- Check links between docs and customization files.
-- Ensure agent and prompt names match the intended invocation model.
-- Ensure no active custom agents share the same visible name unless the duplication is intentional and documented.
-- Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
-- Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
-- Keep authoritative sources and workflow docs aligned.
-
-## Handling conflicts with docs
-
-- When merge conflicts happen between `.github/` assets and docs mirrors, keep the `.github/` version.
-- Adjust the docs-side index or links after resolving the conflict to match `.github/` instead of copying file bodies.
-- Remove duplicated excerpts to reduce future diff noise.
 `````
 
 ## File: modules/account/application/use-cases/account-policy.use-cases.ts
@@ -75864,6 +73501,396 @@ AI 功能：
 > Notion（UI / Block / Database）+ Wiki（Knowledge Graph）+ NotebookLM（RAG / AI）= **AI Knowledge Platform**
 `````
 
+## File: modules/asset/index.ts
+`````typescript
+export * from "./api";
+`````
+
+## File: modules/asset/interfaces/_actions/file.actions.ts
+`````typescript
+"use server";
+
+import type {
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../application/dto/file.dto";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../application/dto/rag-document.dto";
+import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-uploaded-rag-document.use-case";
+import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-complete-file.use-case";
+import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import { KnowledgeIngestionApi } from "@/modules/knowledge/api";
+import type { FileCommandResult } from "../contracts/file-command-result";
+
+const knowledgeIngestionApi = new KnowledgeIngestionApi();
+
+function createCommandId(idempotencyKey?: string) {
+  const normalized = idempotencyKey?.trim();
+  if (normalized) {
+    return normalized;
+  }
+
+  return `file-upload-init-${crypto.randomUUID()}`;
+}
+
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<FileCommandResult<UploadInitFileOutputDto>> {
+  const commandId = createCommandId(input.idempotencyKey);
+  const useCase = new UploadInitFileUseCase(new FirebaseFileRepository());
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
+  const fileRepository = new FirebaseFileRepository();
+  const useCase = new UploadCompleteFileUseCase(
+    fileRepository,
+    new FirebaseRagDocumentRepository(),
+  );
+  const commandId = createCommandId(input.versionId);
+  const result = await useCase.execute(input);
+
+  // Best-effort handoff: upload completion can proceed even if ingestion registration fails.
+  if (result.ok) {
+    const file = await fileRepository.findById(input.fileId);
+
+    const registration = await knowledgeIngestionApi.registerDocument({
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      sourceFileId: input.fileId,
+      title: file?.name ?? `uploaded-file-${input.fileId}`,
+      mimeType: file?.mimeType ?? "application/octet-stream",
+    });
+
+    if (!registration.ok && process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[uploadCompleteFile] Knowledge ingestion registration failed:",
+        registration.error.code,
+        registration.error.message,
+      );
+    }
+  }
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult> {
+  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentRepository());
+  const commandId = createCommandId(input.storagePath);
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+`````
+
+## File: modules/asset/interfaces/components/WorkspaceFilesTab.tsx
+`````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { getWorkspaceFiles } from "../queries/file.queries";
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { getFirebaseStorage } from "@integration-firebase";
+
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[WorkspaceFilesTab] Failed to load file metadata:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      }
+
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFiles() {
+      await reloadFiles();
+      if (cancelled) {
+        return;
+      }
+    }
+
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(
+        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
+      );
+
+      await reloadFiles();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
+      }
+      setUploadState("error");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
+    }
+  }
+
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (!nextFile) {
+                  return;
+                }
+
+                void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p
+              className={`mt-3 text-xs ${
+                uploadState === "error" ? "text-destructive" : "text-emerald-600"
+              }`}
+            >
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入已持久化的檔案資料，請稍後再試。
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
+            </div>
+          )}
+
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
+                      {asset.status}
+                    </Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">
+                        Open asset
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+`````
+
+## File: modules/asset/interfaces/queries/file.queries.ts
+`````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
+
+export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
+  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+
+  return listWorkspaceFilesUseCase.execute({
+    workspaceId: workspace.id,
+    organizationId,
+    actorAccountId: workspace.accountId,
+  });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+  const repo = new FirebaseRagDocumentRepository();
+
+  return repo.findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
+}
+`````
+
 ## File: modules/interfaces/_actions/demo.actions.ts
 `````typescript
 /**
@@ -75878,6 +73905,22 @@ export {
 } from "../../../app/debug/arch-demo/_actions/demo.actions";
 `````
 
+## File: modules/knowledge-graph/api/index.ts
+`````typescript
+/**
+ * modules/knowledge-graph — public API barrel.
+ */
+
+export type { Link, LinkType } from "../domain/entities/link";
+export type { GraphNode, GraphNodeType } from "../domain/entities/graph-node";
+export type { GraphRepository } from "../domain/repositories/GraphRepository";
+export { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
+export { LinkExtractorService } from "../application/link-extractor.service";
+export { KnowledgeGraphApi } from "./knowledge-graph-api";
+export type { GraphDataDTO } from "./knowledge-graph-api";
+export type { GraphViewConfig, GraphLayout } from "../domain/entities/view-config";
+`````
+
 ## File: modules/knowledge/api/index.ts
 `````typescript
 /**
@@ -75887,11 +73930,29 @@ export {
  * This barrel is a temporary re-export bridge.
  * This module (knowledge) is being repurposed for Layer 2 Ingestion Pipeline.
  */
+export { KnowledgeIngestionApi } from "./knowledge-ingestion-api";
+
+export type {
+	IngestionJob,
+	IngestionStatus,
+} from "../domain/entities/IngestionJob";
+
 export type { Link, LinkType } from "../../knowledge-graph/domain/entities/link";
 export type { GraphNode, GraphNodeType } from "../../knowledge-graph/domain/entities/graph-node";
 export type { GraphRepository } from "../../knowledge-graph/domain/repositories/GraphRepository";
 export { InMemoryGraphRepository } from "../../knowledge-graph/infrastructure/InMemoryGraphRepository";
 export { LinkExtractorService } from "../../knowledge-graph/application/link-extractor.service";
+export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
+export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
+`````
+
+## File: modules/knowledge/api/knowledge-api.ts
+`````typescript
+/**
+ * @deprecated This file has moved to modules/knowledge-graph/api/knowledge-graph-api.ts
+ * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
+ * No new code should be added here.
+ */
 export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
 export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
 `````
@@ -75916,53 +73977,118 @@ export {};
 export {};
 `````
 
-## File: modules/system.ts
+## File: modules/retrieval/api/index.ts
 `````typescript
 /**
- * modules/system.ts — Composition Root
+ * modules/retrieval — public API barrel.
  *
- * Architecture Phase 3: Interface Wiring
- *
- * Initialises and wires the singleton instances that power the
- * Content → EventBus → Knowledge demo loop.
- *
- * Responsibilities:
- *   1. Create the shared SimpleEventBus.
- *   2. Create ContentApi (injected with the event bus).
- *   3. Create KnowledgeApi (injected with the event bus; auto-subscribes
- *      LinkExtractorService so it reacts to ContentUpdatedEvents).
- *
- * All state lives here — never in page files or global variables.
- *
- * MDDD boundary rule:
- *   Imports only from the api/ barrel of each module and from
- *   shared/infrastructure.  Never reaches into domain/, application/,
- *   or infrastructure/ layers of other modules.
+ * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
+ * Other modules MUST import from here only.
  */
 
-import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
-import { ContentApi } from "./content/api/content-api";
-import { KnowledgeGraphApi } from "./knowledge-graph/api/knowledge-graph-api";
+export type {
+  IVectorStore,
+  VectorDocument,
+  VectorSearchResult,
+} from "../domain/ports/vector-store";
 
-// ── Shared account used by the in-memory demo ──────────────────────────────
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "../domain/entities/RagQuery";
 
-export const DEMO_ACCOUNT_ID = "demo-account";
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "../domain/repositories/RagRetrievalRepository";
 
-// ── Singleton instances ────────────────────────────────────────────────────
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "../domain/repositories/RagGenerationRepository";
 
-const eventBus = new SimpleEventBus();
-export const contentApi = new ContentApi(eventBus);
-export const knowledgeApi = new KnowledgeGraphApi(eventBus);
-// KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
-// subscription is active as soon as the module is imported.
+export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+export { FirebaseRagRetrievalRepository } from "../infrastructure/firebase/FirebaseRagRetrievalRepository";
+export { GenkitRagGenerationRepository } from "../infrastructure/genkit/GenkitRagGenerationRepository";
 `````
 
-## File: modules/workspace-audit/api/index.ts
+## File: modules/retrieval/infrastructure/genkit/GenkitRagGenerationRepository.ts
+`````typescript
+import type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "../../domain/repositories/RagGenerationRepository";
+import { aiClient, getConfiguredGenkitModel } from "./client";
+
+function formatChunkForPrompt(input: GenerateRagAnswerInput["chunks"][number]) {
+  const pageLabel = typeof input.page === "number" ? ` page:${input.page}` : "";
+  return `[doc:${input.docId} chunk:${input.chunkIndex}${pageLabel} taxonomy:${input.taxonomy}]\n${input.text}`;
+}
+
+function buildPrompt(input: GenerateRagAnswerInput) {
+  const context = input.chunks.map((chunk) => formatChunkForPrompt(chunk)).join("\n\n---\n\n");
+
+  return [
+    "Use the retrieved context to answer the user query.",
+    "If the context is incomplete, answer conservatively and keep citations grounded in the retrieved chunks.",
+    `User query: ${input.userQuery}`,
+    "Retrieved context:",
+    context,
+  ].join("\n\n");
+}
+
+export class GenkitRagGenerationRepository implements RagGenerationRepository {
+  async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
+    try {
+      const response = await aiClient.generate({
+        prompt: buildPrompt(input),
+        system:
+          "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.",
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      return {
+        ok: true,
+        data: {
+          answer: response.text,
+          model: getConfiguredGenkitModel(input.model),
+          citations: input.chunks.map((chunk) => ({
+            docId: chunk.docId,
+            chunkIndex: chunk.chunkIndex,
+            ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
+            reason: `Retrieved from ${chunk.taxonomy} context with score ${chunk.score.toFixed(2)}.`,
+          })),
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "FLOW_MODEL_PROVIDER_ERROR",
+          message:
+            error instanceof Error ? error.message : `Unexpected RAG generation error: ${String(error)}`,
+          context: { traceId: input.traceId },
+        },
+      };
+    }
+  }
+}
+`````
+
+## File: modules/wiki-beta/api/index.ts
 `````typescript
 /**
- * Module: workspace-audit
+ * Module: wiki-beta
  * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Audit domain.
+ * Purpose: Public cross-module API boundary for the WikiBeta domain.
  *
  * Other modules MUST import from here — never from domain/, application/,
  * infrastructure/, or interfaces/ directly.
@@ -75970,23 +74096,27 @@ export const knowledgeApi = new KnowledgeGraphApi(eventBus);
 
 // ─── Core entity types ────────────────────────────────────────────────────────
 
-export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+export type {
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
+} from "../domain/entities/wiki-beta-page.types";
 
 export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "../domain/schema";
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
+} from "../domain/entities/wiki-beta-library.types";
 
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+export type {
+  WikiBetaWorkspaceRef,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaContentItemNode,
+} from "../domain/entities/wiki-beta.types";
 
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../interfaces/queries/audit.queries";
+export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
 `````
 
 ## File: modules/workspace-audit/README.md
@@ -77197,28 +75327,6 @@ flowchart LR
 	task_page -. forbidden direct dependency .-> forbidden_domain
 	issue_page -. forbidden direct dependency .-> forbidden_application
 	invoice_page -. forbidden direct dependency .-> forbidden_infrastructure
-`````
-
-## File: modules/workspace-scheduling/api/index.ts
-`````typescript
-/**
- * Module: workspace-scheduling
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer for the WorkDemand API contract.
- *
- * Other modules and UI layers import schemas and types from here.
- * Direct imports into domain/, application/, or infrastructure/ are forbidden.
- */
-
-export {
-  CreateDemandSchema,
-  AssignMemberSchema,
-} from "./schema";
-
-export type {
-  CreateDemandInput,
-  AssignMemberInput,
-} from "./schema";
 `````
 
 ## File: modules/workspace-scheduling/api/schema.ts
@@ -78607,6 +76715,221 @@ export function WorkspaceSchedulingTab({
       />
     </div>
   );
+}
+`````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+`````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import {
+  organizationApi,
+  type OrganizationMemberDTO,
+  type OrganizationTeamDTO,
+} from "@/modules/organization/api";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberDTO,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        organizationApi.getMembers(workspace.accountId),
+        organizationApi.getTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      Object.entries(personnelLabels).forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      Object.entries(personnelLabels).forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
 }
 `````
 
@@ -80430,15 +78753,38 @@ export function CustomizeNavigationDialog({
 }
 `````
 
-## File: modules/knowledge/api/knowledge-api.ts
+## File: modules/workspace-audit/api/index.ts
 `````typescript
 /**
- * @deprecated This file has moved to modules/knowledge-graph/api/knowledge-graph-api.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
+ * Module: workspace-audit
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Audit domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
  */
-export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
-export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "../domain/schema";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+
+// ─── Query functions ──────────────────────────────────────────────────────────
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
 `````
 
 ## File: modules/workspace-flow/Workspace-Flow-Tree.mermaid
@@ -80681,219 +79027,1122 @@ flowchart TB
   api_rule -. governs .-> invoice_draft
 `````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+## File: modules/workspace-scheduling/api/index.ts
 `````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import {
-  organizationApi,
-  type OrganizationMemberDTO,
-  type OrganizationTeamDTO,
-} from "@/modules/organization/api";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+/**
+ * Module: workspace-scheduling
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer for the WorkDemand API contract.
+ *
+ * Other modules and UI layers import schemas and types from here.
+ * Direct imports into domain/, application/, or infrastructure/ are forbidden.
+ */
 
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
+export {
+  CreateDemandSchema,
+  AssignMemberSchema,
+} from "./schema";
 
-function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
+export type {
+  CreateDemandInput,
+  AssignMemberInput,
+} from "./schema";
 
-  return "unknown";
-}
+export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
+`````
 
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
+## File: modules/xuanwu_architecture.mermaid
+`````
+---
+title: Xuanwu — AI Knowledge Platform Architecture (v3)
+---
+graph TD
 
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 0 — workspace（基礎設施 · 所有模組共用 context）
+  %% ══════════════════════════════════════════════════════
+  subgraph WS["workspace（基礎設施層）"]
+    direction LR
+    WS1["tenant isolation"]
+    WS2["auth · orgId boundary"]
+    WS3["event bus · shared context"]
+  end
 
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 1 — content（Notion 層）
+  %% ══════════════════════════════════════════════════════
+  subgraph CT["content（↔ Notion）"]
+    direction TB
+    CT1["Page · Block · Database · View"]
+    CT2["Version · Comment · Template"]
+    CT3["Collaboration · Permission · Automation"]
+  end
 
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 1 — knowledge-graph（Wiki 層）
+  %% ══════════════════════════════════════════════════════
+  subgraph KG["knowledge-graph（↔ Wiki）"]
+    direction TB
+    KG1["PageLink · Backlink · Relation"]
+    KG2["Category · Tag · Namespace · Redirect"]
+    KG3["Ontology · Schema · VersionGraph"]
+  end
 
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
+  %% content → knowledge-graph：pageId 參照
+  CT -- "pageId ref" --> KG
 
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 2 — knowledge（NotebookLM · Ingestion Pipeline）
+  %% ══════════════════════════════════════════════════════
+  subgraph KN["knowledge（↔ NotebookLM · Ingestion）"]
+    direction TB
+    KN1["1 Parse：PDF · DOCX · HTML · MD · OCR"]
+    KN2["2 Clean：noise · encoding · language detect"]
+    KN3["3 Taxonomy：auto-tag · classify · metadata"]
+    KN4["4 Chunk：semantic · hierarchical · overlap"]
+    KN4b["5 Chunk Metadata：source_doc_id · section · page_number · chunk_index"]
+    KN5["6 Embed：model select · batch generation"]
+    KN6["7 Persist：vector store · metadata · registry"]
+    KN7["8 Mark Ready：status = indexed"]
+    KN8(["Status Machine：uploaded → parsing → chunking → embedding → indexed → stale → re-indexing"])
+    KN1 --> KN2 --> KN3 --> KN4 --> KN4b --> KN5 --> KN6 --> KN7
+  end
 
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
+  CT -- "doc content" --> KN
+  KG -- "graph edges" --> KN
 
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 3 — retrieval（NotebookLM · RAG Query Layer）
+  %% ══════════════════════════════════════════════════════
+  subgraph RT["retrieval（↔ NotebookLM · RAG Query）"]
+    direction TB
 
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberDTO,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
+    subgraph QU["Query Understanding Layer"]
+      QU1["Intent Classification"]
+      QU2["Query Decomposition · Sub-query"]
+      QU3["Query Rewriting · HyDE"]
+    end
 
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
+    subgraph HR["Hybrid RAG Layer"]
+      HR1["Dense Retrieval（Vector · Semantic）"]
+      HR2["Sparse Retrieval（BM25 · TF-IDF）"]
+      HR3["Graph Search（Relational · Multi-hop）"]
+      HR4["Reranker（Cross-encoder · Top-K）"]
+      HR1 --> HR4
+      HR2 --> HR4
+      HR3 --> HR4
+    end
 
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        organizationApi.getMembers(workspace.accountId),
-        organizationApi.getTeams(workspace.accountId),
-      ]);
+    subgraph MDR["Multi-Document Reasoning Layer"]
+      MDR1["Bridge Reasoning：A → B → C 鏈式推理"]
+      MDR2["Comparison Reasoning：A vs B 比較推理"]
+      MDR3["Compositional Reasoning：多條件組合推理"]
+      MDR4["Temporal Reasoning：時間序列推理"]
+      MDR5["Cross-Doc Analysis：Contradiction · Completion · Timeline"]
+    end
 
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
+    subgraph MEM["AI Memory Layer"]
+      MEM1["Semantic Memory（Vector DB · long-term）"]
+      MEM2["Episodic Memory（sessions · mid-term）"]
+      MEM3["Working Memory（context buffer · short-term）"]
+    end
 
-      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
+    subgraph CIT["Citation and Grounding"]
+      CIT1["Source Mapping：docId · chunkId · page"]
+      CIT2["Faithfulness · Relevance · Completeness"]
+      CIT3["Hallucination Detection"]
+    end
 
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
+    QU --> HR
+    HR --> MDR
+    MDR --> CIT
+    MEM --> HR
+  end
 
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
+  KN -- "embeddings + chunks" --> RT
+  KG -- "graph index" --> RT
 
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 4 — agent（ReAct Orchestration · Tool Layer）
+  %% ══════════════════════════════════════════════════════
+  subgraph AG["agent（Tool / Agent Layer）"]
+    direction TB
 
-      Object.entries(personnelLabels).forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
+    subgraph REACT["ReAct Orchestrator"]
+      R1["Thought：intent planning"]
+      R2["Action：tool dispatch"]
+      R3["Observation：result parse"]
+      R4["Answer：grounded response"]
+      R1 --> R2 --> R3 --> R4
+    end
 
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
+    subgraph TOOLS["Tool Registry"]
+      T1["search-tool → retrieval/api"]
+      T2["create-doc-tool → content/api"]
+      T3["summarize-tool → retrieval/api"]
+      T4["auto-link-tool → knowledge-graph/api"]
+      T5["auto-tag-tool → knowledge-graph/api"]
+      T6["knowledge-graph-query-tool → knowledge-graph/api"]
+      T7["external-api-connector"]
+    end
 
-      Object.entries(personnelLabels).forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
+    REACT --> TOOLS
+  end
 
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
+  RT -- "query result + citations" --> AG
+
+  %% agent → 各模組 api/ 層（跨模組 api call）
+  AG -. "api/ call" .-> CT
+  AG -. "api/ call" .-> KG
+  AG -. "api/ call" .-> KN
+  AG -. "api/ call" .-> RT
+
+  %% workspace → 全部模組
+  WS -. "context inject" .-> CT
+  WS -. "context inject" .-> KG
+  WS -. "context inject" .-> KN
+  WS -. "context inject" .-> RT
+  WS -. "context inject" .-> AG
+
+  %% ══════════════════════════════════════════════════════
+  %% MODULE INTERNAL STRUCTURE（每個 module 統一規範）
+  %% ══════════════════════════════════════════════════════
+  subgraph INT["每個 module 的內部結構（統一規範）"]
+    direction LR
+    L_IF["interfaces/\nNext.js Route Handler\nFirebase CF Trigger\n薄層 無業務邏輯"]
+    L_AP["application/\nUse Case\nCommand / Query Handler\nEvent Publisher"]
+    L_DO["domain/\nEntity · Value Object\nRepository Interface\nDomain Service · Event"]
+    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flows：\n  QueryPlannerFlow\n  RetrievalFlow\n  IngestionFlow\n  AgentOrchestratorFlow\n  CitationFlow"]
+    L_API["api/\npublic contract\nTypeScript types\nfunction signatures\n唯一對外出口"]
+
+    L_IF --> L_AP
+    L_AP --> L_DO
+    L_DO -. "implements" .-> L_IN
+    L_AP -. "exposes via" .-> L_API
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% BOUNDARY RULE
+  %% ══════════════════════════════════════════════════════
+  RULE["⚠️ 跨模組邊界規則\nimport from module/api 只\n嚴禁穿透 domain/ 或 infrastructure/\nindex.ts 只 re-export api/ 內容"]
+
+  %% ══════════════════════════════════════════════════════
+  %% FIRESTORE COLLECTION OWNERSHIP
+  %% ══════════════════════════════════════════════════════
+  subgraph FS["Firestore Collection Ownership"]
+    direction LR
+    FS_CT["content owns\npages · blocks\ndatabases · comments · versions"]
+    FS_KG["knowledge-graph owns\npage_links · relations\ncategories · tags · templates"]
+    FS_KN["knowledge owns\nembeddings · chunks\ningestion_jobs"]
+    FS_RT["retrieval owns\nsessions · memory\ncitation_logs"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% STYLES
+  %% ══════════════════════════════════════════════════════
+  classDef wsStyle   fill:#444441,stroke:#888780,color:#D3D1C7
+  classDef ctStyle   fill:#085041,stroke:#1D9E75,color:#9FE1CB
+  classDef kgStyle   fill:#3C3489,stroke:#7F77DD,color:#CECBF6
+  classDef knStyle   fill:#633806,stroke:#BA7517,color:#FAC775
+  classDef rtStyle   fill:#0C447C,stroke:#378ADD,color:#B5D4F4
+  classDef agStyle   fill:#712B13,stroke:#D85A30,color:#F5C4B3
+  classDef intStyle  fill:#2C2C2A,stroke:#5F5E5A,color:#D3D1C7
+  classDef ruleStyle fill:#501313,stroke:#E24B4A,color:#F7C1C1
+  classDef fsStyle   fill:#173404,stroke:#639922,color:#C0DD97
+
+  class WS1,WS2,WS3 wsStyle
+  class CT1,CT2,CT3 ctStyle
+  class KG1,KG2,KG3 kgStyle
+  class KN1,KN2,KN3,KN4,KN4b,KN5,KN6,KN7,KN8 knStyle
+  class QU1,QU2,QU3 rtStyle
+  class HR1,HR2,HR3,HR4 rtStyle
+  class MDR1,MDR2,MDR3,MDR4,MDR5 rtStyle
+  class MEM1,MEM2,MEM3 rtStyle
+  class CIT1,CIT2,CIT3 rtStyle
+  class R1,R2,R3,R4 agStyle
+  class T1,T2,T3,T4,T5,T6,T7 agStyle
+  class L_IF,L_AP,L_DO,L_IN,L_API intStyle
+  class RULE ruleStyle
+  class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
+`````
+
+## File: .github/instructions/xuanwu-app-nextjs-mddd.instructions.md
+`````markdown
+---
+description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
+applyTo: 'app/**/*.ts, app/**/*.tsx, packages/**/*.ts, packages/**/*.tsx, providers/**/*.ts, providers/**/*.tsx, debug/**/*.ts, debug/**/*.tsx'
+---
+
+# Xuanwu App Next.js + MDDD Development Instructions
+
+Use for app-level work outside module-internal rule files.
+
+## Layer Responsibilities
+
+- `app/`: routing and composition; default Server Components; add `use client` only when required.
+- `modules/`: vertical business contexts; follow `modules-*.instructions.md` for internals.
+- `packages/`: stable shared boundaries; import by alias only.
+
+## Import Rules
+
+- Use `@/*`, `@shared-*`, `@integration-*`, `@api-contracts`, `@ui-*`, `@lib-*`.
+- Do not use legacy paths: `@/shared/*`, `@/infrastructure/*`, `@/libs/*`, `@/ui/shadcn/*`, `@/ui/vis*`, `@/interfaces/*`.
+- Cross-module imports must go through `@/modules/<target>/api` (or module public boundary), never internal layers.
+
+## Development Practices
+
+- UI: use `@ui-shadcn/*`; keep semantic and accessible markup.
+- Server Actions: explicit `use server`, thin orchestration, return `CommandResult`.
+- Validation and errors: validate at boundary; use shared validators and domain-consistent error model.
+- Do not put infra logic in pages or domain files.
+
+## Runtime & Documentation Boundaries
+
+- Next.js owns browser-facing orchestration; `py_fn/` owns ingestion and heavy worker flows.
+- Update docs when public boundaries, contracts, or runtime ownership changes (`packages/README.md`, module `README.md`, `py_fn/README.md`, ADR/contract docs).
+- Keep terminology aligned with existing MDDD domain language.
+
+## Validation Checklist
+
+- Run required commands from `agents/commands.md`.
+- If architecture or public boundaries changed, update corresponding docs in the same change.
+- Keep scope focused; avoid unrelated fixes.
+`````
+
+## File: .github/skills/deploy-to-vercel/SKILL.md
+`````markdown
+---
+name: deploy-to-vercel
+description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
+metadata:
+  author: vercel
+  version: "3.0.0"
+disable-model-invocation: true
+---
+
+# deploy-to-vercel (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/llamaparse/SKILL.md
+`````markdown
+---
+name: llamaparse
+description: Parse unstructured files (PDF, PPTX, DOCX, XLSX, etc.) via LlamaParse and return requested output formats.
+compatibility: Needs LLAMA_CLOUD_API_KEY in environment and @llamaindex/llama-cloud installed.
+license: MIT
+metadata:
+  author: LlamaIndex
+  version: "1.0.0"
+disable-model-invocation: true
+---
+
+# llamaparse (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/serena-mcp/SKILL.md
+`````markdown
+---
+name: serena-mcp
+description: >-
+  Enforce Serena MCP usage for project memory and .serena governance. Use for memory read/write, onboarding checks,
+  phase-end updates, and any .serena scoped operation.
+disable-model-invocation: true
+---
+
+# Serena MCP Enforcement (Condensed)
+
+## When to Use
+
+- Phase start/end (plan/impl/review/qa)
+- Project memory read/write/update
+- Any `.serena/` path operation
+
+## Mandatory Rules
+
+1. Never edit `.serena/` with direct file tools.
+2. Use Serena memory tools for create/update/delete.
+3. Activate project before memory operations.
+4. Execute phase-end memory update before handoff.
+
+## Phase-End Flow
+
+1. Activate project
+2. List memories
+3. Write phase memory
+4. Delete stale memories (if needed)
+5. Summarize changes
+
+## Minimal Phase Memory Template
+
+```markdown
+## Phase: <plan|impl|review|qa>
+## Task: <id or short description>
+## Date: <YYYY-MM-DD>
+
+### Scope
+- <item>
+
+### Decisions / Findings
+- <item>
+
+### Validation / Evidence
+- <item>
+
+### Deviations / Risks
+- <item or none>
+
+### Open Questions
+- <item or none>
+```
+
+## Guardrails
+
+- If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
+- Keep memory names consistent (`workflow/<phase>-<task-id>`).
+`````
+
+## File: .github/skills/vercel-cli-with-tokens/SKILL.md
+`````markdown
+---
+name: vercel-cli-with-tokens
+description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
+metadata:
+  author: vercel
+  version: "1.0.0"
+disable-model-invocation: true
+---
+
+# vercel-cli-with-tokens (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vercel-react-best-practices/SKILL.md
+`````markdown
+---
+name: vercel-react-best-practices
+description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
+license: MIT
+metadata:
+  author: vercel
+  version: "1.0.0"
+---
+
+# vercel-react-best-practices (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: docs/development-reference/reference/ai/customizations-index.md
+`````markdown
+---
+title: AI customizations index
+description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
+---
+
+# AI customizations index
+
+This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
+
+## Scope boundary
+
+- `.github/` is the operational source of truth.
+- This page provides routing, ownership, lifecycle status, and maintenance policy.
+- Avoid duplicating full file bodies from `.github/`.
+- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
+- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
+
+## Baseline references
+
+| Asset | Type | Responsibility | Notes |
+| --- | --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
+| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
+| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
+| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
+| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
+| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
+
+## Primary routing
+
+Use this order when working on customization assets:
+
+1. [.github/README.md](../../../../.github/README.md)
+2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
+3. the target folder under `.github/`
+4. the exact target file
+
+## Delivery workflow agents
+
+| Asset | Stage | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
+| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
+| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
+| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
+| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
+
+## Specialized Custom Agents
+
+| Asset | Focus | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
+| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
+
+## Modules Architecture Suite
+
+| Asset group | Files |
+| --- | --- |
+| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
+| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
+| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
+
+Scope partition for instruction consumption:
+
+- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
+- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
+
+## Delivery prompts
+
+| Asset | Primary use | Typical entry point |
+| --- | --- | --- |
+| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
+| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
+| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
+| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
+| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
+| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
+
+## Planning contract reference
+
+| Asset | Responsibility |
+| --- | --- |
+| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
+| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
+| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
+
+## Operational guidance
+
+| Asset | Audience | Purpose |
+| --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
+| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
+| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
+| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
+| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
+| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
+
+## Existing specialized skills
+
+- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
+- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
+- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
+- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
+- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
+
+## Legacy assets
+
+| Asset | Current status | Replacement |
+| --- | --- | --- |
+| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
+
+## Ownership and update policy
+
+- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
+- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
+- Keep this page concise; keep executable definitions in `.github/`.
+- Treat undocumented customization assets as provisional.
+`````
+
+## File: .github/instructions/modules-dependency-graph.instructions.md
+`````markdown
+---
+description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
+applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
+---
+
+# Modules Dependency Graph
+
+Use this instruction when a change adds, removes, or redirects dependencies between modules.
+
+## Core Rule
+
+- Do not break dependency direction.
+- Do not introduce reverse edges for convenience.
+- Keep the graph acyclic unless an event-driven contract explicitly documents the exception.
+
+## Canonical Dependency Source
+
+Do not treat this file as a full edge registry. For concrete decisions, use these sources in order:
+
+1. `modules/<target>/api` as the only cross-module import boundary
+2. `agents/knowledge-base.md` for MDDD boundary policy
+3. `eslint.config.mjs` boundary and restricted-import enforcement
+
+If a change needs a new edge or direction change, document and justify it in the same change.
+
+## Dependency Rules
+
+- Prefer `module -> target/api`
+- Prefer event flows over internal reach-through
+- Do not make lower-level foundational modules depend on higher-level feature modules
+- Do not hide dependency inversions inside barrels
+
+## Refactor Checklist
+
+1. Identify current incoming and outgoing module dependencies.
+2. Confirm the new direction preserves existing architectural intent.
+3. Replace forbidden edges with API or event contracts.
+4. Update docs when an approved dependency edge changes.
+
+## Validation
+
+- Search changed imports for `@/modules/`
+- Verify no new cross-module internal import paths were introduced
+- Run validation commands from `agents/commands.md` based on change scope
+`````
+
+## File: modules/workspace-flow/AGENT.md
+`````markdown
+# Agent Guide — workspace-flow
+
+This file defines how agents and contributors should structure and evolve the workspace-flow module.
+
+## Module Purpose
+
+workspace-flow is a logic-first bounded context.
+It owns workflow rules, state transitions, guard conditions, persistence contracts, and public module APIs.
+
+It does not own product UI composition.
+UI should be assembled outside this module and consume workspace-flow only through the public api boundary.
+
+Related references:
+- [README.md](./README.md)
+- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
+- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
+- [Workspace-Flow-UI.mermaid](./Workspace-Flow-UI.mermaid)
+- [Workspace-Flow-States.mermaid](./Workspace-Flow-States.mermaid)
+- [Workspace-Flow-Sequence.mermaid](./Workspace-Flow-Sequence.mermaid)
+- [Workspace-Flow-ERD.mermaid](./Workspace-Flow-ERD.mermaid)
+- [Workspace-Flow-Architecture.mermaid](./Workspace-Flow-Architecture.mermaid)
+- [Workspace-Flow-Permissions.mermaid](./Workspace-Flow-Permissions.mermaid)
+- [Workspace-Flow-Events.mermaid](./Workspace-Flow-Events.mermaid)
+- [Workspace-Flow-Lifecycle.mermaid](./Workspace-Flow-Lifecycle.mermaid)
+
+## Target Module Shape
+
+```text
+modules/workspace-flow/
+├── api/
+│   ├── contracts.ts
+│   ├── index.ts
+│   └── workspace-flow.facade.ts
+├── application/
+│   ├── dto/
+│   │   ├── add-invoice-item.dto.ts
+│   │   ├── create-task.dto.ts
+│   │   ├── invoice-query.dto.ts
+│   │   ├── issue-query.dto.ts
+│   │   ├── open-issue.dto.ts
+│   │   └── task-query.dto.ts
+│   ├── ports/
+│   │   ├── InvoiceService.ts
+│   │   ├── IssueService.ts
+│   │   └── TaskService.ts
+│   └── use-cases/
+│       ├── add-invoice-item.use-case.ts
+│       ├── approve-invoice.use-case.ts
+│       ├── approve-task-acceptance.use-case.ts
+│       ├── archive-task.use-case.ts
+│       ├── assign-task.use-case.ts
+│       ├── close-invoice.use-case.ts
+│       ├── close-issue.use-case.ts
+│       ├── create-invoice.use-case.ts
+│       ├── create-task.use-case.ts
+│       ├── fail-issue-retest.use-case.ts
+│       ├── fix-issue.use-case.ts
+│       ├── open-issue.use-case.ts
+│       ├── pass-issue-retest.use-case.ts
+│       ├── pass-task-qa.use-case.ts
+│       ├── pay-invoice.use-case.ts
+│       ├── reject-invoice.use-case.ts
+│       ├── remove-invoice-item.use-case.ts
+│       ├── review-invoice.use-case.ts
+│       ├── start-issue.use-case.ts
+│       ├── submit-issue-retest.use-case.ts
+│       ├── submit-invoice.use-case.ts
+│       └── submit-task-to-qa.use-case.ts
+├── domain/
+│   ├── entities/
+│   │   ├── Invoice.ts
+│   │   ├── InvoiceItem.ts
+│   │   ├── Issue.ts
+│   │   └── Task.ts
+│   ├── events/
+│   │   ├── InvoiceEvent.ts
+│   │   ├── IssueEvent.ts
+│   │   └── TaskEvent.ts
+│   ├── repositories/
+│   │   ├── InvoiceRepository.ts
+│   │   ├── IssueRepository.ts
+│   │   └── TaskRepository.ts
+│   ├── services/
+│   │   ├── invoice-guards.ts
+│   │   ├── invoice-transition-policy.ts
+│   │   ├── issue-transition-policy.ts
+│   │   ├── task-guards.ts
+│   │   └── task-transition-policy.ts
+│   └── value-objects/
+│       ├── InvoiceId.ts
+│       ├── InvoiceItemId.ts
+│       ├── InvoiceStatus.ts
+│       ├── IssueId.ts
+│       ├── IssueStage.ts
+│       ├── IssueStatus.ts
+│       ├── TaskId.ts
+│       ├── TaskStatus.ts
+│       └── UserId.ts
+├── infrastructure/
+│   ├── firebase/
+│   │   ├── invoice-item.converter.ts
+│   │   ├── invoice.converter.ts
+│   │   ├── issue.converter.ts
+│   │   ├── task.converter.ts
+│   │   └── workspace-flow.collections.ts
+│   ├── persistence/
+│   └── repositories/
+│       ├── FirebaseInvoiceItemRepository.ts
+│       ├── FirebaseInvoiceRepository.ts
+│       ├── FirebaseIssueRepository.ts
+│       └── FirebaseTaskRepository.ts
+├── interfaces/
+│   ├── _actions/
+│   │   └── workspace-flow.actions.ts
+│   ├── contracts/
+│   │   └── workspace-flow.contract.ts
+│   └── queries/
+│       └── workspace-flow.queries.ts
+├── AGENT.md
+├── README.md
+├── Workspace-Flow-Architecture.mermaid
+├── Workspace-Flow-ERD.mermaid
+├── Workspace-Flow-Events.mermaid
+├── Workspace-Flow-Lifecycle.mermaid
+├── Workspace-Flow-Permissions.mermaid
+├── Workspace-Flow-Sequence.mermaid
+├── Workspace-Flow-States.mermaid
+├── Workspace-Flow.mermaid
+├── Workspace-Flow-Tree.mermaid
+├── Workspace-Flow-UI.mermaid
+└── index.ts
+```
+
+## Target File Plan
+
+The module should be implemented with concrete files, not only folders.
+Use the following file plan as the construction baseline.
+
+### api
+
+Files:
+- api/index.ts
+- api/workspace-flow.facade.ts
+- api/contracts.ts
+
+Responsibilities:
+- expose the public module surface for external consumers
+- export only the minimum stable contracts, facades, and public types
+- hide internal domain, application, and infrastructure details
+
+Recommended exports:
+- WorkspaceFlowFacade
+- TaskSummary
+- IssueSummary
+- InvoiceSummary
+- TaskQueryDto / IssueQueryDto / InvoiceQueryDto if needed publicly
+
+### domain
+
+Files:
+- domain/entities/Task.ts
+- domain/entities/Issue.ts
+- domain/entities/Invoice.ts
+- domain/entities/InvoiceItem.ts
+- domain/value-objects/TaskId.ts
+- domain/value-objects/IssueId.ts
+- domain/value-objects/InvoiceId.ts
+- domain/value-objects/InvoiceItemId.ts
+- domain/value-objects/UserId.ts
+- domain/value-objects/TaskStatus.ts
+- domain/value-objects/IssueStatus.ts
+- domain/value-objects/IssueStage.ts
+- domain/value-objects/InvoiceStatus.ts
+- domain/events/TaskEvent.ts
+- domain/events/IssueEvent.ts
+- domain/events/InvoiceEvent.ts
+- domain/repositories/TaskRepository.ts
+- domain/repositories/IssueRepository.ts
+- domain/repositories/InvoiceRepository.ts
+- domain/services/task-transition-policy.ts
+- domain/services/issue-transition-policy.ts
+- domain/services/invoice-transition-policy.ts
+- domain/services/task-guards.ts
+- domain/services/invoice-guards.ts
+
+Responsibilities:
+- define entities and lifecycle states
+- define legal transitions and invariant checks
+- define repository contracts only, never implementations
+- stay framework-free
+
+### application
+
+Files:
+- application/dto/task-query.dto.ts
+- application/dto/issue-query.dto.ts
+- application/dto/invoice-query.dto.ts
+- application/dto/create-task.dto.ts
+- application/dto/open-issue.dto.ts
+- application/dto/add-invoice-item.dto.ts
+- application/ports/TaskService.ts
+- application/ports/IssueService.ts
+- application/ports/InvoiceService.ts
+- application/use-cases/create-task.use-case.ts
+- application/use-cases/assign-task.use-case.ts
+- application/use-cases/submit-task-to-qa.use-case.ts
+- application/use-cases/pass-task-qa.use-case.ts
+- application/use-cases/approve-task-acceptance.use-case.ts
+- application/use-cases/archive-task.use-case.ts
+- application/use-cases/open-issue.use-case.ts
+- application/use-cases/start-issue.use-case.ts
+- application/use-cases/fix-issue.use-case.ts
+- application/use-cases/submit-issue-retest.use-case.ts
+- application/use-cases/pass-issue-retest.use-case.ts
+- application/use-cases/fail-issue-retest.use-case.ts
+- application/use-cases/close-issue.use-case.ts
+- application/use-cases/create-invoice.use-case.ts
+- application/use-cases/add-invoice-item.use-case.ts
+- application/use-cases/remove-invoice-item.use-case.ts
+- application/use-cases/submit-invoice.use-case.ts
+- application/use-cases/review-invoice.use-case.ts
+- application/use-cases/approve-invoice.use-case.ts
+- application/use-cases/reject-invoice.use-case.ts
+- application/use-cases/pay-invoice.use-case.ts
+- application/use-cases/close-invoice.use-case.ts
+
+Responsibilities:
+- orchestrate domain rules through use cases
+- define command and query DTOs
+- provide application-facing ports for module consumers
+
+### infrastructure
+
+Files:
+- infrastructure/firebase/workspace-flow.collections.ts
+- infrastructure/firebase/task.converter.ts
+- infrastructure/firebase/issue.converter.ts
+- infrastructure/firebase/invoice.converter.ts
+- infrastructure/firebase/invoice-item.converter.ts
+- infrastructure/repositories/FirebaseTaskRepository.ts
+- infrastructure/repositories/FirebaseIssueRepository.ts
+- infrastructure/repositories/FirebaseInvoiceRepository.ts
+- infrastructure/repositories/FirebaseInvoiceItemRepository.ts
+
+Responsibilities:
+- map Firestore collections and document formats
+- implement repository contracts from domain
+- keep Firebase-specific concerns out of domain
+
+### interfaces
+
+Files:
+- interfaces/contracts/workspace-flow.contract.ts
+- interfaces/queries/workspace-flow.queries.ts
+- interfaces/_actions/workspace-flow.actions.ts
+
+Optional:
+- add module-local interface files only if this module genuinely needs them
+- keep product UI composition outside this module by default
+
+### module root
+
+Files:
+- index.ts
+- AGENT.md
+- README.md
+- Workspace-Flow.mermaid
+- Workspace-Flow-Tree.mermaid
+- Workspace-Flow-UI.mermaid
+- Workspace-Flow-States.mermaid
+- Workspace-Flow-Sequence.mermaid
+- Workspace-Flow-ERD.mermaid
+- Workspace-Flow-Architecture.mermaid
+- Workspace-Flow-Permissions.mermaid
+- Workspace-Flow-Events.mermaid
+- Workspace-Flow-Lifecycle.mermaid
+
+Rules:
+- index.ts is a local module barrel, not the cross-module public boundary
+- cross-module consumers still use api/index.ts
+
+## Legacy Types Policy
+
+The old types/ folder was temporary migration input only.
+The legacy files have been removed and must not be recreated.
+
+Rules:
+- Do not treat types/ as a public module boundary
+- Do not add new code under types/
+- Do not import types/* from outside this module
+- Move the logic into domain/application/infrastructure/api instead of recreating the legacy files
+- After deletion, do not recreate types/ as a shortcut export surface
+
+Legacy-to-target mapping:
+- core.ts → domain/value-objects/ and domain/events/
+- models.ts → domain/entities/
+- transitions.ts → domain/services/
+- services.ts → application/ports/
+- firestore.ts → infrastructure/firebase/ or infrastructure/persistence/
+- examples.ts → documentation examples or application examples if still needed
+- index.ts → split into api/index.ts and local module index.ts responsibilities
+
+Deletion rule:
+- once a target file exists, do not keep a duplicate legacy type file with the same responsibility
+
+## Ownership Rules
+
+workspace-flow owns:
+- Task, Issue, Invoice, InvoiceItem workflow logic
+- status unions and transition rules
+- guard rules such as no-open-issues and invoice submission constraints
+- persistence-facing document contracts for this module
+- public contracts exposed through api
+
+workspace-flow does not own:
+- route composition in app/
+- page layout, cards, boards, or dashboards
+- direct product UI rendering for external consumers
+
+## Layer Responsibilities
+
+### api
+
+Public cross-module surface only.
+Export the minimum set of contracts, facades, and types needed by other modules or app composition.
+
+External consumers must import only through:
+@/modules/workspace-flow/api
+
+### application
+
+Use cases, orchestration, command and query DTOs, and service contracts.
+Application may depend on domain contracts but must not depend directly on interfaces.
+
+### domain
+
+Pure business rules.
+Put entities, value objects, transition maps, guards, repository interfaces, and domain events here.
+
+Domain must stay framework-free.
+No React, Firebase SDK, browser APIs, or HTTP clients.
+
+### infrastructure
+
+Persistence and adapter implementations.
+Firestore collections, document mappings, repository implementations, and external integrations belong here.
+
+Infrastructure implements contracts defined by domain or application.
+
+### interfaces
+
+Optional for this module.
+Keep empty unless this module later needs module-local actions, query hooks, or interface-specific contracts.
+
+If UI is needed, prefer assembling it outside this module unless there is a strong reason to keep module-local interface adapters here.
+
+## Dependency Direction
+
+Allowed direction:
+interfaces → application → domain ← infrastructure
+api → application / domain
+api must not become a dumping ground for internal re-exports
+
+Forbidden direction:
+- domain → application
+- domain → infrastructure
+- domain → interfaces
+- application → interfaces
+- external modules → domain/application/infrastructure/interfaces internals
+
+## Public Boundary Rule
+
+Cross-module interaction must go through api only.
+
+Allowed:
+- import from @/modules/workspace-flow/api
+
+Forbidden:
+- import from @/modules/workspace-flow/domain/*
+- import from @/modules/workspace-flow/application/*
+- import from @/modules/workspace-flow/infrastructure/*
+- import from @/modules/workspace-flow/interfaces/*
+- import from types/* as a public dependency
+
+Recommended external usage pattern:
+- read models or summaries through api/contracts.ts
+- execute workflow operations through api/workspace-flow.facade.ts
+- never bind external UI directly to repository implementations or transition policies
+
+## Local Import Rule
+
+Inside workspace-flow:
+- use relative imports within the module
+- do not self-import through the public api
+- do not use the module public boundary for internal wiring
+
+## UI Boundary Rule
+
+workspace-flow is logic-first.
+External pages or modules may assemble UI using workspace-flow public contracts.
+
+Preferred pattern:
+app or another module UI
+→ imports from workspace-flow/api
+→ calls application-facing facades or use cases
+→ renders its own interface
+
+Do not move product UI concerns into domain or application.
+
+## Documentation Alignment
+
+Keep these documents aligned whenever workflow structure changes:
+- [README.md](./README.md)
+- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
+- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
+- api exports if public contracts change
+
+If event names, states, or guards change, update the docs in the same change.
+If a temporary migration file is removed, update the docs in the same change so no document still presents it as canonical.
+
+## Construction Order
+
+Implement in this order to avoid boundary drift:
+
+1. domain/value-objects and domain/events
+2. domain/entities and domain/repositories
+3. domain/services for transitions and guards
+4. application/dto and application/ports
+5. application/use-cases
+6. infrastructure/firebase and infrastructure/repositories
+7. api/contracts.ts and api/workspace-flow.facade.ts
+8. optional interfaces contracts or actions
+
+Do not start from UI.
+Do not expose unfinished internals through api just to unblock temporary callers.
+
+## Validation
+
+Required validation after structural or public-boundary changes:
+- npm run lint
+- npm run build
+
+Re-check:
+- no cross-module internal imports
+- no UI logic in domain
+- no infrastructure dependencies leaking into domain
+- api exports remain narrow and intentional
 `````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -80904,7 +80153,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace";
+import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
 import { formatDate } from "@shared-utils";
 import {
   Avatar,
@@ -80937,10 +80186,10 @@ import {
   SelectValue,
 } from "@ui-shadcn/ui/select";
 import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
 import { WorkspaceFilesTab } from "@/modules/asset/api";
-import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling";
+import { WikiBetaWorkspaceView } from "@/modules/wiki-beta/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -81816,1153 +81065,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-`````
-
-## File: modules/xuanwu_architecture.mermaid
-`````
----
-title: Xuanwu — AI Knowledge Platform Architecture (v3)
----
-graph TD
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 0 — workspace（基礎設施 · 所有模組共用 context）
-  %% ══════════════════════════════════════════════════════
-  subgraph WS["workspace（基礎設施層）"]
-    direction LR
-    WS1["tenant isolation"]
-    WS2["auth · orgId boundary"]
-    WS3["event bus · shared context"]
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 1 — content（Notion 層）
-  %% ══════════════════════════════════════════════════════
-  subgraph CT["content（↔ Notion）"]
-    direction TB
-    CT1["Page · Block · Database · View"]
-    CT2["Version · Comment · Template"]
-    CT3["Collaboration · Permission · Automation"]
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 1 — knowledge-graph（Wiki 層）
-  %% ══════════════════════════════════════════════════════
-  subgraph KG["knowledge-graph（↔ Wiki）"]
-    direction TB
-    KG1["PageLink · Backlink · Relation"]
-    KG2["Category · Tag · Namespace · Redirect"]
-    KG3["Ontology · Schema · VersionGraph"]
-  end
-
-  %% content → knowledge-graph：pageId 參照
-  CT -- "pageId ref" --> KG
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 2 — knowledge（NotebookLM · Ingestion Pipeline）
-  %% ══════════════════════════════════════════════════════
-  subgraph KN["knowledge（↔ NotebookLM · Ingestion）"]
-    direction TB
-    KN1["1 Parse：PDF · DOCX · HTML · MD · OCR"]
-    KN2["2 Clean：noise · encoding · language detect"]
-    KN3["3 Taxonomy：auto-tag · classify · metadata"]
-    KN4["4 Chunk：semantic · hierarchical · overlap"]
-    KN4b["5 Chunk Metadata：source_doc_id · section · page_number · chunk_index"]
-    KN5["6 Embed：model select · batch generation"]
-    KN6["7 Persist：vector store · metadata · registry"]
-    KN7["8 Mark Ready：status = indexed"]
-    KN8(["Status Machine：uploaded → parsing → chunking → embedding → indexed → stale → re-indexing"])
-    KN1 --> KN2 --> KN3 --> KN4 --> KN4b --> KN5 --> KN6 --> KN7
-  end
-
-  CT -- "doc content" --> KN
-  KG -- "graph edges" --> KN
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 3 — retrieval（NotebookLM · RAG Query Layer）
-  %% ══════════════════════════════════════════════════════
-  subgraph RT["retrieval（↔ NotebookLM · RAG Query）"]
-    direction TB
-
-    subgraph QU["Query Understanding Layer"]
-      QU1["Intent Classification"]
-      QU2["Query Decomposition · Sub-query"]
-      QU3["Query Rewriting · HyDE"]
-    end
-
-    subgraph HR["Hybrid RAG Layer"]
-      HR1["Dense Retrieval（Vector · Semantic）"]
-      HR2["Sparse Retrieval（BM25 · TF-IDF）"]
-      HR3["Graph Search（Relational · Multi-hop）"]
-      HR4["Reranker（Cross-encoder · Top-K）"]
-      HR1 --> HR4
-      HR2 --> HR4
-      HR3 --> HR4
-    end
-
-    subgraph MDR["Multi-Document Reasoning Layer"]
-      MDR1["Bridge Reasoning：A → B → C 鏈式推理"]
-      MDR2["Comparison Reasoning：A vs B 比較推理"]
-      MDR3["Compositional Reasoning：多條件組合推理"]
-      MDR4["Temporal Reasoning：時間序列推理"]
-      MDR5["Cross-Doc Analysis：Contradiction · Completion · Timeline"]
-    end
-
-    subgraph MEM["AI Memory Layer"]
-      MEM1["Semantic Memory（Vector DB · long-term）"]
-      MEM2["Episodic Memory（sessions · mid-term）"]
-      MEM3["Working Memory（context buffer · short-term）"]
-    end
-
-    subgraph CIT["Citation and Grounding"]
-      CIT1["Source Mapping：docId · chunkId · page"]
-      CIT2["Faithfulness · Relevance · Completeness"]
-      CIT3["Hallucination Detection"]
-    end
-
-    QU --> HR
-    HR --> MDR
-    MDR --> CIT
-    MEM --> HR
-  end
-
-  KN -- "embeddings + chunks" --> RT
-  KG -- "graph index" --> RT
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 4 — agent（ReAct Orchestration · Tool Layer）
-  %% ══════════════════════════════════════════════════════
-  subgraph AG["agent（Tool / Agent Layer）"]
-    direction TB
-
-    subgraph REACT["ReAct Orchestrator"]
-      R1["Thought：intent planning"]
-      R2["Action：tool dispatch"]
-      R3["Observation：result parse"]
-      R4["Answer：grounded response"]
-      R1 --> R2 --> R3 --> R4
-    end
-
-    subgraph TOOLS["Tool Registry"]
-      T1["search-tool → retrieval/api"]
-      T2["create-doc-tool → content/api"]
-      T3["summarize-tool → retrieval/api"]
-      T4["auto-link-tool → knowledge-graph/api"]
-      T5["auto-tag-tool → knowledge-graph/api"]
-      T6["knowledge-graph-query-tool → knowledge-graph/api"]
-      T7["external-api-connector"]
-    end
-
-    REACT --> TOOLS
-  end
-
-  RT -- "query result + citations" --> AG
-
-  %% agent → 各模組 api/ 層（跨模組 api call）
-  AG -. "api/ call" .-> CT
-  AG -. "api/ call" .-> KG
-  AG -. "api/ call" .-> KN
-  AG -. "api/ call" .-> RT
-
-  %% workspace → 全部模組
-  WS -. "context inject" .-> CT
-  WS -. "context inject" .-> KG
-  WS -. "context inject" .-> KN
-  WS -. "context inject" .-> RT
-  WS -. "context inject" .-> AG
-
-  %% ══════════════════════════════════════════════════════
-  %% MODULE INTERNAL STRUCTURE（每個 module 統一規範）
-  %% ══════════════════════════════════════════════════════
-  subgraph INT["每個 module 的內部結構（統一規範）"]
-    direction LR
-    L_IF["interfaces/\nNext.js Route Handler\nFirebase CF Trigger\n薄層 無業務邏輯"]
-    L_AP["application/\nUse Case\nCommand / Query Handler\nEvent Publisher"]
-    L_DO["domain/\nEntity · Value Object\nRepository Interface\nDomain Service · Event"]
-    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flows：\n  QueryPlannerFlow\n  RetrievalFlow\n  IngestionFlow\n  AgentOrchestratorFlow\n  CitationFlow"]
-    L_API["api/\npublic contract\nTypeScript types\nfunction signatures\n唯一對外出口"]
-
-    L_IF --> L_AP
-    L_AP --> L_DO
-    L_DO -. "implements" .-> L_IN
-    L_AP -. "exposes via" .-> L_API
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% BOUNDARY RULE
-  %% ══════════════════════════════════════════════════════
-  RULE["⚠️ 跨模組邊界規則\nimport from module/api 只\n嚴禁穿透 domain/ 或 infrastructure/\nindex.ts 只 re-export api/ 內容"]
-
-  %% ══════════════════════════════════════════════════════
-  %% FIRESTORE COLLECTION OWNERSHIP
-  %% ══════════════════════════════════════════════════════
-  subgraph FS["Firestore Collection Ownership"]
-    direction LR
-    FS_CT["content owns\npages · blocks\ndatabases · comments · versions"]
-    FS_KG["knowledge-graph owns\npage_links · relations\ncategories · tags · templates"]
-    FS_KN["knowledge owns\nembeddings · chunks\ningestion_jobs"]
-    FS_RT["retrieval owns\nsessions · memory\ncitation_logs"]
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% STYLES
-  %% ══════════════════════════════════════════════════════
-  classDef wsStyle   fill:#444441,stroke:#888780,color:#D3D1C7
-  classDef ctStyle   fill:#085041,stroke:#1D9E75,color:#9FE1CB
-  classDef kgStyle   fill:#3C3489,stroke:#7F77DD,color:#CECBF6
-  classDef knStyle   fill:#633806,stroke:#BA7517,color:#FAC775
-  classDef rtStyle   fill:#0C447C,stroke:#378ADD,color:#B5D4F4
-  classDef agStyle   fill:#712B13,stroke:#D85A30,color:#F5C4B3
-  classDef intStyle  fill:#2C2C2A,stroke:#5F5E5A,color:#D3D1C7
-  classDef ruleStyle fill:#501313,stroke:#E24B4A,color:#F7C1C1
-  classDef fsStyle   fill:#173404,stroke:#639922,color:#C0DD97
-
-  class WS1,WS2,WS3 wsStyle
-  class CT1,CT2,CT3 ctStyle
-  class KG1,KG2,KG3 kgStyle
-  class KN1,KN2,KN3,KN4,KN4b,KN5,KN6,KN7,KN8 knStyle
-  class QU1,QU2,QU3 rtStyle
-  class HR1,HR2,HR3,HR4 rtStyle
-  class MDR1,MDR2,MDR3,MDR4,MDR5 rtStyle
-  class MEM1,MEM2,MEM3 rtStyle
-  class CIT1,CIT2,CIT3 rtStyle
-  class R1,R2,R3,R4 agStyle
-  class T1,T2,T3,T4,T5,T6,T7 agStyle
-  class L_IF,L_AP,L_DO,L_IN,L_API intStyle
-  class RULE ruleStyle
-  class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
-`````
-
-## File: .github/copilot-instructions.md
-`````markdown
-# Xuanwu Copilot Delivery Suite
-
-Baseline for Copilot agents to stay aligned with the repository and toolchain.
-
-## Authoritative Sources (read in order)
-
-1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
-2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
-3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
-4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
-5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
-6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
-
-## Operating rules (concise)
-
-- Plan first for cross-module, cross-runtime, or contract-governed work.  
-- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
-- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
-- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
-
-## Serena MCP — mandatory
-
-All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
-
-- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
-- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
-- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
-- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
-
-## Orchestration pattern
-
-1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
-2. Activate skills as needed:  
-   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
-   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
-   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
-   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
-   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
-   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
-3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
-
-## Validation
-
-- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
-- Do not close work until required checks and documentation updates are complete.  
-
-## Terminology
-
-See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
-`````
-
-## File: .github/instructions/xuanwu-app-nextjs-mddd.instructions.md
-`````markdown
----
-description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
-applyTo: 'app/**/*.ts, app/**/*.tsx, packages/**/*.ts, packages/**/*.tsx, providers/**/*.ts, providers/**/*.tsx, debug/**/*.ts, debug/**/*.tsx'
----
-
-# Xuanwu App Next.js + MDDD Development Instructions
-
-Use for app-level work outside module-internal rule files.
-
-## Layer Responsibilities
-
-- `app/`: routing and composition; default Server Components; add `use client` only when required.
-- `modules/`: vertical business contexts; follow `modules-*.instructions.md` for internals.
-- `packages/`: stable shared boundaries; import by alias only.
-
-## Import Rules
-
-- Use `@/*`, `@shared-*`, `@integration-*`, `@api-contracts`, `@ui-*`, `@lib-*`.
-- Do not use legacy paths: `@/shared/*`, `@/infrastructure/*`, `@/libs/*`, `@/ui/shadcn/*`, `@/ui/vis*`, `@/interfaces/*`.
-- Cross-module imports must go through `@/modules/<target>/api` (or module public boundary), never internal layers.
-
-## Development Practices
-
-- UI: use `@ui-shadcn/*`; keep semantic and accessible markup.
-- Server Actions: explicit `use server`, thin orchestration, return `CommandResult`.
-- Validation and errors: validate at boundary; use shared validators and domain-consistent error model.
-- Do not put infra logic in pages or domain files.
-
-## Runtime & Documentation Boundaries
-
-- Next.js owns browser-facing orchestration; `py_fn/` owns ingestion and heavy worker flows.
-- Update docs when public boundaries, contracts, or runtime ownership changes (`packages/README.md`, module `README.md`, `py_fn/README.md`, ADR/contract docs).
-- Keep terminology aligned with existing MDDD domain language.
-
-## Validation Checklist
-
-- Run required commands from `agents/commands.md`.
-- If architecture or public boundaries changed, update corresponding docs in the same change.
-- Keep scope focused; avoid unrelated fixes.
-`````
-
-## File: .github/skills/deploy-to-vercel/SKILL.md
-`````markdown
----
-name: deploy-to-vercel
-description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
-metadata:
-  author: vercel
-  version: "3.0.0"
-disable-model-invocation: true
----
-
-# deploy-to-vercel (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/llamaparse/SKILL.md
-`````markdown
----
-name: llamaparse
-description: Parse unstructured files (PDF, PPTX, DOCX, XLSX, etc.) via LlamaParse and return requested output formats.
-compatibility: Needs LLAMA_CLOUD_API_KEY in environment and @llamaindex/llama-cloud installed.
-license: MIT
-metadata:
-  author: LlamaIndex
-  version: "1.0.0"
-disable-model-invocation: true
----
-
-# llamaparse (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/serena-mcp/SKILL.md
-`````markdown
----
-name: serena-mcp
-description: >-
-  Enforce Serena MCP usage for project memory and .serena governance. Use for memory read/write, onboarding checks,
-  phase-end updates, and any .serena scoped operation.
-disable-model-invocation: true
----
-
-# Serena MCP Enforcement (Condensed)
-
-## When to Use
-
-- Phase start/end (plan/impl/review/qa)
-- Project memory read/write/update
-- Any `.serena/` path operation
-
-## Mandatory Rules
-
-1. Never edit `.serena/` with direct file tools.
-2. Use Serena memory tools for create/update/delete.
-3. Activate project before memory operations.
-4. Execute phase-end memory update before handoff.
-
-## Phase-End Flow
-
-1. Activate project
-2. List memories
-3. Write phase memory
-4. Delete stale memories (if needed)
-5. Summarize changes
-
-## Minimal Phase Memory Template
-
-```markdown
-## Phase: <plan|impl|review|qa>
-## Task: <id or short description>
-## Date: <YYYY-MM-DD>
-
-### Scope
-- <item>
-
-### Decisions / Findings
-- <item>
-
-### Validation / Evidence
-- <item>
-
-### Deviations / Risks
-- <item or none>
-
-### Open Questions
-- <item or none>
-```
-
-## Guardrails
-
-- If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
-- Keep memory names consistent (`workflow/<phase>-<task-id>`).
-`````
-
-## File: .github/skills/vercel-cli-with-tokens/SKILL.md
-`````markdown
----
-name: vercel-cli-with-tokens
-description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
-metadata:
-  author: vercel
-  version: "1.0.0"
-disable-model-invocation: true
----
-
-# vercel-cli-with-tokens (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-react-best-practices/SKILL.md
-`````markdown
----
-name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
-license: MIT
-metadata:
-  author: vercel
-  version: "1.0.0"
----
-
-# vercel-react-best-practices (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/instructions/modules-dependency-graph.instructions.md
-`````markdown
----
-description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
----
-
-# Modules Dependency Graph
-
-Use this instruction when a change adds, removes, or redirects dependencies between modules.
-
-## Core Rule
-
-- Do not break dependency direction.
-- Do not introduce reverse edges for convenience.
-- Keep the graph acyclic unless an event-driven contract explicitly documents the exception.
-
-## Canonical Dependency Source
-
-Do not treat this file as a full edge registry. For concrete decisions, use these sources in order:
-
-1. `modules/<target>/api` as the only cross-module import boundary
-2. `agents/knowledge-base.md` for MDDD boundary policy
-3. `eslint.config.mjs` boundary and restricted-import enforcement
-
-If a change needs a new edge or direction change, document and justify it in the same change.
-
-## Dependency Rules
-
-- Prefer `module -> target/api`
-- Prefer event flows over internal reach-through
-- Do not make lower-level foundational modules depend on higher-level feature modules
-- Do not hide dependency inversions inside barrels
-
-## Refactor Checklist
-
-1. Identify current incoming and outgoing module dependencies.
-2. Confirm the new direction preserves existing architectural intent.
-3. Replace forbidden edges with API or event contracts.
-4. Update docs when an approved dependency edge changes.
-
-## Validation
-
-- Search changed imports for `@/modules/`
-- Verify no new cross-module internal import paths were introduced
-- Run validation commands from `agents/commands.md` based on change scope
-`````
-
-## File: docs/development-reference/reference/ai/customizations-index.md
-`````markdown
----
-title: AI customizations index
-description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
----
-
-# AI customizations index
-
-This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
-
-## Scope boundary
-
-- `.github/` is the operational source of truth.
-- This page provides routing, ownership, lifecycle status, and maintenance policy.
-- Avoid duplicating full file bodies from `.github/`.
-- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
-- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
-
-## Baseline references
-
-| Asset | Type | Responsibility | Notes |
-| --- | --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
-| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
-| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
-| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
-| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
-| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
-
-## Primary routing
-
-Use this order when working on customization assets:
-
-1. [.github/README.md](../../../../.github/README.md)
-2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
-3. the target folder under `.github/`
-4. the exact target file
-
-## Delivery workflow agents
-
-| Asset | Stage | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
-| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
-| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
-| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
-| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
-
-## Specialized Custom Agents
-
-| Asset | Focus | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
-| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
-
-## Modules Architecture Suite
-
-| Asset group | Files |
-| --- | --- |
-| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
-| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
-| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
-
-Scope partition for instruction consumption:
-
-- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
-- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
-
-## Delivery prompts
-
-| Asset | Primary use | Typical entry point |
-| --- | --- | --- |
-| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
-| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
-| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
-| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
-| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
-| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
-
-## Planning contract reference
-
-| Asset | Responsibility |
-| --- | --- |
-| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
-| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
-| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
-
-## Operational guidance
-
-| Asset | Audience | Purpose |
-| --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
-| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
-| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
-
-## Existing specialized skills
-
-- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
-- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
-- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
-- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
-- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
-
-## Legacy assets
-
-| Asset | Current status | Replacement |
-| --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
-
-## Ownership and update policy
-
-- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
-- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
-- Keep this page concise; keep executable definitions in `.github/`.
-- Treat undocumented customization assets as provisional.
-`````
-
-## File: modules/workspace-flow/AGENT.md
-`````markdown
-# Agent Guide — workspace-flow
-
-This file defines how agents and contributors should structure and evolve the workspace-flow module.
-
-## Module Purpose
-
-workspace-flow is a logic-first bounded context.
-It owns workflow rules, state transitions, guard conditions, persistence contracts, and public module APIs.
-
-It does not own product UI composition.
-UI should be assembled outside this module and consume workspace-flow only through the public api boundary.
-
-Related references:
-- [README.md](./README.md)
-- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
-- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
-- [Workspace-Flow-UI.mermaid](./Workspace-Flow-UI.mermaid)
-- [Workspace-Flow-States.mermaid](./Workspace-Flow-States.mermaid)
-- [Workspace-Flow-Sequence.mermaid](./Workspace-Flow-Sequence.mermaid)
-- [Workspace-Flow-ERD.mermaid](./Workspace-Flow-ERD.mermaid)
-- [Workspace-Flow-Architecture.mermaid](./Workspace-Flow-Architecture.mermaid)
-- [Workspace-Flow-Permissions.mermaid](./Workspace-Flow-Permissions.mermaid)
-- [Workspace-Flow-Events.mermaid](./Workspace-Flow-Events.mermaid)
-- [Workspace-Flow-Lifecycle.mermaid](./Workspace-Flow-Lifecycle.mermaid)
-
-## Target Module Shape
-
-```text
-modules/workspace-flow/
-├── api/
-│   ├── contracts.ts
-│   ├── index.ts
-│   └── workspace-flow.facade.ts
-├── application/
-│   ├── dto/
-│   │   ├── add-invoice-item.dto.ts
-│   │   ├── create-task.dto.ts
-│   │   ├── invoice-query.dto.ts
-│   │   ├── issue-query.dto.ts
-│   │   ├── open-issue.dto.ts
-│   │   └── task-query.dto.ts
-│   ├── ports/
-│   │   ├── InvoiceService.ts
-│   │   ├── IssueService.ts
-│   │   └── TaskService.ts
-│   └── use-cases/
-│       ├── add-invoice-item.use-case.ts
-│       ├── approve-invoice.use-case.ts
-│       ├── approve-task-acceptance.use-case.ts
-│       ├── archive-task.use-case.ts
-│       ├── assign-task.use-case.ts
-│       ├── close-invoice.use-case.ts
-│       ├── close-issue.use-case.ts
-│       ├── create-invoice.use-case.ts
-│       ├── create-task.use-case.ts
-│       ├── fail-issue-retest.use-case.ts
-│       ├── fix-issue.use-case.ts
-│       ├── open-issue.use-case.ts
-│       ├── pass-issue-retest.use-case.ts
-│       ├── pass-task-qa.use-case.ts
-│       ├── pay-invoice.use-case.ts
-│       ├── reject-invoice.use-case.ts
-│       ├── remove-invoice-item.use-case.ts
-│       ├── review-invoice.use-case.ts
-│       ├── start-issue.use-case.ts
-│       ├── submit-issue-retest.use-case.ts
-│       ├── submit-invoice.use-case.ts
-│       └── submit-task-to-qa.use-case.ts
-├── domain/
-│   ├── entities/
-│   │   ├── Invoice.ts
-│   │   ├── InvoiceItem.ts
-│   │   ├── Issue.ts
-│   │   └── Task.ts
-│   ├── events/
-│   │   ├── InvoiceEvent.ts
-│   │   ├── IssueEvent.ts
-│   │   └── TaskEvent.ts
-│   ├── repositories/
-│   │   ├── InvoiceRepository.ts
-│   │   ├── IssueRepository.ts
-│   │   └── TaskRepository.ts
-│   ├── services/
-│   │   ├── invoice-guards.ts
-│   │   ├── invoice-transition-policy.ts
-│   │   ├── issue-transition-policy.ts
-│   │   ├── task-guards.ts
-│   │   └── task-transition-policy.ts
-│   └── value-objects/
-│       ├── InvoiceId.ts
-│       ├── InvoiceItemId.ts
-│       ├── InvoiceStatus.ts
-│       ├── IssueId.ts
-│       ├── IssueStage.ts
-│       ├── IssueStatus.ts
-│       ├── TaskId.ts
-│       ├── TaskStatus.ts
-│       └── UserId.ts
-├── infrastructure/
-│   ├── firebase/
-│   │   ├── invoice-item.converter.ts
-│   │   ├── invoice.converter.ts
-│   │   ├── issue.converter.ts
-│   │   ├── task.converter.ts
-│   │   └── workspace-flow.collections.ts
-│   ├── persistence/
-│   └── repositories/
-│       ├── FirebaseInvoiceItemRepository.ts
-│       ├── FirebaseInvoiceRepository.ts
-│       ├── FirebaseIssueRepository.ts
-│       └── FirebaseTaskRepository.ts
-├── interfaces/
-│   ├── _actions/
-│   │   └── workspace-flow.actions.ts
-│   ├── contracts/
-│   │   └── workspace-flow.contract.ts
-│   └── queries/
-│       └── workspace-flow.queries.ts
-├── AGENT.md
-├── README.md
-├── Workspace-Flow-Architecture.mermaid
-├── Workspace-Flow-ERD.mermaid
-├── Workspace-Flow-Events.mermaid
-├── Workspace-Flow-Lifecycle.mermaid
-├── Workspace-Flow-Permissions.mermaid
-├── Workspace-Flow-Sequence.mermaid
-├── Workspace-Flow-States.mermaid
-├── Workspace-Flow.mermaid
-├── Workspace-Flow-Tree.mermaid
-├── Workspace-Flow-UI.mermaid
-└── index.ts
-```
-
-## Target File Plan
-
-The module should be implemented with concrete files, not only folders.
-Use the following file plan as the construction baseline.
-
-### api
-
-Files:
-- api/index.ts
-- api/workspace-flow.facade.ts
-- api/contracts.ts
-
-Responsibilities:
-- expose the public module surface for external consumers
-- export only the minimum stable contracts, facades, and public types
-- hide internal domain, application, and infrastructure details
-
-Recommended exports:
-- WorkspaceFlowFacade
-- TaskSummary
-- IssueSummary
-- InvoiceSummary
-- TaskQueryDto / IssueQueryDto / InvoiceQueryDto if needed publicly
-
-### domain
-
-Files:
-- domain/entities/Task.ts
-- domain/entities/Issue.ts
-- domain/entities/Invoice.ts
-- domain/entities/InvoiceItem.ts
-- domain/value-objects/TaskId.ts
-- domain/value-objects/IssueId.ts
-- domain/value-objects/InvoiceId.ts
-- domain/value-objects/InvoiceItemId.ts
-- domain/value-objects/UserId.ts
-- domain/value-objects/TaskStatus.ts
-- domain/value-objects/IssueStatus.ts
-- domain/value-objects/IssueStage.ts
-- domain/value-objects/InvoiceStatus.ts
-- domain/events/TaskEvent.ts
-- domain/events/IssueEvent.ts
-- domain/events/InvoiceEvent.ts
-- domain/repositories/TaskRepository.ts
-- domain/repositories/IssueRepository.ts
-- domain/repositories/InvoiceRepository.ts
-- domain/services/task-transition-policy.ts
-- domain/services/issue-transition-policy.ts
-- domain/services/invoice-transition-policy.ts
-- domain/services/task-guards.ts
-- domain/services/invoice-guards.ts
-
-Responsibilities:
-- define entities and lifecycle states
-- define legal transitions and invariant checks
-- define repository contracts only, never implementations
-- stay framework-free
-
-### application
-
-Files:
-- application/dto/task-query.dto.ts
-- application/dto/issue-query.dto.ts
-- application/dto/invoice-query.dto.ts
-- application/dto/create-task.dto.ts
-- application/dto/open-issue.dto.ts
-- application/dto/add-invoice-item.dto.ts
-- application/ports/TaskService.ts
-- application/ports/IssueService.ts
-- application/ports/InvoiceService.ts
-- application/use-cases/create-task.use-case.ts
-- application/use-cases/assign-task.use-case.ts
-- application/use-cases/submit-task-to-qa.use-case.ts
-- application/use-cases/pass-task-qa.use-case.ts
-- application/use-cases/approve-task-acceptance.use-case.ts
-- application/use-cases/archive-task.use-case.ts
-- application/use-cases/open-issue.use-case.ts
-- application/use-cases/start-issue.use-case.ts
-- application/use-cases/fix-issue.use-case.ts
-- application/use-cases/submit-issue-retest.use-case.ts
-- application/use-cases/pass-issue-retest.use-case.ts
-- application/use-cases/fail-issue-retest.use-case.ts
-- application/use-cases/close-issue.use-case.ts
-- application/use-cases/create-invoice.use-case.ts
-- application/use-cases/add-invoice-item.use-case.ts
-- application/use-cases/remove-invoice-item.use-case.ts
-- application/use-cases/submit-invoice.use-case.ts
-- application/use-cases/review-invoice.use-case.ts
-- application/use-cases/approve-invoice.use-case.ts
-- application/use-cases/reject-invoice.use-case.ts
-- application/use-cases/pay-invoice.use-case.ts
-- application/use-cases/close-invoice.use-case.ts
-
-Responsibilities:
-- orchestrate domain rules through use cases
-- define command and query DTOs
-- provide application-facing ports for module consumers
-
-### infrastructure
-
-Files:
-- infrastructure/firebase/workspace-flow.collections.ts
-- infrastructure/firebase/task.converter.ts
-- infrastructure/firebase/issue.converter.ts
-- infrastructure/firebase/invoice.converter.ts
-- infrastructure/firebase/invoice-item.converter.ts
-- infrastructure/repositories/FirebaseTaskRepository.ts
-- infrastructure/repositories/FirebaseIssueRepository.ts
-- infrastructure/repositories/FirebaseInvoiceRepository.ts
-- infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-
-Responsibilities:
-- map Firestore collections and document formats
-- implement repository contracts from domain
-- keep Firebase-specific concerns out of domain
-
-### interfaces
-
-Files:
-- interfaces/contracts/workspace-flow.contract.ts
-- interfaces/queries/workspace-flow.queries.ts
-- interfaces/_actions/workspace-flow.actions.ts
-
-Optional:
-- add module-local interface files only if this module genuinely needs them
-- keep product UI composition outside this module by default
-
-### module root
-
-Files:
-- index.ts
-- AGENT.md
-- README.md
-- Workspace-Flow.mermaid
-- Workspace-Flow-Tree.mermaid
-- Workspace-Flow-UI.mermaid
-- Workspace-Flow-States.mermaid
-- Workspace-Flow-Sequence.mermaid
-- Workspace-Flow-ERD.mermaid
-- Workspace-Flow-Architecture.mermaid
-- Workspace-Flow-Permissions.mermaid
-- Workspace-Flow-Events.mermaid
-- Workspace-Flow-Lifecycle.mermaid
-
-Rules:
-- index.ts is a local module barrel, not the cross-module public boundary
-- cross-module consumers still use api/index.ts
-
-## Legacy Types Policy
-
-The old types/ folder was temporary migration input only.
-The legacy files have been removed and must not be recreated.
-
-Rules:
-- Do not treat types/ as a public module boundary
-- Do not add new code under types/
-- Do not import types/* from outside this module
-- Move the logic into domain/application/infrastructure/api instead of recreating the legacy files
-- After deletion, do not recreate types/ as a shortcut export surface
-
-Legacy-to-target mapping:
-- core.ts → domain/value-objects/ and domain/events/
-- models.ts → domain/entities/
-- transitions.ts → domain/services/
-- services.ts → application/ports/
-- firestore.ts → infrastructure/firebase/ or infrastructure/persistence/
-- examples.ts → documentation examples or application examples if still needed
-- index.ts → split into api/index.ts and local module index.ts responsibilities
-
-Deletion rule:
-- once a target file exists, do not keep a duplicate legacy type file with the same responsibility
-
-## Ownership Rules
-
-workspace-flow owns:
-- Task, Issue, Invoice, InvoiceItem workflow logic
-- status unions and transition rules
-- guard rules such as no-open-issues and invoice submission constraints
-- persistence-facing document contracts for this module
-- public contracts exposed through api
-
-workspace-flow does not own:
-- route composition in app/
-- page layout, cards, boards, or dashboards
-- direct product UI rendering for external consumers
-
-## Layer Responsibilities
-
-### api
-
-Public cross-module surface only.
-Export the minimum set of contracts, facades, and types needed by other modules or app composition.
-
-External consumers must import only through:
-@/modules/workspace-flow/api
-
-### application
-
-Use cases, orchestration, command and query DTOs, and service contracts.
-Application may depend on domain contracts but must not depend directly on interfaces.
-
-### domain
-
-Pure business rules.
-Put entities, value objects, transition maps, guards, repository interfaces, and domain events here.
-
-Domain must stay framework-free.
-No React, Firebase SDK, browser APIs, or HTTP clients.
-
-### infrastructure
-
-Persistence and adapter implementations.
-Firestore collections, document mappings, repository implementations, and external integrations belong here.
-
-Infrastructure implements contracts defined by domain or application.
-
-### interfaces
-
-Optional for this module.
-Keep empty unless this module later needs module-local actions, query hooks, or interface-specific contracts.
-
-If UI is needed, prefer assembling it outside this module unless there is a strong reason to keep module-local interface adapters here.
-
-## Dependency Direction
-
-Allowed direction:
-interfaces → application → domain ← infrastructure
-api → application / domain
-api must not become a dumping ground for internal re-exports
-
-Forbidden direction:
-- domain → application
-- domain → infrastructure
-- domain → interfaces
-- application → interfaces
-- external modules → domain/application/infrastructure/interfaces internals
-
-## Public Boundary Rule
-
-Cross-module interaction must go through api only.
-
-Allowed:
-- import from @/modules/workspace-flow/api
-
-Forbidden:
-- import from @/modules/workspace-flow/domain/*
-- import from @/modules/workspace-flow/application/*
-- import from @/modules/workspace-flow/infrastructure/*
-- import from @/modules/workspace-flow/interfaces/*
-- import from types/* as a public dependency
-
-Recommended external usage pattern:
-- read models or summaries through api/contracts.ts
-- execute workflow operations through api/workspace-flow.facade.ts
-- never bind external UI directly to repository implementations or transition policies
-
-## Local Import Rule
-
-Inside workspace-flow:
-- use relative imports within the module
-- do not self-import through the public api
-- do not use the module public boundary for internal wiring
-
-## UI Boundary Rule
-
-workspace-flow is logic-first.
-External pages or modules may assemble UI using workspace-flow public contracts.
-
-Preferred pattern:
-app or another module UI
-→ imports from workspace-flow/api
-→ calls application-facing facades or use cases
-→ renders its own interface
-
-Do not move product UI concerns into domain or application.
-
-## Documentation Alignment
-
-Keep these documents aligned whenever workflow structure changes:
-- [README.md](./README.md)
-- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
-- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
-- api exports if public contracts change
-
-If event names, states, or guards change, update the docs in the same change.
-If a temporary migration file is removed, update the docs in the same change so no document still presents it as canonical.
-
-## Construction Order
-
-Implement in this order to avoid boundary drift:
-
-1. domain/value-objects and domain/events
-2. domain/entities and domain/repositories
-3. domain/services for transitions and guards
-4. application/dto and application/ports
-5. application/use-cases
-6. infrastructure/firebase and infrastructure/repositories
-7. api/contracts.ts and api/workspace-flow.facade.ts
-8. optional interfaces contracts or actions
-
-Do not start from UI.
-Do not expose unfinished internals through api just to unblock temporary callers.
-
-## Validation
-
-Required validation after structural or public-boundary changes:
-- npm run lint
-- npm run build
-
-Re-check:
-- no cross-module internal imports
-- no UI logic in domain
-- no infrastructure dependencies leaking into domain
-- api exports remain narrow and intentional
 `````
 
 ## File: modules/workspace-flow/README.md

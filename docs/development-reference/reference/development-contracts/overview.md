@@ -11,7 +11,7 @@ Contracts that remove implementation ambiguity. Each contract names: owning modu
 
 | Contract | Status | Primary owner | Current shape | Main blocker removed |
 | --- | --- | --- | --- | --- |
-| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/file` + `modules/ai` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
+| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/asset` + `modules/knowledge` + `modules/retrieval` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
 | [Parser contract](./parser-contract.md) | 🏗️ Midway | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
 | [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + projection on submit | Split ownership: derived items, persisted requests, projection read model |
 | [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification digest → workspace feed + org aggregation | Clarify feed, interaction, promotion boundaries |

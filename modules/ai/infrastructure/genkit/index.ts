@@ -1,12 +1,11 @@
 /**
- * @module modules/ai/infrastructure/genkit
+ * @deprecated AI genkit infrastructure moved to modules/agent.
  */
-
 export {
-  aiClient,
+  agentClient as aiClient,
   createGenkitClient,
   getConfiguredGenkitModel,
   type GenkitClientOptions,
-} from "./client";
-export { GenkitAIRepository } from "./GenkitAIRepository";
-export { GenkitRagGenerationRepository } from "./GenkitRagGenerationRepository";
+} from "@/modules/agent/infrastructure/genkit";
+export { GenkitAgentRepository as GenkitAIRepository } from "@/modules/agent/api";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";

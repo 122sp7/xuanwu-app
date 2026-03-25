@@ -1,2 +1,1 @@
-export * from "./firebase";
-export * from "./genkit";
+export * from "@/modules/agent/infrastructure";

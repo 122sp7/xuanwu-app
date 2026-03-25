@@ -1,5 +1,4 @@
-import type { GenerateAIResponseInput, GenerateAIResponseResult } from "../entities/AIGeneration";
-
-export interface AIRepository {
-  generateResponse(input: GenerateAIResponseInput): Promise<GenerateAIResponseResult>;
-}
+/**
+ * @deprecated AI repository contract moved to modules/agent.
+ */
+export type { AgentRepository as AIRepository } from "@/modules/agent/api";

@@ -1,4 +1,4 @@
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
+/**
+ * @deprecated modules/ai ownership moved to modules/agent.
+ */
+export * from "@/modules/agent";

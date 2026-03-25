@@ -124,7 +124,12 @@
   - converted `modules/ai/domain/repositories/RagRetrievalRepository.ts` into deprecated bridge type re-exports,
   - converted `modules/ai/infrastructure/firebase/FirebaseRagRetrievalRepository.ts` into deprecated bridge re-export from `modules/retrieval/api`.
 - Validation for phase4 retrieval-cleanup increment passed: focused ESLint and full `npm run build` success.
-- Next recommended implementation step: update development-contract docs and module docs to reflect retrieval ownership and reduced ai scope, then proceed to agent-side extraction work.
+- Completed phase7 contract-sync increment on 2026-03-25:
+  - converted `modules/ai/domain/repositories/RagGenerationRepository.ts` to deprecated retrieval bridge type exports,
+  - converted `modules/ai/infrastructure/genkit/GenkitRagGenerationRepository.ts` to deprecated retrieval bridge re-export,
+  - updated contract owners in `docs/development-reference/reference/development-contracts/overview.md`, `rag-ingestion-contract.md`, and `parser-contract.md` from legacy `file/ai` wording to `asset/knowledge/retrieval` wording where ownership has already shifted.
+- Validation for phase7 contract-sync increment passed: `npm run build` success (lint remains warning-only with no new errors from this increment).
+- Next recommended implementation step: continue agent extraction by moving orchestration and conversation/tool-dispatch ownership from `modules/ai` into `modules/agent` and then shrinking ai to compatibility bridges only.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.

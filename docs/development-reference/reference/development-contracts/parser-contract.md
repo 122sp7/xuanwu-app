@@ -17,14 +17,14 @@ Parser module: read-side summary of workspace parser readiness, source discovery
 | Concern | Owner |
 | --- | --- |
 | Parser summary derivation | `modules/parser` |
-| File readiness input | `modules/file` query boundary |
+| Asset readiness input | `modules/asset` query boundary |
 | Workspace capability and cover context | `modules/workspace` read model |
 
 ## Current query contract
 
 ### Entry point
 
-`getWorkspaceParserSignalSummary(workspace)` resolves file data through the file module and returns a `WorkspaceParserSummary`.
+`getWorkspaceParserSignalSummary(workspace)` resolves asset data through the asset module and returns a `WorkspaceParserSummary`.
 
 ### Output shape
 
@@ -40,7 +40,7 @@ Parser module: read-side summary of workspace parser readiness, source discovery
 Parser may use only:
 - Workspace cover/media
 - Workspace capability count
-- File-module items + lifecycle status
+- Asset-module items + lifecycle status
 
 ❌ Forbidden: storage blobs, parser-job collections, RAG chunks
 

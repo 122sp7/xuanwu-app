@@ -16,8 +16,9 @@ Authoritative cross-runtime contract for upload-to-worker boundary spanning Next
 
 | Responsibility | Owner |
 | --- | --- |
-| Upload registration and browser-facing orchestration | `modules/file` and Next.js interfaces |
-| Retrieval orchestration and answer generation | `modules/ai` |
+| Upload registration and browser-facing orchestration | `modules/asset` and Next.js interfaces |
+| Ingestion registration and lifecycle intent | `modules/knowledge` |
+| Retrieval orchestration and answer generation | `modules/retrieval` |
 | Parsing, chunking, embedding, and lifecycle write-back | `py_fn` |
 
 ## Canonical upload request

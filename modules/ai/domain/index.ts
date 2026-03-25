@@ -1,9 +1,7 @@
 export type {
-  AIResponse,
-  GenerateAIResponseInput,
-  GenerateAIResponseResult,
-} from "./entities/AIGeneration";
-export type {
+  AgentResponse as AIResponse,
+  GenerateAgentResponseInput as GenerateAIResponseInput,
+  GenerateAgentResponseResult as GenerateAIResponseResult,
   AnswerRagQueryInput,
   AnswerRagQueryOutput,
   AnswerRagQueryResult,
@@ -11,15 +9,11 @@ export type {
   RagRetrievedChunk,
   RagRetrievalSummary,
   RagStreamEvent,
-} from "./entities/RagQuery";
-export type { AIRepository } from "./repositories/AIRepository";
-export type {
   GenerateRagAnswerInput,
   GenerateRagAnswerOutput,
   GenerateRagAnswerResult,
   RagGenerationRepository,
-} from "./repositories/RagGenerationRepository";
-export type {
   RagRetrievalRepository,
   RetrieveRagChunksInput,
-} from "./repositories/RagRetrievalRepository";
+  AgentRepository as AIRepository,
+} from "@/modules/agent/api";

@@ -1,6 +1,4 @@
 /**
- * modules/ai — public API barrel.
+ * @deprecated modules/ai API moved to modules/agent/api.
  */
-
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
+export * from "@/modules/agent/api";
