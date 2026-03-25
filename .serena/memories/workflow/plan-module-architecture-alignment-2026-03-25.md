@@ -129,7 +129,14 @@
   - converted `modules/ai/infrastructure/genkit/GenkitRagGenerationRepository.ts` to deprecated retrieval bridge re-export,
   - updated contract owners in `docs/development-reference/reference/development-contracts/overview.md`, `rag-ingestion-contract.md`, and `parser-contract.md` from legacy `file/ai` wording to `asset/knowledge/retrieval` wording where ownership has already shifted.
 - Validation for phase7 contract-sync increment passed: `npm run build` success (lint remains warning-only with no new errors from this increment).
-- Next recommended implementation step: continue agent extraction by moving orchestration and conversation/tool-dispatch ownership from `modules/ai` into `modules/agent` and then shrinking ai to compatibility bridges only.
+- Completed phase6 agent-extraction increment on 2026-03-25:
+  - created `modules/agent` as the new orchestration owner with renamed assets: `generate-agent-response.use-case.ts`, `GenkitAgentRepository.ts`, `agent.actions.ts`, and `generateAgentResponse` API surface,
+  - migrated generation contracts to agent naming (`GenerateAgentResponseInput/Result`, `AgentRepository`) while preserving retrieval bridges through retrieval/api,
+  - converted `modules/ai` generation/action/domain/infrastructure surfaces into compatibility bridges that forward to `modules/agent` while keeping legacy `generateAIResponse` compatibility.
+- Completed phase8 file-retirement increment on 2026-03-25:
+  - removed the remaining bridge files under `modules/file` (`api/index.ts`, `index.ts`, `README.md`) after verifying no runtime imports of `@/modules/file` remain.
+- Validation for phase6+phase8 increment passed: `npm run build` success after migration fix; lint remains warning-only with no new errors from this increment.
+- Next recommended implementation step: perform contract/module-doc synchronization for `modules/agent` ownership wording and then evaluate whether `modules/ai` can be fully deleted after a compatibility window.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.
