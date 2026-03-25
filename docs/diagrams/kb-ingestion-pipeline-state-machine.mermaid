@@ -1,0 +1,34 @@
+%% Xuanwu knowledge base ingestion pipeline state machine
+%% Purpose: describe the storage-triggered parse and RAG ingestion lifecycle for uploaded knowledge files
+%% Scope: ingestion states only; complements API/data flow diagrams
+
+stateDiagram-v2
+    [*] --> UploadDetected
+
+    UploadDetected --> ScopeValidated: uploads/ prefix matched\naccount_id + workspace_id resolved
+    UploadDetected --> Ignored: unsupported file / missing scope
+
+    ScopeValidated --> ProcessingIndexed: init_document()\nFirestore status=processing
+    ProcessingIndexed --> ParsingDocument: process_document_gcs()
+
+    ParsingDocument --> ParseFailed: Document AI exception
+    ParsingDocument --> ParsedJsonStored: upload_json(files/...json)
+
+    ParsedJsonStored --> ParseIndexed: update_parsed()\nFirestore status=completed
+    ParseIndexed --> RagChunking: ingest_document_for_rag()
+
+    RagChunking --> Embedding: chunk_text prepared
+    Embedding --> SearchIndexed: vectors + search docs upserted
+    SearchIndexed --> RagReady: mark_rag_ready()\nrag.status=ready
+
+    RagChunking --> RagFailed: ingestion exception
+    Embedding --> RagFailed: embedding exception
+    SearchIndexed --> RagFailed: index sync exception
+    RagFailed --> CompletedWithRagError: record_rag_error()\nparse result remains available
+
+    ParseFailed --> ErrorRecorded: record_error()\nstatus=error
+
+    RagReady --> [*]
+    CompletedWithRagError --> [*]
+    ErrorRecorded --> [*]
+    Ignored --> [*]

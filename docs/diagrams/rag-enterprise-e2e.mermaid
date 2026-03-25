@@ -1,0 +1,138 @@
+flowchart TD
+  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
+  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
+  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
+  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
+  classDef naming fill:#fef2f2,stroke:#ef4444,color:#7f1d1d
+  classDef docai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
+  classDef accel fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+  classDef pyown fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,font-weight:bold
+  classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
+
+  subgraph ING[① Ingestion Pipeline - 資料進來]
+    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
+    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
+    I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
+  end
+
+  subgraph DOCAI[①A document_ai 核心用途與輸出]
+    DA1[讀取 raw 檔案 bytes]:::docai --> DA2[Document AI Layout Parser]:::docai --> DA3[抽取 text pages tables headings]:::docai --> DA4[輸出 layout artifact json]:::docai
+    DA3 --> DA5[正規化 normalize 與去雜訊]:::docai --> DA6[doc-level taxonomy]:::docai --> DA7[chunking 與 chunkIndex 決定]:::docai
+    DA7 --> DA8[chunk metadata 組裝 page taxonomy tags]:::docai --> DA9[輸出 chunk payload 給 embedding]:::docai
+    DA2 --> DA10{document_ai 失敗?}:::docai
+    DA10 -->|yes| DA11[回寫 documents status failed with errorCode errorMessage]:::docai
+    DA10 -->|no| DA5
+  end
+
+  subgraph QRY[② Query Pipeline - 查詢與 RAG]
+    subgraph QRYA[②A 查詢主線]
+      Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Index readiness gate]:::query --> Q6[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q7{Top-K chunks found?}:::query
+      Q7 -->|yes| Q8[Context 組裝 prompt building]:::query --> Q9[Genkit LLM 回答生成]:::query --> Q10[Streaming 回傳 Next.js UI]:::query
+    end
+    subgraph QRYB[②B 查詢回退與觀測]
+      Q7 -->|no| Q11[No-context fallback response]:::query
+      Q9 --> Q12[query traces latency and cost metrics]:::query
+    end
+  end
+
+  subgraph OPT[③ Optional 強化 - 企業必備]
+    subgraph OPTA[③A Retrieval and Rerank]
+      O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
+      O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
+    end
+    subgraph OPTB[③B Cache and Feedback]
+      O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
+      O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
+    end
+  end
+
+  subgraph DATA[④ Firestore 資料結構核心]
+    subgraph DATAA[④A documents 契約]
+      D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
+    end
+    subgraph DATAB[④B chunks 契約]
+      D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
+    end
+  end
+
+  subgraph NAMING[④C 檔案命名與儲存結構契約]
+    N1[canonical documentId 與 originalFilename 分離]:::naming
+    N2[raw 檔固定命名 source plus ext]:::naming
+    N3[storagePath tenants slash tenantId slash workspaces slash workspaceId slash documents slash documentId slash raw slash source ext]:::naming
+    N4[derived 輸出放在 derived 子目錄]:::naming
+    N5[chunk upsert key documentId underscore chunkIndex]:::naming
+    N6[documents 必填 tenantId workspaceId checksum storagePath]:::naming
+  end
+
+  subgraph KEY[⑤ 關鍵觀念濃縮]
+    subgraph KEYA[⑤A Retrieval 原則]
+      K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
+      K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
+      K3[Vector Search 在 query 做 每次查詢]:::keypoint
+    end
+    subgraph KEYB[⑤B Runtime 原則]
+      K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
+      K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
+    end
+  end
+
+  subgraph SUM[⑥B 一句話總結]
+    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
+    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
+  end
+
+  subgraph OWN[⑥A Runtime Ownership]
+    R1[綠色框 = Next.js 主責節點]:::nxown
+    R2[藍色框 = py_fn 主責節點]:::pyown
+  end
+
+  subgraph LINKRULE[⑥C 線路規則]
+    L1[實線 = 主流程執行順序]:::summary
+    L2[虛線 = 契約或能力映射]:::keypoint
+    L3[跨區連線優先以區塊級映射呈現]:::keypoint
+  end
+
+  subgraph ACCEL[⑦ package.json 可直接降低開發難度]
+    subgraph ACCELA[⑦A 開發迭代工具]
+      A1[scripts dev build lint 降低本地迭代摩擦]:::accel
+      A4[zod 契約驗證 可用於 UploadRequest QueryInput WorkerEvent]:::accel
+      A5[tanstack react-query 快速實作 query 快取 重試 與狀態同步]:::accel
+      A7[xstate plus zustand 可把複雜流程狀態與 UI 狀態拆分管理]:::accel
+      A8[axios 可統一 infrastructure adapter 的 HTTP 呼叫]:::accel
+      A9[tailwind plus shadcn 加速介面與後台工具頁建置]:::accel
+    end
+    subgraph ACCELB[⑦B 部署與基礎設施]
+      A2[scripts deploy:functions:py-fn deploy:firestore:indexes deploy:rules 降低部署心智負擔]:::accel
+    end
+    subgraph ACCELC[⑦C RAG 流程能力]
+      A3[genkit plus google-genai 直接支援 Query Flow 與 LLM orchestration]:::accel
+      A6[upstash redis vector 可支援 Optional Cache 與 Retrieval 擴充]:::accel
+    end
+  end
+
+  I4 -.-> DA1
+  DA9 -.-> I11
+  DA11 -.-> I16
+
+  ING -.-> DATA
+  QRY -.-> DATA
+  NAMING -.-> ING
+  NAMING -.-> DATA
+  QRY -.-> OPT
+
+  DA4 -.-> N4
+  DA11 -.-> D1
+
+  S1 -.-> ING
+  S2 -.-> QRY
+
+  ACCELA -.-> ING
+  ACCELA -.-> QRY
+  ACCELB -.-> ING
+  ACCELC -.-> QRY
+  ACCELC -.-> OPT
+
+  class I1,I3,Q1,Q2,Q10,Q11 nxown
+  class I4,I11,I12,I15,I16,DA1,DA2,DA3,DA4,DA5,DA6,DA7,DA8,DA9,DA10,DA11 pyown

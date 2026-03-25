@@ -1,0 +1,67 @@
+%% Xuanwu Firestore collection path structure
+%% Purpose: map Firestore top-level collections and important nested subcollection paths
+%% Scope: collection topology only; complements architecture, hierarchy, interaction, and ER diagrams
+
+flowchart TB
+    Root[(Firestore /databases/{db}/documents)]
+
+    Root --> Accounts["accounts/{accountId}"]
+    Root --> Organizations["organizations/{organizationId}"]
+    Root --> Workspaces["workspaces/{workspaceId}"]
+    Root --> AccountRoles["accountRoles/{accountId}"]
+    Root --> AccountPolicies["accountPolicies/{policyId}"]
+    Root --> OrgPolicies["orgPolicies/{policyId}"]
+    Root --> TokenRefresh["tokenRefreshSignals/{accountId}"]
+    Root --> Notifications["notifications/{notificationId}"]
+    Root --> AuditLogs["auditLogs/{logId}"]
+    Root --> WorkspaceTasks["workspaceTasks/{taskId}"]
+    Root --> WorkspaceIssues["workspaceIssues/{issueId}"]
+    Root --> WorkspaceQualityChecks["workspaceQualityChecks/{qualityCheckId}"]
+    Root --> WorkspaceScheduleAck["workspaceScheduleAcknowledgements/{ackId}"]
+    Root --> ScheduleRequests["scheduleRequests/{requestId}"]
+    Root --> ScheduleMdddRequests["scheduleMdddRequests/{requestId}"]
+    Root --> ScheduleMdddAssignments["scheduleMdddAssignments/{assignmentId}"]
+    Root --> ScheduleMdddTasks["scheduleMdddTasks/{taskId}"]
+    Root --> ScheduleMdddMatches["scheduleMdddMatches/{matchId}"]
+    Root --> ScheduleMdddSchedules["scheduleMdddSchedules/{scheduleId}"]
+    Root --> ScheduleMdddFlows["scheduleMdddFlowProjections/{projectionId}"]
+    Root --> Finance["finance/{workspaceId}"]
+
+    Accounts --> AccountDocs["documents/{docId}\nRAG index / parse status"]
+    Accounts --> AccountPages["pages/{pageId}\nWiki pages"]
+    Accounts --> WalletTx["walletTransactions/{transactionId}"]
+    Accounts -. legacy .-> LegacySchedule["schedule_items/{itemId}\nlegacy read model"]
+
+    Organizations --> OrgInvites["invites/{inviteId}"]
+    Organizations --> OrgTeams["teams/{teamId}"]
+    Organizations --> OrgPartnerInvites["partnerInvites/{inviteId}"]
+
+    subgraph FileModel ["Canonical File Model Target"]
+        direction TB
+        Root --> FileDocuments["fileDocuments/{fileId}"]
+        FileDocuments --> FileVersions["versions/{versionId}"]
+        Root --> FilePermissionSnapshots["filePermissionSnapshots/{snapshotId}"]
+        Root --> FileRetentionPolicies["fileRetentionPolicies/{policyId}"]
+        Root --> FileUploadSessions["fileUploadSessions/{uploadSessionId}"]
+        Root --> FileAuditRecords["fileAuditRecords/{auditRecordId}"]
+    end
+
+    subgraph Notes ["Scope Markers"]
+        direction TB
+        Note1["Top-level collections = active application collections"]
+        Note2["Nested under accounts / organizations = account-scoped or org-scoped subcollections"]
+        Note3["Dashed edge = legacy / compatibility path"]
+        Note4["FileModel block = canonical target model documented by file module"]
+    end
+
+    classDef root fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef active fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
+    classDef scoped fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.2px;
+    classDef planned fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
+    classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-width:1px;
+
+    class Root root;
+    class Accounts,Organizations,Workspaces,AccountRoles,AccountPolicies,OrgPolicies,TokenRefresh,Notifications,AuditLogs,WorkspaceTasks,WorkspaceIssues,WorkspaceQualityChecks,WorkspaceScheduleAck,ScheduleRequests,ScheduleMdddRequests,ScheduleMdddAssignments,ScheduleMdddTasks,ScheduleMdddMatches,ScheduleMdddSchedules,ScheduleMdddFlows,Finance active;
+    class AccountDocs,AccountPages,WalletTx,OrgInvites,OrgTeams,OrgPartnerInvites,LegacySchedule scoped;
+    class FileDocuments,FileVersions,FilePermissionSnapshots,FileRetentionPolicies,FileUploadSessions,FileAuditRecords planned;
+    class Note1,Note2,Note3,Note4 note;
