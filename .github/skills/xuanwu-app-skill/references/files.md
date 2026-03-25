@@ -33,466 +33,6 @@
 }
 `````
 
-## File: .github/prompts/context7-mcp.prompt.md
-`````markdown
----
-name: context7-mcp
-description: 使用 Context7 MCP 前先核對官方手冊，並以可用工具執行查詢、記憶維護與回報
-agent: agent
-argument-hint: 例如 query=Next.js caching, goals=docs,examples,memory-refresh
----
-
-# Context7 MCP
-
-## Mission
-執行 Context7 任務前，先檢查對應官方手冊，再用可用 MCP 工具完成查詢與維護。 
-
-## Inputs
-- query: ${input:query:請輸入主題或問題}
-- goals: ${input:goals:docs,examples,memory-refresh}
-- officialDocUrl: ${input:officialDocUrl:請輸入 Context7 官方手冊網址}
-
-## Rules
-- 必須先讀官方手冊（`officialDocUrl`）再執行 MCP 操作。
-- 只能呼叫目前可用的 Context7 工具；不可虛構指令。
-- 若工具不可用，回報限制與替代方案。
-
-## Workflow
-1. 讀取官方手冊：確認工具名稱、參數、限制。
-2. 列出可用工具：比對 `goals` 與工具能力。
-3. 執行查詢或記憶任務：逐步輸出結果。
-4. 若需清理/重建：先評估是否有對應工具，否則走替代流程。
-5. 產出結論：包含工具使用明細與限制說明。
-
-## Output Format
-### Context7 執行結果
-- query: <value>
-- goals: <resolved goals>
-- status: <success | partial | blocked>
-
-### 官方手冊核對
-- source: <url>
-- checked_items:
-	- <item>
-	- <item>
-
-### 已執行工具
-- <tool>
-- <tool>
-
-### 結果摘要
-- <key result>
-
-### 限制與替代
-- limitation: <reason>
-- fallback: <action>
-`````
-
-## File: .github/prompts/next‑devtools‑mcp.prompt.md
-`````markdown
----
-name: next-devtools-mcp
-description: 使用 Next DevTools MCP 前先核對官方手冊，再執行 Next.js 診斷、文件查詢與路由驗證
-agent: agent
-argument-hint: 例如 task=diagnose-runtime-errors route=/wiki-beta officialDocUrl=https://nextjs.org/docs
----
-
-# Next DevTools MCP
-
-## Mission
-在 Next.js 任務中，先確認官方手冊與 MCP 工具可用性，再執行診斷、查詢與修復建議。
-
-## Inputs
-- task: ${input:task:diagnose-runtime-errors | docs-lookup | route-check}
-- route: ${input:route:/}
-- officialDocUrl: ${input:officialDocUrl:https://nextjs.org/docs}
-
-## Rules
-- 先閱讀 `officialDocUrl` 與 MCP 伺服器官方文件，再執行工具。
-- 優先使用 Next.js MCP 工具；僅在必要時搭配 browser automation。
-- 若要求超出可用工具，必須回報「不可直接執行」與替代方案。
-
-## Workflow
-1. 文件核對：讀取 Next.js 官方手冊與 DevTools MCP 說明。
-2. 列出可用工具：確認 runtime/docs/route/error 類工具可呼叫。
-3. 執行任務：依 `task` 收集診斷資料與關鍵證據。
-4. 產出建議：分為立即修正、風險、後續檢查。
-5. 驗證：必要時重跑同一路徑，確認錯誤是否消失。
-
-## Output Format
-### Next DevTools 結果
-- task: <value>
-- route: <value>
-- status: <success | partial | blocked>
-
-### 官方手冊核對
-- source: <url>
-- checked_topics:
-  - <topic>
-  - <topic>
-
-### 已執行工具
-- <tool>
-- <tool>
-
-### 發現問題
-- <severity>: <finding>
-
-### 建議修正
-1. <change>
-2. <change>
-
-### 限制與替代
-- limitation: <reason>
-- fallback: <action>
-`````
-
-## File: .github/prompts/plan-bugfix.prompt.md
-`````markdown
----
-name: plan-bugfix
-description: Create a formal implementation plan for a bug fix, including reproduction, root cause framing, and regression risk.
-agent: planner
-argument-hint: Describe the bug, observed behavior, expected behavior, reproduction clues, and impacted areas.
----
-
-# Plan Bugfix
-
-Analyze the bug report and produce a formal implementation plan using [implementation-plan-template.md](../../docs/development-reference/reference/ai/implementation-plan-template.md).
-
-## Requirements
-
-- Capture reproduction summary in the request or current-state sections.
-- State the suspected root cause if enough evidence exists; otherwise make the uncertainty explicit.
-- Include regression risk in the risks section.
-- Define validation that proves the failing scenario is fixed and nearby behavior still works.
-- Follow [plan-schema.md](../../docs/development-reference/reference/ai/plan-schema.md).
-
-## Output
-
-Return the completed implementation plan only, followed by a short note stating whether the bug is sufficiently understood to start implementation.
-`````
-
-## File: .github/prompts/plan-feature.prompt.md
-`````markdown
----
-name: plan-feature
-description: Create a formal implementation plan for a feature or scoped enhancement.
-agent: planner
-argument-hint: Describe the feature request, desired outcome, constraints, and any relevant links or files.
----
-
-# Plan Feature
-
-Analyze the feature request and produce a formal implementation plan using [implementation-plan-template.md](../../docs/development-reference/reference/ai/implementation-plan-template.md).
-
-## Requirements
-
-- Ask up to 3 concise clarifying questions only when they materially change scope, ownership, or validation.
-- Follow [plan-schema.md](../../docs/development-reference/reference/ai/plan-schema.md).
-- Identify owning modules, runtime ownership, risks, validation, and documentation updates.
-- Keep non-goals explicit.
-- If the workflow appears contract-governed, name the relevant contract from [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
-
-## Output
-
-Return the completed implementation plan only, followed by a short note stating whether implementation can safely begin.
-`````
-
-## File: .github/prompts/playwright-mcp.prompt.md
-`````markdown
----
-name: playwright-mcp
-description: 使用 Playwright MCP 前先核對官方手冊，執行可重現的頁面互動、截圖與錯誤診斷
-agent: agent
-tools:
-	- playwright/*
-argument-hint: 例如 url=http://localhost:3000 flow=login-and-submit officialDocUrl=https://playwright.dev
----
-
-# Playwright MCP
-
-## Mission
-先核對 Playwright 官方手冊，再用 MCP 工具進行穩定且可重現的 UI 診斷流程。
-
-## Inputs
-- url: ${input:url:請輸入目標網址}
-- flow: ${input:flow:請描述要重現的操作路徑}
-- officialDocUrl: ${input:officialDocUrl:https://playwright.dev}
-
-## Rules
-- 先讀官方手冊，再開始瀏覽器自動化。
-- 必須記錄每一步動作與對應觀察結果，避免只給結論。
-- 優先輸出可重現步驟、證據（截圖/console/network）與修復建議。
-
-## Workflow
-1. 讀官方手冊：確認目前客戶端支援的 Playwright MCP 動作。
-2. 啟動與導航：開啟瀏覽器並前往 `url`。
-3. 依 `flow` 重現問題：逐步操作並記錄結果。
-4. 收集證據：截圖、console、network、DOM/可及性資訊。
-5. 彙整診斷：指出根因、影響範圍、修正優先順序。
-
-## Output Format
-### Playwright 診斷結果
-- url: <value>
-- flow: <value>
-- status: <success | partial | blocked>
-
-### 官方手冊核對
-- source: <url>
-- checked_items:
-	- <item>
-	- <item>
-
-### 重現步驟
-1. <step>
-2. <step>
-
-### 證據
-- screenshot: <path or note>
-- console: <summary>
-- network: <summary>
-
-### 建議修正
-1. <fix>
-2. <fix>
-
-### 限制與替代
-- limitation: <reason>
-- fallback: <action>
-`````
-
-## File: .github/prompts/resume-delivery.prompt.md
-`````markdown
----
-name: resume-delivery
-description: Resume a delivery workflow from a specific stage after interruption or context reset.
-agent: ask
-argument-hint: Provide current stage, plan reference, current change summary, outstanding findings, and desired next action.
----
-
-# Resume Delivery
-
-Reconstruct the current delivery state and route the work to the correct next stage.
-
-## Inputs to capture
-
-- Current stage
-- Plan reference or plan text
-- Current code or documentation change summary
-- Outstanding review or QA findings
-- Desired next action
-
-## Requirements
-
-- Use [handoff-matrix.md](../../docs/development-reference/reference/ai/handoff-matrix.md) to determine the valid next stage.
-- If the delivery state is unclear, ask the minimum questions needed to reconstruct it.
-- Recommend the correct next prompt or agent handoff.
-- If enough information is available, provide a ready-to-send next-stage prompt.
-
-## Output
-
-Return:
-
-1. reconstructed delivery state,
-2. recommended next stage,
-3. missing information if any,
-4. and the exact next prompt to run.
-`````
-
-## File: .github/prompts/serena-maintenance.prompt.md
-`````markdown
----
-name: serena-maintenance
-description: 依 Serena 官方工具集進行彈性維護，含記憶清理、索引替代重建與結果彙整
-agent: agent
-tools:
-  - serena/*
-argument-hint: 輸入專案路徑與維護目標，例如 projectPath=./, goals=trim-memory,rebuild-index
----
-
-# Serena Maintenance
-
-## Mission
-依 Serena 官方工具集執行維護，並「彈性使用」工具完成以下目標：
-1. 啟動專案與環境檢查
-2. onboarding 與記憶盤點
-3. 記憶精簡與舊條目清理
-4. 索引維護（若無專用索引工具則採替代重建）
-5. 變更彙整與回報
-
-## Inputs
-- projectPath: ${input:projectPath:請輸入專案路徑，預設為目前 workspace}
-- goals: ${input:goals:trim-memory,remove-stale,rebuild-index}
-- memoryScope: ${input:memoryScope:user,repo,session}
-- officialDocUrl: ${input:officialDocUrl:https://oraios.github.io/serena}
-
-## Rules
-- 必須先讀 Serena 官方手冊（`officialDocUrl`）與對應工具說明。
-- 只能使用可用的 Serena MCP 工具，不要虛構不存在的指令。
-- 若使用者要求的操作無對應工具，必須明確標示「不可直接執行」，並給可行替代。
-- 任何刪除動作先列出目標，再執行。
-- 不要輸出敏感資訊。
-
-## Tool Catalog
-請優先使用以下工具，依任務彈性組合：
-
-- `activate_project`：啟動專案
-- `check_onboarding_performed`：檢查 onboarding 是否完成
-- `create_text_file`：建立或覆寫檔案
-- `delete_lines`：刪除行
-- `delete_memory`：刪除 memory
-- `execute_shell_command`：執行 shell 指令
-- `find_referencing_code_snippets`：尋找指定符號的程式碼片段
-- `find_referencing_symbols`：尋找符號引用
-- `list_memories`：列出 memory
-- `onboarding`：執行 onboarding
-- `prepare_for_new_conversation`：為新的對話準備
-- `read_file`：讀取檔案內容
-- `read_memory`：讀取已儲存 memory
-- `replace_lines`：替換行
-- `replace_symbol_body`：替換整個符號定義
-- `restart_language_server`：重啟語言伺服器
-- `search_for_pattern`：搜尋模式
-- `summarize_changes`：彙總修改
-- `switch_modes`：切換模式
-- `think_about_*`：三種輔助思考工具
-- `write_memory`：寫入 memory（手動儲存上下文）
-
-## Workflow
-1. 官方手冊核對
-- 讀取 `officialDocUrl`，確認工具名稱、參數與限制。
-
-2. 啟動與前置檢查
-- 使用 `activate_project` 啟用 `projectPath`。
-- 使用 `check_onboarding_performed` 檢查 onboarding 狀態。
-- 若未完成，使用 `onboarding` 補齊。
-
-3. 盤點記憶
-- 使用 `list_memories` 取得清單。
-- 以 `read_memory` 讀取候選記憶，判斷重複、過期、矛盾。
-
-4. 精簡與清理
-- 使用 `write_memory` 合併與覆寫高品質版本。
-- 使用 `delete_memory` 移除已確認 stale 條目。
-- 必要時搭配檔案工具（`read_file` / `replace_lines` / `delete_lines` / `create_text_file`）整理維護紀錄。
-
-5. 索引維護（彈性模式）
-- 若環境提供專用索引工具：執行 prune / compact / rebuild。
-- 若無原生索引工具：
-  - 再次執行 `activate_project`（重建上下文）
-  - 使用 `list_memories` + `read_memory` + `delete_memory` 清掉 stale entries
-  - 使用 `write_memory` 寫回整併後摘要作為重建替代
-  - 在報告中明確標註限制與替代流程
-
-6. 驗證
-- 再次執行 `list_memories`，確認最終狀態。
-- 視需要執行 `summarize_changes` 產出維護摘要。
-- 必要時使用 `restart_language_server` 或 `switch_modes` 提升穩定性。
-
-## Output Format
-請用以下格式輸出：
-
-### Serena 維護結果
-- project: <name>
-- goals: <resolved goals>
-- status: <success | partial | blocked>
-
-### 官方手冊核對
-- source: <url>
-- checked_items:
-  - <item>
-  - <item>
-
-### 已執行
-- <動作 1>
-- <動作 2>
-
-### 已清理條目
-- <memory name / index key>
-
-### 使用工具
-- <tool 1>
-- <tool 2>
-
-### 無法直接執行與替代方案
-- request: <使用者原始要求>
-- reason: <工具不可用或能力限制>
-- fallback: <已採用替代流程>
-
-### 建議下一步
-1. <next step>
-2. <next step>
-
-## Notes
-- 本 prompt 用於可重複的 Serena 維護任務。
-- 針對「clean embeddings / compact vector index」等要求，先檢查工具可用性再執行。
-- 需要語義查核時，可搭配 `search_for_pattern`、`find_referencing_symbols`、`find_referencing_code_snippets` 做精準確認。
-`````
-
-## File: .github/prompts/shadcn-mcp.prompt.md
-`````markdown
----
-name: shadcn-mcp
-description: 使用 shadcn MCP 前先核對官方手冊，再執行元件搜尋、安裝與頁面組裝
-agent: agent
-tools:
-	- shadcn/*
-argument-hint: 例如 task=add-components components=button,card officialDocUrl=https://ui.shadcn.com/docs
----
-
-# shadcn MCP
-
-## Mission
-先讀 shadcn 官方手冊與 MCP 指南，再進行元件查找、加入與用法輸出。
-
-## Inputs
-- task: ${input:task:search | add | build-page}
-- components: ${input:components:button,card}
-- officialDocUrl: ${input:officialDocUrl:https://ui.shadcn.com/docs}
-
-## Rules
-- 必須先核對官方手冊（`officialDocUrl`）與目前 registry 設定。
-- 優先使用 MCP 提供的註冊表與元件工具，不要臆測不存在元件。
-- 若無法安裝或找不到元件，要提供替代元件與理由。
-
-## Workflow
-1. 文件核對：讀取 shadcn 官方手冊與 MCP 使用文件。
-2. 列出可用 registry / 元件：確認名稱與版本。
-3. 依 `task` 執行：
-	 - `search`: 搜尋元件與範例
-	 - `add`: 產生或執行加入命令
-	 - `build-page`: 組合頁面結構與依賴清單
-4. 驗證結果：檢查是否成功加入與引用。
-5. 輸出摘要：包含命令、檔案變更與備援方案。
-
-## Output Format
-### shadcn 執行結果
-- task: <value>
-- components: <resolved list>
-- status: <success | partial | blocked>
-
-### 官方手冊核對
-- source: <url>
-- checked_items:
-	- <item>
-	- <item>
-
-### 已執行工具
-- <tool>
-- <tool>
-
-### 產出
-- add_command: <command or none>
-- changed_files:
-	- <file>
-	- <file>
-
-### 限制與替代
-- limitation: <reason>
-- fallback: <action>
-`````
-
 ## File: .github/rules/_sections.md
 `````markdown
 # Sections
@@ -2796,6 +2336,237 @@ async function parseFileWithOptions(filePath: string): Promise<void> {
 }
 `````
 
+## File: .github/skills/shadcn/SKILL.md
+`````markdown
+---
+name: shadcn-mcp
+description: >
+  UI/UX 開發自動載入技能。每當任務涉及介面元件、視覺設計、互動模式、排版佈局、
+  響應式設計或行動裝置體驗時自動觸發。使用 shadcn MCP 查詢最新元件 API 與用法，
+  強制以現代化直覺操作為設計優先原則，行動設備友善為必要條件，
+  禁止使用非 shadcn/ui 的 UI 套件。適用於 Dashboard、表單、對話框、
+  導航、資料表格、AI Console 等所有 UI 場景。
+user-invocable: false
+disable-model-invocation: false
+---
+
+# shadcn MCP 整合技能
+
+## 🎯 技能定位
+
+這是一個 **UI/UX 強制規範技能**，凡涉及任何介面開發，自動載入。
+透過 shadcn MCP 取得最新元件文件，並強制遵守現代化、直覺化、行動優先的設計原則。
+
+---
+
+## ⚡ 核心設計原則（不可妥協）
+
+### 📱 Mobile First — 行動優先
+
+```
+所有元件與佈局，預設從行動裝置尺寸開始設計：
+
+  sm:  640px  → 基礎行動設備
+  md:  768px  → 平板豎向
+  lg:  1024px → 平板橫向 / 小筆電
+  xl:  1280px → 桌機
+  2xl: 1536px → 大螢幕
+
+禁止：只設計桌機版再「縮小」的逆向思維
+必須：先確保行動版可用，再逐步擴展桌機功能
+```
+
+### ✨ 現代化直覺（Modern Intuitive）
+
+```
+設計決策優先順序：
+
+  1. 使用者不需學習即能操作
+  2. 互動反饋即時且明確（loading / disabled / error state）
+  3. 視覺層次清晰（間距、字重、顏色對比）
+  4. 觸控目標最小 44×44px
+  5. 手勢操作優先於 hover 效果
+```
+
+### 🚫 唯一 UI 套件約束
+
+```
+✅ 允許：shadcn/ui + Tailwind CSS + Radix UI primitives
+❌ 禁止：MUI、Ant Design、Chakra UI、Mantine 等任何其他 UI 套件
+❌ 禁止：自行撰寫 CSS 模組（使用 Tailwind utility class）
+❌ 禁止：inline style（除非 CSS 變數動態賦值）
+```
+
+---
+
+## 🔄 工作流程
+
+### Step 1：判斷元件需求
+
+```
+UI 任務開始時，Agent 先識別所需元件類型：
+
+  表單類    → Form, Input, Select, Checkbox, RadioGroup, Switch, Textarea
+  導航類    → NavigationMenu, Breadcrumb, Tabs, Sidebar
+  回饋類    → Toast, Alert, Dialog, Sheet, Tooltip, Popover
+  資料類    → Table, DataTable, Card, Badge, Avatar
+  佈局類    → Separator, ScrollArea, AspectRatio, Collapsible
+  行動優先  → Drawer（優先於 Dialog）, Sheet（從底部滑入）
+```
+
+### Step 2：查詢 shadcn MCP
+
+```
+shadcn:get-component({ name: "元件名稱" })
+```
+
+**每次使用元件前必查，不得依賴訓練記憶中的 API。**
+
+### Step 3：行動友善檢查清單
+
+實作完成前，逐項確認：
+
+```
+  □ 在 375px 寬度下是否正常顯示？
+  □ 觸控目標是否 ≥ 44px？
+  □ 表單在軟鍵盤彈出時是否不被遮擋？
+  □ 列表/表格在小螢幕是否有水平捲動或改為卡片佈局？
+  □ Dialog 在行動版是否改用 Drawer / Sheet？
+  □ 圖示是否搭配文字標籤（不只依賴圖示傳遞意義）？
+  □ Dark mode 是否正常？
+```
+
+---
+
+## 📦 元件使用規範
+
+### Dialog vs Drawer 選擇規則
+
+```typescript
+// ✅ 行動版用 Sheet（bottom），桌機版用 Dialog
+const isMobile = useMediaQuery("(max-width: 768px)")
+
+return isMobile
+  ? <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent side="bottom">...</SheetContent>
+    </Sheet>
+  : <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>...</DialogContent>
+    </Dialog>
+```
+
+### 表單必用 shadcn Form + Zod
+
+```typescript
+// ✅ 必須搭配 react-hook-form + zod
+const form = useForm<z.infer<typeof schema>>({
+  resolver: zodResolver(schema),
+})
+
+return (
+  <Form {...form}>
+    <FormField
+      control={form.control}
+      name="fieldName"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>標籤</FormLabel>
+          <FormControl>
+            <Input {...field} />
+          </FormControl>
+          <FormMessage /> {/* 錯誤訊息必須呈現 */}
+        </FormItem>
+      )}
+    />
+  </Form>
+)
+```
+
+### 資料表格行動版處理
+
+```typescript
+// ✅ 大螢幕用 DataTable，小螢幕改為 Card 列表
+<div className="hidden md:block">
+  <DataTable columns={columns} data={data} />
+</div>
+<div className="block md:hidden space-y-3">
+  {data.map(item => <ItemCard key={item.id} item={item} />)}
+</div>
+```
+
+### Toast 通知規範
+
+```typescript
+// ✅ 所有非同步操作結果必須有 toast 反饋
+toast({ title: "儲存成功", description: "資料已更新" })
+
+// ✅ 錯誤必須明確且可讀
+toast({
+  variant: "destructive",
+  title: "操作失敗",
+  description: error.message,
+})
+```
+
+---
+
+## 🎨 Design Token 規範
+
+```css
+/* ✅ 使用語意化 CSS 變數，自動支援 Dark mode */
+bg-background          /* 頁面背景 */
+bg-card                /* 卡片背景 */
+text-foreground        /* 主要文字 */
+text-muted-foreground  /* 次要文字、說明文字 */
+border-border          /* 邊框 */
+ring-ring              /* Focus ring */
+bg-primary             /* 主要操作按鈕 */
+bg-destructive         /* 危險/刪除操作 */
+bg-secondary           /* 次要內容區塊 */
+bg-accent              /* Hover 強調 */
+```
+
+---
+
+## 🚫 常見錯誤行為（禁止）
+
+```
+# ❌ 只考慮桌機佈局
+<div className="grid grid-cols-4 gap-6">
+
+# ✅ 行動優先
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+
+# ❌ Dialog 在行動版彈出（遮擋操作）
+<Dialog> 直接使用
+
+# ✅ 行動版改 Sheet 從底部滑入
+<Sheet side="bottom">
+
+# ❌ 硬編碼顏色值
+className="bg-[#1a1a2e] text-[#ffffff]"
+
+# ✅ 使用 Design Token
+className="bg-background text-foreground"
+
+# ❌ 觸控目標過小
+<button className="p-1 text-xs">
+
+# ✅ 符合觸控規範
+<Button size="sm" className="min-h-[44px] min-w-[44px]">
+```
+
+---
+
+## 🔗 與其他技能協作
+
+| 情境 | 協作技能 |
+|---|---|
+| 元件 API 不確定 | 同時觸發 `context7` 查詢 shadcn/ui 最新文件 |
+| 元件涉及 Next.js 路由切換 | 同時觸發 `next-devtools-mcp` |
+| 完成 UI 模組開發 | 透過 `serena-mcp` 更新語意記憶 |
+`````
+
 ## File: .github/skills/vercel-composition-patterns/README.md
 `````markdown
 # React Composition Patterns
@@ -3823,6 +3594,118 @@ UI itself.
 nested inside each other—they just need to be within the same provider.
 `````
 
+## File: .github/skills/vercel-react-best-practices/rules/advanced-event-handler-refs.md
+`````markdown
+---
+title: Store Event Handlers in Refs
+impact: LOW
+impactDescription: stable subscriptions
+tags: advanced, hooks, refs, event-handlers, optimization
+---
+
+## Store Event Handlers in Refs
+
+Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
+
+**Incorrect (re-subscribes on every render):**
+
+```tsx
+function useWindowEvent(event: string, handler: () => void) {
+  useEffect(() => {
+    window.addEventListener(event, handler)
+    return () => window.removeEventListener(event, handler)
+  }, [event, handler])
+}
+```
+
+**Correct (stable subscription):**
+
+```tsx
+function useWindowEvent(event: string, handler: () => void) {
+  const handlerRef = useRef(handler)
+  useEffect(() => {
+    handlerRef.current = handler
+  }, [handler])
+
+  useEffect(() => {
+    const listener = () => handlerRef.current()
+    window.addEventListener(event, listener)
+    return () => window.removeEventListener(event, listener)
+  }, [event])
+}
+```
+
+**Alternative: use `useEffectEvent` if you're on latest React:**
+
+```tsx
+import { useEffectEvent } from 'react'
+
+function useWindowEvent(event: string, handler: () => void) {
+  const onEvent = useEffectEvent(handler)
+
+  useEffect(() => {
+    window.addEventListener(event, onEvent)
+    return () => window.removeEventListener(event, onEvent)
+  }, [event])
+}
+```
+
+`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/advanced-use-latest.md
+`````markdown
+---
+title: useLatest for Stable Callback Refs
+impact: LOW
+impactDescription: prevents effect re-runs
+tags: advanced, hooks, useLatest, refs, optimization
+---
+
+## useLatest for Stable Callback Refs
+
+Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
+
+**Implementation:**
+
+```typescript
+function useLatest<T>(value: T) {
+  const ref = useRef(value)
+  useEffect(() => {
+    ref.current = value
+  }, [value])
+  return ref
+}
+```
+
+**Incorrect (effect re-runs on every callback change):**
+
+```tsx
+function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearch(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query, onSearch])
+}
+```
+
+**Correct (stable effect, fresh callback):**
+
+```tsx
+function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+  const [query, setQuery] = useState('')
+  const onSearchRef = useLatest(onSearch)
+
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearchRef.current(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query])
+}
+```
+`````
+
 ## File: .github/skills/vercel-react-best-practices/rules/async-api-routes.md
 `````markdown
 ---
@@ -3947,6 +3830,46 @@ async function updateResource(resourceId: string, userId: string) {
 ```
 
 This optimization is especially valuable when the skipped branch is frequently taken, or when the deferred operation is expensive.
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/async-dependencies.md
+`````markdown
+---
+title: Dependency-Based Parallelization
+impact: CRITICAL
+impactDescription: 2-10× improvement
+tags: async, parallelization, dependencies, better-all
+---
+
+## Dependency-Based Parallelization
+
+For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
+
+**Incorrect (profile waits for config unnecessarily):**
+
+```typescript
+const [user, config] = await Promise.all([
+  fetchUser(),
+  fetchConfig()
+])
+const profile = await fetchProfile(user.id)
+```
+
+**Correct (config and profile run in parallel):**
+
+```typescript
+import { all } from 'better-all'
+
+const { user, config, profile } = await all({
+  async user() { return fetchUser() },
+  async config() { return fetchConfig() },
+  async profile() {
+    return fetchProfile((await this.$.user).id)
+  }
+})
+```
+
+Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/async-parallel.md
@@ -4145,6 +4068,41 @@ Direct imports provide 15-70% faster dev boot, 28% faster builds, 40% faster col
 Libraries commonly affected: `lucide-react`, `@mui/material`, `@mui/icons-material`, `@tabler/icons-react`, `react-icons`, `@headlessui/react`, `@radix-ui/react-*`, `lodash`, `ramda`, `date-fns`, `rxjs`, `react-use`.
 
 Reference: [How we optimized package imports in Next.js](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js)
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/bundle-conditional.md
+`````markdown
+---
+title: Conditional Module Loading
+impact: HIGH
+impactDescription: loads large data only when needed
+tags: bundle, conditional-loading, lazy-loading
+---
+
+## Conditional Module Loading
+
+Load large data or modules only when a feature is activated.
+
+**Example (lazy-load animation frames):**
+
+```tsx
+function AnimationPlayer({ enabled }: { enabled: boolean }) {
+  const [frames, setFrames] = useState<Frame[] | null>(null)
+
+  useEffect(() => {
+    if (enabled && !frames && typeof window !== 'undefined') {
+      import('./animation-frames.js')
+        .then(mod => setFrames(mod.frames))
+        .catch(() => setEnabled(false))
+    }
+  }, [enabled, frames])
+
+  if (!frames) return <Skeleton />
+  return <Canvas frames={frames} />
+}
+```
+
+The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/bundle-defer-third-party.md
@@ -4429,6 +4387,92 @@ function UpdateButton() {
 ```
 
 Reference: [https://swr.vercel.app](https://swr.vercel.app)
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/js-batch-dom-css.md
+`````markdown
+---
+title: Batch DOM CSS Changes
+impact: MEDIUM
+impactDescription: reduces reflows/repaints
+tags: javascript, dom, css, performance, reflow
+---
+
+## Batch DOM CSS Changes
+
+Avoid changing styles one property at a time. Group multiple CSS changes together via classes or `cssText` to minimize browser reflows.
+
+**Incorrect (multiple reflows):**
+
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  // Each line triggers a reflow
+  element.style.width = '100px'
+  element.style.height = '200px'
+  element.style.backgroundColor = 'blue'
+  element.style.border = '1px solid black'
+}
+```
+
+**Correct (add class - single reflow):**
+
+```typescript
+// CSS file
+.highlighted-box {
+  width: 100px;
+  height: 200px;
+  background-color: blue;
+  border: 1px solid black;
+}
+
+// JavaScript
+function updateElementStyles(element: HTMLElement) {
+  element.classList.add('highlighted-box')
+}
+```
+
+**Correct (change cssText - single reflow):**
+
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  element.style.cssText = `
+    width: 100px;
+    height: 200px;
+    background-color: blue;
+    border: 1px solid black;
+  `
+}
+```
+
+**React example:**
+
+```tsx
+// Incorrect: changing styles one by one
+function Box({ isHighlighted }: { isHighlighted: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    if (ref.current && isHighlighted) {
+      ref.current.style.width = '100px'
+      ref.current.style.height = '200px'
+      ref.current.style.backgroundColor = 'blue'
+    }
+  }, [isHighlighted])
+  
+  return <div ref={ref}>Content</div>
+}
+
+// Correct: toggle class
+function Box({ isHighlighted }: { isHighlighted: boolean }) {
+  return (
+    <div className={isHighlighted ? 'highlighted-box' : ''}>
+      Content
+    </div>
+  )
+}
+```
+
+Prefer CSS classes over inline styles when possible. Classes are cached by the browser and provide better separation of concerns.
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/js-cache-function-results.md
@@ -4799,6 +4843,145 @@ function processOrders(orders: Order[], users: User[]) {
 
 Build map once (O(n)), then all lookups are O(1).
 For 1000 orders × 1000 users: 1M ops → 2K ops.
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/js-length-check-first.md
+`````markdown
+---
+title: Early Length Check for Array Comparisons
+impact: MEDIUM-HIGH
+impactDescription: avoids expensive operations when lengths differ
+tags: javascript, arrays, performance, optimization, comparison
+---
+
+## Early Length Check for Array Comparisons
+
+When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
+
+In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
+
+**Incorrect (always runs expensive comparison):**
+
+```typescript
+function hasChanges(current: string[], original: string[]) {
+  // Always sorts and joins, even when lengths differ
+  return current.sort().join() !== original.sort().join()
+}
+```
+
+Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
+
+**Correct (O(1) length check first):**
+
+```typescript
+function hasChanges(current: string[], original: string[]) {
+  // Early return if lengths differ
+  if (current.length !== original.length) {
+    return true
+  }
+  // Only sort/join when lengths match
+  const currentSorted = current.toSorted()
+  const originalSorted = original.toSorted()
+  for (let i = 0; i < currentSorted.length; i++) {
+    if (currentSorted[i] !== originalSorted[i]) {
+      return true
+    }
+  }
+  return false
+}
+```
+
+This new approach is more efficient because:
+- It avoids the overhead of sorting and joining the arrays when lengths differ
+- It avoids consuming memory for the joined strings (especially important for large arrays)
+- It avoids mutating the original arrays
+- It returns early when a difference is found
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/js-min-max-loop.md
+`````markdown
+---
+title: Use Loop for Min/Max Instead of Sort
+impact: LOW
+impactDescription: O(n) instead of O(n log n)
+tags: javascript, arrays, performance, sorting, algorithms
+---
+
+## Use Loop for Min/Max Instead of Sort
+
+Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
+
+**Incorrect (O(n log n) - sort to find latest):**
+
+```typescript
+interface Project {
+  id: string
+  name: string
+  updatedAt: number
+}
+
+function getLatestProject(projects: Project[]) {
+  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
+  return sorted[0]
+}
+```
+
+Sorts the entire array just to find the maximum value.
+
+**Incorrect (O(n log n) - sort for oldest and newest):**
+
+```typescript
+function getOldestAndNewest(projects: Project[]) {
+  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
+  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
+}
+```
+
+Still sorts unnecessarily when only min/max are needed.
+
+**Correct (O(n) - single loop):**
+
+```typescript
+function getLatestProject(projects: Project[]) {
+  if (projects.length === 0) return null
+  
+  let latest = projects[0]
+  
+  for (let i = 1; i < projects.length; i++) {
+    if (projects[i].updatedAt > latest.updatedAt) {
+      latest = projects[i]
+    }
+  }
+  
+  return latest
+}
+
+function getOldestAndNewest(projects: Project[]) {
+  if (projects.length === 0) return { oldest: null, newest: null }
+  
+  let oldest = projects[0]
+  let newest = projects[0]
+  
+  for (let i = 1; i < projects.length; i++) {
+    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
+    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
+  }
+  
+  return { oldest, newest }
+}
+```
+
+Single pass through the array, no copying, no sorting.
+
+**Alternative (Math.min/Math.max for small arrays):**
+
+```typescript
+const numbers = [5, 2, 8, 1, 9]
+const min = Math.min(...numbers)
+const max = Math.max(...numbers)
+```
+
+This works for small arrays but can be slower for very large arrays due to spread operator limitations. Use the loop approach for reliability.
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/js-set-map-lookups.md
@@ -5317,6 +5500,39 @@ useEffect(() => {
 ```
 `````
 
+## File: .github/skills/vercel-react-best-practices/rules/rerender-derived-state.md
+`````markdown
+---
+title: Subscribe to Derived State
+impact: MEDIUM
+impactDescription: reduces re-render frequency
+tags: rerender, derived-state, media-query, optimization
+---
+
+## Subscribe to Derived State
+
+Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
+
+**Incorrect (re-renders on every pixel change):**
+
+```tsx
+function Sidebar() {
+  const width = useWindowWidth()  // updates continuously
+  const isMobile = width < 768
+  return <nav className={isMobile ? 'mobile' : 'desktop'}>
+}
+```
+
+**Correct (re-renders only when boolean changes):**
+
+```tsx
+function Sidebar() {
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  return <nav className={isMobile ? 'mobile' : 'desktop'}>
+}
+```
+`````
+
 ## File: .github/skills/vercel-react-best-practices/rules/rerender-functional-setstate.md
 `````markdown
 ---
@@ -5669,6 +5885,119 @@ Use when sequential user actions hit multiple endpoints needing the same data wi
 **In traditional serverless:** Each invocation runs in isolation, so consider Redis for cross-process caching.
 
 Reference: [https://github.com/isaacs/node-lru-cache](https://github.com/isaacs/node-lru-cache)
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/server-cache-react.md
+`````markdown
+---
+title: Per-Request Deduplication with React.cache()
+impact: MEDIUM
+impactDescription: deduplicates within request
+tags: server, cache, react-cache, deduplication
+---
+
+## Per-Request Deduplication with React.cache()
+
+Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
+
+**Usage:**
+
+```typescript
+import { cache } from 'react'
+
+export const getCurrentUser = cache(async () => {
+  const session = await auth()
+  if (!session?.user?.id) return null
+  return await db.user.findUnique({
+    where: { id: session.user.id }
+  })
+})
+```
+
+Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/server-parallel-fetching.md
+`````markdown
+---
+title: Parallel Data Fetching with Component Composition
+impact: CRITICAL
+impactDescription: eliminates server-side waterfalls
+tags: server, rsc, parallel-fetching, composition
+---
+
+## Parallel Data Fetching with Component Composition
+
+React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
+
+**Incorrect (Sidebar waits for Page's fetch to complete):**
+
+```tsx
+export default async function Page() {
+  const header = await fetchHeader()
+  return (
+    <div>
+      <div>{header}</div>
+      <Sidebar />
+    </div>
+  )
+}
+
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
+```
+
+**Correct (both fetch simultaneously):**
+
+```tsx
+async function Header() {
+  const data = await fetchHeader()
+  return <div>{data}</div>
+}
+
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
+
+export default function Page() {
+  return (
+    <div>
+      <Header />
+      <Sidebar />
+    </div>
+  )
+}
+```
+
+**Alternative with children prop:**
+
+```tsx
+async function Layout({ children }: { children: ReactNode }) {
+  const header = await fetchHeader()
+  return (
+    <div>
+      <div>{header}</div>
+      {children}
+    </div>
+  )
+}
+
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
+
+export default function Page() {
+  return (
+    <Layout>
+      <Sidebar />
+    </Layout>
+  )
+}
+```
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/server-serialization.md
@@ -8934,6 +9263,49 @@ Follow these styling patterns for cleaner, more consistent React Native code.
 
 Limiting font sizes creates visual consistency. Use `fontWeight` (bold/semibold)
 and grayscale colors for hierarchy instead.
+`````
+
+## File: .github/skills/web-design-guidelines/SKILL.md
+`````markdown
+---
+name: web-design-guidelines
+description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
+argument-hint: <file-or-pattern>
+metadata:
+  author: vercel
+  version: "1.0.0"
+---
+
+# Web Interface Guidelines
+
+Review files for compliance with Web Interface Guidelines.
+
+## How It Works
+
+1. Fetch the latest guidelines from the source URL below
+2. Read the specified files (or prompt user for files/pattern)
+3. Check against all rules in the fetched guidelines
+4. Output findings in the terse `file:line` format
+
+## Guidelines Source
+
+Fetch fresh guidelines before each review:
+
+```
+https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
+```
+
+Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
+
+## Usage
+
+When a user provides a file or pattern argument:
+1. Fetch guidelines from the source URL above
+2. Read the specified files
+3. Apply all rules from the fetched guidelines
+4. Output findings using the format specified in the guidelines
+
+If no files specified, ask the user which files to review.
 `````
 
 ## File: .github/terminology-glossary.md
@@ -37611,6 +37983,1475 @@ export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Pr
 }
 `````
 
+## File: modules/workspace-flow/AGENT.md
+`````markdown
+# Agent Guide — workspace-flow
+
+This file defines how agents and contributors should structure and evolve the workspace-flow module.
+
+## Module Purpose
+
+workspace-flow is a logic-first bounded context.
+It owns workflow rules, state transitions, guard conditions, persistence contracts, and public module APIs.
+
+It does not own product UI composition.
+UI should be assembled outside this module and consume workspace-flow only through the public api boundary.
+
+Related references:
+- [README.md](./README.md)
+- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
+- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
+- [Workspace-Flow-UI.mermaid](./Workspace-Flow-UI.mermaid)
+- [Workspace-Flow-States.mermaid](./Workspace-Flow-States.mermaid)
+- [Workspace-Flow-Sequence.mermaid](./Workspace-Flow-Sequence.mermaid)
+- [Workspace-Flow-ERD.mermaid](./Workspace-Flow-ERD.mermaid)
+- [Workspace-Flow-Architecture.mermaid](./Workspace-Flow-Architecture.mermaid)
+- [Workspace-Flow-Permissions.mermaid](./Workspace-Flow-Permissions.mermaid)
+- [Workspace-Flow-Events.mermaid](./Workspace-Flow-Events.mermaid)
+- [Workspace-Flow-Lifecycle.mermaid](./Workspace-Flow-Lifecycle.mermaid)
+
+## Target Module Shape
+
+```text
+modules/workspace-flow/
+├── api/
+│   ├── contracts.ts
+│   ├── index.ts
+│   └── workspace-flow.facade.ts
+├── application/
+│   ├── dto/
+│   │   ├── add-invoice-item.dto.ts
+│   │   ├── create-task.dto.ts
+│   │   ├── invoice-query.dto.ts
+│   │   ├── issue-query.dto.ts
+│   │   ├── open-issue.dto.ts
+│   │   └── task-query.dto.ts
+│   ├── ports/
+│   │   ├── InvoiceService.ts
+│   │   ├── IssueService.ts
+│   │   └── TaskService.ts
+│   └── use-cases/
+│       ├── add-invoice-item.use-case.ts
+│       ├── approve-invoice.use-case.ts
+│       ├── approve-task-acceptance.use-case.ts
+│       ├── archive-task.use-case.ts
+│       ├── assign-task.use-case.ts
+│       ├── close-invoice.use-case.ts
+│       ├── close-issue.use-case.ts
+│       ├── create-invoice.use-case.ts
+│       ├── create-task.use-case.ts
+│       ├── fail-issue-retest.use-case.ts
+│       ├── fix-issue.use-case.ts
+│       ├── open-issue.use-case.ts
+│       ├── pass-issue-retest.use-case.ts
+│       ├── pass-task-qa.use-case.ts
+│       ├── pay-invoice.use-case.ts
+│       ├── reject-invoice.use-case.ts
+│       ├── remove-invoice-item.use-case.ts
+│       ├── review-invoice.use-case.ts
+│       ├── start-issue.use-case.ts
+│       ├── submit-issue-retest.use-case.ts
+│       ├── submit-invoice.use-case.ts
+│       └── submit-task-to-qa.use-case.ts
+├── domain/
+│   ├── entities/
+│   │   ├── Invoice.ts
+│   │   ├── InvoiceItem.ts
+│   │   ├── Issue.ts
+│   │   └── Task.ts
+│   ├── events/
+│   │   ├── InvoiceEvent.ts
+│   │   ├── IssueEvent.ts
+│   │   └── TaskEvent.ts
+│   ├── repositories/
+│   │   ├── InvoiceRepository.ts
+│   │   ├── IssueRepository.ts
+│   │   └── TaskRepository.ts
+│   ├── services/
+│   │   ├── invoice-guards.ts
+│   │   ├── invoice-transition-policy.ts
+│   │   ├── issue-transition-policy.ts
+│   │   ├── task-guards.ts
+│   │   └── task-transition-policy.ts
+│   └── value-objects/
+│       ├── InvoiceId.ts
+│       ├── InvoiceItemId.ts
+│       ├── InvoiceStatus.ts
+│       ├── IssueId.ts
+│       ├── IssueStage.ts
+│       ├── IssueStatus.ts
+│       ├── TaskId.ts
+│       ├── TaskStatus.ts
+│       └── UserId.ts
+├── infrastructure/
+│   ├── firebase/
+│   │   ├── invoice-item.converter.ts
+│   │   ├── invoice.converter.ts
+│   │   ├── issue.converter.ts
+│   │   ├── task.converter.ts
+│   │   └── workspace-flow.collections.ts
+│   ├── persistence/
+│   └── repositories/
+│       ├── FirebaseInvoiceItemRepository.ts
+│       ├── FirebaseInvoiceRepository.ts
+│       ├── FirebaseIssueRepository.ts
+│       └── FirebaseTaskRepository.ts
+├── interfaces/
+│   ├── _actions/
+│   │   └── workspace-flow.actions.ts
+│   ├── contracts/
+│   │   └── workspace-flow.contract.ts
+│   └── queries/
+│       └── workspace-flow.queries.ts
+├── AGENT.md
+├── README.md
+├── Workspace-Flow-Architecture.mermaid
+├── Workspace-Flow-ERD.mermaid
+├── Workspace-Flow-Events.mermaid
+├── Workspace-Flow-Lifecycle.mermaid
+├── Workspace-Flow-Permissions.mermaid
+├── Workspace-Flow-Sequence.mermaid
+├── Workspace-Flow-States.mermaid
+├── Workspace-Flow.mermaid
+├── Workspace-Flow-Tree.mermaid
+├── Workspace-Flow-UI.mermaid
+└── index.ts
+```
+
+## Target File Plan
+
+The module should be implemented with concrete files, not only folders.
+Use the following file plan as the construction baseline.
+
+### api
+
+Files:
+- api/index.ts
+- api/workspace-flow.facade.ts
+- api/contracts.ts
+
+Responsibilities:
+- expose the public module surface for external consumers
+- export only the minimum stable contracts, facades, and public types
+- hide internal domain, application, and infrastructure details
+
+Recommended exports:
+- WorkspaceFlowFacade
+- TaskSummary
+- IssueSummary
+- InvoiceSummary
+- TaskQueryDto / IssueQueryDto / InvoiceQueryDto if needed publicly
+
+### domain
+
+Files:
+- domain/entities/Task.ts
+- domain/entities/Issue.ts
+- domain/entities/Invoice.ts
+- domain/entities/InvoiceItem.ts
+- domain/value-objects/TaskId.ts
+- domain/value-objects/IssueId.ts
+- domain/value-objects/InvoiceId.ts
+- domain/value-objects/InvoiceItemId.ts
+- domain/value-objects/UserId.ts
+- domain/value-objects/TaskStatus.ts
+- domain/value-objects/IssueStatus.ts
+- domain/value-objects/IssueStage.ts
+- domain/value-objects/InvoiceStatus.ts
+- domain/events/TaskEvent.ts
+- domain/events/IssueEvent.ts
+- domain/events/InvoiceEvent.ts
+- domain/repositories/TaskRepository.ts
+- domain/repositories/IssueRepository.ts
+- domain/repositories/InvoiceRepository.ts
+- domain/services/task-transition-policy.ts
+- domain/services/issue-transition-policy.ts
+- domain/services/invoice-transition-policy.ts
+- domain/services/task-guards.ts
+- domain/services/invoice-guards.ts
+
+Responsibilities:
+- define entities and lifecycle states
+- define legal transitions and invariant checks
+- define repository contracts only, never implementations
+- stay framework-free
+
+### application
+
+Files:
+- application/dto/task-query.dto.ts
+- application/dto/issue-query.dto.ts
+- application/dto/invoice-query.dto.ts
+- application/dto/create-task.dto.ts
+- application/dto/open-issue.dto.ts
+- application/dto/add-invoice-item.dto.ts
+- application/ports/TaskService.ts
+- application/ports/IssueService.ts
+- application/ports/InvoiceService.ts
+- application/use-cases/create-task.use-case.ts
+- application/use-cases/assign-task.use-case.ts
+- application/use-cases/submit-task-to-qa.use-case.ts
+- application/use-cases/pass-task-qa.use-case.ts
+- application/use-cases/approve-task-acceptance.use-case.ts
+- application/use-cases/archive-task.use-case.ts
+- application/use-cases/open-issue.use-case.ts
+- application/use-cases/start-issue.use-case.ts
+- application/use-cases/fix-issue.use-case.ts
+- application/use-cases/submit-issue-retest.use-case.ts
+- application/use-cases/pass-issue-retest.use-case.ts
+- application/use-cases/fail-issue-retest.use-case.ts
+- application/use-cases/close-issue.use-case.ts
+- application/use-cases/create-invoice.use-case.ts
+- application/use-cases/add-invoice-item.use-case.ts
+- application/use-cases/remove-invoice-item.use-case.ts
+- application/use-cases/submit-invoice.use-case.ts
+- application/use-cases/review-invoice.use-case.ts
+- application/use-cases/approve-invoice.use-case.ts
+- application/use-cases/reject-invoice.use-case.ts
+- application/use-cases/pay-invoice.use-case.ts
+- application/use-cases/close-invoice.use-case.ts
+
+Responsibilities:
+- orchestrate domain rules through use cases
+- define command and query DTOs
+- provide application-facing ports for module consumers
+
+### infrastructure
+
+Files:
+- infrastructure/firebase/workspace-flow.collections.ts
+- infrastructure/firebase/task.converter.ts
+- infrastructure/firebase/issue.converter.ts
+- infrastructure/firebase/invoice.converter.ts
+- infrastructure/firebase/invoice-item.converter.ts
+- infrastructure/repositories/FirebaseTaskRepository.ts
+- infrastructure/repositories/FirebaseIssueRepository.ts
+- infrastructure/repositories/FirebaseInvoiceRepository.ts
+- infrastructure/repositories/FirebaseInvoiceItemRepository.ts
+
+Responsibilities:
+- map Firestore collections and document formats
+- implement repository contracts from domain
+- keep Firebase-specific concerns out of domain
+
+### interfaces
+
+Files:
+- interfaces/contracts/workspace-flow.contract.ts
+- interfaces/queries/workspace-flow.queries.ts
+- interfaces/_actions/workspace-flow.actions.ts
+
+Optional:
+- add module-local interface files only if this module genuinely needs them
+- keep product UI composition outside this module by default
+
+### module root
+
+Files:
+- index.ts
+- AGENT.md
+- README.md
+- Workspace-Flow.mermaid
+- Workspace-Flow-Tree.mermaid
+- Workspace-Flow-UI.mermaid
+- Workspace-Flow-States.mermaid
+- Workspace-Flow-Sequence.mermaid
+- Workspace-Flow-ERD.mermaid
+- Workspace-Flow-Architecture.mermaid
+- Workspace-Flow-Permissions.mermaid
+- Workspace-Flow-Events.mermaid
+- Workspace-Flow-Lifecycle.mermaid
+
+Rules:
+- index.ts is a local module barrel, not the cross-module public boundary
+- cross-module consumers still use api/index.ts
+
+## Legacy Types Policy
+
+The old types/ folder was temporary migration input only.
+The legacy files have been removed and must not be recreated.
+
+Rules:
+- Do not treat types/ as a public module boundary
+- Do not add new code under types/
+- Do not import types/* from outside this module
+- Move the logic into domain/application/infrastructure/api instead of recreating the legacy files
+- After deletion, do not recreate types/ as a shortcut export surface
+
+Legacy-to-target mapping:
+- core.ts → domain/value-objects/ and domain/events/
+- models.ts → domain/entities/
+- transitions.ts → domain/services/
+- services.ts → application/ports/
+- firestore.ts → infrastructure/firebase/ or infrastructure/persistence/
+- examples.ts → documentation examples or application examples if still needed
+- index.ts → split into api/index.ts and local module index.ts responsibilities
+
+Deletion rule:
+- once a target file exists, do not keep a duplicate legacy type file with the same responsibility
+
+## Ownership Rules
+
+workspace-flow owns:
+- Task, Issue, Invoice, InvoiceItem workflow logic
+- status unions and transition rules
+- guard rules such as no-open-issues and invoice submission constraints
+- persistence-facing document contracts for this module
+- public contracts exposed through api
+
+workspace-flow does not own:
+- route composition in app/
+- page layout, cards, boards, or dashboards
+- direct product UI rendering for external consumers
+
+## Layer Responsibilities
+
+### api
+
+Public cross-module surface only.
+Export the minimum set of contracts, facades, and types needed by other modules or app composition.
+
+External consumers must import only through:
+@/modules/workspace-flow/api
+
+### application
+
+Use cases, orchestration, command and query DTOs, and service contracts.
+Application may depend on domain contracts but must not depend directly on interfaces.
+
+### domain
+
+Pure business rules.
+Put entities, value objects, transition maps, guards, repository interfaces, and domain events here.
+
+Domain must stay framework-free.
+No React, Firebase SDK, browser APIs, or HTTP clients.
+
+### infrastructure
+
+Persistence and adapter implementations.
+Firestore collections, document mappings, repository implementations, and external integrations belong here.
+
+Infrastructure implements contracts defined by domain or application.
+
+### interfaces
+
+Optional for this module.
+Keep empty unless this module later needs module-local actions, query hooks, or interface-specific contracts.
+
+If UI is needed, prefer assembling it outside this module unless there is a strong reason to keep module-local interface adapters here.
+
+## Dependency Direction
+
+Allowed direction:
+interfaces → application → domain ← infrastructure
+api → application / domain
+api must not become a dumping ground for internal re-exports
+
+Forbidden direction:
+- domain → application
+- domain → infrastructure
+- domain → interfaces
+- application → interfaces
+- external modules → domain/application/infrastructure/interfaces internals
+
+## Public Boundary Rule
+
+Cross-module interaction must go through api only.
+
+Allowed:
+- import from @/modules/workspace-flow/api
+
+Forbidden:
+- import from @/modules/workspace-flow/domain/*
+- import from @/modules/workspace-flow/application/*
+- import from @/modules/workspace-flow/infrastructure/*
+- import from @/modules/workspace-flow/interfaces/*
+- import from types/* as a public dependency
+
+Recommended external usage pattern:
+- read models or summaries through api/contracts.ts
+- execute workflow operations through api/workspace-flow.facade.ts
+- never bind external UI directly to repository implementations or transition policies
+
+## Local Import Rule
+
+Inside workspace-flow:
+- use relative imports within the module
+- do not self-import through the public api
+- do not use the module public boundary for internal wiring
+
+## UI Boundary Rule
+
+workspace-flow is logic-first.
+External pages or modules may assemble UI using workspace-flow public contracts.
+
+Preferred pattern:
+app or another module UI
+→ imports from workspace-flow/api
+→ calls application-facing facades or use cases
+→ renders its own interface
+
+Do not move product UI concerns into domain or application.
+
+## Documentation Alignment
+
+Keep these documents aligned whenever workflow structure changes:
+- [README.md](./README.md)
+- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
+- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
+- api exports if public contracts change
+
+If event names, states, or guards change, update the docs in the same change.
+If a temporary migration file is removed, update the docs in the same change so no document still presents it as canonical.
+
+## Construction Order
+
+Implement in this order to avoid boundary drift:
+
+1. domain/value-objects and domain/events
+2. domain/entities and domain/repositories
+3. domain/services for transitions and guards
+4. application/dto and application/ports
+5. application/use-cases
+6. infrastructure/firebase and infrastructure/repositories
+7. api/contracts.ts and api/workspace-flow.facade.ts
+8. optional interfaces contracts or actions
+
+Do not start from UI.
+Do not expose unfinished internals through api just to unblock temporary callers.
+
+## Validation
+
+Required validation after structural or public-boundary changes:
+- npm run lint
+- npm run build
+
+Re-check:
+- no cross-module internal imports
+- no UI logic in domain
+- no infrastructure dependencies leaking into domain
+- api exports remain narrow and intentional
+`````
+
+## File: modules/workspace-flow/README.md
+`````markdown
+# System State Machines
+
+workspace-flow 是純邏輯模組，負責狀態機、guard、資料契約與公開 API，不負責產品 UI 組裝。
+
+對外互動規則：
+- 外界只能透過 `api/` 使用本模組
+- UI 由外部頁面或其他模組自行組裝
+- 舊的 `types/` 目錄原本只作為遷移參考，現已刪除，不可再作為公開邊界
+
+Mermaid 圖檔：
+- `./Workspace-Flow.mermaid`
+- `./Workspace-Flow-Tree.mermaid`
+- `./Workspace-Flow-UI.mermaid`
+- `./Workspace-Flow-States.mermaid`
+- `./Workspace-Flow-Sequence.mermaid`
+- `./Workspace-Flow-ERD.mermaid`
+- `./Workspace-Flow-Architecture.mermaid`
+- `./Workspace-Flow-Permissions.mermaid`
+- `./Workspace-Flow-Events.mermaid`
+- `./Workspace-Flow-Lifecycle.mermaid`
+- `./AGENT.md`
+
+---
+
+## 核心原則
+
+```
+Task.status      → 事情做完沒
+Issue.status     → 異常處理中
+Invoice.status   → 錢的狀態
+```
+
+**三條獨立狀態機，各自處理不同責任。**
+
+---
+
+## 1. Task State Machine（工作流）
+
+```
+INITIAL → draft
+
+draft        --[assign]-->     in_progress
+in_progress  --[submit_qa]-->  qa
+qa           --[pass]-->       acceptance
+acceptance   --[approve]-->    accepted
+accepted     --[archive]-->    archived
+
+qa           --[fail]-->       in_progress   ← 不用，改開 Issue
+acceptance   --[fail]-->       qa            ← 不用，改開 Issue
+```
+
+> **規則：Task status 只往前走，不倒退。**
+> 發現問題 → 開 Issue，不是退狀態。
+
+### States
+
+| state | 說明 |
+|---|---|
+| `draft` | 任務建立，尚未開始 |
+| `in_progress` | 開發中 |
+| `qa` | 提交測試 |
+| `acceptance` | 客戶驗收中 |
+| `accepted` | 驗收通過，可進 Finance |
+| `archived` | 歸檔 |
+
+### Transitions
+
+| from | event | to | guard |
+|---|---|---|---|
+| `draft` | `ASSIGN` | `in_progress` | assignee 存在 |
+| `in_progress` | `SUBMIT_QA` | `qa` | — |
+| `qa` | `PASS` | `acceptance` | no open issues |
+| `acceptance` | `APPROVE` | `accepted` | no open issues |
+| `accepted` | `ARCHIVE` | `archived` | invoice closed or none |
+
+---
+
+## 2. Issue State Machine（問題單流）
+
+```
+INITIAL → open
+
+open          --[start]-->    investigating
+investigating --[fix]-->      fixing
+fixing        --[submit]-->   retest
+retest        --[pass]-->     resolved
+retest        --[fail]-->     fixing          ← 回修
+resolved      --[close]-->    closed
+```
+
+> **規則：任何節點發現問題，一律開 Issue，不退 Task。**
+> Issue 解決後，回到原來節點繼續。
+
+### States
+
+| state | 說明 |
+|---|---|
+| `open` | 問題建立 |
+| `investigating` | 調查原因中 |
+| `fixing` | 修復中 |
+| `retest` | 重新測試 |
+| `resolved` | 已解決 |
+| `closed` | 關閉歸檔 |
+
+### Transitions
+
+| from | event | to |
+|---|---|---|
+| `open` | `START` | `investigating` |
+| `investigating` | `FIX` | `fixing` |
+| `fixing` | `SUBMIT` | `retest` |
+| `retest` | `PASS` | `resolved` |
+| `retest` | `FAIL` | `fixing` |
+| `resolved` | `CLOSE` | `closed` |
+
+### Issue 與 Task 的關係
+
+```
+Task (qa)       → Issue.stage = 'qa'       → 解完 → 回 qa
+Task (acceptance) → Issue.stage = 'acceptance' → 解完 → 回 acceptance
+```
+
+`Issue.stage` 記錄在哪個節點產生，方便 retest 後回到正確位置。
+
+---
+
+## 3. Invoice State Machine（財務流）
+
+```
+INITIAL → invoice_draft
+
+invoice_draft  --[submit]-->   submitted
+submitted      --[review]-->   finance_review
+finance_review --[approve]-->  approved
+finance_review --[reject]-->   submitted       ← 退回補件
+approved       --[pay]-->      paid
+paid           --[close]-->    closed
+```
+
+> **規則：Task 不擁有 Finance status。**
+> Invoice 有自己的狀態機。Task 被加入 InvoiceItem，透過 InvoiceItem 關聯到 Invoice。
+
+### States
+
+| state | 說明 |
+|---|---|
+| `invoice_draft` | 草稿，選取 accepted tasks |
+| `submitted` | 送出請款 |
+| `finance_review` | 財務審核中 |
+| `approved` | 核准 |
+| `paid` | 已付款 |
+| `closed` | 結案 |
+
+### Transitions
+
+| from | event | to | guard |
+|---|---|---|---|
+| `invoice_draft` | `SUBMIT` | `submitted` | items 不為空 |
+| `submitted` | `REVIEW` | `finance_review` | — |
+| `finance_review` | `APPROVE` | `approved` | — |
+| `finance_review` | `REJECT` | `submitted` | — |
+| `approved` | `PAY` | `paid` | — |
+| `paid` | `CLOSE` | `closed` | — |
+
+---
+
+## 4. 模組定位
+
+workspace-flow 應維持以下結構：
+
+```text
+modules/workspace-flow/
+├── api/
+├── application/
+├── domain/
+├── infrastructure/
+├── interfaces/
+├── AGENT.md
+├── README.md
+├── Workspace-Flow-Architecture.mermaid
+├── Workspace-Flow-ERD.mermaid
+├── Workspace-Flow-Events.mermaid
+├── Workspace-Flow-Lifecycle.mermaid
+├── Workspace-Flow-Permissions.mermaid
+├── Workspace-Flow-Sequence.mermaid
+├── Workspace-Flow-States.mermaid
+├── Workspace-Flow.mermaid
+├── Workspace-Flow-Tree.mermaid
+├── Workspace-Flow-UI.mermaid
+└── index.ts
+```
+
+說明：
+- `domain/`：狀態、事件、entity、transition、guard
+- `application/`：use case、DTO、ports、orchestration
+- `infrastructure/`：Firestore 與 persistence adapter
+- `interfaces/`：若未來需要本模組內的 action/query contract，可放這裡；產品 UI 仍優先在外部組裝
+- `api/`：唯一公開入口
+
+建議施工順序：
+1. 先做 `domain/` 的 statuses、events、entities、guards、transitions
+2. 再做 `application/` 的 DTO、ports、use cases
+3. 再做 `infrastructure/` 的 Firestore mapping 與 repositories
+4. 最後才做 `api/` 收斂公開 contract
+
+## 5. 資料模型
+
+### Task
+
+```ts
+type Task = {
+  id: string
+  title: string
+  description: string
+  status: 'draft' | 'in_progress' | 'qa' | 'acceptance' | 'accepted' | 'archived'
+  assignee: string
+  accepted_at?: Date
+  created_at: Date
+}
+```
+
+### Issue
+
+```ts
+type Issue = {
+  id: string
+  task_id: string
+  stage: 'qa' | 'acceptance' | 'finance'     // 在哪個節點發生
+  title: string
+  description: string
+  status: 'open' | 'investigating' | 'fixing' | 'retest' | 'resolved' | 'closed'
+  created_by: string
+  assigned_to: string
+  created_at: Date
+  resolved_at?: Date
+}
+```
+
+### Invoice
+
+```ts
+type Invoice = {
+  id: string
+  status: 'invoice_draft' | 'submitted' | 'finance_review' | 'approved' | 'paid' | 'closed'
+  total_amount: number
+  created_at: Date
+  submitted_at?: Date
+  approved_at?: Date
+  paid_at?: Date
+}
+```
+
+### InvoiceItem
+
+```ts
+type InvoiceItem = {
+  id: string
+  invoice_id: string
+  task_id: string
+  amount: number
+}
+```
+
+---
+
+## 6. 關聯關係
+
+```
+Task    1 ──── n    Issue
+Task    1 ──── n    InvoiceItem   n ──── 1   Invoice
+```
+
+Task 不直接持有 Invoice，透過 InvoiceItem 關聯。
+
+---
+
+## 7. Guard 規則（狀態轉移前置條件）
+
+| 規則 | 說明 |
+|---|---|
+| `qa → acceptance` | Task 下無 `open / investigating / fixing / retest` 的 Issue |
+| `acceptance → accepted` | 同上 |
+| `invoice_draft → submitted` | InvoiceItems 至少一筆 |
+| `accepted → archived` | 關聯的 Invoice 全為 `closed` 或無 Invoice |
+
+---
+
+## 8. 完整流程一覽
+
+```
+Task → qa → acceptance → accepted
+        │        │
+        └─ Issue ┘  (任何節點發現問題 → 開 Issue → 修完回原節點)
+
+accepted → InvoiceItem → Invoice → Finance Review → Approved → Paid
+```
+
+**一句話記憶法：**
+
+```
+Task   解決：事情做完沒？
+Issue  解決：異常怎麼辦？
+Invoice 解決：要收多少錢？
+Finance 解決：錢付了沒？
+```
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-Architecture.mermaid
+`````
+flowchart LR
+  classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065,stroke-width:2px;
+  classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+  classDef app fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+  classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px;
+  classDef infra fill:#f3e8ff,stroke:#9333ea,color:#3b0764,stroke-width:2px;
+  classDef data fill:#fff7ed,stroke:#ea580c,color:#7c2d12,stroke-width:1.5px;
+  classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+
+  external_ui[External UI / app routes / other modules]:::external --> public_api
+
+  subgraph WORKSPACE_FLOW [workspace-flow Module]
+    direction LR
+    public_api[api<br/>facade + public contracts]:::api --> app_layer[application<br/>DTOs + ports + use cases]:::app
+    app_layer --> domain_layer[domain<br/>entities + events + guards + transitions]:::domain
+    infra_layer[infrastructure<br/>collections + converters + repositories]:::infra --> domain_layer
+    app_layer --> infra_layer
+  end
+
+  firestore[(Firestore)]:::data
+  infra_layer --> firestore
+
+  forbidden[Forbidden<br/>UI must not import domain/application/infrastructure directly]:::rule
+  external_ui -. enforce boundary .-> forbidden
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-ERD.mermaid
+`````
+erDiagram
+  TASK ||--o{ ISSUE : has
+  TASK ||--o{ INVOICE_ITEM : bills
+  INVOICE ||--o{ INVOICE_ITEM : contains
+
+  TASK {
+    string id
+    string title
+    string description
+    string status
+    string assignee
+    date created_at
+    date accepted_at
+    date archived_at
+  }
+
+  ISSUE {
+    string id
+    string task_id
+    string stage
+    string title
+    string description
+    string status
+    string created_by
+    string assigned_to
+    date created_at
+    date resolved_at
+  }
+
+  INVOICE {
+    string id
+    string status
+    number total_amount
+    date created_at
+    date submitted_at
+    date approved_at
+    date paid_at
+    date closed_at
+  }
+
+  INVOICE_ITEM {
+    string id
+    string invoice_id
+    string task_id
+    number amount
+  }
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-Events.mermaid
+`````
+flowchart LR
+  classDef command fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+  classDef event fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+  classDef readmodel fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:1.5px;
+  classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-dasharray: 6 4;
+
+  subgraph TASK_EVENTS [Task Event Flow]
+    direction LR
+    task_commands[ASSIGN / SUBMIT_QA / PASS_QA / APPROVE_ACCEPTANCE / ARCHIVE]:::command --> task_events[Task lifecycle events]:::event --> task_read[Task summaries / workflow read model]:::readmodel
+  end
+
+  subgraph ISSUE_EVENTS [Issue Event Flow]
+    direction LR
+    issue_commands[START / FIX / SUBMIT_RETEST / PASS_RETEST / FAIL_RETEST / CLOSE]:::command --> issue_events[Issue lifecycle events]:::event --> issue_read[Issue queue / issue detail read model]:::readmodel
+  end
+
+  subgraph INVOICE_EVENTS [Invoice Event Flow]
+    direction LR
+    invoice_commands[SUBMIT / REVIEW / APPROVE / REJECT / PAY / CLOSE]:::command --> invoice_events[Invoice lifecycle events]:::event --> invoice_read[Invoice list / billing read model]:::readmodel
+  end
+
+  task_events -. opens or resumes .-> issue_commands
+  task_events -. accepted tasks feed .-> invoice_commands
+  note[This is a target event-flow view.<br/>It documents how workflow actions propagate into read models.]:::note
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-File-Template.md
+`````markdown
+## 1️⃣ 通用檔案頭模板
+
+```ts
+/**
+ * @module <模組路徑>
+ * @file <檔案名稱>
+ * @description <檔案用途簡述>
+ * @author <作者>
+ * @created <YYYY-MM-DD>
+ * @todo <未完成事項或提醒>
+ */
+```
+
+* `<模組路徑>`: 如 `workspace-flow/domain/entities`
+* `<檔案名稱>`: 如 `Task.ts`
+* `<檔案用途簡述>`: 簡單一句話說明這個檔案做什麼
+* `@todo` 可以先留空
+
+---
+
+## 2️⃣ Class / Interface 範例模板
+
+```ts
+/**
+ * Task Entity
+ * @class Task
+ * @description 代表一個任務及其狀態與行為
+ */
+export class Task {
+    /**
+     * 建立 Task 實例
+     * @param {string} title - 任務標題
+     * @param {TaskStatus} status - 任務狀態
+     */
+    constructor(public title: string, public status: TaskStatus) {}
+    
+    /**
+     * 標記任務為完成
+     */
+    complete() {
+        // TODO: 實作
+    }
+}
+```
+
+---
+
+## 3️⃣ Function / Use Case 範例模板
+
+```ts
+/**
+ * 建立新的 Task
+ * @param {CreateTaskDto} dto - 新任務資料
+ * @returns {Promise<Task>} 新建立的任務
+ */
+export async function createTask(dto: CreateTaskDto): Promise<Task> {
+    // TODO: 實作
+}
+```
+
+> 建議先把 **函數頭也加上 JSDoc**，即便目前沒有實作。好處：
+>
+> 1. 方便生成 API 文件。
+> 2. 讓團隊知道參數與回傳型別。
+> 3. 開發中 IDE 可以即時提示。
+
+---
+
+## 4️⃣ Mermaid 檔案模板
+
+```mermaid
+%% ======================================================
+%% File: Workspace-Flow-Tree.mermaid
+%% Module: workspace-flow
+%% Description: 工作區任務流程結構樹
+%% Created: 2026-03-25
+%% ======================================================
+flowchart TD
+    %% TODO: 建立節點
+```
+
+---
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-Lifecycle.mermaid
+`````
+flowchart LR
+  classDef phase fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+  classDef side fill:#fff1f2,stroke:#e11d48,color:#0f172a,stroke-width:1.5px;
+  classDef billing fill:#ecfdf5,stroke:#059669,color:#0f172a,stroke-width:1.5px;
+  classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-dasharray: 6 4;
+
+  task_created[Task Created]:::phase --> development[Development]:::phase --> qa[QA]:::phase --> acceptance[Acceptance]:::phase --> accepted[Accepted]:::phase --> archived[Archived]:::phase
+
+  issue_loop[Issue lifecycle side loop<br/>open -> investigating -> fixing -> retest -> resolved -> closed]:::side
+  qa -. defect found .-> issue_loop
+  acceptance -. defect found .-> issue_loop
+  issue_loop -. return to original stage .-> qa
+  issue_loop -. return to original stage .-> acceptance
+
+  billing_entry[Invoice Item Added]:::billing --> billing_flow[Invoice Draft -> Submitted -> Finance Review -> Approved -> Paid -> Closed]:::billing
+  accepted --> billing_entry
+
+  note[Lifecycle view combines the three state machines into one delivery narrative.]:::note
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-Permissions.mermaid
+`````
+flowchart TB
+  classDef actor fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+  classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+  classDef state fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+  classDef note fill:#fff7ed,stroke:#ea580c,color:#7c2d12,stroke-dasharray: 6 4;
+
+  subgraph ACTORS [Suggested Workflow Actors]
+    direction LR
+    member[Task Assignee / Operator]:::actor
+    qa[QA Reviewer]:::actor
+    acceptance[Acceptance Reviewer]:::actor
+    finance[Finance Reviewer]:::actor
+  end
+
+  subgraph TASK_PERMS [Task Permissions]
+    direction LR
+    draft[draft]:::state --> assign[ASSIGN]:::action --> in_progress[in_progress]:::state
+    in_progress --> submit_qa[SUBMIT_QA]:::action --> qa_state[qa]:::state
+    qa_state --> pass_qa[PASS_QA]:::action --> acceptance_state[acceptance]:::state
+    acceptance_state --> approve_acc[APPROVE_ACCEPTANCE]:::action --> accepted[accepted]:::state
+    accepted --> archive[ARCHIVE]:::action --> archived[archived]:::state
+  end
+
+  subgraph ISSUE_PERMS [Issue Permissions]
+    direction LR
+    open[open]:::state --> start[START]:::action --> investigating[investigating]:::state
+    investigating --> fix[FIX]:::action --> fixing[fixing]:::state
+    fixing --> submit_retest[SUBMIT_RETEST]:::action --> retest[retest]:::state
+    retest --> pass_retest[PASS_RETEST]:::action --> resolved[resolved]:::state
+    retest --> fail_retest[FAIL_RETEST]:::action --> fixing
+    resolved --> close[CLOSE]:::action --> closed[closed]:::state
+  end
+
+  subgraph INVOICE_PERMS [Invoice Permissions]
+    direction LR
+    invoice_draft[invoice_draft]:::state --> submit_invoice[SUBMIT]:::action --> submitted[submitted]:::state
+    submitted --> review[REVIEW]:::action --> finance_review[finance_review]:::state
+    finance_review --> approve[APPROVE]:::action --> approved[approved]:::state
+    finance_review --> reject[REJECT]:::action --> submitted
+    approved --> pay[PAY]:::action --> paid[paid]:::state
+    paid --> close_invoice[CLOSE]:::action --> invoice_closed[closed]:::state
+  end
+
+  member -. owns .-> assign
+  member -. owns .-> submit_qa
+  member -. owns .-> start
+  member -. owns .-> fix
+  member -. owns .-> submit_retest
+  qa -. reviews .-> pass_qa
+  qa -. reviews .-> pass_retest
+  qa -. reports issues .-> start
+  acceptance -. approves .-> approve_acc
+  finance -. handles .-> submit_invoice
+  finance -. handles .-> review
+  finance -. handles .-> approve
+  finance -. handles .-> reject
+  finance -. handles .-> pay
+  finance -. handles .-> close_invoice
+
+  note[Permissions are target workflow guidance.<br/>Actual authorization enforcement must still live outside the diagram.]:::note
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-Sequence.mermaid
+`````
+sequenceDiagram
+  autonumber
+  actor User
+  participant UI as External UI
+  participant API as workspace-flow/api
+  participant App as Application Use Case
+  participant Domain as Domain Rules
+  participant Repo as Repository
+  participant DB as Firestore
+
+  User->>UI: Submit task to QA
+  UI->>API: facade.submitTaskToQA(taskId)
+  API->>App: SubmitTaskToQaUseCase.execute(taskId)
+  App->>Repo: load task + open issues count
+  Repo->>DB: read task / issues
+  DB-->>Repo: task + issue count
+  Repo-->>App: current state data
+  App->>Domain: validate SUBMIT_QA transition
+  Domain-->>App: transition allowed
+  App->>Repo: persist task status = qa
+  Repo->>DB: update tasks/{taskId}
+  DB-->>Repo: updated
+  Repo-->>App: task snapshot
+  App-->>API: task summary
+  API-->>UI: updated task summary
+
+  User->>UI: Report issue during QA
+  UI->>API: facade.openIssue(taskId, stage=qa)
+  API->>App: OpenIssueUseCase.execute(...)
+  App->>Repo: create issue
+  Repo->>DB: write issues/{issueId}
+  DB-->>Repo: created
+  Repo-->>App: issue snapshot
+  App-->>API: issue summary
+  API-->>UI: issue opened
+
+  User->>UI: Submit invoice
+  UI->>API: facade.submitInvoice(invoiceId)
+  API->>App: SubmitInvoiceUseCase.execute(invoiceId)
+  App->>Repo: load invoice + item count
+  Repo->>DB: read invoices + invoice_items
+  DB-->>Repo: invoice + item count
+  Repo-->>App: current state data
+  App->>Domain: validate SUBMIT transition
+  Domain-->>App: transition allowed
+  App->>Repo: persist invoice status = submitted
+  Repo->>DB: update invoices/{invoiceId}
+  DB-->>Repo: updated
+  Repo-->>App: invoice snapshot
+  App-->>API: invoice summary
+  API-->>UI: updated invoice summary
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-States.mermaid
+`````
+stateDiagram-v2
+  direction LR
+
+  state "Task Flow" as TaskFlow {
+    [*] --> draft
+    draft --> in_progress: ASSIGN
+    in_progress --> qa: SUBMIT_QA
+    qa --> acceptance: PASS_QA / no open issues
+    acceptance --> accepted: APPROVE_ACCEPTANCE / no open issues
+    accepted --> archived: ARCHIVE / invoice closed or none
+    archived --> [*]
+  }
+
+  state "Issue Flow" as IssueFlow {
+    [*] --> open
+    open --> investigating: START
+    investigating --> fixing: FIX
+    fixing --> retest: SUBMIT_RETEST
+    retest --> resolved: PASS_RETEST
+    retest --> fixing: FAIL_RETEST
+    resolved --> closed: CLOSE
+    closed --> [*]
+  }
+
+  state "Invoice Flow" as InvoiceFlow {
+    [*] --> invoice_draft
+    invoice_draft --> submitted: SUBMIT / item_count > 0
+    submitted --> finance_review: REVIEW
+    finance_review --> approved: APPROVE
+    finance_review --> submitted: REJECT
+    approved --> paid: PAY
+    paid --> closed: CLOSE
+    closed --> [*]
+  }
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-Tree.mermaid
+`````
+flowchart TB
+	%% ==========================================================
+	%% Workspace Flow Module Tree
+	%% Goal: all external consumers enter through api/
+	%% ==========================================================
+
+	classDef root fill:#0f172a,stroke:#0f172a,color:#f8fafc,stroke-width:2px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef layer fill:#e2e8f0,stroke:#475569,color:#0f172a,stroke-width:1.5px;
+	classDef file fill:#f8fafc,stroke:#94a3b8,color:#0f172a;
+	classDef doc fill:#fff7ed,stroke:#ea580c,color:#7c2d12;
+	classDef forbid fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+	classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
+
+	external_app[app routes / other modules / tests]:::external --> public_api
+
+	subgraph WORKSPACE_FLOW [modules/workspace-flow]
+		direction TB
+		module_root[workspace-flow/]:::root
+
+		subgraph PUBLIC [Public Boundary]
+			direction TB
+			public_api[api/]:::api
+			public_api_index[index.ts<br/>only allowed cross-module entry]:::api
+			public_facade[workspace-flow.facade.ts<br/>public facade for external consumers]:::file
+			public_contracts[contracts.ts<br/>public summaries and public DTOs]:::file
+			public_api --> public_api_index
+			public_api --> public_facade
+			public_api --> public_contracts
+		end
+
+		subgraph INTERNAL [Internal Layers]
+			direction TB
+
+			readme[README.md<br/>module rules and lifecycle summary]:::doc
+			flow_doc[Workspace-Flow.mermaid<br/>state machine overview]:::doc
+			tree_doc[Workspace-Flow-Tree.mermaid<br/>module tree and boundary rules]:::doc
+
+			domain_layer[domain/]:::layer
+			application_layer[application/]:::layer
+			infrastructure_layer[infrastructure/]:::layer
+			interfaces_layer[interfaces/]:::layer
+			local_index[index.ts<br/>same-module convenience only]:::file
+
+			subgraph DOMAIN [domain/]
+				direction TB
+				domain_entities[entities/]:::layer
+				domain_events[events/]:::layer
+				domain_value_objects[value-objects/]:::layer
+				domain_services[services/]:::layer
+
+				file_models[entities/Task.ts<br/>Issue.ts<br/>Invoice.ts<br/>InvoiceItem.ts]:::file
+				file_core[value-objects/TaskId.ts<br/>TaskStatus.ts<br/>IssueStage.ts]:::file
+				file_events[events/TaskEvent.ts<br/>IssueEvent.ts<br/>InvoiceEvent.ts]:::file
+				file_transitions[services/task-transition-policy.ts<br/>issue-transition-policy.ts<br/>invoice-transition-policy.ts<br/>task-guards.ts<br/>invoice-guards.ts]:::file
+
+				domain_entities --> file_models
+				domain_value_objects --> file_core
+				domain_events --> file_events
+				domain_services --> file_transitions
+			end
+
+			subgraph APPLICATION [application/]
+				direction TB
+				application_dto[dto/]:::layer
+				application_ports[ports/]:::layer
+				application_use_cases[use-cases/]:::layer
+
+				file_services[ports/TaskService.ts<br/>IssueService.ts<br/>InvoiceService.ts]:::file
+				file_queries[dto/task-query.dto.ts<br/>issue-query.dto.ts<br/>invoice-query.dto.ts]:::file
+				file_commands[dto/create-task.dto.ts<br/>open-issue.dto.ts<br/>add-invoice-item.dto.ts]:::file
+				file_use_cases[use-cases/submit-task-to-qa.use-case.ts<br/>approve-task-acceptance.use-case.ts<br/>submit-invoice.use-case.ts]:::file
+
+				application_ports --> file_services
+				application_dto --> file_queries
+				application_dto --> file_commands
+				application_use_cases --> file_use_cases
+			end
+
+			subgraph INFRA [infrastructure/]
+				direction TB
+				infra_firebase[firebase/]:::layer
+				infra_persistence[persistence/]:::layer
+				infra_repositories[repositories/]:::layer
+				file_firestore[firebase/workspace-flow.collections.ts<br/>COLLECTIONS + document mappings]:::file
+				file_converters[firebase/task.converter.ts<br/>issue.converter.ts<br/>invoice.converter.ts]:::file
+				file_repositories[repositories/FirebaseTaskRepository.ts<br/>FirebaseIssueRepository.ts<br/>FirebaseInvoiceRepository.ts]:::file
+				infra_firebase --> file_firestore
+				infra_firebase --> file_converters
+				infra_repositories --> file_repositories
+			end
+
+			subgraph INTERFACES [interfaces/]
+				direction TB
+				interfaces_actions[_actions/]:::layer
+				interfaces_contracts[contracts/]:::layer
+				interfaces_queries[queries/]:::layer
+				file_interface_contracts[contracts/workspace-flow.contract.ts]:::file
+				file_interface_actions[_actions/workspace-flow.actions.ts]:::file
+				file_interface_queries[queries/workspace-flow.queries.ts]:::file
+				interface_note[optional module-local actions or query contracts<br/>product UI remains outside this module]:::doc
+				interfaces_layer --> interfaces_actions
+				interfaces_layer --> interfaces_contracts
+				interfaces_layer --> interfaces_queries
+				interfaces_actions --> file_interface_actions
+				interfaces_contracts --> file_interface_contracts
+				interfaces_queries --> file_interface_queries
+				interfaces_layer --> interface_note
+			end
+		end
+
+		module_root --> public_api
+		module_root --> domain_layer
+		module_root --> application_layer
+		module_root --> infrastructure_layer
+		module_root --> interfaces_layer
+		module_root --> readme
+		module_root --> flow_doc
+		module_root --> tree_doc
+		module_root --> local_index
+
+		domain_layer --> DOMAIN
+		application_layer --> APPLICATION
+		infrastructure_layer --> INFRA
+	end
+
+	public_api_index --> application_layer
+	application_layer --> domain_layer
+	infrastructure_layer --> domain_layer
+	interfaces_layer --> application_layer
+
+	forbidden_domain[forbidden<br/>@/modules/workspace-flow/domain/*]:::forbid
+	forbidden_application[forbidden<br/>@/modules/workspace-flow/application/*]:::forbid
+	forbidden_infra[forbidden<br/>@/modules/workspace-flow/infrastructure/*]:::forbid
+	forbidden_interfaces[forbidden<br/>@/modules/workspace-flow/interfaces/*]:::forbid
+	forbidden_types[forbidden<br/>do not recreate legacy types/*]:::forbid
+
+	external_app -. do not import .-> forbidden_domain
+	external_app -. do not import .-> forbidden_application
+	external_app -. do not import .-> forbidden_infra
+	external_app -. do not import .-> forbidden_interfaces
+	external_app -. do not import .-> forbidden_types
+
+	note_boundary[Cross-module rule<br/>external consumers must import only via<br/>@/modules/workspace-flow/api]:::doc
+	note_mapping[Legacy types/* files were migration-only<br/>the target structure is now the canonical design]:::doc
+
+	note_boundary --> public_api_index
+	note_mapping --> module_root
+`````
+
+## File: modules/workspace-flow/Workspace-Flow-UI.mermaid
+`````
+flowchart LR
+	%% ==========================================================
+	%% Workspace Flow UI Simulation
+	%% UI is composed outside workspace-flow and consumes api only
+	%% ==========================================================
+
+	classDef page fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
+	classDef panel fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
+	classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
+	classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
+	classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
+
+	subgraph EXTERNAL_UI [External UI Composition]
+		direction TB
+
+		subgraph WORKSPACE_PAGE [Workspace Flow Page]
+			direction LR
+
+			subgraph TASK_AREA [Task Workspace]
+				direction TB
+				task_page[Task Board Page]:::page
+				task_list[Task List / Columns]:::panel
+				task_detail[Task Detail Drawer]:::panel
+				task_actions[Assign / Submit QA / Pass QA / Archive]:::action
+				task_page --> task_list
+				task_page --> task_detail
+				task_detail --> task_actions
+			end
+
+			subgraph ISSUE_AREA [Issue Workspace]
+				direction TB
+				issue_page[Issue Tracker Page]:::page
+				issue_list[Issue Queue]:::panel
+				issue_detail[Issue Detail Drawer]:::panel
+				issue_actions[Start / Fix / Submit Retest / Close]:::action
+				issue_page --> issue_list
+				issue_page --> issue_detail
+				issue_detail --> issue_actions
+			end
+
+			subgraph INVOICE_AREA [Invoice Workspace]
+				direction TB
+				invoice_page[Invoice Review Page]:::page
+				invoice_list[Invoice Draft / Review List]:::panel
+				invoice_detail[Invoice Detail Drawer]:::panel
+				invoice_actions[Add Item / Submit / Review / Approve / Pay]:::action
+				invoice_page --> invoice_list
+				invoice_page --> invoice_detail
+				invoice_detail --> invoice_actions
+			end
+		end
+	end
+
+	subgraph PUBLIC_API [workspace-flow Public API]
+		direction TB
+		api_index[api/index.ts]:::api
+		api_facade[api/workspace-flow.facade.ts]:::api
+		api_contracts[api/contracts.ts]:::api
+		api_index --> api_facade
+		api_index --> api_contracts
+	end
+
+	subgraph INTERNAL_MODULE [workspace-flow Internal Logic]
+		direction TB
+		domain_logic[domain<br/>entities + events + guards + transitions]:::domain
+		application_logic[application<br/>DTOs + ports + use cases]:::domain
+		infrastructure_logic[infrastructure<br/>Firestore collections + converters + repositories]:::domain
+		application_logic --> domain_logic
+		infrastructure_logic --> domain_logic
+	end
+
+	task_list -->|read summaries| api_contracts
+	task_detail -->|load task details| api_contracts
+	task_actions -->|execute workflow commands| api_facade
+
+	issue_list -->|read summaries| api_contracts
+	issue_detail -->|load issue details| api_contracts
+	issue_actions -->|execute workflow commands| api_facade
+
+	invoice_list -->|read summaries| api_contracts
+	invoice_detail -->|load invoice details| api_contracts
+	invoice_actions -->|execute workflow commands| api_facade
+
+	api_facade --> application_logic
+	api_contracts --> application_logic
+
+	forbidden_domain[Do not bind UI directly to<br/>domain/*]:::rule
+	forbidden_application[Do not bind UI directly to<br/>application/*]:::rule
+	forbidden_infrastructure[Do not bind UI directly to<br/>infrastructure/*]:::rule
+
+	task_page -. forbidden direct dependency .-> forbidden_domain
+	issue_page -. forbidden direct dependency .-> forbidden_application
+	invoice_page -. forbidden direct dependency .-> forbidden_infrastructure
+`````
+
+## File: modules/workspace-flow/Workspace-Flow.mermaid
+`````
+flowchart TB
+  %% ==========================================================
+  %% Workspace Flow
+  %% Canonical state-machine documentation for workspace-flow
+  %% This diagram documents the target logic module
+  %% Legacy types/* files were migration input only and have been removed
+  %% ==========================================================
+
+  classDef task fill:#e8f3ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
+  classDef issue fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#0f172a;
+  classDef invoice fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#0f172a;
+  classDef data fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#0f172a;
+  classDef rule fill:#f8fafc,stroke:#64748b,stroke-dasharray: 5 5,color:#334155;
+
+  subgraph TASK_FLOW [Task State Machine]
+    direction LR
+    task_start((Start)):::rule --> task_draft[draft]:::task
+    task_draft -->|ASSIGN<br/>assignee: UserId| task_in_progress[in_progress]:::task
+    task_in_progress -->|SUBMIT_QA| task_qa[qa]:::task
+    task_qa -->|PASS_QA<br/>guard: no open issues| task_acceptance[acceptance]:::task
+    task_acceptance -->|APPROVE_ACCEPTANCE<br/>guard: no open issues| task_accepted[accepted]:::task
+    task_accepted -->|ARCHIVE<br/>guard: invoice closed or none| task_archived[archived]:::task
+  end
+
+  subgraph ISSUE_FLOW [Issue State Machine]
+    direction LR
+    issue_start((Start)):::rule --> issue_open[open]:::issue
+    issue_open -->|START| issue_investigating[investigating]:::issue
+    issue_investigating -->|FIX| issue_fixing[fixing]:::issue
+    issue_fixing -->|SUBMIT_RETEST| issue_retest[retest]:::issue
+    issue_retest -->|PASS_RETEST| issue_resolved[resolved]:::issue
+    issue_retest -->|FAIL_RETEST| issue_fixing
+    issue_resolved -->|CLOSE| issue_closed[closed]:::issue
+  end
+
+  subgraph INVOICE_FLOW [Invoice State Machine]
+    direction LR
+    invoice_start((Start)):::rule --> invoice_draft[invoice_draft]:::invoice
+    invoice_draft -->|SUBMIT<br/>guard: item_count > 0| invoice_submitted[submitted]:::invoice
+    invoice_submitted -->|REVIEW| invoice_finance_review[finance_review]:::invoice
+    invoice_finance_review -->|APPROVE| invoice_approved[approved]:::invoice
+    invoice_finance_review -->|REJECT<br/>reason: string| invoice_submitted
+    invoice_approved -->|PAY<br/>paid_at: Date| invoice_paid[paid]:::invoice
+    invoice_paid -->|CLOSE| invoice_closed[closed]:::invoice
+  end
+
+  subgraph CROSS_FLOW [Cross-Flow Relations]
+    direction TB
+    open_issue_rule[任何節點發現問題<br/>開 Issue，不回退 Task]:::rule
+    resume_rule[Issue resolved 後<br/>依 Issue.stage 回到原節點繼續]:::rule
+    invoice_item[InvoiceItem<br/>invoice_id + task_id + amount<br/>只允許 accepted Task 加入]:::data
+    api_rule[外界只能透過 api 使用 workspace-flow<br/>UI 在模組外部自行組裝]:::rule
+  end
+
+  subgraph STORAGE [Firestore Collections]
+    direction TB
+    tasks_doc[tasks<br/>TaskDoc = Omit<Task, id>]:::data
+    issues_doc[issues<br/>IssueDoc = Omit<Issue, id>]:::data
+    invoices_doc[invoices<br/>InvoiceDoc = Omit<Invoice, id>]:::data
+    invoice_items_doc[invoice_items<br/>InvoiceItemDoc = Omit<InvoiceItem, id>]:::data
+  end
+
+  task_qa -. open issue<br/>stage: qa .-> issue_open
+  task_acceptance -. open issue<br/>stage: acceptance .-> issue_open
+  invoice_finance_review -. open issue<br/>stage: finance .-> issue_open
+
+  issue_resolved -. if stage = qa .-> task_qa
+  issue_resolved -. if stage = acceptance .-> task_acceptance
+  issue_resolved -. if stage = finance .-> invoice_finance_review
+
+  task_accepted -. eligible for billing .-> invoice_item
+  invoice_item -. belongs to .-> invoice_draft
+
+  task_archived -. persisted as .-> tasks_doc
+  issue_closed -. persisted as .-> issues_doc
+  invoice_closed -. persisted as .-> invoices_doc
+  invoice_item -. persisted as .-> invoice_items_doc
+
+  open_issue_rule -. applies to .-> task_qa
+  open_issue_rule -. applies to .-> task_acceptance
+  open_issue_rule -. applies to .-> invoice_finance_review
+  resume_rule -. explains .-> issue_resolved
+  api_rule -. governs .-> task_draft
+  api_rule -. governs .-> invoice_draft
+`````
+
 ## File: modules/workspace/api/index.ts
 `````typescript
 /**
@@ -51990,30 +53831,249 @@ export default {
 }
 `````
 
-## File: .github/agents/app-router.agent.md
+## File: .github/.github/instructions/architecture-api-boundary.instructions.md
 `````markdown
----
-name: App Router Agent
-description: 'Diagnose and implement App Router behavior using Next DevTools MCP plus boundary-safe edits.'
-argument-hint: Provide route segment, expected behavior, and failing symptoms.
-tools: ['read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Implement Changes
-    agent: Implementer
-    prompt: Apply app-router fixes and validate affected routes.
-    send: false
----
 
-# App Router Agent
+`````
 
-Focus on route diagnostics and rendering issues in Next.js app routing.
+## File: .github/.github/instructions/architecture-mddd.instructions.md
+`````markdown
 
-## Guardrails
+`````
 
-- Keep business logic in modules, not in route composition files.
-- Prefer runtime evidence from Next DevTools MCP when route behavior is unclear.
+## File: .github/.github/instructions/architecture-modules.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/architecture-monorepo.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/branching-strategy.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/ci-cd.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/cloud-functions.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/commit-convention.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/embedding-pipeline.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/firebase-architecture.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/firestore-schema.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/genkit-flow.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/hosting-deploy.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/lint-format.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/nextjs-app-router.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/nextjs-parallel-routes.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/nextjs-server-actions.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/prompt-engineering.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/rag-architecture.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/README.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/security-rules.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/shadcn-ui.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/tailwind-design-system.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/testing-e2e.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/instructions/testing-unit.instructions.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/analyze-repo.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/chunk-docs.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/debug-error.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/embedding-docs.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/implement-feature.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/implement-firestore-schema.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/implement-genkit-flow.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/implement-security-rules.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/implement-server-action.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/implement-ui-component.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/ingest-docs.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/plan-api.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/plan-feature.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/plan-module.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/README.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/refactor-api.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/refactor-module.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/review-architecture.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/review-code.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/review-performance.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/review-security.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/write-docs.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/write-e2e-tests.prompt.md
+`````markdown
+
+`````
+
+## File: .github/.github/prompts/write-tests.prompt.md
+`````markdown
+
 `````
 
 ## File: .github/agents/app/README.md
@@ -52027,162 +54087,6 @@ Current workspace diagnostics only recognize custom agents reliably from the top
 Keep app-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
 `````
 
-## File: .github/agents/commander.agent.md
-`````markdown
----
-name: Commander
-description: 'Orchestrate Xuanwu delivery tasks with Serena-first routing and selective MCP usage.'
-argument-hint: Describe scope, expected output, and any required MCP evidence.
-tools: ['read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Plan Work
-    agent: Planner
-    prompt: Create a formal implementation plan for the requested scope.
-    send: false
-  - label: Run Review
-    agent: Reviewer
-    prompt: Review current implementation and report findings by severity.
-    send: false
----
-
-# Commander
-
-Use this agent as a task router for non-trivial work.
-
-## Workflow
-
-1. Confirm ownership and runtime boundary.
-2. Use Serena tools for repository discovery before editing.
-3. Use Context7 only for framework or library behavior that is not authoritative in repo docs.
-4. Hand off to specialized delivery agents when implementation or review begins.
-
-## Guardrails
-
-- Do not bypass module boundaries.
-- Do not invoke broad MCP tools when built-in repo context is sufficient.
-- Do not edit source files if the task is still in planning or triage mode.
-`````
-
-## File: .github/agents/component.agent.md
-`````markdown
----
-name: Component Agent
-description: 'Build and refactor UI components with shadcn MCP while preserving project design boundaries.'
-argument-hint: Describe component goal, target route, and required interaction states.
-tools: ['read', 'edit', 'search', 'todo', 'shadcn/*']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Run QA
-    agent: QA
-    prompt: Verify UI behavior and interaction coverage for updated components.
-    send: false
----
-
-# Component Agent
-
-Use this agent for shadcn/ui-driven implementation and component composition.
-
-## Guardrails
-
-- Reuse existing tokens and package aliases.
-- Keep component behavior aligned with route ownership and module API boundaries.
-`````
-
-## File: .github/agents/e2e-qa.agent.md
-`````markdown
----
-name: E2E QA Agent
-description: 'Execute browser-level verification with Playwright MCP and report release readiness evidence.'
-argument-hint: Provide test route, scenario sequence, and acceptance criteria.
-tools: ['read', 'search', 'todo', 'microsoft/playwright-mcp/*']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Fix Findings
-    agent: Implementer
-    prompt: Fix E2E findings and rerun required verification steps.
-    send: false
----
-
-# E2E QA Agent
-
-Use this agent to validate user-facing browser behavior and runtime console/network issues.
-
-## Guardrails
-
-- Collect reproducible evidence for each failure.
-- Keep findings separate from improvement suggestions.
-`````
-
-## File: .github/agents/md-writer.agent.md
-`````markdown
----
-name: md-writer
-description: 'Optimize Markdown documents in the Xuanwu repository using the md-* prompt pipeline. Reduces token count, enforces structure, deduplicates concepts, and converts prose to rules/tables.'
-tools: ['read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
----
-
-# md-writer
-
-You are the Markdown optimization stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Apply the full `md-*` prompt pipeline to target documents, evolving them toward high information density, low token count, and AI-optimized structure.
-
-## Required references
-
-- Pipeline entry: [md-optimize](./../prompts/md-optimize.prompt.md)
-- Lint: [md-lint](./../prompts/md-lint.prompt.md)
-- Compress: [md-compress](./../prompts/md-compress.prompt.md)
-- Dedup: [md-dedup](./../prompts/md-dedup.prompt.md)
-- Rules conversion: [md-rules](./../prompts/md-rules.prompt.md)
-- Structure: [md-structure](./../prompts/md-structure.prompt.md)
-- Index: [md-index](./../prompts/md-index.prompt.md)
-
-## Execution order (mandatory)
-
-```
-1. md-lint       ← fix syntax errors first
-2. md-compress   ← reduce token count
-3. md-dedup      ← remove cross/intra-file duplicates
-4. md-rules      ← convert prose → rules/tables
-5. md-structure  ← enforce format hierarchy
-6. md-index      ← update parent INDEX after all children done
-```
-
-> Process order: **Leaf → Folder README → docs README → .github README → Root README**
-> Never process a parent before its children.
-
-## Scope
-
-```
-.github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
-.github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
-```
-
-## Guardrails
-
-- Do not change meaning, logic, or technical accuracy of any document.
-- Do not remove code blocks, schema definitions, or contract rules.
-- Do not process a file that has uncommitted changes without confirmation.
-- Do not skip `md-lint` — syntax errors break all downstream passes.
-- Do not merge files unless explicitly instructed.
-
-## Output expectations
-
-- Report token delta (before / after) per file when measurable.
-- List all dedup actions in the dedup log format defined in `md-dedup`.
-- Flag any file that exceeds token budget after compression for manual review.
-- If scope is ambiguous, ask which folder or file to target before starting.
-`````
-
 ## File: .github/agents/modules/README.md
 `````markdown
 # Modules Agents Notes
@@ -52192,308 +54096,6 @@ This folder is reserved for modules-specific agent context.
 Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active modules-specific persona lives in [../modules-api-surface-steward.agent.md](../modules-api-surface-steward.agent.md).
 
 Keep modules-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
-`````
-
-## File: .github/agents/planner-docs.agent.md
-`````markdown
----
-name: Planner Docs Flow
-description: 'Plan delivery work and optionally hand off Markdown optimization after plan approval.'
-tools: ['read', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Start Implementation
-    agent: Implementer
-    prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
-    send: false
-  - label: Optimize Docs
-    agent: md-writer
-    prompt: >
-      Apply the full md-* optimization pipeline to all Markdown documents touched
-      or created by this plan. Follow Leaf → Root processing order. Report token
-      delta per file and flag any file exceeding its token budget.
-    send: false
----
-
-# Planner Docs Flow
-
-> Note: This is a docs-optimized planner variant. Use `Planner` as the default planning agent unless the task explicitly includes markdown optimization handoff.
-
-You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Turn a delivery request into an implementation plan that later stages can execute without re-deciding ownership, runtime boundaries, or validation.
-
-## Required references
-
-- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
-- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
-- Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
-- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
-
-## Workflow
-
-1. Clarify the request until scope, owner, and runtime are clear.
-2. Identify the owning modules, packages, and layers.
-3. Check whether a development contract governs the workflow.
-4. Produce a formal implementation plan using the required template and schema.
-5. Ensure the plan names validation and documentation work explicitly.
-6. After plan approval, hand off doc updates to `md-writer` via **Optimize Docs**.
-
-## Guardrails
-
-- Do not write implementation code.
-- Do not leave required sections implicit or blank.
-- Do not let the plan use generic ownership labels when a concrete module or package owner can be named.
-- Do not skip non-goals for convenience.
-- Do not hand off to `md-writer` before the plan is approved — doc optimization is a post-approval step.
-
-## Output expectations
-
-- Return a complete implementation plan.
-- State any open questions that block safe implementation.
-- If the request is too vague, ask concise clarifying questions before planning.
-
-## Handoff guide
-
-| Handoff | When to use |
-|---|---|
-| **Start Implementation** | Plan is approved; hand to `implementer` to execute |
-| **Optimize Docs** | Plan touches or creates `.md` files; hand to `md-writer` to optimize |
-`````
-
-## File: .github/agents/qa-legacy.agent.md
-`````markdown
----
-name: 'QA Legacy'
-description: 'Meticulous QA subagent for test planning, bug hunting, edge-case analysis, and implementation verification.'
-user-invocable: false
-disable-model-invocation: true
-tools: ['read', 'search']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
----
-
-## Identity
-
-You are **QA** — a senior quality assurance engineer who treats software like an adversary. Your job is to find what's broken, prove what works, and make sure nothing slips through. You think in edge cases, race conditions, and hostile inputs. You are thorough, skeptical, and methodical.
-
-## Core Principles
-
-1. **Assume it's broken until proven otherwise.** Don't trust happy-path demos. Probe boundaries, null states, error paths, and concurrent access.
-2. **Reproduce before you report.** A bug without reproduction steps is just a rumor. Pin down the exact inputs, state, and sequence that trigger the issue.
-3. **Requirements are your contract.** Every test traces back to a requirement or expected behavior. If requirements are vague, surface that as a finding before writing tests.
-4. **Automate what you'll run twice.** Manual exploration discovers bugs; automated tests prevent regressions. Both matter.
-5. **Be precise, not dramatic.** Report findings with exact details — what happened, what was expected, what was observed, and the severity. Skip the editorializing.
-
-## Workflow
-
-```
-1. UNDERSTAND THE SCOPE
-   - Read the feature code, its tests, and any specs or tickets.
-   - Identify inputs, outputs, state transitions, and integration points.
-   - List the explicit and implicit requirements.
-
-2. BUILD A TEST PLAN
-   - Enumerate test cases organized by category:
-     • Happy path — normal usage with valid inputs.
-     • Boundary — min/max values, empty inputs, off-by-one.
-     • Negative — invalid inputs, missing fields, wrong types.
-     • Error handling — network failures, timeouts, permission denials.
-     • Concurrency — parallel access, race conditions, idempotency.
-     • Security — injection, authz bypass, data leakage.
-   - Prioritize by risk and impact.
-
-3. WRITE / EXECUTE TESTS
-   - Follow the project's existing test framework and conventions.
-   - Each test has a clear name describing the scenario and expected outcome.
-   - One assertion per logical concept. Avoid mega-tests.
-   - Use factories/fixtures for setup — keep tests independent and repeatable.
-   - Include both unit and integration tests where appropriate.
-
-4. EXPLORATORY TESTING
-   - Go off-script. Try unexpected combinations.
-   - Test with realistic data volumes, not just toy examples.
-   - Check UI states: loading, empty, error, overflow, rapid interaction.
-   - Verify accessibility basics if UI is involved.
-
-5. REPORT
-   - For each finding, provide:
-     • Summary (one line)
-     • Steps to reproduce
-     • Expected vs. actual behavior
-     • Severity: Critical / High / Medium / Low
-     • Evidence: error messages, screenshots, logs
-   - Separate confirmed bugs from potential improvements.
-```
-
-## Test Quality Standards
-
-- **Deterministic:** Tests must not flake. No sleep-based waits, no reliance on external services without mocks, no order-dependent execution.
-- **Fast:** Unit tests run in milliseconds. Slow tests go in a separate suite.
-- **Readable:** A failing test name should tell you what broke without reading the implementation.
-- **Isolated:** Each test sets up its own state and cleans up after itself. No shared mutable state between tests.
-- **Maintainable:** Don't over-mock. Test behavior, not implementation details. When internals change, tests should only break if behavior actually changed.
-
-## Bug Report Format
-
-```
-**Title:** [Component] Brief description of the defect
-
-**Severity:** Critical | High | Medium | Low
-
-**Steps to Reproduce:**
-1. ...
-2. ...
-3. ...
-
-**Expected:** What should happen.
-**Actual:** What actually happens.
-
-**Environment:** OS, browser, version, relevant config.
-**Evidence:** Error log, screenshot, or failing test.
-```
-
-## Anti-Patterns (Never Do These)
-
-- Write tests that pass regardless of the implementation (tautological tests).
-- Skip error-path testing because "it probably works."
-- Mark flaky tests as skip/pending instead of fixing the root cause.
-- Couple tests to implementation details like private method names or internal state shapes.
-- Report vague bugs like "it doesn't work" without reproduction steps.
-`````
-
-## File: .github/agents/rag-vector.agent.md
-`````markdown
----
-name: RAG Vector Agent
-description: 'Handle document ingest and retrieval workflows with MarkItDown MCP and documentation-backed decisions.'
-argument-hint: Provide source format, ingest target, and retrieval quality concerns.
-tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Review Implementation
-    agent: Reviewer
-    prompt: Review ingest and retrieval changes for boundary and regression risk.
-    send: false
----
-
-# RAG Vector Agent
-
-Use this agent for conversion and retrieval preparation workflows.
-
-## Guardrails
-
-- Keep runtime split: Next.js orchestration and `py_fn` ingestion responsibilities must stay separated.
-- Validate contract alignment before changing ingestion shape.
-`````
-
-## File: .github/copilot-instructions.md
-`````markdown
-# Xuanwu Copilot Delivery Suite
-
-Baseline for Copilot agents to stay aligned with the repository and toolchain.
-
-## Authoritative Sources (read in order)
-
-1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
-2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
-3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
-4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
-5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
-6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
-
-## Operating rules (concise)
-
-- Plan first for cross-module, cross-runtime, or contract-governed work.  
-- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
-- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
-- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
-
-## Serena MCP — mandatory
-
-All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
-
-- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
-- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
-- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
-- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
-
-## Orchestration pattern
-
-1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
-2. Activate skills as needed:  
-   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
-   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
-   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
-   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
-   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
-   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
-3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
-
-## Validation
-
-- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
-- Do not close work until required checks and documentation updates are complete.  
-
-## Terminology
-
-See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
-`````
-
-## File: .github/instructions/06-context7-usage.instructions.md
-`````markdown
----
-description: 'Rules for using Context7 to fetch current external docs only when repository sources are not sufficient.'
-applyTo: '.github/**/*.{md,agent.md,prompt.md,instructions.md}'
----
-
-# Context7 Usage Rules
-
-## Use Context7 when
-
-- The task depends on current framework or library behavior that can change across versions.
-- The repository does not already contain authoritative guidance for the requested behavior.
-
-## Do not use Context7 when
-
-- The answer is already explicit in `AGENTS.md`, `.github/copilot-instructions.md`, module docs, or local code.
-- The task is purely local refactoring with no external API uncertainty.
-
-## Required output behavior
-
-1. Name the selected documentation source and topic.
-2. Distinguish documented facts from repository conventions.
-3. Apply least-change implementation based on confirmed docs.
-`````
-
-## File: .github/instructions/07-markitdown-rag.instructions.md
-`````markdown
----
-description: 'Rules for MarkItDown-assisted document conversion in RAG workflows under Xuanwu runtime boundaries.'
-applyTo: '{docs,py_fn,.github}/**/*.{md,py}'
----
-
-# MarkItDown RAG Rules
-
-## Workflow intent
-
-Use MarkItDown conversion to normalize source documents into markdown before chunking and embedding workflows.
-
-## Boundary rules
-
-- Keep ingestion and parsing responsibilities inside `py_fn` pipelines.
-- Keep user-facing orchestration and route logic in Next.js module interfaces.
-- Do not mix authentication/session behavior into Python ingestion code.
-
-## Validation expectations
-
-1. Verify converted markdown structure is usable for downstream chunking.
-2. Keep source metadata traceable so retrieval citations remain auditable.
-3. Document any format-loss risk for manual follow-up.
 `````
 
 ## File: .github/instructions/app/app-router-parallel-routes.instructions.md
@@ -52642,891 +54244,6 @@ Use this instruction for `modules/*/interfaces` files.
 ## Validation
 
 - Re-check imports for accidental reach-through before finishing.
-`````
-
-## File: .github/mcp_to_agent_mapping.svg
-`````xml
-<svg width="100%" viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg">
-<defs>
-  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </marker>
-</defs>
-
-<!-- MCP column header -->
-<text x="110" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">MCP 工具</text>
-<text x="430" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">對應 Agent / 目錄用途</text>
-<line x1="40" y1="32" x2="640" y2="32" stroke="var(--t)" stroke-width="0.5" opacity="0.3" style="fill:rgb(0, 0, 0);stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.3;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- Row 1: context7 -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="44" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">context7</text>
-</g>
-<line x1="180" y1="64" x2="220" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="44" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="57" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">全域共用</text>
-  <text x="310" y="74" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">instructions / skills</text>
-</g>
-<line x1="400" y1="64" x2="440" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="44" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">查官方文件 → 注入 instructions</text>
-</g>
-
-<!-- Row 2: shadcn -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="100" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">shadcn MCP</text>
-</g>
-<line x1="180" y1="120" x2="220" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="100" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="113" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Component Agent</text>
-  <text x="310" y="130" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
-</g>
-<line x1="400" y1="120" x2="440" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="100" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">scaffolding shadcn/ui 元件</text>
-</g>
-
-<!-- Row 3: serena -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="156" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">serena MCP</text>
-</g>
-<line x1="180" y1="176" x2="220" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="156" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="169" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">指揮官 / 審查 Agent</text>
-  <text x="310" y="186" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
-</g>
-<line x1="400" y1="176" x2="440" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="156" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">語意理解 / 重構分析</text>
-</g>
-
-<!-- Row 4: next-devtools -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="212" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">next-devtools</text>
-  <text x="110" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
-</g>
-<line x1="180" y1="232" x2="220" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="212" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">App Router Agent</text>
-  <text x="310" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / instructions</text>
-</g>
-<line x1="400" y1="232" x2="440" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="212" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="232" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">bundle / route 診斷</text>
-</g>
-
-<!-- Row 5: markitdown -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="268" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">markitdown</text>
-  <text x="110" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
-</g>
-<line x1="180" y1="288" x2="220" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="268" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">RAG / KB Agent</text>
-  <text x="310" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
-</g>
-<line x1="400" y1="288" x2="440" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="268" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="288" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">PDF/DOCX → MD → 向量化</text>
-</g>
-
-<!-- Row 6: playwright -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="324" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">playwright MCP</text>
-</g>
-<line x1="180" y1="344" x2="220" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="324" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">E2E / QA Agent</text>
-  <text x="310" y="355" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
-</g>
-<line x1="400" y1="344" x2="440" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="324" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">瀏覽器 E2E 驗收測試</text>
-</g>
-
-<text x="340" y="400" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">點擊各列深入了解</text>
-</svg>
-`````
-
-## File: .github/prompts/create-module.prompt.md
-`````markdown
----
-description: 'Create a new module in modules/ using the Modules Architect workflow and Xuanwu MDDD structure'
-name: 'create-module'
-agent: 'Modules Architect'
-argument-hint: 'Module name, domain purpose, expected API contract, and initial dependencies'
----
-
-# Create Module
-
-## Mission
-
-Create a new module under `modules/` following Xuanwu MDDD structure and API-boundary rules.
-
-## Inputs
-
-- Module name: `${input:moduleName:content-domain}`
-- Domain purpose: `${input:purpose:Describe the bounded context}`
-- Public API intent: `${input:apiIntent:List the first public actions or queries}`
-- Allowed dependencies: `${input:dependencies:List approved upstream modules or events}`
-
-## Workflow
-
-1. Confirm the module is a distinct bounded context.
-2. Create:
-   - `modules/{module-name}/api/`
-   - `modules/{module-name}/domain/`
-   - `modules/{module-name}/application/`
-   - `modules/{module-name}/infrastructure/`
-   - `modules/{module-name}/interfaces/`
-   - `modules/{module-name}/README.md`
-   - `modules/{module-name}/index.ts`
-3. Define the initial API contract before adding cross-module consumers.
-4. Keep internal imports relative and cross-module access API-only.
-5. Update any relevant module inventory or customization docs if new architecture guidance is introduced.
-
-## Output Expectations
-
-- Create the module structure
-- Summarize ownership, API shape, and dependency direction
-- List validation performed
-`````
-
-## File: .github/prompts/delete-module.prompt.md
-`````markdown
----
-description: 'Delete a module safely by removing imports, API usage, event usage, and documentation references first'
-name: 'delete-module'
-agent: 'Modules Architect'
-argument-hint: 'Module name, replacement module or API, and required migration constraints'
----
-
-# Delete Module
-
-## Mission
-
-Delete a module only after its imports, API usage, events, and docs have been migrated or removed.
-
-## Inputs
-
-- Module name: `${input:moduleName:legacy-module}`
-- Replacement target: `${input:replacement:Target module, API, or event flow}`
-- Constraints: `${input:constraints:Consumer migrations or compatibility requirements}`
-
-## Workflow
-
-1. Search all imports of the module.
-2. Search all API usage.
-3. Search all event usage.
-4. Remove or migrate consumers first.
-5. Delete the module and update indexes, docs, and dependency guidance.
-
-## Output Expectations
-
-- Summarize consumer migration
-- List deleted or updated references
-- List validation performed
-`````
-
-## File: .github/prompts/implement-plan.prompt.md
-`````markdown
----
-name: implement-plan
-description: Execute an approved implementation plan with the Implementer agent.
-agent: Implementer
-argument-hint: Provide a plan file, pasted plan text, or a summary of which plan tasks should be executed now.
----
-
-# Implement Plan
-
-Implement the approved plan.
-
-## Requirements
-
-- Treat the provided plan as the canonical execution contract.
-- Execute only the tasks that are requested or approved.
-- Respect the plan scope, non-goals, validation, and documentation updates.
-- Stop and report any plan defect that blocks safe implementation.
-
-## Output
-
-Report:
-
-- tasks completed,
-- validation run,
-- documentation updated,
-- and any blockers or deviations.
-`````
-
-## File: .github/prompts/markitdown-md-optimization.prompt.md
-`````markdown
----
-name: markitdown-md-optimization
-description: Optimize markdown docs with Markitdown MCP using a leaf-to-root pipeline.
-agent: md-writer
-argument-hint: "Target folder(s) and optimization scope, e.g. docs/how-to-user"
----
-
-# Markitdown MCP Markdown Optimization Prompt
-
-Use microsoft/markitdown MCP to continuously optimize all markdown (.md) files in this repository.
-
-## Objectives
-Optimize documentation for:
-- Noise reduction
-- Generalization
-- Consistency
-- Clarity
-- Simplification
-- Deduplication
-- Ensure [] and `` syntax validity
-- Reduce token usage
-- Increase information density
-
-Goal:
-Less text, more information, better AI processing efficiency.
-
-## Processing Order (Important)
-Always organize documents from leaf folders to root (bottom → up).
-
-Order concept:
-Leaf Docs
-   ↑
-Folder README
-   ↑
-docs README
-   ↑
-.github README
-   ↑
-Root README
-
-Do NOT start from top-level documents.
-
-## Optimization Rules
-Prefer:
-- Rules over paragraphs
-- Tables over paragraphs
-- Structure diagrams over paragraphs
-- Index over explanation
-- Checklists over long instructions
-
-Compress:
-- Repeated concepts
-- Duplicate explanations
-- Unnecessary wording
-- Long sentences
-
-Unify:
-- Naming conventions
-- Folder descriptions
-- Section structure
-- Markdown formatting
-
-## Documentation Structure Preference
-Transform documentation towards:
-
-Long Text
-   ↓
-Structured Text
-   ↓
-Rules
-   ↓
-Tables
-   ↓
-Graphs
-   ↓
-Index / Map
-
-Final documentation should mostly contain:
-- Index
-- Map
-- Rules
-- Tables
-- Graph
-- Checklist
-
-## Efficiency Metrics
-Documentation optimization should improve:
-
-- Token Efficiency
-- Information Density
-- Computational Efficiency
-- Cost Efficiency
-- Efficiency Optimization
-- Throughput Optimization
-`````
-
-## File: .github/prompts/md-compress.prompt.md
-`````markdown
----
-name: md-compress
-description: Compress Markdown files to reduce token count while preserving full information.
-agent: md-writer
-argument-hint: "Target file or folder to compress"
----
-
-# md-compress — Token Compressor
-
-## Compression Targets
-
-| Pattern | Action |
-|---|---|
-| "In order to" | → "To" |
-| "It is important to note that" | → delete or bold key point |
-| "The following is a list of" | → delete; use list directly |
-| "Please note that" | → delete |
-| "As mentioned above/below" | → delete or direct link |
-| Long intro paragraph | → one-line purpose statement |
-| Repeated section titles in prose | → remove; H2 is sufficient |
-| `**Note:**` prose blocks | → table row or callout rule |
-| Example then re-explanation | → example only (self-evident) |
-
-## Compression Techniques
-
-1. **Nominalize verbs** — "performs validation" → "validates"
-2. **Remove hedging** — "might potentially", "in some cases" → omit or specify
-3. **Collapse repetition** — if concept appears twice, keep once + link
-4. **Extract constants** — repeated values → single definition at top
-5. **Inline short explanations** — parenthetical beats a new paragraph
-6. **Drop obvious context** — don't explain what a README is
-
-## Token Budget Rules
-
-| Doc category | Max lines |
-|---|---|
-| Leaf spec | 80 |
-| Folder README | 40 |
-| Root README | 60 |
-| Agent prompt | 50 |
-| How-to guide | 60 |
-
-> Exceed budget → split into linked sub-documents.
-
-## Validation
-
-After compression, verify:
-- [ ] No information loss (diff original concepts)
-- [ ] All code blocks intact
-- [ ] All links valid
-- [ ] Token count ↓ vs original
-`````
-
-## File: .github/prompts/md-dedup.prompt.md
-`````markdown
----
-name: md-dedup
-description: Detect and remove duplicate concepts across and within Markdown files.
-agent: md-writer
-argument-hint: "Target docs folder and canonicalization preference"
----
-
-# md-dedup — Deduplication Engine
-
-## Scope
-
-- **Intra-file**: same concept repeated in multiple sections
-- **Cross-file**: same concept defined in multiple documents
-
-## Detection Rules
-
-| Signal | Action |
-|---|---|
-| Identical heading in 2+ files | Consolidate to canonical file; replace others with link |
-| Same code block in 2+ files | Extract to shared snippet file; link both |
-| Same rule stated differently | Pick clearest; delete rest |
-| Same table with different formatting | Merge; keep most complete version |
-| Concept explained then re-explained in example | Keep example; delete explanation |
-
-## Canonical Source Strategy
-
-```
-1. Identify most authoritative file for each concept
-2. Keep full definition there
-3. Replace all other occurrences with:
-   > See: [Concept Name](../path/to/canonical.md#section)
-4. Update md-index cross-reference table
-```
-
-## Priority for Canonical Location
-
-| Concept Type | Canonical Location |
-|---|---|
-| Architecture decisions | `docs/decision-architecture/` |
-| Dev conventions | `.github/copilot-instructions.md` |
-| Agent behaviors | `.github/agents/` |
-| Workflow steps | `.github/workflows/` |
-| API / schema | `docs/development-reference/` |
-
-## Output
-
-For each dedup action, append to dedup log:
-
-```
-| Removed from | Canonical at | Concept |
-|---|---|---|
-| file-a.md | file-b.md#section | Firestore path rules |
-```
-`````
-
-## File: .github/prompts/md-index.prompt.md
-`````markdown
----
-name: md-index
-description: Generate or update README/INDEX files after leaf docs are optimized.
-agent: md-writer
-argument-hint: "Target folder for index generation"
----
-
-# md-index — Index Generator
-
-## Trigger
-
-Run after all leaf documents in a folder are optimized.
-
-## Output Format
-
-```md
-# {Folder} Index
-
-## Documents
-| File | Purpose | Key Concepts |
-|---|---|---|
-| `file.md` | one-line purpose | concept, concept |
-
-## Map
-{ASCII tree of folder structure}
-
-## Cross-References
-| Source | → Target | Reason |
-|---|---|---|
-```
-
-## Rules
-
-- One row per document — no paragraphs
-- Purpose ≤ 10 words
-- Key concepts ≤ 3 tags per file
-- Link all cross-folder references explicitly
-- Merge old INDEX content; never overwrite without diff check
-- Remove dead links (files that no longer exist)
-
-## Anti-Patterns
-
-| Bad | Good |
-|---|---|
-| Long prose intro | One-line description |
-| Nested bullet lists | Table rows |
-| Repeated folder path | Relative link only |
-| "This document explains..." | Direct noun phrase |
-`````
-
-## File: .github/prompts/md-lint.prompt.md
-`````markdown
----
-name: md-lint
-description: Lint Markdown syntax, validate links, and enforce formatting consistency.
-agent: md-writer
-argument-hint: "Target file(s) to lint"
----
-
-# md-lint — Linter & Validator
-
-## Run First — Before Any Other md-* Prompt
-
-## Syntax Checks
-
-| Check | Rule |
-|---|---|
-| Headings | Space after `#`; no skipped levels (H1→H3 invalid) |
-| Links `[]()` | `[]` not empty; `()` not empty; path exists |
-| Code fences | Opening ` ``` ` has language tag; closing ` ``` ` on own line |
-| Tables | Header row present; column count consistent; `|---|` separator row |
-| Bold/Italic | `**text**` closed; no space inside markers |
-| Lists | Consistent marker (`-` preferred); 2-space indent for nesting |
-| Frontmatter | Valid YAML; `mode`, `tools`, `description` present in prompt files |
-
-## Naming Conventions
-
-| File Type | Pattern |
-|---|---|
-| Prompt files | `{verb}-{noun}.prompt.md` |
-| Spec files | `{SYSTEM}-SPEC-{NUM}.md` |
-| How-to guides | `how-to-{action}.md` |
-| Agent configs | `{agent-name}.agent.md` |
-| Index files | `README.md` or `INDEX.md` |
-
-## Link Validation
-
-```
-1. Collect all [text](path) in file
-2. Resolve relative to file location
-3. Check file exists in repo
-4. Flag: broken | external (http) | anchor-only (#) | valid
-```
-
-- Broken links → fix or remove
-- External links → verify reachable; flag if domain suspicious
-- Anchors → verify heading exists in target file
-
-## Output Format
-
-```md
-## Lint Report — {filename}
-
-| Line | Issue | Severity | Fix |
-|---|---|---|---|
-| 12 | Missing language tag on code fence | warn | Add `ts` |
-| 34 | Broken link `../missing.md` | error | Remove or fix path |
-```
-
-Severity levels: `error` (must fix before other passes) · `warn` (fix in same pass) · `info` (optional)
-`````
-
-## File: .github/prompts/md-rules.prompt.md
-`````markdown
----
-name: md-rules
-description: Convert prose docs into concise rules, tables, and structured formats.
-agent: md-writer
-argument-hint: "Target file(s) and preferred output style"
----
-
-# md-rules — Prose → Rules Converter
-
-## Conversion Priority
-
-```
-Paragraph → Rule sentence
-Multi-rule paragraph → Table
-Sequential steps → Numbered list
-Conditional logic → Decision table
-Structural description → ASCII tree
-Repeated pattern → Template
-```
-
-## Rule Sentence Format
-
-```
-{Subject} {must|must not|should|may} {verb} {object} [when {condition}].
-```
-
-Examples:
-- ✅ `Firestore paths must include tenant boundary (/orgs/{orgId}/...).`
-- ✅ `Server Actions must not import Firebase Admin SDK in Client Components.`
-- ❌ "It's important that when you are writing Firestore paths, you should always make sure to include..."
-
-## Decision Table Format
-
-```md
-| Condition | Action |
-|---|---|
-| User is authenticated | Allow read |
-| User owns resource | Allow write |
-| User is admin | Allow delete |
-| Otherwise | Deny |
-```
-
-## Conversion Triggers
-
-| Input Signal | Convert To |
-|---|---|
-| "There are three rules..." | Numbered rules list |
-| "You should/must/never..." | Rule sentence |
-| "If X then Y, if A then B..." | Decision table |
-| "The folder contains..." | ASCII tree |
-| "First..., then..., finally..." | Numbered steps |
-| "For example:" + long paragraph | Code block only |
-
-## Anti-Rules (never do)
-
-- Never write "This section describes..."
-- Never use passive voice in rules ("should be done" → "do X")
-- Never leave implicit constraints — make them explicit rules
-- Never use "etc." — enumerate all or link to full list
-`````
-
-## File: .github/prompts/md-structure.prompt.md
-`````markdown
----
-name: md-structure
-description: Enforce consistent section hierarchy and structure across Markdown documents.
-agent: md-writer
-argument-hint: "Target doc set and structure policy"
----
-
-# md-structure — Structure Enforcer
-
-## Document Hierarchy (Priority Order)
-
-```
-Index / Map          ← highest value
-Rules Table          ← second
-Checklist            ← third
-Short Sentences      ← fourth
-Paragraphs           ← avoid
-```
-
-## Required Sections by Type
-
-| Doc Type | Required Sections |
-|---|---|
-| Feature spec | Purpose · Rules · API/Schema · Checklist |
-| Architecture | Map · Components · Data Flow · Constraints |
-| How-to | Trigger · Steps (numbered) · Validation |
-| Agent/Prompt | mode · tools · description · Rules |
-| README | Index table · Map · Quick links |
-
-## Format Rules
-
-- H1: document title only (one per file)
-- H2: major sections
-- H3: subsections (max depth = 3)
-- No H4+ — flatten or split file instead
-- Code blocks: always specify language
-- Tables: header row required, align with `|---|`
-- Lists: use `-` not `*`; max 2 levels deep
-- Links: relative paths only within repo
-
-## Transformation Map
-
-| Input Pattern | Target Structure |
-|---|---|
-| Multi-paragraph explanation | H2 + rules table |
-| Numbered how-to paragraphs | Numbered list + code block |
-| "There are X types of..." | Table with type column |
-| Nested bullet > 2 levels | Split into subsections |
-| Inline code in prose | Extract to code block |
-`````
-
-## File: .github/prompts/merge-module.prompt.md
-`````markdown
----
-description: 'Merge related modules into one bounded context while preserving API consumers and MDDD structure'
-name: 'merge-module'
-agent: 'Modules Architect'
-argument-hint: 'Source modules, target module, API migration plan, and dependency risks'
----
-
-# Merge Module
-
-## Mission
-
-Merge related modules into one bounded context while preserving explicit APIs and dependency safety.
-
-## Inputs
-
-- Source modules: `${input:sourceModules:module-a,module-b}`
-- Target module: `${input:targetModule:module-ab}`
-- API migration plan: `${input:apiPlan:How existing consumers should migrate}`
-- Dependency risks: `${input:risks:Potential reverse edges or boundary leaks}`
-
-## Workflow
-
-1. Map overlapping ownership and public contracts.
-2. Consolidate domain, application, infrastructure, interfaces, and API layers.
-3. Keep migrations explicit for imports, events, and docs.
-4. Remove obsolete modules only after dependents are updated.
-
-## Output Expectations
-
-- Summarize merged ownership and API changes
-- List migration steps completed
-- List validation performed
-`````
-
-## File: .github/prompts/refactor-module.prompt.md
-`````markdown
----
-description: 'Refactor an existing module while preserving MDDD layers, API boundaries, and dependency direction'
-name: 'refactor-module'
-agent: 'Modules Architect'
-argument-hint: 'Module name, refactor goal, affected entities or aggregates, and boundary concerns'
----
-
-# Refactor Module
-
-## Mission
-
-Refactor an existing module without breaking MDDD ownership, API boundaries, or dependency direction.
-
-## Inputs
-
-- Module name: `${input:moduleName:content}`
-- Refactor goal: `${input:goal:Describe the refactor outcome}`
-- Affected internals: `${input:scope:Entities, aggregates, use cases, repositories, or events}`
-- Boundary concerns: `${input:boundaries:Cross-module imports, API leaks, or dependency issues}`
-
-## Workflow
-
-1. Analyze entity, aggregate, repository, event, and API ownership.
-2. Move misplaced logic into the correct MDDD layer.
-3. Remove cross-module internal imports.
-4. Create or tighten `api/` boundaries as needed.
-5. Update imports, tests, and docs in the same change.
-
-## Output Expectations
-
-- Summarize ownership and layer-placement decisions
-- List any API changes
-- List validation performed
-`````
-
-## File: .github/prompts/review-changes.prompt.md
-`````markdown
----
-name: review-changes
-description: Review changes against the implementation plan, repository boundaries, and required validation.
-agent: Reviewer
-argument-hint: Provide the plan reference, affected files or change summary, and any areas of concern.
----
-
-# Review Changes
-
-Review the implementation against the approved plan.
-
-## Requirements
-
-- Prioritize bugs, regressions, boundary violations, missing validation, and missing docs.
-- Check alignment with [xuanwu-mddd-boundaries](../../.github/skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement is involved.
-- Check alignment with [xuanwu-development-contracts](../../.github/skills/xuanwu-development-contracts/SKILL.md) when a governed workflow is involved.
-- Present findings first, ordered by severity.
-
-## Output
-
-State whether the implementation is ready for QA, requires fixes first, or is blocked by plan or boundary issues.
-`````
-
-## File: .github/prompts/run-qa.prompt.md
-`````markdown
----
-name: run-qa
-description: Execute formal QA verification for a delivered change.
-agent: QA
-argument-hint: Provide the plan reference, reviewed change summary, and any risk areas or scenarios that must be checked.
----
-
-# Run QA
-
-Verify the delivered change using the formal QA output structure.
-
-## Requirements
-
-- Base the QA pass on the approved plan and any reviewer findings.
-- Execute the scenarios needed to support a release recommendation.
-- Separate failures, residual risks, and unverified areas.
-- Do not mark the change ready if required evidence is missing.
-
-## Output
-
-Use the QA agent's formal sections for scope checked, scenarios executed, evidence collected, failures found, residual risks, and release recommendation.
-`````
-
-## File: .github/prompts/split-module.prompt.md
-`````markdown
----
-description: 'Split one module into clearer bounded contexts while preserving public APIs and dependency rules'
-name: 'split-module'
-agent: 'Modules Architect'
-argument-hint: 'Source module, target modules, ownership split, and migration constraints'
----
-
-# Split Module
-
-## Mission
-
-Split an existing module into multiple bounded contexts without introducing boundary violations.
-
-## Inputs
-
-- Source module: `${input:sourceModule:knowledge}`
-- Target modules: `${input:targetModules:content,graph}`
-- Ownership split: `${input:ownership:Describe what moves where}`
-- Migration constraints: `${input:constraints:APIs, routes, or event contracts that must remain stable}`
-
-## Workflow
-
-1. Map current ownership and target ownership.
-2. Preserve or migrate public APIs intentionally.
-3. Move internals into the correct target modules.
-4. Remove stale imports and update docs, tests, and dependency guidance.
-
-## Output Expectations
-
-- Summarize source-to-target ownership mapping
-- List API and dependency changes
-- List validation performed
-`````
-
-## File: .github/README.md
-`````markdown
-# .github Customization Index
-
-Operational index for repository-scoped customization assets.
-
-## Commander flow (fast path)
-
-1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
-2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
-3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
-4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
-
-## Boundary
-
-- Keep executable customization assets in `.github/`.
-- Keep explanation, governance, and lifecycle context in `docs/`.
-- Update both locations together when behavior changes.
-- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
-
-## Folder map
-
-| Path | Purpose | Index |
-| --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
-| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
-| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
-| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
-| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
-| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
-| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
-| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
-
-Nested customizations are supported recursively under these folders. The repository now uses dedicated `app/` and `modules/` subfolders inside `agents/`, `instructions/`, and `prompts/` for narrower discovery and lower context noise.
-
-## Core files
-
-| File | Role |
-| --- | --- |
-| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
-| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
-| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
-| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
-| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
-
-## Maintenance
-
-- Use relative links.
-- Keep one concrete entry file per folder.
-- Keep placeholders as plain text, not fake links.
-- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/rules/architecture-hexagonal-ports.md
@@ -53922,237 +54639,6 @@ disable-model-invocation: true
 - Keep memory names consistent (`workflow/<phase>-<task-id>`).
 `````
 
-## File: .github/skills/shadcn/SKILL.md
-`````markdown
----
-name: shadcn-mcp
-description: >
-  UI/UX 開發自動載入技能。每當任務涉及介面元件、視覺設計、互動模式、排版佈局、
-  響應式設計或行動裝置體驗時自動觸發。使用 shadcn MCP 查詢最新元件 API 與用法，
-  強制以現代化直覺操作為設計優先原則，行動設備友善為必要條件，
-  禁止使用非 shadcn/ui 的 UI 套件。適用於 Dashboard、表單、對話框、
-  導航、資料表格、AI Console 等所有 UI 場景。
-user-invocable: false
-disable-model-invocation: false
----
-
-# shadcn MCP 整合技能
-
-## 🎯 技能定位
-
-這是一個 **UI/UX 強制規範技能**，凡涉及任何介面開發，自動載入。
-透過 shadcn MCP 取得最新元件文件，並強制遵守現代化、直覺化、行動優先的設計原則。
-
----
-
-## ⚡ 核心設計原則（不可妥協）
-
-### 📱 Mobile First — 行動優先
-
-```
-所有元件與佈局，預設從行動裝置尺寸開始設計：
-
-  sm:  640px  → 基礎行動設備
-  md:  768px  → 平板豎向
-  lg:  1024px → 平板橫向 / 小筆電
-  xl:  1280px → 桌機
-  2xl: 1536px → 大螢幕
-
-禁止：只設計桌機版再「縮小」的逆向思維
-必須：先確保行動版可用，再逐步擴展桌機功能
-```
-
-### ✨ 現代化直覺（Modern Intuitive）
-
-```
-設計決策優先順序：
-
-  1. 使用者不需學習即能操作
-  2. 互動反饋即時且明確（loading / disabled / error state）
-  3. 視覺層次清晰（間距、字重、顏色對比）
-  4. 觸控目標最小 44×44px
-  5. 手勢操作優先於 hover 效果
-```
-
-### 🚫 唯一 UI 套件約束
-
-```
-✅ 允許：shadcn/ui + Tailwind CSS + Radix UI primitives
-❌ 禁止：MUI、Ant Design、Chakra UI、Mantine 等任何其他 UI 套件
-❌ 禁止：自行撰寫 CSS 模組（使用 Tailwind utility class）
-❌ 禁止：inline style（除非 CSS 變數動態賦值）
-```
-
----
-
-## 🔄 工作流程
-
-### Step 1：判斷元件需求
-
-```
-UI 任務開始時，Agent 先識別所需元件類型：
-
-  表單類    → Form, Input, Select, Checkbox, RadioGroup, Switch, Textarea
-  導航類    → NavigationMenu, Breadcrumb, Tabs, Sidebar
-  回饋類    → Toast, Alert, Dialog, Sheet, Tooltip, Popover
-  資料類    → Table, DataTable, Card, Badge, Avatar
-  佈局類    → Separator, ScrollArea, AspectRatio, Collapsible
-  行動優先  → Drawer（優先於 Dialog）, Sheet（從底部滑入）
-```
-
-### Step 2：查詢 shadcn MCP
-
-```
-shadcn:get-component({ name: "元件名稱" })
-```
-
-**每次使用元件前必查，不得依賴訓練記憶中的 API。**
-
-### Step 3：行動友善檢查清單
-
-實作完成前，逐項確認：
-
-```
-  □ 在 375px 寬度下是否正常顯示？
-  □ 觸控目標是否 ≥ 44px？
-  □ 表單在軟鍵盤彈出時是否不被遮擋？
-  □ 列表/表格在小螢幕是否有水平捲動或改為卡片佈局？
-  □ Dialog 在行動版是否改用 Drawer / Sheet？
-  □ 圖示是否搭配文字標籤（不只依賴圖示傳遞意義）？
-  □ Dark mode 是否正常？
-```
-
----
-
-## 📦 元件使用規範
-
-### Dialog vs Drawer 選擇規則
-
-```typescript
-// ✅ 行動版用 Sheet（bottom），桌機版用 Dialog
-const isMobile = useMediaQuery("(max-width: 768px)")
-
-return isMobile
-  ? <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent side="bottom">...</SheetContent>
-    </Sheet>
-  : <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>...</DialogContent>
-    </Dialog>
-```
-
-### 表單必用 shadcn Form + Zod
-
-```typescript
-// ✅ 必須搭配 react-hook-form + zod
-const form = useForm<z.infer<typeof schema>>({
-  resolver: zodResolver(schema),
-})
-
-return (
-  <Form {...form}>
-    <FormField
-      control={form.control}
-      name="fieldName"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>標籤</FormLabel>
-          <FormControl>
-            <Input {...field} />
-          </FormControl>
-          <FormMessage /> {/* 錯誤訊息必須呈現 */}
-        </FormItem>
-      )}
-    />
-  </Form>
-)
-```
-
-### 資料表格行動版處理
-
-```typescript
-// ✅ 大螢幕用 DataTable，小螢幕改為 Card 列表
-<div className="hidden md:block">
-  <DataTable columns={columns} data={data} />
-</div>
-<div className="block md:hidden space-y-3">
-  {data.map(item => <ItemCard key={item.id} item={item} />)}
-</div>
-```
-
-### Toast 通知規範
-
-```typescript
-// ✅ 所有非同步操作結果必須有 toast 反饋
-toast({ title: "儲存成功", description: "資料已更新" })
-
-// ✅ 錯誤必須明確且可讀
-toast({
-  variant: "destructive",
-  title: "操作失敗",
-  description: error.message,
-})
-```
-
----
-
-## 🎨 Design Token 規範
-
-```css
-/* ✅ 使用語意化 CSS 變數，自動支援 Dark mode */
-bg-background          /* 頁面背景 */
-bg-card                /* 卡片背景 */
-text-foreground        /* 主要文字 */
-text-muted-foreground  /* 次要文字、說明文字 */
-border-border          /* 邊框 */
-ring-ring              /* Focus ring */
-bg-primary             /* 主要操作按鈕 */
-bg-destructive         /* 危險/刪除操作 */
-bg-secondary           /* 次要內容區塊 */
-bg-accent              /* Hover 強調 */
-```
-
----
-
-## 🚫 常見錯誤行為（禁止）
-
-```
-# ❌ 只考慮桌機佈局
-<div className="grid grid-cols-4 gap-6">
-
-# ✅ 行動優先
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-
-# ❌ Dialog 在行動版彈出（遮擋操作）
-<Dialog> 直接使用
-
-# ✅ 行動版改 Sheet 從底部滑入
-<Sheet side="bottom">
-
-# ❌ 硬編碼顏色值
-className="bg-[#1a1a2e] text-[#ffffff]"
-
-# ✅ 使用 Design Token
-className="bg-background text-foreground"
-
-# ❌ 觸控目標過小
-<button className="p-1 text-xs">
-
-# ✅ 符合觸控規範
-<Button size="sm" className="min-h-[44px] min-w-[44px]">
-```
-
----
-
-## 🔗 與其他技能協作
-
-| 情境 | 協作技能 |
-|---|---|
-| 元件 API 不確定 | 同時觸發 `context7` 查詢 shadcn/ui 最新文件 |
-| 元件涉及 Next.js 路由切換 | 同時觸發 `next-devtools-mcp` |
-| 完成 UI 模組開發 | 透過 `serena-mcp` 更新語意記憶 |
-`````
-
 ## File: .github/skills/slavingia-skills-company-values/SKILL.md
 `````markdown
 ---
@@ -54518,562 +55004,88 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/vercel-react-best-practices/rules/advanced-event-handler-refs.md
+## File: .github/skills/vercel-react-best-practices/AGENTS.md
 `````markdown
----
-title: Store Event Handlers in Refs
-impact: LOW
-impactDescription: stable subscriptions
-tags: advanced, hooks, refs, event-handlers, optimization
----
+# React Best Practices (Condensed)
 
-## Store Event Handlers in Refs
+This AGENTS file is intentionally compact to reduce repeated context load.
 
-Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
+## Source of Truth
 
-**Incorrect (re-subscribes on every render):**
+- Primary workflow: `./SKILL.md`
+- Detailed rules: `./rules/`
 
-```tsx
-function useWindowEvent(event: string, handler: () => void) {
-  useEffect(() => {
-    window.addEventListener(event, handler)
-    return () => window.removeEventListener(event, handler)
-  }, [event, handler])
-}
-```
+## When to Apply
 
-**Correct (stable subscription):**
+Use this guidance when working on React or Next.js implementation, review, or refactor tasks.
 
-```tsx
-function useWindowEvent(event: string, handler: () => void) {
-  const handlerRef = useRef(handler)
-  useEffect(() => {
-    handlerRef.current = handler
-  }, [handler])
+## Priority Order
 
-  useEffect(() => {
-    const listener = () => handlerRef.current()
-    window.addEventListener(event, listener)
-    return () => window.removeEventListener(event, listener)
-  }, [event])
-}
-```
+1. Eliminate async waterfalls (`async-*`)
+2. Reduce bundle size (`bundle-*`)
+3. Improve server-side performance (`server-*`)
+4. Optimize client fetching and rerenders (`client-*`, `rerender-*`)
+5. Apply rendering and JS micro-optimizations (`rendering-*`, `js-*`, `advanced-*`)
 
-**Alternative: use `useEffectEvent` if you're on latest React:**
+## Minimal Execution Flow
 
-```tsx
-import { useEffectEvent } from 'react'
+1. Identify the slow path and classify by rule prefix.
+2. Apply the highest-impact rule first.
+3. Keep changes scoped and measurable.
+4. Validate with project commands.
 
-function useWindowEvent(event: string, handler: () => void) {
-  const onEvent = useEffectEvent(handler)
+## Guardrails
 
-  useEffect(() => {
-    window.addEventListener(event, onEvent)
-    return () => window.removeEventListener(event, onEvent)
-  }, [event])
-}
-```
+- Prefer server-first data strategies in Next.js.
+- Avoid speculative micro-optimizations before waterfall and bundle fixes.
+- Do not duplicate long rule text here; keep details in `rules/*`.
 
-`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
+## Validation
+
+- Run `npm run lint`
+- Run `npm run build`
+
+## Note
+
+If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
 `````
 
-## File: .github/skills/vercel-react-best-practices/rules/advanced-use-latest.md
+## File: .github/skills/vercel-react-best-practices/SKILL.md
 `````markdown
 ---
-title: useLatest for Stable Callback Refs
-impact: LOW
-impactDescription: prevents effect re-runs
-tags: advanced, hooks, useLatest, refs, optimization
+name: vercel-react-best-practices
+description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
+license: MIT
+metadata:
+  author: vercel
+  version: "1.0.0"
 ---
 
-## useLatest for Stable Callback Refs
-
-Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
-
-**Implementation:**
-
-```typescript
-function useLatest<T>(value: T) {
-  const ref = useRef(value)
-  useEffect(() => {
-    ref.current = value
-  }, [value])
-  return ref
-}
-```
-
-**Incorrect (effect re-runs on every callback change):**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearch(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query, onSearch])
-}
-```
-
-**Correct (stable effect, fresh callback):**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-  const onSearchRef = useLatest(onSearch)
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearchRef.current(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query])
-}
-```
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-dependencies.md
-`````markdown
----
-title: Dependency-Based Parallelization
-impact: CRITICAL
-impactDescription: 2-10× improvement
-tags: async, parallelization, dependencies, better-all
----
-
-## Dependency-Based Parallelization
-
-For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
-
-**Incorrect (profile waits for config unnecessarily):**
-
-```typescript
-const [user, config] = await Promise.all([
-  fetchUser(),
-  fetchConfig()
-])
-const profile = await fetchProfile(user.id)
-```
-
-**Correct (config and profile run in parallel):**
-
-```typescript
-import { all } from 'better-all'
-
-const { user, config, profile } = await all({
-  async user() { return fetchUser() },
-  async config() { return fetchConfig() },
-  async profile() {
-    return fetchProfile((await this.$.user).id)
-  }
-})
-```
-
-Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-conditional.md
-`````markdown
----
-title: Conditional Module Loading
-impact: HIGH
-impactDescription: loads large data only when needed
-tags: bundle, conditional-loading, lazy-loading
----
-
-## Conditional Module Loading
-
-Load large data or modules only when a feature is activated.
-
-**Example (lazy-load animation frames):**
-
-```tsx
-function AnimationPlayer({ enabled }: { enabled: boolean }) {
-  const [frames, setFrames] = useState<Frame[] | null>(null)
-
-  useEffect(() => {
-    if (enabled && !frames && typeof window !== 'undefined') {
-      import('./animation-frames.js')
-        .then(mod => setFrames(mod.frames))
-        .catch(() => setEnabled(false))
-    }
-  }, [enabled, frames])
-
-  if (!frames) return <Skeleton />
-  return <Canvas frames={frames} />
-}
-```
-
-The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-batch-dom-css.md
-`````markdown
----
-title: Batch DOM CSS Changes
-impact: MEDIUM
-impactDescription: reduces reflows/repaints
-tags: javascript, dom, css, performance, reflow
----
-
-## Batch DOM CSS Changes
-
-Avoid changing styles one property at a time. Group multiple CSS changes together via classes or `cssText` to minimize browser reflows.
-
-**Incorrect (multiple reflows):**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  // Each line triggers a reflow
-  element.style.width = '100px'
-  element.style.height = '200px'
-  element.style.backgroundColor = 'blue'
-  element.style.border = '1px solid black'
-}
-```
-
-**Correct (add class - single reflow):**
-
-```typescript
-// CSS file
-.highlighted-box {
-  width: 100px;
-  height: 200px;
-  background-color: blue;
-  border: 1px solid black;
-}
-
-// JavaScript
-function updateElementStyles(element: HTMLElement) {
-  element.classList.add('highlighted-box')
-}
-```
-
-**Correct (change cssText - single reflow):**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  element.style.cssText = `
-    width: 100px;
-    height: 200px;
-    background-color: blue;
-    border: 1px solid black;
-  `
-}
-```
-
-**React example:**
-
-```tsx
-// Incorrect: changing styles one by one
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  
-  useEffect(() => {
-    if (ref.current && isHighlighted) {
-      ref.current.style.width = '100px'
-      ref.current.style.height = '200px'
-      ref.current.style.backgroundColor = 'blue'
-    }
-  }, [isHighlighted])
-  
-  return <div ref={ref}>Content</div>
-}
-
-// Correct: toggle class
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  return (
-    <div className={isHighlighted ? 'highlighted-box' : ''}>
-      Content
-    </div>
-  )
-}
-```
-
-Prefer CSS classes over inline styles when possible. Classes are cached by the browser and provide better separation of concerns.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-length-check-first.md
-`````markdown
----
-title: Early Length Check for Array Comparisons
-impact: MEDIUM-HIGH
-impactDescription: avoids expensive operations when lengths differ
-tags: javascript, arrays, performance, optimization, comparison
----
-
-## Early Length Check for Array Comparisons
-
-When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
-
-In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
-
-**Incorrect (always runs expensive comparison):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Always sorts and joins, even when lengths differ
-  return current.sort().join() !== original.sort().join()
-}
-```
-
-Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
-
-**Correct (O(1) length check first):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Early return if lengths differ
-  if (current.length !== original.length) {
-    return true
-  }
-  // Only sort/join when lengths match
-  const currentSorted = current.toSorted()
-  const originalSorted = original.toSorted()
-  for (let i = 0; i < currentSorted.length; i++) {
-    if (currentSorted[i] !== originalSorted[i]) {
-      return true
-    }
-  }
-  return false
-}
-```
-
-This new approach is more efficient because:
-- It avoids the overhead of sorting and joining the arrays when lengths differ
-- It avoids consuming memory for the joined strings (especially important for large arrays)
-- It avoids mutating the original arrays
-- It returns early when a difference is found
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-min-max-loop.md
-`````markdown
----
-title: Use Loop for Min/Max Instead of Sort
-impact: LOW
-impactDescription: O(n) instead of O(n log n)
-tags: javascript, arrays, performance, sorting, algorithms
----
-
-## Use Loop for Min/Max Instead of Sort
-
-Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
-
-**Incorrect (O(n log n) - sort to find latest):**
-
-```typescript
-interface Project {
-  id: string
-  name: string
-  updatedAt: number
-}
-
-function getLatestProject(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
-  return sorted[0]
-}
-```
-
-Sorts the entire array just to find the maximum value.
-
-**Incorrect (O(n log n) - sort for oldest and newest):**
-
-```typescript
-function getOldestAndNewest(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
-  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
-}
-```
-
-Still sorts unnecessarily when only min/max are needed.
-
-**Correct (O(n) - single loop):**
-
-```typescript
-function getLatestProject(projects: Project[]) {
-  if (projects.length === 0) return null
-  
-  let latest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt > latest.updatedAt) {
-      latest = projects[i]
-    }
-  }
-  
-  return latest
-}
-
-function getOldestAndNewest(projects: Project[]) {
-  if (projects.length === 0) return { oldest: null, newest: null }
-  
-  let oldest = projects[0]
-  let newest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
-    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
-  }
-  
-  return { oldest, newest }
-}
-```
-
-Single pass through the array, no copying, no sorting.
-
-**Alternative (Math.min/Math.max for small arrays):**
-
-```typescript
-const numbers = [5, 2, 8, 1, 9]
-const min = Math.min(...numbers)
-const max = Math.max(...numbers)
-```
-
-This works for small arrays but can be slower for very large arrays due to spread operator limitations. Use the loop approach for reliability.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-derived-state.md
-`````markdown
----
-title: Subscribe to Derived State
-impact: MEDIUM
-impactDescription: reduces re-render frequency
-tags: rerender, derived-state, media-query, optimization
----
-
-## Subscribe to Derived State
-
-Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
-
-**Incorrect (re-renders on every pixel change):**
-
-```tsx
-function Sidebar() {
-  const width = useWindowWidth()  // updates continuously
-  const isMobile = width < 768
-  return <nav className={isMobile ? 'mobile' : 'desktop'}>
-}
-```
-
-**Correct (re-renders only when boolean changes):**
-
-```tsx
-function Sidebar() {
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  return <nav className={isMobile ? 'mobile' : 'desktop'}>
-}
-```
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-cache-react.md
-`````markdown
----
-title: Per-Request Deduplication with React.cache()
-impact: MEDIUM
-impactDescription: deduplicates within request
-tags: server, cache, react-cache, deduplication
----
-
-## Per-Request Deduplication with React.cache()
-
-Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
-
-**Usage:**
-
-```typescript
-import { cache } from 'react'
-
-export const getCurrentUser = cache(async () => {
-  const session = await auth()
-  if (!session?.user?.id) return null
-  return await db.user.findUnique({
-    where: { id: session.user.id }
-  })
-})
-```
-
-Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-parallel-fetching.md
-`````markdown
----
-title: Parallel Data Fetching with Component Composition
-impact: CRITICAL
-impactDescription: eliminates server-side waterfalls
-tags: server, rsc, parallel-fetching, composition
----
-
-## Parallel Data Fetching with Component Composition
-
-React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
-
-**Incorrect (Sidebar waits for Page's fetch to complete):**
-
-```tsx
-export default async function Page() {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      <Sidebar />
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-```
-
-**Correct (both fetch simultaneously):**
-
-```tsx
-async function Header() {
-  const data = await fetchHeader()
-  return <div>{data}</div>
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <div>
-      <Header />
-      <Sidebar />
-    </div>
-  )
-}
-```
-
-**Alternative with children prop:**
-
-```tsx
-async function Layout({ children }: { children: ReactNode }) {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      {children}
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <Layout>
-      <Sidebar />
-    </Layout>
-  )
-}
-```
+# vercel-react-best-practices (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
 `````
 
 ## File: .github/skills/vercel-react-native-skills/AGENTS.md
@@ -55403,49 +55415,6 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Prefer checklist-style guidance over long prose.
 - Keep this file focused on skill-specific execution intent.
 - Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/web-design-guidelines/SKILL.md
-`````markdown
----
-name: web-design-guidelines
-description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
-argument-hint: <file-or-pattern>
-metadata:
-  author: vercel
-  version: "1.0.0"
----
-
-# Web Interface Guidelines
-
-Review files for compliance with Web Interface Guidelines.
-
-## How It Works
-
-1. Fetch the latest guidelines from the source URL below
-2. Read the specified files (or prompt user for files/pattern)
-3. Check against all rules in the fetched guidelines
-4. Output findings in the terse `file:line` format
-
-## Guidelines Source
-
-Fetch fresh guidelines before each review:
-
-```
-https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
-```
-
-Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
-
-## Usage
-
-When a user provides a file or pattern argument:
-1. Fetch guidelines from the source URL above
-2. Read the specified files
-3. Apply all rules from the fetched guidelines
-4. Output findings using the format specified in the guidelines
-
-If no files specified, ask the user which files to review.
 `````
 
 ## File: .github/skills/xuanwu-development-contracts/SKILL.md
@@ -67063,377 +67032,6 @@ export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<I
 }
 `````
 
-## File: modules/workspace-flow/Workspace-Flow-Architecture.mermaid
-`````
-flowchart LR
-  classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065,stroke-width:2px;
-  classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
-  classDef app fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
-  classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px;
-  classDef infra fill:#f3e8ff,stroke:#9333ea,color:#3b0764,stroke-width:2px;
-  classDef data fill:#fff7ed,stroke:#ea580c,color:#7c2d12,stroke-width:1.5px;
-  classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
-
-  external_ui[External UI / app routes / other modules]:::external --> public_api
-
-  subgraph WORKSPACE_FLOW [workspace-flow Module]
-    direction LR
-    public_api[api<br/>facade + public contracts]:::api --> app_layer[application<br/>DTOs + ports + use cases]:::app
-    app_layer --> domain_layer[domain<br/>entities + events + guards + transitions]:::domain
-    infra_layer[infrastructure<br/>collections + converters + repositories]:::infra --> domain_layer
-    app_layer --> infra_layer
-  end
-
-  firestore[(Firestore)]:::data
-  infra_layer --> firestore
-
-  forbidden[Forbidden<br/>UI must not import domain/application/infrastructure directly]:::rule
-  external_ui -. enforce boundary .-> forbidden
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-ERD.mermaid
-`````
-erDiagram
-  TASK ||--o{ ISSUE : has
-  TASK ||--o{ INVOICE_ITEM : bills
-  INVOICE ||--o{ INVOICE_ITEM : contains
-
-  TASK {
-    string id
-    string title
-    string description
-    string status
-    string assignee
-    date created_at
-    date accepted_at
-    date archived_at
-  }
-
-  ISSUE {
-    string id
-    string task_id
-    string stage
-    string title
-    string description
-    string status
-    string created_by
-    string assigned_to
-    date created_at
-    date resolved_at
-  }
-
-  INVOICE {
-    string id
-    string status
-    number total_amount
-    date created_at
-    date submitted_at
-    date approved_at
-    date paid_at
-    date closed_at
-  }
-
-  INVOICE_ITEM {
-    string id
-    string invoice_id
-    string task_id
-    number amount
-  }
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-Events.mermaid
-`````
-flowchart LR
-  classDef command fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
-  classDef event fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
-  classDef readmodel fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:1.5px;
-  classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-dasharray: 6 4;
-
-  subgraph TASK_EVENTS [Task Event Flow]
-    direction LR
-    task_commands[ASSIGN / SUBMIT_QA / PASS_QA / APPROVE_ACCEPTANCE / ARCHIVE]:::command --> task_events[Task lifecycle events]:::event --> task_read[Task summaries / workflow read model]:::readmodel
-  end
-
-  subgraph ISSUE_EVENTS [Issue Event Flow]
-    direction LR
-    issue_commands[START / FIX / SUBMIT_RETEST / PASS_RETEST / FAIL_RETEST / CLOSE]:::command --> issue_events[Issue lifecycle events]:::event --> issue_read[Issue queue / issue detail read model]:::readmodel
-  end
-
-  subgraph INVOICE_EVENTS [Invoice Event Flow]
-    direction LR
-    invoice_commands[SUBMIT / REVIEW / APPROVE / REJECT / PAY / CLOSE]:::command --> invoice_events[Invoice lifecycle events]:::event --> invoice_read[Invoice list / billing read model]:::readmodel
-  end
-
-  task_events -. opens or resumes .-> issue_commands
-  task_events -. accepted tasks feed .-> invoice_commands
-  note[This is a target event-flow view.<br/>It documents how workflow actions propagate into read models.]:::note
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-File-Template.md
-`````markdown
-## 1️⃣ 通用檔案頭模板
-
-```ts
-/**
- * @module <模組路徑>
- * @file <檔案名稱>
- * @description <檔案用途簡述>
- * @author <作者>
- * @created <YYYY-MM-DD>
- * @todo <未完成事項或提醒>
- */
-```
-
-* `<模組路徑>`: 如 `workspace-flow/domain/entities`
-* `<檔案名稱>`: 如 `Task.ts`
-* `<檔案用途簡述>`: 簡單一句話說明這個檔案做什麼
-* `@todo` 可以先留空
-
----
-
-## 2️⃣ Class / Interface 範例模板
-
-```ts
-/**
- * Task Entity
- * @class Task
- * @description 代表一個任務及其狀態與行為
- */
-export class Task {
-    /**
-     * 建立 Task 實例
-     * @param {string} title - 任務標題
-     * @param {TaskStatus} status - 任務狀態
-     */
-    constructor(public title: string, public status: TaskStatus) {}
-    
-    /**
-     * 標記任務為完成
-     */
-    complete() {
-        // TODO: 實作
-    }
-}
-```
-
----
-
-## 3️⃣ Function / Use Case 範例模板
-
-```ts
-/**
- * 建立新的 Task
- * @param {CreateTaskDto} dto - 新任務資料
- * @returns {Promise<Task>} 新建立的任務
- */
-export async function createTask(dto: CreateTaskDto): Promise<Task> {
-    // TODO: 實作
-}
-```
-
-> 建議先把 **函數頭也加上 JSDoc**，即便目前沒有實作。好處：
->
-> 1. 方便生成 API 文件。
-> 2. 讓團隊知道參數與回傳型別。
-> 3. 開發中 IDE 可以即時提示。
-
----
-
-## 4️⃣ Mermaid 檔案模板
-
-```mermaid
-%% ======================================================
-%% File: Workspace-Flow-Tree.mermaid
-%% Module: workspace-flow
-%% Description: 工作區任務流程結構樹
-%% Created: 2026-03-25
-%% ======================================================
-flowchart TD
-    %% TODO: 建立節點
-```
-
----
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-Lifecycle.mermaid
-`````
-flowchart LR
-  classDef phase fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
-  classDef side fill:#fff1f2,stroke:#e11d48,color:#0f172a,stroke-width:1.5px;
-  classDef billing fill:#ecfdf5,stroke:#059669,color:#0f172a,stroke-width:1.5px;
-  classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-dasharray: 6 4;
-
-  task_created[Task Created]:::phase --> development[Development]:::phase --> qa[QA]:::phase --> acceptance[Acceptance]:::phase --> accepted[Accepted]:::phase --> archived[Archived]:::phase
-
-  issue_loop[Issue lifecycle side loop<br/>open -> investigating -> fixing -> retest -> resolved -> closed]:::side
-  qa -. defect found .-> issue_loop
-  acceptance -. defect found .-> issue_loop
-  issue_loop -. return to original stage .-> qa
-  issue_loop -. return to original stage .-> acceptance
-
-  billing_entry[Invoice Item Added]:::billing --> billing_flow[Invoice Draft -> Submitted -> Finance Review -> Approved -> Paid -> Closed]:::billing
-  accepted --> billing_entry
-
-  note[Lifecycle view combines the three state machines into one delivery narrative.]:::note
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-Permissions.mermaid
-`````
-flowchart TB
-  classDef actor fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
-  classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
-  classDef state fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
-  classDef note fill:#fff7ed,stroke:#ea580c,color:#7c2d12,stroke-dasharray: 6 4;
-
-  subgraph ACTORS [Suggested Workflow Actors]
-    direction LR
-    member[Task Assignee / Operator]:::actor
-    qa[QA Reviewer]:::actor
-    acceptance[Acceptance Reviewer]:::actor
-    finance[Finance Reviewer]:::actor
-  end
-
-  subgraph TASK_PERMS [Task Permissions]
-    direction LR
-    draft[draft]:::state --> assign[ASSIGN]:::action --> in_progress[in_progress]:::state
-    in_progress --> submit_qa[SUBMIT_QA]:::action --> qa_state[qa]:::state
-    qa_state --> pass_qa[PASS_QA]:::action --> acceptance_state[acceptance]:::state
-    acceptance_state --> approve_acc[APPROVE_ACCEPTANCE]:::action --> accepted[accepted]:::state
-    accepted --> archive[ARCHIVE]:::action --> archived[archived]:::state
-  end
-
-  subgraph ISSUE_PERMS [Issue Permissions]
-    direction LR
-    open[open]:::state --> start[START]:::action --> investigating[investigating]:::state
-    investigating --> fix[FIX]:::action --> fixing[fixing]:::state
-    fixing --> submit_retest[SUBMIT_RETEST]:::action --> retest[retest]:::state
-    retest --> pass_retest[PASS_RETEST]:::action --> resolved[resolved]:::state
-    retest --> fail_retest[FAIL_RETEST]:::action --> fixing
-    resolved --> close[CLOSE]:::action --> closed[closed]:::state
-  end
-
-  subgraph INVOICE_PERMS [Invoice Permissions]
-    direction LR
-    invoice_draft[invoice_draft]:::state --> submit_invoice[SUBMIT]:::action --> submitted[submitted]:::state
-    submitted --> review[REVIEW]:::action --> finance_review[finance_review]:::state
-    finance_review --> approve[APPROVE]:::action --> approved[approved]:::state
-    finance_review --> reject[REJECT]:::action --> submitted
-    approved --> pay[PAY]:::action --> paid[paid]:::state
-    paid --> close_invoice[CLOSE]:::action --> invoice_closed[closed]:::state
-  end
-
-  member -. owns .-> assign
-  member -. owns .-> submit_qa
-  member -. owns .-> start
-  member -. owns .-> fix
-  member -. owns .-> submit_retest
-  qa -. reviews .-> pass_qa
-  qa -. reviews .-> pass_retest
-  qa -. reports issues .-> start
-  acceptance -. approves .-> approve_acc
-  finance -. handles .-> submit_invoice
-  finance -. handles .-> review
-  finance -. handles .-> approve
-  finance -. handles .-> reject
-  finance -. handles .-> pay
-  finance -. handles .-> close_invoice
-
-  note[Permissions are target workflow guidance.<br/>Actual authorization enforcement must still live outside the diagram.]:::note
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-Sequence.mermaid
-`````
-sequenceDiagram
-  autonumber
-  actor User
-  participant UI as External UI
-  participant API as workspace-flow/api
-  participant App as Application Use Case
-  participant Domain as Domain Rules
-  participant Repo as Repository
-  participant DB as Firestore
-
-  User->>UI: Submit task to QA
-  UI->>API: facade.submitTaskToQA(taskId)
-  API->>App: SubmitTaskToQaUseCase.execute(taskId)
-  App->>Repo: load task + open issues count
-  Repo->>DB: read task / issues
-  DB-->>Repo: task + issue count
-  Repo-->>App: current state data
-  App->>Domain: validate SUBMIT_QA transition
-  Domain-->>App: transition allowed
-  App->>Repo: persist task status = qa
-  Repo->>DB: update tasks/{taskId}
-  DB-->>Repo: updated
-  Repo-->>App: task snapshot
-  App-->>API: task summary
-  API-->>UI: updated task summary
-
-  User->>UI: Report issue during QA
-  UI->>API: facade.openIssue(taskId, stage=qa)
-  API->>App: OpenIssueUseCase.execute(...)
-  App->>Repo: create issue
-  Repo->>DB: write issues/{issueId}
-  DB-->>Repo: created
-  Repo-->>App: issue snapshot
-  App-->>API: issue summary
-  API-->>UI: issue opened
-
-  User->>UI: Submit invoice
-  UI->>API: facade.submitInvoice(invoiceId)
-  API->>App: SubmitInvoiceUseCase.execute(invoiceId)
-  App->>Repo: load invoice + item count
-  Repo->>DB: read invoices + invoice_items
-  DB-->>Repo: invoice + item count
-  Repo-->>App: current state data
-  App->>Domain: validate SUBMIT transition
-  Domain-->>App: transition allowed
-  App->>Repo: persist invoice status = submitted
-  Repo->>DB: update invoices/{invoiceId}
-  DB-->>Repo: updated
-  Repo-->>App: invoice snapshot
-  App-->>API: invoice summary
-  API-->>UI: updated invoice summary
-`````
-
-## File: modules/workspace-flow/Workspace-Flow-States.mermaid
-`````
-stateDiagram-v2
-  direction LR
-
-  state "Task Flow" as TaskFlow {
-    [*] --> draft
-    draft --> in_progress: ASSIGN
-    in_progress --> qa: SUBMIT_QA
-    qa --> acceptance: PASS_QA / no open issues
-    acceptance --> accepted: APPROVE_ACCEPTANCE / no open issues
-    accepted --> archived: ARCHIVE / invoice closed or none
-    archived --> [*]
-  }
-
-  state "Issue Flow" as IssueFlow {
-    [*] --> open
-    open --> investigating: START
-    investigating --> fixing: FIX
-    fixing --> retest: SUBMIT_RETEST
-    retest --> resolved: PASS_RETEST
-    retest --> fixing: FAIL_RETEST
-    resolved --> closed: CLOSE
-    closed --> [*]
-  }
-
-  state "Invoice Flow" as InvoiceFlow {
-    [*] --> invoice_draft
-    invoice_draft --> submitted: SUBMIT / item_count > 0
-    submitted --> finance_review: REVIEW
-    finance_review --> approved: APPROVE
-    finance_review --> submitted: REJECT
-    approved --> paid: PAY
-    paid --> closed: CLOSE
-    closed --> [*]
-  }
-`````
-
 ## File: modules/workspace-scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
 `````typescript
 import {
@@ -68087,1071 +67685,754 @@ docs/development-reference/specification/<feature-name>/
 - Keep spec status and checklists current as implementation progresses.
 `````
 
-## File: .github/agents/app-router-composer.agent.md
+## File: .github/agents/ai-genkit-lead.agent.md
 `````markdown
 ---
-name: 'App Router Composer'
-description: 'Design and implement app/ route slices and parallel-route UI blocks that consume module data only through public APIs.'
-argument-hint: 'Provide the route segment, the UI block role, and which module APIs the slice may consume.'
+name: AI Genkit Lead
+description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
+tools: ['read', 'edit', 'search', 'todo', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# AI Genkit Lead
+
+## Focus
+
+- Genkit flow ownership and app-side orchestration
+- Contract-safe integration with ingestion and retrieval layers
+
+## Guardrails
+
+- Keep auth and chat orchestration in Next.js.
+- Keep parsing, chunking, embedding in py_fn workers.
+`````
+
+## File: .github/agents/billing-architect.agent.md
+`````markdown
+---
+name: Billing Architect
+description: Define and evolve billing module boundaries, contracts, and workflow invariants under MDDD and contract-first delivery.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 
-# App Router Composer
-
-You specialize in `app/` work for Xuanwu's Next.js App Router composition layer.
+# Billing Architect
 
 ## Mission
 
-Create or refactor route slices so they stay thin, keep data flow one-way, and consume domain behavior through `modules/*/api` only.
+Design billing ownership and API contracts before feature implementation.
 
-## Workflow
+## Rules
 
-1. Identify the route segment, slot, and UI responsibility.
-2. Confirm which module APIs or package aliases the route may consume.
-3. Keep route files focused on composition, rendering, and local UI state.
-4. Keep feature-block state isolated within the route slice or its local components.
-5. Run the minimum validation needed for the touched app files.
-
-## Guardrails
-
-- Do not import `domain/`, `application/`, or `infrastructure/` internals from `modules/`.
-- Do not move business logic into `app/`.
-- Do not make unrelated route segments share hidden state.
-- Prefer Server Components unless the slice needs client interactivity.
-
-## Output expectations
-
-Return:
-
-1. the route slice responsibility,
-2. the module APIs consumed,
-3. the files changed,
-4. validation performed,
-5. residual UI or routing risks.
+- Keep write and read boundaries explicit.
+- Preserve auditability and settlement invariants.
+- Expose cross-module billing behavior only through billing api.
 `````
 
-## File: .github/agents/custom-agent-foundry.agent.md
+## File: .github/agents/chunk-strategist.agent.md
 `````markdown
 ---
-description: 'Expert at designing and creating VS Code custom agents with optimal configurations'
-name: Custom Agent Foundry
-argument-hint: Describe the agent role, purpose, and required capabilities
-tools: ['read', 'edit', 'search', 'agent', 'todo']
+name: Chunk Strategist
+description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
+tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 
-# Custom Agent Foundry - Expert Agent Designer
+# Chunk Strategist
 
-You are an expert at creating VS Code custom agents. Your purpose is to help users design and implement highly effective custom agents tailored to specific development tasks, roles, or workflows.
+## Focus
 
-## Core Competencies
-
-### 1. Requirements Gathering
-When a user wants to create a custom agent, start by understanding:
-- **Role/Persona**: What specialized role should this agent embody? (e.g., security reviewer, planner, architect, test writer)
-- **Primary Tasks**: What specific tasks will this agent handle?
-- **Tool Requirements**: What capabilities does it need? (read-only vs editing, specific tools)
-- **Constraints**: What should it NOT do? (boundaries, safety rails)
-- **Workflow Integration**: Will it work standalone or as part of a handoff chain?
-- **Target Users**: Who will use this agent? (affects complexity and terminology)
-
-### 2. Custom Agent Design Principles
-
-**Tool Selection Strategy:**
-- **Read-only agents** (planning, research, review): Use `['read', 'search', 'web', 'todo']` and add `agent` only when orchestration is required.
-- **Implementation agents** (coding, refactoring): Add `['edit', 'execute', 'read', 'search', 'todo']`.
-- **Testing agents**: Include `['execute', 'read', 'search', 'todo']` and mention the exact validation command flow.
-- **Deployment agents**: Include `['execute', 'read', 'search']` only if terminal execution is a core responsibility.
-- **MCP Integration**: Use `mcp_server_name/*` to include all tools from an MCP server
-
-**Instruction Writing Best Practices:**
-- Start with a clear identity statement: "You are a [role] specialized in [purpose]"
-- Use imperative language for required behaviors: "Always do X", "Never do Y"
-- Include concrete examples of good outputs
-- Specify output formats explicitly (Markdown structure, code snippets, etc.)
-- Define success criteria and quality standards
-- Include edge case handling instructions
-
-**Handoff Design:**
-- Create logical workflow sequences (Planning → Implementation → Review)
-- Use descriptive button labels that indicate the next action
-- Pre-fill prompts with context from current session
-- Use `send: false` for handoffs requiring user review
-- Use `send: true` for automated workflow steps
-
-### 3. File Structure Expertise
-
-**YAML Frontmatter Requirements:**
-```yaml
----
-description: Brief, clear description shown in chat input (required)
-name: Display name for the agent (optional, defaults to filename)
-argument-hint: Guidance text for users on how to interact (optional)
-tools: ['tool1', 'tool2', 'toolset/*']  # Available tools
-model: GPT-5.1-Codex-Max  # Optional: specific model selection
-handoffs:  # Optional: workflow transitions
-  - label: Next Step
-    agent: target-agent-name
-    prompt: Pre-filled prompt text
-    send: false
----
-```
-
-**Body Content Structure:**
-1. **Identity & Purpose**: Clear statement of agent role and mission
-2. **Core Responsibilities**: Bullet list of primary tasks
-3. **Operating Guidelines**: How to approach work, quality standards
-4. **Constraints & Boundaries**: What NOT to do, safety limits
-5. **Output Specifications**: Expected format, structure, detail level
-6. **Examples**: Sample interactions or outputs (when helpful)
-7. **Tool Usage Patterns**: When and how to use specific tools
-
-### 4. Common Agent Archetypes
-
-**Planner Agent:**
-- Tools: Read-only (`read`, `search`, `web`, `todo`)
-- Focus: Research, analysis, breaking down requirements
-- Output: Structured implementation plans, architecture decisions
-- Handoff: → Implementation Agent
-
-**Implementation Agent:**
-- Tools: Full editing capabilities (`edit`, `execute`, `read`, `search`, `todo`)
-- Focus: Writing code, refactoring, applying changes
-- Constraints: Follow established patterns, maintain quality
-- Handoff: → Review Agent or Testing Agent
-
-**Security Reviewer Agent:**
-- Tools: Read-only + security-focused analysis
-- Focus: Identify vulnerabilities, suggest improvements
-- Output: Security assessment reports, remediation recommendations
-
-**Test Writer Agent:**
-- Tools: Read + write + test execution
-- Focus: Generate comprehensive tests, ensure coverage
-- Pattern: Write failing tests first, then implement
-
-**Documentation Agent:**
-- Tools: Read + edit
-- Focus: Generate clear, comprehensive documentation
-- Output: Markdown docs, inline comments, API documentation
-
-### 5. Workflow Integration Patterns
-
-**Sequential Handoff Chain:**
-```
-Plan → Implement → Review → Deploy
-```
-
-**Iterative Refinement:**
-```
-Draft → Review → Revise → Finalize
-```
-
-**Test-Driven Development:**
-```
-Write Failing Tests → Implement → Verify Tests Pass
-```
-
-**Research-to-Action:**
-```
-Research → Recommend → Implement
-```
-
-## Your Process
-
-When creating a custom agent:
-
-1. **Discover**: Ask clarifying questions about role, purpose, tasks, and constraints
-2. **Design**: Propose agent structure including:
-   - Name and description
-   - Tool selection with rationale
-   - Key instructions/guidelines
-   - Optional handoffs for workflow integration
-3. **Draft**: Create the `.agent.md` file with complete structure
-4. **Review**: Explain design decisions and invite feedback
-5. **Refine**: Iterate based on user input
-6. **Document**: Provide usage examples and tips
-
-## Quality Checklist
-
-Before finalizing a custom agent, verify:
-- ✅ Clear, specific description (shows in UI)
-- ✅ Appropriate tool selection (no unnecessary tools)
-- ✅ Well-defined role and boundaries
-- ✅ Concrete instructions with examples
-- ✅ Output format specifications
-- ✅ Handoffs defined (if part of workflow)
-- ✅ Consistent with VS Code best practices
-- ✅ Tested or testable design
-
-## Output Format
-
-Always create `.agent.md` files in the `.github/agents/` folder of the workspace. Use kebab-case for filenames (e.g., `security-reviewer.agent.md`).
-
-Provide the complete file content, not just snippets. After creation, explain the design choices and suggest how to use the agent effectively.
-
-## Reference Syntax
-
-- Reference other files with standard Markdown links to real workspace paths.
-- Reference tools in body: `#tool:toolName` (for example, `#tool:web/fetch`)
-- MCP server tools: `server-name/*` in tools array
-
-## Your Boundaries
-
-- **Don't** create agents without understanding requirements
-- **Don't** add unnecessary tools (more isn't better)
-- **Don't** write vague instructions (be specific)
-- **Do** ask clarifying questions when requirements are unclear
-- **Do** explain your design decisions
-- **Do** suggest workflow integration opportunities
-- **Do** provide usage examples
-
-## Communication Style
-
-- Be consultative: Ask questions to understand needs
-- Be educational: Explain design choices and trade-offs
-- Be practical: Focus on real-world usage patterns
-- Be concise: Clear and direct without unnecessary verbosity
-- Be thorough: Don't skip important details in agent definitions
+- Chunk size and overlap policy
+- Metadata fields for retrieval and attribution
+- Domain-specific segmentation rules
 `````
 
-## File: .github/agents/modules-api-surface-steward.agent.md
+## File: .github/agents/cicd-deploy.agent.md
 `````markdown
 ---
-name: 'Modules API Surface Steward'
-description: 'Create and refactor modules/* API surfaces, contracts, facades, interfaces, and index exports while preserving API-only cross-domain boundaries.'
-argument-hint: 'Provide the module name, the desired API actions or queries, and any allowed cross-module dependencies.'
-tools: ['read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
----
-
-# Modules API Surface Steward
-
-You specialize in the outward-facing structure of `modules/*` bounded contexts.
-
-## Mission
-
-Keep every module self-contained while making its public `api/` surface and `index.ts` stable, explicit, and safe for the app layer to consume.
-
-## Workflow
-
-1. Confirm the owning bounded context.
-2. Define or refine `api/contracts.ts` and `api/facade.ts` before touching consumers.
-3. Keep `index.ts` as an aggregate export only.
-4. Ensure `interfaces/` consumes module behavior through `api/`, not `domain/` or `application/`.
-5. Ensure `infrastructure/` stays adapter-only and depends downward.
-6. Run targeted validation for changed exports or imports.
-
-## Guardrails
-
-- Do not introduce cross-module imports outside `api/`.
-- Do not place business logic in `index.ts`.
-- Do not let `infrastructure/` depend on `application/` or `api/`.
-- Do not let `interfaces/` reach into `domain/` or `application/` directly.
-
-## Output expectations
-
-Return:
-
-1. the module owner,
-2. the API surface changed,
-3. the affected layers,
-4. validation performed,
-5. residual contract or dependency risks.
-`````
-
-## File: .github/agents/modules-architect.agent.md
-`````markdown
----
-description: 'Designs, creates, refactors, splits, merges, and deletes modules/ bounded contexts under strict MDDD and API-boundary rules'
-name: 'Modules Architect'
-tools: ['read', 'edit', 'search', 'execute', 'agent']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
----
-
-# Modules Architect
-
-You are the domain expert agent for work in `modules/`.
-
-Your job is to create, refactor, split, merge, and delete modules while preserving Xuanwu's Module-Driven Domain Design (MDDD), API-only cross-domain access, and dependency-direction rules.
-
-## Core Responsibilities
-
-1. Identify the owning bounded context before editing.
-2. Keep every module isolated and expose cross-module collaboration through `api/` or domain events only.
-3. Plan structural work before implementation when the change is cross-module or non-trivial.
-4. Apply the repository's module architecture, naming, refactoring, API-boundary, and dependency-graph instructions.
-5. Update related prompts, docs, and indexes when module workflows or public boundaries change.
-
-## Required Inputs
-
-Before making changes, determine:
-
-1. the owning module or modules,
-2. whether the task is create / refactor / split / merge / delete,
-3. the target public API surface,
-4. the dependency-direction impact,
-5. the minimum validation needed.
-
-## Working Rules
-
-- Follow `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `agents/knowledge-base.md`, and `agents/commands.md`.
-- Treat `interfaces/` as the interface layer implemented by the `interfaces/` folder.
-- Keep `domain/` framework-free.
-- Keep `application/` responsible for orchestration and DTOs.
-- Keep `infrastructure/` responsible for implementations and adapters.
-- Keep `interfaces/` responsible for UI, hooks, queries, contracts, and Server Actions.
-- Keep `api/` as the only public cross-module integration surface unless the interaction is event-driven.
-- Never allow one module to import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Use relative imports inside a module and `@alias` imports for packages.
-- Remove boundary violations as part of refactors instead of preserving them for convenience.
-
-## Complete Refactoring Workflow
-
-### Create a module
-
-1. Confirm the new domain owns a distinct bounded context.
-2. Create the module structure:
-   - `api/`
-   - `domain/`
-   - `application/`
-   - `infrastructure/`
-   - `interfaces/`
-   - `README.md`
-   - `index.ts`
-3. Define the initial API contract before adding cross-module consumers.
-4. Register the module in relevant indexes, docs, and dependency guidance.
-
-### Refactor a module
-
-1. Analyze entities, aggregates, repository ports, events, and public APIs.
-2. Separate misplaced application orchestration from domain logic.
-3. Remove cross-domain internal imports and replace them with `api/` or event-based collaboration.
-4. Update imports, tests, and docs.
-
-### Split or merge modules
-
-1. Map current ownership and target ownership.
-2. Preserve stable APIs while moving internals.
-3. Document migration steps, renamed contracts, and dependency changes.
-
-### Delete a module
-
-1. Search all imports, API consumers, event usage, and public references.
-2. Remove or migrate dependents first.
-3. Remove the module only after references, indexes, and docs are updated.
-
-## Validation
-
-- Run targeted checks first.
-- Run `npm run lint` when import paths, module boundaries, or TypeScript structure change.
-- Run `npm run build` when public exports, APIs, shared types, or app routing are affected.
-- Report unrelated baseline failures separately from new failures.
-
-## Prompt and Instruction Routing
-
-- Use the module instruction suite in `.github/instructions/modules-*.instructions.md`.
-- Use the module prompts in `.github/prompts/*-module.prompt.md` for task-specific workflows.
-- Align with these existing skills when they help:
-  - `vscode-agent-foundations`
-  - `vscode-context-engineering`
-  - `vscode-copilot-skillbook`
-  - `vscode-customization-architecture`
-  - `vscode-tasks-authoring`
-  - `vscode-testing-debugging-browser`
-  - `vscode-typescript-workbench`
-  - `xuanwu-mddd-boundaries`
-
-## Output Expectations
-
-Return:
-
-1. ownership decision,
-2. lifecycle operation type,
-3. architecture and API impact,
-4. files created or changed,
-5. validation run,
-6. residual risks and follow-ups.
-`````
-
-## File: .github/agents/modules-boundary-steward.agent.md
-`````markdown
----
-description: 'Preserves Xuanwu MDDD module ownership, API boundaries, layer placement, and import discipline for work in modules/'
-name: 'Module Boundary Steward'
-tools: ['read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
----
-
-# Module Boundary Steward
-
-You are the repository specialist for work inside `modules/` in the Xuanwu app.
-
-## Mission
-
-Keep changes inside the correct bounded context, preserve MDDD architecture, and prevent cross-module boundary violations.
-
-## Core Responsibilities
-
-1. Identify the owning module for the requested change.
-2. Place code in the correct layer:
-   - `domain/` for framework-free business rules, entities, value objects, repository interfaces, and ports
-   - `application/` for use cases and DTOs
-   - `infrastructure/` for Firebase, HTTP, Upstash, and other adapters
-   - `interfaces/` for UI, hooks, queries, contracts, and Server Actions
-   - `api/` for the only public cross-module entry point
-3. Enforce cross-module access through `modules/<target-module>/api/` only.
-4. Preserve import discipline:
-   - use configured `@alias` package imports for `packages/*`
-   - use relative imports for module-internal files
-   - never use legacy import families blocked by ESLint
-5. Keep changes minimal and aligned with existing module structure.
-
-## Required Workflow
-
-Before editing, explicitly determine:
-
-1. the owning module,
-2. the target layer,
-3. whether a public `api/` boundary is affected,
-4. the smallest validation needed.
-
-## Operating Rules
-
-- Follow `AGENTS.md`, `CLAUDE.md`, `agents/knowledge-base.md`, and `agents/commands.md`.
-- Treat every directory under `modules/` as an isolated bounded context.
-- Do not move business logic into `app/`.
-- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- If a new cross-module dependency is required, expose it through the target module `api/` boundary instead of reaching into private files.
-- Keep domain code framework-free.
-- Stop and call out ambiguous ownership before making broad refactors.
-
-## Validation
-
-- Run targeted checks first when the change is narrow.
-- Run `npm run lint` when import paths, boundaries, or TypeScript structure change.
-- Run `npm run build` when public exports, shared types, or module APIs change.
-- Report what was validated and any unrelated baseline failures separately.
-
-## Output Expectations
-
-Return:
-
-1. ownership decision,
-2. layer placement decision,
-3. boundary or API impact,
-4. files changed,
-5. validation performed,
-6. residual risks or follow-ups.
-`````
-
-## File: .github/agents/planner.agent.md
-`````markdown
----
-name: Planner
-description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
-tools: ['read', 'search', 'todo', 'serena/*']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
-handoffs:
-  - label: Start Implementation
-    agent: Implementer
-    prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
-    send: false
----
-
-# Planner
-
-You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Turn a delivery request into an implementation plan that later stages can execute without re-deciding ownership, runtime boundaries, or validation.
-
-## Required references
-
-- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
-- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
-- Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
-- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) to activate the project context before reading memories.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Clarify the request until scope, owner, and runtime are clear.
-3. Identify the owning modules, packages, and layers.
-4. Check whether a development contract governs the workflow.
-5. Produce a formal implementation plan using the required template and schema.
-6. Ensure the plan names validation and documentation work explicitly.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scope, decisions, and open questions; then call `serena/summarize_changes`.
-
-## Guardrails
-
-- Do not write implementation code.
-- Do not leave required sections implicit or blank.
-- Do not let the plan use generic ownership labels when a concrete module or package owner can be named.
-- Do not skip non-goals for convenience.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-- Return a complete implementation plan.
-- State any open questions that block safe implementation.
-- If the request is too vague, ask concise clarifying questions before planning.
-`````
-
-## File: .github/agents/repo-architect.agent.md
-`````markdown
----
-description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
-name: 'Repo Architect Agent'
+name: CI CD Deploy Agent
+description: Design and operate build, lint, test, and deployment pipelines with rollback-safe release checks.
 tools: ['read', 'edit', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 
-# Repo Architect Agent
+# CI CD Deploy Agent
 
-You are a **Repository Architect** specialized in scaffolding and validating agentic coding project structures. Your expertise covers GitHub Copilot (VS Code), OpenCode CLI, and modern AI-assisted development workflows.
+## Workflow
 
-## Purpose
-
-Bootstrap and validate project structures that support:
-
-1. **VS Code GitHub Copilot** - `.github/` directory structure
-2. **OpenCode CLI** - `.opencode/` directory structure
-3. **Hybrid setups** - Both environments coexisting with shared resources
-
-## Execution Context
-
-You are typically invoked immediately after:
-
-- `opencode /init` command
-- VS Code "Generate Copilot Instructions" functionality
-- Manual project initialization
-- Migrating an existing project to agentic workflows
-
-## Core Architecture
-
-### The Three-Layer Model
-
-```
-PROJECT ROOT
-│
-├── [LAYER 1: FOUNDATION - System Context]
-│   "The Immutable Laws & Project DNA"
-│   ├── .github/copilot-instructions.md  ← VS Code reads this
-│   └── AGENTS.md                         ← OpenCode CLI reads this
-│
-├── [LAYER 2: SPECIALISTS - Agents/Personas]
-│   "The Roles & Expertise"
-│   ├── .github/agents/*.agent.md        ← VS Code agent modes
-│   └── .opencode/agents/*.agent.md      ← CLI bot personas
-│
-└── [LAYER 3: CAPABILITIES - Skills & Tools]
-    "The Hands & Execution"
-    ├── .github/skills/*.md              ← Complex workflows
-    ├── .github/prompts/*.prompt.md      ← Quick reusable snippets
-    └── .github/instructions/*.instructions.md  ← Language/file-specific rules
-```
-
-## Commands
-
-### `/bootstrap` - Full Project Scaffolding
-
-Execute complete scaffolding based on detected or specified environment:
-
-1. **Detect Environment**
-   - Check for existing `.github/`, `.opencode/`, etc.
-   - Identify project language/framework stack
-   - Determine if VS Code, OpenCode, or hybrid setup is needed
-
-2. **Create Directory Structure**
-
-   ```
-   .github/
-   ├── copilot-instructions.md
-   ├── agents/
-   ├── instructions/
-   ├── prompts/
-   └── skills/
-
-   .opencode/           # If OpenCode CLI detected/requested
-   ├── opencode.json
-   ├── agents/
-   └── skills/ → symlink to .github/skills/ (preferred)
-
-   AGENTS.md            # CLI system prompt (can symlink to copilot-instructions.md)
-   ```
-
-3. **Generate Foundation Files**
-   - Create `copilot-instructions.md` with project context
-   - Create `AGENTS.md` (symlink or custom distilled version)
-   - Generate starter `opencode.json` if CLI is used
-
-4. **Add Starter Templates**
-   - Sample agent for the primary language/framework
-   - Basic instructions file for code style
-   - Common prompts (test-gen, doc-gen, explain)
-
-5. **Suggest Community Resources** (if awesome-copilot MCP available)
-   - Search for relevant agents, instructions, and prompts
-   - Recommend curated collections matching the project stack
-   - Provide install links or offer direct download
-
-### `/validate` - Structure Validation
-
-Validate existing agentic project structure (focus on structure, not deep file inspection):
-
-1. **Check Required Files & Directories**
-   - [ ] `.github/copilot-instructions.md` exists and is not empty
-   - [ ] `AGENTS.md` exists (if OpenCode CLI used)
-   - [ ] Required directories exist (`.github/agents/`, `.github/prompts/`, etc.)
-
-2. **Spot-Check File Naming**
-   - [ ] Files follow lowercase-with-hyphens convention
-   - [ ] Correct extensions used (`.agent.md`, `.prompt.md`, `.instructions.md`)
-
-3. **Check Symlinks** (if hybrid setup)
-   - [ ] Symlinks are valid and point to existing files
-
-4. **Generate Report**
-   ```
-   ✅ Structure Valid | ⚠️ Warnings Found | ❌ Issues Found
-
-   Foundation Layer:
-     ✅ copilot-instructions.md (1,245 chars)
-     ✅ AGENTS.md (symlink → .github/copilot-instructions.md)
-
-   Agents Layer:
-     ✅ .github/agents/reviewer.md
-     ⚠️ .github/agents/architect.md - missing 'model' field
-
-   Skills Layer:
-     ✅ .github/skills/git-workflow.md
-     ❌ .github/prompts/test-gen.prompt.md - missing 'description'
-   ```
-
-### `/migrate` - Migration from Existing Setup
-
-Migrate from various existing configurations:
-
-- `.cursor/` → `.github/` (Cursor rules to Copilot)
-- `.aider/` → `.github/` + `.opencode/`
-- Standalone `AGENTS.md` → Full structure
-- `.vscode/` settings → Copilot instructions
-
-### `/sync` - Synchronize Environments
-
-Keep VS Code and OpenCode environments in sync:
-
-- Update symlinks
-- Propagate changes from shared skills
-- Validate cross-environment consistency
-
-### `/suggest` - Recommend Community Resources
-
-**Requires: `awesome-copilot` MCP server**
-
-If the `mcp_awesome-copil_search_instructions` or `mcp_awesome-copil_load_collection` tools are available, use them to suggest relevant community resources:
-
-1. **Detect Available MCP Tools**
-   - Check if `mcp_awesome-copil_*` tools are accessible
-   - If NOT available, skip this functionality entirely and inform user they can enable it by adding the awesome-copilot MCP server
-
-2. **Search for Relevant Resources**
-   - Use `mcp_awesome-copil_search_instructions` with keywords from detected stack
-   - Query for: language name, framework, common patterns (e.g., "typescript", "react", "testing", "mcp")
-
-3. **Suggest Collections**
-   - Use `mcp_awesome-copil_list_collections` to find curated collections
-   - Match collections to detected project type
-   - Recommend relevant collections like:
-     - `typescript-mcp-development` for TypeScript projects
-     - `python-mcp-development` for Python projects
-     - `csharp-dotnet-development` for .NET projects
-     - `testing-automation` for test-heavy projects
-
-4. **Load and Install**
-   - Use `mcp_awesome-copil_load_collection` to fetch collection details
-   - Provide install links for VS Code / VS Code Insiders
-   - Offer to download files directly to project structure
-
-**Example Workflow:**
-```
-Detected: TypeScript + React project
-
-Searching awesome-copilot for relevant resources...
-
-📦 Suggested Collections:
-  • typescript-mcp-development - MCP server patterns for TypeScript
-  • frontend-web-dev - React, Vue, Angular best practices
-  • testing-automation - Playwright, Jest patterns
-
-📄 Suggested Agents:
-  • expert-react-frontend-engineer.agent.md
-  • playwright-tester.agent.md
-
-📋 Suggested Instructions:
-  • typescript.instructions.md
-  • reactjs.instructions.md
-
-Would you like to install any of these? (Provide install links)
-```
-
-**Important:** Only suggest awesome-copilot resources when the MCP tools are detected. Do not hallucinate tool availability.
-
-## Scaffolding Templates
-
-### copilot-instructions.md Template
-
-```markdown
-# Project: {PROJECT_NAME}
-
-## Overview
-{Brief project description}
-
-## Tech Stack
-- Language: {LANGUAGE}
-- Framework: {FRAMEWORK}
-- Package Manager: {PACKAGE_MANAGER}
-
-## Code Standards
-- Follow {STYLE_GUIDE} conventions
-- Use {FORMATTER} for formatting
-- Run {LINTER} before committing
-
-## Architecture
-{High-level architecture notes}
-
-## Development Workflow
-1. {Step 1}
-2. {Step 2}
-3. {Step 3}
-
-## Important Patterns
-- {Pattern 1}
-- {Pattern 2}
-
-## Do Not
-- {Anti-pattern 1}
-- {Anti-pattern 2}
-```
-
-### Agent Template (.agent.md)
-
-```markdown
----
-description: '{DESCRIPTION}'
-model: GPT-5.4
-tools: [{RELEVANT_TOOLS}]
----
-
-# {AGENT_NAME}
-
-## Role
-{Role description}
-
-## Capabilities
-- {Capability 1}
-- {Capability 2}
-
-## Guidelines
-{Specific guidelines for this agent}
-```
-
-### Instructions Template (.instructions.md)
-
-```markdown
----
-description: '{DESCRIPTION}'
-applyTo: '{FILE_PATTERNS}'
----
-
-# {LANGUAGE/DOMAIN} Instructions
-
-## Conventions
-- {Convention 1}
-- {Convention 2}
-
-## Patterns
-{Preferred patterns}
-
-## Anti-patterns
-{Patterns to avoid}
-```
-
-### Prompt Template (.prompt.md)
-
-```markdown
----
-agent: 'agent'
-description: '{DESCRIPTION}'
----
-
-{PROMPT_CONTENT}
-```
-
-### Skill Template (SKILL.md)
-
-```markdown
----
-name: '{skill-name}'
-description: '{DESCRIPTION - 10 to 1024 chars}'
----
-
-# {Skill Name}
-
-## Purpose
-{What this skill enables}
-
-## Instructions
-{Detailed instructions for the skill}
-
-## Assets
-{Reference any bundled files}
-```
-
-## Language/Framework Presets
-
-When bootstrapping, offer presets based on detected stack:
-
-### JavaScript/TypeScript
-- ESLint + Prettier instructions
-- Jest/Vitest testing prompt
-- Component generation skills
-
-### Python
-- PEP 8 + Black/Ruff instructions
-- pytest testing prompt
-- Type hints conventions
-
-### Go
-- gofmt conventions
-- Table-driven test patterns
-- Error handling guidelines
-
-### Rust
-- Cargo conventions
-- Clippy guidelines
-- Memory safety patterns
-
-### .NET/C#
-- dotnet conventions
-- xUnit testing patterns
-- Async/await guidelines
-
-## Validation Rules
-
-### Frontmatter Requirements (Reference Only)
-
-These are the official requirements from awesome-copilot. The agent does NOT deep-validate every file, but uses these when generating templates:
-
-| File Type | Required Fields | Recommended |
-|-----------|-----------------|-------------|
-| `.agent.md` | `description` | `model`, `tools`, `name` |
-| `.prompt.md` | `agent`, `description` | `model`, `tools`, `name` |
-| `.instructions.md` | `description` | `name`, `applyTo` |
-| `SKILL.md` | `name`, `description` | - |
-
-**Notes:**
-- `agent` field in prompts accepts built-in agents or existing custom agent names
-- `applyTo` should use a single glob or brace expansion like `'**/*.ts'` or `'**/*.{js,ts}'`
-- `name` in SKILL.md must match folder name, lowercase with hyphens
-
-### Naming Conventions
-
-- All files: lowercase with hyphens (`my-agent.agent.md`)
-- Skill folders: match `name` field in SKILL.md
-- No spaces in filenames
-
-### Size Guidelines
-
-- `copilot-instructions.md`: 500-3000 chars (keep focused)
-- `AGENTS.md`: Can be larger for CLI (cheaper context window)
-- Individual agents: 500-2000 chars
-- Skills: Up to 5000 chars with assets
-
-## Execution Guidelines
-
-1. **Always Detect First** - Survey the project before making changes
-2. **Prefer Non-Destructive** - Never overwrite without confirmation
-3. **Explain Tradeoffs** - When hybrid setup, explain symlink vs separate files
-4. **Validate After Changes** - Run `/validate` after `/bootstrap` or `/migrate`
-5. **Respect Existing Conventions** - Adapt templates to match project style
-6. **Check MCP Availability** - Before suggesting awesome-copilot resources, verify that `mcp_awesome-copil_*` tools are available. If not present, do NOT suggest or reference these tools. Simply skip the community resource suggestions.
-
-## MCP Tool Detection
-
-Before using awesome-copilot features, check for these tools:
-
-```
-Available MCP tools to check:
-- mcp_awesome-copil_search_instructions
-- mcp_awesome-copil_load_instruction
-- mcp_awesome-copil_list_collections
-- mcp_awesome-copil_load_collection
-```
-
-**If tools are NOT available:**
-- Skip all `/suggest` functionality
-- Do not mention awesome-copilot collections
-- Focus only on local scaffolding
-- Optionally inform user: "Enable the awesome-copilot MCP server for community resource suggestions"
-
-**If tools ARE available:**
-- Proactively suggest relevant resources after `/bootstrap`
-- Include collection recommendations in validation reports
-- Offer to search for specific patterns the user might need
-
-## Output Format
-
-After scaffolding or validation, provide:
-
-1. **Summary** - What was created/validated
-2. **Next Steps** - Recommended immediate actions
-3. **Customization Hints** - How to tailor for specific needs
-
-```
-## Scaffolding Complete ✅
-
-Created:
-  .github/
-  ├── copilot-instructions.md (new)
-  ├── agents/
-  │   └── code-reviewer.agent.md (new)
-  ├── instructions/
-  │   └── typescript.instructions.md (new)
-  └── prompts/
-      └── test-gen.prompt.md (new)
-
-  AGENTS.md → symlink to .github/copilot-instructions.md
-
-Next Steps:
-  1. Review and customize copilot-instructions.md
-  2. Add project-specific agents as needed
-  3. Create skills for complex workflows
-
-Customization:
-  - Add more agents in .github/agents/
-  - Create file-specific rules in .github/instructions/
-  - Build reusable prompts in .github/prompts/
-```
+1. Verify required checks per change scope.
+2. Run pipeline commands and capture outcomes.
+3. Report release readiness and rollback strategy.
 `````
 
-## File: .github/instructions/dotnet-architecture-good-practices.instructions.md
+## File: .github/agents/embedding-writer.agent.md
 `````markdown
 ---
-name: 'Dotnet Architecture Guidelines'
-description: "DDD and .NET architecture guidelines"
-applyTo: '**/*.{cs,csproj,razor}'
+name: Embedding Writer
+description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
 ---
 
-# DDD Systems and .NET Guidelines (Condensed)
+# Embedding Writer
 
-Use these rules for .NET code generation and review.
+## Responsibilities
 
-## Mandatory Pre-Coding Analysis
-
-Before implementation, state briefly:
-1. Which DDD concepts apply (aggregate, value object, domain event, service).
-2. Which layer changes (Domain/Application/Infrastructure).
-3. Which business invariants must be preserved.
-4. Which tests will be added (`MethodName_Condition_ExpectedResult`).
-
-If this is unclear, request clarification.
-
-## Core Architecture Rules
-
-- Keep ubiquitous language consistent in names and docs.
-- Domain layer owns business rules and invariants.
-- Application layer orchestrates use-cases and validation.
-- Infrastructure implements ports/repositories and adapters.
-- Depend on abstractions (DIP), keep single responsibility (SRP).
-
-## .NET Engineering Rules
-
-- Prefer async/await for I/O-bound operations.
-- Use DI constructor injection.
-- Use clear exception handling and logging policy.
-- Use modern C# features when they improve clarity.
-
-## Security and Compliance
-
-- Enforce authorization at aggregate/application boundaries.
-- Preserve auditable domain events for critical state changes.
-- Handle sensitive/regulated data explicitly (PCI/SOX/LGPD context when relevant).
-
-## Financial Rules (When Applicable)
-
-- Use `decimal` for money.
-- Keep transaction boundaries explicit.
-- Keep audit trail for financial operations.
-- Encapsulate calculations in domain services/value objects.
-
-## Testing Standard
-
-Naming:
-- `MethodName_Condition_ExpectedResult()`
-
-Required categories:
-- Unit tests for domain logic.
-- Integration tests for persistence/boundaries.
-- Acceptance tests for end-to-end scenarios as needed.
-
-## Minimal Delivery Checklist
-
-- [ ] Domain boundaries and invariants are explicit.
-- [ ] SOLID adherence reviewed (at least SRP/DIP).
-- [ ] Validation and error paths are covered.
-- [ ] Test names follow required convention.
-- [ ] Security/compliance impact reviewed.
-- [ ] Performance implications considered.
-
-## Anti-Noise Rules
-
-- Avoid repeating long theory in PR output.
-- Keep analysis concise and decision-oriented.
-- Prefer short checklists over duplicated prose.
-- Link detailed references instead of copying handbooks.
+- Define embedding payload shape.
+- Ensure consistent vector metadata.
+- Validate write path and retrieval compatibility.
 `````
 
-## File: .github/mcp_to_agent_mapping.md
+## File: .github/agents/firestore-schema.agent.md
 `````markdown
-# MCP to Agent Mapping (Implemented)
+---
+name: Firestore Schema Agent
+description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
 
-This file records the implemented mapping strategy for using MCP tools through dedicated custom agents, instructions, prompts, and skills.
+# Firestore Schema Agent
 
-## Implementation policy
+## Responsibilities
 
-1. Keep custom agents at `.github/agents/` top-level for reliable discovery in this workspace.
-2. Use least-privilege `tools` in agent frontmatter.
-3. Use skills in folder form (`.github/skills/<name>/SKILL.md`), not `*.skill.md` files.
-4. Treat MCP mapping as a preferred routing rule, not a hard lock.
+- Model collections and documents for bounded contexts.
+- Keep schema and index plans aligned with read and write paths.
+- Track migration impact and backward compatibility.
+`````
 
-## MCP routing matrix
+## File: .github/agents/frontend-lead.agent.md
+`````markdown
+---
+name: Frontend Lead
+description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
+tools: ['read', 'edit', 'search', 'execute', 'shadcn/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
 
-| MCP server | Primary agent | Supporting assets | Status |
-| --- | --- | --- | --- |
-| `context7/*` | `.github/agents/commander.agent.md` | `.github/instructions/06-context7-usage.instructions.md`, `.github/prompts/context7-mcp.prompt.md` | Implemented |
-| `shadcn/*` | `.github/agents/component.agent.md` | `.github/prompts/shadcn-mcp.prompt.md` | Implemented |
-| `io.github.vercel/next-devtools-mcp/*` | `.github/agents/app-router.agent.md` | `.github/prompts/next‑devtools‑mcp.prompt.md` | Implemented |
-| `microsoft/markitdown/*` | `.github/agents/rag-vector.agent.md` | `.github/instructions/07-markitdown-rag.instructions.md`, `.github/prompts/markitdown-md-optimization.prompt.md` | Implemented |
-| `microsoft/playwright-mcp/*` | `.github/agents/e2e-qa.agent.md` | `.github/prompts/playwright-mcp.prompt.md` | Implemented |
-| `serena/*` | `.github/agents/serena.agent.md`, `.github/agents/commander.agent.md` | `.github/skills/serena-mcp/SKILL.md` | Implemented |
+# Frontend Lead
 
-## Phase 2 candidates
+## Mission
 
-1. Add feature-specialized prompts under `prompts/diagnosis` and `prompts/rag` if workflow frequency justifies them.
-2. Add additional agents only when a repeated workflow cannot be covered by existing delivery agents plus prompts.
-3. Keep handoff targets aligned to diagnostics-recognized agent names.
+Deliver route-level UI slices with clear ownership and predictable data flow.
+
+## Guardrails
+
+- Keep app routes thin and composition-focused.
+- Consume module behavior via module api only.
+- Prefer server components unless client interactivity is required.
+`````
+
+## File: .github/agents/genkit-flow.agent.md
+`````markdown
+---
+name: Genkit Flow Agent
+description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
+tools: ['read', 'edit', 'search', 'todo', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Genkit Flow Agent
+
+## Focus
+
+- Flow inputs and outputs
+- Prompt and tool orchestration boundaries
+- Error handling and fallback behavior
+
+## Guardrails
+
+- Keep flow contracts explicit.
+- Avoid leaking worker-only logic into app orchestration.
+`````
+
+## File: .github/agents/lint-rule-enforcer.agent.md
+`````markdown
+---
+name: Lint Rule Enforcer
+description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Lint Rule Enforcer
+
+## Mission
+
+Keep rule compliance high while minimizing churn.
+
+## Guardrails
+
+- Fix root causes, not symptoms.
+- Preserve existing architecture boundaries.
+`````
+
+## File: .github/agents/prompt-engineer.agent.md
+`````markdown
+---
+name: Prompt Engineer
+description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
+tools: ['read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Prompt Engineer
+
+## Focus
+
+- Reusable prompt skeletons
+- Clear input and output contracts
+- Low-noise, high-precision instruction design
+
+## Guardrails
+
+- Keep prompts task-focused and testable.
+- Avoid broad ambiguous directives.
+`````
+
+## File: .github/agents/schema-migration.agent.md
+`````markdown
+---
+name: Schema Migration Agent
+description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Schema Migration Agent
+
+## Workflow
+
+1. Define source and target schema.
+2. Plan compatibility and cutover phases.
+3. Validate reads and writes before and after migration.
+`````
+
+## File: .github/agents/security-rules.agent.md
+`````markdown
+---
+name: Security Rules Agent
+description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Security Rules Agent
+
+## Mission
+
+Prevent unauthorized access while preserving required product flows.
+
+## Guardrails
+
+- Enforce organization and workspace isolation.
+- Prefer explicit allow conditions with clear actor checks.
+- Pair rule changes with validation scenarios.
+`````
+
+## File: .github/agents/server-action-writer.agent.md
+`````markdown
+---
+name: Server Action Writer
+description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
+tools: ['read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Server Action Writer
+
+## Guardrails
+
+- Keep actions thin and orchestration-only.
+- Place business rules in module use cases.
+- Preserve consistent command-result response shape.
+`````
+
+## File: .github/agents/test-scenario-writer.agent.md
+`````markdown
+---
+name: Test Scenario Writer
+description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
+tools: ['read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Test Scenario Writer
+
+## Scope
+
+- Happy path
+- Boundary and negative paths
+- Error handling and regression-sensitive paths
+`````
+
+## File: .github/copilot-instructions.md
+`````markdown
+# Xuanwu Copilot Delivery Suite
+
+Baseline for Copilot agents to stay aligned with the repository and toolchain.
+
+## Authoritative Sources (read in order)
+
+1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
+2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
+3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
+4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
+5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
+6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
+
+## Operating rules (concise)
+
+- Plan first for cross-module, cross-runtime, or contract-governed work.  
+- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
+- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
+- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
+
+## Serena MCP — mandatory
+
+All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
+
+- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
+- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
+- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
+- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
+
+## Orchestration pattern
+
+1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
+2. Treat [.github/mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [.github/mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the MCP routing baseline.  
+3. Keep legacy delivery assets as extensions of the mapping baseline:
+   - Delivery chain agents (`planner`, `implementer`, `reviewer`, `qa`) remain primary for formal delivery.
+   - MCP-specialized agents (`commander`, `app-router`, `component`, `rag-vector`, `e2e-qa`) provide focused execution lanes.
+   - Existing prompts and instructions remain valid and should be selected by scope, not duplicated by MCP type.
+4. Activate skills as needed:  
+   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
+   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
+   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
+   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
+   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
+   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
+5. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
+
+## Validation
+
+- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
+- Do not close work until required checks and documentation updates are complete.  
+
+## Terminology
+
+See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
+`````
+
+## File: .github/instructions/branching-strategy.instructions.md
+`````markdown
+---
+description: 'Branching and change-scope strategy for focused, reviewable delivery.'
+applyTo: '**/*'
+---
+
+# Branching Strategy
+
+## Rules
+
+- Keep one concern per branch and PR.
+- Name branches by intent and scope.
+- Avoid mixing architecture refactor with unrelated feature work.
+
+## Validation Before Merge
+
+- Run relevant lint/build/test commands for touched runtime.
+- Document what changed and why.
+`````
+
+## File: .github/instructions/ci-cd.instructions.md
+`````markdown
+---
+description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
+applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
+---
+
+# CI CD
+
+## Required Checks
+
+- `npm run lint`
+- `npm run build`
+- `cd py_fn && python -m compileall -q .`
+- `cd py_fn && python -m pytest tests/ -v`
+
+## Rules
+
+- Do not skip failing mandatory checks.
+- Report unrelated baseline failures separately.
+`````
+
+## File: .github/instructions/commit-convention.instructions.md
+`````markdown
+---
+description: 'Commit message and change-summary conventions for maintainable history.'
+applyTo: '**/*'
+---
+
+# Commit Convention
+
+## Rules
+
+- Keep subject concise and action-oriented.
+- Reference scope (module/runtime) in commit body when relevant.
+- Include validation evidence for non-trivial changes.
+
+## Avoid
+
+- Mixed unrelated changes in one commit.
+- Vague subjects with no functional signal.
+`````
+
+## File: .github/instructions/firestore-schema.instructions.md
+`````markdown
+---
+description: 'Firestore schema and index design rules aligned to bounded context ownership.'
+applyTo: '{modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json,firestore.rules}'
+---
+
+# Firestore Schema
+
+## Rules
+
+- Keep collection ownership explicit per module.
+- Version breaking schema transitions with migration steps.
+- Update indexes with query-shape changes.
+
+## Validation
+
+- Verify read/write paths remain compatible.
+- Confirm index coverage for new query patterns.
+`````
+
+## File: .github/instructions/genkit-flow.instructions.md
+`````markdown
+---
+description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
+applyTo: '{modules/ai/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
+---
+
+# Genkit Flow
+
+## Rules
+
+- Keep flow inputs/outputs explicit and typed.
+- Keep user-facing orchestration in Next.js.
+- Delegate heavy ingestion/embedding to worker-side pipelines.
+`````
+
+## File: .github/instructions/hosting-deploy.instructions.md
+`````markdown
+---
+description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
+applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
+---
+
+# Hosting Deploy
+
+## Rules
+
+- Validate build and config before deployment.
+- Keep deploy scope explicit (hosting, rules, indexes, functions).
+- Record rollback path for production-impacting changes.
+`````
+
+## File: .github/instructions/lint-format.instructions.md
+`````markdown
+---
+description: 'Lint and formatting expectations for TypeScript and Python changes.'
+applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Lint Format
+
+## Required Commands
+
+- `npm run lint`
+- `npm run build` when types or exports changed
+- `cd py_fn && python -m compileall -q .`
+
+## Rules
+
+- Fix new lint errors introduced by your change.
+- Do not hide violations by broad rule disables.
+`````
+
+## File: .github/instructions/nextjs-parallel-routes.instructions.md
+`````markdown
+---
+description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs Parallel Routes
+
+## Rules
+
+- Keep slot-level state isolated.
+- Avoid hidden coupling between unrelated slots.
+- Consume cross-domain behavior through module APIs only.
+`````
+
+## File: .github/instructions/security-rules.instructions.md
+`````markdown
+---
+description: 'Security rules guardrails for Firestore and Storage with least-privilege access.'
+applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
+---
+
+# Security Rules
+
+## Rules
+
+- Enforce organization and workspace isolation.
+- Keep allow conditions explicit and auditable.
+- Pair rule changes with scenario-based validation.
+
+## Avoid
+
+- Broad wildcard allows without actor checks.
+- Hidden coupling to UI-side assumptions.
+`````
+
+## File: .github/instructions/shadcn-ui.instructions.md
+`````markdown
+---
+description: 'shadcn/ui usage rules for consistent component composition and accessibility.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
+---
+
+# Shadcn UI
+
+## Rules
+
+- Prefer existing primitives before creating new components.
+- Keep semantic markup and keyboard accessibility intact.
+- Keep component concerns separate from business rules.
+`````
+
+## File: .github/instructions/tailwind-design-system.instructions.md
+`````markdown
+---
+description: 'Tailwind design-system consistency rules for tokens, spacing, and responsive behavior.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
+---
+
+# Tailwind Design System
+
+## Rules
+
+- Reuse established tokens and utility conventions.
+- Keep spacing and typography scales consistent.
+- Avoid ad-hoc one-off style patterns without rationale.
+`````
+
+## File: .github/instructions/testing-e2e.instructions.md
+`````markdown
+---
+description: 'End-to-end testing rules for browser flows, evidence capture, and release confidence.'
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Testing E2E
+
+## Rules
+
+- Validate user-critical flows and failure paths.
+- Capture reproducible evidence for failures.
+- Separate confirmed defects from enhancement suggestions.
+`````
+
+## File: .github/instructions/testing-unit.instructions.md
+`````markdown
+---
+description: 'Unit testing rules for deterministic, isolated, and behavior-focused coverage.'
+applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Testing Unit
+
+## Rules
+
+- Keep tests deterministic and isolated.
+- Test behavior and invariants, not implementation trivia.
+- Cover happy, boundary, and negative paths for core domain logic.
+`````
+
+## File: .github/mcp_to_agent_mapping.svg
+`````xml
+<svg width="100%" viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- MCP column header -->
+<text x="110" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">MCP 工具</text>
+<text x="430" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">對應 Agent / 目錄用途</text>
+<line x1="40" y1="32" x2="640" y2="32" stroke="var(--t)" stroke-width="0.5" opacity="0.3" style="fill:rgb(0, 0, 0);stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.3;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Row 1: context7 -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="44" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">context7</text>
+</g>
+<line x1="180" y1="64" x2="220" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="44" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="57" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">全域共用</text>
+  <text x="310" y="74" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">instructions / skills</text>
+</g>
+<line x1="400" y1="64" x2="440" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="44" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">查官方文件 → 注入 instructions</text>
+</g>
+
+<!-- Row 2: shadcn -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="100" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">shadcn MCP</text>
+</g>
+<line x1="180" y1="120" x2="220" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="100" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="113" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Component Agent</text>
+  <text x="310" y="130" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
+</g>
+<line x1="400" y1="120" x2="440" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="100" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">scaffolding shadcn/ui 元件</text>
+</g>
+
+<!-- Row 3: serena -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="156" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">serena MCP</text>
+</g>
+<line x1="180" y1="176" x2="220" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="156" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="169" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Commander / Serena</text>
+  <text x="310" y="186" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
+</g>
+<line x1="400" y1="176" x2="440" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="156" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">語意理解 / 重構分析</text>
+</g>
+
+<!-- Row 4: next-devtools -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="212" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">next-devtools</text>
+  <text x="110" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
+</g>
+<line x1="180" y1="232" x2="220" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="212" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">App Router Agent</text>
+  <text x="310" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / instructions</text>
+</g>
+<line x1="400" y1="232" x2="440" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="212" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="232" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">bundle / route 診斷</text>
+</g>
+
+<!-- Row 5: markitdown -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="268" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">markitdown</text>
+  <text x="110" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
+</g>
+<line x1="180" y1="288" x2="220" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="268" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">RAG Vector Agent</text>
+  <text x="310" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
+</g>
+<line x1="400" y1="288" x2="440" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="268" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="288" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">PDF/DOCX → MD → 向量化</text>
+</g>
+
+<!-- Row 6: playwright -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="324" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">playwright MCP</text>
+</g>
+<line x1="180" y1="344" x2="220" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="324" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">E2E QA Agent</text>
+  <text x="310" y="355" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
+</g>
+<line x1="400" y1="344" x2="440" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="324" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">瀏覽器 E2E 驗收測試</text>
+</g>
+
+<text x="340" y="400" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">點擊各列深入了解</text>
+</svg>
+`````
+
+## File: .github/prompts/analyze-repo.prompt.md
+`````markdown
+---
+name: analyze-repo
+description: Analyze repository structure, ownership boundaries, and change impact before implementation.
+agent: serena-coding-agent
+argument-hint: Provide target area, goal, and constraints.
+---
+
+# Analyze Repo
+
+## Mission
+
+Map ownership, boundaries, and risks before coding.
+
+## Inputs
+
+- target: ${input:target:modules/workspace}
+- goal: ${input:goal:what needs to change}
+- constraints: ${input:constraints:boundary, runtime, timeline}
+
+## Workflow
+
+1. Identify owning module and runtime.
+2. Locate existing APIs, use cases, and adapters.
+3. Flag boundary violations and regression risks.
+4. Recommend minimal-change implementation path.
+
+## Output Contract
+
+- Ownership map
+- Affected files
+- Risk list
+- Suggested next prompt
 `````
 
 ## File: .github/prompts/app/create-parallel-route-slice.prompt.md
@@ -69192,54 +68473,213 @@ Create or refactor a route slice in `app/` that composes one feature block and k
 - Any remaining route-state or boundary risks
 `````
 
-## File: .github/prompts/md-optimize.prompt.md
+## File: .github/prompts/chunk-docs.prompt.md
 `````markdown
 ---
-name: md-optimize
-description: Orchestrate the full Markdown optimization pipeline from leaf docs to root indexes.
-agent: md-writer
-argument-hint: "Target scope, e.g. .github and docs"
+name: chunk-docs
+description: Define and execute document chunking strategy for retrieval quality and context efficiency.
+agent: rag-lead
+argument-hint: Provide source docs, target chunk policy, and constraints.
 ---
 
-# md-optimize — Master Pipeline
+# Chunk Docs
 
-## Scope
+## Inputs
 
-```
-.github/{agents,copilot,hooks,instructions,ISSUE_TEMPLATE,prompts,rules,skills,workflows}
-.github/{copilot-instructions.md,README.md}
-docs/{decision-architecture,development-reference,diagrams-events-explanations,how-to-user,README.md}
-```
+- docs: ${input:docs:docs/**/*.md}
+- policy: ${input:policy:size,overlap,metadata}
+- constraints: ${input:constraints:token budget and citation needs}
 
-## Execution Order (Leaf → Root)
+## Workflow
 
-```
-1. Leaf documents        → md-compress + md-dedup + md-rules + md-lint
-2. Folder README/INDEX   → md-index + md-structure
-3. docs/README.md        → md-index + md-structure
-4. .github/README.md     → md-index + md-structure
-5. Root README.md        → md-index + md-structure
-```
+1. Validate document normalization status.
+2. Apply chunking policy with explicit metadata fields.
+3. Check chunk quality for retrieval relevance.
+4. Report chunk statistics and edge cases.
+`````
 
-> ⚠️ Never process parent before children — broken references cascade upward.
+## File: .github/prompts/debug-error.prompt.md
+`````markdown
+---
+name: debug-error
+description: Reproduce, diagnose, and propose fixes for runtime or logic errors with evidence.
+agent: App Router Agent
+argument-hint: Provide error message, route/module, and reproduction steps.
+---
 
-## Per-File Checklist
+# Debug Error
 
-- [ ] Run `md-lint` → fix syntax errors first
-- [ ] Run `md-compress` → reduce token count
-- [ ] Run `md-dedup` → remove duplicate concepts
-- [ ] Run `md-rules` → convert prose to rules/tables
-- [ ] Run `md-structure` → enforce format hierarchy
-- [ ] Update parent `md-index` after all children done
+## Inputs
 
-## Success Metrics
+- error: ${input:error:paste error message}
+- scope: ${input:scope:route/module/runtime}
+- repro: ${input:repro:steps to reproduce}
 
-| Metric | Target |
-|---|---|
-| Token Efficiency | ↓ tokens, same info |
-| Information Density | ↑ info per line |
-| Computational Efficiency | simpler parse tree |
-| Throughput | faster AI scan |
+## Workflow
+
+1. Reproduce issue and capture evidence.
+2. Isolate likely root cause and affected boundaries.
+3. Propose minimal fix plus regression checks.
+4. State validation commands to confirm resolution.
+`````
+
+## File: .github/prompts/embedding-docs.prompt.md
+`````markdown
+---
+name: embedding-docs
+description: Generate embeddings from normalized docs with traceable metadata and retrieval compatibility checks.
+agent: embedding-writer
+argument-hint: Provide doc sources, embedding model/runtime, and storage target.
+---
+
+# Embedding Docs
+
+## Workflow
+
+1. Confirm docs are normalized and chunked.
+2. Generate embeddings with stable metadata.
+3. Write vectors and verify retrieval compatibility.
+4. Report failures, retries, and quality risks.
+`````
+
+## File: .github/prompts/implement-feature.prompt.md
+`````markdown
+---
+name: implement-feature
+description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
+agent: Implementer
+argument-hint: Provide approved plan reference and tasks to execute.
+---
+
+# Implement Feature
+
+## Requirements
+
+- Treat the approved plan as execution contract.
+- Keep within scope and non-goals.
+- Run required validation commands.
+- Update listed docs in the same change.
+
+## Output
+
+- Tasks completed
+- Validation run
+- Documentation updated
+- Deviations or blockers
+`````
+
+## File: .github/prompts/implement-firestore-schema.prompt.md
+`````markdown
+---
+name: implement-firestore-schema
+description: Implement Firestore schema/index updates with backward-safe migration and validation evidence.
+agent: firestore-schema
+argument-hint: Provide collections, fields, query patterns, and migration constraints.
+---
+
+# Implement Firestore Schema
+
+## Workflow
+
+1. Define schema and ownership by bounded context.
+2. Update indexes for new query shapes.
+3. Plan migration or compatibility path.
+4. Validate read/write behavior and regressions.
+`````
+
+## File: .github/prompts/implement-genkit-flow.prompt.md
+`````markdown
+---
+name: implement-genkit-flow
+description: Implement or refactor Genkit flow with explicit contracts, runtime boundaries, and validation.
+agent: genkit-flow
+argument-hint: Provide flow intent, inputs/outputs, and target runtime.
+---
+
+# Implement Genkit Flow
+
+## Workflow
+
+1. Define flow contract (input, output, failure modes).
+2. Keep orchestration in Next.js and heavy processing in worker runtime.
+3. Integrate with retrieval or action boundaries safely.
+4. Validate flow behavior and fallback paths.
+`````
+
+## File: .github/prompts/implement-security-rules.prompt.md
+`````markdown
+---
+name: implement-security-rules
+description: Implement Firestore/Storage security rules with least privilege and tenancy isolation.
+agent: security-rules
+argument-hint: Provide access scenarios, actor roles, and constrained resources.
+---
+
+# Implement Security Rules
+
+## Workflow
+
+1. Enumerate allowed actor-resource actions.
+2. Encode explicit allow conditions and deny-by-default behavior.
+3. Validate with scenario-based checks.
+4. Report residual access risks.
+`````
+
+## File: .github/prompts/implement-server-action.prompt.md
+`````markdown
+---
+name: implement-server-action
+description: Implement Next.js server actions as thin orchestrators that delegate to use cases.
+agent: server-action-writer
+argument-hint: Provide action intent, input schema, and target use case.
+---
+
+# Implement Server Action
+
+## Rules
+
+- Use `use server`.
+- Validate input at boundary.
+- Delegate business logic to module use cases.
+- Return stable command-result shape.
+`````
+
+## File: .github/prompts/implement-ui-component.prompt.md
+`````markdown
+---
+name: implement-ui-component
+description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
+agent: Component Agent
+argument-hint: Provide component goal, route scope, and interaction states.
+---
+
+# Implement UI Component
+
+## Workflow
+
+1. Confirm component ownership and target route slice.
+2. Reuse existing shadcn primitives where possible.
+3. Implement states: loading, empty, error, success.
+4. Validate accessibility and interaction behavior.
+`````
+
+## File: .github/prompts/ingest-docs.prompt.md
+`````markdown
+---
+name: ingest-docs
+description: Ingest and normalize documents for downstream chunking and embedding workflows.
+agent: doc-ingest
+argument-hint: Provide source format, target pipeline, and quality constraints.
+---
+
+# Ingest Docs
+
+## Workflow
+
+1. Convert/normalize sources to markdown when needed.
+2. Preserve source metadata and traceability.
+3. Validate structure quality for chunking.
+4. Output ingestion summary and loss-risk notes.
 `````
 
 ## File: .github/prompts/modules/create-module-api-surface.prompt.md
@@ -69280,110 +68720,252 @@ Create or refactor the public surface of a module so the app layer and other mod
 - Residual boundary or consumer migration risks
 `````
 
-## File: .github/prompts/README.md
+## File: .github/prompts/plan-api.prompt.md
 `````markdown
-# Slash-Command Prompts
+---
+name: plan-api
+description: Create an API-focused implementation plan covering contracts, facades, consumers, and validation.
+agent: Planner
+argument-hint: Provide API intent, owner module, consumers, and compatibility constraints.
+---
 
-Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
+# Plan API
 
-## Delivery Workflow
+## Requirements
 
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/plan-feature` | `plan-feature.prompt.md` | Create formal implementation plan for feature/enhancement |
-| `/plan-bugfix` | `plan-bugfix.prompt.md` | Create plan with reproduction, root cause, regression assessment |
-| `/implement-plan` | `implement-plan.prompt.md` | Execute a saved implementation plan |
-| `/review-changes` | `review-changes.prompt.md` | Review completed work against plan and boundaries |
-| `/run-qa` | `run-qa.prompt.md` | Execute QA verification with scenario coverage and evidence |
-| `/resume-delivery` | `resume-delivery.prompt.md` | Resume interrupted workflow from last checkpoint |
-
-## Module Management
-
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/create-module` | `create-module.prompt.md` | Create new module under `modules/` with MDDD structure |
-| `/refactor-module` | `refactor-module.prompt.md` | Refactor internal module structure |
-| `/split-module` | `split-module.prompt.md` | Split one module into two bounded contexts |
-| `/merge-module` | `merge-module.prompt.md` | Merge two modules into one bounded context |
-| `/delete-module` | `delete-module.prompt.md` | Delete module with safe cross-module cleanup |
-| `/create-module-api-surface` | `modules/create-module-api-surface.prompt.md` | Build or refactor a module public API surface with contracts, facades, and clean exports |
-
-## App Composition
-
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/create-parallel-route-slice` | `app/create-parallel-route-slice.prompt.md` | Build or refactor an `app/` route slice or parallel-route block around API-only module access |
-
-## Customization & Integration
-
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/serena-agent` | `serena-agent.prompt.md` | Serena coding workflow with symbolic editing guardrails |
-| `/serena-maintenance` | `serena-maintenance.prompt.md` | Maintenance tasks for Serena MCP integration |
-| `/markitdown-md-optimization` | `markitdown-md-optimization.prompt.md` | Markitdown-driven end-to-end markdown optimization |
-| `/md-optimize` | `md-optimize.prompt.md` | Orchestrate markdown optimization pipeline |
-| `/md-lint` | `md-lint.prompt.md` | Lint and validate markdown files |
-| `/md-compress` | `md-compress.prompt.md` | Compress markdown while preserving information |
-| `/md-dedup` | `md-dedup.prompt.md` | Remove duplicated concepts across docs |
-| `/md-rules` | `md-rules.prompt.md` | Convert prose to rules and tables |
-| `/md-structure` | `md-structure.prompt.md` | Enforce markdown section hierarchy |
-| `/md-index` | `md-index.prompt.md` | Generate/update folder index files |
-
-## Tool-Specific Prompts
-
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/playwright-mcp` | `playwright-mcp.prompt.md` | Browser automation for UI testing and verification |
-| `/context7-mcp` | `context7-mcp.prompt.md` | Upstash Context7 integration workflows |
-| `/shadcn-mcp` | `shadcn-mcp.prompt.md` | shadcn component management with MCP |
-| `/next-devtools-mcp` | `next‑devtools‑mcp.prompt.md` | Next.js development tools integration |
-
-## Total: 28 Prompts
-
-## Quick Reference
-
-Each prompt includes:
-- Clear description and use case
-- Required inputs and optional arguments
-- Example invocations
-- Validation or output format hints
-
-Nested prompt folders under `prompts/` are valid and now used for `app/` and `modules/`-specific workflows.
-
-## Related References
-
-- [.github/README.md](../README.md) — Root navigation
-- [../.github/agents/](../agents/) — Delivery workflow agents
-- [docs/development-reference/reference/ai/implementation-plan-template.md](../../docs/development-reference/reference/ai/implementation-plan-template.md) — Plan structure
+- Define contract shape and owner boundary.
+- Identify consuming routes/modules.
+- Include compatibility and migration strategy.
+- Specify validation and documentation updates.
 `````
 
-## File: .github/prompts/serena-agent.prompt.md
+## File: .github/prompts/plan-feature.prompt.md
 `````markdown
 ---
-name: serena-coding-agent
-description: >
-  System prompt and workflow instructions for Serena MCP coding agent.
-  Defines how the agent should onboard projects, search symbols, check references,
-  and modify code minimally and safely.
-agent: serena-coding-agent
-argument-hint: Optional arguments can be provided for project paths or modules.
+name: plan-feature
+description: Create a formal implementation plan for a feature or scoped enhancement.
+agent: Planner
+argument-hint: Describe desired outcome, constraints, and affected modules.
 ---
 
-# Workflow
-- First onboard the project
-- Use semantic search to locate relevant code
-- Use symbol search instead of file search
-- Before editing, check symbol references
-- Prefer insert_after_symbol instead of rewriting files
-- Keep changes minimal and localized
-- Update types and interfaces if needed
-- Use xuanwu-app-skill when repository-specific patterns or templates are needed
+# Plan Feature
 
-# Best Practices
-Before implementing new features:
-- Search for existing services, repositories, and DTOs.
-- Reuse existing modules when possible.
-- Follow module boundaries.
+Use the implementation plan template and include scope, ownership, risks, validation, and non-goals.
+`````
+
+## File: .github/prompts/plan-module.prompt.md
+`````markdown
+---
+name: plan-module
+description: Plan module lifecycle changes (create, refactor, split, merge, delete) under MDDD boundaries.
+agent: Modules Architect
+argument-hint: Provide module scope, operation type, and migration constraints.
+---
+
+# Plan Module
+
+## Workflow
+
+1. Confirm bounded-context ownership.
+2. Choose operation: create, refactor, split, merge, delete.
+3. Map API/event consumers and migration path.
+4. Define validation and docs updates.
+`````
+
+## File: .github/prompts/refactor-api.prompt.md
+`````markdown
+---
+name: refactor-api
+description: Refactor module API surface with contract safety, consumer migration, and minimal boundary impact.
+agent: Modules API Surface Steward
+argument-hint: Provide current API, target API, and migration constraints.
+---
+
+# Refactor API
+
+## Rules
+
+- Preserve API-only cross-module access.
+- Avoid leaking internals through barrels.
+- Make compatibility path explicit when breaking changes are required.
+`````
+
+## File: .github/prompts/review-architecture.prompt.md
+`````markdown
+---
+name: review-architecture
+description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
+agent: Reviewer
+argument-hint: Provide plan reference, changed files, and architecture concerns.
+---
+
+# Review Architecture
+
+Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
+`````
+
+## File: .github/prompts/review-code.prompt.md
+`````markdown
+---
+name: review-code
+description: Perform risk-first code review for correctness, regressions, and missing validation.
+agent: Reviewer
+argument-hint: Provide change summary, touched files, and known risk areas.
+---
+
+# Review Code
+
+## Requirements
+
+- Findings first, ordered by severity.
+- Include why it matters and blocking status.
+- State residual risks and testing gaps explicitly.
+`````
+
+## File: .github/prompts/review-performance.prompt.md
+`````markdown
+---
+name: review-performance
+description: Review runtime and render performance risks with evidence-backed recommendations.
+agent: App Router Agent
+argument-hint: Provide route/feature scope, observed slowness, and baseline expectations.
+---
+
+# Review Performance
+
+## Workflow
+
+1. Collect route/runtime evidence.
+2. Identify bottlenecks and likely causes.
+3. Propose ranked fixes by impact and complexity.
+4. Define validation for improvement claims.
+`````
+
+## File: .github/prompts/review-security.prompt.md
+`````markdown
+---
+name: review-security
+description: Review security posture for access control, data exposure, and rule/authorization regressions.
+agent: quality-lead
+argument-hint: Provide changed auth/rules/critical data paths and threat concerns.
+---
+
+# Review Security
+
+Report vulnerabilities first with severity, reproduction notes, and concrete remediation steps.
+`````
+
+## File: .github/prompts/write-docs.prompt.md
+`````markdown
+---
+name: write-docs
+description: Write or optimize documentation using structured, deduplicated, and index-driven markdown patterns.
+agent: md-writer
+argument-hint: Provide target docs scope and expected documentation outcome.
+---
+
+# Write Docs
+
+## Workflow
+
+1. Lint markdown syntax first.
+2. Compress and deduplicate repeated concepts.
+3. Convert prose to rules/tables where possible.
+4. Update folder index/README after leaf updates.
+`````
+
+## File: .github/prompts/write-e2e-tests.prompt.md
+`````markdown
+---
+name: write-e2e-tests
+description: Design and execute end-to-end tests for user-critical flows with reproducible evidence.
+agent: E2E QA Agent
+argument-hint: Provide URL/route, target user flow, and acceptance criteria.
+---
+
+# Write E2E Tests
+
+## Scope
+
+- Happy path
+- Boundary/negative path
+- Error-state handling
+
+Collect evidence for failures and include clear reproduction steps.
+`````
+
+## File: .github/prompts/write-tests.prompt.md
+`````markdown
+---
+name: write-tests
+description: Write deterministic unit/integration tests based on risk and behavior contracts.
+agent: quality-lead
+argument-hint: Provide module scope, behaviors to verify, and known regression risks.
+---
+
+# Write Tests
+
+## Requirements
+
+- Cover happy, boundary, and negative cases.
+- Keep tests deterministic and isolated.
+- Prioritize behavior contracts over implementation details.
+`````
+
+## File: .github/README.md
+`````markdown
+# .github Customization Index
+
+Operational index for repository-scoped customization assets.
+
+## Commander flow (fast path)
+
+1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
+2. Use [mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the baseline MCP-to-agent routing contract.
+3. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
+4. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
+5. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
+
+## Boundary
+
+- Keep executable customization assets in `.github/`.
+- Keep explanation, governance, and lifecycle context in `docs/`.
+- Update both locations together when behavior changes.
+- Treat existing `agents/`, `instructions/`, and `prompts/` as extension layers on top of the MCP mapping baseline.
+- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
+
+## Folder map
+
+| Path | Purpose | Index |
+| --- | --- | --- |
+| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
+| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
+| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
+| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
+| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
+| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
+| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
+| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
+| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
+
+Nested customizations are supported recursively under these folders. The repository now uses dedicated `app/` and `modules/` subfolders inside `agents/`, `instructions/`, and `prompts/` for narrower discovery and lower context noise.
+
+## Core files
+
+| File | Role |
+| --- | --- |
+| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
+| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
+| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
+| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
+| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
+
+## Maintenance
+
+- Use relative links.
+- Keep one concrete entry file per folder.
+- Keep placeholders as plain text, not fake links.
+- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/skills/context7/SKILL.md
@@ -69502,18 +69084,18 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/vercel-cli-with-tokens/SKILL.md
+## File: .github/skills/next-devtools-mcp/SKILL.md
 `````markdown
 ---
-name: vercel-cli-with-tokens
-description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
-metadata:
-  author: vercel
-  version: "1.0.0"
-disable-model-invocation: true
+name: next-devtools-mcp
+description: >
+  Auto-load skill for Next.js route architecture and diagnostics. Use for App Router, parallel routes, server components,
+  server actions, streaming, hydration/performance checks, and Next.js config changes.
+user-invocable: false
+disable-model-invocation: false
 ---
 
-# vercel-cli-with-tokens (Condensed)
+# next-devtools-mcp (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -69540,64 +69122,18 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/vercel-react-best-practices/AGENTS.md
-`````markdown
-# React Best Practices (Condensed)
-
-This AGENTS file is intentionally compact to reduce repeated context load.
-
-## Source of Truth
-
-- Primary workflow: `./SKILL.md`
-- Detailed rules: `./rules/`
-
-## When to Apply
-
-Use this guidance when working on React or Next.js implementation, review, or refactor tasks.
-
-## Priority Order
-
-1. Eliminate async waterfalls (`async-*`)
-2. Reduce bundle size (`bundle-*`)
-3. Improve server-side performance (`server-*`)
-4. Optimize client fetching and rerenders (`client-*`, `rerender-*`)
-5. Apply rendering and JS micro-optimizations (`rendering-*`, `js-*`, `advanced-*`)
-
-## Minimal Execution Flow
-
-1. Identify the slow path and classify by rule prefix.
-2. Apply the highest-impact rule first.
-3. Keep changes scoped and measurable.
-4. Validate with project commands.
-
-## Guardrails
-
-- Prefer server-first data strategies in Next.js.
-- Avoid speculative micro-optimizations before waterfall and bundle fixes.
-- Do not duplicate long rule text here; keep details in `rules/*`.
-
-## Validation
-
-- Run `npm run lint`
-- Run `npm run build`
-
-## Note
-
-If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
-`````
-
-## File: .github/skills/vercel-react-best-practices/SKILL.md
+## File: .github/skills/vercel-cli-with-tokens/SKILL.md
 `````markdown
 ---
-name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
-license: MIT
+name: vercel-cli-with-tokens
+description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
 metadata:
   author: vercel
   version: "1.0.0"
+disable-model-invocation: true
 ---
 
-# vercel-react-best-practices (Condensed)
+# vercel-cli-with-tokens (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -75951,104 +75487,6 @@ export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> 
 }
 `````
 
-## File: modules/workspace-flow/Workspace-Flow-UI.mermaid
-`````
-flowchart LR
-	%% ==========================================================
-	%% Workspace Flow UI Simulation
-	%% UI is composed outside workspace-flow and consumes api only
-	%% ==========================================================
-
-	classDef page fill:#eff6ff,stroke:#2563eb,color:#0f172a,stroke-width:2px;
-	classDef panel fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
-	classDef action fill:#ecfeff,stroke:#0891b2,color:#083344,stroke-width:1.5px;
-	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
-	classDef domain fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px;
-	classDef rule fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
-
-	subgraph EXTERNAL_UI [External UI Composition]
-		direction TB
-
-		subgraph WORKSPACE_PAGE [Workspace Flow Page]
-			direction LR
-
-			subgraph TASK_AREA [Task Workspace]
-				direction TB
-				task_page[Task Board Page]:::page
-				task_list[Task List / Columns]:::panel
-				task_detail[Task Detail Drawer]:::panel
-				task_actions[Assign / Submit QA / Pass QA / Archive]:::action
-				task_page --> task_list
-				task_page --> task_detail
-				task_detail --> task_actions
-			end
-
-			subgraph ISSUE_AREA [Issue Workspace]
-				direction TB
-				issue_page[Issue Tracker Page]:::page
-				issue_list[Issue Queue]:::panel
-				issue_detail[Issue Detail Drawer]:::panel
-				issue_actions[Start / Fix / Submit Retest / Close]:::action
-				issue_page --> issue_list
-				issue_page --> issue_detail
-				issue_detail --> issue_actions
-			end
-
-			subgraph INVOICE_AREA [Invoice Workspace]
-				direction TB
-				invoice_page[Invoice Review Page]:::page
-				invoice_list[Invoice Draft / Review List]:::panel
-				invoice_detail[Invoice Detail Drawer]:::panel
-				invoice_actions[Add Item / Submit / Review / Approve / Pay]:::action
-				invoice_page --> invoice_list
-				invoice_page --> invoice_detail
-				invoice_detail --> invoice_actions
-			end
-		end
-	end
-
-	subgraph PUBLIC_API [workspace-flow Public API]
-		direction TB
-		api_index[api/index.ts]:::api
-		api_facade[api/workspace-flow.facade.ts]:::api
-		api_contracts[api/contracts.ts]:::api
-		api_index --> api_facade
-		api_index --> api_contracts
-	end
-
-	subgraph INTERNAL_MODULE [workspace-flow Internal Logic]
-		direction TB
-		domain_logic[domain<br/>entities + events + guards + transitions]:::domain
-		application_logic[application<br/>DTOs + ports + use cases]:::domain
-		infrastructure_logic[infrastructure<br/>Firestore collections + converters + repositories]:::domain
-		application_logic --> domain_logic
-		infrastructure_logic --> domain_logic
-	end
-
-	task_list -->|read summaries| api_contracts
-	task_detail -->|load task details| api_contracts
-	task_actions -->|execute workflow commands| api_facade
-
-	issue_list -->|read summaries| api_contracts
-	issue_detail -->|load issue details| api_contracts
-	issue_actions -->|execute workflow commands| api_facade
-
-	invoice_list -->|read summaries| api_contracts
-	invoice_detail -->|load invoice details| api_contracts
-	invoice_actions -->|execute workflow commands| api_facade
-
-	api_facade --> application_logic
-	api_contracts --> application_logic
-
-	forbidden_domain[Do not bind UI directly to<br/>domain/*]:::rule
-	forbidden_application[Do not bind UI directly to<br/>application/*]:::rule
-	forbidden_infrastructure[Do not bind UI directly to<br/>infrastructure/*]:::rule
-
-	task_page -. forbidden direct dependency .-> forbidden_domain
-	issue_page -. forbidden direct dependency .-> forbidden_application
-	invoice_page -. forbidden direct dependency .-> forbidden_infrastructure
-`````
-
 ## File: modules/workspace-scheduling/api/schema.ts
 `````typescript
 /**
@@ -77549,362 +76987,682 @@ export function WorkspaceSchedulingTab({
 }
 `````
 
-## File: .github/agents/implementer.agent.md
+## File: .github/agents/doc-ingest.agent.md
 `````markdown
 ---
-name: Implementer
-description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
-tools: ['execute', 'read', 'edit', 'search', 'todo', 'serena/*']
+name: Doc Ingest Agent
+description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
+tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
-handoffs:
-  - label: Review Implementation
-    agent: Reviewer
-    prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
-    send: false
 ---
 
-# Implementer
+# Doc Ingest Agent
 
-You are the formal implementation stage of the Xuanwu Copilot Delivery Suite.
+## Rules
 
-## Mission
+- Keep conversion and normalization deterministic.
+- Preserve source attribution fields.
+- Align outputs with chunk and embedding contracts.
+- Flag notable format-loss risk when source conversion may affect downstream retrieval.
+`````
 
-Execute the approved implementation plan without expanding scope. Write code, update documentation, and run the validation required by the plan.
+## File: .github/agents/domain-lead.agent.md
+`````markdown
+---
+name: Domain Lead
+description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
 
-## Required references
+# Domain Lead
 
-- Use the approved implementation plan as the execution contract.
-- Follow [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [.github/copilot-instructions.md](../copilot-instructions.md).
-- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement matters.
-- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) when a workflow is contract-governed.
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
+## Responsibilities
 
-## Workflow
+- Confirm owning bounded context before edits.
+- Place logic in the correct layer.
+- Prevent internal cross-module imports.
 
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the plan completely before editing.
-3. Execute the implementation tasks in a deliberate order.
-4. Keep changes inside the documented scope and non-goals.
-5. Run the validation named in the plan.
-6. Update the documentation listed in the plan.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
-8. Prepare a concise completion summary for review.
+## Layer Placement Guide
+
+- `domain`: business rules, entities, value objects, repository interfaces
+- `application`: use cases and DTO orchestration
+- `infrastructure`: external adapters and implementations
+- `interfaces`: UI, hooks, queries, contracts, server actions
+- `api`: only public cross-module boundary
+
+## Validation
+
+- Run lint for boundary and import changes.
+- Run build when public types or exports are touched.
+`````
+
+## File: .github/agents/kb-architect.agent.md
+`````markdown
+---
+name: KB Architect
+description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
+tools: ['read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# KB Architect
+
+## Focus
+
+- Information hierarchy for docs and references
+- Cross-document deduplication
+- Stable glossary and index links
+
+## Execution Pattern
+
+- Process docs in leaf-to-root order when restructuring large doc trees.
+- Prefer lint/compress/dedup/structure updates before index regeneration.
+- Keep token usage efficient without changing technical meaning.
 
 ## Guardrails
 
-- Do not invent new scope because it seems adjacent or useful.
-- Do not bypass required validation.
-- Do not ignore required documentation updates.
-- Stop and request a plan revision if owner, runtime, or validation is unclear.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-- Report completed tasks against the plan checklist.
-- Report validation actually run.
-- Report documentation updated.
-- Note any deviations from the plan and why they were unavoidable.
+- Do not change technical meaning while restructuring docs.
+- Keep docs aligned with current module boundaries and contracts.
 `````
 
-## File: .github/agents/qa.agent.md
+## File: .github/agents/mddd-architect.agent.md
 `````markdown
 ---
-name: QA
-description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
-tools: ['execute', 'read', 'search', 'todo', 'serena/*']
+name: MDDD Architect
+description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
+tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
-handoffs:
-  - label: Fix QA Findings
-    agent: Implementer
-    prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
-    send: false
 ---
 
-# QA
-
-You are the formal QA stage of the Xuanwu Copilot Delivery Suite.
+# MDDD Architect
 
 ## Mission
 
-Verify what was delivered, prove what works, document what does not, and state the residual risk before release.
+Shape module structures without breaking bounded contexts.
 
-## Core principles
+## Rules
 
-1. Assume behavior is unproven until scenarios are executed.
-2. Reproduce before reporting.
-3. Trace tests back to requirements, scope, or expected behavior.
-4. Prefer deterministic evidence over narrative confidence.
-5. Separate confirmed failures from residual risks and nice-to-have improvements.
+- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
+- Cross-module access must go through modules target api only.
+- Keep domain framework-free.
+- Run lint and build when boundaries or exports move.
 
-## Workflow
+## Module Lifecycle Operations
 
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the approved plan and the reviewer output.
-3. Build a verification list from scope, risks, and validation requirements.
-4. Execute scenarios across happy path, boundary, negative, error handling, and regression-sensitive paths.
-5. Capture evidence for failures and noteworthy residual risks.
-6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
-7. Conclude with a release recommendation.
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
 
-## Output format
+## Output
 
-### Scope checked
-- <scope item>
-
-### Scenarios executed
-1. <scenario>
-
-### Evidence collected
-- <evidence>
-
-### Failures found
-- <failure or none>
-
-### Residual risks
-- <risk or none>
-
-### Release recommendation
-- `ready | ready-with-risk | blocked`
-
-## Guardrails
-
-- Do not edit source files.
-- Do not mark a change ready if required validation was not actually executed.
-- Do not collapse missing evidence into general confidence language.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+- Ownership decision
+- Boundary impact
+- Files changed
+- Validation evidence
 `````
 
-## File: .github/agents/reviewer.agent.md
+## File: .github/agents/parallel-routes.agent.md
 `````markdown
 ---
-name: Reviewer
-description: 'Review Xuanwu implementations for correctness, architecture alignment, regression risk, and missing validation or documentation.'
-tools: ['read', 'search', 'todo', 'serena/*']
+name: Parallel Routes Agent
+description: Build and refactor app parallel-route UI slots with one-way data flow and API-only module consumption.
+tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
-handoffs:
-  - label: Fix Review Findings
-    agent: Implementer
-    prompt: Apply fixes for the review findings above. Keep the scope bounded to those findings and rerun the required validation.
-    send: false
-  - label: Run QA
-    agent: QA
-    prompt: Execute QA against the approved plan and reviewed implementation. Verify scenarios, evidence, residual risk, and release readiness.
-    send: false
 ---
 
-# Reviewer
-
-You are the formal review stage of the Xuanwu Copilot Delivery Suite.
+# Parallel Routes Agent
 
 ## Mission
 
-Evaluate whether the implementation is acceptable before QA starts. Focus on bugs, regressions, boundary violations, missing validation, and missing documentation.
-
-## Review lenses
-
-1. Correctness and behavioral regressions
-2. MDDD ownership and dependency direction
-3. Contract alignment and invariant preservation
-4. Validation completeness
-5. Documentation completeness
-
-## Required references
-
-- Review against the approved implementation plan.
-- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) for ownership and boundary checks.
-- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) for contract-governed workflows.
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
+Compose route slots that remain isolated, predictable, and boundary-safe.
 
 ## Workflow
 
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the approved plan and the implementation output.
-3. Evaluate across the five review lenses.
-4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with findings, severity, and recommendation; then call `serena/summarize_changes`.
+1. Identify slot responsibility and local state ownership.
+2. Confirm allowed module API inputs for the slot.
+3. Keep data flow one-way from API data to presentation.
+4. Validate rendering and interaction behavior for the touched slot only.
 
 ## Guardrails
 
-- Do not edit files.
-- Do not restate the implementation summary as the review.
-- Do not focus on style trivia before reporting bugs, risk, or missing validation.
-- If no serious findings exist, say so explicitly and note residual risks or test gaps.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+- Do not import module internals.
+- Keep local state local to the slot.
+- Avoid hidden shared state across unrelated route segments.
 
-## Output expectations
+## Output
 
-Present findings first, ordered by severity. Include:
-
-- summary,
-- affected area,
-- why it matters,
-- and whether the issue blocks QA or release.
+- Slot responsibility
+- Module APIs consumed
+- Files changed
+- Validation performed
 `````
 
-## File: .github/instructions/agent-skills.instructions.md
+## File: .github/agents/quality-lead.agent.md
 `````markdown
 ---
-name: 'Agent Skills Guidelines'
-description: 'Guidelines for creating high-quality Agent Skills for GitHub Copilot'
-applyTo: '.github/skills/**/SKILL.md, .claude/skills/**/SKILL.md'
+name: Quality Lead
+description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
+tools: ['read', 'search', 'execute', 'todo']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
 ---
 
-# Agent Skills File Guidelines (Noise-Reduced)
+# Quality Lead
 
-Use this file to author lean, discoverable skills.
+## Mission
 
-## Required SKILL.md Frontmatter
+Verify correctness, boundary safety, and release readiness.
 
-```yaml
----
-name: webapp-testing
-description: Toolkit for testing local web apps with Playwright. Use for UI verification, interaction checks, screenshots, and console diagnostics.
-license: Complete terms in LICENSE.txt
----
-```
+## Review Lenses
 
-Rules:
-- `name` is required, lowercase, kebab-case, <= 64 chars.
-- `description` is required and is the primary discovery signal.
-- `description` must include: what it does, when to use, and matchable keywords.
+1. Correctness and behavioral regression risk
+2. Ownership and boundary integrity
+3. Validation completeness
+4. Documentation completeness for changed behavior
 
-## Minimal Skill Structure
+## Workflow
 
-Each skill folder should include:
-- `SKILL.md` (required)
-- `LICENSE.txt` (recommended)
-- Optional: `scripts/`, `references/`, `templates/`, `assets/`
+1. Build scenario list from requirements and change scope.
+2. Execute happy path, boundary, negative, and error scenarios.
+3. Report findings by severity before summaries.
 
-## Body Sections (Recommended)
+## Output
 
-1. Title and intent
-2. When to use this skill
-3. Prerequisites
-4. Workflow steps
-5. Guardrails
-6. Output expectations
-7. References
-
-## Resource Rules
-
-- Put executable automation in `scripts/`.
-- Put long docs in `references/` and link from `SKILL.md`.
-- Use `templates/` for files the model edits.
-- Use `assets/` for files copied as-is.
-
-## Anti-Noise Rules
-
-- Keep `SKILL.md` under 500 lines.
-- Move long examples to `references/`.
-- Avoid repeating repository-wide policy inside each skill.
-- Do not duplicate the same workflow across multiple skills; route via an index skill.
-
-## Quality Checklist
-
-- [ ] Frontmatter is valid (`name`, `description`)
-- [ ] Description is specific enough for auto-discovery
-- [ ] Workflow is actionable and deterministic
-- [ ] Secrets are never hardcoded
-- [ ] Relative paths are used for internal references
-
-## References
-
-- https://code.visualstudio.com/docs/copilot/customization/agent-skills
-- https://agentskills.io/
-- https://github.com/github/awesome-copilot/blob/main/docs/README.skills.md
+- Findings ordered by severity
+- Evidence and reproduction details
+- Residual risks and recommendation: ready, ready-with-risk, blocked
 `````
 
-## File: .github/instructions/xuanwu-functions-python.instructions.md
+## File: .github/agents/rag-lead.agent.md
 `````markdown
 ---
-name: 'Xuanwu Functions Python'
-description: 'Project-specific instructions for the xuanwu-app Firebase Python worker runtime.'
+name: RAG Lead
+description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
+tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# RAG Lead
+
+## Focus
+
+- Ingestion contract alignment
+- Retrieval quality and index consistency
+- Runtime split between app orchestration and worker processing
+
+## Guardrails
+
+- Validate contract alignment before changing ingestion shape.
+- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+`````
+
+## File: .github/agents/serena-strategist.agent.md
+`````markdown
+---
+name: Serena Strategist
+description: Strategic Serena-first task routing for plan, boundary checks, and MCP evidence decisions.
+tools: ['read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Serena Strategist
+
+Use this agent to define execution strategy before coding.
+
+## Workflow
+
+1. Clarify scope, owner module, and runtime boundary.
+2. Use Serena discovery before opening broad files.
+3. Use Context7 only when repository sources are not authoritative.
+4. Route to implementation or review lanes with explicit acceptance criteria.
+5. Keep planning and triage separate from implementation edits.
+
+## Guardrails
+
+- Prefer repository source of truth first.
+- Keep plans boundary-safe and least-change.
+- Do not start implementation while scope is still ambiguous.
+- Do not invoke broad MCP tools when built-in repository context is sufficient.
+`````
+
+## File: .github/agents/shadcn-composer.agent.md
+`````markdown
+---
+name: Shadcn Composer
+description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
+argument-hint: Describe component goal, target route, and required interaction states.
+tools: ['read', 'edit', 'search', 'shadcn/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Shadcn Composer
+
+## Workflow
+
+1. Confirm route ownership and API data shape before composing UI.
+2. Reuse existing primitives and tokens first.
+3. Validate interaction states and accessibility basics.
+
+## Rules
+
+- Reuse existing component primitives before adding new ones.
+- Keep styling and behavior consistent with app composition boundaries.
+- Validate interactive states and accessibility basics.
+`````
+
+## File: .github/agents/support-architect.agent.md
+`````markdown
+---
+name: Support Architect
+description: Design support workflows, escalation paths, and operational boundaries across modules, docs, and QA evidence.
+tools: ['read', 'edit', 'search', 'todo', 'agent']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Support Architect
+
+## Mission
+
+Turn support issues into bounded implementation and verification tasks.
+
+## Workflow
+
+1. Convert incident symptoms into reproducible scenarios.
+2. Map affected owner module and runtime boundary.
+3. Define bounded implementation and QA follow-up tasks.
+4. Capture doc or playbook updates required after resolution.
+
+## Guardrails
+
+- Preserve ownership boundaries while coordinating fixes.
+- Require reproducible evidence for high-impact incidents.
+- Keep playbooks and docs updated with resolution patterns.
+`````
+
+## File: .github/agents/tool-caller.agent.md
+`````markdown
+---
+name: Tool Caller
+description: Select and sequence tools with least privilege, evidence-first execution, and bounded scope per task.
+tools: ['read', 'search', 'todo', 'agent', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Tool Caller
+
+## Mission
+
+Call the smallest effective tool set in the right order and stop unnecessary tool churn.
+
+## Sequencing Heuristic
+
+1. Local repository discovery
+2. Targeted reads/analysis
+3. Minimal edits
+4. Validation evidence
+5. External-doc lookup only if still uncertain
+
+## Guardrails
+
+- Prefer local repository evidence before external sources.
+- Keep tool calls narrow and task-specific.
+- Avoid destructive or broad commands when a scoped alternative exists.
+`````
+
+## File: .github/agents/ts-interface-writer.agent.md
+`````markdown
+---
+name: TS Interface Writer
+description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
+tools: ['read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# TS Interface Writer
+
+## Focus
+
+- Domain and application DTO contracts
+- Backward-safe type evolution
+- Explicit optional and required field transitions
+
+## Guardrails
+
+- Keep module interface and API contracts explicit and minimal.
+- Do not leak private infrastructure/entity internals into public API contracts.
+- Coordinate contract changes with consumer updates in the same change.
+`````
+
+## File: .github/instructions/architecture-api-boundary.instructions.md
+`````markdown
+---
+description: 'Cross-boundary rules for API-only collaboration between modules and runtimes.'
+applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Architecture API Boundary
+
+## Core Rule
+
+- Cross-module access must go through `modules/<target>/api` only.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+
+## Allowed Patterns
+
+- Import public facades or contracts from `modules/<target>/api`.
+- Coordinate across contexts through explicit event contracts.
+
+## Forbidden Patterns
+
+- Reach-through imports into another module's private entities, repositories, or adapters.
+- Hiding boundary bypasses behind barrels or re-export chains.
+
+## Refactor Rule
+
+- When boundary violations are found, replace them with API contracts or events in the same change.
+- Do not leave temporary reach-through imports after refactors.
+
+## Validation
+
+- Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
+- Re-check changed imports for `@/modules/` to confirm API-only access.
+`````
+
+## File: .github/instructions/architecture-mddd.instructions.md
+`````markdown
+---
+description: 'MDDD architecture rules for layer ownership and dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture MDDD
+
+## Layer Direction
+
+- `interfaces -> application -> domain <- infrastructure`
+- Keep `domain/` framework-free.
+
+## Layer Constraints
+
+- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
+- `application/` orchestrates use cases and coordinates domain abstractions.
+- `infrastructure/` implements domain ports and repository interfaces.
+- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+
+## Layer Ownership
+
+- `domain/`: entities, value objects, domain services, repository interfaces.
+- `application/`: use cases and DTO orchestration.
+- `infrastructure/`: adapters and external implementations.
+- `interfaces/`: UI, transport, and action wiring.
+- `api/`: only public cross-module boundary.
+
+## Dependency Guardrails
+
+- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
+- Do not reverse dependency direction for convenience during refactors.
+`````
+
+## File: .github/instructions/architecture-modules.instructions.md
+`````markdown
+---
+description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Modules
+
+## Required Shape
+
+- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+
+## Naming
+
+- Module folder: kebab-case bounded context.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor Checklist
+
+1. Confirm ownership.
+2. Map API consumers.
+3. Preserve boundaries during split/merge/delete.
+4. Update docs and imports in the same change.
+5. Migrate public API and event contracts before removing old paths.
+
+## Module Lifecycle Notes
+
+- New module: establish `api/` contract immediately and document inventory updates.
+- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
+- Delete: remove consumers first, then delete module, then update docs and dependency references.
+`````
+
+## File: .github/instructions/architecture-monorepo.instructions.md
+`````markdown
+---
+description: 'Monorepo boundary rules across app, modules, packages, and worker runtime.'
+applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
+---
+
+# Architecture Monorepo
+
+## Boundary Rules
+
+- `app/` composes module APIs and package aliases.
+- `modules/` own business capabilities by bounded context.
+- `packages/` provide stable shared implementations via aliases.
+- `py_fn/` owns ingestion and heavy worker jobs.
+
+## Runtime Ownership Rule
+
+- Browser-facing interactions, auth/session, and route orchestration stay in Next.js.
+- Background, retryable, and heavy ingestion jobs stay in `py_fn/`.
+
+## External Docs Rule
+
+- Use external documentation lookup only when repository sources are insufficient or version-sensitive behavior is uncertain.
+- Prefer local authoritative sources first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, and local code.
+
+## Import Rules
+
+- Use configured aliases; avoid legacy import families.
+- Avoid cross-layer relative imports across contexts.
+`````
+
+## File: .github/instructions/cloud-functions.instructions.md
+`````markdown
+---
+description: 'Rules for Python Cloud Functions worker responsibilities and boundaries.'
 applyTo: 'py_fn/**/*.py'
 ---
 
-# Xuanwu App py_fn Instructions
+# Cloud Functions
 
-These instructions apply to the `py_fn/` runtime only.
+## Ownership
 
-## Overview
+- `py_fn/` handles parsing, cleaning, taxonomy, chunking, embedding, and background jobs.
+- Do not add browser-facing chat/auth/session logic in `py_fn/`.
 
-`py_fn/` is the Firebase Python worker runtime for ingestion and heavy processing. Next.js owns the user-facing application edge. **Do not turn `py_fn/` into a second product web server.**
+## Runtime Decision Rule
 
-## Architecture
-
-Keep dependency direction `interfaces -> application -> domain <- infrastructure`.
-Keep `domain/` pure (no Firebase/Google SDK specifics, HTTP framework logic, or file-system coupling).
-Use `app/bootstrap` and `app/config` for wiring/config; preserve vertical slices and layer boundaries.
-
-## Ingestion Pipeline Contract
-
-Preserve established order (do not reorder without updating ADRs):
-**Parse → Clean → Taxonomy → Chunk → Chunk metadata → Embedding → Firestore writes → Mark ready**
-
-## Runtime Ownership
-
-- Next.js: browser-facing APIs, upload UX, auth/session, route handlers/server actions, query orchestration, prompt assembly, streaming.
-- `py_fn/`: parsing, cleaning, taxonomy, chunking, embedding, Firestore persistence, status transitions, background/retry/admin jobs.
-
-**Rule**: If the browser or page flow calls it directly → Next.js. If background, retryable, heavy, or admin/internal → `py_fn/`.
-
-## Guardrails & Validation
-
-**Do not**:
-- Add chat streaming endpoints
-- Move auth or session logic into this runtime
-- Bypass `application` layer from `interfaces`
-- Reintroduce legacy `libs/firebase/functions`
-
-**Validate**:
-- Run applicable Python and repository commands from `agents/commands.md`.
-- Before changing boundaries, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
-
-## Documentation Update Rules
-
-- Update `py_fn/README.md` when worker responsibilities, setup, or runtime contracts change.
-- Update ADRs when changing ingestion order, runtime ownership, persistence rules, or platform boundaries.
-- Keep terminology aligned with the existing ingestion, taxonomy, chunk, embedding, and document-status vocabulary already used in the repo.
-`````
-
-## File: .github/skills/next-devtools-mcp/SKILL.md
-`````markdown
----
-name: next-devtools-mcp
-description: >
-  Auto-load skill for Next.js route architecture and diagnostics. Use for App Router, parallel routes, server components,
-  server actions, streaming, hydration/performance checks, and Next.js config changes.
-user-invocable: false
-disable-model-invocation: false
----
-
-# next-devtools-mcp (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
+- If called directly from page or browser flow, keep it in Next.js.
+- If heavy, retryable, admin/internal, or long-running, keep it in `py_fn/`.
 
 ## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
 
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
+- Preserve worker layer boundaries.
+- Keep ingest job flow deterministic and retry-safe.
+
+## Boundary Change Validation
+
+- Before changing worker ownership, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
+- Update `py_fn/README.md` when responsibilities or runtime contracts change.
+`````
+
+## File: .github/instructions/embedding-pipeline.instructions.md
+`````markdown
+---
+description: 'Ingestion and embedding pipeline contract for worker-side RAG preparation.'
+applyTo: '{py_fn/**/*.py,docs/**/*.md}'
+---
+
+# Embedding Pipeline
+
+## Contract Order
+
+Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore writes -> Mark ready
+
+## Rules
+
+- Do not reorder stages without contract/doc update.
+- Normalize source documents to markdown (for example via MarkItDown) before chunking when required by source format.
+- Keep metadata traceable for retrieval citations.
+- Validate converted markdown quality before chunking.
+- Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
+`````
+
+## File: .github/instructions/firebase-architecture.instructions.md
+`````markdown
+---
+description: 'Firebase architecture boundaries for Next.js orchestration, Firestore, and Python worker runtime.'
+applyTo: '{app,modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Firebase Architecture
+
+## Runtime Split
+
+- Next.js: user-facing orchestration, auth/session, server actions.
+- `py_fn/`: heavy ingestion, embedding, and background operations.
+
+## Responsibility Split
+
+- Next.js owns upload UX, browser-facing APIs, and AI response orchestration.
+- `py_fn/` owns parse/clean/taxonomy/chunk/embed/persist pipelines.
+
+## Data Boundary
+
+- Keep Firestore document contracts explicit.
+- Avoid implicit schema drift across modules.
+- Preserve source and chunk metadata traceability for audit and citation needs.
+`````
+
+## File: .github/instructions/nextjs-app-router.instructions.md
+`````markdown
+---
+description: 'Next.js App Router composition rules for route slices and ownership boundaries.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs App Router
+
+## Rules
+
+- Keep route files focused on composition and rendering.
+- Prefer Server Components unless client interactivity is required.
+- Keep business logic in modules and consume via module APIs.
+- Use package aliases and avoid legacy import families.
+- Keep `app/` as composition ownership, not domain-rule ownership.
+`````
+
+## File: .github/instructions/nextjs-server-actions.instructions.md
+`````markdown
+---
+description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
+applyTo: '{app,modules}/**/*.{ts,tsx}'
+---
+
+# Nextjs Server Actions
+
+## Rules
+
+- Use `use server` explicitly.
+- Keep actions thin and delegate business logic to use cases.
+- Return consistent command result shapes.
+- Validate inputs at action boundaries using shared validators where applicable.
+- Keep infrastructure access out of route files and action wrappers.
+`````
+
+## File: .github/instructions/prompt-engineering.instructions.md
+`````markdown
+---
+description: 'Prompt authoring rules for deterministic, low-noise, reusable workflow prompts.'
+applyTo: '.github/prompts/**/*.prompt.md'
+---
+
+# Prompt Engineering
+
+## Frontmatter
+
+- Use clear `description` and `agent` fields.
+- Declare `tools` with least privilege when tool usage is required.
+- Keep `argument-hint` explicit when the prompt expects user inputs.
+
+## Structure
+
+1. Mission
+2. Inputs
+3. Workflow
+4. Output contract
+5. Validation
+
+## Rules
+
+- Keep prompts specific and executable.
+- Declare required inputs and fallbacks.
+- Keep tools least-privilege when defined.
+- Avoid copying repository-global policy into each prompt.
+- Prefer short executable steps over long background text.
+`````
+
+## File: .github/instructions/rag-architecture.instructions.md
+`````markdown
+---
+description: 'RAG architecture boundaries for conversion, chunking, embedding, and retrieval workflows.'
+applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
+---
+
+# RAG Architecture
+
+## Rules
+
+- Normalize source docs before chunking when needed, including MarkItDown-based conversion for non-markdown sources.
+- Keep retrieval metadata auditable and source-traceable.
+- Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
+`````
+
+## File: .github/prompts/refactor-module.prompt.md
+`````markdown
+---
+name: refactor-module
+description: Refactor existing module internals while preserving MDDD layers and public boundaries.
+agent: Modules Architect
+argument-hint: Provide module name, refactor goal, and boundary risks.
+---
+
+# Refactor Module
+
+## Workflow
+
+1. Analyze entity/use-case/repository ownership.
+2. Move logic into correct layer boundaries.
+3. Remove forbidden internal cross-module imports.
+4. Update tests/docs alongside code changes.
 `````
 
 ## File: .tmp-eslint.json
@@ -78604,246 +78362,6 @@ export {
 export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
 `````
 
-## File: modules/workspace-flow/Workspace-Flow-Tree.mermaid
-`````
-flowchart TB
-	%% ==========================================================
-	%% Workspace Flow Module Tree
-	%% Goal: all external consumers enter through api/
-	%% ==========================================================
-
-	classDef root fill:#0f172a,stroke:#0f172a,color:#f8fafc,stroke-width:2px;
-	classDef api fill:#dcfce7,stroke:#16a34a,color:#052e16,stroke-width:2px;
-	classDef layer fill:#e2e8f0,stroke:#475569,color:#0f172a,stroke-width:1.5px;
-	classDef file fill:#f8fafc,stroke:#94a3b8,color:#0f172a;
-	classDef doc fill:#fff7ed,stroke:#ea580c,color:#7c2d12;
-	classDef forbid fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-dasharray: 6 4;
-	classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
-
-	external_app[app routes / other modules / tests]:::external --> public_api
-
-	subgraph WORKSPACE_FLOW [modules/workspace-flow]
-		direction TB
-		module_root[workspace-flow/]:::root
-
-		subgraph PUBLIC [Public Boundary]
-			direction TB
-			public_api[api/]:::api
-			public_api_index[index.ts<br/>only allowed cross-module entry]:::api
-			public_facade[workspace-flow.facade.ts<br/>public facade for external consumers]:::file
-			public_contracts[contracts.ts<br/>public summaries and public DTOs]:::file
-			public_api --> public_api_index
-			public_api --> public_facade
-			public_api --> public_contracts
-		end
-
-		subgraph INTERNAL [Internal Layers]
-			direction TB
-
-			readme[README.md<br/>module rules and lifecycle summary]:::doc
-			flow_doc[Workspace-Flow.mermaid<br/>state machine overview]:::doc
-			tree_doc[Workspace-Flow-Tree.mermaid<br/>module tree and boundary rules]:::doc
-
-			domain_layer[domain/]:::layer
-			application_layer[application/]:::layer
-			infrastructure_layer[infrastructure/]:::layer
-			interfaces_layer[interfaces/]:::layer
-			local_index[index.ts<br/>same-module convenience only]:::file
-
-			subgraph DOMAIN [domain/]
-				direction TB
-				domain_entities[entities/]:::layer
-				domain_events[events/]:::layer
-				domain_value_objects[value-objects/]:::layer
-				domain_services[services/]:::layer
-
-				file_models[entities/Task.ts<br/>Issue.ts<br/>Invoice.ts<br/>InvoiceItem.ts]:::file
-				file_core[value-objects/TaskId.ts<br/>TaskStatus.ts<br/>IssueStage.ts]:::file
-				file_events[events/TaskEvent.ts<br/>IssueEvent.ts<br/>InvoiceEvent.ts]:::file
-				file_transitions[services/task-transition-policy.ts<br/>issue-transition-policy.ts<br/>invoice-transition-policy.ts<br/>task-guards.ts<br/>invoice-guards.ts]:::file
-
-				domain_entities --> file_models
-				domain_value_objects --> file_core
-				domain_events --> file_events
-				domain_services --> file_transitions
-			end
-
-			subgraph APPLICATION [application/]
-				direction TB
-				application_dto[dto/]:::layer
-				application_ports[ports/]:::layer
-				application_use_cases[use-cases/]:::layer
-
-				file_services[ports/TaskService.ts<br/>IssueService.ts<br/>InvoiceService.ts]:::file
-				file_queries[dto/task-query.dto.ts<br/>issue-query.dto.ts<br/>invoice-query.dto.ts]:::file
-				file_commands[dto/create-task.dto.ts<br/>open-issue.dto.ts<br/>add-invoice-item.dto.ts]:::file
-				file_use_cases[use-cases/submit-task-to-qa.use-case.ts<br/>approve-task-acceptance.use-case.ts<br/>submit-invoice.use-case.ts]:::file
-
-				application_ports --> file_services
-				application_dto --> file_queries
-				application_dto --> file_commands
-				application_use_cases --> file_use_cases
-			end
-
-			subgraph INFRA [infrastructure/]
-				direction TB
-				infra_firebase[firebase/]:::layer
-				infra_persistence[persistence/]:::layer
-				infra_repositories[repositories/]:::layer
-				file_firestore[firebase/workspace-flow.collections.ts<br/>COLLECTIONS + document mappings]:::file
-				file_converters[firebase/task.converter.ts<br/>issue.converter.ts<br/>invoice.converter.ts]:::file
-				file_repositories[repositories/FirebaseTaskRepository.ts<br/>FirebaseIssueRepository.ts<br/>FirebaseInvoiceRepository.ts]:::file
-				infra_firebase --> file_firestore
-				infra_firebase --> file_converters
-				infra_repositories --> file_repositories
-			end
-
-			subgraph INTERFACES [interfaces/]
-				direction TB
-				interfaces_actions[_actions/]:::layer
-				interfaces_contracts[contracts/]:::layer
-				interfaces_queries[queries/]:::layer
-				file_interface_contracts[contracts/workspace-flow.contract.ts]:::file
-				file_interface_actions[_actions/workspace-flow.actions.ts]:::file
-				file_interface_queries[queries/workspace-flow.queries.ts]:::file
-				interface_note[optional module-local actions or query contracts<br/>product UI remains outside this module]:::doc
-				interfaces_layer --> interfaces_actions
-				interfaces_layer --> interfaces_contracts
-				interfaces_layer --> interfaces_queries
-				interfaces_actions --> file_interface_actions
-				interfaces_contracts --> file_interface_contracts
-				interfaces_queries --> file_interface_queries
-				interfaces_layer --> interface_note
-			end
-		end
-
-		module_root --> public_api
-		module_root --> domain_layer
-		module_root --> application_layer
-		module_root --> infrastructure_layer
-		module_root --> interfaces_layer
-		module_root --> readme
-		module_root --> flow_doc
-		module_root --> tree_doc
-		module_root --> local_index
-
-		domain_layer --> DOMAIN
-		application_layer --> APPLICATION
-		infrastructure_layer --> INFRA
-	end
-
-	public_api_index --> application_layer
-	application_layer --> domain_layer
-	infrastructure_layer --> domain_layer
-	interfaces_layer --> application_layer
-
-	forbidden_domain[forbidden<br/>@/modules/workspace-flow/domain/*]:::forbid
-	forbidden_application[forbidden<br/>@/modules/workspace-flow/application/*]:::forbid
-	forbidden_infra[forbidden<br/>@/modules/workspace-flow/infrastructure/*]:::forbid
-	forbidden_interfaces[forbidden<br/>@/modules/workspace-flow/interfaces/*]:::forbid
-	forbidden_types[forbidden<br/>do not recreate legacy types/*]:::forbid
-
-	external_app -. do not import .-> forbidden_domain
-	external_app -. do not import .-> forbidden_application
-	external_app -. do not import .-> forbidden_infra
-	external_app -. do not import .-> forbidden_interfaces
-	external_app -. do not import .-> forbidden_types
-
-	note_boundary[Cross-module rule<br/>external consumers must import only via<br/>@/modules/workspace-flow/api]:::doc
-	note_mapping[Legacy types/* files were migration-only<br/>the target structure is now the canonical design]:::doc
-
-	note_boundary --> public_api_index
-	note_mapping --> module_root
-`````
-
-## File: modules/workspace-flow/Workspace-Flow.mermaid
-`````
-flowchart TB
-  %% ==========================================================
-  %% Workspace Flow
-  %% Canonical state-machine documentation for workspace-flow
-  %% This diagram documents the target logic module
-  %% Legacy types/* files were migration input only and have been removed
-  %% ==========================================================
-
-  classDef task fill:#e8f3ff,stroke:#2563eb,stroke-width:2px,color:#0f172a;
-  classDef issue fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#0f172a;
-  classDef invoice fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#0f172a;
-  classDef data fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#0f172a;
-  classDef rule fill:#f8fafc,stroke:#64748b,stroke-dasharray: 5 5,color:#334155;
-
-  subgraph TASK_FLOW [Task State Machine]
-    direction LR
-    task_start((Start)):::rule --> task_draft[draft]:::task
-    task_draft -->|ASSIGN<br/>assignee: UserId| task_in_progress[in_progress]:::task
-    task_in_progress -->|SUBMIT_QA| task_qa[qa]:::task
-    task_qa -->|PASS_QA<br/>guard: no open issues| task_acceptance[acceptance]:::task
-    task_acceptance -->|APPROVE_ACCEPTANCE<br/>guard: no open issues| task_accepted[accepted]:::task
-    task_accepted -->|ARCHIVE<br/>guard: invoice closed or none| task_archived[archived]:::task
-  end
-
-  subgraph ISSUE_FLOW [Issue State Machine]
-    direction LR
-    issue_start((Start)):::rule --> issue_open[open]:::issue
-    issue_open -->|START| issue_investigating[investigating]:::issue
-    issue_investigating -->|FIX| issue_fixing[fixing]:::issue
-    issue_fixing -->|SUBMIT_RETEST| issue_retest[retest]:::issue
-    issue_retest -->|PASS_RETEST| issue_resolved[resolved]:::issue
-    issue_retest -->|FAIL_RETEST| issue_fixing
-    issue_resolved -->|CLOSE| issue_closed[closed]:::issue
-  end
-
-  subgraph INVOICE_FLOW [Invoice State Machine]
-    direction LR
-    invoice_start((Start)):::rule --> invoice_draft[invoice_draft]:::invoice
-    invoice_draft -->|SUBMIT<br/>guard: item_count > 0| invoice_submitted[submitted]:::invoice
-    invoice_submitted -->|REVIEW| invoice_finance_review[finance_review]:::invoice
-    invoice_finance_review -->|APPROVE| invoice_approved[approved]:::invoice
-    invoice_finance_review -->|REJECT<br/>reason: string| invoice_submitted
-    invoice_approved -->|PAY<br/>paid_at: Date| invoice_paid[paid]:::invoice
-    invoice_paid -->|CLOSE| invoice_closed[closed]:::invoice
-  end
-
-  subgraph CROSS_FLOW [Cross-Flow Relations]
-    direction TB
-    open_issue_rule[任何節點發現問題<br/>開 Issue，不回退 Task]:::rule
-    resume_rule[Issue resolved 後<br/>依 Issue.stage 回到原節點繼續]:::rule
-    invoice_item[InvoiceItem<br/>invoice_id + task_id + amount<br/>只允許 accepted Task 加入]:::data
-    api_rule[外界只能透過 api 使用 workspace-flow<br/>UI 在模組外部自行組裝]:::rule
-  end
-
-  subgraph STORAGE [Firestore Collections]
-    direction TB
-    tasks_doc[tasks<br/>TaskDoc = Omit<Task, id>]:::data
-    issues_doc[issues<br/>IssueDoc = Omit<Issue, id>]:::data
-    invoices_doc[invoices<br/>InvoiceDoc = Omit<Invoice, id>]:::data
-    invoice_items_doc[invoice_items<br/>InvoiceItemDoc = Omit<InvoiceItem, id>]:::data
-  end
-
-  task_qa -. open issue<br/>stage: qa .-> issue_open
-  task_acceptance -. open issue<br/>stage: acceptance .-> issue_open
-  invoice_finance_review -. open issue<br/>stage: finance .-> issue_open
-
-  issue_resolved -. if stage = qa .-> task_qa
-  issue_resolved -. if stage = acceptance .-> task_acceptance
-  issue_resolved -. if stage = finance .-> invoice_finance_review
-
-  task_accepted -. eligible for billing .-> invoice_item
-  invoice_item -. belongs to .-> invoice_draft
-
-  task_archived -. persisted as .-> tasks_doc
-  issue_closed -. persisted as .-> issues_doc
-  invoice_closed -. persisted as .-> invoices_doc
-  invoice_item -. persisted as .-> invoice_items_doc
-
-  open_issue_rule -. applies to .-> task_qa
-  open_issue_rule -. applies to .-> task_acceptance
-  open_issue_rule -. applies to .-> invoice_finance_review
-  resume_rule -. explains .-> issue_resolved
-  api_rule -. governs .-> task_draft
-  api_rule -. governs .-> invoice_draft
-`````
-
 ## File: modules/workspace-scheduling/api/index.ts
 `````typescript
 /**
@@ -79083,990 +78601,629 @@ graph TD
   class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
 `````
 
-## File: .github/instructions/agents.instructions.md
+## File: .github/agents/app-router.agent.md
 `````markdown
 ---
-name: 'Custom Agent Guidelines'
-description: 'Guidelines for creating custom agent files for GitHub Copilot'
-applyTo: '.github/agents/**/*.agent.md'
----
-
-# Custom Agent File Guidelines (Noise-Reduced)
-
-Use this file as the minimal standard for `.agent.md` authoring. Keep agent specs short, specific, and non-overlapping.
-
-## Required Frontmatter
-
-```yaml
----
-description: 'One-sentence purpose and trigger context'
-name: 'Agent Display Name'
-tools: ['read', 'edit', 'search']
+name: App Router Agent
+description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
+argument-hint: Provide route segment, expected behavior, and failing symptoms.
+tools: ['read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
-```
 
-## Frontmatter Rules
+# App Router Agent
 
-- `description` is required and should explain when the agent should be used.
-- `name` is recommended; use title case.
-- `tools` should be least-privilege. Omit only when intentionally allowing all tools.
-- `model` is recommended for deterministic behavior.
-- `target` may be `vscode` or `github-copilot`.
-- Optional controls:
-  - `user-invocable: false` hides from picker.
-  - `disable-model-invocation: true` blocks subagent usage.
+## Workflow
 
-## Handoffs (Optional)
+1. Identify the target segment and rendering/data path.
+2. Use Next runtime evidence when symptoms are ambiguous.
+3. Apply least-change fixes in route composition or local route UI.
+4. Validate only the affected route behavior and related module API usage.
 
-Use handoffs only for real stage transitions (plan -> implement -> review -> qa).
+## Guardrails
 
-```yaml
-handoffs:
-  - label: Start Implementation
-    agent: Implementer
-    prompt: 'Implement the approved plan above.'
-    send: false
-```
+- Keep business logic in modules.
+- Use runtime evidence when route behavior is unclear.
+- Keep route slices composition-focused.
 
-Rules:
-- Keep each handoff label action-oriented.
-- Limit to 2-3 high-value next steps.
-- Do not add handoffs to non-existent agents.
+## Output
 
-## Agent Body Structure
-
-Keep the body compact and scannable:
-
-1. Role and boundaries
-2. Inputs and assumptions
-3. Workflow steps
-4. Guardrails and non-goals
-5. Output format
-
-## Tool Policy
-
-- Use least privilege.
-- Include `agent` only if orchestration is required.
-- Avoid granting `execute` unless terminal execution is a core capability.
-
-## Anti-Noise Rules
-
-- Do not duplicate repository-wide rules from `AGENTS.md` or `.github/copilot-instructions.md`.
-- Do not copy long tutorials into agent files; link references instead.
-- Prefer short checklists over repeated prose.
-
-## Validation Checklist
-
-- [ ] Frontmatter is valid and minimal
-- [ ] Agent purpose is unique (not duplicating existing agents)
-- [ ] Tools are least-privilege
-- [ ] Handoffs (if any) are valid and necessary
-- [ ] Prompt body stays focused and under 500 lines
-
-## References
-
-- https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents
-- https://docs.github.com/en/copilot/reference/custom-agents-configuration
-- https://code.visualstudio.com/docs/copilot/customization/custom-agents
-- https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp
+- Route scope and failure mode
+- Changes applied
+- Evidence checked
+- Residual route risk
 `````
 
-## File: .github/instructions/instructions.instructions.md
+## File: .github/agents/e2e-qa.agent.md
 `````markdown
 ---
-name: 'Instructions Authoring Guidelines'
-description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
-applyTo: '.github/instructions/**/*.instructions.md'
+name: E2E QA Agent
+description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
+tools: ['read', 'search', 'todo', 'microsoft/playwright-mcp/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
 ---
 
-# Custom Instructions File Guidelines (Noise-Reduced)
+# E2E QA Agent
 
-Use this file to keep instruction files concise, scoped, and non-overlapping.
+## Workflow
 
-## Required Frontmatter
-
-```yaml
----
-description: 'One-sentence purpose and scope'
-applyTo: 'glob pattern(s) for target files'
----
-```
-
-Rules:
-- `description` must be specific and actionable.
-- `applyTo` must be as narrow as possible.
-- Avoid catch-all patterns unless absolutely required.
-
-## Recommended Structure
-
-1. Title and scope
-2. Core rules
-3. Guardrails / anti-patterns
-4. Validation commands
-5. References
-
-## Anti-Noise Rules
-
-- Do not restate repository-global policies already defined in `AGENTS.md` or `.github/copilot-instructions.md`.
-- Prefer references over duplicating long explanations.
-- Keep examples short and only when needed to disambiguate.
-- Remove repeated wording across sibling instruction files.
-
-## Authoring Rules
-
-- Use imperative language.
-- Keep sections scannable.
-- Prioritize deterministic instructions over broad advice.
-- Add only constraints that can be validated in review or CI.
-
-## Validation
-
-- Verify frontmatter validity.
-- Verify `applyTo` matches only intended files.
-- Spot-check with representative Copilot prompts.
-
-## References
-
-- https://code.visualstudio.com/docs/copilot/customization/custom-instructions
-- https://github.com/github/awesome-copilot/tree/main/instructions
-`````
-
-## File: .github/instructions/modules-api-boundary.instructions.md
-`````markdown
----
-name: 'Modules API Boundary'
-description: 'API-boundary rules for cross-module interaction in modules/ with explicit allowed and forbidden patterns'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules API Boundary
-
-Cross-module interaction must remain explicit and minimal.
-
-## Allowed vs. Forbidden
-
-| Pattern | Status | Example |
-| --- | --- | --- |
-| Import via target module public boundary (`@/modules/<target>` or `@/modules/<target>/api`) | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
-| Import `<target>/domain/*`, `<target>/application/*`, `<target>/infrastructure/*`, `<target>/interfaces/*` | ❌ **Forbidden** | `import { ContentPage } from "@/modules/content/domain/entities/..."` |
-| Import private repositories or entities | ❌ **Forbidden** | `import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/..."` |
+1. Build scenarios from acceptance criteria and user paths.
+2. Execute browser interactions and capture runtime evidence.
+3. Separate confirmed failures from improvement suggestions.
 
 ## Rules
 
-- Keep module internals private
-- Export only minimum needed from `api/`
-- Prefer façades, contracts, or events over exposing raw types
-- Narrow wide boundaries during refactor, not incrementally
+- Capture clear reproduction steps.
+- Separate confirmed failures from improvement ideas.
+- Report console and network evidence when relevant.
 
-## Validation
+## Output
 
-- Re-check all changed imports
-- Run validation commands from `agents/commands.md` based on change scope
-- Rely on `eslint.config.mjs` as the enforcement source for restricted-import patterns
+- Scenarios executed
+- Evidence collected
+- Confirmed failures
+- Release recommendation: ready | ready-with-risk | blocked
 `````
 
-## File: .github/instructions/modules-architecture.instructions.md
+## File: .github/mcp_to_agent_mapping.md
+`````markdown
+# MCP to Agent Mapping (Implemented)
+
+This file records the implemented mapping strategy for using MCP tools through dedicated custom agents, instructions, prompts, and skills.
+
+## Implementation policy
+
+1. Keep custom agents at `.github/agents/` top-level for reliable discovery in this workspace.
+2. Use least-privilege `tools` in agent frontmatter.
+3. Use skills in folder form (`.github/skills/<name>/SKILL.md`), not `*.skill.md` files.
+4. Treat MCP mapping as a preferred routing rule, not a hard lock.
+
+## MCP routing matrix
+
+| MCP server | Primary agent | Supporting assets | Status |
+| --- | --- | --- | --- |
+| `context7/*` | `.github/agents/commander.agent.md` | `.github/instructions/06-context7-usage.instructions.md`, `.github/prompts/context7-mcp.prompt.md` | Implemented |
+| `shadcn/*` | `.github/agents/component.agent.md` | `.github/prompts/shadcn-mcp.prompt.md` | Implemented |
+| `io.github.vercel/next-devtools-mcp/*` | `.github/agents/app-router.agent.md` | `.github/prompts/next‑devtools‑mcp.prompt.md` | Implemented |
+| `microsoft/markitdown/*` | `.github/agents/rag-vector.agent.md` | `.github/instructions/07-markitdown-rag.instructions.md`, `.github/prompts/markitdown-md-optimization.prompt.md` | Implemented |
+| `microsoft/playwright-mcp/*` | `.github/agents/e2e-qa.agent.md` | `.github/prompts/playwright-mcp.prompt.md` | Implemented |
+| `serena/*` | `.github/agents/serena.agent.md`, `.github/agents/commander.agent.md` | `.github/skills/serena-mcp/SKILL.md` | Implemented |
+
+## Phase 2 candidates
+
+1. Add feature-specialized prompts under `prompts/diagnosis` and `prompts/rag` if workflow frequency justifies them.
+2. Add additional agents only when a repeated workflow cannot be covered by existing delivery agents plus prompts.
+3. Keep handoff targets aligned to diagnostics-recognized agent names.
+
+## Legacy to extension mapping
+
+| Legacy area | Extension role in current architecture | Notes |
+| --- | --- | --- |
+| `.github/agents/planner.agent.md`, `.github/agents/implementer.agent.md`, `.github/agents/reviewer.agent.md`, `.github/agents/qa.agent.md` | Core delivery chain | Remains authoritative for formal delivery handoffs |
+| `.github/agents/modules-*.agent.md`, `.github/agents/app-router-composer.agent.md` | Domain-specialized extension lanes | Activated when scope is module boundary or app composition specific |
+| `.github/agents/serena.agent.md` | Serena-first execution lane | Works as cross-cutting execution backbone with symbolic workflow |
+| `.github/prompts/*` | Trigger surface for chain and MCP lanes | Prompt scope routes work to delivery agents or MCP-specialized agents |
+| `.github/instructions/*` | Always-on policy layer | Narrow `applyTo` keeps context noise low while preserving guardrails |
+| `.github/copilot-instructions.md` | Top-level orchestration contract | Defines precedence, boundaries, and mapping baseline usage |
+
+## Legacy inventory decisions
+
+### Agents
+
+| Asset group | Decision | Why |
+| --- | --- | --- |
+| Delivery chain (`planner`, `implementer`, `reviewer`, `qa`) | Keep | Formal delivery workflow remains the primary quality gate for non-trivial work |
+| MCP lanes (`commander`, `app-router`, `component`, `rag-vector`, `e2e-qa`) | Keep | These provide focused execution for MCP-heavy tasks and reduce prompt ambiguity |
+| Domain lanes (`modules-*`, `app-router-composer`) | Keep with role split | Composition/refactor roles are still needed when runtime diagnostics are not the main problem |
+| `serena` | Keep | Cross-cutting execution backbone with symbolic workflow and guarded MCP access |
+| `planner-docs`, `md-writer` | Keep as optional extension | Required for doc-heavy delivery but not mandatory for every feature |
+| `qa-legacy` | Keep hidden, retire later | Retained for historical traceability only; not part of primary routing |
+| `custom-agent-foundry`, `repo-architect` | Keep as maintainer tools | Useful for customization authoring and bootstrap, but not core delivery path |
+
+### Instructions
+
+| Asset group | Decision | Why |
+| --- | --- | --- |
+| Foundation authoring rules (`agents`, `prompt`, `agent-skills`, `instructions`) | Keep | Prevents customization quality drift |
+| Project/runtime rules (`xuanwu-*`, `modules-*`, `app/*`) | Keep | Enforces architecture boundaries and runtime split |
+| MCP extensions (`06-context7`, `07-markitdown-rag`) | Keep | Required to keep external-doc and conversion behavior consistent with mapping |
+| Dotnet guidance | Keep low-priority | Not currently primary stack, but valid for mixed-language contributions |
+
+### Prompts
+
+| Asset group | Decision | Why |
+| --- | --- | --- |
+| Delivery prompts (`plan-*`, `implement-plan`, `review-changes`, `run-qa`) | Keep | Mirrors formal delivery stages |
+| Module/app prompts | Keep | Supports bounded-context and route composition work |
+| MCP prompts (`context7`, `shadcn`, `next-devtools`, `playwright`, `markitdown`) | Keep with routing refactor | Must target MCP-specialized agents to stay self-consistent with mapping |
+| Markdown optimization prompts (`md-*`) | Keep optional | High-value for docs maintenance, not required for code-only changes |
+`````
+
+## File: .github/agents/repo-architect.agent.md
 `````markdown
 ---
-name: 'Modules Architecture'
-description: 'Architecture rules for creating and refactoring modules/ bounded contexts under Xuanwu MDDD'
-applyTo: 'modules/**/*.md'
+description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
+name: 'Repo Architect Agent'
+tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, microsoft/markitdown/convert_to_markdown, serena/activate_project, serena/check_onboarding_performed, serena/delete_memory, serena/edit_memory, serena/find_file, serena/find_referencing_symbols, serena/find_symbol, serena/get_current_config, serena/get_symbols_overview, serena/initial_instructions, serena/insert_after_symbol, serena/insert_before_symbol, serena/list_dir, serena/list_memories, serena/onboarding, serena/read_memory, serena/rename_memory, serena/rename_symbol, serena/replace_symbol_body, serena/search_for_pattern, serena/write_memory, context7/get-library-docs, context7/resolve-library-id, todo]
 ---
 
-# Modules Architecture
+# Repo Architect Agent
 
-Use this instruction when designing or restructuring module architecture documents under `modules/`.
+You are a **Repository Architect** specialized in scaffolding and validating agentic coding project structures. Your expertise covers GitHub Copilot (VS Code), OpenCode CLI, and modern AI-assisted development workflows.
 
-## MDDD Layers
+## Purpose
 
-Each business module keeps: `domain/`, `application/`, `infrastructure/`, `interfaces/`, `api/`, plus `README.md` and `index.ts`.
-If any canonical layer is intentionally omitted, document the exception explicitly.
+Bootstrap and validate project structures that support:
 
-## Layer Responsibilities
+1. **VS Code GitHub Copilot** - `.github/` directory structure
+2. **OpenCode CLI** - `.opencode/` directory structure
+3. **Hybrid setups** - Both environments coexisting with shared resources
 
-- `domain/`: pure business rules, entities, value objects, events, repository interfaces; no framework imports.
-- `application/`: use-case orchestration and DTOs; depends on domain abstractions.
-- `infrastructure/`: adapter and repository implementations for external systems.
-- `interfaces/`: UI/transport/server-action concerns only.
-- `api/`: the only cross-module consumption boundary.
+## Execution Context
 
-## Required Module Shape
+You are typically invoked immediately after:
 
-```text
-modules/{module-name}/
-├── api/
-├── domain/
-│   ├── entities/
-│   ├── repositories/
-│   ├── value-objects/
-│   └── events/
-├── application/
-│   ├── use-cases/
-│   └── dto/
-├── infrastructure/
-├── interfaces/
-├── README.md
-└── index.ts
+- `opencode /init` command
+- VS Code "Generate Copilot Instructions" functionality
+- Manual project initialization
+- Migrating an existing project to agentic workflows
+
+## Core Architecture
+
+### The Three-Layer Model
+
+```
+PROJECT ROOT
+│
+├── [LAYER 1: FOUNDATION - System Context]
+│   "The Immutable Laws & Project DNA"
+│   ├── .github/copilot-instructions.md  ← VS Code reads this
+│   └── AGENTS.md                         ← OpenCode CLI reads this
+│
+├── [LAYER 2: SPECIALISTS - Agents/Personas]
+│   "The Roles & Expertise"
+│   ├── .github/agents/*.agent.md        ← VS Code agent modes
+│   └── .opencode/agents/*.agent.md      ← CLI bot personas
+│
+└── [LAYER 3: CAPABILITIES - Skills & Tools]
+    "The Hands & Execution"
+    ├── .github/skills/*.md              ← Complex workflows
+    ├── .github/prompts/*.prompt.md      ← Quick reusable snippets
+    └── .github/instructions/*.instructions.md  ← Language/file-specific rules
 ```
 
-Additional folders are allowed when needed, but do not rename the canonical layers.
+## Commands
 
-## Rules & Guardrails
+### `/bootstrap` - Full Project Scaffolding
 
-- Keep business rules out of `interfaces/`; never import infrastructure into `domain/`.
-- `app/` is composition and routing, not business-rule ownership.
-- Use `modules-api-boundary.instructions.md` and `modules-dependency-graph.instructions.md` for code-level boundary enforcement.
-- Place events/interfaces/entities/value objects/repository implementations in their canonical folders.
+Execute complete scaffolding based on detected or specified environment:
 
-## Validation
+1. **Detect Environment**
+   - Check for existing `.github/`, `.opencode/`, etc.
+   - Identify project language/framework stack
+   - Determine if VS Code, OpenCode, or hybrid setup is needed
 
-- Use validation commands from `agents/commands.md` to keep one canonical command source.
-`````
+2. **Create Directory Structure**
 
-## File: .github/instructions/modules-refactoring.instructions.md
-`````markdown
+   ```
+   .github/
+   ├── copilot-instructions.md
+   ├── agents/
+   ├── instructions/
+   ├── prompts/
+   └── skills/
+
+   .opencode/           # If OpenCode CLI detected/requested
+   ├── opencode.json
+   ├── agents/
+   └── skills/ → symlink to .github/skills/ (preferred)
+
+   AGENTS.md            # CLI system prompt (can symlink to copilot-instructions.md)
+   ```
+
+3. **Generate Foundation Files**
+   - Create `copilot-instructions.md` with project context
+   - Create `AGENTS.md` (symlink or custom distilled version)
+   - Generate starter `opencode.json` if CLI is used
+
+4. **Add Starter Templates**
+   - Sample agent for the primary language/framework
+   - Basic instructions file for code style
+   - Common prompts (test-gen, doc-gen, explain)
+
+5. **Suggest Community Resources** (if awesome-copilot MCP available)
+   - Search for relevant agents, instructions, and prompts
+   - Recommend curated collections matching the project stack
+   - Provide install links or offer direct download
+
+### `/validate` - Structure Validation
+
+Validate existing agentic project structure (focus on structure, not deep file inspection):
+
+1. **Check Required Files & Directories**
+   - [ ] `.github/copilot-instructions.md` exists and is not empty
+   - [ ] `AGENTS.md` exists (if OpenCode CLI used)
+   - [ ] Required directories exist (`.github/agents/`, `.github/prompts/`, etc.)
+
+2. **Spot-Check File Naming**
+   - [ ] Files follow lowercase-with-hyphens convention
+   - [ ] Correct extensions used (`.agent.md`, `.prompt.md`, `.instructions.md`)
+
+3. **Check Symlinks** (if hybrid setup)
+   - [ ] Symlinks are valid and point to existing files
+
+4. **Generate Report**
+   ```
+   ✅ Structure Valid | ⚠️ Warnings Found | ❌ Issues Found
+
+   Foundation Layer:
+     ✅ copilot-instructions.md (1,245 chars)
+     ✅ AGENTS.md (symlink → .github/copilot-instructions.md)
+
+   Agents Layer:
+     ✅ .github/agents/reviewer.md
+     ⚠️ .github/agents/architect.md - missing 'model' field
+
+   Skills Layer:
+     ✅ .github/skills/git-workflow.md
+     ❌ .github/prompts/test-gen.prompt.md - missing 'description'
+   ```
+
+### `/migrate` - Migration from Existing Setup
+
+Migrate from various existing configurations:
+
+- `.cursor/` → `.github/` (Cursor rules to Copilot)
+- `.aider/` → `.github/` + `.opencode/`
+- Standalone `AGENTS.md` → Full structure
+- `.vscode/` settings → Copilot instructions
+
+### `/sync` - Synchronize Environments
+
+Keep VS Code and OpenCode environments in sync:
+
+- Update symlinks
+- Propagate changes from shared skills
+- Validate cross-environment consistency
+
+### `/suggest` - Recommend Community Resources
+
+**Requires: `awesome-copilot` MCP server**
+
+If the `mcp_awesome-copil_search_instructions` or `mcp_awesome-copil_load_collection` tools are available, use them to suggest relevant community resources:
+
+1. **Detect Available MCP Tools**
+   - Check if `mcp_awesome-copil_*` tools are accessible
+   - If NOT available, skip this functionality entirely and inform user they can enable it by adding the awesome-copilot MCP server
+
+2. **Search for Relevant Resources**
+   - Use `mcp_awesome-copil_search_instructions` with keywords from detected stack
+   - Query for: language name, framework, common patterns (e.g., "typescript", "react", "testing", "mcp")
+
+3. **Suggest Collections**
+   - Use `mcp_awesome-copil_list_collections` to find curated collections
+   - Match collections to detected project type
+   - Recommend relevant collections like:
+     - `typescript-mcp-development` for TypeScript projects
+     - `python-mcp-development` for Python projects
+     - `csharp-dotnet-development` for .NET projects
+     - `testing-automation` for test-heavy projects
+
+4. **Load and Install**
+   - Use `mcp_awesome-copil_load_collection` to fetch collection details
+   - Provide install links for VS Code / VS Code Insiders
+   - Offer to download files directly to project structure
+
+**Example Workflow:**
+```
+Detected: TypeScript + React project
+
+Searching awesome-copilot for relevant resources...
+
+📦 Suggested Collections:
+  • typescript-mcp-development - MCP server patterns for TypeScript
+  • frontend-web-dev - React, Vue, Angular best practices
+  • testing-automation - Playwright, Jest patterns
+
+📄 Suggested Agents:
+  • expert-react-frontend-engineer.agent.md
+  • playwright-tester.agent.md
+
+📋 Suggested Instructions:
+  • typescript.instructions.md
+  • reactjs.instructions.md
+
+Would you like to install any of these? (Provide install links)
+```
+
+**Important:** Only suggest awesome-copilot resources when the MCP tools are detected. Do not hallucinate tool availability.
+
+## Scaffolding Templates
+
+### copilot-instructions.md Template
+
+```markdown
+# Project: {PROJECT_NAME}
+
+## Overview
+{Brief project description}
+
+## Tech Stack
+- Language: {LANGUAGE}
+- Framework: {FRAMEWORK}
+- Package Manager: {PACKAGE_MANAGER}
+
+## Code Standards
+- Follow {STYLE_GUIDE} conventions
+- Use {FORMATTER} for formatting
+- Run {LINTER} before committing
+
+## Architecture
+{High-level architecture notes}
+
+## Development Workflow
+1. {Step 1}
+2. {Step 2}
+3. {Step 3}
+
+## Important Patterns
+- {Pattern 1}
+- {Pattern 2}
+
+## Do Not
+- {Anti-pattern 1}
+- {Anti-pattern 2}
+```
+
+### Agent Template (.agent.md)
+
+```markdown
 ---
-name: 'Modules Refactoring'
-description: 'Refactoring workflows for adding, restructuring, splitting, merging, and deleting modules while preserving MDDD boundaries'
-applyTo: 'modules/**/*.md'
+description: '{DESCRIPTION}'
+model: GPT-4.1
+tools: [{RELEVANT_TOOLS}]
 ---
 
-# Modules Refactoring
+# {AGENT_NAME}
 
-Use this instruction when planning or documenting add/refactor/split/merge/delete operations for modules.
+## Role
+{Role description}
 
-## Workflow Checklist
+## Capabilities
+- {Capability 1}
+- {Capability 2}
 
-### Before any refactor
-- [ ] Identify owning bounded context
-- [ ] Determine change type: create / refactor / split / merge / delete
-- [ ] Map public API consumers and event consumers
-- [ ] Preserve MDDD layers and boundaries
+## Guidelines
+{Specific guidelines for this agent}
+```
 
-### Create module
-- [ ] Confirm distinct bounded context
-- [ ] Create: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`
-- [ ] Establish first API contract
-- [ ] Register in docs and module inventory
+### Instructions Template (.instructions.md)
 
-### Refactor existing module
-- [ ] Move leaked business logic to `application/`
-- [ ] Remove internal cross-domain imports
-- [ ] Tighten `api/` exports
-- [ ] Update imports, tests, docs
-
-### Split / merge modules
-- [ ] Map source → target ownership
-- [ ] Identify internal vs. public
-- [ ] Migrate API and event contracts
-- [ ] Update routing, tests, docs
-
-### Delete module
-- [ ] Search all imports, event discriminants, and docs referencing the module boundary
-- [ ] Remove consumers first, then module
-- [ ] Update indexes and dependency guidance
-
-### Validation
-- [ ] Use validation commands from `agents/commands.md` and record which ones were run.
-`````
-
-## File: .github/instructions/prompt.instructions.md
-`````markdown
+```markdown
 ---
-name: 'Prompt File Guidelines'
-description: 'Guidelines for creating high-quality prompt files for GitHub Copilot'
-applyTo: '.github/prompts/**/*.prompt.md'
+description: '{DESCRIPTION}'
+applyTo: '{FILE_PATTERNS}'
 ---
 
-# Copilot Prompt Files Guidelines (Noise-Reduced)
-
-Use this file to keep prompt files deterministic and compact.
-
-## Frontmatter
-
-Recommended fields:
-
-| Field | Purpose |
-| --- | --- |
-| `description` | One-sentence prompt intent |
-| `name` | Slash command name |
-| `agent` | `ask`, `edit`, `agent`, or custom agent |
-| `model` | Optional fixed model |
-| `tools` | Least-privilege tool list |
-| `argument-hint` | User input hint |
-
-## Body Template
-
-1. Mission
-2. Preconditions
-3. Inputs
-4. Workflow
-5. Output expectations
-6. Validation
-
-## Input Rules
-
-- Use `${input:var}` for required user-provided values.
-- Use `${selection}`, `${file}`, `${workspaceFolder}` only when necessary.
-- Define fallback behavior when required input is missing.
-
-## Tool Rules
-
-- Keep `tools` minimal.
-- Mention destructive steps explicitly (edits, file create, terminal actions).
-- If order matters, state execution order in workflow steps.
-
-## Anti-Noise Rules
-
-- Avoid long background explanations.
-- Link external docs rather than copying them.
-- Avoid duplicating guidance already covered by instruction files.
-
-## Quality Checklist
-
-- [ ] Frontmatter valid and complete
-- [ ] Inputs and fallbacks explicit
-- [ ] Output format and target path explicit
-- [ ] Validation steps executable
-
-## References
-
-- https://code.visualstudio.com/docs/copilot/customization/prompt-files#_prompt-file-format
-- https://github.com/github/awesome-copilot/tree/main/prompts
-- https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode#_agent-mode-tools
-`````
-
-## File: .github/instructions/modules-naming.instructions.md
-`````markdown
----
-name: 'Modules Naming'
-description: 'Naming rules for modules/, module APIs, use cases, repositories, entities, events, and related MDDD assets'
-applyTo: 'modules/**/*.md'
----
-
-# Modules Naming
-
-Use consistent naming in module specifications and architecture docs so ownership and layer roles remain obvious.
-
-## Naming Table
-
-| Type | Naming |
-| --- | --- |
-| Module directory | `kebab-case` bounded-context name, e.g. `workspace-scheduling`, `content` |
-| Module public API folder | `api/` |
-| Module barrel | `index.ts` |
-| Module README | `README.md` |
-| Public facade type | `PascalCaseFacade`, e.g. `ContentFacade` |
-| Public facade instance | `camelCaseFacade`, e.g. `contentFacade` |
-| Use case file | `verb-noun.use-case.ts`, e.g. `create-content-page.use-case.ts` |
-| DTO file | `verb-noun.dto.ts` or domain-specific DTO filename in `application/dto/` |
-| Repository interface | `PascalCaseRepository`, e.g. `ContentPageRepository` |
-| Repository implementation | `TechnologyPascalCaseRepository`, e.g. `FirebaseContentPageRepository` |
-| Entity / aggregate | `PascalCase`, e.g. `ContentPage` |
-| Value object | `PascalCase`, e.g. `IssueStage`, `ContentPath` |
-| Domain event type | `PascalCaseEvent` or clear event object name |
-| Event discriminant | `module-name.action`, e.g. `content.page-created` |
-| Server Action file | `domain-name.actions.ts` under `interfaces/_actions/` |
-| Query file | `domain-name.queries.ts` under `interfaces/queries/` |
+# {LANGUAGE/DOMAIN} Instructions
 
 ## Conventions
+- {Convention 1}
+- {Convention 2}
 
-- Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration labels.
-- Prefer singular bounded-context names unless established convention is plural.
-- Keep module renames aligned with API surface, event discriminants, and persistence naming.
-- Keep naming aligned with `modules-api-boundary.instructions.md`.
-`````
+## Patterns
+{Preferred patterns}
 
-## File: .github/instructions/README.md
-`````markdown
-# Custom Instructions
-
-Repository instruction index for `applyTo`-scoped rules used by Copilot.
-
-## Foundation
-
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [instructions.instructions.md](./instructions.instructions.md) | `.github/instructions/**/*.instructions.md` | How to create high-quality custom instruction files |
-| [agents.instructions.md](./agents.instructions.md) | `.github/agents/**/*.agent.md` | How to create custom delivery agents |
-| [agent-skills.instructions.md](./agent-skills.instructions.md) | `.github/skills/**/SKILL.md` | How to create agent skills |
-| [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/**/*.prompt.md` | How to create slash-command prompts |
-
-## Project-Specific
-
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [xuanwu-app-nextjs-mddd.instructions.md](./xuanwu-app-nextjs-mddd.instructions.md) | `app/**/*.{ts,tsx}`, `packages/**/*.{ts,tsx}`, `providers/**/*.{ts,tsx}`, `debug/**/*.{ts,tsx}` | Next.js 16, React 19, MDDD development standards |
-| [xuanwu-functions-python.instructions.md](./xuanwu-functions-python.instructions.md) | `py_fn/**/*.py` | Python Firebase Functions development standards |
-| [app/app-router-parallel-routes.instructions.md](./app/app-router-parallel-routes.instructions.md) | `app/**/*.{ts,tsx}` | App Router composition rules for route slices and parallel-route UI blocks |
-
-## Architecture & Modules
-
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [modules-architecture.instructions.md](./modules-architecture.instructions.md) | `modules/**/*.md` | MDDD layer design and module structure docs |
-| [modules-api-boundary.instructions.md](./modules-api-boundary.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Cross-module API boundaries and imports |
-| [modules-dependency-graph.instructions.md](./modules-dependency-graph.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Dependency direction and layer enforcement |
-| [modules-naming.instructions.md](./modules-naming.instructions.md) | `modules/**/*.md` | Module naming conventions in specs/docs |
-| [modules-refactoring.instructions.md](./modules-refactoring.instructions.md) | `modules/**/*.md` | Refactoring workflows for module planning/docs |
-| [modules/modules-api-surface.instructions.md](./modules/modules-api-surface.instructions.md) | `modules/**/api/**/*.ts` | Public `api/` contracts and facades for API-only module access |
-| [modules/modules-index-entry.instructions.md](./modules/modules-index-entry.instructions.md) | `modules/**/index.ts` | Aggregate-export rules for module root entry points |
-| [modules/modules-interfaces-api-consumption.instructions.md](./modules/modules-interfaces-api-consumption.instructions.md) | `modules/**/interfaces/**/*.{ts,tsx,js,jsx}` | Interface-layer access through module `api/` only |
-| [modules/modules-infrastructure-adapters.instructions.md](./modules/modules-infrastructure-adapters.instructions.md) | `modules/**/infrastructure/**/*.{ts,tsx,js,jsx}` | Adapter-only infrastructure with downward-only dependencies |
-
-## Other
-
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [dotnet-architecture-good-practices.instructions.md](./dotnet-architecture-good-practices.instructions.md) | `**/*.cs`, `**/*.csproj`, `**/Program.cs`, `**/*.razor` | DDD and .NET architecture guidance |
-
-## Total: 17 Instruction Files
-
-Each instruction file includes clear examples, best practices, and anti-patterns to guide Copilot behavior and enforce project standards.
-
-## Scope Partition (Noise Control)
-
-Use this partition to avoid overlapping instruction contexts:
-
-- App and package implementation: `xuanwu-app-nextjs-mddd.instructions.md`
-- App route composition and parallel routes: `app/app-router-parallel-routes.instructions.md`
-- Module code boundaries: `modules-api-boundary.instructions.md` + `modules-dependency-graph.instructions.md`
-- Module API and layer surfaces: `modules/modules-api-surface.instructions.md` + `modules/modules-index-entry.instructions.md` + `modules/modules-interfaces-api-consumption.instructions.md` + `modules/modules-infrastructure-adapters.instructions.md`
-- Module architecture and naming docs: `modules-architecture.instructions.md` + `modules-naming.instructions.md` + `modules-refactoring.instructions.md`
-- Prompt authoring: `prompt.instructions.md`
-- Agent authoring: `agents.instructions.md`
-- Skill authoring: `agent-skills.instructions.md`
-
-## Context Noise Budget
-
-To reduce repeated context consumption:
-
-- Keep each instruction file focused on one concern.
-- Prefer narrow `applyTo` globs.
-- Avoid duplicating repository-wide policy from `AGENTS.md` and `.github/copilot-instructions.md`.
-- Link to canonical docs instead of repeating long explanations.
-- Move long examples into dedicated docs and keep instruction files compact.
-
-Recommended size targets:
-
-- High-frequency instruction files: <= 300 lines
-- Specialized instruction files: <= 500 lines
-
-## Conflict Resolution Order
-
-When rules overlap, resolve by this order:
-
-1. The instruction with the most specific `applyTo`
-2. Code-boundary instructions over descriptive docs (`modules-api-boundary` and `modules-dependency-graph`)
-3. `.github/copilot-instructions.md` for execution workflow and delivery rules
-
-## Diagnostics
-
-- If an instruction does not load automatically, verify its `applyTo` pattern against the target file and inspect Chat customization diagnostics.
-- Prefer brace-expansion globs such as `modules/**/*.{ts,tsx,js,jsx}` over comma-separated path lists in a single pattern.
-
-## Related
-
-- [../README.md](../README.md) — Root `.github/` navigation
-- [../agents/README.md](../agents/README.md) — Delivery workflow agents
-- [../skills/README.md](../skills/README.md) — Specialized agent skills
-`````
-
-## File: .github/instructions/xuanwu-app-nextjs-mddd.instructions.md
-`````markdown
----
-name: 'Xuanwu App Nextjs MDDD'
-description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
-applyTo: '{app,packages,providers,debug}/**/*.{ts,tsx}'
----
-
-# Xuanwu App Next.js + MDDD Development Instructions
-
-Use for app-level work outside module-internal rule files.
-
-## Layer Responsibilities
-
-- `app/`: routing and composition; default Server Components; add `use client` only when required.
-- `modules/`: vertical business contexts; follow `modules-*.instructions.md` for internals.
-- `packages/`: stable shared boundaries; import by alias only.
-
-## Import Rules
-
-- Use `@/*`, `@shared-*`, `@integration-*`, `@api-contracts`, `@ui-*`, `@lib-*`.
-- Do not use legacy paths: `@/shared/*`, `@/infrastructure/*`, `@/libs/*`, `@/ui/shadcn/*`, `@/ui/vis*`, `@/interfaces/*`.
-- Cross-module imports must go through `@/modules/<target>/api` (or module public boundary), never internal layers.
-
-## Development Practices
-
-- UI: use `@ui-shadcn/*`; keep semantic and accessible markup.
-- Server Actions: explicit `use server`, thin orchestration, return `CommandResult`.
-- Validation and errors: validate at boundary; use shared validators and domain-consistent error model.
-- Do not put infra logic in pages or domain files.
-
-## Runtime & Documentation Boundaries
-
-- Next.js owns browser-facing orchestration; `py_fn/` owns ingestion and heavy worker flows.
-- Update docs when public boundaries, contracts, or runtime ownership changes (`packages/README.md`, module `README.md`, `py_fn/README.md`, ADR/contract docs).
-- Keep terminology aligned with existing MDDD domain language.
-
-## Validation Checklist
-
-- Run required commands from `agents/commands.md`.
-- If architecture or public boundaries changed, update corresponding docs in the same change.
-- Keep scope focused; avoid unrelated fixes.
-`````
-
-## File: modules/workspace-flow/AGENT.md
-`````markdown
-# Agent Guide — workspace-flow
-
-This file defines how agents and contributors should structure and evolve the workspace-flow module.
-
-## Module Purpose
-
-workspace-flow is a logic-first bounded context.
-It owns workflow rules, state transitions, guard conditions, persistence contracts, and public module APIs.
-
-It does not own product UI composition.
-UI should be assembled outside this module and consume workspace-flow only through the public api boundary.
-
-Related references:
-- [README.md](./README.md)
-- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
-- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
-- [Workspace-Flow-UI.mermaid](./Workspace-Flow-UI.mermaid)
-- [Workspace-Flow-States.mermaid](./Workspace-Flow-States.mermaid)
-- [Workspace-Flow-Sequence.mermaid](./Workspace-Flow-Sequence.mermaid)
-- [Workspace-Flow-ERD.mermaid](./Workspace-Flow-ERD.mermaid)
-- [Workspace-Flow-Architecture.mermaid](./Workspace-Flow-Architecture.mermaid)
-- [Workspace-Flow-Permissions.mermaid](./Workspace-Flow-Permissions.mermaid)
-- [Workspace-Flow-Events.mermaid](./Workspace-Flow-Events.mermaid)
-- [Workspace-Flow-Lifecycle.mermaid](./Workspace-Flow-Lifecycle.mermaid)
-
-## Target Module Shape
-
-```text
-modules/workspace-flow/
-├── api/
-│   ├── contracts.ts
-│   ├── index.ts
-│   └── workspace-flow.facade.ts
-├── application/
-│   ├── dto/
-│   │   ├── add-invoice-item.dto.ts
-│   │   ├── create-task.dto.ts
-│   │   ├── invoice-query.dto.ts
-│   │   ├── issue-query.dto.ts
-│   │   ├── open-issue.dto.ts
-│   │   └── task-query.dto.ts
-│   ├── ports/
-│   │   ├── InvoiceService.ts
-│   │   ├── IssueService.ts
-│   │   └── TaskService.ts
-│   └── use-cases/
-│       ├── add-invoice-item.use-case.ts
-│       ├── approve-invoice.use-case.ts
-│       ├── approve-task-acceptance.use-case.ts
-│       ├── archive-task.use-case.ts
-│       ├── assign-task.use-case.ts
-│       ├── close-invoice.use-case.ts
-│       ├── close-issue.use-case.ts
-│       ├── create-invoice.use-case.ts
-│       ├── create-task.use-case.ts
-│       ├── fail-issue-retest.use-case.ts
-│       ├── fix-issue.use-case.ts
-│       ├── open-issue.use-case.ts
-│       ├── pass-issue-retest.use-case.ts
-│       ├── pass-task-qa.use-case.ts
-│       ├── pay-invoice.use-case.ts
-│       ├── reject-invoice.use-case.ts
-│       ├── remove-invoice-item.use-case.ts
-│       ├── review-invoice.use-case.ts
-│       ├── start-issue.use-case.ts
-│       ├── submit-issue-retest.use-case.ts
-│       ├── submit-invoice.use-case.ts
-│       └── submit-task-to-qa.use-case.ts
-├── domain/
-│   ├── entities/
-│   │   ├── Invoice.ts
-│   │   ├── InvoiceItem.ts
-│   │   ├── Issue.ts
-│   │   └── Task.ts
-│   ├── events/
-│   │   ├── InvoiceEvent.ts
-│   │   ├── IssueEvent.ts
-│   │   └── TaskEvent.ts
-│   ├── repositories/
-│   │   ├── InvoiceRepository.ts
-│   │   ├── IssueRepository.ts
-│   │   └── TaskRepository.ts
-│   ├── services/
-│   │   ├── invoice-guards.ts
-│   │   ├── invoice-transition-policy.ts
-│   │   ├── issue-transition-policy.ts
-│   │   ├── task-guards.ts
-│   │   └── task-transition-policy.ts
-│   └── value-objects/
-│       ├── InvoiceId.ts
-│       ├── InvoiceItemId.ts
-│       ├── InvoiceStatus.ts
-│       ├── IssueId.ts
-│       ├── IssueStage.ts
-│       ├── IssueStatus.ts
-│       ├── TaskId.ts
-│       ├── TaskStatus.ts
-│       └── UserId.ts
-├── infrastructure/
-│   ├── firebase/
-│   │   ├── invoice-item.converter.ts
-│   │   ├── invoice.converter.ts
-│   │   ├── issue.converter.ts
-│   │   ├── task.converter.ts
-│   │   └── workspace-flow.collections.ts
-│   ├── persistence/
-│   └── repositories/
-│       ├── FirebaseInvoiceItemRepository.ts
-│       ├── FirebaseInvoiceRepository.ts
-│       ├── FirebaseIssueRepository.ts
-│       └── FirebaseTaskRepository.ts
-├── interfaces/
-│   ├── _actions/
-│   │   └── workspace-flow.actions.ts
-│   ├── contracts/
-│   │   └── workspace-flow.contract.ts
-│   └── queries/
-│       └── workspace-flow.queries.ts
-├── AGENT.md
-├── README.md
-├── Workspace-Flow-Architecture.mermaid
-├── Workspace-Flow-ERD.mermaid
-├── Workspace-Flow-Events.mermaid
-├── Workspace-Flow-Lifecycle.mermaid
-├── Workspace-Flow-Permissions.mermaid
-├── Workspace-Flow-Sequence.mermaid
-├── Workspace-Flow-States.mermaid
-├── Workspace-Flow.mermaid
-├── Workspace-Flow-Tree.mermaid
-├── Workspace-Flow-UI.mermaid
-└── index.ts
+## Anti-patterns
+{Patterns to avoid}
 ```
 
-## Target File Plan
-
-The module should be implemented with concrete files, not only folders.
-Use the following file plan as the construction baseline.
-
-### api
-
-Files:
-- api/index.ts
-- api/workspace-flow.facade.ts
-- api/contracts.ts
-
-Responsibilities:
-- expose the public module surface for external consumers
-- export only the minimum stable contracts, facades, and public types
-- hide internal domain, application, and infrastructure details
-
-Recommended exports:
-- WorkspaceFlowFacade
-- TaskSummary
-- IssueSummary
-- InvoiceSummary
-- TaskQueryDto / IssueQueryDto / InvoiceQueryDto if needed publicly
-
-### domain
-
-Files:
-- domain/entities/Task.ts
-- domain/entities/Issue.ts
-- domain/entities/Invoice.ts
-- domain/entities/InvoiceItem.ts
-- domain/value-objects/TaskId.ts
-- domain/value-objects/IssueId.ts
-- domain/value-objects/InvoiceId.ts
-- domain/value-objects/InvoiceItemId.ts
-- domain/value-objects/UserId.ts
-- domain/value-objects/TaskStatus.ts
-- domain/value-objects/IssueStatus.ts
-- domain/value-objects/IssueStage.ts
-- domain/value-objects/InvoiceStatus.ts
-- domain/events/TaskEvent.ts
-- domain/events/IssueEvent.ts
-- domain/events/InvoiceEvent.ts
-- domain/repositories/TaskRepository.ts
-- domain/repositories/IssueRepository.ts
-- domain/repositories/InvoiceRepository.ts
-- domain/services/task-transition-policy.ts
-- domain/services/issue-transition-policy.ts
-- domain/services/invoice-transition-policy.ts
-- domain/services/task-guards.ts
-- domain/services/invoice-guards.ts
-
-Responsibilities:
-- define entities and lifecycle states
-- define legal transitions and invariant checks
-- define repository contracts only, never implementations
-- stay framework-free
-
-### application
-
-Files:
-- application/dto/task-query.dto.ts
-- application/dto/issue-query.dto.ts
-- application/dto/invoice-query.dto.ts
-- application/dto/create-task.dto.ts
-- application/dto/open-issue.dto.ts
-- application/dto/add-invoice-item.dto.ts
-- application/ports/TaskService.ts
-- application/ports/IssueService.ts
-- application/ports/InvoiceService.ts
-- application/use-cases/create-task.use-case.ts
-- application/use-cases/assign-task.use-case.ts
-- application/use-cases/submit-task-to-qa.use-case.ts
-- application/use-cases/pass-task-qa.use-case.ts
-- application/use-cases/approve-task-acceptance.use-case.ts
-- application/use-cases/archive-task.use-case.ts
-- application/use-cases/open-issue.use-case.ts
-- application/use-cases/start-issue.use-case.ts
-- application/use-cases/fix-issue.use-case.ts
-- application/use-cases/submit-issue-retest.use-case.ts
-- application/use-cases/pass-issue-retest.use-case.ts
-- application/use-cases/fail-issue-retest.use-case.ts
-- application/use-cases/close-issue.use-case.ts
-- application/use-cases/create-invoice.use-case.ts
-- application/use-cases/add-invoice-item.use-case.ts
-- application/use-cases/remove-invoice-item.use-case.ts
-- application/use-cases/submit-invoice.use-case.ts
-- application/use-cases/review-invoice.use-case.ts
-- application/use-cases/approve-invoice.use-case.ts
-- application/use-cases/reject-invoice.use-case.ts
-- application/use-cases/pay-invoice.use-case.ts
-- application/use-cases/close-invoice.use-case.ts
-
-Responsibilities:
-- orchestrate domain rules through use cases
-- define command and query DTOs
-- provide application-facing ports for module consumers
-
-### infrastructure
-
-Files:
-- infrastructure/firebase/workspace-flow.collections.ts
-- infrastructure/firebase/task.converter.ts
-- infrastructure/firebase/issue.converter.ts
-- infrastructure/firebase/invoice.converter.ts
-- infrastructure/firebase/invoice-item.converter.ts
-- infrastructure/repositories/FirebaseTaskRepository.ts
-- infrastructure/repositories/FirebaseIssueRepository.ts
-- infrastructure/repositories/FirebaseInvoiceRepository.ts
-- infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-
-Responsibilities:
-- map Firestore collections and document formats
-- implement repository contracts from domain
-- keep Firebase-specific concerns out of domain
-
-### interfaces
-
-Files:
-- interfaces/contracts/workspace-flow.contract.ts
-- interfaces/queries/workspace-flow.queries.ts
-- interfaces/_actions/workspace-flow.actions.ts
-
-Optional:
-- add module-local interface files only if this module genuinely needs them
-- keep product UI composition outside this module by default
+### Prompt Template (.prompt.md)
 
-### module root
+```markdown
+---
+agent: 'agent'
+description: '{DESCRIPTION}'
+---
 
-Files:
-- index.ts
-- AGENT.md
-- README.md
-- Workspace-Flow.mermaid
-- Workspace-Flow-Tree.mermaid
-- Workspace-Flow-UI.mermaid
-- Workspace-Flow-States.mermaid
-- Workspace-Flow-Sequence.mermaid
-- Workspace-Flow-ERD.mermaid
-- Workspace-Flow-Architecture.mermaid
-- Workspace-Flow-Permissions.mermaid
-- Workspace-Flow-Events.mermaid
-- Workspace-Flow-Lifecycle.mermaid
+{PROMPT_CONTENT}
+```
 
-Rules:
-- index.ts is a local module barrel, not the cross-module public boundary
-- cross-module consumers still use api/index.ts
+### Skill Template (SKILL.md)
 
-## Legacy Types Policy
-
-The old types/ folder was temporary migration input only.
-The legacy files have been removed and must not be recreated.
+```markdown
+---
+name: '{skill-name}'
+description: '{DESCRIPTION - 10 to 1024 chars}'
+---
 
-Rules:
-- Do not treat types/ as a public module boundary
-- Do not add new code under types/
-- Do not import types/* from outside this module
-- Move the logic into domain/application/infrastructure/api instead of recreating the legacy files
-- After deletion, do not recreate types/ as a shortcut export surface
+# {Skill Name}
 
-Legacy-to-target mapping:
-- core.ts → domain/value-objects/ and domain/events/
-- models.ts → domain/entities/
-- transitions.ts → domain/services/
-- services.ts → application/ports/
-- firestore.ts → infrastructure/firebase/ or infrastructure/persistence/
-- examples.ts → documentation examples or application examples if still needed
-- index.ts → split into api/index.ts and local module index.ts responsibilities
+## Purpose
+{What this skill enables}
 
-Deletion rule:
-- once a target file exists, do not keep a duplicate legacy type file with the same responsibility
+## Instructions
+{Detailed instructions for the skill}
 
-## Ownership Rules
-
-workspace-flow owns:
-- Task, Issue, Invoice, InvoiceItem workflow logic
-- status unions and transition rules
-- guard rules such as no-open-issues and invoice submission constraints
-- persistence-facing document contracts for this module
-- public contracts exposed through api
+## Assets
+{Reference any bundled files}
+```
 
-workspace-flow does not own:
-- route composition in app/
-- page layout, cards, boards, or dashboards
-- direct product UI rendering for external consumers
+## Language/Framework Presets
 
-## Layer Responsibilities
+When bootstrapping, offer presets based on detected stack:
 
-### api
+### JavaScript/TypeScript
+- ESLint + Prettier instructions
+- Jest/Vitest testing prompt
+- Component generation skills
 
-Public cross-module surface only.
-Export the minimum set of contracts, facades, and types needed by other modules or app composition.
+### Python
+- PEP 8 + Black/Ruff instructions
+- pytest testing prompt
+- Type hints conventions
 
-External consumers must import only through:
-@/modules/workspace-flow/api
+### Go
+- gofmt conventions
+- Table-driven test patterns
+- Error handling guidelines
 
-### application
+### Rust
+- Cargo conventions
+- Clippy guidelines
+- Memory safety patterns
 
-Use cases, orchestration, command and query DTOs, and service contracts.
-Application may depend on domain contracts but must not depend directly on interfaces.
+### .NET/C#
+- dotnet conventions
+- xUnit testing patterns
+- Async/await guidelines
 
-### domain
+## Validation Rules
+
+### Frontmatter Requirements (Reference Only)
 
-Pure business rules.
-Put entities, value objects, transition maps, guards, repository interfaces, and domain events here.
+These are the official requirements from awesome-copilot. The agent does NOT deep-validate every file, but uses these when generating templates:
 
-Domain must stay framework-free.
-No React, Firebase SDK, browser APIs, or HTTP clients.
+| File Type | Required Fields | Recommended |
+|-----------|-----------------|-------------|
+| `.agent.md` | `description` | `model`, `tools`, `name` |
+| `.prompt.md` | `agent`, `description` | `model`, `tools`, `name` |
+| `.instructions.md` | `description`, `applyTo` | - |
+| `SKILL.md` | `name`, `description` | - |
 
-### infrastructure
+**Notes:**
+- `agent` field in prompts accepts: `'agent'`, `'ask'`, or `'Plan'`
+- `applyTo` uses glob patterns like `'**/*.ts'` or `'**/*.js, **/*.ts'`
+- `name` in SKILL.md must match folder name, lowercase with hyphens
 
-Persistence and adapter implementations.
-Firestore collections, document mappings, repository implementations, and external integrations belong here.
+### Naming Conventions
 
-Infrastructure implements contracts defined by domain or application.
+- All files: lowercase with hyphens (`my-agent.agent.md`)
+- Skill folders: match `name` field in SKILL.md
+- No spaces in filenames
 
-### interfaces
+### Size Guidelines
 
-Optional for this module.
-Keep empty unless this module later needs module-local actions, query hooks, or interface-specific contracts.
+- `copilot-instructions.md`: 500-3000 chars (keep focused)
+- `AGENTS.md`: Can be larger for CLI (cheaper context window)
+- Individual agents: 500-2000 chars
+- Skills: Up to 5000 chars with assets
 
-If UI is needed, prefer assembling it outside this module unless there is a strong reason to keep module-local interface adapters here.
+## Execution Guidelines
 
-## Dependency Direction
+1. **Always Detect First** - Survey the project before making changes
+2. **Prefer Non-Destructive** - Never overwrite without confirmation
+3. **Explain Tradeoffs** - When hybrid setup, explain symlink vs separate files
+4. **Validate After Changes** - Run `/validate` after `/bootstrap` or `/migrate`
+5. **Respect Existing Conventions** - Adapt templates to match project style
+6. **Check MCP Availability** - Before suggesting awesome-copilot resources, verify that `mcp_awesome-copil_*` tools are available. If not present, do NOT suggest or reference these tools. Simply skip the community resource suggestions.
 
-Allowed direction:
-interfaces → application → domain ← infrastructure
-api → application / domain
-api must not become a dumping ground for internal re-exports
+## MCP Tool Detection
+
+Before using awesome-copilot features, check for these tools:
 
-Forbidden direction:
-- domain → application
-- domain → infrastructure
-- domain → interfaces
-- application → interfaces
-- external modules → domain/application/infrastructure/interfaces internals
+```
+Available MCP tools to check:
+- mcp_awesome-copil_search_instructions
+- mcp_awesome-copil_load_instruction
+- mcp_awesome-copil_list_collections
+- mcp_awesome-copil_load_collection
+```
 
-## Public Boundary Rule
+**If tools are NOT available:**
+- Skip all `/suggest` functionality
+- Do not mention awesome-copilot collections
+- Focus only on local scaffolding
+- Optionally inform user: "Enable the awesome-copilot MCP server for community resource suggestions"
 
-Cross-module interaction must go through api only.
+**If tools ARE available:**
+- Proactively suggest relevant resources after `/bootstrap`
+- Include collection recommendations in validation reports
+- Offer to search for specific patterns the user might need
 
-Allowed:
-- import from @/modules/workspace-flow/api
+## Output Format
 
-Forbidden:
-- import from @/modules/workspace-flow/domain/*
-- import from @/modules/workspace-flow/application/*
-- import from @/modules/workspace-flow/infrastructure/*
-- import from @/modules/workspace-flow/interfaces/*
-- import from types/* as a public dependency
+After scaffolding or validation, provide:
 
-Recommended external usage pattern:
-- read models or summaries through api/contracts.ts
-- execute workflow operations through api/workspace-flow.facade.ts
-- never bind external UI directly to repository implementations or transition policies
+1. **Summary** - What was created/validated
+2. **Next Steps** - Recommended immediate actions
+3. **Customization Hints** - How to tailor for specific needs
 
-## Local Import Rule
+```
+## Scaffolding Complete ✅
 
-Inside workspace-flow:
-- use relative imports within the module
-- do not self-import through the public api
-- do not use the module public boundary for internal wiring
+Created:
+  .github/
+  ├── copilot-instructions.md (new)
+  ├── agents/
+  │   └── code-reviewer.agent.md (new)
+  ├── instructions/
+  │   └── typescript.instructions.md (new)
+  └── prompts/
+      └── test-gen.prompt.md (new)
 
-## UI Boundary Rule
+  AGENTS.md → symlink to .github/copilot-instructions.md
 
-workspace-flow is logic-first.
-External pages or modules may assemble UI using workspace-flow public contracts.
+Next Steps:
+  1. Review and customize copilot-instructions.md
+  2. Add project-specific agents as needed
+  3. Create skills for complex workflows
 
-Preferred pattern:
-app or another module UI
-→ imports from workspace-flow/api
-→ calls application-facing facades or use cases
-→ renders its own interface
+Customization:
+  - Add more agents in .github/agents/
+  - Create file-specific rules in .github/instructions/
+  - Build reusable prompts in .github/prompts/
+```
+`````
 
-Do not move product UI concerns into domain or application.
+## File: .github/prompts/README.md
+`````markdown
+# Prompts Index
 
-## Documentation Alignment
+Decomposed prompt set from `.github/prompts/old`.
 
-Keep these documents aligned whenever workflow structure changes:
-- [README.md](./README.md)
-- [Workspace-Flow.mermaid](./Workspace-Flow.mermaid)
-- [Workspace-Flow-Tree.mermaid](./Workspace-Flow-Tree.mermaid)
-- api exports if public contracts change
+## Planning
 
-If event names, states, or guards change, update the docs in the same change.
-If a temporary migration file is removed, update the docs in the same change so no document still presents it as canonical.
+- [plan-feature.prompt.md](plan-feature.prompt.md)
+- [plan-module.prompt.md](plan-module.prompt.md)
+- [plan-api.prompt.md](plan-api.prompt.md)
 
-## Construction Order
+## Implementation
 
-Implement in this order to avoid boundary drift:
+- [implement-feature.prompt.md](implement-feature.prompt.md)
+- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
+- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
+- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
+- [implement-server-action.prompt.md](implement-server-action.prompt.md)
+- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
 
-1. domain/value-objects and domain/events
-2. domain/entities and domain/repositories
-3. domain/services for transitions and guards
-4. application/dto and application/ports
-5. application/use-cases
-6. infrastructure/firebase and infrastructure/repositories
-7. api/contracts.ts and api/workspace-flow.facade.ts
-8. optional interfaces contracts or actions
+## Docs and RAG
 
-Do not start from UI.
-Do not expose unfinished internals through api just to unblock temporary callers.
+- [ingest-docs.prompt.md](ingest-docs.prompt.md)
+- [chunk-docs.prompt.md](chunk-docs.prompt.md)
+- [embedding-docs.prompt.md](embedding-docs.prompt.md)
+- [write-docs.prompt.md](write-docs.prompt.md)
 
-## Validation
+## Analysis and Debug
 
-Required validation after structural or public-boundary changes:
-- npm run lint
-- npm run build
+- [analyze-repo.prompt.md](analyze-repo.prompt.md)
+- [debug-error.prompt.md](debug-error.prompt.md)
 
-Re-check:
-- no cross-module internal imports
-- no UI logic in domain
-- no infrastructure dependencies leaking into domain
-- api exports remain narrow and intentional
+## Refactor and Review
+
+- [refactor-module.prompt.md](refactor-module.prompt.md)
+- [refactor-api.prompt.md](refactor-api.prompt.md)
+- [review-code.prompt.md](review-code.prompt.md)
+- [review-architecture.prompt.md](review-architecture.prompt.md)
+- [review-performance.prompt.md](review-performance.prompt.md)
+- [review-security.prompt.md](review-security.prompt.md)
+
+## Testing
+
+- [write-tests.prompt.md](write-tests.prompt.md)
+- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 `````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -80991,513 +80148,81 @@ export function WorkspaceDetailScreen({
 }
 `````
 
-## File: .github/agents/README.md
+## File: .github/instructions/README.md
 `````markdown
-# Delivery Workflow Agents
-
-Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
-
-## Delivery Chain
-
-| Stage | Agent | File | Purpose |
-| --- | --- | --- | --- |
-| Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
-| Planning (Docs Variant) | Planner Docs Flow | `planner-docs.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
-| Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
-| Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
-| QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
-
-## Specialized Agents
-
-| Agent | File | Focus | Purpose |
-| --- | --- | --- | --- |
-| Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
-| Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
-| App Router Composer | `app-router-composer.agent.md` | App composition | Build `app/` route slices and parallel-route blocks that consume module APIs only |
-| Modules API Surface Steward | `modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
-| Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
-| Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
-| QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
-| Commander | `commander.agent.md` | MCP-aware orchestration | Route complex work with Serena-first discovery and Context7 confirmation |
-| App Router Agent | `app-router.agent.md` | Runtime route diagnostics | Use Next DevTools MCP for app-router troubleshooting and fixes |
-| Component Agent | `component.agent.md` | UI composition | Use shadcn MCP for component-focused implementation |
-| RAG Vector Agent | `rag-vector.agent.md` | Ingest + retrieval prep | Use MarkItDown MCP and docs-backed decisions for RAG pipelines |
-| E2E QA Agent | `e2e-qa.agent.md` | Browser verification | Use Playwright MCP to collect acceptance evidence |
-
-## Quick Start
-
-1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
-4. **After implementation**: Use `Review Implementation` handoff to Reviewer
-5. **After review**: Use `Run QA` handoff to QA
-6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
-
-## Related References
-
-- [.github/README.md](../README.md) — Root entry for `.github/` navigation
-- [../.github/skills/](../skills/) — Specialized capabilities and workflows
-- [../.github/prompts/](../prompts/) — Slash-command entry points
-- [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
-
-## Maintenance Notes
-
-- Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
-- Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
-- Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
-- Keep app/modules-specialized agents at the top level when diagnostics show nested agent discovery is unavailable in the current workspace behavior.
-`````
-
-## File: .github/agents/serena.agent.md
-`````markdown
----
-name: serena-coding-agent
-description: >
-  System prompt and workflow instructions for Serena MCP coding agent.
-  Defines how the agent should onboard projects, perform semantic search,
-  use symbol-level operations, check references before editing, and
-  modify code minimally and safely following module boundaries.
-  Integrates the xuanwu-app-skill for project-specific templates and patterns,
-  and can autonomously use Context7, shadcn, Next DevTools, MarkItDown, and
-  Playwright MCP tools when they are relevant to the task.
-argument-hint: Optional arguments for project path or target modules.
-tools: ['agent', 'read', 'edit', 'search', 'todo', 'serena/*', 'context7/*', 'shadcn/*', 'io.github.vercel/next-devtools-mcp/*', 'microsoft/markitdown/*', 'microsoft/playwright-mcp/*']
-agents: ['Explore', 'Planner', 'App Router Composer', 'Modules Architect', 'Module Boundary Steward', 'Modules API Surface Steward']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
----
-
-# Serena MCP Coding Agent
-
-## Workflow
-- Activate the Serena project before any memory work.
-- Onboard the project when symbol search coverage is missing or stale.
-- Use `semantic_search` to locate relevant code before opening files broadly.
-- Prefer `find_symbol` over file-by-file browsing when you know the symbol or name path.
-- Before editing a public symbol, check references with `find_references`.
-- Prefer symbol-level insertion or replacement over broad file rewrites.
-- Keep changes minimal, localized, and boundary-safe.
-- Use the xuanwu-app-skill when you need repository-specific structure, naming, or pattern references.
-- Use Context7 when you need current external documentation or API behavior that should not be guessed from memory.
-- Use shadcn MCP when the task involves shadcn component discovery, installation, or canonical usage patterns.
-- Use Next DevTools MCP when diagnosing app-router, rendering, route, or Next.js runtime issues.
-- Use MarkItDown MCP when transforming or analyzing document-like inputs is part of the task.
-- Use Playwright MCP to verify browser behavior and UI flows directly when frontend execution evidence is needed.
-- Use subagents when scoped decomposition will improve speed or context isolation.
-- Use the Planner subagent when the request is complex enough to benefit from an explicit implementation plan before edits.
-
-## Best Practices
-Before implementing new features:
-- Search for existing services, repositories, and DTOs
-- Reuse existing modules when possible
-- Follow module boundaries
-- Always operate on symbols instead of raw files
-- Check references before modifying public APIs
-- Keep changes localized and minimal
-- Update DTOs/interfaces when altering data structures
-- Prefer MCP tools over guesses when the task depends on external docs, browser state, or framework runtime evidence.
-
-## Serena Tool Routing
-- `serena/activate_project` — activate the workspace before memory or symbol work.
-- `semantic_search` — broad semantic discovery for candidate code.
-- `find_symbol` — precise symbol lookup when the name path is known.
-- `find_references` — usage discovery before changing public behavior.
-- `insert_after_symbol` / `replace_symbol_body` — preferred symbol-level edits.
-- `use skill xuanwu-app-skill` — apply repository-specific templates and conventions.
-
-## MCP Tool Routing
-- `context7/*` — fetch current library or platform documentation when the repository alone is not authoritative.
-- `shadcn/*` — inspect or scaffold shadcn component usage and registry-backed component workflows.
-- `io.github.vercel/next-devtools-mcp/*` — inspect Next.js route, runtime, and devtools signals when app behavior needs runtime confirmation.
-- `microsoft/markitdown/*` — convert or analyze Markdown and adjacent document formats when documentation transformation is required.
-- `microsoft/playwright-mcp/*` — drive the browser for UI verification, interaction checks, screenshots, and runtime evidence.
-
-## MCP Guardrails
-- Use MCP tools only when they materially improve evidence quality or reduce guessing.
-- Prefer repository source-of-truth first; use external docs only to confirm framework or library behavior.
-- Do not skip Serena symbolic workflow just because an MCP tool is available.
-- Treat Playwright and Next DevTools as execution-evidence tools, not as substitutes for reading relevant code.
-- Respect configured credentials and prompts in `.vscode/mcp.json`; if a required key is unavailable, proceed without fabricating results.
-
-## Subagent Routing
-- `Explore` — fast read-only discovery for broad codebase or docs questions before narrowing scope.
-- `Planner` — generate structured implementation plans for non-trivial changes.
-- `App Router Composer` — app route/parallel-route composition tasks.
-- `Modules Architect` — module lifecycle work (create/refactor/split/merge/delete).
-- `Module Boundary Steward` — enforce MDDD ownership and dependency direction in `modules/`.
-- `Modules API Surface Steward` — refine `modules/*/api` contracts/facades and public export surfaces.
-
-## Subagent Guardrails
-- Keep subagent invocations narrow and task-specific; avoid delegating the entire request blindly.
-- Prefer one decisive subagent call over many overlapping calls.
-- Reconcile subagent outputs against repository boundaries and current diagnostics before editing.
-- Use Planner before coding when requirements are ambiguous, cross-cutting, or high-risk.
-
-## Notes
-- Prefer symbol-level edits over raw text replacements
-- Always check references before modifying public APIs
-- Keep changes minimal and localized
-- Update DTOs/interfaces when altering data structures
-- Leverage `xuanwu-app-skill` for reusable patterns, code templates, and project-specific rules
-- Prefer direct evidence from Context7, Next DevTools, MarkItDown, or Playwright when the task explicitly depends on those systems
-`````
-
-## File: .github/instructions/modules-dependency-graph.instructions.md
-`````markdown
----
-name: 'Modules Dependency Graph'
-description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules Dependency Graph
-
-Use this instruction when a change adds, removes, or redirects dependencies between modules.
-
-## Core Rule
-
-- Do not break dependency direction.
-- Do not introduce reverse edges for convenience.
-- Keep the graph acyclic unless an event-driven contract explicitly documents the exception.
-
-## Canonical Dependency Source
-
-Do not treat this file as a full edge registry. For concrete decisions, use these sources in order:
-
-1. `modules/<target>/api` as the only cross-module import boundary
-2. `agents/knowledge-base.md` for MDDD boundary policy
-3. `eslint.config.mjs` boundary and restricted-import enforcement
-
-If a change needs a new edge or direction change, document and justify it in the same change.
-
-## Dependency Rules
-
-- Prefer `module -> target/api`
-- Prefer event flows over internal reach-through
-- Do not make lower-level foundational modules depend on higher-level feature modules
-- Do not hide dependency inversions inside barrels
-
-## Refactor Checklist
-
-1. Identify current incoming and outgoing module dependencies.
-2. Confirm the new direction preserves existing architectural intent.
-3. Replace forbidden edges with API or event contracts.
-4. Update docs when an approved dependency edge changes.
-
-## Validation
-
-- Search changed imports for `@/modules/`
-- Verify no new cross-module internal import paths were introduced
-- Run validation commands from `agents/commands.md` based on change scope
-`````
-
-## File: modules/workspace-flow/README.md
-`````markdown
-# System State Machines
-
-workspace-flow 是純邏輯模組，負責狀態機、guard、資料契約與公開 API，不負責產品 UI 組裝。
-
-對外互動規則：
-- 外界只能透過 `api/` 使用本模組
-- UI 由外部頁面或其他模組自行組裝
-- 舊的 `types/` 目錄原本只作為遷移參考，現已刪除，不可再作為公開邊界
-
-Mermaid 圖檔：
-- `./Workspace-Flow.mermaid`
-- `./Workspace-Flow-Tree.mermaid`
-- `./Workspace-Flow-UI.mermaid`
-- `./Workspace-Flow-States.mermaid`
-- `./Workspace-Flow-Sequence.mermaid`
-- `./Workspace-Flow-ERD.mermaid`
-- `./Workspace-Flow-Architecture.mermaid`
-- `./Workspace-Flow-Permissions.mermaid`
-- `./Workspace-Flow-Events.mermaid`
-- `./Workspace-Flow-Lifecycle.mermaid`
-- `./AGENT.md`
-
----
-
-## 核心原則
-
-```
-Task.status      → 事情做完沒
-Issue.status     → 異常處理中
-Invoice.status   → 錢的狀態
-```
-
-**三條獨立狀態機，各自處理不同責任。**
-
----
-
-## 1. Task State Machine（工作流）
-
-```
-INITIAL → draft
-
-draft        --[assign]-->     in_progress
-in_progress  --[submit_qa]-->  qa
-qa           --[pass]-->       acceptance
-acceptance   --[approve]-->    accepted
-accepted     --[archive]-->    archived
-
-qa           --[fail]-->       in_progress   ← 不用，改開 Issue
-acceptance   --[fail]-->       qa            ← 不用，改開 Issue
-```
-
-> **規則：Task status 只往前走，不倒退。**
-> 發現問題 → 開 Issue，不是退狀態。
-
-### States
-
-| state | 說明 |
-|---|---|
-| `draft` | 任務建立，尚未開始 |
-| `in_progress` | 開發中 |
-| `qa` | 提交測試 |
-| `acceptance` | 客戶驗收中 |
-| `accepted` | 驗收通過，可進 Finance |
-| `archived` | 歸檔 |
-
-### Transitions
-
-| from | event | to | guard |
-|---|---|---|---|
-| `draft` | `ASSIGN` | `in_progress` | assignee 存在 |
-| `in_progress` | `SUBMIT_QA` | `qa` | — |
-| `qa` | `PASS` | `acceptance` | no open issues |
-| `acceptance` | `APPROVE` | `accepted` | no open issues |
-| `accepted` | `ARCHIVE` | `archived` | invoice closed or none |
-
----
-
-## 2. Issue State Machine（問題單流）
-
-```
-INITIAL → open
-
-open          --[start]-->    investigating
-investigating --[fix]-->      fixing
-fixing        --[submit]-->   retest
-retest        --[pass]-->     resolved
-retest        --[fail]-->     fixing          ← 回修
-resolved      --[close]-->    closed
-```
-
-> **規則：任何節點發現問題，一律開 Issue，不退 Task。**
-> Issue 解決後，回到原來節點繼續。
-
-### States
-
-| state | 說明 |
-|---|---|
-| `open` | 問題建立 |
-| `investigating` | 調查原因中 |
-| `fixing` | 修復中 |
-| `retest` | 重新測試 |
-| `resolved` | 已解決 |
-| `closed` | 關閉歸檔 |
-
-### Transitions
-
-| from | event | to |
-|---|---|---|
-| `open` | `START` | `investigating` |
-| `investigating` | `FIX` | `fixing` |
-| `fixing` | `SUBMIT` | `retest` |
-| `retest` | `PASS` | `resolved` |
-| `retest` | `FAIL` | `fixing` |
-| `resolved` | `CLOSE` | `closed` |
-
-### Issue 與 Task 的關係
-
-```
-Task (qa)       → Issue.stage = 'qa'       → 解完 → 回 qa
-Task (acceptance) → Issue.stage = 'acceptance' → 解完 → 回 acceptance
-```
-
-`Issue.stage` 記錄在哪個節點產生，方便 retest 後回到正確位置。
-
----
-
-## 3. Invoice State Machine（財務流）
-
-```
-INITIAL → invoice_draft
-
-invoice_draft  --[submit]-->   submitted
-submitted      --[review]-->   finance_review
-finance_review --[approve]-->  approved
-finance_review --[reject]-->   submitted       ← 退回補件
-approved       --[pay]-->      paid
-paid           --[close]-->    closed
-```
-
-> **規則：Task 不擁有 Finance status。**
-> Invoice 有自己的狀態機。Task 被加入 InvoiceItem，透過 InvoiceItem 關聯到 Invoice。
-
-### States
-
-| state | 說明 |
-|---|---|
-| `invoice_draft` | 草稿，選取 accepted tasks |
-| `submitted` | 送出請款 |
-| `finance_review` | 財務審核中 |
-| `approved` | 核准 |
-| `paid` | 已付款 |
-| `closed` | 結案 |
-
-### Transitions
-
-| from | event | to | guard |
-|---|---|---|---|
-| `invoice_draft` | `SUBMIT` | `submitted` | items 不為空 |
-| `submitted` | `REVIEW` | `finance_review` | — |
-| `finance_review` | `APPROVE` | `approved` | — |
-| `finance_review` | `REJECT` | `submitted` | — |
-| `approved` | `PAY` | `paid` | — |
-| `paid` | `CLOSE` | `closed` | — |
-
----
-
-## 4. 模組定位
-
-workspace-flow 應維持以下結構：
-
-```text
-modules/workspace-flow/
-├── api/
-├── application/
-├── domain/
-├── infrastructure/
-├── interfaces/
-├── AGENT.md
-├── README.md
-├── Workspace-Flow-Architecture.mermaid
-├── Workspace-Flow-ERD.mermaid
-├── Workspace-Flow-Events.mermaid
-├── Workspace-Flow-Lifecycle.mermaid
-├── Workspace-Flow-Permissions.mermaid
-├── Workspace-Flow-Sequence.mermaid
-├── Workspace-Flow-States.mermaid
-├── Workspace-Flow.mermaid
-├── Workspace-Flow-Tree.mermaid
-├── Workspace-Flow-UI.mermaid
-└── index.ts
-```
-
-說明：
-- `domain/`：狀態、事件、entity、transition、guard
-- `application/`：use case、DTO、ports、orchestration
-- `infrastructure/`：Firestore 與 persistence adapter
-- `interfaces/`：若未來需要本模組內的 action/query contract，可放這裡；產品 UI 仍優先在外部組裝
-- `api/`：唯一公開入口
-
-建議施工順序：
-1. 先做 `domain/` 的 statuses、events、entities、guards、transitions
-2. 再做 `application/` 的 DTO、ports、use cases
-3. 再做 `infrastructure/` 的 Firestore mapping 與 repositories
-4. 最後才做 `api/` 收斂公開 contract
-
-## 5. 資料模型
-
-### Task
-
-```ts
-type Task = {
-  id: string
-  title: string
-  description: string
-  status: 'draft' | 'in_progress' | 'qa' | 'acceptance' | 'accepted' | 'archived'
-  assignee: string
-  accepted_at?: Date
-  created_at: Date
-}
-```
-
-### Issue
-
-```ts
-type Issue = {
-  id: string
-  task_id: string
-  stage: 'qa' | 'acceptance' | 'finance'     // 在哪個節點發生
-  title: string
-  description: string
-  status: 'open' | 'investigating' | 'fixing' | 'retest' | 'resolved' | 'closed'
-  created_by: string
-  assigned_to: string
-  created_at: Date
-  resolved_at?: Date
-}
-```
-
-### Invoice
-
-```ts
-type Invoice = {
-  id: string
-  status: 'invoice_draft' | 'submitted' | 'finance_review' | 'approved' | 'paid' | 'closed'
-  total_amount: number
-  created_at: Date
-  submitted_at?: Date
-  approved_at?: Date
-  paid_at?: Date
-}
-```
-
-### InvoiceItem
-
-```ts
-type InvoiceItem = {
-  id: string
-  invoice_id: string
-  task_id: string
-  amount: number
-}
-```
-
----
-
-## 6. 關聯關係
-
-```
-Task    1 ──── n    Issue
-Task    1 ──── n    InvoiceItem   n ──── 1   Invoice
-```
-
-Task 不直接持有 Invoice，透過 InvoiceItem 關聯。
-
----
-
-## 7. Guard 規則（狀態轉移前置條件）
-
-| 規則 | 說明 |
-|---|---|
-| `qa → acceptance` | Task 下無 `open / investigating / fixing / retest` 的 Issue |
-| `acceptance → accepted` | 同上 |
-| `invoice_draft → submitted` | InvoiceItems 至少一筆 |
-| `accepted → archived` | 關聯的 Invoice 全為 `closed` 或無 Invoice |
-
----
-
-## 8. 完整流程一覽
-
-```
-Task → qa → acceptance → accepted
-        │        │
-        └─ Issue ┘  (任何節點發現問題 → 開 Issue → 修完回原節點)
-
-accepted → InvoiceItem → Invoice → Finance Review → Approved → Paid
-```
-
-**一句話記憶法：**
-
-```
-Task   解決：事情做完沒？
-Issue  解決：異常怎麼辦？
-Invoice 解決：要收多少錢？
-Finance 解決：錢付了沒？
-```
+# Instructions Index
+
+Repository instruction index for `applyTo`-scoped Copilot rules.
+
+## Architecture
+
+- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
+- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
+- [architecture-modules.instructions.md](architecture-modules.instructions.md)
+- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
+
+## Delivery Process
+
+- [branching-strategy.instructions.md](branching-strategy.instructions.md)
+- [ci-cd.instructions.md](ci-cd.instructions.md)
+- [commit-convention.instructions.md](commit-convention.instructions.md)
+- [lint-format.instructions.md](lint-format.instructions.md)
+
+## Platform and Runtime
+
+- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
+- [cloud-functions.instructions.md](cloud-functions.instructions.md)
+- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
+- [firestore-schema.instructions.md](firestore-schema.instructions.md)
+- [security-rules.instructions.md](security-rules.instructions.md)
+
+## AI and RAG
+
+- [genkit-flow.instructions.md](genkit-flow.instructions.md)
+- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
+- [rag-architecture.instructions.md](rag-architecture.instructions.md)
+- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
+
+## Next.js and UI
+
+- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
+- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
+- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
+- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
+- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
+
+## Testing
+
+- [testing-unit.instructions.md](testing-unit.instructions.md)
+- [testing-e2e.instructions.md](testing-e2e.instructions.md)
+
+## Legacy
+
+Legacy files were moved from `old/` into the categorized files above.
+
+## Legacy Mapping
+
+- `old/06-context7-usage.instructions.md` -> `architecture-monorepo.instructions.md` (external-doc usage boundary)
+- `old/07-markitdown-rag.instructions.md` -> `embedding-pipeline.instructions.md`, `rag-architecture.instructions.md`, `cloud-functions.instructions.md`
+- `old/modules-api-boundary.instructions.md` -> `architecture-api-boundary.instructions.md`
+- `old/modules-architecture.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-modules.instructions.md`
+- `old/modules-dependency-graph.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-api-boundary.instructions.md`
+- `old/modules-naming.instructions.md` -> `architecture-modules.instructions.md`
+- `old/modules-refactoring.instructions.md` -> `architecture-modules.instructions.md`
+- `old/xuanwu-app-nextjs-mddd.instructions.md` -> `nextjs-app-router.instructions.md`, `nextjs-server-actions.instructions.md`, `firebase-architecture.instructions.md`, `architecture-monorepo.instructions.md`
+- `old/xuanwu-functions-python.instructions.md` -> `cloud-functions.instructions.md`, `embedding-pipeline.instructions.md`, `firebase-architecture.instructions.md`
+- `old/prompt.instructions.md` -> `prompt-engineering.instructions.md`
+
+## Customization Frontmatter Quick Reference
+
+Use these condensed rules for customization files outside runtime/business architecture.
+
+- `.instructions.md`: required `description`, `applyTo`; keep glob scopes narrow.
+- `.prompt.md`: use `description`, `agent`; define required inputs and fallback behavior.
+- `.agent.md`: required `description`; keep tools least-privilege; keep role boundaries explicit.
+- `SKILL.md`: required `name`, `description`; keep workflows deterministic and discoverable.
+
+Keep these files concise, avoid duplicating repository-global policy, and prefer linking canonical references over copying long handbooks.
 `````
 
 ## File: eslint.config.mjs
@@ -81833,4 +80558,66 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
+`````
+
+## File: .github/agents/README.md
+`````markdown
+# Agents Decomposition Map
+
+This folder contains the active decomposed agent set. Legacy sources from `.github/agents/xx` have been semantically consolidated and retired.
+
+## Source-to-target mapping
+
+| Source in xx | Decomposed targets |
+| --- | --- |
+| `serena.agent.md` | `serena-strategist.agent.md` |
+| `commander.agent.md` | `tool-caller.agent.md`, `support-architect.agent.md` |
+| `modules-architect.agent.md` | `mddd-architect.agent.md`, `billing-architect.agent.md` |
+| `modules-boundary-steward.agent.md` | `domain-lead.agent.md` |
+| `modules-api-surface-steward.agent.md` | `ts-interface-writer.agent.md`, `firestore-schema.agent.md` |
+| `app-router.agent.md` | `app-router.agent.md`, `server-action-writer.agent.md` |
+| `app-router-composer.agent.md` | `parallel-routes.agent.md`, `frontend-lead.agent.md` |
+| `component.agent.md` | `shadcn-composer.agent.md` |
+| `rag-vector.agent.md` | `rag-lead.agent.md`, `doc-ingest.agent.md`, `chunk-strategist.agent.md`, `embedding-writer.agent.md`, `genkit-flow.agent.md`, `ai-genkit-lead.agent.md` |
+| `e2e-qa.agent.md` | `e2e-qa.agent.md`, `test-scenario-writer.agent.md` |
+| `reviewer.agent.md` + `qa.agent.md` | `quality-lead.agent.md`, `lint-rule-enforcer.agent.md` |
+| `planner-docs.agent.md` + `md-writer.agent.md` | `kb-architect.agent.md`, `prompt-engineer.agent.md` |
+| `repo-architect.agent.md` | `cicd-deploy.agent.md`, `schema-migration.agent.md` |
+
+## Target set
+
+- `ai-genkit-lead.agent.md`
+- `app-router.agent.md`
+- `billing-architect.agent.md`
+- `chunk-strategist.agent.md`
+- `cicd-deploy.agent.md`
+- `doc-ingest.agent.md`
+- `domain-lead.agent.md`
+- `e2e-qa.agent.md`
+- `embedding-writer.agent.md`
+- `firestore-schema.agent.md`
+- `frontend-lead.agent.md`
+- `genkit-flow.agent.md`
+- `kb-architect.agent.md`
+- `lint-rule-enforcer.agent.md`
+- `mddd-architect.agent.md`
+- `parallel-routes.agent.md`
+- `prompt-engineer.agent.md`
+- `quality-lead.agent.md`
+- `rag-lead.agent.md`
+- `schema-migration.agent.md`
+- `security-rules.agent.md`
+- `serena-strategist.agent.md`
+- `server-action-writer.agent.md`
+- `shadcn-composer.agent.md`
+- `support-architect.agent.md`
+- `test-scenario-writer.agent.md`
+- `tool-caller.agent.md`
+- `ts-interface-writer.agent.md`
+
+## Migration Status
+
+- Legacy source folder `xx/` was used as migration input only.
+- Semantic value was merged into the target agents listed above.
+- Keep future updates on target agents only; do not reintroduce `xx/` mirrors.
 `````
