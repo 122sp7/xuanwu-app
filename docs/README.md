@@ -11,10 +11,14 @@ This docs skeleton is based on the Diataxis documentation framework as retrieved
 ## Structure
 
 - tutorials/: learning-oriented, guided paths
-- how-to/: task-oriented procedures
-- reference/: exact facts, contracts, and specs
-- explanation/: concept-oriented reasoning and trade-offs
-- _templates/: one template per purpose
+- guides/how-to/: task-oriented procedures
+- guides/explanation/: concept-oriented reasoning and trade-offs
+- reference/: exact facts and reference material
+- reference/specification/: specification documents
+- architecture/: architecture docs and ADR collection
+- development/: development process and implementation guides
+- diagrams/: architecture and flow diagrams
+- templates/: one template per purpose
 
 ## Authoring constraints
 
