@@ -114,11 +114,11 @@ import { Button } from "@ui-shadcn/ui/button";
 import { cn } from "@shared-utils";
 
 // 同模組 relative imports
-import type { WikiBetaDocument } from "../../domain/entities/wiki-beta-document.entity";
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
 
 // 型別定義
 interface DocumentCardProps {
-  readonly document: WikiBetaDocument;
+  readonly document: RagDocumentRecord;
   readonly onReindex: (docId: string) => Promise<void>;
 }
 

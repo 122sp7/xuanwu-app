@@ -20,7 +20,7 @@
 | 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
 | --- | --- | --- |
 | Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
 | AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
 
 > 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。

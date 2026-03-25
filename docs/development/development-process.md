@@ -57,12 +57,14 @@ git checkout -b feature/your-feature-name
 
 ```
 modules/
-├── wiki-beta/    ← 知識庫、文件上傳、RAG
+├── content/      ← 頁面、區塊、版本歷程
+├── asset/        ← Library、文件資產
 ├── workspace/    ← 工作區管理
 ├── account/      ← 帳號管理
 ├── organization/ ← 組織管理
-├── file/         ← 檔案生命週期
-...（20 個模組）
+├── retrieval/    ← RAG 查詢、向量檢索
+├── knowledge/    ← 文件攝入、Embedding
+...（16 個模組）
 ```
 
 若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
@@ -70,14 +72,18 @@ modules/
 ### Step 2：設計 Domain 層（entity / value object / repository interface）
 
 ```typescript
-// modules/wiki-beta/domain/entities/wiki-beta-page.entity.ts
-export interface WikiBetaPageEntity {
+// modules/content/domain/entities/wiki-beta-page.types.ts
+export interface WikiBetaPage {
   readonly id: string;
   readonly title: string;
   readonly accountId: string;
   readonly workspaceId?: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly status: "active" | "archived";
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
 }
 ```
 
@@ -86,7 +92,7 @@ export interface WikiBetaPageEntity {
 ### Step 3：實作 Application Use Case
 
 ```typescript
-// modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
+// modules/content/application/use-cases/wiki-beta-pages.use-case.ts
 export async function createWikiBetaPage(
   input: CreateWikiBetaPageInput,
   repo: IWikiBetaPageRepository
@@ -100,9 +106,9 @@ export async function createWikiBetaPage(
 ### Step 4：實作 Infrastructure Adapter
 
 ```typescript
-// modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
+// modules/content/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
 export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
-  async save(page: WikiBetaPageEntity): Promise<CommandResult<string>> {
+  async save(page: WikiBetaPage): Promise<CommandResult<string>> {
     const ref = await addDoc(
       collection(db, `accounts/${page.accountId}/pages`),
       pageToFirestore(page)
@@ -115,7 +121,7 @@ export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
 ### Step 5：建立 Server Action（接口層）
 
 ```typescript
-// modules/wiki-beta/interfaces/_actions/wiki-beta-page.actions.ts
+// modules/content/interfaces/_actions/wiki-beta-page.actions.ts
 "use server";
 
 export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
@@ -126,7 +132,7 @@ export async function createPageAction(input: CreatePageInput): Promise<CommandR
 ### Step 6：實作 React 元件
 
 ```tsx
-// modules/wiki-beta/interfaces/components/WikiBetaPagesView.tsx
+// modules/content/interfaces/components/WikiBetaPagesView.tsx
 "use client";
 
 export function WikiBetaPagesView() {
@@ -151,9 +157,9 @@ export function WikiBetaPagesView() {
 ### Step 7：更新 index.ts 公開 API
 
 ```typescript
-// modules/wiki-beta/index.ts
+// modules/content/index.ts
 export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
-export type { WikiBetaPageEntity } from "./domain/entities/wiki-beta-page.entity";
+export type { WikiBetaPage } from "./domain/entities/wiki-beta-page.types";
 ```
 
 ---
@@ -239,7 +245,7 @@ Review 者確認：
 
 ```bash
 git checkout -b docs/update-ui-ux-wireframes
-git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
+git commit -m "docs(ui-ux): add wireframes for content pages"
 ```
 
 ---
@@ -254,7 +260,7 @@ git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
 
 ```
 在 Copilot Chat 輸入：
-「使用 @planner 規劃 wiki-beta pages CRUD 功能」
+「使用 @planner 規劃 content pages CRUD 功能」
 ```
 
 計畫格式見 AI implementation plan template 文件。
