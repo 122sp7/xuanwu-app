@@ -1,7 +1,7 @@
 ---
 description: 'Refactor an existing module while preserving MDDD layers, API boundaries, and dependency direction'
 name: 'refactor-module'
-agent: 'modules-architect'
+agent: 'Modules Architect'
 argument-hint: 'Module name, refactor goal, affected entities or aggregates, and boundary concerns'
 ---
 

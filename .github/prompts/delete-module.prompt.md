@@ -1,7 +1,7 @@
 ---
 description: 'Delete a module safely by removing imports, API usage, event usage, and documentation references first'
 name: 'delete-module'
-agent: 'modules-architect'
+agent: 'Modules Architect'
 argument-hint: 'Module name, replacement module or API, and required migration constraints'
 ---
 

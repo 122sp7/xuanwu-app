@@ -1,7 +1,7 @@
 ---
 description: 'Create a new module in modules/ using the Modules Architect workflow and Xuanwu MDDD structure'
 name: 'create-module'
-agent: 'modules-architect'
+agent: 'Modules Architect'
 argument-hint: 'Module name, domain purpose, expected API contract, and initial dependencies'
 ---
 

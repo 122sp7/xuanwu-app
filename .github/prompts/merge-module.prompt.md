@@ -1,7 +1,7 @@
 ---
 description: 'Merge related modules into one bounded context while preserving API consumers and MDDD structure'
 name: 'merge-module'
-agent: 'modules-architect'
+agent: 'Modules Architect'
 argument-hint: 'Source modules, target module, API migration plan, and dependency risks'
 ---
 

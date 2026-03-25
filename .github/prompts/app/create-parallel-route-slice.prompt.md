@@ -1,7 +1,7 @@
 ---
 name: 'create-parallel-route-slice'
 description: 'Create or refactor an app/ route slice or parallel-route block that composes module APIs without importing module internals.'
-agent: 'app-router-composer'
+agent: 'App Router Composer'
 argument-hint: 'Provide the route path, UI block role, allowed module APIs, and whether the slice should be server or client.'
 ---
 

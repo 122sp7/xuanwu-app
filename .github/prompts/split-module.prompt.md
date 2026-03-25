@@ -1,7 +1,7 @@
 ---
 description: 'Split one module into clearer bounded contexts while preserving public APIs and dependency rules'
 name: 'split-module'
-agent: 'modules-architect'
+agent: 'Modules Architect'
 argument-hint: 'Source module, target modules, ownership split, and migration constraints'
 ---
 

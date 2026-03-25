@@ -1,7 +1,7 @@
 ---
 name: 'create-module-api-surface'
 description: 'Create or refactor a module public API surface with contracts.ts, facade.ts, safe interfaces usage, and clean index exports.'
-agent: 'modules-api-surface-steward'
+agent: 'Modules API Surface Steward'
 argument-hint: 'Provide the module name, requested actions or queries, consumer type, and any allowed upstream dependencies.'
 ---
 
