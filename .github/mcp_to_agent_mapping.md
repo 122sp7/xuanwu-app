@@ -25,3 +25,14 @@ This file records the implemented mapping strategy for using MCP tools through d
 1. Add feature-specialized prompts under `prompts/diagnosis` and `prompts/rag` if workflow frequency justifies them.
 2. Add additional agents only when a repeated workflow cannot be covered by existing delivery agents plus prompts.
 3. Keep handoff targets aligned to diagnostics-recognized agent names.
+
+## Legacy to extension mapping
+
+| Legacy area | Extension role in current architecture | Notes |
+| --- | --- | --- |
+| `.github/agents/planner.agent.md`, `.github/agents/implementer.agent.md`, `.github/agents/reviewer.agent.md`, `.github/agents/qa.agent.md` | Core delivery chain | Remains authoritative for formal delivery handoffs |
+| `.github/agents/modules-*.agent.md`, `.github/agents/app-router-composer.agent.md` | Domain-specialized extension lanes | Activated when scope is module boundary or app composition specific |
+| `.github/agents/serena.agent.md` | Serena-first execution lane | Works as cross-cutting execution backbone with symbolic workflow |
+| `.github/prompts/*` | Trigger surface for chain and MCP lanes | Prompt scope routes work to delivery agents or MCP-specialized agents |
+| `.github/instructions/*` | Always-on policy layer | Narrow `applyTo` keeps context noise low while preserving guardrails |
+| `.github/copilot-instructions.md` | Top-level orchestration contract | Defines precedence, boundaries, and mapping baseline usage |

@@ -11,6 +11,13 @@ Repository instruction index for `applyTo`-scoped rules used by Copilot.
 | [agent-skills.instructions.md](./agent-skills.instructions.md) | `.github/skills/**/SKILL.md` | How to create agent skills |
 | [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/**/*.prompt.md` | How to create slash-command prompts |
 
+## MCP Routing Extensions
+
+| File | Scope | Purpose |
+| --- | --- | --- |
+| [06-context7-usage.instructions.md](./06-context7-usage.instructions.md) | `.github/**/*.{md,agent.md,prompt.md,instructions.md}` | External-doc fetch policy and Context7 usage boundaries |
+| [07-markitdown-rag.instructions.md](./07-markitdown-rag.instructions.md) | `docs/**/*.md`, `py_fn/**/*.py`, `.github/**/*.md` | MarkItDown-assisted RAG conversion policy with runtime split guardrails |
+
 ## Project-Specific
 
 | File | Scope | Purpose |
@@ -39,7 +46,7 @@ Repository instruction index for `applyTo`-scoped rules used by Copilot.
 | --- | --- | --- |
 | [dotnet-architecture-good-practices.instructions.md](./dotnet-architecture-good-practices.instructions.md) | `**/*.cs`, `**/*.csproj`, `**/Program.cs`, `**/*.razor` | DDD and .NET architecture guidance |
 
-## Total: 17 Instruction Files
+## Total: 19 Instruction Files
 
 Each instruction file includes clear examples, best practices, and anti-patterns to guide Copilot behavior and enforce project standards.
 
