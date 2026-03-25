@@ -32,6 +32,7 @@ All agents must use Serena MCP tools for project memory, index, and `.serena/` m
 1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
 2. Activate skills as needed:  
    - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
+   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
    - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
    - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
    - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
