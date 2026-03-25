@@ -18,11 +18,12 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 Read these in order before making non-trivial decisions:
 
-1. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-2. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-3. [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-4. [agents/commands.md](../agents/commands.md) for build, lint, test, and deployment commands.
-5. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology and naming.
+2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+4. [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](../agents/commands.md) for build, lint, test, and deployment commands.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
 
 ## Workspace-Wide Operating Rules
 
@@ -70,6 +71,8 @@ Serena is mandatory for project memory, index management, and any `.serena/` ope
 
 ## Terminology
 
-- Normalize naming before implementation when multiple product terms describe the same capability.
-- Prefer canonical vocabulary from [terminology-glossary.md](./terminology-glossary.md), especially for token efficiency, context efficiency, retrieval performance, prompt refactoring, deduplication, and related optimization terms.
-- When introducing new guidance, use glossary-aligned wording so prompts, instructions, and architecture docs stay semantically consistent.
+- Terminology is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and architecture docs.
