@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: Execute an approved implementation plan with the Implementer agent.
-agent: implementer
+agent: Implementer
 argument-hint: Provide a plan file, pasted plan text, or a summary of which plan tasks should be executed now.
 ---
 

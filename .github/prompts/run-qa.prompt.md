@@ -1,7 +1,7 @@
 ---
 name: run-qa
 description: Execute formal QA verification for a delivered change.
-agent: qa
+agent: QA
 argument-hint: Provide the plan reference, reviewed change summary, and any risk areas or scenarios that must be checked.
 ---
 

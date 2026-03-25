@@ -2,9 +2,10 @@
 name: QA
 description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
 tools: ['vscode', 'execute', 'read', 'search', 'web', 'todo', 'serena/*']
+target: 'vscode'
 handoffs:
   - label: Fix QA Findings
-    agent: implementer
+    agent: Implementer
     prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
     send: false
 ---

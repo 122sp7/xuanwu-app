@@ -1,4 +1,5 @@
 ---
+name: 'Xuanwu Functions Python'
 description: 'Project-specific instructions for the xuanwu-app Firebase Python worker runtime.'
 applyTo: 'py_fn/**/*.py'
 ---

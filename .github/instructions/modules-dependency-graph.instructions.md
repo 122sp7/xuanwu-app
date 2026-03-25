@@ -1,6 +1,7 @@
 ---
+name: 'Modules Dependency Graph'
 description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 ---
 
 # Modules Dependency Graph

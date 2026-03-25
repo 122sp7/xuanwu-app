@@ -1,4 +1,5 @@
 ---
+name: 'Prompt File Guidelines'
 description: 'Guidelines for creating high-quality prompt files for GitHub Copilot'
 applyTo: '.github/prompts/*.prompt.md'
 ---

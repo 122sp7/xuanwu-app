@@ -1,6 +1,7 @@
 ﻿---
+name: 'Dotnet Architecture Guidelines'
 description: "DDD and .NET architecture guidelines"
-applyTo: '**/*.cs,**/*.csproj,**/Program.cs,**/*.razor'
+applyTo: '**/*.{cs,csproj,razor}'
 ---
 
 # DDD Systems and .NET Guidelines (Condensed)

@@ -1,7 +1,8 @@
 ---
 name: md-writer
 description: 'Optimize Markdown documents in the Xuanwu repository using the md-* prompt pipeline. Reduces token count, enforces structure, deduplicates concepts, and converts prose to rules/tables.'
-tools: ['vscode', 'read', 'write', 'search', 'todo']
+tools: ['vscode', 'read', 'edit', 'search', 'todo']
+target: 'vscode'
 ---
 
 # md-writer

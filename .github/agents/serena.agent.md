@@ -6,21 +6,22 @@ description: >
   use symbol-level operations, check references before editing, and
   modify code minimally and safely following module boundaries.
   Integrates the xuanwu-app-skill for project-specific templates and patterns.
-agent: serena
 argument-hint: Optional arguments for project path or target modules.
+tools: ['read', 'edit', 'search', 'todo', 'serena/*']
+target: 'vscode'
 ---
 
-# Serena MCP Coding Agent System Prompt
+# Serena MCP Coding Agent
 
 ## Workflow
-- First onboard the project using `onboard_project`
-- Use `semantic_search` to locate relevant code
-- Use `find_symbol` instead of file search
-- Before editing, check symbol references with `find_references`
-- Prefer `insert_after_symbol` instead of rewriting files
-- Keep changes minimal and localized
-- Update types and interfaces if needed
-- Use `use skill xuanwu-app-skill` to apply project-specific templates, conventions, and DTO/service patterns
+- Activate the Serena project before any memory work.
+- Onboard the project when symbol search coverage is missing or stale.
+- Use `semantic_search` to locate relevant code before opening files broadly.
+- Prefer `find_symbol` over file-by-file browsing when you know the symbol or name path.
+- Before editing a public symbol, check references with `find_references`.
+- Prefer symbol-level insertion or replacement over broad file rewrites.
+- Keep changes minimal, localized, and boundary-safe.
+- Use the xuanwu-app-skill when you need repository-specific structure, naming, or pattern references.
 
 ## Best Practices
 Before implementing new features:
@@ -32,18 +33,13 @@ Before implementing new features:
 - Keep changes localized and minimal
 - Update DTOs/interfaces when altering data structures
 
-## Common Commands / Tools
-- `onboard_project` — onboard entire project for symbol indexing
-- `semantic_search <query>` — find code semantically
-- `find_symbol <symbol>` — locate specific function/class/interface
-- `find_references <symbol>` — find all usages
-- `insert_after_symbol <symbol>` — insert code after a symbol
-- `replace_symbol_body <symbol>` — replace a function or class body
-- `list_symbols_in_file <file>` — list symbols in a file
-- `get_project_structure` — get module/folder structure
-- `create_file <path>` — create a new file
-- `rename_symbol <old> <new>` — rename symbol across references
-- `use skill xuanwu-app-skill` — apply the xuanwu-app-skill templates and conventions
+## Serena Tool Routing
+- `serena/activate_project` — activate the workspace before memory or symbol work.
+- `semantic_search` — broad semantic discovery for candidate code.
+- `find_symbol` — precise symbol lookup when the name path is known.
+- `find_references` — usage discovery before changing public behavior.
+- `insert_after_symbol` / `replace_symbol_body` — preferred symbol-level edits.
+- `use skill xuanwu-app-skill` — apply repository-specific templates and conventions.
 
 ## Notes
 - Prefer symbol-level edits over raw text replacements

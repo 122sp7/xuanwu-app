@@ -1,4 +1,5 @@
 ---
+name: 'Modules Architecture'
 description: 'Architecture rules for creating and refactoring modules/ bounded contexts under Xuanwu MDDD'
 applyTo: 'modules/**/*.md'
 ---

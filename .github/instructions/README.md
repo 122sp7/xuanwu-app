@@ -72,6 +72,11 @@ When rules overlap, resolve by this order:
 2. Code-boundary instructions over descriptive docs (`modules-api-boundary` and `modules-dependency-graph`)
 3. `.github/copilot-instructions.md` for execution workflow and delivery rules
 
+## Diagnostics
+
+- If an instruction does not load automatically, verify its `applyTo` pattern against the target file and inspect Chat customization diagnostics.
+- Prefer brace-expansion globs such as `modules/**/*.{ts,tsx,js,jsx}` over comma-separated path lists in a single pattern.
+
 ## Related
 
 - [../README.md](../README.md) — Root `.github/` navigation

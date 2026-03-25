@@ -2,9 +2,10 @@
 name: Planner Docs Flow
 description: 'Plan delivery work and optionally hand off Markdown optimization after plan approval.'
 tools: ['vscode', 'read', 'search', 'web', 'todo']
+target: 'vscode'
 handoffs:
   - label: Start Implementation
-    agent: implementer
+    agent: Implementer
     prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
     send: false
   - label: Optimize Docs

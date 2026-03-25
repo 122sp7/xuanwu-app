@@ -1,4 +1,5 @@
 ---
+name: 'Instructions Authoring Guidelines'
 description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
 applyTo: '.github/instructions/*.instructions.md'
 ---

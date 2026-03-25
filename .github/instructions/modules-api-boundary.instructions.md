@@ -1,6 +1,7 @@
 ---
+name: 'Modules API Boundary'
 description: 'API-boundary rules for cross-module interaction in modules/ with explicit allowed and forbidden patterns'
-applyTo: 'modules/**/*.ts, modules/**/*.tsx, modules/**/*.js, modules/**/*.jsx'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 ---
 
 # Modules API Boundary

@@ -1,4 +1,5 @@
 ---
+name: 'Modules Naming'
 description: 'Naming rules for modules/, module APIs, use cases, repositories, entities, events, and related MDDD assets'
 applyTo: 'modules/**/*.md'
 ---

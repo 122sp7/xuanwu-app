@@ -1,7 +1,7 @@
 ---
 name: review-changes
 description: Review changes against the implementation plan, repository boundaries, and required validation.
-agent: reviewer
+agent: Reviewer
 argument-hint: Provide the plan reference, affected files or change summary, and any areas of concern.
 ---
 

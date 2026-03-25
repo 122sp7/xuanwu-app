@@ -1,6 +1,7 @@
 ---
+name: 'Xuanwu App Nextjs MDDD'
 description: 'Project-specific instructions for the xuanwu-app Next.js 16, React 19, and MDDD codebase.'
-applyTo: 'app/**/*.ts, app/**/*.tsx, packages/**/*.ts, packages/**/*.tsx, providers/**/*.ts, providers/**/*.tsx, debug/**/*.ts, debug/**/*.tsx'
+applyTo: '{app,packages,providers,debug}/**/*.{ts,tsx}'
 ---
 
 # Xuanwu App Next.js + MDDD Development Instructions

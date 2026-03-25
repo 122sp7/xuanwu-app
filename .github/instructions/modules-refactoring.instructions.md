@@ -1,4 +1,5 @@
 ---
+name: 'Modules Refactoring'
 description: 'Refactoring workflows for adding, restructuring, splitting, merging, and deleting modules while preserving MDDD boundaries'
 applyTo: 'modules/**/*.md'
 ---

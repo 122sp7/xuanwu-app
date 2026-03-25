@@ -2,9 +2,10 @@
 name: Planner
 description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
 tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
+target: 'vscode'
 handoffs:
   - label: Start Implementation
-    agent: implementer
+    agent: Implementer
     prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
     send: false
 ---

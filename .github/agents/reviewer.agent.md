@@ -2,13 +2,14 @@
 name: Reviewer
 description: 'Review Xuanwu implementations for correctness, architecture alignment, regression risk, and missing validation or documentation.'
 tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
+target: 'vscode'
 handoffs:
   - label: Fix Review Findings
-    agent: implementer
+    agent: Implementer
     prompt: Apply fixes for the review findings above. Keep the scope bounded to those findings and rerun the required validation.
     send: false
   - label: Run QA
-    agent: qa
+    agent: QA
     prompt: Execute QA against the approved plan and reviewed implementation. Verify scenarios, evidence, residual risk, and release readiness.
     send: false
 ---

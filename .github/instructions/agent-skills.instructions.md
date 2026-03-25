@@ -1,4 +1,5 @@
 ---
+name: 'Agent Skills Guidelines'
 description: 'Guidelines for creating high-quality Agent Skills for GitHub Copilot'
 applyTo: '.github/skills/**/SKILL.md, .claude/skills/**/SKILL.md'
 ---
