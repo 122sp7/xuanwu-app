@@ -19,7 +19,7 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const retentionHours = 0;
+            const retentionHours = 24;
             const cutoff = Date.now() - retentionHours * 60 * 60 * 1000;
             let page = 1;
             let deletedCount = 0;
@@ -43,15 +43,15 @@ jobs:
               }
               page++;
             }
-            core.info(`Successfully deleted ${deletedCount} cache(s) older than 48 hours.`);
+            core.info(`Successfully deleted ${deletedCount} cache(s) older than 24 hours.`);
 
-      - name: Delete workflow runs older than 0 hours
+      - name: Delete workflow runs older than 24 hours
         uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const retentionHours = 48;
+            const retentionHours = 24;
             const cutoff = Date.now() - retentionHours * 60 * 60 * 1000;
             let page = 1;
             let deletedCount = 0;
