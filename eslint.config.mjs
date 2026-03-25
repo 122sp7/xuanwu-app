@@ -126,61 +126,126 @@ const eslintConfig = defineConfig([
       ],
     },
     rules: {
-      "boundaries/element-types": [
+      "boundaries/dependencies": [
         "error",
         {
           default: "disallow",
           rules: [
             {
-              from: ["module-domain", "module-application", "module-infrastructure", "module-interfaces"],
-              allow: ["module-api"],
+              from: { type: "module-domain" },
+              allow: [{ to: { type: "module-api" } }],
               message: "Cross-module imports must go through `modules/<target>/api`.",
             },
             {
-              from: ["module-domain", "module-application", "module-infrastructure", "module-interfaces"],
-              allow: [["module-root", { module: "${from.module}" }]],
+              from: { type: "module-application" },
+              allow: [{ to: { type: "module-api" } }],
+              message: "Cross-module imports must go through `modules/<target>/api`.",
+            },
+            {
+              from: { type: "module-infrastructure" },
+              allow: [{ to: { type: "module-api" } }],
+              message: "Cross-module imports must go through `modules/<target>/api`.",
+            },
+            {
+              from: { type: "module-interfaces" },
+              allow: [{ to: { type: "module-api" } }],
+              message: "Cross-module imports must go through `modules/<target>/api`.",
+            },
+            {
+              from: { type: "module-domain" },
+              allow: [
+                {
+                  to: {
+                    type: "module-root",
+                    captured: { module: "{{from.captured.module}}" },
+                  },
+                },
+              ],
               message: "Module root barrel is allowed only for the same module.",
             },
             {
-              from: ["module-api"],
+              from: { type: "module-application" },
               allow: [
-                ["module-api", { module: "${from.module}" }],
-                ["module-domain", { module: "${from.module}" }],
-                ["module-application", { module: "${from.module}" }],
-                ["module-interfaces", { module: "${from.module}" }],
-                ["module-infrastructure", { module: "${from.module}" }],
+                {
+                  to: {
+                    type: "module-root",
+                    captured: { module: "{{from.captured.module}}" },
+                  },
+                },
+              ],
+              message: "Module root barrel is allowed only for the same module.",
+            },
+            {
+              from: { type: "module-infrastructure" },
+              allow: [
+                {
+                  to: {
+                    type: "module-root",
+                    captured: { module: "{{from.captured.module}}" },
+                  },
+                },
+              ],
+              message: "Module root barrel is allowed only for the same module.",
+            },
+            {
+              from: { type: "module-interfaces" },
+              allow: [
+                {
+                  to: {
+                    type: "module-root",
+                    captured: { module: "{{from.captured.module}}" },
+                  },
+                },
+              ],
+              message: "Module root barrel is allowed only for the same module.",
+            },
+            {
+              from: { type: "module-api" },
+              allow: [
+                { to: { type: "module-api", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-interfaces", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-infrastructure", captured: { module: "{{from.captured.module}}" } } },
               ],
               message: "API layer may depend only on same-module layers.",
             },
             {
-              from: ["module-domain"],
-              allow: [["module-domain", { module: "${from.module}" }]],
+              from: { type: "module-domain" },
+              allow: [
+                {
+                  to: {
+                    type: "module-domain",
+                    captured: { module: "{{from.captured.module}}" },
+                  },
+                },
+              ],
               message: "Domain may only depend on domain of the same module.",
             },
             {
-              from: ["module-application"],
+              from: { type: "module-application" },
               allow: [
-                ["module-application", { module: "${from.module}" }],
-                ["module-domain", { module: "${from.module}" }],
+                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
               ],
               message: "Application may depend only on application/domain in the same module.",
             },
             {
-              from: ["module-infrastructure"],
+              from: { type: "module-infrastructure" },
               allow: [
-                ["module-infrastructure", { module: "${from.module}" }],
-                ["module-application", { module: "${from.module}" }],
-                ["module-domain", { module: "${from.module}" }],
+                { to: { type: "module-infrastructure", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
               ],
               message: "Infrastructure may depend only on infrastructure/application/domain in the same module.",
             },
             {
-              from: ["module-interfaces"],
+              from: { type: "module-interfaces" },
               allow: [
-                ["module-interfaces", { module: "${from.module}" }],
-                ["module-application", { module: "${from.module}" }],
-                ["module-infrastructure", { module: "${from.module}" }],
-                ["module-domain", { module: "${from.module}" }],
+                { to: { type: "module-interfaces", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-infrastructure", captured: { module: "{{from.captured.module}}" } } },
+                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
               ],
               message: "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
             },
