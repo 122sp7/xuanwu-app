@@ -12,10 +12,10 @@ export type {
 	IngestionStatus,
 } from "../domain/entities/IngestionJob";
 
-export type { Link, LinkType } from "../../knowledge-graph/domain/entities/link";
-export type { GraphNode, GraphNodeType } from "../../knowledge-graph/domain/entities/graph-node";
-export type { GraphRepository } from "../../knowledge-graph/domain/repositories/GraphRepository";
-export { InMemoryGraphRepository } from "../../knowledge-graph/infrastructure/InMemoryGraphRepository";
-export { LinkExtractorService } from "../../knowledge-graph/application/link-extractor.service";
-export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
-export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
+export type { Link, LinkType } from "../../knowledge-graph/api";
+export type { GraphNode, GraphNodeType } from "../../knowledge-graph/api";
+export type { GraphRepository } from "../../knowledge-graph/api";
+export { InMemoryGraphRepository } from "../../knowledge-graph/api";
+export { LinkExtractorService } from "../../knowledge-graph/api";
+export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api";
+export type { GraphDataDTO } from "../../knowledge-graph/api";

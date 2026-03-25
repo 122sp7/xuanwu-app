@@ -32,6 +32,6 @@ Business context or technical motivation.
 Steps to test the change locally.
 
 ## Module(s) Affected
-- modules/task
+- modules/workspace-flow
 - packages/shared-types
 ```

@@ -48,25 +48,25 @@
 | 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
 | 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
 
-### 3.2 知識庫（Wiki-Beta）
+### 3.2 知識庫功能
 
 | 功能 | 說明 | 模組 |
 |---|---|---|
-| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `wiki-beta` |
-| 文件列表 | Account 全覽；workspace 篩選 | `wiki-beta` |
+| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
+| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
 | 文件解析 | Google Document AI 自動解析 | `py_fn` |
 | RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
-| RAG 問答 | 自然語言問答，含引用來源 | `wiki-beta`, `ai` |
-| RAG 重整 | 手動觸發 RAG 重新索引 | `wiki-beta` |
-| Pages | 區塊式頁面建立與管理 | `wiki-beta` |
-| Libraries | 結構化資料庫管理 | `wiki-beta` |
+| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
+| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
+| Pages | 區塊式頁面建立與管理 | `content` |
+| Libraries | 結構化資料庫管理 | `asset` |
 
 ### 3.3 AI 功能
 
 | 功能 | 說明 | 模組 |
 |---|---|---|
-| AI Chat | 通用 AI 對話介面 | `ai` |
-| RAG 查詢 | 基於文件的智慧問答 | `ai`, `wiki-beta` |
+| AI Chat | 通用 AI 對話介面 | `agent` |
+| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
 | 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
 
 ### 3.4 組織管理
@@ -75,9 +75,9 @@
 |---|---|---|
 | 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
 | 團隊管理 | 成員分組 | `organization` |
-| 排程管理 | 雙向資源排程 | `schedule` |
-| 每日摘要 | 每日工作流程記錄 | `daily` |
-| 稽核記錄 | 操作稽核追蹤 | `audit` |
+| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
+| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
+| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
 
 ---
 
@@ -135,30 +135,26 @@ Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account ro
 
 ## 5. 模組責任邊界
 
-20 個 MDDD 業務模組的責任分配：
+16 個 MDDD 業務模組的責任分配：
 
 | 模組 | 職責概要 |
 |---|---|
 | `account` | 用戶帳號、成員角色、帳號策略 |
-| `organization` | 組織（租戶）管理、策略 |
-| `workspace` | 工作區管理、成員管理 |
-| `wiki-beta` | 知識庫、文件、Pages、Libraries、RAG |
-| `ai` | AI 協調、RAG 查詢（不擁有資料） |
-| `file` | 檔案生命週期、版本、權限 |
+| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
+| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
+| `content` | Block 編輯器頁面、WikiBetaPage、版本歷程 |
 | `identity` | 身份認證、Token 刷新 |
-| `audit` | 不可變稽核記錄 |
-| `event` | 領域事件 Bus |
-| `schedule` | 雙向排程 |
-| `daily` | 每日摘要 |
-| `namespace` | Slug 路由機制 |
-| `billing` | 帳務記錄（佔位，高風險） |
-| `finance` | 財務追蹤 |
-| `issue` | 問題追蹤 |
-| `task` | 任務管理 |
-| `parser` | 文件解析就緒狀態 |
-| `acceptance` | 工作區就緒驗收 |
-| `notification` | 通知 |
-| `qa` | 品質保證 |
+| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
+| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
+| `notification` | 通知推送 |
+| `organization` | 組織（租戶）管理、策略 |
+| `retrieval` | RAG 查詢、WikiBeta RAG 類型、向量檢索 |
+| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
+| `workspace` | 工作區管理、成員管理、WikiBetaContentTree |
+| `workspace-audit` | 不可變稽核記錄 |
+| `workspace-feed` | 工作區動態摘要 |
+| `workspace-flow` | 工作區任務與流程管理 |
+| `workspace-scheduling` | 雙向資源排程 |
 
 ---
 

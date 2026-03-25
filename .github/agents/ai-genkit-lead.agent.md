@@ -21,7 +21,7 @@ handoffs:
 
 ## Target Scope
 
-- `modules/ai/**`
+- `modules/agent/**`
 - `app/**`
 - `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
 

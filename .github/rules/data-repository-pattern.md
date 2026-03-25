@@ -14,7 +14,7 @@ Repository **interfaces** live in `domain/repositories/`. Repository **implement
 **Incorrect (domain knows about Firebase):**
 
 ```typescript
-// modules/task/domain/entities/Task.ts
+// modules/workspace-flow/domain/entities/Task.ts
 import { collection, addDoc } from "firebase/firestore";   // ❌ Domain imports Firebase
 import { db } from "@integration-firebase";
 
@@ -28,7 +28,7 @@ export class Task {
 **Correct (interface + implementation split):**
 
 ```typescript
-// modules/task/domain/repositories/TaskRepository.ts
+// modules/workspace-flow/domain/repositories/TaskRepository.ts
 import type { Task } from "../entities/Task";
 
 export interface TaskRepository {                           // ✅ Pure interface
@@ -37,7 +37,7 @@ export interface TaskRepository {                           // ✅ Pure interfac
   save(task: Task): Promise<void>;
 }
 
-// modules/task/infrastructure/firebase/TaskFirebaseRepository.ts
+// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
 import { collection, doc, getDoc, getDocs, setDoc, query, where } from "firebase/firestore";
 import { db } from "@integration-firebase";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";

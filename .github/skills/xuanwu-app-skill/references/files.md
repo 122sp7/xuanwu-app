@@ -60,56 +60,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
-## File: .github/agents/ai-genkit-lead.agent.md
-`````markdown
----
-name: AI Genkit Lead
-description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-target: vscode
-handoffs:
-  - label: Refine Genkit Flow
-    agent: Genkit Flow Agent
-    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
-  - label: Review RAG Boundary
-    agent: RAG Lead
-    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
-
----
-
-# AI Genkit Lead
-
-## Target Scope
-
-- `modules/ai/**`
-- `app/**`
-- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
-
-## Focus
-
-- Genkit flow ownership and app-side orchestration
-- Contract-safe integration with ingestion and retrieval layers
-
-## Guardrails
-
-- Keep auth and chat orchestration in Next.js.
-- Keep parsing, chunking, embedding in py_fn workers.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
 ## File: .github/agents/app-router.agent.md
 `````markdown
 ---
@@ -610,57 +560,6 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 - Keep app routes thin and composition-focused.
 - Consume module behavior via module api only.
 - Prefer server components unless client interactivity is required.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
-## File: .github/agents/genkit-flow.agent.md
-`````markdown
----
-name: Genkit Flow Agent
-description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-target: vscode
-handoffs:
-  - label: Review AI Ownership
-    agent: AI Genkit Lead
-    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
-
----
-
-# Genkit Flow Agent
-
-## Target Scope
-
-- `modules/ai/**`
-- `app/**`
-- `modules/retrieval/**`
-
-## Focus
-
-- Flow inputs and outputs
-- Prompt and tool orchestration boundaries
-- Error handling and fallback behavior
-
-## Guardrails
-
-- Keep flow contracts explicit.
-- Avoid leaking worker-only logic into app orchestration.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
@@ -2278,32 +2177,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
-## File: .github/instructions/genkit-flow.instructions.md
-`````markdown
----
-description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
-applyTo: '{modules/ai/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
----
-
-# Genkit Flow
-
-## Rules
-
-- Keep flow inputs/outputs explicit and typed.
-- Keep user-facing orchestration in Next.js.
-- Delegate heavy ingestion/embedding to worker-side pipelines.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
 ## File: .github/instructions/hosting-deploy.instructions.md
 `````markdown
 ---
@@ -3665,44 +3538,6 @@ const good = example()
 Reference: [Link to documentation or resource](https://example.com)
 `````
 
-## File: .github/rules/api-contracts.md
-`````markdown
----
-title: API Contracts via @api-contracts
-impact: HIGH
-impactDescription: Centralizes API route definitions and prevents fragmentation
-tags: api, contracts, routes, rest
----
-
-## API Contracts via @api-contracts
-
-**Impact: HIGH**
-
-REST API routes and GraphQL schemas are defined in the `@api-contracts` package (`packages/api-contracts`). This keeps API surface definitions centralized and version-controlled.
-
-**Incorrect (ad-hoc route definitions scattered across modules):**
-
-```typescript
-// modules/task/interfaces/api/task.controller.ts
-const TASK_API = "/api/v1/tasks";    // ❌ Route defined locally, not tracked centrally
-```
-
-**Correct (routes from @api-contracts):**
-
-```typescript
-import { API_ROUTES } from "@api-contracts";
-
-// Use centralized route definitions
-const url = API_ROUTES.tasks.list;   // ✅ Single source of truth
-```
-
-**Guidelines:**
-- All REST route paths are registered in `@api-contracts`
-- Controllers in `interfaces/api/` implement the routes but don't define them
-- Type contracts (request/response shapes) should be co-located with route definitions
-- Version API routes explicitly when breaking changes are unavoidable
-`````
-
 ## File: .github/rules/api-module-surface.md
 `````markdown
 ---
@@ -3746,64 +3581,6 @@ export { usePublicEntities } from "./interfaces/queries/public.queries";
 export { PublicPanel } from "./interfaces/components/PublicPanel";
 
 // Keep infrastructure details private to the module.
-```
-`````
-
-## File: .github/rules/architecture-dependency-direction.md
-`````markdown
----
-title: Layer Dependency Direction
-impact: CRITICAL
-impactDescription: Prevents architecture erosion and dependency cycles
-tags: architecture, mddd, dependencies, clean-architecture
----
-
-## Layer Dependency Direction
-
-**Impact: CRITICAL**
-
-Within every module, dependencies flow inward toward the domain layer. The domain layer has **zero outward dependencies** — it knows nothing about Firebase, React, or any framework.
-
-```
-interfaces/ ──→ application/ ──→ domain/ ←── infrastructure/
-   (UI)          (use cases)    (entities)    (adapters)
-```
-
-**Incorrect (domain importing infrastructure):**
-
-```typescript
-// modules/task/domain/entities/Task.ts
-import { collection, getDocs } from "firebase/firestore";  // ❌ Domain knows about Firebase
-import { db } from "@integration-firebase";                 // ❌ Domain imports infrastructure
-
-export class Task {
-  static async loadAll() {
-    const snap = await getDocs(collection(db, "tasks"));
-    return snap.docs.map(d => new Task(d.data()));
-  }
-}
-```
-
-**Correct (domain defines interface, infrastructure implements):**
-
-```typescript
-// modules/task/domain/repositories/TaskRepository.ts
-export interface TaskRepository {
-  findAll(): Promise<Task[]>;        // ✅ Pure interface, no framework dependency
-  findById(id: string): Promise<Task | null>;
-}
-
-// modules/task/infrastructure/firebase/TaskFirebaseRepository.ts
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@integration-firebase";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-
-export class TaskFirebaseRepository implements TaskRepository {
-  async findAll(): Promise<Task[]> {  // ✅ Infrastructure implements the contract
-    const snap = await getDocs(collection(db, "tasks"));
-    return snap.docs.map(d => new Task(d.data()));
-  }
-}
 ```
 `````
 
@@ -4189,65 +3966,6 @@ AI tools (GitHub Copilot, coding agents) are first-class development aids. Use t
 - **Use skills** — `.github/skills/` provides specialized capabilities (React best practices, documentation writing, design guidelines)
 `````
 
-## File: .github/rules/data-dto-boundaries.md
-`````markdown
----
-title: DTO Boundaries
-impact: HIGH
-impactDescription: Prevents leaking persistence or framework details across layers
-tags: data, dto, boundaries, layers
----
-
-## DTO Boundaries
-
-**Impact: HIGH**
-
-Data Transfer Objects (DTOs) mark the boundary between layers. Domain entities are internal to the module; when data crosses a layer boundary (domain → application, application → interfaces), use a DTO to decouple internal representation from external contracts.
-
-**Incorrect (exposing Firestore document shape to UI):**
-
-```typescript
-// modules/task/interfaces/components/TaskList.tsx
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@integration-firebase";
-
-export function TaskList() {
-  const [tasks, setTasks] = useState<DocumentData[]>([]);  // ❌ Raw Firestore data in component
-  useEffect(() => {
-    getDocs(collection(db, "tasks")).then(snap => {
-      setTasks(snap.docs.map(d => d.data()));               // ❌ No type safety
-    });
-  }, []);
-}
-```
-
-**Correct (use case returns typed DTO):**
-
-```typescript
-// modules/task/application/use-cases/list-tasks.use-case.ts
-export interface TaskListItemDTO {
-  id: string;
-  title: string;
-  status: "open" | "closed";
-  assigneeId: string | null;
-}
-
-export async function listWorkspaceTasks(workspaceId: string): Promise<TaskListItemDTO[]> {
-  const tasks = await taskRepo.findByWorkspace(workspaceId);
-  return tasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    assigneeId: t.assigneeId,
-  }));
-}
-
-// modules/task/interfaces/components/TaskList.tsx
-import { listWorkspaceTasks, type TaskListItemDTO } from "../../application/use-cases/list-tasks.use-case";
-// Component receives typed data, doesn't know about Firestore
-```
-`````
-
 ## File: .github/rules/data-firebase-collections.md
 `````markdown
 ---
@@ -4295,72 +4013,6 @@ export class DailyEntryFirebaseRepository implements DailyEntryRepository {
 - Import from `@integration-firebase`, never from `firebase/firestore` in domain or application layers
 - Firestore queries stay in infrastructure — use cases receive domain objects, not Firestore snapshots
 - For modules that don't need Firebase persistence, use `infrastructure/default/` with in-memory implementations
-`````
-
-## File: .github/rules/data-repository-pattern.md
-`````markdown
----
-title: Repository Pattern — Interface in Domain, Implementation in Infrastructure
-impact: CRITICAL
-impactDescription: Prevents domain contamination and enables technology swap
-tags: data, repository, domain, infrastructure, firebase
----
-
-## Repository Pattern
-
-**Impact: CRITICAL**
-
-Repository **interfaces** live in `domain/repositories/`. Repository **implementations** live in `infrastructure/`. The domain layer never knows how data is persisted — only that it can be.
-
-**Incorrect (domain knows about Firebase):**
-
-```typescript
-// modules/task/domain/entities/Task.ts
-import { collection, addDoc } from "firebase/firestore";   // ❌ Domain imports Firebase
-import { db } from "@integration-firebase";
-
-export class Task {
-  async save() {
-    await addDoc(collection(db, "tasks"), this.toJSON());   // ❌ Persistence in entity
-  }
-}
-```
-
-**Correct (interface + implementation split):**
-
-```typescript
-// modules/task/domain/repositories/TaskRepository.ts
-import type { Task } from "../entities/Task";
-
-export interface TaskRepository {                           // ✅ Pure interface
-  findById(id: string): Promise<Task | null>;
-  findByWorkspace(workspaceId: string): Promise<Task[]>;
-  save(task: Task): Promise<void>;
-}
-
-// modules/task/infrastructure/firebase/TaskFirebaseRepository.ts
-import { collection, doc, getDoc, getDocs, setDoc, query, where } from "firebase/firestore";
-import { db } from "@integration-firebase";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { Task } from "../../domain/entities/Task";
-
-export class TaskFirebaseRepository implements TaskRepository {
-  async findById(id: string): Promise<Task | null> {        // ✅ Implementation
-    const snap = await getDoc(doc(db, "tasks", id));
-    return snap.exists() ? Task.fromFirestore(snap.data()) : null;
-  }
-
-  async findByWorkspace(workspaceId: string): Promise<Task[]> {
-    const q = query(collection(db, "tasks"), where("workspaceId", "==", workspaceId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => Task.fromFirestore(d.data()));
-  }
-
-  async save(task: Task): Promise<void> {
-    await setDoc(doc(db, "tasks", task.id), task.toJSON());
-  }
-}
-```
 `````
 
 ## File: .github/rules/patterns-dependency-injection.md
@@ -4546,61 +4198,6 @@ export async function listWorkspaceScheduleItems(workspaceId: string) {
 - Business rules are centralized and discoverable
 `````
 
-## File: .github/rules/patterns-use-case.md
-`````markdown
----
-title: One Use Case Per File
-impact: MEDIUM
-impactDescription: Ensures single responsibility and discoverability
-tags: patterns, use-case, single-responsibility
----
-
-## One Use Case Per File
-
-**Impact: MEDIUM**
-
-Each use case lives in its own file under `application/use-cases/`. A use case represents a single user-facing operation. Name the file with a `verb-noun` pattern.
-
-**Incorrect (multiple use cases in one file):**
-
-```typescript
-// modules/task/application/use-cases/task.use-cases.ts
-export async function createTask(input: CreateTaskInput) { ... }
-export async function updateTask(id: string, input: UpdateTaskInput) { ... }
-export async function deleteTask(id: string) { ... }
-export async function listTasks(workspaceId: string) { ... }
-```
-
-**Correct (one file per use case):**
-
-```
-modules/task/application/use-cases/
-├── create-task.use-case.ts
-├── update-task.use-case.ts
-├── delete-task.use-case.ts
-└── list-workspace-tasks.use-case.ts
-```
-
-```typescript
-// modules/task/application/use-cases/create-task.use-case.ts
-import type { CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { Task } from "../../domain/entities/Task";
-
-export async function createTask(
-  input: CreateTaskInput,
-  deps: { taskRepo: TaskRepository },
-): Promise<CommandResult<Task>> {
-  // Single operation — create a task
-  const task = Task.create(input);
-  await deps.taskRepo.save(task);
-  return { success: true, data: task };
-}
-```
-
-**Note:** Some existing modules use a single `*.use-cases.ts` file with multiple exports. This is acceptable for simple CRUD modules but should be split as complexity grows.
-`````
-
 ## File: .github/rules/performance-avoid-quadratic.md
 `````markdown
 ---
@@ -4741,65 +4338,6 @@ LGTM 👍
 ```
 `````
 
-## File: .github/rules/quality-error-handling.md
-`````markdown
----
-title: Error Handling with CommandResult and DomainError
-impact: HIGH
-impactDescription: Ensures consistent, type-safe error handling across the codebase
-tags: quality, error-handling, domain-error, command-result
----
-
-## Error Handling with CommandResult and DomainError
-
-**Impact: HIGH**
-
-Use `CommandResult` for use-case return types and `DomainError` for domain-level errors. Both are defined in `@shared-types`. Avoid throwing raw exceptions from use cases — use typed result objects instead.
-
-**Incorrect (throwing raw errors):**
-
-```typescript
-// modules/task/application/use-cases/create-task.use-case.ts
-export async function createTask(input: CreateTaskInput) {
-  if (!input.title) throw new Error("Title is required");       // ❌ Raw throw
-  if (!input.workspaceId) throw new Error("Workspace required"); // ❌ Untyped error
-  // ...
-}
-```
-
-**Correct (typed result objects):**
-
-```typescript
-import type { CommandResult } from "@shared-types";
-import { DomainError } from "@shared-types";
-
-// modules/task/application/use-cases/create-task.use-case.ts
-export async function createTask(input: CreateTaskInput): Promise<CommandResult<Task>> {
-  if (!input.title) {
-    return { success: false, error: new DomainError("missing-title", "Title is required") };
-  }
-
-  const task = new Task(input);
-  await taskRepo.save(task);
-  return { success: true, data: task };
-}
-```
-
-**At the interfaces layer, handle the result:**
-
-```typescript
-// modules/task/interfaces/_actions/task.actions.ts
-export async function createTaskAction(input: CreateTaskInput) {
-  const result = await createTask(input);
-  if (!result.success) {
-    // Convert DomainError to user-facing message
-    return { error: result.error.message };
-  }
-  return { data: result.data };
-}
-```
-`````
-
 ## File: .github/rules/quality-imports.md
 `````markdown
 ---
@@ -4852,47 +4390,6 @@ import type { DomainEntity } from "@/modules/<target-domain>/api";
 ```typescript
 // Inside modules/<current-domain>/application/use-cases/<use-case>.ts
 import { SourceEntity } from "../../domain/entities/<entity>";
-```
-`````
-
-## File: .github/rules/quality-pr-creation.md
-`````markdown
----
-title: Pull Request Best Practices
-impact: MEDIUM
-impactDescription: Ensures clean, reviewable, and complete pull requests
-tags: quality, pr, git, review
----
-
-## Pull Request Best Practices
-
-**Impact: MEDIUM**
-
-Every pull request must be complete, focused, and reviewable. No "follow-up PRs" for unfinished work — if it's in scope, finish it in the current PR.
-
-**Guidelines:**
-
-1. **Single responsibility** — One PR addresses one concern (feature, bug fix, refactor)
-2. **Complete work** — Don't leave TODOs or broken tests for follow-up PRs
-3. **Clear description** — Explain what changed, why, and how to verify
-4. **Small diffs** — Prefer multiple small PRs over one massive PR
-5. **Module-scoped** — Changes should ideally be contained within one module; cross-module changes need extra review attention
-
-**PR description template:**
-
-```markdown
-## What
-Brief description of the change.
-
-## Why
-Business context or technical motivation.
-
-## How to Verify
-Steps to test the change locally.
-
-## Module(s) Affected
-- modules/task
-- packages/shared-types
 ```
 `````
 
@@ -14878,223 +14375,6 @@ Reference for Xuanwu project terminology across token efficiency, system perform
 ../.github/instructions
 `````
 
-## File: agents/knowledge-base.md
-`````markdown
-# Knowledge Base — MDDD Domain & Architecture
-
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`rules/`](rules/).
-
-## Module-Driven Domain Design (MDDD)
-
-The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
-
-### Core Principle
-
-> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
-
-### Global Dependency Direction
-
-```
-UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
-```
-
-The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
-
-## Module Structure
-
-Each module under `modules/` follows a four-layer Clean Architecture:
-
-```
-modules/<module-name>/
-├── api/
-│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
-├── index.ts                    # Optional local barrel for same-module composition
-├── README.md                   # Module documentation (optional)
-├── domain/
-│   ├── entities/               # Aggregate roots, value objects, entity types
-│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
-│   ├── services/               # Pure domain services (stateless business rules)
-│   ├── value-objects/          # DDD value objects (immutable, equality by value)
-│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
-├── application/
-│   ├── use-cases/              # One file per use case (single operation)
-│   └── dto/                    # Data Transfer Objects for use-case I/O
-├── infrastructure/
-│   ├── firebase/               # Firebase Firestore repository implementations
-│   ├── genkit/                 # AI/Genkit integrations (AI module)
-│   ├── default/                # In-memory or simplified implementations
-│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
-│   ├── persistence/            # Persistence adapters
-│   └── repositories/           # Repository implementations (alternative layout)
-└── interfaces/
-    ├── components/             # React UI components
-    ├── queries/                # TanStack Query hooks (read-side)
-    ├── _actions/               # Next.js Server Actions (write-side)
-    ├── hooks/                  # Custom React hooks
-    ├── api/                    # REST API route controllers
-    ├── contracts/              # API contracts
-    └── view-models/            # View model transformations
-```
-
-Not every module has every subdirectory — only what it needs.
-
-### Boundary Policy
-
-- Every `modules/<module-name>/` is isolated.
-- Cross-module imports are allowed only via `modules/<target-module>/api/`.
-- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
-- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
-
-## Module Inventory
-
-Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
-
-`account`, `ai`, `audit`, `collaboration`, `content`, `event`, `file`, `graph`, `identity`, `knowledge`, `namespace`, `notification`, `organization`, `search`, `shared`, `storage`, `wiki-beta`, `workspace`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
-
-## Package System (21 Packages)
-
-Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
-
-### Import Rule
-
-```typescript
-// ✅ CORRECT — via @alias from tsconfig.json
-import type { CommandResult, DomainError } from "@shared-types";
-import { cn, formatDate } from "@shared-utils";
-import { auth } from "@integration-firebase";
-
-// ❌ NEVER — relative paths to package internals
-import type { CommandResult } from "../../../../packages/shared-types/index";
-
-// ❌ NEVER — legacy paths (ESLint will block)
-import type { CommandResult } from "@/shared/types";
-```
-
-### Package Catalog
-
-| Alias | Package | Purpose |
-|-------|---------|---------|
-| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
-| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
-| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
-| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | integration-http | Axios HTTP client with interceptors |
-| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
-| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
-| `@lib-zod` | lib-zod | Zod v4 wrapper |
-| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
-| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
-| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
-| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
-| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
-| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
-| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
-| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
-
-### ESLint Boundary Enforcement
-
-Legacy import paths are blocked by `eslint.config.mjs`:
-
-| Blocked Pattern | Replacement |
-|----------------|-------------|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` or `@integration-*` |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
-`modules/` 內也有額外邊界保護：
-
-- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
-- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
-- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
-
-## Tech Stack
-
-| Concern | Technology | Version |
-|---------|-----------|---------|
-| Framework | Next.js (App Router) | 16.1.7 |
-| UI Library | React | 19.2.3 |
-| Language | TypeScript | 5 |
-| Backend | Firebase (client SDK) | 12 |
-| Styling | Tailwind CSS | 4 |
-| Validation | Zod | 4.3.6 |
-| State (global) | Zustand | 5.0.12 |
-| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
-| AI | Genkit + Google GenAI | 1.30.1 |
-| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
-| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
-| Date Handling | date-fns | 4 |
-| HTTP Client | Axios | 1.13.6 |
-| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
-| Node Engine | Node.js | 24 |
-
-## Key Architectural Patterns
-
-### Repository Pattern
-
-- **Interface** lives in `domain/repositories/` — defines what the module needs
-- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
-- Domain layer never imports infrastructure
-
-### Use Case Pattern
-
-- Each use case is a single file under `application/use-cases/`
-- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
-- One use case = one user-facing operation
-
-### Hexagonal Ports (Advanced)
-
-Example port shapes:
-- `domain/ports/ActorContextPort.ts` — resolves who is acting
-- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
-- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
-- All access decisions flow through ports, not scattered in UI/router
-
-### Domain Events
-
-Example event use cases:
-- `publish-domain-event.ts` — publishes events to the event store
-- `list-events-by-aggregate.ts` — queries events by aggregate ID
-- Dispatch policy controls event routing
-
-### Internal Imports Within a Module
-
-Inside a module, files use **relative imports** (not the module's own barrel export):
-
-```typescript
-// ✅ Inside modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
-import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.entity";
-import type { IWikiBetaPageRepository } from "../../domain/repositories/iwiki-beta-page.repository";
-
-// ❌ Do NOT self-import via the barrel
-import { WikiBetaPage } from "@/modules/wiki-beta";
-```
-
-### Cross-Module Imports
-
-Between modules, always use the target module's `api/` boundary:
-
-```typescript
-// ✅ Cross-module import
-import { publishDomainEvent } from "@/modules/event/api";
-
-// ❌ Reaching into another module's internals
-import { publishDomainEvent } from "@/modules/event/application/use-cases/publish-domain-event";
-```
-
-## Responsibility Boundaries
-
-- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
-- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
-- When ownership shifts, update contracts and architecture docs in the same change.
-`````
-
 ## File: agents/prompts
 `````
 ../.github/prompts
@@ -20967,12 +20247,217 @@ export default function SettingsPage() {
 }
 `````
 
+## File: app/(shell)/wiki-beta/block-editor/page.tsx
+`````typescript
+"use client";
+
+import { BlockEditorView } from "@/modules/content/api";
+
+export default function WikiBetaBlockEditorPage() {
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
+        <p className="text-sm text-muted-foreground">
+          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
+        </p>
+      </header>
+
+      <BlockEditorView />
+    </div>
+  );
+}
+`````
+
+## File: app/(shell)/wiki-beta/documents/page.tsx
+`````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { AssetDocumentsView } from "@/modules/asset/api";
+
+export default function WikiBetaDocumentsPage() {
+  const searchParams = useSearchParams();
+  const workspaceId = searchParams.get("workspaceId")?.trim() || undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
+        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
+      </header>
+
+      <AssetDocumentsView workspaceId={workspaceId} />
+    </div>
+  );
+}
+`````
+
+## File: app/(shell)/wiki-beta/libraries/page.tsx
+`````typescript
+"use client";
+
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { LibrariesView, LibraryTableView } from "@/modules/asset/api";
+
+export default function WikiBetaLibrariesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
+        </p>
+      </header>
+
+      <button
+        type="button"
+        onClick={() => router.push("/wiki-beta")}
+        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        返回 Account Wiki-Beta
+      </button>
+
+      {accountId ? (
+          <>
+            <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
+            <LibrariesView accountId={accountId} workspaceId={workspaceId} />
+          </>
+        ) : (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入或切換帳號。
+        </p>
+      )}
+    </div>
+  );
+}
+`````
+
 ## File: app/(shell)/wiki-beta/namespaces/page.tsx
 `````typescript
 import { redirect } from "next/navigation";
 
 export default function WikiBetaNamespacesPage() {
   redirect("/wiki-beta");
+}
+`````
+
+## File: app/(shell)/wiki-beta/pages/page.tsx
+`````typescript
+"use client";
+
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { PagesView } from "@/modules/content/api";
+
+export default function WikiBetaPagesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <p className="text-sm text-muted-foreground">頁面樹 MVP，支援層級建立、重新命名與移動。</p>
+      </header>
+
+      <button
+        type="button"
+        onClick={() => router.push("/wiki-beta")}
+        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        返回 Account Wiki-Beta
+      </button>
+
+      {accountId ? (
+        <PagesView accountId={accountId} workspaceId={workspaceId} />
+      ) : (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入或切換帳號。
+        </p>
+      )}
+    </div>
+  );
+}
+`````
+
+## File: app/(shell)/wiki-beta/pages-dnd/page.tsx
+`````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { PagesDnDView } from "@/modules/content/api";
+
+export default function WikiBetaPagesDnDPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面樹拖曳</h1>
+        <p className="text-sm text-muted-foreground">
+          使用 @atlaskit/pragmatic-drag-and-drop 拖曳重組頁面層級。
+        </p>
+      </header>
+
+      <PagesDnDView accountId={accountId} workspaceId={workspaceId} />
+    </div>
+  );
+}
+`````
+
+## File: app/(shell)/wiki-beta/rag-query/page.tsx
+`````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { RagQueryView } from "@/modules/retrieval/api";
+
+export default function WikiBetaRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const workspaceId = searchParams.get("workspaceId")?.trim() || appState.activeWorkspaceId || undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId} />
+    </div>
+  );
 }
 `````
 
@@ -20991,6 +20476,215 @@ export default function WikiBetaRagReindexPage() {
   }, [router]);
 
   return null;
+}
+`````
+
+## File: app/(shell)/wiki-beta/page.tsx
+`````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { buildWikiBetaContentTree } from "@/modules/workspace/api";
+import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/wiki-beta/pages",
+    title: "Pages",
+    description: "層級頁面結構、命名與移動管理。",
+    icon: FileText,
+  },
+  {
+    href: "/wiki-beta/libraries",
+    title: "Libraries",
+    description: "欄位模型與資料列維護。",
+    icon: Database,
+  },
+  {
+    href: "/wiki-beta/documents",
+    title: "Documents",
+    description: "文件上傳、處理與索引狀態。",
+    icon: BookOpen,
+  },
+  {
+    href: "/wiki-beta/rag-query",
+    title: "RAG Query",
+    description: "知識問答與引用檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function WikiBetaPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiBetaAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiBetaAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiBetaAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiBetaContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki-Beta</h1>
+        <p className="text-sm text-muted-foreground">入口頁面，聚焦帳號層級知識流程、工作區脈絡與快速進入各子功能。</p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Account Wiki-Beta Dashboard</CardTitle>
+          <CardDescription>顯示目前 active account 底下的 Wiki-Beta 範圍，並提供 account-level 與 workspace-level 的進入點。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki-Beta</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account，點擊後直接進入該 workspace 的 Wiki-Beta 範圍。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Link key={workspace.workspaceId} href={workspace.href}>
+                  <Card className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 `````
 
@@ -22183,109 +21877,6 @@ export default function RootLayout({
 - `ADR-002-short-title.md`
 `````
 
-## File: docs/architecture/domain-implementation-target.md
-`````markdown
-# Domain Implementation Target
-
-## 目的
-
-本文件定義專案在 MDDD 下應實現的領域數量與範圍，作為模組規劃與落地追蹤基準。
-
-## 來源依據
-
-- docs/guides/explanation/architecture.md
-- modules 目錄現況（bounded contexts）
-- AGENTS.md 的模組化與邊界規範
-
-## 結論
-
-專案完整目標為 18 個領域（bounded contexts）。
-
-`wiki-beta` 不作為最終獨立領域，定位為過渡期整合殼層，需依代碼職責拆分回正式領域。
-
-## 18 個目標領域
-
-1. account
-2. agent
-3. asset
-4. content
-5. event
-6. identity
-7. knowledge
-8. knowledge-graph
-9. namespace
-10. notification
-11. organization
-12. retrieval
-13. shared
-14. workspace
-15. workspace-audit
-16. workspace-feed
-17. workspace-flow
-18. workspace-scheduling
-
-## wiki-beta 分解原則（依代碼性質）
-
-`modules/wiki-beta` 目前屬於混合職責模組，應分解到以下領域：
-
-1. content
-- pages、block editor、content tree、頁面編輯互動
-
-2. asset
-- libraries、documents、檔案清單與資源管理
-
-3. knowledge
-- 文件語意層、知識索引前置資料、知識庫視圖整合
-
-4. knowledge-graph
-- page relation、backlinks、taxonomy 或 graph 結構化關聯
-
-5. retrieval
-- rag query、檢索流程、context assembly、回答編排
-
-6. workspace
-- workspace 視圖組裝與工作區範圍上下文
-
-## wiki-beta 分解對照（use-case 粗映射）
-
-- `wiki-beta-pages.use-case.ts` -> content
-- `wiki-beta-content-tree.use-case.ts` -> content + knowledge-graph
-- `wiki-beta-libraries.use-case.ts` -> asset
-- `wiki-beta-rag.use-case.ts` -> retrieval + knowledge
-- `interfaces/components/WikiBeta*View.tsx` -> 對應領域 interfaces，保留 API-only 使用
-
-## 過渡策略
-
-1. 先凍結 `wiki-beta` 新能力開發，只允許修復。
-2. 新功能直接落在目標領域，不再新增 `wiki-beta` 內部職責。
-3. 逐步搬移 use-case、repository、interfaces 到目標領域。
-4. 以 `wiki-beta/api` 作為過渡 facade，最終下線。
-
-## 邊界規則
-
-- 每個領域自有：domain、application、infrastructure、interfaces。
-- 跨領域互動只能透過目標領域的 api 邊界。
-- 禁止直接依賴他領域內部層（domain/application/infrastructure/interfaces）。
-
-## 分期建議
-
-- Phase 1（核心可用）: 8 個領域
-  - identity, organization, workspace, content, knowledge, retrieval, notification, event
-- Phase 2（協作與治理）: 6 個領域
-  - account, asset, namespace, workspace-feed, workspace-flow, workspace-audit
-- Phase 3（排程與智能能力）: 4 個領域
-  - workspace-scheduling, agent, shared, knowledge-graph
-- Phase 4（收斂與下線）: wiki-beta 分解完成
-  - wiki-beta 殼層下線
-
-## 驗收標準
-
-- 每個領域具有明確 api 出口。
-- 跨領域依賴可被追蹤為 api-to-api。
-- 不存在跨領域內部層 import。
-- 新增能力優先放入既有領域，避免無必要新增領域。
-`````
-
 ## File: docs/architecture/README.md
 `````markdown
 # Architecture
@@ -22304,826 +21895,6 @@ export default function RootLayout({
 
 - `system-architecture.md`
 - `module-boundaries.md`
-`````
-
-## File: docs/development/code-style.md
-`````markdown
-# 程式碼風格指南（Code Style Guide）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
-> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
-
----
-
-## 1. TypeScript
-
-### 1.1 型別宣告原則
-
-```typescript
-// ✅ 優先使用 interface 定義物件形狀
-interface UserProfile {
-  readonly id: string;
-  name: string;
-  email: string;
-}
-
-// ✅ 使用 type 定義聯合型別、交叉型別、別名
-type DocumentStatus = "processing" | "ready" | "error";
-type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
-
-// ✅ 從 @shared-types 匯入跨模組共用型別
-import type { CommandResult, DomainError } from "@shared-types";
-
-// ❌ 避免 any
-const data: any = fetchData(); // 禁止
-
-// ✅ 使用 unknown 代替 any
-const data: unknown = fetchData();
-```
-
-### 1.2 命名規範
-
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
-| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
-| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
-| 函式 | `camelCase` | `uploadDocument` |
-| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
-| React 元件 | `PascalCase` | `WikiBetaDocumentsView` |
-| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
-| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
-| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
-| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
-| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
-| 檔案：React 元件 | `PascalCase.tsx` | `WikiBetaDocumentsView.tsx` |
-
-### 1.3 函式宣告風格
-
-```typescript
-// ✅ 匯出函式使用 function 宣告（可讀性較佳）
-export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
-  // ...
-}
-
-// ✅ 回呼、lambda 使用 arrow function
-const items = list.map((item) => item.id);
-
-// ✅ 元件使用 function 宣告
-export function WikiBetaDocumentsView() {
-  // ...
-}
-
-// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
-export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
-```
-
-### 1.4 非同步處理
-
-```typescript
-// ✅ 使用 async/await，避免 Promise chain
-async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
-  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
-  return snapshot.docs.map(docToEntity);
-}
-
-// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
-export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
-  try {
-    await triggerReindex(input);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: toDomainError(error) };
-  }
-}
-
-// ❌ 不在元件內 catch 後靜默吞錯誤
-try {
-  await doSomething();
-} catch {
-  // 靜默失敗 — 禁止
-}
-```
-
----
-
-## 2. React 元件規範
-
-### 2.1 元件結構順序
-
-```tsx
-"use client"; // 若需要（置頂）
-
-import React, { useState, useEffect, useCallback } from "react";
-// 外部函式庫
-import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
-
-// 內部 alias imports
-import { Button } from "@ui-shadcn/ui/button";
-import { cn } from "@shared-utils";
-
-// 同模組 relative imports
-import type { WikiBetaDocument } from "../../domain/entities/wiki-beta-document.entity";
-
-// 型別定義
-interface DocumentCardProps {
-  readonly document: WikiBetaDocument;
-  readonly onReindex: (docId: string) => Promise<void>;
-}
-
-// 元件主體
-export function DocumentCard({ document, onReindex }: DocumentCardProps) {
-  // 1. Hooks（useState、useEffect、custom hooks）
-  const [isLoading, setIsLoading] = useState(false);
-
-  // 2. Derived state / memoized values
-  const canReindex = document.status === "ready";
-
-  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
-  const handleReindex = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await onReindex(document.id);
-      toast.success("已觸發重整");
-    } catch (err) {
-      toast.error(`重整失敗：${String(err)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [document.id, onReindex]);
-
-  // 4. Render
-  return (
-    <div className="flex items-center gap-4 rounded-lg border p-4">
-      <span className="flex-1">{document.filename}</span>
-      <Button
-        size="sm"
-        disabled={!canReindex || isLoading}
-        onClick={handleReindex}
-        aria-disabled={!canReindex || isLoading}
-      >
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
-      </Button>
-    </div>
-  );
-}
-```
-
-### 2.2 Props 設計規則
-
-```typescript
-// ✅ 使用 readonly 標記不可變 props
-interface MyProps {
-  readonly id: string;
-  readonly onAction: () => void;
-  className?: string; // 可選 className 用於樣式擴展
-}
-
-// ✅ 事件 handler 命名使用 on 前綴
-onSubmit, onChange, onDelete, onSelect
-
-// ✅ Boolean props 命名使用 is/has/can 前綴
-isLoading, hasError, canEdit, isCollapsed
-
-// ❌ 避免過於泛用的 props
-data: any;          // 禁止
-config: Record<string, unknown>; // 避免
-```
-
-### 2.3 Server Component vs Client Component
-
-```typescript
-// ✅ 頁面預設為 Server Component（無 "use client"）
-export default async function DocumentsPage() {
-  return <WikiBetaDocumentsView />;
-}
-
-// ✅ 只在需要時才加 "use client"
-// 需要: useState, useEffect, onClick, onChange, browser APIs
-"use client";
-export function InteractiveUploader() {
-  const [isDragOver, setIsDragOver] = useState(false);
-  // ...
-}
-
-// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
-```
-
----
-
-## 3. 匯入規範
-
-### 3.1 匯入順序
-
-```typescript
-// 1. React（若使用 JSX 元素需明確匯入）
-import React from "react";
-
-// 2. Next.js 核心
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-// 3. 第三方函式庫
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-
-// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-
-// 5. @/ 模組匯入（app/ 和 modules/）
-import type { WorkspaceEntity } from "@/modules/workspace";
-import { createWorkspace } from "@/modules/workspace";
-
-// 6. 相對路徑（同模組內部）
-import type { DocumentEntity } from "../../domain/entities/document.entity";
-import { useDocuments } from "../hooks/use-documents";
-```
-
-### 3.2 禁止使用的 Legacy 路徑
-
-| 禁止 | 替代方案 |
-|---|---|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` 對應套件 |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
----
-
-## 4. CSS 與 Tailwind 規範
-
-### 4.1 Class 排列順序
-
-遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
-
-```tsx
-// Layout → Position → Spacing → Sizing → Typography → Visual
-<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
-```
-
-建議安裝 `prettier-plugin-tailwindcss` 自動排列。
-
-### 4.2 條件 Class 使用 cn()
-
-```tsx
-import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
-
-<div
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8",
-    isDragOver && "border-primary bg-primary/5",
-    isError && "border-destructive",
-    className // 允許外部覆蓋
-  )}
-/>
-```
-
-### 4.3 避免 CSS 反模式
-
-```tsx
-// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
-<div style={{ backgroundColor: "#f00" }} />
-
-// ✅ 使用 Tailwind 語義色
-<div className="bg-destructive" />
-
-// ❌ 避免 @apply（Tailwind 不推薦用於元件）
-// @apply flex items-center;
-
-// ✅ 使用元件封裝重用樣式
-```
-
----
-
-## 5. JSDoc 規範
-
-函式與類別加 JSDoc 的時機：
-
-```typescript
-// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
-/**
- * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
- * @param input - 包含 file、accountId 與選填的 workspaceId。
- * @returns CommandResult，成功時包含 documentId。
- */
-export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
-  // ...
-}
-
-// ✅ 複雜業務邏輯加說明
-// ❌ 簡單 getter / setter 無需 JSDoc
-```
-
----
-
-## 6. 測試風格
-
-### 6.1 測試檔案命名
-
-| 類型 | 格式 |
-|---|---|
-| Unit test | `*.test.ts` / `*.test.tsx` |
-| Integration test | `*.integration.test.ts` |
-| E2E test | `*.e2e.ts`（Playwright） |
-
-### 6.2 測試命名
-
-```typescript
-describe("uploadDocument use case", () => {
-  it("should return success with documentId when file is valid", async () => {
-    // ...
-  });
-
-  it("should return error when accountId is missing", async () => {
-    // ...
-  });
-});
-```
-
----
-
-## 7. ESLint 執行
-
-```bash
-# 執行 lint（必須 0 errors）
-npm run lint
-
-# 自動修復可修正的問題
-npm run lint -- --fix
-```
-
-**常見 ESLint 規則**（`eslint.config.mjs`）：
-
-- `no-unused-vars` — 未使用的變數
-- `@typescript-eslint/no-explicit-any` — 禁止 any
-- `jsdoc/*` — JSDoc 格式檢查
-- `@typescript-eslint/naming-convention` — 命名規範
-- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
-- 匯入路徑邊界（legacy path 封鎖）
-
-### 7.1 什麼時候要調整 `eslint.config.mjs`
-
-- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
-- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
-- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
-- **同步文件**：調整規則時一併更新
-  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
-  - 本節清單（如新增/刪除常見規則）
-- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
-`````
-
-## File: docs/development/development-process.md
-`````markdown
-# 開發流程（Development Process）
-
-> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
-
----
-
-## 1. 流程總覽
-
-```
-需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
-```
-
----
-
-## 2. 開發前準備
-
-### 2.1 環境設置
-
-```bash
-# 1. 安裝相依套件
-npm install
-
-# 2. 啟動開發伺服器
-npm run dev      # http://localhost:3000
-```
-
-> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
-
-### 2.2 必讀文件
-
-在開始任何功能開發前，請先確認：
-
-- [ ] [`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
-- [ ] [`agents/README.md`](../../agents/README.md) — 架構規則索引
-- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀目前維護中的契約總覽文件
-
-### 2.3 建立分支
-
-```bash
-# 從 main 建立功能分支
-git checkout main
-git pull origin main
-git checkout -b feature/your-feature-name
-```
-
-分支命名規則見分支策略文件。
-
----
-
-## 3. MDDD 開發七步驟
-
-針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
-
-### Step 1：確認模組歸屬
-
-找出你的功能屬於哪個模組（`modules/*/`）：
-
-```
-modules/
-├── wiki-beta/    ← 知識庫、文件上傳、RAG
-├── workspace/    ← 工作區管理
-├── account/      ← 帳號管理
-├── organization/ ← 組織管理
-├── file/         ← 檔案生命週期
-...（20 個模組）
-```
-
-若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
-
-### Step 2：設計 Domain 層（entity / value object / repository interface）
-
-```typescript
-// modules/wiki-beta/domain/entities/wiki-beta-page.entity.ts
-export interface WikiBetaPageEntity {
-  readonly id: string;
-  readonly title: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-```
-
-> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
-
-### Step 3：實作 Application Use Case
-
-```typescript
-// modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
-export async function createWikiBetaPage(
-  input: CreateWikiBetaPageInput,
-  repo: IWikiBetaPageRepository
-): Promise<CommandResult<string>> {
-  // 業務邏輯在此
-  const page = buildPageEntity(input);
-  return repo.save(page);
-}
-```
-
-### Step 4：實作 Infrastructure Adapter
-
-```typescript
-// modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
-export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
-  async save(page: WikiBetaPageEntity): Promise<CommandResult<string>> {
-    const ref = await addDoc(
-      collection(db, `accounts/${page.accountId}/pages`),
-      pageToFirestore(page)
-    );
-    return { success: true, data: ref.id };
-  }
-}
-```
-
-### Step 5：建立 Server Action（接口層）
-
-```typescript
-// modules/wiki-beta/interfaces/_actions/wiki-beta-page.actions.ts
-"use server";
-
-export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
-  return createWikiBetaPage(input, new FirebaseWikiBetaPageRepository());
-}
-```
-
-### Step 6：實作 React 元件
-
-```tsx
-// modules/wiki-beta/interfaces/components/WikiBetaPagesView.tsx
-"use client";
-
-export function WikiBetaPagesView() {
-  const [isCreating, setIsCreating] = useState(false);
-
-  async function handleCreate() {
-    setIsCreating(true);
-    const result = await createPageAction({ title: "新頁面", accountId });
-    if (result.success) {
-      toast.success("已建立頁面");
-      router.push(`/wiki-beta/pages/${result.data}`);
-    } else {
-      toast.error(`建立失敗：${result.error.message}`);
-    }
-    setIsCreating(false);
-  }
-
-  return (/* ... */);
-}
-```
-
-### Step 7：更新 index.ts 公開 API
-
-```typescript
-// modules/wiki-beta/index.ts
-export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
-export type { WikiBetaPageEntity } from "./domain/entities/wiki-beta-page.entity";
-```
-
----
-
-## 4. 本地驗證清單
-
-每次提交前，確保通過以下驗證：
-
-```bash
-# 1. ESLint — 必須 0 errors
-npm run lint
-
-# 2. TypeScript + 生產建置
-npm run build
-
-# 3. Python Worker（若有變更）
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-**手動驗證**（依功能範圍）：
-
-- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
-- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
-- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
-- [ ] 確認 Loading 狀態正常（spinner + 禁用）
-- [ ] 空狀態 / 載入狀態正確顯示
-
----
-
-## 5. PR 建立與 Review
-
-### 5.1 建立 PR
-
-```bash
-git push origin feature/your-feature-name
-# 在 GitHub 建立 PR → main
-```
-
-PR 描述需包含：
-- 目的（一句話說明）
-- `Closes #N`（若有 issue）
-- 變更內容清單
-- 測試方式說明
-
-### 5.2 Review 標準
-
-Review 者確認：
-
-| 項目 | 標準 |
-|---|---|
-| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
-| 型別安全 | 無 `any`；使用正確型別 |
-| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
-| 可近用性 | `aria-label`、鍵盤可操作 |
-| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
-| 測試 | lint + build 通過 |
-
----
-
-## 6. 特殊情境流程
-
-### 6.1 跨 runtime 變更（Next.js + py_fn）
-
-若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
-
-1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
-2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
-3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
-
-### 6.2 資料模型變更
-
-修改 Firestore schema 時：
-
-1. 評估**向後相容性**：舊資料是否需要 migration？
-2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
-3. 更新 **Security Rules**（`firestore.rules`）。
-4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
-
-### 6.3 文件變更
-
-文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
-
-```bash
-git checkout -b docs/update-ui-ux-wireframes
-git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
-```
-
----
-
-## 7. AI 輔助開發流程
-
-本專案整合 GitHub Copilot Agent 輔助開發：
-
-### 7.1 使用 Planner Agent（規劃階段）
-
-對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
-
-```
-在 Copilot Chat 輸入：
-「使用 @planner 規劃 wiki-beta pages CRUD 功能」
-```
-
-計畫格式見 AI implementation plan template 文件。
-
-### 7.2 使用 Implementer Agent（實作階段）
-
-計畫審核後，交由 Implementer Agent 執行：
-
-```
-在 Copilot Chat 輸入：
-「使用 @implementer 按照計畫實作步驟 1-3」
-```
-
-### 7.3 Delivery Chain
-
-完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
-
-詳細說明見 AI handoff matrix 文件。
-`````
-
-## File: docs/development/modules-implementation-guide.md
-`````markdown
-# Modules Implementation Guide
-
-本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件的設計方向。
-
-- 上位概念架構文件：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
-
----
-
-## 1. 與概念架構文件的對位關係
-
-上位概念架構文件定義三層融合：
-
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
-
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
-
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
-
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
-```
-
-說明：
-
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
-
----
-
-## 3. 依賴方向與邊界
-
-全域依賴方向：
-
-```text
-interfaces -> application -> domain <- infrastructure
-```
-
-邊界規則：
-
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
-
----
-
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
-```
-
-這個原則與上位概念架構文件的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
----
-
-## 5. Next.js 路由與融合介面
-
-上位概念架構文件的基礎平行路由示意：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-```
-
-實作可依需求擴充，例如：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
-```
-
-擴充原則：
-
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
-
----
-
-## 6. 目標對齊聲明
-
-本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
-
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
-
----
-
-## 7. 以上位概念架構文件為準的落地限制
-
-上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
-
-因此本文件只保留與概念模型一致的落地限制：
-
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
-
-## 8. 實作規劃時的最小檢查點
-
-若要把三層模型落到實際模組，至少先確認：
-
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
 ## File: docs/development/README.md
@@ -26686,203 +25457,6 @@ How-to guides are task-oriented procedures for users who already know the basics
 - Changelog history
 `````
 
-## File: docs/reference/specification/system-overview.md
-`````markdown
-# 系統全局規格（System Overview Specification）
-
-> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
-
----
-
-## 1. 系統定位
-
-**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
-
-- 內容頁面與結構化資料庫體驗（Content / UI Layer）
-- 知識關聯與導航視角（Knowledge Graph Layer）
-- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
-- 多工作區協作與組織管理
-- 文件解析、向量化與智慧問答
-
-### 1.1 核心價值主張
-
-| 面向 | 價值 |
-|---|---|
-| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
-| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
-| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
-| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
-
----
-
-## 2. 目標用戶
-
-| 用戶類型 | 說明 | 核心需求 |
-|---|---|---|
-| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
-| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
-| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
-| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
-
----
-
-## 3. 核心功能規格
-
-### 3.1 Account 與 Workspace 管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 個人帳號 | 用戶可建立個人帳號 | `account` |
-| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
-| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
-| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
-| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
-
-### 3.2 知識庫（Wiki-Beta）
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `wiki-beta` |
-| 文件列表 | Account 全覽；workspace 篩選 | `wiki-beta` |
-| 文件解析 | Google Document AI 自動解析 | `py_fn` |
-| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
-| RAG 問答 | 自然語言問答，含引用來源 | `wiki-beta`, `ai` |
-| RAG 重整 | 手動觸發 RAG 重新索引 | `wiki-beta` |
-| Pages | 區塊式頁面建立與管理 | `wiki-beta` |
-| Libraries | 結構化資料庫管理 | `wiki-beta` |
-
-### 3.3 AI 功能
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| AI Chat | 通用 AI 對話介面 | `ai` |
-| RAG 查詢 | 基於文件的智慧問答 | `ai`, `wiki-beta` |
-| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
-
-### 3.4 組織管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
-| 團隊管理 | 成員分組 | `organization` |
-| 排程管理 | 雙向資源排程 | `schedule` |
-| 每日摘要 | 每日工作流程記錄 | `daily` |
-| 稽核記錄 | 操作稽核追蹤 | `audit` |
-
----
-
-## 4. 技術架構規格
-
-### 4.1 運行時邊界
-
-系統分為兩個主要運行時：
-
-| 運行時 | 職責 | 技術 |
-|---|---|---|
-| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
-| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
-
-**禁止跨越邊界**：
-- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
-- py_fn 不持有 UI 狀態或 session 邏輯。
-
-### 4.2 資料層架構
-
-```
-Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
-Firebase Storage      ← 檔案儲存（上傳文件）
-Upstash Vector        ← 向量索引（RAG）
-Upstash Redis         ← 快取（RAG query cache）
-```
-
-### 4.3 Firestore 資料模型（頂層）
-
-```
-accounts/{accountId}/
-├── documents/{documentId}     ← 文件（Wiki-Beta）
-├── pages/{pageId}             ← 頁面（Pages）
-├── databases/{databaseId}     ← 資料庫（Libraries）
-├── workspaces/{workspaceId}   ← 工作區（Workspace）
-└── members/{memberId}         ← 成員（Account）
-```
-
-> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
-
-### 4.4 認證與授權
-
-```
-Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
-```
-
-| 角色 | 說明 |
-|---|---|
-| `owner` | 帳號擁有者，全部權限 |
-| `admin` | 管理員，可管理成員與設定 |
-| `member` | 一般成員，可讀寫工作區資源 |
-| `viewer` | 唯讀成員，只能查看 |
-
----
-
-## 5. 模組責任邊界
-
-20 個 MDDD 業務模組的責任分配：
-
-| 模組 | 職責概要 |
-|---|---|
-| `account` | 用戶帳號、成員角色、帳號策略 |
-| `organization` | 組織（租戶）管理、策略 |
-| `workspace` | 工作區管理、成員管理 |
-| `wiki-beta` | 知識庫、文件、Pages、Libraries、RAG |
-| `ai` | AI 協調、RAG 查詢（不擁有資料） |
-| `file` | 檔案生命週期、版本、權限 |
-| `identity` | 身份認證、Token 刷新 |
-| `audit` | 不可變稽核記錄 |
-| `event` | 領域事件 Bus |
-| `schedule` | 雙向排程 |
-| `daily` | 每日摘要 |
-| `namespace` | Slug 路由機制 |
-| `billing` | 帳務記錄（佔位，高風險） |
-| `finance` | 財務追蹤 |
-| `issue` | 問題追蹤 |
-| `task` | 任務管理 |
-| `parser` | 文件解析就緒狀態 |
-| `acceptance` | 工作區就緒驗收 |
-| `notification` | 通知 |
-| `qa` | 品質保證 |
-
----
-
-## 6. 整合點
-
-| 整合對象 | 用途 | SDK/協議 |
-|---|---|---|
-| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
-| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
-| Firebase Auth | 身份認證 | Firebase SDK v12 |
-| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
-| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
-| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
-| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
-| Upstash Vector | 向量搜尋 | Upstash SDK |
-| Upstash Redis | 快取 | Upstash SDK |
-| QStash | 非同步任務佇列 | Upstash QStash |
-
----
-
-## 7. 驗收標準（系統級別）
-
-| 代號 | 標準 |
-|---|---|
-| S1 | 使用者可登入並進入 Shell |
-| S2 | 使用者可建立組織與工作區 |
-| S3 | 使用者可上傳文件並在列表看到 |
-| S4 | 文件解析後 `status` 更新為 `ready` |
-| S5 | RAG 問答可回傳 answer 與 citations |
-| S6 | 管理員可管理組織成員與角色 |
-| S7 | Console 無初始化錯誤 |
-| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
-`````
-
 ## File: docs/reference/README.md
 `````markdown
 # Reference
@@ -29532,6 +28106,252 @@ export class UploadInitFileUseCase {
       },
     };
   }
+}
+`````
+
+## File: modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts
+`````typescript
+/**
+ * Module: asset
+ * Layer: application/use-cases
+ * Purpose: WikiBeta-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API kept for backward compatibility with wiki-beta
+ *          interfaces during transitional decomposition.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
+
+import type {
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryRow,
+} from "../../domain/entities/wiki-beta-library.types";
+import type { WikiBetaLibraryRepository } from "../../domain/repositories/WikiBetaLibraryRepository";
+import { InMemoryWikiBetaLibraryRepository } from "../../infrastructure/repositories/in-memory-wiki-beta-library.repository";
+
+const defaultLibraryRepository: WikiBetaLibraryRepository = new InMemoryWikiBetaLibraryRepository();
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeName(name: string): string {
+  const value = name.trim();
+  if (!value) {
+    throw new Error("library name is required");
+  }
+  return value.slice(0, 80);
+}
+
+function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) {
+    throw new Error("field key is required");
+  }
+  return normalized.slice(0, 48);
+}
+
+function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiBetaLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((library) => library.slug));
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export async function listWikiBetaLibraries(
+  accountId: string,
+  workspaceId?: string,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibrary[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((library) => library.status === "active");
+  if (!workspaceId) {
+    return activeLibraries;
+  }
+  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
+}
+
+export async function createWikiBetaLibrary(
+  input: CreateWikiBetaLibraryInput,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibrary> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const name = normalizeName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiBetaLibrary = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.library.created",
+    aggregateType: "wiki-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiBetaLibraryField(
+  input: AddWikiBetaLibraryFieldInput,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((field) => field.key === key)) {
+    throw new Error(`field key "${key}" already exists`);
+  }
+
+  const field: WikiBetaLibraryField = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.library.field_added",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      fieldKey: field.key,
+      fieldType: field.type,
+    },
+  });
+
+  return field;
+}
+
+export async function createWikiBetaLibraryRow(
+  input: CreateWikiBetaLibraryRowInput,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  const requiredFields = fields.filter((field) => field.required);
+  for (const field of requiredFields) {
+    if (!(field.key in input.values)) {
+      throw new Error(`missing required field: ${field.key}`);
+    }
+  }
+
+  const now = new Date();
+  const row: WikiBetaLibraryRow = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.library.row_created",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      rowId: row.id,
+      fields: Object.keys(row.values),
+    },
+  });
+
+  return row;
+}
+
+export interface WikiBetaLibrarySnapshot {
+  library: WikiBetaLibrary;
+  fields: WikiBetaLibraryField[];
+  rows: WikiBetaLibraryRow[];
+}
+
+export async function getWikiBetaLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+): Promise<WikiBetaLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
 }
 `````
 
@@ -33616,6 +32436,295 @@ export class ListContentVersionsUseCase {
 }
 `````
 
+## File: modules/content/application/use-cases/wiki-beta-pages.use-case.ts
+`````typescript
+/**
+ * Module: content
+ * Layer: application/use-cases
+ * Purpose: WikiBeta-style page use-cases — create, rename, move, list tree.
+ *          Lightweight direct-function API (no DI class wrappers) kept for
+ *          backward compatibility with the wiki-beta interfaces during
+ *          transitional decomposition.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
+
+import type {
+  CreateWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+  WikiBetaPage,
+  WikiBetaPageTreeNode,
+} from "../../domain/entities/wiki-beta-page.types";
+import type { WikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+import { FirebaseWikiBetaPageRepository } from "../../infrastructure/repositories/firebase-wiki-beta-page.repository";
+
+const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new Error("title is required");
+  }
+  return trimmed.slice(0, 120);
+}
+
+function sameParent(a: WikiBetaPage, parentPageId: string | null): boolean {
+  return (a.parentPageId ?? null) === parentPageId;
+}
+
+function ensureUniqueSlug(baseSlug: string, siblingPages: WikiBetaPage[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
+  const existing = new Set(siblingPages.map((page) => page.slug));
+
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this page title");
+}
+
+function toTree(pages: WikiBetaPage[]): WikiBetaPageTreeNode[] {
+  const nodeById = new Map<string, WikiBetaPageTreeNode>();
+  for (const page of pages) {
+    nodeById.set(page.id, { ...page, children: [] });
+  }
+
+  const roots: WikiBetaPageTreeNode[] = [];
+  for (const page of pages) {
+    const node = nodeById.get(page.id);
+    if (!node) continue;
+
+    if (!page.parentPageId) {
+      roots.push(node);
+      continue;
+    }
+
+    const parent = nodeById.get(page.parentPageId);
+    if (!parent) {
+      roots.push(node);
+      continue;
+    }
+    parent.children.push(node);
+  }
+
+  const sortRecursively = (nodes: WikiBetaPageTreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+      return a.title.localeCompare(b.title, "zh-Hant");
+    });
+    for (const node of nodes) {
+      sortRecursively(node.children);
+    }
+  };
+
+  sortRecursively(roots);
+  return roots;
+}
+
+function assertNoCycle(pages: WikiBetaPage[], pageId: string, targetParentPageId: string | null): void {
+  if (!targetParentPageId) {
+    return;
+  }
+  if (pageId === targetParentPageId) {
+    throw new Error("page cannot be moved under itself");
+  }
+
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  let current: string | null = targetParentPageId;
+  while (current) {
+    if (current === pageId) {
+      throw new Error("invalid move: target parent is a descendant of page");
+    }
+    current = byId.get(current)?.parentPageId ?? null;
+  }
+}
+
+export async function listWikiBetaPagesTree(
+  accountId: string,
+  workspaceId?: string,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPageTreeNode[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const allPages = await pageRepository.listByAccountId(accountId);
+  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
+  return toTree(pages.filter((page) => page.status === "active"));
+}
+
+export async function createWikiBetaPage(
+  input: CreateWikiBetaPageInput,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPage> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const title = normalizeTitle(input.title);
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const parentPageId = input.parentPageId ?? null;
+
+  if (parentPageId) {
+    const parent = pages.find((page) => page.id === parentPageId);
+    if (!parent) {
+      throw new Error("parent page not found");
+    }
+  }
+
+  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
+  const rawSlug = deriveSlugCandidate(title);
+  const slug = ensureUniqueSlug(rawSlug, siblingPages);
+  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+
+  const now = new Date();
+  const created: WikiBetaPage = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title,
+    slug,
+    parentPageId,
+    order,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await pageRepository.create(created);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.page.created",
+    aggregateType: "wiki-page",
+    aggregateId: created.id,
+    payload: {
+      accountId: created.accountId,
+      workspaceId: created.workspaceId,
+      parentPageId: created.parentPageId,
+      slug: created.slug,
+    },
+  });
+
+  return created;
+}
+
+export async function renameWikiBetaPage(
+  input: RenameWikiBetaPageInput,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPage> {
+  const title = normalizeTitle(input.title);
+  const existing = await pageRepository.findById(input.accountId, input.pageId);
+  if (!existing) {
+    throw new Error("page not found");
+  }
+
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
+  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
+
+  const updated: WikiBetaPage = {
+    ...existing,
+    title,
+    slug,
+    updatedAt: new Date(),
+  };
+
+  await pageRepository.update(updated);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.page.renamed",
+    aggregateType: "wiki-page",
+    aggregateId: updated.id,
+    payload: {
+      accountId: updated.accountId,
+      title: updated.title,
+      slug: updated.slug,
+    },
+  });
+
+  return updated;
+}
+
+export async function moveWikiBetaPage(
+  input: MoveWikiBetaPageInput,
+  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+): Promise<WikiBetaPage> {
+  const existing = await pageRepository.findById(input.accountId, input.pageId);
+  if (!existing) {
+    throw new Error("page not found");
+  }
+
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const targetParentPageId = input.targetParentPageId ?? null;
+  assertNoCycle(pages, existing.id, targetParentPageId);
+
+  if (targetParentPageId) {
+    const targetParent = pages.find((page) => page.id === targetParentPageId);
+    if (!targetParent) {
+      throw new Error("target parent page not found");
+    }
+  }
+
+  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
+  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+
+  const moved: WikiBetaPage = {
+    ...existing,
+    parentPageId: targetParentPageId,
+    order,
+    updatedAt: new Date(),
+  };
+
+  await pageRepository.update(moved);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "wiki_beta.page.moved",
+    aggregateType: "wiki-page",
+    aggregateId: moved.id,
+    payload: {
+      accountId: moved.accountId,
+      fromParentPageId: existing.parentPageId,
+      toParentPageId: moved.parentPageId,
+    },
+  });
+
+  return moved;
+}
+`````
+
 ## File: modules/content/application/block-service.ts
 `````typescript
 /**
@@ -35960,403 +35069,6 @@ export { PagesView } from "./interfaces/components/PagesView";
 export { PagesDnDView } from "./interfaces/components/PagesDnDView";
 `````
 
-## File: modules/event/api/index.ts
-`````typescript
-/**
- * Module: event
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Event domain.
- *
- * Other modules use this boundary to publish and subscribe to domain events.
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity ──────────────────────────────────────────────────────────────
-
-export { DomainEvent } from "../domain/entities/domain-event.entity";
-export type { DomainEventPayload } from "../domain/entities/domain-event.entity";
-
-// ─── Domain ports ─────────────────────────────────────────────────────────────
-
-export type { IEventBusRepository } from "../domain/repositories/ievent-bus.repository";
-export type { IEventStoreRepository } from "../domain/repositories/ievent-store.repository";
-
-// ─── Value objects ────────────────────────────────────────────────────────────
-
-export type { EventMetadata } from "../domain/value-objects/event-metadata.vo";
-
-// ─── Use cases ────────────────────────────────────────────────────────────────
-
-export { PublishDomainEventUseCase } from "../application/use-cases/publish-domain-event";
-export type { PublishDomainEventDTO } from "../application/use-cases/publish-domain-event";
-`````
-
-## File: modules/event/application/use-cases/list-events-by-aggregate.ts
-`````typescript
-/**
- * Module: event
- * Layer: application/use-case
- * Purpose: Read-side orchestration for aggregate event timeline retrieval.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { DomainEvent } from '../../domain/entities/domain-event.entity'
-import { IEventStoreRepository } from '../../domain/repositories/ievent-store.repository'
-
-export interface ListEventsByAggregateDTO {
-  aggregateType: string
-  aggregateId: string
-}
-
-export class ListEventsByAggregateUseCase {
-  constructor(private readonly eventStore: IEventStoreRepository) {}
-
-  async execute(dto: ListEventsByAggregateDTO): Promise<DomainEvent[]> {
-    return this.eventStore.findByAggregate(dto.aggregateType, dto.aggregateId)
-  }
-}
-`````
-
-## File: modules/event/application/use-cases/publish-domain-event.ts
-`````typescript
-/**
- * Module: event
- * Layer: application/use-case
- * Purpose: Write-side orchestration for event capture, persistence, and dispatch.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { DomainEvent, DomainEventPayload } from '../../domain/entities/domain-event.entity'
-import { IEventBusRepository } from '../../domain/repositories/ievent-bus.repository'
-import { IEventStoreRepository } from '../../domain/repositories/ievent-store.repository'
-import { EventMetadata } from '../../domain/value-objects/event-metadata.vo'
-
-export interface PublishDomainEventDTO {
-  id: string
-  eventName: string
-  aggregateType: string
-  aggregateId: string
-  payload: DomainEventPayload
-  metadata?: EventMetadata
-  occurredAt?: Date
-}
-
-export class PublishDomainEventUseCase {
-  constructor(
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(dto: PublishDomainEventDTO): Promise<DomainEvent> {
-    const event = new DomainEvent(
-      dto.id,
-      dto.eventName,
-      dto.aggregateType,
-      dto.aggregateId,
-      dto.occurredAt ?? new Date(),
-      dto.payload,
-      dto.metadata,
-    )
-
-    await this.eventStore.save(event)
-
-    // Skeleton only: production path should include retries/backoff/outbox strategy.
-    await this.eventBus.publish(event)
-    event.markDispatched(new Date())
-    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date())
-
-    return event
-  }
-}
-`````
-
-## File: modules/event/domain/entities/domain-event.entity.ts
-`````typescript
-/**
- * Module: event
- * Layer: domain/entity
- * Purpose: Canonical domain event entity for capture, storage, and dispatch.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { EventMetadata } from '../value-objects/event-metadata.vo'
-
-export interface DomainEventPayload {
-  [key: string]: unknown
-}
-
-export class DomainEvent {
-  constructor(
-    public readonly id: string,
-    public readonly eventName: string,
-    public readonly aggregateType: string,
-    public readonly aggregateId: string,
-    public readonly occurredAt: Date,
-    public readonly payload: DomainEventPayload,
-    public readonly metadata: EventMetadata = {},
-    public dispatchedAt: Date | null = null,
-  ) {
-    if (!eventName.trim()) {
-      throw new Error('eventName is required')
-    }
-
-    if (!aggregateType.trim()) {
-      throw new Error('aggregateType is required')
-    }
-
-    if (!aggregateId.trim()) {
-      throw new Error('aggregateId is required')
-    }
-  }
-
-  markDispatched(dispatchedAt: Date = new Date()): void {
-    this.dispatchedAt = dispatchedAt
-  }
-
-  get isDispatched(): boolean {
-    return this.dispatchedAt !== null
-  }
-}
-`````
-
-## File: modules/event/domain/repositories/ievent-bus.repository.ts
-`````typescript
-/**
- * Module: event
- * Layer: domain/port
- * Purpose: Dispatch contract for publishing domain events to transport channels.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { DomainEvent } from '../entities/domain-event.entity'
-
-export interface IEventBusRepository {
-  publish(event: DomainEvent): Promise<void>
-}
-`````
-
-## File: modules/event/domain/repositories/ievent-store.repository.ts
-`````typescript
-/**
- * Module: event
- * Layer: domain/port
- * Purpose: Source-of-truth persistence contract for domain events.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { DomainEvent } from '../entities/domain-event.entity'
-
-export interface IEventStoreRepository {
-  save(event: DomainEvent): Promise<void>
-  findById(id: string): Promise<DomainEvent | null>
-  findByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]>
-  findUndispatched(limit: number): Promise<DomainEvent[]>
-  markDispatched(id: string, dispatchedAt: Date): Promise<void>
-}
-`````
-
-## File: modules/event/domain/services/dispatch-policy.ts
-`````typescript
-/**
- * Module: event
- * Layer: domain/service
- * Purpose: Pure dispatch-policy rules — determines retry eligibility and outbox strategy
- *          without any infrastructure or SDK dependency.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-
-export interface DispatchAttempt {
-  attemptCount: number
-  lastAttemptAt: Date | null
-}
-
-export interface DispatchPolicy {
-  maxRetries: number
-  baseDelayMs: number
-}
-
-/**
- * Returns true when an event should be retried according to the given policy.
- * Pure function — no side effects, no external dependencies.
- */
-export function shouldRetry(attempt: DispatchAttempt, policy: DispatchPolicy): boolean {
-  return attempt.attemptCount < policy.maxRetries
-}
-
-/**
- * Computes the next retry delay in milliseconds using exponential back-off.
- * Pure function — no side effects, no external dependencies.
- */
-export function nextRetryDelayMs(attempt: DispatchAttempt, policy: DispatchPolicy): number {
-  return policy.baseDelayMs * Math.pow(2, attempt.attemptCount)
-}
-`````
-
-## File: modules/event/domain/value-objects/event-metadata.vo.ts
-`````typescript
-/**
- * Module: event
- * Layer: domain/value-object
- * Purpose: Metadata value object for tracing and idempotent event handling.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-export interface EventMetadata {
-  correlationId?: string
-  causationId?: string
-  actorId?: string
-  organizationId?: string
-  workspaceId?: string
-  traceId?: string
-}
-`````
-
-## File: modules/event/infrastructure/repositories/in-memory-event-store.repository.ts
-`````typescript
-/**
- * Module: event
- * Layer: infrastructure/repository
- * Purpose: In-memory adapter for event store contract in local development and tests.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { DomainEvent } from '../../domain/entities/domain-event.entity'
-import { IEventStoreRepository } from '../../domain/repositories/ievent-store.repository'
-
-export class InMemoryEventStoreRepository implements IEventStoreRepository {
-  private readonly events = new Map<string, DomainEvent>()
-
-  async save(event: DomainEvent): Promise<void> {
-    this.events.set(event.id, event)
-  }
-
-  async findById(id: string): Promise<DomainEvent | null> {
-    return this.events.get(id) ?? null
-  }
-
-  async findByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]> {
-    return [...this.events.values()]
-      .filter((event) => event.aggregateType === aggregateType && event.aggregateId === aggregateId)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
-  }
-
-  async findUndispatched(limit: number): Promise<DomainEvent[]> {
-    return [...this.events.values()]
-      .filter((event) => !event.isDispatched)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
-      .slice(0, Math.max(limit, 0))
-  }
-
-  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
-    const event = this.events.get(id)
-    if (!event) {
-      return
-    }
-
-    event.markDispatched(dispatchedAt)
-  }
-}
-`````
-
-## File: modules/event/infrastructure/repositories/noop-event-bus.repository.ts
-`````typescript
-/**
- * Module: event
- * Layer: infrastructure/repository
- * Purpose: No-op event bus adapter used by scaffold/tests before real transport integration.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { DomainEvent } from '../../domain/entities/domain-event.entity'
-import { IEventBusRepository } from '../../domain/repositories/ievent-bus.repository'
-
-export class NoopEventBusRepository implements IEventBusRepository {
-  async publish(_event: DomainEvent): Promise<void> {
-    // Skeleton only: replace with actual transport publisher adapter.
-  }
-}
-`````
-
-## File: modules/event/infrastructure/index.ts
-`````typescript
-/**
- * Module: event
- * Layer: infrastructure
- * Purpose: Barrel re-export for all event infrastructure adapters.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-export { InMemoryEventStoreRepository } from './repositories/in-memory-event-store.repository'
-export { NoopEventBusRepository } from './repositories/noop-event-bus.repository'
-`````
-
-## File: modules/event/interfaces/api/event.controller.ts
-`````typescript
-/**
- * Module: event
- * Layer: interfaces/api
- * Purpose: Transport/controller facade delegating all actions to application use-cases.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import {
-  ListEventsByAggregateDTO,
-  ListEventsByAggregateUseCase,
-} from '../../application/use-cases/list-events-by-aggregate'
-import {
-  PublishDomainEventDTO,
-  PublishDomainEventUseCase,
-} from '../../application/use-cases/publish-domain-event'
-
-export class EventController {
-  constructor(
-    private readonly publishDomainEvent: PublishDomainEventUseCase,
-    private readonly listEventsByAggregate: ListEventsByAggregateUseCase,
-  ) {}
-
-  async publish(input: PublishDomainEventDTO) {
-    return this.publishDomainEvent.execute(input)
-  }
-
-  async listByAggregate(input: ListEventsByAggregateDTO) {
-    return this.listEventsByAggregate.execute(input)
-  }
-}
-`````
-
-## File: modules/event/index.ts
-`````typescript
-/**
- * Module: event
- * Layer: facade
- * Purpose: Public API for the event module — domain events, bus, store, and dispatch policies.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-
-// ── Domain: Entities ──────────────────────────────────────────────────────────
-export { DomainEvent } from './domain/entities/domain-event.entity'
-export type { DomainEventPayload } from './domain/entities/domain-event.entity'
-
-// ── Domain: Repositories (ports) ─────────────────────────────────────────────
-export type { IEventBusRepository } from './domain/repositories/ievent-bus.repository'
-export type { IEventStoreRepository } from './domain/repositories/ievent-store.repository'
-
-// ── Domain: Services ─────────────────────────────────────────────────────────
-export {
-  shouldRetry,
-  nextRetryDelayMs,
-  type DispatchAttempt,
-  type DispatchPolicy,
-} from './domain/services/dispatch-policy'
-
-// ── Domain: Value Objects ────────────────────────────────────────────────────
-export type { EventMetadata } from './domain/value-objects/event-metadata.vo'
-
-// ── Application: Use Cases ────────────────────────────────────────────────────
-export { PublishDomainEventUseCase } from './application/use-cases/publish-domain-event'
-export type { PublishDomainEventDTO } from './application/use-cases/publish-domain-event'
-export { ListEventsByAggregateUseCase } from './application/use-cases/list-events-by-aggregate'
-export type { ListEventsByAggregateDTO } from './application/use-cases/list-events-by-aggregate'
-
-// ── Infrastructure ────────────────────────────────────────────────────────────
-export { InMemoryEventStoreRepository } from './infrastructure/repositories/in-memory-event-store.repository'
-export { NoopEventBusRepository } from './infrastructure/repositories/noop-event-bus.repository'
-
-// ── Interfaces ────────────────────────────────────────────────────────────────
-export { EventController } from './interfaces/api/event.controller'
-`````
-
 ## File: modules/identity/api/index.ts
 `````typescript
 /**
@@ -37038,13 +35750,13 @@ export type {
 	IngestionStatus,
 } from "../domain/entities/IngestionJob";
 
-export type { Link, LinkType } from "../../knowledge-graph/domain/entities/link";
-export type { GraphNode, GraphNodeType } from "../../knowledge-graph/domain/entities/graph-node";
-export type { GraphRepository } from "../../knowledge-graph/domain/repositories/GraphRepository";
-export { InMemoryGraphRepository } from "../../knowledge-graph/infrastructure/InMemoryGraphRepository";
-export { LinkExtractorService } from "../../knowledge-graph/application/link-extractor.service";
-export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
-export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
+export type { Link, LinkType } from "../../knowledge-graph/api";
+export type { GraphNode, GraphNodeType } from "../../knowledge-graph/api";
+export type { GraphRepository } from "../../knowledge-graph/api";
+export { InMemoryGraphRepository } from "../../knowledge-graph/api";
+export { LinkExtractorService } from "../../knowledge-graph/api";
+export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api";
+export type { GraphDataDTO } from "../../knowledge-graph/api";
 `````
 
 ## File: modules/knowledge/api/knowledge-api.ts
@@ -38281,582 +36993,6 @@ pending     --[REMOVE]-->      removed
 ## 参照アーキテクチャ
 
 `docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` の Knowledge Graph Layer に対応します。
-`````
-
-## File: modules/namespace/api/index.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Namespace domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export { Namespace } from "../domain/entities/namespace.entity";
-export type { NamespaceKind, NamespaceStatus } from "../domain/entities/namespace.entity";
-
-// ─── Value objects ────────────────────────────────────────────────────────────
-
-export { NamespaceSlug } from "../domain/value-objects/namespace-slug.vo";
-
-// ─── Domain services ─────────────────────────────────────────────────────────
-
-export { deriveSlugCandidate, isValidSlug } from "../domain/services/slug-policy";
-`````
-
-## File: modules/namespace/application/use-cases/list-namespaces-by-organization.use-case.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: application/use-case
- * Purpose: Read-side orchestration for listing namespaces by organization scope.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { Namespace } from '../../domain/entities/namespace.entity'
-import { INamespaceRepository } from '../../domain/repositories/inamespace.repository'
-
-export interface ListNamespacesByOrganizationDTO {
-  organizationId: string
-}
-
-export class ListNamespacesByOrganizationUseCase {
-  constructor(private readonly namespaceRepo: INamespaceRepository) {}
-
-  async execute(dto: ListNamespacesByOrganizationDTO): Promise<Namespace[]> {
-    return this.namespaceRepo.findByOrganization(dto.organizationId)
-  }
-}
-`````
-
-## File: modules/namespace/application/use-cases/register-namespace.use-case.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: application/use-case
- * Purpose: Write-side orchestration for registering a new namespace slug.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { Namespace, NamespaceKind } from '../../domain/entities/namespace.entity'
-import { NamespaceSlug } from '../../domain/value-objects/namespace-slug.vo'
-import { INamespaceRepository } from '../../domain/repositories/inamespace.repository'
-
-export interface RegisterNamespaceDTO {
-  id: string
-  slug: string
-  kind: NamespaceKind
-  ownerAccountId: string
-  organizationId: string
-}
-
-export class RegisterNamespaceUseCase {
-  constructor(private readonly namespaceRepo: INamespaceRepository) {}
-
-  async execute(dto: RegisterNamespaceDTO): Promise<Namespace> {
-    const slug = NamespaceSlug.create(dto.slug)
-
-    const existing = await this.namespaceRepo.existsBySlug(slug.value, dto.kind)
-    if (existing) {
-      throw new Error(`Namespace slug "${slug.value}" is already taken for kind "${dto.kind}"`)
-    }
-
-    const namespace = new Namespace(
-      dto.id,
-      slug,
-      dto.kind,
-      dto.ownerAccountId,
-      dto.organizationId,
-      'active',
-      new Date(),
-      new Date(),
-    )
-
-    await this.namespaceRepo.save(namespace)
-    return namespace
-  }
-}
-`````
-
-## File: modules/namespace/application/use-cases/resolve-namespace.use-case.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: application/use-case
- * Purpose: Read-side orchestration for resolving a slug to its Namespace record.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { Namespace, NamespaceKind } from '../../domain/entities/namespace.entity'
-import { INamespaceRepository } from '../../domain/repositories/inamespace.repository'
-
-export interface ResolveNamespaceDTO {
-  slug: string
-  kind: NamespaceKind
-}
-
-export class ResolveNamespaceUseCase {
-  constructor(private readonly namespaceRepo: INamespaceRepository) {}
-
-  async execute(dto: ResolveNamespaceDTO): Promise<Namespace | null> {
-    return this.namespaceRepo.findBySlug(dto.slug, dto.kind)
-  }
-}
-`````
-
-## File: modules/namespace/domain/entities/namespace.entity.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: domain/entity
- * Purpose: Canonical namespace entity — named scope for multi-tenant resource addressing.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { NamespaceSlug } from '../value-objects/namespace-slug.vo'
-
-export type NamespaceKind = 'organization' | 'workspace'
-
-export type NamespaceStatus = 'active' | 'suspended' | 'archived'
-
-export class Namespace {
-  constructor(
-    public readonly id: string,
-    public readonly slug: NamespaceSlug,
-    public readonly kind: NamespaceKind,
-    public readonly ownerAccountId: string,
-    public readonly organizationId: string,
-    public status: NamespaceStatus,
-    public readonly createdAt: Date,
-    public updatedAt: Date,
-  ) {}
-
-  suspend(): void {
-    if (this.status !== 'active') {
-      throw new Error(`Cannot suspend a namespace in status "${this.status}"`)
-    }
-    this.status = 'suspended'
-    this.updatedAt = new Date()
-  }
-
-  restore(): void {
-    if (this.status !== 'suspended') {
-      throw new Error(`Cannot restore a namespace that is not suspended`)
-    }
-    this.status = 'active'
-    this.updatedAt = new Date()
-  }
-
-  archive(): void {
-    if (this.status === 'archived') {
-      throw new Error('Namespace is already archived')
-    }
-    this.status = 'archived'
-    this.updatedAt = new Date()
-  }
-
-  get isActive(): boolean {
-    return this.status === 'active'
-  }
-}
-`````
-
-## File: modules/namespace/domain/repositories/inamespace.repository.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: domain/port
- * Purpose: Persistence and lookup contract for namespace records.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { Namespace, NamespaceKind } from '../entities/namespace.entity'
-
-export interface INamespaceRepository {
-  save(namespace: Namespace): Promise<void>
-  findById(id: string): Promise<Namespace | null>
-  findBySlug(slug: string, kind: NamespaceKind): Promise<Namespace | null>
-  findByOrganization(organizationId: string): Promise<Namespace[]>
-  existsBySlug(slug: string, kind: NamespaceKind): Promise<boolean>
-}
-`````
-
-## File: modules/namespace/domain/services/slug-policy.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: domain/service
- * Purpose: Pure slug-validation helper — derives a safe slug candidate from a raw display name.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-
-/**
- * Converts a human-readable display name into a slug candidate.
- * Pure function — no side effects.
- *
- * Rules:
- *   - Lower-case
- *   - Replace spaces / underscores / dots with hyphens
- *   - Strip non-alphanumeric / non-hyphen characters
- *   - Collapse consecutive hyphens
- *   - Trim leading and trailing hyphens
- *   - Truncate to 63 characters
- */
-export function deriveSlugCandidate(displayName: string): string {
-  return displayName
-    .toLowerCase()
-    .replace(/[\s_./\\]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 63)
-}
-
-/**
- * Returns true when the slug string passes namespace slug rules (without instantiating NamespaceSlug VO).
- * Pure function — no side effects.
- */
-export function isValidSlug(slug: string): boolean {
-  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug)
-}
-`````
-
-## File: modules/namespace/domain/value-objects/namespace-slug.vo.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: domain/value-object
- * Purpose: Immutable slug value object — validates and normalises namespace identifiers.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-
-const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/
-
-export class NamespaceSlug {
-  private constructor(public readonly value: string) {}
-
-  static create(raw: string): NamespaceSlug {
-    const normalised = raw.trim().toLowerCase()
-    if (!SLUG_PATTERN.test(normalised)) {
-      throw new Error(
-        `Invalid namespace slug "${normalised}". Must be 3–63 chars, lowercase alphanumeric with hyphens, no leading/trailing hyphen.`,
-      )
-    }
-    return new NamespaceSlug(normalised)
-  }
-
-  equals(other: NamespaceSlug): boolean {
-    return this.value === other.value
-  }
-
-  toString(): string {
-    return this.value
-  }
-}
-`````
-
-## File: modules/namespace/infrastructure/repositories/in-memory-namespace.repository.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: infrastructure/repository
- * Purpose: In-memory adapter for namespace repository — local development and tests.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { Namespace, NamespaceKind } from '../../domain/entities/namespace.entity'
-import { INamespaceRepository } from '../../domain/repositories/inamespace.repository'
-
-export class InMemoryNamespaceRepository implements INamespaceRepository {
-  private readonly store = new Map<string, Namespace>()
-
-  async save(namespace: Namespace): Promise<void> {
-    this.store.set(namespace.id, namespace)
-  }
-
-  async findById(id: string): Promise<Namespace | null> {
-    return this.store.get(id) ?? null
-  }
-
-  async findBySlug(slug: string, kind: NamespaceKind): Promise<Namespace | null> {
-    for (const ns of this.store.values()) {
-      if (ns.slug.value === slug && ns.kind === kind) {
-        return ns
-      }
-    }
-    return null
-  }
-
-  async findByOrganization(organizationId: string): Promise<Namespace[]> {
-    return [...this.store.values()].filter((ns) => ns.organizationId === organizationId)
-  }
-
-  async existsBySlug(slug: string, kind: NamespaceKind): Promise<boolean> {
-    for (const ns of this.store.values()) {
-      if (ns.slug.value === slug && ns.kind === kind) {
-        return true
-      }
-    }
-    return false
-  }
-}
-`````
-
-## File: modules/namespace/infrastructure/index.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: infrastructure
- * Purpose: Barrel re-export for all namespace infrastructure adapters.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-export { InMemoryNamespaceRepository } from './repositories/in-memory-namespace.repository'
-`````
-
-## File: modules/namespace/interfaces/api/namespace.controller.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: interfaces/api
- * Purpose: HTTP/controller facade delegating all namespace actions to the application layer.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-import { RegisterNamespaceDTO, RegisterNamespaceUseCase } from '../../application/use-cases/register-namespace.use-case'
-import { ResolveNamespaceDTO, ResolveNamespaceUseCase } from '../../application/use-cases/resolve-namespace.use-case'
-
-export class NamespaceController {
-  constructor(
-    private readonly registerNamespace: RegisterNamespaceUseCase,
-    private readonly resolveNamespace: ResolveNamespaceUseCase,
-  ) {}
-
-  async register(input: RegisterNamespaceDTO) {
-    return this.registerNamespace.execute(input)
-  }
-
-  async resolve(input: ResolveNamespaceDTO) {
-    return this.resolveNamespace.execute(input)
-  }
-}
-`````
-
-## File: modules/namespace/interfaces/components/NamespacePrototypeView.tsx
-`````typescript
-"use client"
-
-import { useEffect, useMemo, useRef, useState } from "react"
-
-import { Button } from "@ui-shadcn/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card"
-import { Input } from "@ui-shadcn/ui/input"
-import type { NamespaceKind } from "../../domain/entities/namespace.entity"
-import { deriveSlugCandidate } from "../../domain/services/slug-policy"
-import { ListNamespacesByOrganizationUseCase } from "../../application/use-cases/list-namespaces-by-organization.use-case"
-import { RegisterNamespaceUseCase } from "../../application/use-cases/register-namespace.use-case"
-import { InMemoryNamespaceRepository } from "../../infrastructure/repositories/in-memory-namespace.repository"
-
-interface NamespacePrototypeViewProps {
-  readonly organizationId: string
-  readonly ownerAccountId: string
-}
-
-interface NamespaceRow {
-  id: string
-  slug: string
-  kind: NamespaceKind
-  status: string
-}
-
-function createNamespaceId(): string {
-  return `ns_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-}
-
-export function NamespacePrototypeView({ organizationId, ownerAccountId }: NamespacePrototypeViewProps) {
-  const repositoryRef = useRef<InMemoryNamespaceRepository | null>(null)
-  if (!repositoryRef.current) {
-    repositoryRef.current = new InMemoryNamespaceRepository()
-  }
-
-  const registerNamespace = useMemo(() => new RegisterNamespaceUseCase(repositoryRef.current!), [])
-  const listNamespaces = useMemo(
-    () => new ListNamespacesByOrganizationUseCase(repositoryRef.current!),
-    [],
-  )
-
-  const [displayName, setDisplayName] = useState("")
-  const [kind, setKind] = useState<NamespaceKind>("workspace")
-  const [rows, setRows] = useState<NamespaceRow[]>([])
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
-
-  async function refreshRows() {
-    const list = await listNamespaces.execute({ organizationId })
-    const mapped = list
-      .map((item) => ({
-        id: item.id,
-        slug: item.slug.value,
-        kind: item.kind,
-        status: item.status,
-      }))
-      .sort((a, b) => a.slug.localeCompare(b.slug, "zh-Hant"))
-    setRows(mapped)
-  }
-
-  useEffect(() => {
-    void refreshRows()
-  }, [organizationId])
-
-  async function handleCreateNamespace() {
-    const trimmedName = displayName.trim()
-    if (!trimmedName) {
-      setErrorMessage("請先輸入名稱")
-      return
-    }
-
-    const slug = deriveSlugCandidate(trimmedName)
-    if (!slug) {
-      setErrorMessage("名稱無法產生有效 slug，請改用英文或數字")
-      return
-    }
-
-    setErrorMessage(null)
-    setCreating(true)
-    try {
-      await registerNamespace.execute({
-        id: createNamespaceId(),
-        slug,
-        kind,
-        ownerAccountId,
-        organizationId,
-      })
-      setDisplayName("")
-      await refreshRows()
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "建立 namespace 失敗")
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Namespace Prototype</CardTitle>
-          <CardDescription>
-            最小雛型：建立 namespace slug 並以 organization scope 列表檢視，供後續 pages tree 掛載使用。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto]">
-            <Input
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="例如：Product Wiki"
-            />
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value as NamespaceKind)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="workspace">workspace</option>
-              <option value="organization">organization</option>
-            </select>
-            <Button onClick={() => void handleCreateNamespace()} disabled={creating}>
-              {creating ? "建立中..." : "建立 Namespace"}
-            </Button>
-          </div>
-
-          <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-            slug preview: <span className="font-mono text-foreground">{deriveSlugCandidate(displayName || "sample-namespace") || "-"}</span>
-          </div>
-
-          {errorMessage ? (
-            <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {errorMessage}
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Organization Namespaces</CardTitle>
-          <CardDescription>
-            organizationId: <span className="font-mono">{organizationId}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前尚無 namespace，先建立第一筆。</p>
-          ) : (
-            <div className="space-y-2">
-              {rows.map((row) => (
-                <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{row.slug}</p>
-                    <p className="text-xs text-muted-foreground">id={row.id}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="rounded-full border border-border/60 px-2 py-1">{row.kind}</span>
-                    <span className="rounded-full border border-border/60 px-2 py-1">{row.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-`````
-
-## File: modules/namespace/interfaces/index.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: interfaces/barrel
- * Purpose: Public re-exports for namespace interface adapters and UI prototypes.
- */
-
-export { NamespaceController } from './api/namespace.controller'
-export { NamespacePrototypeView } from './components/NamespacePrototypeView'
-`````
-
-## File: modules/namespace/index.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: facade
- * Purpose: Public API for the namespace module — namespace registration, resolution, and slug policy.
- * Dependency Direction: interfaces -> application -> domain <- infrastructure
- */
-
-// ── Domain: Entities ──────────────────────────────────────────────────────────
-export { Namespace } from './domain/entities/namespace.entity'
-export type { NamespaceKind, NamespaceStatus } from './domain/entities/namespace.entity'
-
-// ── Domain: Repositories (ports) ─────────────────────────────────────────────
-export type { INamespaceRepository } from './domain/repositories/inamespace.repository'
-
-// ── Domain: Services ─────────────────────────────────────────────────────────
-export { deriveSlugCandidate, isValidSlug } from './domain/services/slug-policy'
-
-// ── Domain: Value Objects ────────────────────────────────────────────────────
-export { NamespaceSlug } from './domain/value-objects/namespace-slug.vo'
-
-// ── Application: Use Cases ────────────────────────────────────────────────────
-export { RegisterNamespaceUseCase } from './application/use-cases/register-namespace.use-case'
-export type { RegisterNamespaceDTO } from './application/use-cases/register-namespace.use-case'
-export { ResolveNamespaceUseCase } from './application/use-cases/resolve-namespace.use-case'
-export type { ResolveNamespaceDTO } from './application/use-cases/resolve-namespace.use-case'
-export { ListNamespacesByOrganizationUseCase } from './application/use-cases/list-namespaces-by-organization.use-case'
-export type { ListNamespacesByOrganizationDTO } from './application/use-cases/list-namespaces-by-organization.use-case'
-
-// ── Infrastructure ────────────────────────────────────────────────────────────
-export { InMemoryNamespaceRepository } from './infrastructure/repositories/in-memory-namespace.repository'
-
-// ── Interfaces ────────────────────────────────────────────────────────────────
-export { NamespaceController, NamespacePrototypeView } from './interfaces'
 `````
 
 ## File: modules/notification/api/index.ts
@@ -40908,6 +39044,57 @@ export class AnswerRagQueryUseCase {
 }
 `````
 
+## File: modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts
+`````typescript
+/**
+ * Module: retrieval
+ * Layer: application/use-cases
+ * Purpose: WikiBeta-style RAG use-cases — run query, reindex document, list documents.
+ *          Thin delegation to the FirebaseWikiBetaContentRepository, kept for
+ *          backward compatibility during transitional decomposition.
+ */
+
+import type { WikiBetaContentRepository } from "../../domain/repositories/WikiBetaContentRepository";
+import type {
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../../domain/entities/WikiBetaRagTypes";
+import { FirebaseWikiBetaContentRepository } from "../../infrastructure/firebase/FirebaseWikiBetaContentRepository";
+
+const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
+
+export async function runWikiBetaRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: {
+    taxonomyFilters?: string[];
+    maxAgeDays?: number;
+    requireReady?: boolean;
+  } = {},
+  repository: WikiBetaContentRepository = defaultContentRepository,
+): Promise<WikiBetaRagQueryResult> {
+  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export async function reindexWikiBetaDocument(
+  input: WikiBetaReindexInput,
+  repository: WikiBetaContentRepository = defaultContentRepository,
+): Promise<void> {
+  await repository.reindexDocument(input);
+}
+
+export async function listWikiBetaParsedDocuments(
+  accountId: string,
+  limitCount = 20,
+  repository: WikiBetaContentRepository = defaultContentRepository,
+): Promise<WikiBetaParsedDocument[]> {
+  return repository.listParsedDocuments(accountId, limitCount);
+}
+`````
+
 ## File: modules/retrieval/domain/entities/RagQuery.ts
 `````typescript
 import type { DomainError } from "@shared-types";
@@ -42420,6 +40607,75 @@ export {
 } from "../domain/events/content-updated.event";
 export { SimpleEventBus } from "../infrastructure/SimpleEventBus";
 export type { EventHandler } from "../infrastructure/SimpleEventBus";
+
+// ── Slug utilities (moved from modules/namespace) ─────────────────────────────
+export { deriveSlugCandidate, isValidSlug } from "../domain/slug-utils";
+
+// ── Event-store primitives (moved from modules/event) ─────────────────────────
+export { EventRecord } from "../domain/event-record";
+export type {
+  EventRecordPayload,
+  EventMetadata,
+  IEventStoreRepository,
+  IEventBusRepository,
+} from "../domain/event-record";
+export { PublishDomainEventUseCase } from "../application/publish-domain-event";
+export type { PublishDomainEventDTO } from "../application/publish-domain-event";
+export { InMemoryEventStoreRepository } from "../infrastructure/InMemoryEventStoreRepository";
+export { NoopEventBusRepository } from "../infrastructure/NoopEventBusRepository";
+`````
+
+## File: modules/shared/application/publish-domain-event.ts
+`````typescript
+/**
+ * modules/shared — application: PublishDomainEventUseCase
+ * Moved from modules/event/application/use-cases/publish-domain-event.ts.
+ *
+ * Write-side orchestration for event capture, persistence, and dispatch.
+ */
+import {
+  EventRecord,
+  EventRecordPayload,
+  EventMetadata,
+  IEventBusRepository,
+  IEventStoreRepository,
+} from '../domain/event-record';
+
+export interface PublishDomainEventDTO {
+  id: string;
+  eventName: string;
+  aggregateType: string;
+  aggregateId: string;
+  payload: EventRecordPayload;
+  metadata?: EventMetadata;
+  occurredAt?: Date;
+}
+
+export class PublishDomainEventUseCase {
+  constructor(
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
+    const event = new EventRecord(
+      dto.id,
+      dto.eventName,
+      dto.aggregateType,
+      dto.aggregateId,
+      dto.occurredAt ?? new Date(),
+      dto.payload,
+      dto.metadata,
+    );
+
+    await this.eventStore.save(event);
+    await this.eventBus.publish(event);
+    event.markDispatched(new Date());
+    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
+
+    return event;
+  }
+}
 `````
 
 ## File: modules/shared/domain/events/content-updated.event.ts
@@ -42467,6 +40723,76 @@ export function createContentUpdatedEvent(
 }
 `````
 
+## File: modules/shared/domain/event-record.ts
+`````typescript
+/**
+ * modules/shared — domain: event store primitives
+ * Moved from modules/event/domain/* during event module decomposition.
+ *
+ * NOTE: `EventRecord` is the rich event-store entity (id, eventName, payload, etc.).
+ * It is distinct from the lightweight `DomainEvent` bus-message interface
+ * already in modules/shared/domain/events.ts.
+ */
+
+// ── Metadata value object ─────────────────────────────────────────────────────
+
+export interface EventMetadata {
+  correlationId?: string;
+  causationId?: string;
+  actorId?: string;
+  organizationId?: string;
+  workspaceId?: string;
+  traceId?: string;
+}
+
+// ── Payload ───────────────────────────────────────────────────────────────────
+
+export interface EventRecordPayload {
+  [key: string]: unknown;
+}
+
+// ── Entity ────────────────────────────────────────────────────────────────────
+
+export class EventRecord {
+  constructor(
+    public readonly id: string,
+    public readonly eventName: string,
+    public readonly aggregateType: string,
+    public readonly aggregateId: string,
+    public readonly occurredAt: Date,
+    public readonly payload: EventRecordPayload,
+    public readonly metadata: EventMetadata = {},
+    public dispatchedAt: Date | null = null,
+  ) {
+    if (!eventName.trim()) throw new Error('eventName is required');
+    if (!aggregateType.trim()) throw new Error('aggregateType is required');
+    if (!aggregateId.trim()) throw new Error('aggregateId is required');
+  }
+
+  markDispatched(dispatchedAt: Date = new Date()): void {
+    this.dispatchedAt = dispatchedAt;
+  }
+
+  get isDispatched(): boolean {
+    return this.dispatchedAt !== null;
+  }
+}
+
+// ── Repository ports ──────────────────────────────────────────────────────────
+
+export interface IEventStoreRepository {
+  save(event: EventRecord): Promise<void>;
+  findById(id: string): Promise<EventRecord | null>;
+  findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]>;
+  findUndispatched(limit: number): Promise<EventRecord[]>;
+  markDispatched(id: string, dispatchedAt: Date): Promise<void>;
+}
+
+export interface IEventBusRepository {
+  publish(event: EventRecord): Promise<void>;
+}
+`````
+
 ## File: modules/shared/domain/events.ts
 `````typescript
 /**
@@ -42484,6 +40810,37 @@ export interface DomainEvent {
   readonly aggregateId: string;
   /** 事件發生時間（ISO 8601） */
   readonly occurredAt: string;
+}
+`````
+
+## File: modules/shared/domain/slug-utils.ts
+`````typescript
+/**
+ * modules/shared — domain: slug utilities
+ * Pure slug derivation and validation helpers shared across domains.
+ * Moved from modules/namespace/domain/services/slug-policy.ts.
+ */
+
+/**
+ * Converts a human-readable display name into a slug candidate.
+ * Pure function — no side effects.
+ */
+export function deriveSlugCandidate(displayName: string): string {
+  return displayName
+    .toLowerCase()
+    .replace(/[\s_./\\]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 63);
+}
+
+/**
+ * Returns true when the slug string passes namespace slug rules.
+ * Pure function — no side effects.
+ */
+export function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug);
 }
 `````
 
@@ -42542,6 +40899,65 @@ export interface QueryScope {
   accountId: string;
   /** 工作區 ID（選填，空則跨工作區聚合） */
   workspaceId?: string;
+}
+`````
+
+## File: modules/shared/infrastructure/InMemoryEventStoreRepository.ts
+`````typescript
+/**
+ * modules/shared — infrastructure: InMemoryEventStoreRepository
+ * Moved from modules/event/infrastructure/repositories/in-memory-event-store.repository.ts.
+ *
+ * In-memory adapter for the event store — used in local development and tests.
+ */
+import { EventRecord, IEventStoreRepository } from '../domain/event-record';
+
+export class InMemoryEventStoreRepository implements IEventStoreRepository {
+  private readonly events = new Map<string, EventRecord>();
+
+  async save(event: EventRecord): Promise<void> {
+    this.events.set(event.id, event);
+  }
+
+  async findById(id: string): Promise<EventRecord | null> {
+    return this.events.get(id) ?? null;
+  }
+
+  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+  }
+
+  async findUndispatched(limit: number): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => !e.isDispatched)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .slice(0, Math.max(limit, 0));
+  }
+
+  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
+    const event = this.events.get(id);
+    if (event) event.markDispatched(dispatchedAt);
+  }
+}
+`````
+
+## File: modules/shared/infrastructure/NoopEventBusRepository.ts
+`````typescript
+/**
+ * modules/shared — infrastructure: NoopEventBusRepository
+ * Moved from modules/event/infrastructure/repositories/noop-event-bus.repository.ts.
+ *
+ * No-op event bus adapter used in tests and scaffold before a real transport is wired.
+ */
+import { EventRecord, IEventBusRepository } from '../domain/event-record';
+
+export class NoopEventBusRepository implements IEventBusRepository {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async publish(_event: EventRecord): Promise<void> {
+    // Intentional no-op: replace with a real transport adapter when needed.
+  }
 }
 `````
 
@@ -42608,6 +41024,22 @@ export {
 } from "./domain/events/content-updated.event";
 export { SimpleEventBus } from "./infrastructure/SimpleEventBus";
 export type { EventHandler } from "./infrastructure/SimpleEventBus";
+
+// ── Slug utilities (moved from modules/namespace) ─────────────────────────────
+export { deriveSlugCandidate, isValidSlug } from "./domain/slug-utils";
+
+// ── Event-store primitives (moved from modules/event) ─────────────────────────
+export { EventRecord } from "./domain/event-record";
+export type {
+  EventRecordPayload,
+  EventMetadata,
+  IEventStoreRepository,
+  IEventBusRepository,
+} from "./domain/event-record";
+export { PublishDomainEventUseCase } from "./application/publish-domain-event";
+export type { PublishDomainEventDTO } from "./application/publish-domain-event";
+export { InMemoryEventStoreRepository } from "./infrastructure/InMemoryEventStoreRepository";
+export { NoopEventBusRepository } from "./infrastructure/NoopEventBusRepository";
 `````
 
 ## File: modules/workspace/api/index.ts
@@ -42663,6 +41095,75 @@ export {
 } from "../interfaces/workspace-tabs";
 
 export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
+`````
+
+## File: modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts
+`````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the WikiBeta sidebar content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+
+import type {
+  WikiBetaAccountContentNode,
+  WikiBetaAccountSeed,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+} from "../../domain/entities/WikiBetaContentTree";
+import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/WikiBetaWorkspaceRepository";
+import { FirebaseWikiBetaWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
+
+const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
+
+function buildContentBaseItems(workspaceId: string): WikiBetaContentItemNode[] {
+  return [
+    { key: "spaces", label: "WorkSpace Wiki-Beta", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
+    { key: "pages", label: "Pages", href: "/wiki-beta/pages", enabled: true },
+    { key: "libraries", label: "Libraries", href: "/wiki-beta/libraries", enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/wiki-beta", enabled: false },
+    { key: "rag", label: "RAG", href: "/wiki-beta", enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiBetaWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}?tab=Wiki`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiBetaContentTree(
+  seeds: WikiBetaAccountSeed[],
+  workspaceRepository: WikiBetaWorkspaceRepository = defaultWorkspaceRepository,
+): Promise<WikiBetaAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiBetaAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
 `````
 
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
@@ -71339,1069 +69840,2784 @@ export default {
 }
 `````
 
-## File: app/(shell)/wiki-beta/block-editor/page.tsx
-`````typescript
-"use client";
+## File: .github/agents/ai-genkit-lead.agent.md
+`````markdown
+---
+name: AI Genkit Lead
+description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+  - label: Refine Genkit Flow
+    agent: Genkit Flow Agent
+    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
+  - label: Review RAG Boundary
+    agent: RAG Lead
+    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
 
-import { BlockEditorView } from "@/modules/content/api";
+---
 
-export default function WikiBetaBlockEditorPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
-        <p className="text-sm text-muted-foreground">
-          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
-        </p>
-      </header>
+# AI Genkit Lead
 
-      <BlockEditorView />
-    </div>
-  );
-}
+## Target Scope
+
+- `modules/agent/**`
+- `app/**`
+- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
+
+## Focus
+
+- Genkit flow ownership and app-side orchestration
+- Contract-safe integration with ingestion and retrieval layers
+
+## Guardrails
+
+- Keep auth and chat orchestration in Next.js.
+- Keep parsing, chunking, embedding in py_fn workers.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
 `````
 
-## File: app/(shell)/wiki-beta/documents/page.tsx
-`````typescript
-"use client";
+## File: .github/agents/genkit-flow.agent.md
+`````markdown
+---
+name: Genkit Flow Agent
+description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+  - label: Review AI Ownership
+    agent: AI Genkit Lead
+    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
 
-import { useSearchParams } from "next/navigation";
+---
 
-import { AssetDocumentsView } from "@/modules/asset/api";
+# Genkit Flow Agent
 
-export default function WikiBetaDocumentsPage() {
-  const searchParams = useSearchParams();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || undefined;
+## Target Scope
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
-      </header>
+- `modules/agent/**`
+- `app/**`
+- `modules/retrieval/**`
 
-      <AssetDocumentsView workspaceId={workspaceId} />
-    </div>
-  );
-}
+## Focus
+
+- Flow inputs and outputs
+- Prompt and tool orchestration boundaries
+- Error handling and fallback behavior
+
+## Guardrails
+
+- Keep flow contracts explicit.
+- Avoid leaking worker-only logic into app orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
 `````
 
-## File: app/(shell)/wiki-beta/libraries/page.tsx
-`````typescript
-"use client";
+## File: .github/instructions/genkit-flow.instructions.md
+`````markdown
+---
+description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
+applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
+---
 
-import { useRouter } from "next/navigation";
+# Genkit Flow
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { LibrariesView, LibraryTableView } from "@/modules/asset/api";
+## Rules
 
-export default function WikiBetaLibrariesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
+- Keep flow inputs/outputs explicit and typed.
+- Keep user-facing orchestration in Next.js.
+- Delegate heavy ingestion/embedding to worker-side pipelines.
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
-      </header>
-
-      <button
-        type="button"
-        onClick={() => router.push("/wiki-beta")}
-        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        返回 Account Wiki-Beta
-      </button>
-
-      {accountId ? (
-          <>
-            <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-            <LibrariesView accountId={accountId} workspaceId={workspaceId} />
-          </>
-        ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
 `````
 
-## File: app/(shell)/wiki-beta/pages/page.tsx
-`````typescript
-"use client";
+## File: .github/rules/api-contracts.md
+`````markdown
+---
+title: API Contracts via @api-contracts
+impact: HIGH
+impactDescription: Centralizes API route definitions and prevents fragmentation
+tags: api, contracts, routes, rest
+---
 
-import { useRouter } from "next/navigation";
+## API Contracts via @api-contracts
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { PagesView } from "@/modules/content/api";
+**Impact: HIGH**
 
-export default function WikiBetaPagesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
+REST API routes and GraphQL schemas are defined in the `@api-contracts` package (`packages/api-contracts`). This keeps API surface definitions centralized and version-controlled.
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
+**Incorrect (ad-hoc route definitions scattered across modules):**
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <p className="text-sm text-muted-foreground">頁面樹 MVP，支援層級建立、重新命名與移動。</p>
-      </header>
+```typescript
+// modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
+const TASK_API = "/api/v1/tasks";    // ❌ Route defined locally, not tracked centrally
+```
 
-      <button
-        type="button"
-        onClick={() => router.push("/wiki-beta")}
-        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        返回 Account Wiki-Beta
-      </button>
+**Correct (routes from @api-contracts):**
 
-      {accountId ? (
-        <PagesView accountId={accountId} workspaceId={workspaceId} />
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
+```typescript
+import { API_ROUTES } from "@api-contracts";
+
+// Use centralized route definitions
+const url = API_ROUTES.tasks.list;   // ✅ Single source of truth
+```
+
+**Guidelines:**
+- All REST route paths are registered in `@api-contracts`
+- Controllers in `interfaces/api/` implement the routes but don't define them
+- Type contracts (request/response shapes) should be co-located with route definitions
+- Version API routes explicitly when breaking changes are unavoidable
 `````
 
-## File: app/(shell)/wiki-beta/pages-dnd/page.tsx
-`````typescript
-"use client";
+## File: .github/rules/architecture-dependency-direction.md
+`````markdown
+---
+title: Layer Dependency Direction
+impact: CRITICAL
+impactDescription: Prevents architecture erosion and dependency cycles
+tags: architecture, mddd, dependencies, clean-architecture
+---
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { PagesDnDView } from "@/modules/content/api";
+## Layer Dependency Direction
 
-export default function WikiBetaPagesDnDPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
+**Impact: CRITICAL**
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
+Within every module, dependencies flow inward toward the domain layer. The domain layer has **zero outward dependencies** — it knows nothing about Firebase, React, or any framework.
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面樹拖曳</h1>
-        <p className="text-sm text-muted-foreground">
-          使用 @atlaskit/pragmatic-drag-and-drop 拖曳重組頁面層級。
-        </p>
-      </header>
+```
+interfaces/ ──→ application/ ──→ domain/ ←── infrastructure/
+   (UI)          (use cases)    (entities)    (adapters)
+```
 
-      <PagesDnDView accountId={accountId} workspaceId={workspaceId} />
-    </div>
-  );
+**Incorrect (domain importing infrastructure):**
+
+```typescript
+// modules/workspace-flow/domain/entities/Task.ts
+import { collection, getDocs } from "firebase/firestore";  // ❌ Domain knows about Firebase
+import { db } from "@integration-firebase";                 // ❌ Domain imports infrastructure
+
+export class Task {
+  static async loadAll() {
+    const snap = await getDocs(collection(db, "tasks"));
+    return snap.docs.map(d => new Task(d.data()));
+  }
 }
+```
+
+**Correct (domain defines interface, infrastructure implements):**
+
+```typescript
+// modules/workspace-flow/domain/repositories/TaskRepository.ts
+export interface TaskRepository {
+  findAll(): Promise<Task[]>;        // ✅ Pure interface, no framework dependency
+  findById(id: string): Promise<Task | null>;
+}
+
+// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@integration-firebase";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+
+export class TaskFirebaseRepository implements TaskRepository {
+  async findAll(): Promise<Task[]> {  // ✅ Infrastructure implements the contract
+    const snap = await getDocs(collection(db, "tasks"));
+    return snap.docs.map(d => new Task(d.data()));
+  }
+}
+```
 `````
 
-## File: app/(shell)/wiki-beta/rag-query/page.tsx
-`````typescript
-"use client";
+## File: .github/rules/data-dto-boundaries.md
+`````markdown
+---
+title: DTO Boundaries
+impact: HIGH
+impactDescription: Prevents leaking persistence or framework details across layers
+tags: data, dto, boundaries, layers
+---
 
-import { useSearchParams } from "next/navigation";
+## DTO Boundaries
 
-import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/retrieval/api";
+**Impact: HIGH**
 
-export default function WikiBetaRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || appState.activeWorkspaceId || undefined;
+Data Transfer Objects (DTOs) mark the boundary between layers. Domain entities are internal to the module; when data crosses a layer boundary (domain → application, application → interfaces), use a DTO to decouple internal representation from external contracts.
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
+**Incorrect (exposing Firestore document shape to UI):**
 
-      <RagQueryView workspaceId={workspaceId} />
-    </div>
-  );
-}
-`````
+```typescript
+// modules/workspace-flow/interfaces/components/TaskList.tsx
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@integration-firebase";
 
-## File: app/(shell)/wiki-beta/page.tsx
-`````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiBetaContentTree } from "@/modules/workspace/api";
-import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/wiki-beta/pages",
-    title: "Pages",
-    description: "層級頁面結構、命名與移動管理。",
-    icon: FileText,
-  },
-  {
-    href: "/wiki-beta/libraries",
-    title: "Libraries",
-    description: "欄位模型與資料列維護。",
-    icon: Database,
-  },
-  {
-    href: "/wiki-beta/documents",
-    title: "Documents",
-    description: "文件上傳、處理與索引狀態。",
-    icon: BookOpen,
-  },
-  {
-    href: "/wiki-beta/rag-query",
-    title: "RAG Query",
-    description: "知識問答與引用檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function WikiBetaPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiBetaAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiBetaAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiBetaAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
+export function TaskList() {
+  const [tasks, setTasks] = useState<DocumentData[]>([]);  // ❌ Raw Firestore data in component
   useEffect(() => {
-    let disposed = false;
+    getDocs(collection(db, "tasks")).then(snap => {
+      setTasks(snap.docs.map(d => d.data()));               // ❌ No type safety
+    });
+  }, []);
+}
+```
 
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiBetaContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
+**Correct (use case returns typed DTO):**
+
+```typescript
+// modules/workspace-flow/application/use-cases/list-tasks.use-case.ts
+export interface TaskListItemDTO {
+  id: string;
+  title: string;
+  status: "open" | "closed";
+  assigneeId: string | null;
+}
+
+export async function listWorkspaceTasks(workspaceId: string): Promise<TaskListItemDTO[]> {
+  const tasks = await taskRepo.findByWorkspace(workspaceId);
+  return tasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    assigneeId: t.assigneeId,
+  }));
+}
+
+// modules/workspace-flow/interfaces/components/TaskList.tsx
+import { listWorkspaceTasks, type TaskListItemDTO } from "../../application/use-cases/list-tasks.use-case";
+// Component receives typed data, doesn't know about Firestore
+```
+`````
+
+## File: .github/rules/data-repository-pattern.md
+`````markdown
+---
+title: Repository Pattern — Interface in Domain, Implementation in Infrastructure
+impact: CRITICAL
+impactDescription: Prevents domain contamination and enables technology swap
+tags: data, repository, domain, infrastructure, firebase
+---
+
+## Repository Pattern
+
+**Impact: CRITICAL**
+
+Repository **interfaces** live in `domain/repositories/`. Repository **implementations** live in `infrastructure/`. The domain layer never knows how data is persisted — only that it can be.
+
+**Incorrect (domain knows about Firebase):**
+
+```typescript
+// modules/workspace-flow/domain/entities/Task.ts
+import { collection, addDoc } from "firebase/firestore";   // ❌ Domain imports Firebase
+import { db } from "@integration-firebase";
+
+export class Task {
+  async save() {
+    await addDoc(collection(db, "tasks"), this.toJSON());   // ❌ Persistence in entity
+  }
+}
+```
+
+**Correct (interface + implementation split):**
+
+```typescript
+// modules/workspace-flow/domain/repositories/TaskRepository.ts
+import type { Task } from "../entities/Task";
+
+export interface TaskRepository {                           // ✅ Pure interface
+  findById(id: string): Promise<Task | null>;
+  findByWorkspace(workspaceId: string): Promise<Task[]>;
+  save(task: Task): Promise<void>;
+}
+
+// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
+import { collection, doc, getDoc, getDocs, setDoc, query, where } from "firebase/firestore";
+import { db } from "@integration-firebase";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { Task } from "../../domain/entities/Task";
+
+export class TaskFirebaseRepository implements TaskRepository {
+  async findById(id: string): Promise<Task | null> {        // ✅ Implementation
+    const snap = await getDoc(doc(db, "tasks", id));
+    return snap.exists() ? Task.fromFirestore(snap.data()) : null;
+  }
+
+  async findByWorkspace(workspaceId: string): Promise<Task[]> {
+    const q = query(collection(db, "tasks"), where("workspaceId", "==", workspaceId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => Task.fromFirestore(d.data()));
+  }
+
+  async save(task: Task): Promise<void> {
+    await setDoc(doc(db, "tasks", task.id), task.toJSON());
+  }
+}
+```
+`````
+
+## File: .github/rules/patterns-use-case.md
+`````markdown
+---
+title: One Use Case Per File
+impact: MEDIUM
+impactDescription: Ensures single responsibility and discoverability
+tags: patterns, use-case, single-responsibility
+---
+
+## One Use Case Per File
+
+**Impact: MEDIUM**
+
+Each use case lives in its own file under `application/use-cases/`. A use case represents a single user-facing operation. Name the file with a `verb-noun` pattern.
+
+**Incorrect (multiple use cases in one file):**
+
+```typescript
+// modules/workspace-flow/application/use-cases/task.use-cases.ts
+export async function createTask(input: CreateTaskInput) { ... }
+export async function updateTask(id: string, input: UpdateTaskInput) { ... }
+export async function deleteTask(id: string) { ... }
+export async function listTasks(workspaceId: string) { ... }
+```
+
+**Correct (one file per use case):**
+
+```
+modules/workspace-flow/application/use-cases/
+├── create-task.use-case.ts
+├── update-task.use-case.ts
+├── archive-task.use-case.ts
+└── assign-task.use-case.ts
+```
+
+```typescript
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
+import type { CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { Task } from "../../domain/entities/Task";
+
+export async function createTask(
+  input: CreateTaskInput,
+  deps: { taskRepo: TaskRepository },
+): Promise<CommandResult<Task>> {
+  // Single operation — create a task
+  const task = Task.create(input);
+  await deps.taskRepo.save(task);
+  return { success: true, data: task };
+}
+```
+
+**Note:** Some existing modules use a single `*.use-cases.ts` file with multiple exports. This is acceptable for simple CRUD modules but should be split as complexity grows.
+`````
+
+## File: .github/rules/quality-error-handling.md
+`````markdown
+---
+title: Error Handling with CommandResult and DomainError
+impact: HIGH
+impactDescription: Ensures consistent, type-safe error handling across the codebase
+tags: quality, error-handling, domain-error, command-result
+---
+
+## Error Handling with CommandResult and DomainError
+
+**Impact: HIGH**
+
+Use `CommandResult` for use-case return types and `DomainError` for domain-level errors. Both are defined in `@shared-types`. Avoid throwing raw exceptions from use cases — use typed result objects instead.
+
+**Incorrect (throwing raw errors):**
+
+```typescript
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
+export async function createTask(input: CreateTaskInput) {
+  if (!input.title) throw new Error("Title is required");       // ❌ Raw throw
+  if (!input.workspaceId) throw new Error("Workspace required"); // ❌ Untyped error
+  // ...
+}
+```
+
+**Correct (typed result objects):**
+
+```typescript
+import type { CommandResult } from "@shared-types";
+import { DomainError } from "@shared-types";
+
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
+export async function createTask(input: CreateTaskInput): Promise<CommandResult<Task>> {
+  if (!input.title) {
+    return { success: false, error: new DomainError("missing-title", "Title is required") };
+  }
+
+  const task = new Task(input);
+  await taskRepo.save(task);
+  return { success: true, data: task };
+}
+```
+
+**At the interfaces layer, handle the result:**
+
+```typescript
+// modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
+export async function createTaskAction(input: CreateTaskInput) {
+  const result = await createTask(input);
+  if (!result.success) {
+    // Convert DomainError to user-facing message
+    return { error: result.error.message };
+  }
+  return { data: result.data };
+}
+```
+`````
+
+## File: .github/rules/quality-pr-creation.md
+`````markdown
+---
+title: Pull Request Best Practices
+impact: MEDIUM
+impactDescription: Ensures clean, reviewable, and complete pull requests
+tags: quality, pr, git, review
+---
+
+## Pull Request Best Practices
+
+**Impact: MEDIUM**
+
+Every pull request must be complete, focused, and reviewable. No "follow-up PRs" for unfinished work — if it's in scope, finish it in the current PR.
+
+**Guidelines:**
+
+1. **Single responsibility** — One PR addresses one concern (feature, bug fix, refactor)
+2. **Complete work** — Don't leave TODOs or broken tests for follow-up PRs
+3. **Clear description** — Explain what changed, why, and how to verify
+4. **Small diffs** — Prefer multiple small PRs over one massive PR
+5. **Module-scoped** — Changes should ideally be contained within one module; cross-module changes need extra review attention
+
+**PR description template:**
+
+```markdown
+## What
+Brief description of the change.
+
+## Why
+Business context or technical motivation.
+
+## How to Verify
+Steps to test the change locally.
+
+## Module(s) Affected
+- modules/workspace-flow
+- packages/shared-types
+```
+`````
+
+## File: agents/knowledge-base.md
+`````markdown
+# Knowledge Base — MDDD Domain & Architecture
+
+This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`rules/`](rules/).
+
+## Module-Driven Domain Design (MDDD)
+
+The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
+
+### Core Principle
+
+> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+
+### Global Dependency Direction
+
+```
+UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
+```
+
+The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
+
+## Module Structure
+
+Each module under `modules/` follows a four-layer Clean Architecture:
+
+```
+modules/<module-name>/
+├── api/
+│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
+├── index.ts                    # Optional local barrel for same-module composition
+├── README.md                   # Module documentation (optional)
+├── domain/
+│   ├── entities/               # Aggregate roots, value objects, entity types
+│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
+│   ├── services/               # Pure domain services (stateless business rules)
+│   ├── value-objects/          # DDD value objects (immutable, equality by value)
+│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
+├── application/
+│   ├── use-cases/              # One file per use case (single operation)
+│   └── dto/                    # Data Transfer Objects for use-case I/O
+├── infrastructure/
+│   ├── firebase/               # Firebase Firestore repository implementations
+│   ├── genkit/                 # AI/Genkit integrations (AI module)
+│   ├── default/                # In-memory or simplified implementations
+│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
+│   ├── persistence/            # Persistence adapters
+│   └── repositories/           # Repository implementations (alternative layout)
+└── interfaces/
+    ├── components/             # React UI components
+    ├── queries/                # TanStack Query hooks (read-side)
+    ├── _actions/               # Next.js Server Actions (write-side)
+    ├── hooks/                  # Custom React hooks
+    ├── api/                    # REST API route controllers
+    ├── contracts/              # API contracts
+    └── view-models/            # View model transformations
+```
+
+Not every module has every subdirectory — only what it needs.
+
+### Boundary Policy
+
+- Every `modules/<module-name>/` is isolated.
+- Cross-module imports are allowed only via `modules/<target-module>/api/`.
+- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
+- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+
+## Module Inventory
+
+Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+
+`account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+
+> **Removed modules:** `wiki-beta` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
+
+## Package System (21 Packages)
+
+Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
+
+### Import Rule
+
+```typescript
+// ✅ CORRECT — via @alias from tsconfig.json
+import type { CommandResult, DomainError } from "@shared-types";
+import { cn, formatDate } from "@shared-utils";
+import { auth } from "@integration-firebase";
+
+// ❌ NEVER — relative paths to package internals
+import type { CommandResult } from "../../../../packages/shared-types/index";
+
+// ❌ NEVER — legacy paths (ESLint will block)
+import type { CommandResult } from "@/shared/types";
+```
+
+### Package Catalog
+
+| Alias | Package | Purpose |
+|-------|---------|---------|
+| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
+| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
+| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
+| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
+| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
+| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
+| `@integration-http` | integration-http | Axios HTTP client with interceptors |
+| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
+| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
+| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
+| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
+| `@lib-zod` | lib-zod | Zod v4 wrapper |
+| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
+| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
+| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
+| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
+| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
+| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
+| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
+| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
+
+### ESLint Boundary Enforcement
+
+Legacy import paths are blocked by `eslint.config.mjs`:
+
+| Blocked Pattern | Replacement |
+|----------------|-------------|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` or `@integration-*` |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+`modules/` 內也有額外邊界保護：
+
+- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
+- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
+- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
+
+### 已知邊界警告（待修復）
+
+以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，117 warnings 基準）：
+
+**`no-restricted-imports`（模組 root barrel 而非 `/api`）**
+
+| 違規檔案 | 違規 import |
+|---------|------------|
+| `app/(public)/page.tsx` | `@/modules/identity`、`@/modules/account` |
+| `app/(shell)/_components/*.tsx` | `@/modules/organization`、`@/modules/identity` |
+| `app/(shell)/organization/*.tsx` | `@/modules/workspace`、`@/modules/workspace-audit`、`@/modules/workspace-feed`、`@/modules/workspace-scheduling`、`@/modules/organization` |
+| `app/(shell)/workspace/*.tsx` | `@/modules/workspace` |
+| `modules/workspace/interfaces/components/*.tsx` | `@/modules/workspace`（self）、`@/modules/workspace-feed` |
+| `modules/workspace-scheduling/interfaces/*.tsx` | `@/modules/workspace` |
+
+**`boundaries/dependencies`（application → infrastructure 跨層）**
+
+| 違規檔案 | 說明 |
+|---------|------|
+| `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` | application 直接引用 infrastructure |
+| `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` | application 直接引用 infrastructure |
+| `modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts` | application 直接引用 infrastructure |
+| `modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts` | application 直接引用 infrastructure |
+
+> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
+
+## Tech Stack
+
+| Concern | Technology | Version |
+|---------|-----------|---------|
+| Framework | Next.js (App Router) | 16.1.7 |
+| UI Library | React | 19.2.3 |
+| Language | TypeScript | 5 |
+| Backend | Firebase (client SDK) | 12 |
+| Styling | Tailwind CSS | 4 |
+| Validation | Zod | 4.3.6 |
+| State (global) | Zustand | 5.0.12 |
+| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
+| AI | Genkit + Google GenAI | 1.30.1 |
+| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
+| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
+| Date Handling | date-fns | 4 |
+| HTTP Client | Axios | 1.13.6 |
+| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
+| Node Engine | Node.js | 24 |
+
+## Key Architectural Patterns
+
+### Repository Pattern
+
+- **Interface** lives in `domain/repositories/` — defines what the module needs
+- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
+- Domain layer never imports infrastructure
+
+### Use Case Pattern
+
+- Each use case is a single file under `application/use-cases/`
+- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
+- One use case = one user-facing operation
+
+### Hexagonal Ports (Advanced)
+
+Example port shapes:
+- `domain/ports/ActorContextPort.ts` — resolves who is acting
+- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
+- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
+- All access decisions flow through ports, not scattered in UI/router
+
+### Domain Events
+
+Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
+- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
+- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
+- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
+- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
+
+Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
+
+### Internal Imports Within a Module
+
+Inside a module, files use **relative imports** (not the module's own barrel export):
+
+```typescript
+// ✅ Inside modules/content/application/use-cases/wiki-beta-pages.use-case.ts
+import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
+import type { IWikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+
+// ❌ Do NOT self-import via the barrel
+import { WikiBetaPage } from "@/modules/content";
+```
+
+### Cross-Module Imports
+
+Between modules, always use the target module's `api/` boundary:
+
+```typescript
+// ✅ Cross-module import — event-store primitives are now in modules/shared
+import { PublishDomainEventUseCase } from "@/modules/shared/api";
+
+// ❌ Reaching into another module's internals
+import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
+```
+
+## Responsibility Boundaries
+
+- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
+- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
+- When ownership shifts, update contracts and architecture docs in the same change.
+`````
+
+## File: docs/architecture/domain-implementation-target.md
+`````markdown
+# Domain Implementation Target
+
+## 目的
+
+本文件定義專案在 MDDD 下應實現的領域數量與範圍，作為模組規劃與落地追蹤基準。
+
+## 來源依據
+
+- docs/guides/explanation/architecture.md
+- modules 目錄現況（bounded contexts）
+- AGENTS.md 的模組化與邊界規範
+
+## 結論
+
+專案目前已實現 **16 個有界上下文**（bounded contexts），對應 `modules/` 下的 16 個目錄。
+
+**已完成的模組整合：**
+- `modules/wiki-beta` — 已分解完畢，職責已遷移至各目標領域（見下表）。
+- `modules/namespace` — 已刪除；Slug 工具遷移至 `modules/shared/domain/slug-utils.ts`。
+- `modules/event` — 已刪除；Event-store 原語遷移至 `modules/shared`（`EventRecord`、`PublishDomainEventUseCase` 等）。
+
+## 16 個目前有界上下文
+
+1. account
+2. agent
+3. asset
+4. content
+5. identity
+6. knowledge
+7. knowledge-graph
+8. notification
+9. organization
+10. retrieval
+11. shared
+12. workspace
+13. workspace-audit
+14. workspace-feed
+15. workspace-flow
+16. workspace-scheduling
+
+## wiki-beta 分解完成對照
+
+`modules/wiki-beta` 已完成分解，各職責的最終歸屬：
+
+| 原 wiki-beta 職責 | 分解目標模組 | 實現位置 |
+| --- | --- | --- |
+| WikiBetaPage（頁面實體） | `content` | `modules/content/domain/entities/wiki-beta-page.types.ts` |
+| WikiBetaLibrary（資料庫實體） | `asset` | `modules/asset/domain/entities/wiki-beta-library.types.ts` |
+| WikiBetaContentTree（工作區視圖） | `workspace` | `modules/workspace/domain/entities/WikiBetaContentTree.ts` |
+| wiki-beta-pages.use-case | `content` | `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` |
+| wiki-beta-libraries.use-case | `asset` | `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` |
+| wiki-beta-rag.use-case | `retrieval` | `modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts` |
+| wiki-beta-content-tree.use-case | `workspace` | `modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts` |
+| WikiBetaRagTypes | `retrieval` | `modules/retrieval/domain/entities/WikiBetaRagTypes.ts` |
+| Firebase repositories | `content`, `asset`, `retrieval` | 各模組 `infrastructure/repositories/` 或 `infrastructure/firebase/` |
+
+UI 路由 `app/(shell)/wiki-beta/*` 仍維持原路徑不變（使用者可見路徑），但其 Server Action 與資料依賴皆透過目標模組的 `api/` 邊界取用。
+
+## namespace / event 遷移對照
+
+| 原模組 | 職責 | 遷移位置 |
+| --- | --- | --- |
+| `namespace` | `deriveSlugCandidate`, `isValidSlug` | `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出） |
+| `event` | `EventRecord`, `IEventStoreRepository`, `IEventBusRepository` | `modules/shared/domain/event-record.ts` |
+| `event` | `PublishDomainEventUseCase` | `modules/shared/application/publish-domain-event.ts` |
+| `event` | `InMemoryEventStoreRepository`, `NoopEventBusRepository` | `modules/shared/infrastructure/` |
+
+## 邊界規則
+
+- 每個領域自有：domain、application、infrastructure、interfaces。
+- 跨領域互動只能透過目標領域的 `api/` 邊界。
+- 禁止直接依賴他領域內部層（domain/application/infrastructure/interfaces）。
+
+## 驗收標準
+
+- 每個領域具有明確 api 出口。
+- 跨領域依賴可被追蹤為 api-to-api。
+- 不存在跨領域內部層 import。
+- 新增能力優先放入既有領域，避免無必要新增領域。
+`````
+
+## File: docs/development/code-style.md
+`````markdown
+# 程式碼風格指南（Code Style Guide）
+
+> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
+> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
+
+---
+
+## 1. TypeScript
+
+### 1.1 型別宣告原則
+
+```typescript
+// ✅ 優先使用 interface 定義物件形狀
+interface UserProfile {
+  readonly id: string;
+  name: string;
+  email: string;
+}
+
+// ✅ 使用 type 定義聯合型別、交叉型別、別名
+type DocumentStatus = "processing" | "ready" | "error";
+type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
+
+// ✅ 從 @shared-types 匯入跨模組共用型別
+import type { CommandResult, DomainError } from "@shared-types";
+
+// ❌ 避免 any
+const data: any = fetchData(); // 禁止
+
+// ✅ 使用 unknown 代替 any
+const data: unknown = fetchData();
+```
+
+### 1.2 命名規範
+
+| 類型 | 格式 | 範例 |
+|---|---|---|
+| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
+| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
+| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
+| 函式 | `camelCase` | `uploadDocument` |
+| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
+| React 元件 | `PascalCase` | `WikiBetaDocumentsView` |
+| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
+| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
+| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
+| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
+| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
+| 檔案：React 元件 | `PascalCase.tsx` | `WikiBetaDocumentsView.tsx` |
+
+### 1.3 函式宣告風格
+
+```typescript
+// ✅ 匯出函式使用 function 宣告（可讀性較佳）
+export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
+  // ...
+}
+
+// ✅ 回呼、lambda 使用 arrow function
+const items = list.map((item) => item.id);
+
+// ✅ 元件使用 function 宣告
+export function WikiBetaDocumentsView() {
+  // ...
+}
+
+// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
+export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
+```
+
+### 1.4 非同步處理
+
+```typescript
+// ✅ 使用 async/await，避免 Promise chain
+async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
+  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
+  return snapshot.docs.map(docToEntity);
+}
+
+// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
+export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
+  try {
+    await triggerReindex(input);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: toDomainError(error) };
+  }
+}
+
+// ❌ 不在元件內 catch 後靜默吞錯誤
+try {
+  await doSomething();
+} catch {
+  // 靜默失敗 — 禁止
+}
+```
+
+---
+
+## 2. React 元件規範
+
+### 2.1 元件結構順序
+
+```tsx
+"use client"; // 若需要（置頂）
+
+import React, { useState, useEffect, useCallback } from "react";
+// 外部函式庫
+import { toast } from "sonner";
+import { Loader2, Plus } from "lucide-react";
+
+// 內部 alias imports
+import { Button } from "@ui-shadcn/ui/button";
+import { cn } from "@shared-utils";
+
+// 同模組 relative imports
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
+
+// 型別定義
+interface DocumentCardProps {
+  readonly document: RagDocumentRecord;
+  readonly onReindex: (docId: string) => Promise<void>;
+}
+
+// 元件主體
+export function DocumentCard({ document, onReindex }: DocumentCardProps) {
+  // 1. Hooks（useState、useEffect、custom hooks）
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 2. Derived state / memoized values
+  const canReindex = document.status === "ready";
+
+  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
+  const handleReindex = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await onReindex(document.id);
+      toast.success("已觸發重整");
+    } catch (err) {
+      toast.error(`重整失敗：${String(err)}`);
+    } finally {
+      setIsLoading(false);
     }
+  }, [document.id, onReindex]);
 
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-
+  // 4. Render
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki-Beta</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki-Beta</h1>
-        <p className="text-sm text-muted-foreground">入口頁面，聚焦帳號層級知識流程、工作區脈絡與快速進入各子功能。</p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Account Wiki-Beta Dashboard</CardTitle>
-          <CardDescription>顯示目前 active account 底下的 Wiki-Beta 範圍，並提供 account-level 與 workspace-level 的進入點。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki-Beta</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account，點擊後直接進入該 workspace 的 Wiki-Beta 範圍。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Link key={workspace.workspaceId} href={workspace.href}>
-                  <Card className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="flex items-center gap-4 rounded-lg border p-4">
+      <span className="flex-1">{document.filename}</span>
+      <Button
+        size="sm"
+        disabled={!canReindex || isLoading}
+        onClick={handleReindex}
+        aria-disabled={!canReindex || isLoading}
+      >
+        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
+      </Button>
     </div>
   );
 }
+```
+
+### 2.2 Props 設計規則
+
+```typescript
+// ✅ 使用 readonly 標記不可變 props
+interface MyProps {
+  readonly id: string;
+  readonly onAction: () => void;
+  className?: string; // 可選 className 用於樣式擴展
+}
+
+// ✅ 事件 handler 命名使用 on 前綴
+onSubmit, onChange, onDelete, onSelect
+
+// ✅ Boolean props 命名使用 is/has/can 前綴
+isLoading, hasError, canEdit, isCollapsed
+
+// ❌ 避免過於泛用的 props
+data: any;          // 禁止
+config: Record<string, unknown>; // 避免
+```
+
+### 2.3 Server Component vs Client Component
+
+```typescript
+// ✅ 頁面預設為 Server Component（無 "use client"）
+export default async function DocumentsPage() {
+  return <WikiBetaDocumentsView />;
+}
+
+// ✅ 只在需要時才加 "use client"
+// 需要: useState, useEffect, onClick, onChange, browser APIs
+"use client";
+export function InteractiveUploader() {
+  const [isDragOver, setIsDragOver] = useState(false);
+  // ...
+}
+
+// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
+```
+
+---
+
+## 3. 匯入規範
+
+### 3.1 匯入順序
+
+```typescript
+// 1. React（若使用 JSX 元素需明確匯入）
+import React from "react";
+
+// 2. Next.js 核心
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+// 3. 第三方函式庫
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+
+// 5. @/ 模組匯入（app/ 和 modules/）
+import type { WorkspaceEntity } from "@/modules/workspace";
+import { createWorkspace } from "@/modules/workspace";
+
+// 6. 相對路徑（同模組內部）
+import type { DocumentEntity } from "../../domain/entities/document.entity";
+import { useDocuments } from "../hooks/use-documents";
+```
+
+### 3.2 禁止使用的 Legacy 路徑
+
+| 禁止 | 替代方案 |
+|---|---|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` 對應套件 |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+---
+
+## 4. CSS 與 Tailwind 規範
+
+### 4.1 Class 排列順序
+
+遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
+
+```tsx
+// Layout → Position → Spacing → Sizing → Typography → Visual
+<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
+```
+
+建議安裝 `prettier-plugin-tailwindcss` 自動排列。
+
+### 4.2 條件 Class 使用 cn()
+
+```tsx
+import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
+
+<div
+  className={cn(
+    "rounded-lg border-2 border-dashed p-8",
+    isDragOver && "border-primary bg-primary/5",
+    isError && "border-destructive",
+    className // 允許外部覆蓋
+  )}
+/>
+```
+
+### 4.3 避免 CSS 反模式
+
+```tsx
+// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
+<div style={{ backgroundColor: "#f00" }} />
+
+// ✅ 使用 Tailwind 語義色
+<div className="bg-destructive" />
+
+// ❌ 避免 @apply（Tailwind 不推薦用於元件）
+// @apply flex items-center;
+
+// ✅ 使用元件封裝重用樣式
+```
+
+---
+
+## 5. JSDoc 規範
+
+函式與類別加 JSDoc 的時機：
+
+```typescript
+// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
+/**
+ * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
+ * @param input - 包含 file、accountId 與選填的 workspaceId。
+ * @returns CommandResult，成功時包含 documentId。
+ */
+export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
+  // ...
+}
+
+// ✅ 複雜業務邏輯加說明
+// ❌ 簡單 getter / setter 無需 JSDoc
+```
+
+---
+
+## 6. 測試風格
+
+### 6.1 測試檔案命名
+
+| 類型 | 格式 |
+|---|---|
+| Unit test | `*.test.ts` / `*.test.tsx` |
+| Integration test | `*.integration.test.ts` |
+| E2E test | `*.e2e.ts`（Playwright） |
+
+### 6.2 測試命名
+
+```typescript
+describe("uploadDocument use case", () => {
+  it("should return success with documentId when file is valid", async () => {
+    // ...
+  });
+
+  it("should return error when accountId is missing", async () => {
+    // ...
+  });
+});
+```
+
+---
+
+## 7. ESLint 執行
+
+```bash
+# 執行 lint（必須 0 errors）
+npm run lint
+
+# 自動修復可修正的問題
+npm run lint -- --fix
+```
+
+**常見 ESLint 規則**（`eslint.config.mjs`）：
+
+- `no-unused-vars` — 未使用的變數
+- `@typescript-eslint/no-explicit-any` — 禁止 any
+- `jsdoc/*` — JSDoc 格式檢查
+- `@typescript-eslint/naming-convention` — 命名規範
+- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
+- 匯入路徑邊界（legacy path 封鎖）
+
+### 7.1 什麼時候要調整 `eslint.config.mjs`
+
+- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
+- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
+- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
+- **同步文件**：調整規則時一併更新
+  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
+  - 本節清單（如新增/刪除常見規則）
+- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
 `````
 
-## File: modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts
-`````typescript
-/**
- * Module: asset
- * Layer: application/use-cases
- * Purpose: WikiBeta-style library use-cases — create, add fields, add rows, list.
- *          Direct-function API kept for backward compatibility with wiki-beta
- *          interfaces during transitional decomposition.
- */
+## File: docs/development/development-process.md
+`````markdown
+# 開發流程（Development Process）
 
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
+> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
 
-import type {
-  AddWikiBetaLibraryFieldInput,
-  CreateWikiBetaLibraryInput,
-  CreateWikiBetaLibraryRowInput,
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryRow,
-} from "../../domain/entities/wiki-beta-library.types";
-import type { WikiBetaLibraryRepository } from "../../domain/repositories/WikiBetaLibraryRepository";
-import { InMemoryWikiBetaLibraryRepository } from "../../infrastructure/repositories/in-memory-wiki-beta-library.repository";
+---
 
-const defaultLibraryRepository: WikiBetaLibraryRepository = new InMemoryWikiBetaLibraryRepository();
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
+## 1. 流程總覽
 
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+```
+需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
+```
+
+---
+
+## 2. 開發前準備
+
+### 2.1 環境設置
+
+```bash
+# 1. 安裝相依套件
+npm install
+
+# 2. 啟動開發伺服器
+npm run dev      # http://localhost:3000
+```
+
+> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
+
+### 2.2 必讀文件
+
+在開始任何功能開發前，請先確認：
+
+- [ ] [`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
+- [ ] [`agents/README.md`](../../agents/README.md) — 架構規則索引
+- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀目前維護中的契約總覽文件
+
+### 2.3 建立分支
+
+```bash
+# 從 main 建立功能分支
+git checkout main
+git pull origin main
+git checkout -b feature/your-feature-name
+```
+
+分支命名規則見分支策略文件。
+
+---
+
+## 3. MDDD 開發七步驟
+
+針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
+
+### Step 1：確認模組歸屬
+
+找出你的功能屬於哪個模組（`modules/*/`）：
+
+```
+modules/
+├── content/      ← 頁面、區塊、版本歷程
+├── asset/        ← Library、文件資產
+├── workspace/    ← 工作區管理
+├── account/      ← 帳號管理
+├── organization/ ← 組織管理
+├── retrieval/    ← RAG 查詢、向量檢索
+├── knowledge/    ← 文件攝入、Embedding
+...（16 個模組）
+```
+
+若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
+
+### Step 2：設計 Domain 層（entity / value object / repository interface）
+
+```typescript
+// modules/content/domain/entities/wiki-beta-page.types.ts
+export interface WikiBetaPage {
+  readonly id: string;
+  readonly title: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly status: "active" | "archived";
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
 }
+```
 
-function normalizeName(name: string): string {
-  const value = name.trim();
-  if (!value) {
-    throw new Error("library name is required");
-  }
-  return value.slice(0, 80);
-}
+> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
 
-function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) {
-    throw new Error("field key is required");
-  }
-  return normalized.slice(0, 48);
-}
+### Step 3：實作 Application Use Case
 
-function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiBetaLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((library) => library.slug));
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export async function listWikiBetaLibraries(
-  accountId: string,
-  workspaceId?: string,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibrary[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((library) => library.status === "active");
-  if (!workspaceId) {
-    return activeLibraries;
-  }
-  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
-}
-
-export async function createWikiBetaLibrary(
-  input: CreateWikiBetaLibraryInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibrary> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const name = normalizeName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiBetaLibrary = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.library.created",
-    aggregateType: "wiki-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiBetaLibraryField(
-  input: AddWikiBetaLibraryFieldInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((field) => field.key === key)) {
-    throw new Error(`field key "${key}" already exists`);
-  }
-
-  const field: WikiBetaLibraryField = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.library.field_added",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      fieldKey: field.key,
-      fieldType: field.type,
-    },
-  });
-
-  return field;
-}
-
-export async function createWikiBetaLibraryRow(
-  input: CreateWikiBetaLibraryRowInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  const requiredFields = fields.filter((field) => field.required);
-  for (const field of requiredFields) {
-    if (!(field.key in input.values)) {
-      throw new Error(`missing required field: ${field.key}`);
-    }
-  }
-
-  const now = new Date();
-  const row: WikiBetaLibraryRow = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.library.row_created",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      rowId: row.id,
-      fields: Object.keys(row.values),
-    },
-  });
-
-  return row;
-}
-
-export interface WikiBetaLibrarySnapshot {
-  library: WikiBetaLibrary;
-  fields: WikiBetaLibraryField[];
-  rows: WikiBetaLibraryRow[];
-}
-
-export async function getWikiBetaLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
-): Promise<WikiBetaLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
-}
-`````
-
-## File: modules/content/application/use-cases/wiki-beta-pages.use-case.ts
-`````typescript
-/**
- * Module: content
- * Layer: application/use-cases
- * Purpose: WikiBeta-style page use-cases — create, rename, move, list tree.
- *          Lightweight direct-function API (no DI class wrappers) kept for
- *          backward compatibility with the wiki-beta interfaces during
- *          transitional decomposition.
- */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
-
-import type {
-  CreateWikiBetaPageInput,
-  MoveWikiBetaPageInput,
-  RenameWikiBetaPageInput,
-  WikiBetaPage,
-  WikiBetaPageTreeNode,
-} from "../../domain/entities/wiki-beta-page.types";
-import type { WikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
-import { FirebaseWikiBetaPageRepository } from "../../infrastructure/repositories/firebase-wiki-beta-page.repository";
-
-const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function normalizeTitle(title: string): string {
-  const trimmed = title.trim();
-  if (!trimmed) {
-    throw new Error("title is required");
-  }
-  return trimmed.slice(0, 120);
-}
-
-function sameParent(a: WikiBetaPage, parentPageId: string | null): boolean {
-  return (a.parentPageId ?? null) === parentPageId;
-}
-
-function ensureUniqueSlug(baseSlug: string, siblingPages: WikiBetaPage[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
-  const existing = new Set(siblingPages.map((page) => page.slug));
-
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this page title");
-}
-
-function toTree(pages: WikiBetaPage[]): WikiBetaPageTreeNode[] {
-  const nodeById = new Map<string, WikiBetaPageTreeNode>();
-  for (const page of pages) {
-    nodeById.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: WikiBetaPageTreeNode[] = [];
-  for (const page of pages) {
-    const node = nodeById.get(page.id);
-    if (!node) continue;
-
-    if (!page.parentPageId) {
-      roots.push(node);
-      continue;
-    }
-
-    const parent = nodeById.get(page.parentPageId);
-    if (!parent) {
-      roots.push(node);
-      continue;
-    }
-    parent.children.push(node);
-  }
-
-  const sortRecursively = (nodes: WikiBetaPageTreeNode[]) => {
-    nodes.sort((a, b) => {
-      if (a.order !== b.order) {
-        return a.order - b.order;
-      }
-      return a.title.localeCompare(b.title, "zh-Hant");
-    });
-    for (const node of nodes) {
-      sortRecursively(node.children);
-    }
-  };
-
-  sortRecursively(roots);
-  return roots;
-}
-
-function assertNoCycle(pages: WikiBetaPage[], pageId: string, targetParentPageId: string | null): void {
-  if (!targetParentPageId) {
-    return;
-  }
-  if (pageId === targetParentPageId) {
-    throw new Error("page cannot be moved under itself");
-  }
-
-  const byId = new Map(pages.map((page) => [page.id, page]));
-  let current: string | null = targetParentPageId;
-  while (current) {
-    if (current === pageId) {
-      throw new Error("invalid move: target parent is a descendant of page");
-    }
-    current = byId.get(current)?.parentPageId ?? null;
-  }
-}
-
-export async function listWikiBetaPagesTree(
-  accountId: string,
-  workspaceId?: string,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPageTreeNode[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const allPages = await pageRepository.listByAccountId(accountId);
-  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
-  return toTree(pages.filter((page) => page.status === "active"));
-}
-
+```typescript
+// modules/content/application/use-cases/wiki-beta-pages.use-case.ts
 export async function createWikiBetaPage(
   input: CreateWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPage> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
+  repo: IWikiBetaPageRepository
+): Promise<CommandResult<string>> {
+  // 業務邏輯在此
+  const page = buildPageEntity(input);
+  return repo.save(page);
+}
+```
+
+### Step 4：實作 Infrastructure Adapter
+
+```typescript
+// modules/content/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
+export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
+  async save(page: WikiBetaPage): Promise<CommandResult<string>> {
+    const ref = await addDoc(
+      collection(db, `accounts/${page.accountId}/pages`),
+      pageToFirestore(page)
+    );
+    return { success: true, data: ref.id };
   }
+}
+```
 
-  const title = normalizeTitle(input.title);
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const parentPageId = input.parentPageId ?? null;
+### Step 5：建立 Server Action（接口層）
 
-  if (parentPageId) {
-    const parent = pages.find((page) => page.id === parentPageId);
-    if (!parent) {
-      throw new Error("parent page not found");
+```typescript
+// modules/content/interfaces/_actions/wiki-beta-page.actions.ts
+"use server";
+
+export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
+  return createWikiBetaPage(input, new FirebaseWikiBetaPageRepository());
+}
+```
+
+### Step 6：實作 React 元件
+
+```tsx
+// modules/content/interfaces/components/WikiBetaPagesView.tsx
+"use client";
+
+export function WikiBetaPagesView() {
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function handleCreate() {
+    setIsCreating(true);
+    const result = await createPageAction({ title: "新頁面", accountId });
+    if (result.success) {
+      toast.success("已建立頁面");
+      router.push(`/wiki-beta/pages/${result.data}`);
+    } else {
+      toast.error(`建立失敗：${result.error.message}`);
     }
+    setIsCreating(false);
   }
 
-  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
-  const rawSlug = deriveSlugCandidate(title);
-  const slug = ensureUniqueSlug(rawSlug, siblingPages);
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
-
-  const now = new Date();
-  const created: WikiBetaPage = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    title,
-    slug,
-    parentPageId,
-    order,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await pageRepository.create(created);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.page.created",
-    aggregateType: "wiki-page",
-    aggregateId: created.id,
-    payload: {
-      accountId: created.accountId,
-      workspaceId: created.workspaceId,
-      parentPageId: created.parentPageId,
-      slug: created.slug,
-    },
-  });
-
-  return created;
+  return (/* ... */);
 }
+```
 
-export async function renameWikiBetaPage(
-  input: RenameWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPage> {
-  const title = normalizeTitle(input.title);
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
-  }
+### Step 7：更新 index.ts 公開 API
 
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
-  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
+```typescript
+// modules/content/index.ts
+export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
+export type { WikiBetaPage } from "./domain/entities/wiki-beta-page.types";
+```
 
-  const updated: WikiBetaPage = {
-    ...existing,
-    title,
-    slug,
-    updatedAt: new Date(),
-  };
+---
 
-  await pageRepository.update(updated);
+## 4. 本地驗證清單
 
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.page.renamed",
-    aggregateType: "wiki-page",
-    aggregateId: updated.id,
-    payload: {
-      accountId: updated.accountId,
-      title: updated.title,
-      slug: updated.slug,
-    },
-  });
+每次提交前，確保通過以下驗證：
 
-  return updated;
-}
+```bash
+# 1. ESLint — 必須 0 errors
+npm run lint
 
-export async function moveWikiBetaPage(
-  input: MoveWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
-): Promise<WikiBetaPage> {
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
-  }
+# 2. TypeScript + 生產建置
+npm run build
 
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const targetParentPageId = input.targetParentPageId ?? null;
-  assertNoCycle(pages, existing.id, targetParentPageId);
+# 3. Python Worker（若有變更）
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
 
-  if (targetParentPageId) {
-    const targetParent = pages.find((page) => page.id === targetParentPageId);
-    if (!targetParent) {
-      throw new Error("target parent page not found");
-    }
-  }
+**手動驗證**（依功能範圍）：
 
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
+- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
+- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
+- [ ] 確認 Loading 狀態正常（spinner + 禁用）
+- [ ] 空狀態 / 載入狀態正確顯示
 
-  const moved: WikiBetaPage = {
-    ...existing,
-    parentPageId: targetParentPageId,
-    order,
-    updatedAt: new Date(),
-  };
+---
 
-  await pageRepository.update(moved);
+## 5. PR 建立與 Review
 
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "wiki_beta.page.moved",
-    aggregateType: "wiki-page",
-    aggregateId: moved.id,
-    payload: {
-      accountId: moved.accountId,
-      fromParentPageId: existing.parentPageId,
-      toParentPageId: moved.parentPageId,
-    },
-  });
+### 5.1 建立 PR
 
-  return moved;
-}
+```bash
+git push origin feature/your-feature-name
+# 在 GitHub 建立 PR → main
+```
+
+PR 描述需包含：
+- 目的（一句話說明）
+- `Closes #N`（若有 issue）
+- 變更內容清單
+- 測試方式說明
+
+### 5.2 Review 標準
+
+Review 者確認：
+
+| 項目 | 標準 |
+|---|---|
+| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
+| 型別安全 | 無 `any`；使用正確型別 |
+| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
+| 可近用性 | `aria-label`、鍵盤可操作 |
+| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
+| 測試 | lint + build 通過 |
+
+---
+
+## 6. 特殊情境流程
+
+### 6.1 跨 runtime 變更（Next.js + py_fn）
+
+若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
+
+1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
+2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
+3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
+
+### 6.2 資料模型變更
+
+修改 Firestore schema 時：
+
+1. 評估**向後相容性**：舊資料是否需要 migration？
+2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
+3. 更新 **Security Rules**（`firestore.rules`）。
+4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
+
+### 6.3 文件變更
+
+文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
+
+```bash
+git checkout -b docs/update-ui-ux-wireframes
+git commit -m "docs(ui-ux): add wireframes for content pages"
+```
+
+---
+
+## 7. AI 輔助開發流程
+
+本專案整合 GitHub Copilot Agent 輔助開發：
+
+### 7.1 使用 Planner Agent（規劃階段）
+
+對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
+
+```
+在 Copilot Chat 輸入：
+「使用 @planner 規劃 content pages CRUD 功能」
+```
+
+計畫格式見 AI implementation plan template 文件。
+
+### 7.2 使用 Implementer Agent（實作階段）
+
+計畫審核後，交由 Implementer Agent 執行：
+
+```
+在 Copilot Chat 輸入：
+「使用 @implementer 按照計畫實作步驟 1-3」
+```
+
+### 7.3 Delivery Chain
+
+完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
+
+詳細說明見 AI handoff matrix 文件。
 `````
 
-## File: modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts
-`````typescript
-/**
- * Module: retrieval
- * Layer: application/use-cases
- * Purpose: WikiBeta-style RAG use-cases — run query, reindex document, list documents.
- *          Thin delegation to the FirebaseWikiBetaContentRepository, kept for
- *          backward compatibility during transitional decomposition.
- */
+## File: docs/development/modules-implementation-guide.md
+`````markdown
+# Modules Implementation Guide
 
-import type { WikiBetaContentRepository } from "../../domain/repositories/WikiBetaContentRepository";
-import type {
-  WikiBetaParsedDocument,
-  WikiBetaRagQueryResult,
-  WikiBetaReindexInput,
-} from "../../domain/entities/WikiBetaRagTypes";
-import { FirebaseWikiBetaContentRepository } from "../../infrastructure/firebase/FirebaseWikiBetaContentRepository";
+本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件的設計方向。
 
-const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
+- 上位概念架構文件：回答「為什麼」與「系統如何分層」。
+- 本文件：回答「在 repository 內如何落地」。
 
-export async function runWikiBetaRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: {
-    taxonomyFilters?: string[];
-    maxAgeDays?: number;
-    requireReady?: boolean;
-  } = {},
-  repository: WikiBetaContentRepository = defaultContentRepository,
-): Promise<WikiBetaRagQueryResult> {
-  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
-}
+---
 
-export async function reindexWikiBetaDocument(
-  input: WikiBetaReindexInput,
-  repository: WikiBetaContentRepository = defaultContentRepository,
-): Promise<void> {
-  await repository.reindexDocument(input);
-}
+## 1. 與概念架構文件的對位關係
 
-export async function listWikiBetaParsedDocuments(
-  accountId: string,
-  limitCount = 20,
-  repository: WikiBetaContentRepository = defaultContentRepository,
-): Promise<WikiBetaParsedDocument[]> {
-  return repository.listParsedDocuments(accountId, limitCount);
-}
+上位概念架構文件定義三層融合：
+
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
+
+在本專案中的實作對位：
+
+| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
+| --- | --- | --- |
+| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
+
+> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
+
+---
+
+## 2. module 標準結構（MDDD）
+
+```text
+<domain-id>/
+│
+├── api/
+│   └── index.ts
+│
+├── domain/
+│   ├── entities/
+│   ├── value-objects/
+│   ├── repositories/
+│   ├── services/
+│   └── events/
+│
+├── application/
+│   ├── use-cases/
+│   └── dto/
+│
+├── infrastructure/
+│   ├── firebase/
+│   ├── persistence/
+│   ├── external/
+│   └── repositories/
+│
+├── interfaces/
+│   ├── _actions/
+│   ├── api/
+│   ├── queries/
+│   ├── hooks/
+│   └── components/
+│
+```
+
+說明：
+
+1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
+
+---
+
+## 3. 依賴方向與邊界
+
+全域依賴方向：
+
+```text
+interfaces -> application -> domain <- infrastructure
+```
+
+邊界規則：
+
+1. `domain/` 不得依賴 framework 與外部 SDK。
+2. `application/` 負責流程編排，不直接綁定具體外部實作。
+3. `infrastructure/` 實作 domain 介面，不主導業務流程。
+4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
+
+---
+
+## 4. 與 packages 的關係
+
+模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
+
+```text
+modules/*
+  -> packages/* (stable public boundary)
+```
+
+這個原則與上位概念架構文件的三層融合不衝突：
+
+- 融合的是產品能力（編輯 + 關聯 + AI）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
+
+---
+
+## 5. Next.js 路由與融合介面
+
+上位概念架構文件的基礎平行路由示意：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+```
+
+實作可依需求擴充，例如：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+    /@collab
+    /@workflow
+```
+
+擴充原則：
+
+1. 新 slot 必須能回對到既有 module ownership。
+2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
+
+---
+
+## 6. 目標對齊聲明
+
+本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
+
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
+2. 明確化「融合體驗」與「邊界隔離」可同時成立。
+3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+
+---
+
+## 7. 以上位概念架構文件為準的落地限制
+
+上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+
+因此本文件只保留與概念模型一致的落地限制：
+
+1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
+2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
+4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+
+## 8. 實作規劃時的最小檢查點
+
+若要把三層模型落到實際模組，至少先確認：
+
+1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
+3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
+4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
+5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
-## File: modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts
-`````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Build the WikiBeta sidebar content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
- */
+## File: docs/reference/specification/system-overview.md
+`````markdown
+# 系統全局規格（System Overview Specification）
 
-import type {
-  WikiBetaAccountContentNode,
-  WikiBetaAccountSeed,
-  WikiBetaContentItemNode,
-  WikiBetaWorkspaceContentNode,
-} from "../../domain/entities/WikiBetaContentTree";
-import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/WikiBetaWorkspaceRepository";
-import { FirebaseWikiBetaWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
+> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
 
-const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
+---
 
-function buildContentBaseItems(workspaceId: string): WikiBetaContentItemNode[] {
-  return [
-    { key: "spaces", label: "WorkSpace Wiki-Beta", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
-    { key: "pages", label: "Pages", href: "/wiki-beta/pages", enabled: true },
-    { key: "libraries", label: "Libraries", href: "/wiki-beta/libraries", enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/wiki-beta", enabled: false },
-    { key: "rag", label: "RAG", href: "/wiki-beta", enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
-  ];
+## 1. 系統定位
+
+**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
+
+- 內容頁面與結構化資料庫體驗（Content / UI Layer）
+- 知識關聯與導航視角（Knowledge Graph Layer）
+- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
+- 多工作區協作與組織管理
+- 文件解析、向量化與智慧問答
+
+### 1.1 核心價值主張
+
+| 面向 | 價值 |
+|---|---|
+| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
+| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
+| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
+| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
+
+---
+
+## 2. 目標用戶
+
+| 用戶類型 | 說明 | 核心需求 |
+|---|---|---|
+| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
+| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
+| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
+| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
+
+---
+
+## 3. 核心功能規格
+
+### 3.1 Account 與 Workspace 管理
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 個人帳號 | 用戶可建立個人帳號 | `account` |
+| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
+| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
+| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
+| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
+
+### 3.2 知識庫功能
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
+| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
+| 文件解析 | Google Document AI 自動解析 | `py_fn` |
+| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
+| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
+| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
+| Pages | 區塊式頁面建立與管理 | `content` |
+| Libraries | 結構化資料庫管理 | `asset` |
+
+### 3.3 AI 功能
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| AI Chat | 通用 AI 對話介面 | `agent` |
+| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
+| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
+
+### 3.4 組織管理
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
+| 團隊管理 | 成員分組 | `organization` |
+| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
+| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
+| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
+
+---
+
+## 4. 技術架構規格
+
+### 4.1 運行時邊界
+
+系統分為兩個主要運行時：
+
+| 運行時 | 職責 | 技術 |
+|---|---|---|
+| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
+| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
+
+**禁止跨越邊界**：
+- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
+- py_fn 不持有 UI 狀態或 session 邏輯。
+
+### 4.2 資料層架構
+
+```
+Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
+Firebase Storage      ← 檔案儲存（上傳文件）
+Upstash Vector        ← 向量索引（RAG）
+Upstash Redis         ← 快取（RAG query cache）
+```
+
+### 4.3 Firestore 資料模型（頂層）
+
+```
+accounts/{accountId}/
+├── documents/{documentId}     ← 文件（Wiki-Beta）
+├── pages/{pageId}             ← 頁面（Pages）
+├── databases/{databaseId}     ← 資料庫（Libraries）
+├── workspaces/{workspaceId}   ← 工作區（Workspace）
+└── members/{memberId}         ← 成員（Account）
+```
+
+> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
+
+### 4.4 認證與授權
+
+```
+Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
+```
+
+| 角色 | 說明 |
+|---|---|
+| `owner` | 帳號擁有者，全部權限 |
+| `admin` | 管理員，可管理成員與設定 |
+| `member` | 一般成員，可讀寫工作區資源 |
+| `viewer` | 唯讀成員，只能查看 |
+
+---
+
+## 5. 模組責任邊界
+
+16 個 MDDD 業務模組的責任分配：
+
+| 模組 | 職責概要 |
+|---|---|
+| `account` | 用戶帳號、成員角色、帳號策略 |
+| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
+| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
+| `content` | Block 編輯器頁面、WikiBetaPage、版本歷程 |
+| `identity` | 身份認證、Token 刷新 |
+| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
+| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
+| `notification` | 通知推送 |
+| `organization` | 組織（租戶）管理、策略 |
+| `retrieval` | RAG 查詢、WikiBeta RAG 類型、向量檢索 |
+| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
+| `workspace` | 工作區管理、成員管理、WikiBetaContentTree |
+| `workspace-audit` | 不可變稽核記錄 |
+| `workspace-feed` | 工作區動態摘要 |
+| `workspace-flow` | 工作區任務與流程管理 |
+| `workspace-scheduling` | 雙向資源排程 |
+
+---
+
+## 6. 整合點
+
+| 整合對象 | 用途 | SDK/協議 |
+|---|---|---|
+| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
+| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
+| Firebase Auth | 身份認證 | Firebase SDK v12 |
+| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
+| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
+| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
+| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
+| Upstash Vector | 向量搜尋 | Upstash SDK |
+| Upstash Redis | 快取 | Upstash SDK |
+| QStash | 非同步任務佇列 | Upstash QStash |
+
+---
+
+## 7. 驗收標準（系統級別）
+
+| 代號 | 標準 |
+|---|---|
+| S1 | 使用者可登入並進入 Shell |
+| S2 | 使用者可建立組織與工作區 |
+| S3 | 使用者可上傳文件並在列表看到 |
+| S4 | 文件解析後 `status` 更新為 `ready` |
+| S5 | RAG 問答可回傳 answer 與 citations |
+| S6 | 管理員可管理組織成員與角色 |
+| S7 | Console 無初始化錯誤 |
+| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
+`````
+
+## File: docs/guides/explanation/architecture-domain.md
+`````markdown
+# 領域概念模型：AI 知識平台架構實現指南
+
+基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
+
+---
+
+## 一、四層架構與有界上下文對應
+
+architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
+
+```text
+┌─────────────────────────────────────────────────┐
+│              AI Layer（AI 層）                    │  ← modules/retrieval, modules/agent, modules/knowledge
+├─────────────────────────────────────────────────┤
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph
+├─────────────────────────────────────────────────┤
+│         Content / UI Layer（內容層）               │  ← modules/content, modules/asset
+├─────────────────────────────────────────────────┤
+│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
+│                                                  │     modules/account, modules/identity, modules/shared
+└─────────────────────────────────────────────────┘
+```
+
+| 架構層 | 對應模組 | 核心職責 |
+| --- | --- | --- |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
+| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
+| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
+| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
+
+**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
+
+```text
+依賴方向（箭頭表示「依賴」）：
+
+AI Layer
+  ↓ 依賴
+Knowledge Graph Layer
+  ↓ 依賴
+Content / UI Layer
+  ↓ 依賴
+Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
+```
+
+---
+
+## 二、Content / UI Layer 的領域概念
+
+### 2.1 Page（頁面聚合根）
+
+Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
+
+**實現位置：** `modules/content/domain/entities/content-page.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 唯一識別碼（聚合根 ID） |
+| `title` | `string` | 頁面標題（Graph Node 標籤） |
+| `slug` | `string` | URL 友好路徑（重定向的基礎） |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
+| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
+| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
+| `organizationId` | `string` | 所屬組織（多租戶） |
+
+**值物件：**
+- `PageStatus`：`"draft" | "published" | "archived"`
+- `PageSlug`：確保唯一且 URL-safe 的值物件
+
+**不變式（Invariants）：**
+- 一個 Page 必須屬於一個 Workspace。
+- `slug` 在同一 Workspace 中必須唯一。
+- 已 `archived` 的頁面不能再接受 Block 更新。
+
+### 2.2 Block（區塊聚合根）
+
+Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
+
+**實現位置：** `modules/content/domain/entities/content-block.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Block 唯一識別碼 |
+| `pageId` | `string` | 所屬頁面（外鍵） |
+| `type` | `BlockType` | Block 類型（見下方） |
+| `content` | `BlockContent` | 具體內容（依 type 變化） |
+| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
+| `order` | `number` | 在頁面中的排列順序 |
+
+**BlockType 值物件（對應 Notion Block 類型）：**
+
+```typescript
+type BlockType =
+  | "text"
+  | "heading_1" | "heading_2" | "heading_3"
+  | "toggle"
+  | "callout"
+  | "code"
+  | "quote"
+  | "divider"
+  | "table"
+  | "image" | "video" | "file"
+  | "embed"
+  | "synced_block"
+  | "column_layout"
+  | "bulleted_list" | "numbered_list"
+  | "to_do"
+  | "page_link";
+```
+
+**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
+
+### 2.3 ContentVersion（版本快照）
+
+對應 Wiki 的 Edit History / Diff / Rollback 能力。
+
+**實現位置：** `modules/content/domain/entities/content-version.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 版本 ID |
+| `pageId` | `string` | 所屬頁面 |
+| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
+| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
+| `authorId` | `string` | 作者 ID |
+| `createdAt` | `Timestamp` | 版本時間戳 |
+| `isMinorEdit` | `boolean` | 是否為小修改標記 |
+
+---
+
+## 三、Knowledge Graph Layer 的領域概念
+
+### 3.1 GraphNode（知識圖節點）
+
+對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
+
+**實現位置：** `modules/knowledge-graph/domain/entities/graph-node.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
+| `label` | `string` | 顯示標籤 |
+| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
+| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
+
+**GraphNodeStatus 狀態機：**
+
+```text
+draft ──────────→ active ──────────→ archived
+  ↑                  │
+  └──────────────────┘ (reactivation)
+```
+
+**領域事件：**
+- `graph-node.activated`：節點從 draft 轉為 active 時觸發
+- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
+
+### 3.2 GraphEdge / Link（知識圖邊）
+
+對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
+
+**實現位置：** `modules/knowledge-graph/domain/entities/link.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邊唯一 ID |
+| `fromNodeId` | `string` | 來源節點（連結發起方） |
+| `toNodeId` | `string` | 目標節點（連結目標） |
+| `type` | `EdgeType` | 語意關係類型（見下方） |
+| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
+
+**EdgeType 值物件（對應 Schema + Ontology Layer）：**
+
+```typescript
+type EdgeType =
+  | "IS_A"        // 繼承關係（A 是 B 的一種）
+  | "PART_OF"     // 組成關係（A 是 B 的一部分）
+  | "RELATED_TO"  // 相關關係（通用）
+  | "DEPENDS_ON"  // 依賴關係
+  | "CAUSES"      // 因果關係
+  | "CONTRADICTS" // 矛盾關係
+  | "REDIRECT"    // 重定向（別名統一）
+  | "CATEGORY";   // 分類從屬
+```
+
+**不變式：**
+- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
+- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
+
+**Backlink 的領域含義：**  
+Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
+
+### 3.3 WikiBetaPage（Wiki 頁面整合）
+
+輕量化的 Wiki 風格頁面實體，用於 wiki-beta 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
+
+> **模組遷移說明：** `modules/wiki-beta` 獨立模組已移除。WikiBetaPage 概念已遷移至 `modules/content`（頁面層）；WikiBetaLibrary 概念遷移至 `modules/asset`（結構化資料層）；WikiBetaContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/retrieval`。
+
+**實現位置：** `modules/content/domain/entities/wiki-beta-page.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 頁面唯一識別碼 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL 友好路徑 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `order` | `number` | 在內容樹中的排列順序 |
+| `status` | `WikiBetaPageStatus` | 頁面狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+### 3.4 WikiBetaLibrary（Wiki 知識庫聚合根）
+
+WikiBetaLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
+
+**實現位置：** `modules/asset/domain/entities/wiki-beta-library.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Library 唯一 ID（聚合根） |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `name` | `string` | Library 名稱（顯示於側邊欄） |
+| `slug` | `string` | URL 友好路徑 |
+| `status` | `WikiBetaLibraryStatus` | 狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+**相關實體：**
+- `WikiBetaLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
+- `WikiBetaLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
+
+**與其他概念的關係：**
+- 一個 Workspace 可包含多個 WikiBetaLibrary。
+- WikiBetaContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
+
+### 3.5 Slug 工具（原 Namespace 模組）
+
+> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
+
+Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
+
+**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
+
+| 函式 | 說明 |
+| --- | --- |
+| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
+| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
+
+## 四、AI Layer 的領域概念
+
+### 4.1 IngestionDocument（攝入文件聚合根）
+
+文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 文件唯一 ID |
+| `organizationId` | `string` | 所屬組織（多租戶隔離） |
+| `workspaceId` | `string` | 所屬工作區 |
+| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
+| `title` | `string` | 文件標題 |
+| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
+| `status` | `IngestionStatus` | 攝入狀態（見下方） |
+
+**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
+
+```text
+                        ┌─────────────────────────────────────┐
+                        ↓                                     │
+uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
+    │          │          │           │                         │
+    └──────────┴──────────┴───────────┴─────────────────────────┘
+                                  failed（任一階段可轉入）
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `uploaded` | 檔案已上傳，等待處理 |
+| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
+| `chunking` | 正在分塊（Chunk 階段：語意分段） |
+| `embedding` | 正在向量化（Embedding 階段） |
+| `indexed` | 已完成索引，可供查詢 |
+| `stale` | 原始文件已更新，需重新索引 |
+| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
+| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
+
+---
+
+### 4.2 IngestionJob（攝入作業）
+
+追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 作業唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `stage` | `PipelineStage` | 當前執行階段 |
+| `startedAt` | `Timestamp` | 開始時間 |
+| `completedAt` | `Timestamp \| null` | 完成時間 |
+| `error` | `string \| null` | 錯誤訊息（若 failed） |
+
+**PipelineStage 值物件：**
+
+```typescript
+type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
+```
+
+### 4.3 IngestionChunk（語意分塊）
+
+代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
+
+**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Chunk 唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `content` | `string` | Chunk 文字內容 |
+| `chunkIndex` | `number` | 在文件中的順序編號 |
+| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
+| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
+| `vector` | `number[]` | 向量表示（Embedding 結果） |
+| `tokenCount` | `number` | Token 數量（分塊品質指標） |
+
+**不變式：**
+- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
+- `content` 長度不得超過所選 Embedding Model 的 token 上限。
+
+### 4.4 RagQuery（RAG 查詢聚合根）
+
+代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
+
+**實現位置：** `modules/retrieval/domain/entities/RagQuery.ts`
+
+**核心介面：**
+
+```typescript
+interface RagQuery {
+  id: string;
+  workspaceId: string;
+  input: string;               // 用戶原始輸入
+  intent?: QueryIntent;        // 分類後的查詢意圖
+  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
+  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
 }
+```
 
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiBetaWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}?tab=Wiki`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
+**QueryIntent 值物件（對應 Query Understanding Layer）：**
+
+```typescript
+type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
+```
+
+**RagRetrievedChunk 值物件（檢索結果項目）：**
+
+```typescript
+interface RagRetrievedChunk {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;           // 相關性分數（Reranker 輸出）
+  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
 }
+```
 
-export async function buildWikiBetaContentTree(
-  seeds: WikiBetaAccountSeed[],
-  workspaceRepository: WikiBetaWorkspaceRepository = defaultWorkspaceRepository,
-): Promise<WikiBetaAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiBetaAccountContentNode;
-    }),
-  );
+**RagCitation 值物件（引用系統，對應 Source Grounding）：**
 
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
+```typescript
+interface RagCitation {
+  documentId: string;
+  documentTitle: string;
+  chunkId: string;
+  sectionPath: string;
+  pageNumber?: number;
+  confidenceScore: number;     // 引用可信度
 }
+```
+
+**RagRetrievalSummary 值物件（完整回答結果）：**
+
+```typescript
+interface RagRetrievalSummary {
+  answer: string;              // LLM 生成的回答
+  citations: RagCitation[];    // 引用來源列表
+  faithfulnessScore?: number;  // Faithfulness 驗證分數
+  isGrounded: boolean;         // 是否通過 Grounding 驗證
+}
+```
+
+### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
+
+對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
+
+**實現位置：**
+- `modules/agent/domain/entities/thread.ts`
+- `modules/agent/domain/entities/message.ts`
+
+**AgentThread 核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 對話 Thread ID |
+| `workspaceId` | `string` | 所屬工作區 |
+| `userId` | `string` | 發起用戶 |
+| `createdAt` | `Timestamp` | 建立時間 |
+| `updatedAt` | `Timestamp` | 最後更新時間 |
+
+**AgentMessage 核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 訊息唯一 ID |
+| `threadId` | `string` | 所屬 Thread |
+| `role` | `"user" \| "assistant"` | 訊息角色 |
+| `content` | `string` | 訊息內容 |
+| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+---
+
+## 五、Platform Foundation Layer 的領域概念
+
+Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
+
+### 5.1 Identity（身份識別）
+
+Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
+
+**實現位置：** `modules/identity/domain/entities/Identity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
+| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
+| `displayName` | `string \| null` | 顯示名稱 |
+| `photoURL` | `string \| null` | 大頭照 URL |
+| `isAnonymous` | `boolean` | 是否為匿名會話 |
+| `emailVerified` | `boolean` | 信箱是否已驗證 |
+
+**值物件：**
+- `SignInCredentials`：`{ email: string; password: string }`
+- `RegistrationInput`：`{ email: string; password: string; name: string }`
+
+**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
+
+#### TokenRefreshSignal（Custom Claims 刷新訊號）
+
+當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
+
+```text
+Party 1（account / organization 模組）
+    → 角色或政策變更
+    → 呼叫 identityApi.emitTokenRefreshSignal()
+
+Party 2（identity 模組 TokenRefreshRepository）
+    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
+
+Party 3（前端 useTokenRefreshListener hook）
+    → 監聽 Firestore 該文件
+    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
+```
+
+**TokenRefreshSignal 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `accountId` | `string` | 觸發刷新的帳戶 ID |
+| `reason` | `TokenRefreshReason` | 觸發原因 |
+| `issuedAt` | `string` | ISO-8601 時間戳 |
+| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
+
+**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
+
+---
+
+### 5.2 Account（帳戶聚合根）
+
+Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
+
+**實現位置：** `modules/account/domain/entities/Account.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
+| `name` | `string` | 帳戶顯示名稱 |
+| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
+| `email` | `string \| undefined` | 聯絡信箱 |
+| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
+| `bio` | `string \| undefined` | 個人簡介或組織描述 |
+| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
+| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
+| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
+| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
+| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
+| `createdAt` | `Timestamp \| undefined` | 建立時間 |
+
+**值物件：**
+- `AccountType`：`"user" | "organization"`
+- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
+- `Presence`：`"active" | "away" | "offline"`
+- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
+- `Wallet`：`{ balance: number }`（積分系統）
+
+**Team 嵌套物件（組織帳戶專屬）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 小組 ID |
+| `name` | `string` | 小組名稱 |
+| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
+| `memberIds` | `string[]` | 成員 ID 列表 |
+
+**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
+
+#### AccountPolicy（帳戶層 ABAC 政策）
+
+Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
+
+**AccountPolicy 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 政策唯一 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `name` | `string` | 政策名稱 |
+| `rules` | `PolicyRule[]` | 規則列表 |
+| `isActive` | `boolean` | 是否啟用 |
+| `createdAt` | `string` | ISO-8601 建立時間 |
+| `traceId` | `string \| undefined` | 審計追蹤 ID |
+
+**PolicyRule 值物件：**
+
+```typescript
+interface PolicyRule {
+  resource: string;                      // 受保護資源路徑
+  actions: string[];                     // 允許或拒絕的操作列表
+  effect: "allow" | "deny";             // 政策效果
+  conditions?: Record<string, string>;   // 條件約束（可選）
+}
+```
+
+政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
+
+---
+
+### 5.3 Organization（組織聚合根）
+
+Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
+
+**實現位置：** `modules/organization/domain/entities/Organization.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 組織唯一 ID（聚合根） |
+| `name` | `string` | 組織名稱 |
+| `ownerId` | `string` | 擁有者 UID |
+| `email` | `string \| undefined` | 組織聯絡信箱 |
+| `description` | `string \| undefined` | 組織描述 |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
+| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
+| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
+| `teams` | `Team[]` | 小組列表 |
+| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**PartnerInvite 值物件（合作夥伴邀請）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邀請唯一 ID |
+| `email` | `string` | 被邀請方信箱 |
+| `teamId` | `string` | 加入的小組 |
+| `role` | `OrganizationRole` | 授予角色 |
+| `inviteState` | `InviteState` | 邀請狀態 |
+| `invitedAt` | `Timestamp` | 邀請時間 |
+| `protocol` | `string` | 協議說明（外部協作規範） |
+
+**InviteState 值物件：** `"pending" | "accepted" | "expired"`
+
+#### OrgPolicy（組織層 ABAC 政策）
+
+與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
+
+**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
+
+**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
+
+---
+
+### 5.4 Workspace（工作區聚合根）
+
+Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
+
+**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 工作區唯一 ID（聚合根） |
+| `name` | `string` | 工作區名稱 |
+| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
+| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
+| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
+| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
+| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
+| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
+| `teamIds` | `string[]` | 關聯的組織小組 |
+| `address` | `Address \| undefined` | 實體地址（選填） |
+| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
+| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**WorkspaceLifecycleState 狀態機：**
+
+```text
+preparatory ──────────→ active ──────────→ stopped
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `preparatory` | 工作區準備中，正在初始化能力與設定 |
+| `active` | 工作區正常運作，可使用全部能力 |
+| `stopped` | 工作區已停用，保留資料但不可新增內容 |
+
+**Capability 值物件（能力模組）：**
+
+工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
+
+```typescript
+interface Capability {
+  id: string;
+  name: string;
+  type: "ui" | "api" | "data" | "governance" | "monitoring";
+  status: "stable" | "beta";
+  description: string;
+  config?: object;  // 各能力的自訂設定
+}
+```
+
+**WorkspaceGrant 值物件（存取授權）：**
+
+```typescript
+interface WorkspaceGrant {
+  userId?: string;   // 個人授權
+  teamId?: string;   // 小組授權
+  role: string;      // 授予的角色
+  protocol?: string; // 授權協議（外部合作適用）
+}
+```
+
+**不變式：**
+- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
+- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
+- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
+
+**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
+
+#### WorkspaceMemberView（工作區成員讀取模型）
+
+WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
+
+**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 成員 ID |
+| `displayName` | `string` | 顯示名稱 |
+| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
+| `isExternal` | `boolean` | 是否為外部合作成員 |
+| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
+
+**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
+
+#### WikiBetaContentTree（側邊欄導覽樹聚合根）
+
+WikiBetaContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
+
+**實現位置：** `modules/workspace/domain/entities/WikiBetaContentTree.ts`
+
+**樹狀結構：**
+
+```text
+WikiBetaAccountContentNode（帳戶節點）
+  ├── accountId, accountName, accountType（personal | organization）
+  ├── membersHref（組織帳戶限定）
+  ├── teamsHref（組織帳戶限定）
+  └── workspaces[]
+        └── WikiBetaWorkspaceContentNode（工作區節點）
+              ├── workspaceId, workspaceName
+              └── contentBaseItems[]
+                    └── WikiBetaContentItemNode（內容入口）
+                          ├── key（spaces | pages | libraries | rag | ai-tools …）
+                          ├── label, href
+                          └── enabled（是否啟用）
+```
+
+**不變式：**
+- Personal 帳戶節點排列在 Organization 帳戶節點之前。
+- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
+
+---
+
+### 5.5 Platform Foundation 跨模組關係
+
+```text
+Identity ──→ Account ──→ Organization ──→ Workspace
+  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
+  │             │               │               │
+  │         AccountPolicy   OrgPolicy       Capability
+  │             │               │
+  └─────────────┴───────────────┘
+         [S6] Claims Refresh Protocol
+         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
+```
+
+| 關係 | 說明 |
+| --- | --- |
+| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
+| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
+| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
+| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
+| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
+
+## 六、三層記憶架構的領域映射
+
+架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
+
+| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
+| --- | --- | --- | --- |
+| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
+| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
+| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
+
+---
+
+## 七、Ingestion Pipeline 的領域事件
+
+完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
+
+| 領域事件 | 觸發時機 | 訂閱方 |
+| --- | --- | --- |
+| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
+| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
+| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
+| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
+| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
+| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
+
+**事件 DTO 結構慣例：**
+
+```typescript
+interface DomainEventDTO {
+  type: "knowledge.document_registered";  // 格式：module.event_name
+  payload: { documentId: string; workspaceId: string; };
+  occurredAtISO: string;                  // ISO 8601 時間戳
+}
+```
+
+---
+
+## 八、Query Understanding Layer 的領域服務
+
+Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
+
+**建議的領域服務介面（位於 `modules/retrieval/domain/services/`）：**
+
+```typescript
+interface QueryPlannerService {
+  classifyIntent(query: string): Promise<QueryIntent>;
+  decomposeQuery(query: string): Promise<string[]>;
+  rewriteForRetrieval(query: string): Promise<string>;
+  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
+}
+```
+
+**對應的 Genkit Flow（`modules/agent/infrastructure/genkit/` 或 `modules/retrieval/infrastructure/genkit/`）：**
+- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
+- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
+- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
+
+---
+
+## 九、Schema + Ontology Layer 的領域概念
+
+架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
+
+### Ontology 在 EdgeType 中的實現
+
+GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
+
+```text
+IS_A        → 類別繼承（OWL SubClassOf）
+PART_OF     → 組成關係（Mereology）
+RELATED_TO  → 通用相關（RDF関係）
+DEPENDS_ON  → 工程依賴
+CAUSES      → 因果推理
+CONTRADICTS → 知識矛盾偵測
+```
+
+### 未來擴充：Entity Normalization（實體正規化）
+
+為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
+1. `WikiBetaPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
+2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
+3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
+
+---
+
+## 十、Hybrid Retrieval 的技術邊界說明
+
+architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
+
+| 元件 | 層級 | 位置 |
+| --- | --- | --- |
+| Dense Retrieval（Vector Search） | Infrastructure | `modules/retrieval/infrastructure/firebase/` |
+| Sparse Retrieval（BM25） | Infrastructure | `modules/retrieval/infrastructure/` |
+| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/knowledge-graph/infrastructure/` |
+| Reranker | Infrastructure / AI | `modules/retrieval/infrastructure/genkit/` |
+| Fusion & Ranking | Application | `modules/retrieval/application/use-cases/answer-rag-query.use-case.ts` |
+
+領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
+
+---
+
+## 十一、完整領域概念清單
+
+| 領域概念 | 類型 | 模組 | 狀態 |
+| --- | --- | --- | --- |
+| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
+| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
+| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
+| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
+| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
+| `Account` | 聚合根 | `account` | ✅ 已實現 |
+| `AccountType` | 值物件 | `account` | ✅ 已實現 |
+| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
+| `Presence` | 值物件 | `account` | ✅ 已實現 |
+| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
+| `Wallet` | 值物件 | `account` | ✅ 已實現 |
+| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
+| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
+| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
+| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
+| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
+| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
+| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
+| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
+| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
+| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
+| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
+| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
+| `WikiBetaContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
+| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
+| `BlockType` | 值物件 | `content` | ✅ 已實現 |
+| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
+| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
+| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
+| `WikiBetaPage` | 投影實體 | `content` | ✅ 已實現 |
+| `WikiBetaLibrary` | 聚合根 | `asset` | ✅ 已實現 |
+| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
+| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
+| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
+| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
+| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
+| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
+| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
+| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
+| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
+| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
+| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
+
+---
+
+> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 `````

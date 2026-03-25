@@ -318,7 +318,7 @@ agents/
   commands.md (52 lines)
   hooks (1 lines)
   instructions (1 lines)
-  knowledge-base.md (213 lines)
+  knowledge-base.md (244 lines)
   prompts (1 lines)
   README.md (70 lines)
   rules (1 lines)
@@ -410,11 +410,11 @@ docs/
   architecture/
     adr/
       README.md (15 lines)
-    domain-implementation-target.md (99 lines)
+    domain-implementation-target.md (79 lines)
     README.md (16 lines)
   development/
     code-style.md (368 lines)
-    development-process.md (275 lines)
+    development-process.md (281 lines)
     modules-implementation-guide.md (165 lines)
     README.md (0 lines)
   diagrams/
@@ -432,6 +432,7 @@ docs/
     xuanwu_architecture.mermaid (111 lines)
   guides/
     explanation/
+      architecture-domain.md (925 lines)
       architecture.md (942 lines)
       README.md (16 lines)
     how-to/
@@ -445,7 +446,7 @@ docs/
       README.md (17 lines)
   reference/
     specification/
-      system-overview.md (193 lines)
+      system-overview.md (189 lines)
     README.md (16 lines)
   templates/
     explanation.template.md (23 lines)
@@ -532,7 +533,7 @@ modules/
         register-uploaded-rag-document.use-case.ts (130 lines)
         upload-complete-file.use-case.ts (204 lines)
         upload-init-file.use-case.ts (127 lines)
-        wiki-beta-libraries.use-case.ts (241 lines)
+        wiki-beta-libraries.use-case.ts (242 lines)
       index.ts (6 lines)
     domain/
       entities/
@@ -590,7 +591,7 @@ modules/
         content-block.use-cases.ts (73 lines)
         content-page.use-cases.ts (167 lines)
         content-version.use-cases.ts (43 lines)
-        wiki-beta-pages.use-case.ts (284 lines)
+        wiki-beta-pages.use-case.ts (285 lines)
       block-service.ts (59 lines)
     domain/
       entities/
@@ -630,32 +631,6 @@ modules/
         block-editor.store.ts (68 lines)
       index.ts (26 lines)
     index.ts (66 lines)
-  event/
-    api/
-      index.ts (28 lines)
-    application/
-      use-cases/
-        list-events-by-aggregate.ts (21 lines)
-        publish-domain-event.ts (48 lines)
-    domain/
-      entities/
-        domain-event.entity.ts (44 lines)
-      repositories/
-        ievent-bus.repository.ts (11 lines)
-        ievent-store.repository.ts (15 lines)
-      services/
-        dispatch-policy.ts (33 lines)
-      value-objects/
-        event-metadata.vo.ts (14 lines)
-    infrastructure/
-      repositories/
-        in-memory-event-store.repository.ts (42 lines)
-        noop-event-bus.repository.ts (14 lines)
-      index.ts (8 lines)
-    interfaces/
-      api/
-        event.controller.ts (29 lines)
-    index.ts (38 lines)
   identity/
     api/
       index.ts (34 lines)
@@ -729,34 +704,6 @@ modules/
     Graph-Tree.mermaid (142 lines)
     Graph-UI.mermaid (102 lines)
     README.md (71 lines)
-  namespace/
-    api/
-      index.ts (21 lines)
-    application/
-      use-cases/
-        list-namespaces-by-organization.use-case.ts (20 lines)
-        register-namespace.use-case.ts (44 lines)
-        resolve-namespace.use-case.ts (21 lines)
-    domain/
-      entities/
-        namespace.entity.ts (52 lines)
-      repositories/
-        inamespace.repository.ts (15 lines)
-      services/
-        slug-policy.ts (36 lines)
-      value-objects/
-        namespace-slug.vo.ts (30 lines)
-    infrastructure/
-      repositories/
-        in-memory-namespace.repository.ts (42 lines)
-      index.ts (7 lines)
-    interfaces/
-      api/
-        namespace.controller.ts (23 lines)
-      components/
-        NamespacePrototypeView.tsx (168 lines)
-      index.ts (8 lines)
-    index.ts (33 lines)
   notification/
     api/
       index.ts (28 lines)
@@ -832,15 +779,21 @@ modules/
         RagView.tsx (659 lines)
   shared/
     api/
-      index.ts (15 lines)
+      index.ts (31 lines)
+    application/
+      publish-domain-event.ts (49 lines)
     domain/
       events/
         content-updated.event.ts (41 lines)
+      event-record.ts (66 lines)
       events.ts (16 lines)
+      slug-utils.ts (27 lines)
       types.ts (54 lines)
     infrastructure/
+      InMemoryEventStoreRepository.ts (37 lines)
+      NoopEventBusRepository.ts (14 lines)
       SimpleEventBus.ts (44 lines)
-    index.ts (13 lines)
+    index.ts (29 lines)
   workspace/
     api/
       index.ts (51 lines)
