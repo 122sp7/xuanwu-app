@@ -1,7 +1,7 @@
 # UI 元件模式（Component Patterns）
 
 > **參考文件類型**：本文件定義 Xuanwu App 中 UI 元件的使用規範、組合模式與常見陷阱。
-> 元件實作以 **shadcn/ui**（`@ui-shadcn`）為基礎，Lucide React 提供圖示。
+> 元件實作以 **shadcn/ui** 為基礎，Lucide React 提供圖示。
 
 ---
 
@@ -9,12 +9,12 @@
 
 ### 1.1 元件分類
 
-| 類型 | 位置 | 說明 |
+| 類型 | 分層 | 說明 |
 |---|---|---|
-| **基礎元件（Primitive）** | `@ui-shadcn/ui/*` | shadcn/ui 提供；不修改來源 |
-| **功能元件（Feature）** | `modules/*/interfaces/components/` | 業務功能元件；含狀態與資料 |
-| **Shell 元件（Layout）** | `app/(shell)/_components/` | 版型元件；App Rail、Sidebar 等 |
-| **頁面元件（Page）** | `app/(shell)/*/page.tsx` | 薄協調層；只組裝元件 |
+| **基礎元件（Primitive）** | UI 元件庫層 | shadcn/ui 提供；不修改來源 |
+| **功能元件（Feature）** | 模組介面層 | 業務功能元件；含狀態與資料 |
+| **Shell 元件（Layout）** | 應用外殼層 | 版型元件；App Rail、Sidebar 等 |
+| **頁面元件（Page）** | 頁面協調層 | 薄協調層；只組裝元件 |
 
 ### 1.2 Server vs Client 元件選擇
 
@@ -132,7 +132,7 @@ toast.error(`上傳失敗：${error.message}`);
 toast.info("正在處理中，請稍候…");
 ```
 
-**注意**：`<Toaster />` 已掛載於 `app/providers/providers.tsx`，無需重複掛載。
+**注意**：`<Toaster />` 已由全域 Provider 掛載，無需重複掛載。
 
 ### 2.6 Dropdown 選單模式
 

@@ -97,7 +97,7 @@ Toast 是 Xuanwu App 的主要反饋機制，使用 **Sonner** 函式庫。
 處理中：「{動作}中，請稍候…」   例：「重整中，請稍候…」
 ```
 
-**實作位置**：`<Toaster />` 已掛載於 `app/providers/providers.tsx`。
+**實作位置**：`<Toaster />` 已掛載於全域 Provider。
 
 ### 2.2 Loading 狀態規範
 

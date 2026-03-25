@@ -1,7 +1,7 @@
 # 線框圖（Wireframes）
 
 > **參考文件類型**：本文件包含 Xuanwu App 各主要功能區域的線框圖（Wireframe），以 ASCII 文字圖呈現布局結構與元件配置。
-> 詳細的個別功能 UI 規格，請參閱 [規格索引](../../development-reference/specification/README.md)。
+> 詳細的個別功能 UI 規格，請參閱系統規格索引。
 
 ---
 
@@ -329,9 +329,9 @@ Documents 列表載入中：
 
 ---
 
-## 相關文件
+## 相關主題
 
-- [設計系統](./design-system.md) — 色彩、字型規範
-- [UX 原則](./ux-principles.md) — 互動規則、可近用性
-- [資訊架構](./information-architecture.md) — 全站路由地圖
-- [規格索引](../../development-reference/specification/README.md) — Wiki-Beta 與其他功能規格入口
+- 設計系統：色彩、字型規範
+- UX 原則：互動規則、可近用性
+- 資訊架構：全站路由地圖
+- 規格索引：Wiki-Beta 與其他功能規格入口
