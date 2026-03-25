@@ -38,21 +38,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-949 files | 68,327 lines
+960 files | 68,520 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 380 | 20,427 |
-| Markdown | 301 | 19,984 |
-| TypeScript (TSX) | 120 | 18,678 |
+| TypeScript | 382 | 20,469 |
+| Markdown | 301 | 20,054 |
+| TypeScript (TSX) | 129 | 18,759 |
 | No Extension | 54 | 108 |
 | Python | 49 | 3,532 |
 | MERMAID | 25 | 1,794 |
 | JSON | 10 | 2,549 |
 | Shell | 2 | 602 |
+| JavaScript (ESM) | 2 | 338 |
 | RULES | 2 | 18 |
-| Text | 2 | 105 |
-| Other | 4 | 530 |
+| Other | 4 | 297 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)
@@ -63,5 +63,5 @@ This skill contains the following reference files:
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/app-rail.tsx` (669 lines)
-- `modules/wiki-beta/interfaces/components/WikiBetaRagView.tsx` (660 lines)
+- `modules/retrieval/interfaces/components/RagView.tsx` (659 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (610 lines)

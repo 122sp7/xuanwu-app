@@ -80,6 +80,6 @@
 ## Configuration Files
 
 - .gitignore
+- eslint.config.mjs
 - package.json
 - tsconfig.json
-- eslint.config.mjs
