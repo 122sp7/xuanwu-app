@@ -41,9 +41,14 @@ jobs:
           python-version: '3.11'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+
+      - name: Verify uv installation
+        run: |
+          uv --version
+          uv tool --help
 
       - name: Cache pip downloads
         uses: actions/cache@v4
@@ -64,4 +69,3 @@ jobs:
           npm --version
           python --version
           uv --version
-          uvx --version
