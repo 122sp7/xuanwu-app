@@ -48,3 +48,27 @@ Repository instruction index for `applyTo`-scoped Copilot rules.
 
 Legacy files were moved from `old/` into the categorized files above.
 
+## Legacy Mapping
+
+- `old/06-context7-usage.instructions.md` -> `architecture-monorepo.instructions.md` (external-doc usage boundary)
+- `old/07-markitdown-rag.instructions.md` -> `embedding-pipeline.instructions.md`, `rag-architecture.instructions.md`, `cloud-functions.instructions.md`
+- `old/modules-api-boundary.instructions.md` -> `architecture-api-boundary.instructions.md`
+- `old/modules-architecture.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-modules.instructions.md`
+- `old/modules-dependency-graph.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-api-boundary.instructions.md`
+- `old/modules-naming.instructions.md` -> `architecture-modules.instructions.md`
+- `old/modules-refactoring.instructions.md` -> `architecture-modules.instructions.md`
+- `old/xuanwu-app-nextjs-mddd.instructions.md` -> `nextjs-app-router.instructions.md`, `nextjs-server-actions.instructions.md`, `firebase-architecture.instructions.md`, `architecture-monorepo.instructions.md`
+- `old/xuanwu-functions-python.instructions.md` -> `cloud-functions.instructions.md`, `embedding-pipeline.instructions.md`, `firebase-architecture.instructions.md`
+- `old/prompt.instructions.md` -> `prompt-engineering.instructions.md`
+
+## Customization Frontmatter Quick Reference
+
+Use these condensed rules for customization files outside runtime/business architecture.
+
+- `.instructions.md`: required `description`, `applyTo`; keep glob scopes narrow.
+- `.prompt.md`: use `description`, `agent`; define required inputs and fallback behavior.
+- `.agent.md`: required `description`; keep tools least-privilege; keep role boundaries explicit.
+- `SKILL.md`: required `name`, `description`; keep workflows deterministic and discoverable.
+
+Keep these files concise, avoid duplicating repository-global policy, and prefer linking canonical references over copying long handbooks.
+

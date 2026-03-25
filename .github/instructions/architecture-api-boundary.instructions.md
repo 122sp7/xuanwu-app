@@ -10,13 +10,23 @@ applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Cross-module access must go through `modules/<target>/api` only.
 - Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
 
-## Allowed
+## Allowed Patterns
 
-- Public facade/contract imports from target module API.
-- Event-based collaboration through published contracts.
+- Import public facades or contracts from `modules/<target>/api`.
+- Coordinate across contexts through explicit event contracts.
 
-## Forbidden
+## Forbidden Patterns
 
-- Reach-through imports to private repository/entity implementations.
-- Hidden boundary bypasses via barrel chains.
+- Reach-through imports into another module's private entities, repositories, or adapters.
+- Hiding boundary bypasses behind barrels or re-export chains.
+
+## Refactor Rule
+
+- When boundary violations are found, replace them with API contracts or events in the same change.
+- Do not leave temporary reach-through imports after refactors.
+
+## Validation
+
+- Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
+- Re-check changed imports for `@/modules/` to confirm API-only access.
 

@@ -5,6 +5,12 @@ applyTo: '.github/prompts/**/*.prompt.md'
 
 # Prompt Engineering
 
+## Frontmatter
+
+- Use clear `description` and `agent` fields.
+- Declare `tools` with least privilege when tool usage is required.
+- Keep `argument-hint` explicit when the prompt expects user inputs.
+
 ## Structure
 
 1. Mission
@@ -18,4 +24,6 @@ applyTo: '.github/prompts/**/*.prompt.md'
 - Keep prompts specific and executable.
 - Declare required inputs and fallbacks.
 - Keep tools least-privilege when defined.
+- Avoid copying repository-global policy into each prompt.
+- Prefer short executable steps over long background text.
 

@@ -12,6 +12,8 @@ Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore 
 ## Rules
 
 - Do not reorder stages without contract/doc update.
+- Normalize source documents to markdown (for example via MarkItDown) before chunking when required by source format.
 - Keep metadata traceable for retrieval citations.
 - Validate converted markdown quality before chunking.
+- Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
 

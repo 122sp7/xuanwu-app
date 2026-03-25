@@ -7,7 +7,7 @@ applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx
 
 ## Rules
 
-- Normalize source docs before chunking when needed.
+- Normalize source docs before chunking when needed, including MarkItDown-based conversion for non-markdown sources.
 - Keep retrieval metadata auditable and source-traceable.
 - Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
 

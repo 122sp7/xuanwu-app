@@ -14,6 +14,9 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - Module folder: kebab-case bounded context.
 - Use case file: `verb-noun.use-case.ts`.
 - Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
+- Domain event discriminant: `module-name.action`.
 
 ## Refactor Checklist
 
@@ -21,4 +24,11 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 2. Map API consumers.
 3. Preserve boundaries during split/merge/delete.
 4. Update docs and imports in the same change.
+5. Migrate public API and event contracts before removing old paths.
+
+## Module Lifecycle Notes
+
+- New module: establish `api/` contract immediately and document inventory updates.
+- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
+- Delete: remove consumers first, then delete module, then update docs and dependency references.
 

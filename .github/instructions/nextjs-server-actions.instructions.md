@@ -10,4 +10,6 @@ applyTo: '{app,modules}/**/*.{ts,tsx}'
 - Use `use server` explicitly.
 - Keep actions thin and delegate business logic to use cases.
 - Return consistent command result shapes.
+- Validate inputs at action boundaries using shared validators where applicable.
+- Keep infrastructure access out of route files and action wrappers.
 
