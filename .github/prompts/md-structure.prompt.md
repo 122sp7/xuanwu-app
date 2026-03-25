@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown, filesystem]
-description: Enforce consistent document structure hierarchy across all MD files
+name: md-structure
+description: Enforce consistent section hierarchy and structure across Markdown documents.
+agent: md-writer
+argument-hint: "Target doc set and structure policy"
 ---
 
 # md-structure — Structure Enforcer

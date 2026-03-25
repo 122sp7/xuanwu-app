@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown, filesystem]
-description: Orchestrate full Markdown optimization pipeline (Leaf → Root)
+name: md-optimize
+description: Orchestrate the full Markdown optimization pipeline from leaf docs to root indexes.
+agent: md-writer
+argument-hint: "Target scope, e.g. .github and docs"
 ---
 
 # md-optimize — Master Pipeline

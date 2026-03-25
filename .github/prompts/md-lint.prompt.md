@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown, filesystem]
-description: Lint Markdown syntax, validate links, and enforce formatting consistency
+name: md-lint
+description: Lint Markdown syntax, validate links, and enforce formatting consistency.
+agent: md-writer
+argument-hint: "Target file(s) to lint"
 ---
 
 # md-lint — Linter & Validator

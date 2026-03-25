@@ -27,8 +27,16 @@ Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
 
 | Prompt | File | Purpose |
 | --- | --- | --- |
-| `/update-customizations` | `update-customizations.md` | Safely update agents, skills, prompts, hooks |
+| `/serena-agent` | `serena-agent.prompt.md` | Serena coding workflow with symbolic editing guardrails |
 | `/serena-maintenance` | `serena-maintenance.prompt.md` | Maintenance tasks for Serena MCP integration |
+| `/markitdown-md-optimization` | `markitdown-md-optimization.prompt.md` | Markitdown-driven end-to-end markdown optimization |
+| `/md-optimize` | `md-optimize.prompt.md` | Orchestrate markdown optimization pipeline |
+| `/md-lint` | `md-lint.prompt.md` | Lint and validate markdown files |
+| `/md-compress` | `md-compress.prompt.md` | Compress markdown while preserving information |
+| `/md-dedup` | `md-dedup.prompt.md` | Remove duplicated concepts across docs |
+| `/md-rules` | `md-rules.prompt.md` | Convert prose to rules and tables |
+| `/md-structure` | `md-structure.prompt.md` | Enforce markdown section hierarchy |
+| `/md-index` | `md-index.prompt.md` | Generate/update folder index files |
 
 ## Tool-Specific Prompts
 
@@ -39,7 +47,7 @@ Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
 | `/shadcn-mcp` | `shadcn-mcp.prompt.md` | shadcn component management with MCP |
 | `/next-devtools-mcp` | `next‑devtools‑mcp.prompt.md` | Next.js development tools integration |
 
-## Total: 16 Prompts
+## Total: 26 Prompts
 
 ## Quick Reference
 

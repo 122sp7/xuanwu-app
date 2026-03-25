@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown, filesystem]
-description: Generate or update INDEX files for a folder after leaf docs are optimized
+name: md-index
+description: Generate or update README/INDEX files after leaf docs are optimized.
+agent: md-writer
+argument-hint: "Target folder for index generation"
 ---
 
 # md-index — Index Generator

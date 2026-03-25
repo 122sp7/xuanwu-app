@@ -1,3 +1,10 @@
+---
+name: markitdown-md-optimization
+description: Optimize markdown docs with Markitdown MCP using a leaf-to-root pipeline.
+agent: md-writer
+argument-hint: "Target folder(s) and optimization scope, e.g. docs/how-to-user"
+---
+
 # Markitdown MCP Markdown Optimization Prompt
 
 Use microsoft/markitdown MCP to continuously optimize all markdown (.md) files in this repository.

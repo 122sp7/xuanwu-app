@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown]
-description: Compress Markdown files — reduce token count while preserving full information
+name: md-compress
+description: Compress Markdown files to reduce token count while preserving full information.
+agent: md-writer
+argument-hint: "Target file or folder to compress"
 ---
 
 # md-compress — Token Compressor

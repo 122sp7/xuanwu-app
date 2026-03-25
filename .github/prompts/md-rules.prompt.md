@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown]
-description: Convert prose documentation into machine-optimized rules, tables, and structured formats
+name: md-rules
+description: Convert prose docs into concise rules, tables, and structured formats.
+agent: md-writer
+argument-hint: "Target file(s) and preferred output style"
 ---
 
 # md-rules — Prose → Rules Converter

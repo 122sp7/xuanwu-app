@@ -1,7 +1,8 @@
 ---
-mode: agent
-tools: [markitdown, filesystem]
-description: Detect and remove duplicate concepts across and within Markdown files
+name: md-dedup
+description: Detect and remove duplicate concepts across and within Markdown files.
+agent: md-writer
+argument-hint: "Target docs folder and canonicalization preference"
 ---
 
 # md-dedup — Deduplication Engine
