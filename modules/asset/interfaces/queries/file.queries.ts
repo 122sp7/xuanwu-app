@@ -1,4 +1,4 @@
-import type { WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
 
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";

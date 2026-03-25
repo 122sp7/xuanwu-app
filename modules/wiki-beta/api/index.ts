@@ -28,3 +28,5 @@ export type {
   WikiBetaWorkspaceContentNode,
   WikiBetaContentItemNode,
 } from "../domain/entities/wiki-beta.types";
+
+export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";

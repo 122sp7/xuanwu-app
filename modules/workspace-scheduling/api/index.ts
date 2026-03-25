@@ -16,3 +16,5 @@ export type {
   CreateDemandInput,
   AssignMemberInput,
 } from "./schema";
+
+export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace";
+import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
 import { formatDate } from "@shared-utils";
 import {
   Avatar,
@@ -37,10 +37,10 @@ import {
   SelectValue,
 } from "@ui-shadcn/ui/select";
 import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
 import { WorkspaceFilesTab } from "@/modules/asset/api";
-import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling";
+import { WikiBetaWorkspaceView } from "@/modules/wiki-beta/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";

@@ -26,3 +26,5 @@ export {
   getOrganizationAuditLogs,
   getWorkspaceAuditLogs,
 } from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";

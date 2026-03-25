@@ -80,11 +80,18 @@
 - current code confirms knowledge-graph is active and knowledge is in compatibility mode.
 - current code confirms ai still mixes retrieval and generation concerns.
 - current docs confirm contract drift against the intended target architecture.
+- phase1 implementation completed: graph/search/interfaces are bridge-only surfaces, asset/workspace imports were tightened to api barrels, and workspace detail UI now consumes asset/workspace-audit/wiki-beta/workspace-scheduling through api boundaries.
+- phase1 validation passed with targeted ESLint clean and full `npm run build` success on 2026-03-25.
+- code search found no active runtime imports of `@/modules/file`; remaining references are documentation-heavy and can be handled in later contract/doc sync.
 
 ### Risks
 - Renaming docs before code ownership is real will create false architecture claims.
 - Deleting ai too early will strand both retrieval and orchestration entrypoints.
 - Leaving file internals alive too long will keep duplicate ownership and encourage accidental new imports.
+
+### Implementation progress
+- Completed phase1 boundary cleanup on 2026-03-25.
+- Next recommended implementation step: compress `modules/file` toward pure bridge-only shape, then rebuild `modules/knowledge` as the real ingestion owner.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.
