@@ -1,5 +1,5 @@
 /**
- * Module: audit
+ * Module: workspace-audit
  * Layer: api/barrel
  * Purpose: Public cross-module API boundary for the Audit domain.
  *

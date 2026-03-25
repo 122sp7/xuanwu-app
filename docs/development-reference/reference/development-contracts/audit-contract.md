@@ -16,8 +16,8 @@ Audit module: append-only read boundary for workspace and organization audit vis
 
 | Concern | Owner |
 | --- | --- |
-| Workspace and organization audit queries | `modules/audit` |
-| Durable storage adapter | `modules/audit` Firebase repository |
+| Workspace and organization audit queries | `modules/workspace-audit` |
+| Durable storage adapter | `modules/workspace-audit` Firebase repository |
 | Upstream audit event producers | other modules through future ports or adapters |
 
 ## Current query contract

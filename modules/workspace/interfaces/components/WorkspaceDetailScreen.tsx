@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from "@ui-shadcn/ui/select";
 import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAuditTab } from "@/modules/audit";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit";
 import { WorkspaceFilesTab } from "@/modules/file";
 import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
 import { WorkspacePlannerTab } from "@/modules/workspace-planner";

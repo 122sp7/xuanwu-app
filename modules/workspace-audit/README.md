@@ -1,4 +1,4 @@
-# Audit Module
+# Workspace Audit Module
 
 > **開發狀態**：🏗️ Midway — 開發部分完成
 
@@ -19,8 +19,8 @@ The audit module owns append-only audit visibility for workspace and organizatio
 
 ## Current interface entrypoints
 
-- `modules/audit/interfaces/queries/audit.queries.ts`
-- `modules/audit/application/use-cases/audit.use-cases.ts`
+- `modules/workspace-audit/interfaces/queries/audit.queries.ts`
+- `modules/workspace-audit/application/use-cases/audit.use-cases.ts`
 
 ## Key rule
 
