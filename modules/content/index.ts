@@ -62,3 +62,5 @@ export {
 
 // ── Interfaces: Components ────────────────────────────────────────────────────
 export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PagesView } from "./interfaces/components/PagesView";
+export { PagesDnDView } from "./interfaces/components/PagesDnDView";

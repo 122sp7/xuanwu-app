@@ -25,3 +25,5 @@ export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
 
 export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
 export { AssetDocumentsView } from "../interfaces/components/AssetDocumentsView";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
