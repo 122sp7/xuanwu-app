@@ -4,10 +4,27 @@ description: Diagnose and implement Next.js App Router behavior using runtime ev
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+	- label: Refine Parallel Routes
+		agent: parallel-routes
+		prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
+	- label: Write Server Action
+		agent: server-action-writer
+		prompt: Implement or review the server action orchestration and validation boundary used by this route.
+	- label: Verify End-to-End
+		agent: e2e-qa
+		prompt: Verify the affected route in a browser and collect runtime evidence for this change.
 
 ---
 
 # App Router Agent
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
+- `providers/**`
 
 ## Workflow
 
@@ -30,3 +47,11 @@ model: 'GPT-5.3-Codex'
 - Residual route risk
 
 Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
