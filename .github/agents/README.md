@@ -2,6 +2,12 @@
 
 Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
 
+## Mapping Baseline
+
+- MCP routing baseline: [../mcp_to_agent_mapping.md](../mcp_to_agent_mapping.md)
+- Visual routing map: [../mcp_to_agent_mapping.svg](../mcp_to_agent_mapping.svg)
+- Existing delivery and module agents are extension lanes on top of this baseline.
+
 ## Delivery Chain
 
 | Stage | Agent | File | Purpose |

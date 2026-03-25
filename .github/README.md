@@ -5,15 +5,17 @@ Operational index for repository-scoped customization assets.
 ## Commander flow (fast path)
 
 1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
-2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
-3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
-4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
+2. Use [mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the baseline MCP-to-agent routing contract.
+3. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
+4. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
+5. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
 
 ## Boundary
 
 - Keep executable customization assets in `.github/`.
 - Keep explanation, governance, and lifecycle context in `docs/`.
 - Update both locations together when behavior changes.
+- Treat existing `agents/`, `instructions/`, and `prompts/` as extension layers on top of the MCP mapping baseline.
 - If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
 
 ## Folder map

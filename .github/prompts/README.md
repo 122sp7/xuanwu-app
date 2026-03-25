@@ -2,6 +2,8 @@
 
 Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
 
+Prompts are extension assets under the MCP routing baseline in [../mcp_to_agent_mapping.md](../mcp_to_agent_mapping.md). Use prompt scope to select the right specialized agent or delivery stage.
+
 ## Delivery Workflow
 
 | Prompt | File | Purpose |
@@ -53,6 +55,16 @@ Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
 | `/context7-mcp` | `context7-mcp.prompt.md` | Upstash Context7 integration workflows |
 | `/shadcn-mcp` | `shadcn-mcp.prompt.md` | shadcn component management with MCP |
 | `/next-devtools-mcp` | `next‑devtools‑mcp.prompt.md` | Next.js development tools integration |
+
+## MCP Extension Routing
+
+| MCP domain | Preferred prompt | Preferred agent lane |
+| --- | --- | --- |
+| Context7 docs lookup | `/context7-mcp` | `Commander` or `serena-coding-agent` |
+| shadcn workflows | `/shadcn-mcp` | `Component Agent` |
+| Next runtime diagnostics | `/next-devtools-mcp` | `App Router Agent` |
+| MarkItDown conversion | `/markitdown-md-optimization` | `RAG Vector Agent` |
+| Browser E2E evidence | `/playwright-mcp` | `E2E QA Agent` |
 
 ## Total: 28 Prompts
 

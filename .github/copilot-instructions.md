@@ -30,14 +30,19 @@ All agents must use Serena MCP tools for project memory, index, and `.serena/` m
 ## Orchestration pattern
 
 1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
-2. Activate skills as needed:  
+2. Treat [.github/mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [.github/mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the MCP routing baseline.  
+3. Keep legacy delivery assets as extensions of the mapping baseline:
+   - Delivery chain agents (`planner`, `implementer`, `reviewer`, `qa`) remain primary for formal delivery.
+   - MCP-specialized agents (`commander`, `app-router`, `component`, `rag-vector`, `e2e-qa`) provide focused execution lanes.
+   - Existing prompts and instructions remain valid and should be selected by scope, not duplicated by MCP type.
+4. Activate skills as needed:  
    - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
    - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
    - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
    - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
    - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
    - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
-3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
+5. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
 
 ## Validation
 
