@@ -1,0 +1,211 @@
+---
+title: Xuanwu — AI Knowledge Platform Architecture (v3)
+---
+graph TD
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 0 — workspace（基礎設施 · 所有模組共用 context）
+  %% ══════════════════════════════════════════════════════
+  subgraph WS["workspace（基礎設施層）"]
+    direction LR
+    WS1["tenant isolation"]
+    WS2["auth · orgId boundary"]
+    WS3["event bus · shared context"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 1 — content（Notion 層）
+  %% ══════════════════════════════════════════════════════
+  subgraph CT["content（↔ Notion）"]
+    direction TB
+    CT1["Page · Block · Database · View"]
+    CT2["Version · Comment · Template"]
+    CT3["Collaboration · Permission · Automation"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 1 — knowledge-graph（Wiki 層）
+  %% ══════════════════════════════════════════════════════
+  subgraph KG["knowledge-graph（↔ Wiki）"]
+    direction TB
+    KG1["PageLink · Backlink · Relation"]
+    KG2["Category · Tag · Namespace · Redirect"]
+    KG3["Ontology · Schema · VersionGraph"]
+  end
+
+  %% content → knowledge-graph：pageId 參照
+  CT -- "pageId ref" --> KG
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 2 — knowledge（NotebookLM · Ingestion Pipeline）
+  %% ══════════════════════════════════════════════════════
+  subgraph KN["knowledge（↔ NotebookLM · Ingestion）"]
+    direction TB
+    KN1["1 Parse：PDF · DOCX · HTML · MD · OCR"]
+    KN2["2 Clean：noise · encoding · language detect"]
+    KN3["3 Taxonomy：auto-tag · classify · metadata"]
+    KN4["4 Chunk：semantic · hierarchical · overlap"]
+    KN4b["5 Chunk Metadata：source_doc_id · section · page_number · chunk_index"]
+    KN5["6 Embed：model select · batch generation"]
+    KN6["7 Persist：vector store · metadata · registry"]
+    KN7["8 Mark Ready：status = indexed"]
+    KN8(["Status Machine：uploaded → parsing → chunking → embedding → indexed → stale → re-indexing"])
+    KN1 --> KN2 --> KN3 --> KN4 --> KN4b --> KN5 --> KN6 --> KN7
+  end
+
+  CT -- "doc content" --> KN
+  KG -- "graph edges" --> KN
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 3 — retrieval（NotebookLM · RAG Query Layer）
+  %% ══════════════════════════════════════════════════════
+  subgraph RT["retrieval（↔ NotebookLM · RAG Query）"]
+    direction TB
+
+    subgraph QU["Query Understanding Layer"]
+      QU1["Intent Classification"]
+      QU2["Query Decomposition · Sub-query"]
+      QU3["Query Rewriting · HyDE"]
+    end
+
+    subgraph HR["Hybrid RAG Layer"]
+      HR1["Dense Retrieval（Vector · Semantic）"]
+      HR2["Sparse Retrieval（BM25 · TF-IDF）"]
+      HR3["Graph Search（Relational · Multi-hop）"]
+      HR4["Reranker（Cross-encoder · Top-K）"]
+      HR1 --> HR4
+      HR2 --> HR4
+      HR3 --> HR4
+    end
+
+    subgraph MDR["Multi-Document Reasoning Layer"]
+      MDR1["Bridge Reasoning：A → B → C 鏈式推理"]
+      MDR2["Comparison Reasoning：A vs B 比較推理"]
+      MDR3["Compositional Reasoning：多條件組合推理"]
+      MDR4["Temporal Reasoning：時間序列推理"]
+      MDR5["Cross-Doc Analysis：Contradiction · Completion · Timeline"]
+    end
+
+    subgraph MEM["AI Memory Layer"]
+      MEM1["Semantic Memory（Vector DB · long-term）"]
+      MEM2["Episodic Memory（sessions · mid-term）"]
+      MEM3["Working Memory（context buffer · short-term）"]
+    end
+
+    subgraph CIT["Citation and Grounding"]
+      CIT1["Source Mapping：docId · chunkId · page"]
+      CIT2["Faithfulness · Relevance · Completeness"]
+      CIT3["Hallucination Detection"]
+    end
+
+    QU --> HR
+    HR --> MDR
+    MDR --> CIT
+    MEM --> HR
+  end
+
+  KN -- "embeddings + chunks" --> RT
+  KG -- "graph index" --> RT
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 4 — agent（ReAct Orchestration · Tool Layer）
+  %% ══════════════════════════════════════════════════════
+  subgraph AG["agent（Tool / Agent Layer）"]
+    direction TB
+
+    subgraph REACT["ReAct Orchestrator"]
+      R1["Thought：intent planning"]
+      R2["Action：tool dispatch"]
+      R3["Observation：result parse"]
+      R4["Answer：grounded response"]
+      R1 --> R2 --> R3 --> R4
+    end
+
+    subgraph TOOLS["Tool Registry"]
+      T1["search-tool → retrieval/api"]
+      T2["create-doc-tool → content/api"]
+      T3["summarize-tool → retrieval/api"]
+      T4["auto-link-tool → knowledge-graph/api"]
+      T5["auto-tag-tool → knowledge-graph/api"]
+      T6["knowledge-graph-query-tool → knowledge-graph/api"]
+      T7["external-api-connector"]
+    end
+
+    REACT --> TOOLS
+  end
+
+  RT -- "query result + citations" --> AG
+
+  %% agent → 各模組 api/ 層（跨模組 api call）
+  AG -. "api/ call" .-> CT
+  AG -. "api/ call" .-> KG
+  AG -. "api/ call" .-> KN
+  AG -. "api/ call" .-> RT
+
+  %% workspace → 全部模組
+  WS -. "context inject" .-> CT
+  WS -. "context inject" .-> KG
+  WS -. "context inject" .-> KN
+  WS -. "context inject" .-> RT
+  WS -. "context inject" .-> AG
+
+  %% ══════════════════════════════════════════════════════
+  %% MODULE INTERNAL STRUCTURE（每個 module 統一規範）
+  %% ══════════════════════════════════════════════════════
+  subgraph INT["每個 module 的內部結構（統一規範）"]
+    direction LR
+    L_IF["interfaces/\nNext.js Route Handler\nFirebase CF Trigger\n薄層 無業務邏輯"]
+    L_AP["application/\nUse Case\nCommand / Query Handler\nEvent Publisher"]
+    L_DO["domain/\nEntity · Value Object\nRepository Interface\nDomain Service · Event"]
+    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flows：\n  QueryPlannerFlow\n  RetrievalFlow\n  IngestionFlow\n  AgentOrchestratorFlow\n  CitationFlow"]
+    L_API["api/\npublic contract\nTypeScript types\nfunction signatures\n唯一對外出口"]
+
+    L_IF --> L_AP
+    L_AP --> L_DO
+    L_DO -. "implements" .-> L_IN
+    L_AP -. "exposes via" .-> L_API
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% BOUNDARY RULE
+  %% ══════════════════════════════════════════════════════
+  RULE["⚠️ 跨模組邊界規則\nimport from module/api 只\n嚴禁穿透 domain/ 或 infrastructure/\nindex.ts 只 re-export api/ 內容"]
+
+  %% ══════════════════════════════════════════════════════
+  %% FIRESTORE COLLECTION OWNERSHIP
+  %% ══════════════════════════════════════════════════════
+  subgraph FS["Firestore Collection Ownership"]
+    direction LR
+    FS_CT["content owns\npages · blocks\ndatabases · comments · versions"]
+    FS_KG["knowledge-graph owns\npage_links · relations\ncategories · tags · templates"]
+    FS_KN["knowledge owns\nembeddings · chunks\ningestion_jobs"]
+    FS_RT["retrieval owns\nsessions · memory\ncitation_logs"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% STYLES
+  %% ══════════════════════════════════════════════════════
+  classDef wsStyle   fill:#444441,stroke:#888780,color:#D3D1C7
+  classDef ctStyle   fill:#085041,stroke:#1D9E75,color:#9FE1CB
+  classDef kgStyle   fill:#3C3489,stroke:#7F77DD,color:#CECBF6
+  classDef knStyle   fill:#633806,stroke:#BA7517,color:#FAC775
+  classDef rtStyle   fill:#0C447C,stroke:#378ADD,color:#B5D4F4
+  classDef agStyle   fill:#712B13,stroke:#D85A30,color:#F5C4B3
+  classDef intStyle  fill:#2C2C2A,stroke:#5F5E5A,color:#D3D1C7
+  classDef ruleStyle fill:#501313,stroke:#E24B4A,color:#F7C1C1
+  classDef fsStyle   fill:#173404,stroke:#639922,color:#C0DD97
+
+  class WS1,WS2,WS3 wsStyle
+  class CT1,CT2,CT3 ctStyle
+  class KG1,KG2,KG3 kgStyle
+  class KN1,KN2,KN3,KN4,KN4b,KN5,KN6,KN7,KN8 knStyle
+  class QU1,QU2,QU3 rtStyle
+  class HR1,HR2,HR3,HR4 rtStyle
+  class MDR1,MDR2,MDR3,MDR4,MDR5 rtStyle
+  class MEM1,MEM2,MEM3 rtStyle
+  class CIT1,CIT2,CIT3 rtStyle
+  class R1,R2,R3,R4 agStyle
+  class T1,T2,T3,T4,T5,T6,T7 agStyle
+  class L_IF,L_AP,L_DO,L_IN,L_API intStyle
+  class RULE ruleStyle
+  class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
