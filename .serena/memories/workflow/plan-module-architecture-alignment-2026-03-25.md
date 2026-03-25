@@ -104,7 +104,11 @@
   - kept upload completion behavior non-blocking even when ingestion registration fails,
   - added development-time warning logs for failed ingestion registration attempts.
 - Validation for phase3 integration increment passed: full `npm run build` success after integration.
-- Next recommended implementation step: replace bootstrap placeholder metadata (`title`/`mimeType`) in ingestion handoff with canonical values from asset/file repository read model, then begin extraction of retrieval responsibilities from `modules/ai` into `modules/retrieval`.
+- Completed phase3 refinement increment on 2026-03-25:
+  - ingestion handoff now resolves canonical `title` and `mimeType` by reading file metadata from `FirebaseFileRepository.findById` before calling `KnowledgeIngestionApi.registerDocument`,
+  - fallback placeholder values are kept only when file metadata cannot be resolved.
+- Validation for phase3 refinement increment passed: targeted ESLint clean and full `npm run build` success.
+- Next recommended implementation step: start extraction of retrieval responsibilities from `modules/ai` into `modules/retrieval` (begin with `AnswerRagQueryUseCase` and retrieval repository contracts).
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.
