@@ -9,7 +9,8 @@ description: >
   and can autonomously use Context7, shadcn, Next DevTools, MarkItDown, and
   Playwright MCP tools when they are relevant to the task.
 argument-hint: Optional arguments for project path or target modules.
-tools: ['agent', 'read', 'edit', 'search', 'todo', 'serena/*', 'context7/*', 'shadcn/*', 'io.github.vercel/next-devtools-mcp/*', 'microsoft/markitdown/*', 'playwright/*']
+tools: ['agent', 'read', 'edit', 'search', 'todo', 'serena/*', 'context7/*', 'shadcn/*', 'io.github.vercel/next-devtools-mcp/*', 'microsoft/markitdown/*', 'microsoft/playwright-mcp/*']
+agents: ['Explore', 'Planner', 'App Router Composer', 'Modules Architect', 'Module Boundary Steward', 'Modules API Surface Steward']
 target: 'vscode'
 ---
 
@@ -29,6 +30,8 @@ target: 'vscode'
 - Use Next DevTools MCP when diagnosing app-router, rendering, route, or Next.js runtime issues.
 - Use MarkItDown MCP when transforming or analyzing document-like inputs is part of the task.
 - Use Playwright MCP to verify browser behavior and UI flows directly when frontend execution evidence is needed.
+- Use subagents when scoped decomposition will improve speed or context isolation.
+- Use the Planner subagent when the request is complex enough to benefit from an explicit implementation plan before edits.
 
 ## Best Practices
 Before implementing new features:
@@ -62,6 +65,20 @@ Before implementing new features:
 - Do not skip Serena symbolic workflow just because an MCP tool is available.
 - Treat Playwright and Next DevTools as execution-evidence tools, not as substitutes for reading relevant code.
 - Respect configured credentials and prompts in `.vscode/mcp.json`; if a required key is unavailable, proceed without fabricating results.
+
+## Subagent Routing
+- `Explore` — fast read-only discovery for broad codebase or docs questions before narrowing scope.
+- `Planner` — generate structured implementation plans for non-trivial changes.
+- `App Router Composer` — app route/parallel-route composition tasks.
+- `Modules Architect` — module lifecycle work (create/refactor/split/merge/delete).
+- `Module Boundary Steward` — enforce MDDD ownership and dependency direction in `modules/`.
+- `Modules API Surface Steward` — refine `modules/*/api` contracts/facades and public export surfaces.
+
+## Subagent Guardrails
+- Keep subagent invocations narrow and task-specific; avoid delegating the entire request blindly.
+- Prefer one decisive subagent call over many overlapping calls.
+- Reconcile subagent outputs against repository boundaries and current diagnostics before editing.
+- Use Planner before coding when requirements are ambiguous, cross-cutting, or high-risk.
 
 ## Notes
 - Prefer symbol-level edits over raw text replacements
