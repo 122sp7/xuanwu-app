@@ -10,8 +10,9 @@ import {
   InMemoryEventStoreRepository,
   NoopEventBusRepository,
   PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
 
 import type {
   AddWikiBetaLibraryFieldInput,
