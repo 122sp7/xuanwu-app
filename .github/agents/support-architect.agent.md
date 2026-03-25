@@ -1,7 +1,7 @@
 ---
 name: Support Architect
 description: Design support workflows, escalation paths, and operational boundaries across modules, docs, and QA evidence.
-tools: ['read', 'edit', 'search', 'todo', 'agent']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
 
 ---

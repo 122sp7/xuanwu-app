@@ -1,7 +1,7 @@
 ---
 name: Billing Architect
 description: Define and evolve billing module boundaries, contracts, and workflow invariants under MDDD and contract-first delivery.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---

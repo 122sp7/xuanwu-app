@@ -1,7 +1,7 @@
 ---
 name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
-tools: ['read', 'edit', 'search', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---

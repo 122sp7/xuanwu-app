@@ -1,7 +1,7 @@
 ---
 name: Tool Caller
 description: Select and sequence tools with least privilege, evidence-first execution, and bounded scope per task.
-tools: ['read', 'search', 'todo', 'agent', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---

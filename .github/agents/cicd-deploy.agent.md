@@ -1,7 +1,7 @@
 ---
 name: CI CD Deploy Agent
 description: Design and operate build, lint, test, and deployment pipelines with rollback-safe release checks.
-tools: ['read', 'edit', 'search', 'execute', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---

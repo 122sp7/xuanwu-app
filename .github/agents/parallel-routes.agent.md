@@ -1,7 +1,7 @@
 ---
 name: Parallel Routes Agent
 description: Build and refactor app parallel-route UI slots with one-way data flow and API-only module consumption.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---

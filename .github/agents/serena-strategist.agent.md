@@ -1,7 +1,7 @@
 ---
 name: Serena Strategist
 description: Strategic Serena-first task routing for plan, boundary checks, and MCP evidence decisions.
-tools: ['read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---

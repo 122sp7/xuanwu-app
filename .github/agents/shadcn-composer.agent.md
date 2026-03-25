@@ -2,7 +2,7 @@
 name: Shadcn Composer
 description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
 argument-hint: Describe component goal, target route, and required interaction states.
-tools: ['read', 'edit', 'search', 'shadcn/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
 
 ---

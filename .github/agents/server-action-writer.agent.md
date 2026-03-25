@@ -1,7 +1,7 @@
 ---
 name: Server Action Writer
 description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
-tools: ['read', 'edit', 'search']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 
 ---

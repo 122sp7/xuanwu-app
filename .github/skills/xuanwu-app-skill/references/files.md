@@ -57803,7 +57803,7 @@ docs/development-reference/specification/<feature-name>/
 ---
 name: AI Genkit Lead
 description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
-tools: ['read', 'edit', 'search', 'todo', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57839,7 +57839,7 @@ Execution baseline: autonomous Serena-first discovery, Context7 only when repo d
 ---
 name: Billing Architect
 description: Define and evolve billing module boundaries, contracts, and workflow invariants under MDDD and contract-first delivery.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57862,7 +57862,7 @@ Design billing ownership and API contracts before feature implementation.
 ---
 name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
-tools: ['read', 'edit', 'search', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57881,7 +57881,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: CI CD Deploy Agent
 description: Design and operate build, lint, test, and deployment pipelines with rollback-safe release checks.
-tools: ['read', 'edit', 'search', 'execute', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57900,7 +57900,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Embedding Writer
 description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57919,7 +57919,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Firestore Schema Agent
 description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57938,7 +57938,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Frontend Lead
 description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
-tools: ['read', 'edit', 'search', 'execute', 'shadcn/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57961,7 +57961,7 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 ---
 name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-tools: ['read', 'edit', 'search', 'todo', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -57985,7 +57985,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -58020,7 +58020,7 @@ Execution baseline: autonomous Serena-first discovery, Context7 only when reposi
 ---
 name: Prompt Engineer
 description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
-tools: ['read', 'edit', 'search', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -58044,7 +58044,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Schema Migration Agent
 description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -58063,7 +58063,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Security Rules Agent
 description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -58086,7 +58086,7 @@ Prevent unauthorized access while preserving required product flows.
 ---
 name: Server Action Writer
 description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
-tools: ['read', 'edit', 'search']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -58105,7 +58105,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Test Scenario Writer
 description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
-tools: ['read', 'edit', 'search', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64590,7 +64590,7 @@ export function WorkspaceSchedulingTab({
 ---
 name: Doc Ingest Agent
 description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
-tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64610,7 +64610,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Domain Lead
 description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64642,7 +64642,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
-tools: ['read', 'edit', 'search', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64672,7 +64672,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: MDDD Architect
 description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64709,7 +64709,7 @@ Shape module structures without breaking bounded contexts.
 ---
 name: Parallel Routes Agent
 description: Build and refactor app parallel-route UI slots with one-way data flow and API-only module consumption.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64746,7 +64746,7 @@ Compose route slots that remain isolated, predictable, and boundary-safe.
 ---
 name: Quality Lead
 description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
-tools: ['read', 'search', 'execute', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64782,7 +64782,7 @@ Verify correctness, boundary safety, and release readiness.
 ---
 name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64806,7 +64806,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Serena Strategist
 description: Strategic Serena-first task routing for plan, boundary checks, and MCP evidence decisions.
-tools: ['read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64837,7 +64837,7 @@ Use this agent to define execution strategy before coding.
 name: Shadcn Composer
 description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
 argument-hint: Describe component goal, target route, and required interaction states.
-tools: ['read', 'edit', 'search', 'shadcn/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64862,7 +64862,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: Support Architect
 description: Design support workflows, escalation paths, and operational boundaries across modules, docs, and QA evidence.
-tools: ['read', 'edit', 'search', 'todo', 'agent']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64892,7 +64892,7 @@ Turn support issues into bounded implementation and verification tasks.
 ---
 name: Tool Caller
 description: Select and sequence tools with least privilege, evidence-first execution, and bounded scope per task.
-tools: ['read', 'search', 'todo', 'agent', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'agent', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -64923,7 +64923,7 @@ Call the smallest effective tool set in the right order and stop unnecessary too
 ---
 name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
-tools: ['read', 'edit', 'search']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -66059,7 +66059,7 @@ export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
 name: App Router Agent
 description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
-tools: ['read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -66092,7 +66092,7 @@ model: 'GPT-5.3-Codex'
 ---
 name: E2E QA Agent
 description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
-tools: ['read', 'search', 'todo', 'microsoft/playwright-mcp/*']
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
 model: 'GPT-5.3-Codex'
 
 ---
@@ -66124,7 +66124,7 @@ model: 'GPT-5.3-Codex'
 ---
 description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
 name: 'Repo Architect Agent'
-tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, microsoft/markitdown/convert_to_markdown, serena/activate_project, serena/check_onboarding_performed, serena/delete_memory, serena/edit_memory, serena/find_file, serena/find_referencing_symbols, serena/find_symbol, serena/get_current_config, serena/get_symbols_overview, serena/initial_instructions, serena/insert_after_symbol, serena/insert_before_symbol, serena/list_dir, serena/list_memories, serena/onboarding, serena/read_memory, serena/rename_memory, serena/rename_symbol, serena/replace_symbol_body, serena/search_for_pattern, serena/write_memory, context7/get-library-docs, context7/resolve-library-id, todo]
+tools: ['serena/*', 'context7/*', vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, microsoft/markitdown/convert_to_markdown, serena/activate_project, serena/check_onboarding_performed, serena/delete_memory, serena/edit_memory, serena/find_file, serena/find_referencing_symbols, serena/find_symbol, serena/get_current_config, serena/get_symbols_overview, serena/initial_instructions, serena/insert_after_symbol, serena/insert_before_symbol, serena/list_dir, serena/list_memories, serena/onboarding, serena/read_memory, serena/rename_memory, serena/rename_symbol, serena/replace_symbol_body, serena/search_for_pattern, serena/write_memory, context7/get-library-docs, context7/resolve-library-id, todo]
 ---
 
 # Repo Architect Agent
@@ -66361,7 +66361,7 @@ Would you like to install any of these? (Provide install links)
 ---
 description: '{DESCRIPTION}'
 model: GPT-4.1
-tools: [{RELEVANT_TOOLS}]
+tools: ['serena/*', 'context7/*', {RELEVANT_TOOLS}]
 ---
 
 # {AGENT_NAME}

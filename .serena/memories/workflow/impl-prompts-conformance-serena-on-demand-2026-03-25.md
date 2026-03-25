@@ -10,7 +10,7 @@
 ### Decisions / Findings
 - `markitdown-md-optimization.prompt.md` had no frontmatter; added `name/description/agent/argument-hint`.
 - `md-*` prompts used `mode` only and lacked `name`; added `name/agent/argument-hint` for slash usability.
-- `tools: [markitdown, filesystem]` caused validation errors (`unknown tool`), so tools were removed and routing relies on `agent: md-writer`.
+- `tools: ['serena/*', 'context7/*', markitdown, filesystem]` caused validation errors (`unknown tool`), so tools were removed and routing relies on `agent: md-writer`.
 - Prompt index README had stale `/update-customizations` entry and outdated total count.
 
 ### Validation / Evidence

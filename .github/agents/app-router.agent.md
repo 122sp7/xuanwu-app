@@ -2,7 +2,7 @@
 name: App Router Agent
 description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
-tools: ['read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
 
 ---

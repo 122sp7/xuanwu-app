@@ -1,7 +1,7 @@
 ---
 name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
 model: 'GPT-5.3-Codex'
 
 ---

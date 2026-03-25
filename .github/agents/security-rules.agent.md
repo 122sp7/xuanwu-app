@@ -1,7 +1,7 @@
 ---
 name: Security Rules Agent
 description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---

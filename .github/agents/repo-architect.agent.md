@@ -1,7 +1,7 @@
 ---
 description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
 name: 'Repo Architect Agent'
-tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, microsoft/markitdown/convert_to_markdown, serena/activate_project, serena/check_onboarding_performed, serena/delete_memory, serena/edit_memory, serena/find_file, serena/find_referencing_symbols, serena/find_symbol, serena/get_current_config, serena/get_symbols_overview, serena/initial_instructions, serena/insert_after_symbol, serena/insert_before_symbol, serena/list_dir, serena/list_memories, serena/onboarding, serena/read_memory, serena/rename_memory, serena/rename_symbol, serena/replace_symbol_body, serena/search_for_pattern, serena/write_memory, context7/get-library-docs, context7/resolve-library-id, todo]
+tools: ['serena/*', 'context7/*', vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, microsoft/markitdown/convert_to_markdown, serena/activate_project, serena/check_onboarding_performed, serena/delete_memory, serena/edit_memory, serena/find_file, serena/find_referencing_symbols, serena/find_symbol, serena/get_current_config, serena/get_symbols_overview, serena/initial_instructions, serena/insert_after_symbol, serena/insert_before_symbol, serena/list_dir, serena/list_memories, serena/onboarding, serena/read_memory, serena/rename_memory, serena/rename_symbol, serena/replace_symbol_body, serena/search_for_pattern, serena/write_memory, context7/get-library-docs, context7/resolve-library-id, todo]
 ---
 
 # Repo Architect Agent
@@ -238,7 +238,7 @@ Would you like to install any of these? (Provide install links)
 ---
 description: '{DESCRIPTION}'
 model: GPT-4.1
-tools: [{RELEVANT_TOOLS}]
+tools: ['serena/*', 'context7/*', {RELEVANT_TOOLS}]
 ---
 
 # {AGENT_NAME}

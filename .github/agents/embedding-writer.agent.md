@@ -1,7 +1,7 @@
 ---
 name: Embedding Writer
 description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---

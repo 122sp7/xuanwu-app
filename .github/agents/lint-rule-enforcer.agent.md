@@ -1,7 +1,7 @@
 ---
 name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 
 ---
