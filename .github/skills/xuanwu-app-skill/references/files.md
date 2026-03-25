@@ -51990,6 +51990,32 @@ export default {
 }
 `````
 
+## File: .github/agents/app-router.agent.md
+`````markdown
+---
+name: App Router Agent
+description: 'Diagnose and implement App Router behavior using Next DevTools MCP plus boundary-safe edits.'
+argument-hint: Provide route segment, expected behavior, and failing symptoms.
+tools: ['read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Implement Changes
+    agent: Implementer
+    prompt: Apply app-router fixes and validate affected routes.
+    send: false
+---
+
+# App Router Agent
+
+Focus on route diagnostics and rendering issues in Next.js app routing.
+
+## Guardrails
+
+- Keep business logic in modules, not in route composition files.
+- Prefer runtime evidence from Next DevTools MCP when route behavior is unclear.
+`````
+
 ## File: .github/agents/app/README.md
 `````markdown
 # App Agents Notes
@@ -51999,6 +52025,96 @@ This folder is reserved for app-specific agent context.
 Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active app-specific persona lives in [../app-router-composer.agent.md](../app-router-composer.agent.md).
 
 Keep app-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
+`````
+
+## File: .github/agents/commander.agent.md
+`````markdown
+---
+name: Commander
+description: 'Orchestrate Xuanwu delivery tasks with Serena-first routing and selective MCP usage.'
+argument-hint: Describe scope, expected output, and any required MCP evidence.
+tools: ['read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Plan Work
+    agent: Planner
+    prompt: Create a formal implementation plan for the requested scope.
+    send: false
+  - label: Run Review
+    agent: Reviewer
+    prompt: Review current implementation and report findings by severity.
+    send: false
+---
+
+# Commander
+
+Use this agent as a task router for non-trivial work.
+
+## Workflow
+
+1. Confirm ownership and runtime boundary.
+2. Use Serena tools for repository discovery before editing.
+3. Use Context7 only for framework or library behavior that is not authoritative in repo docs.
+4. Hand off to specialized delivery agents when implementation or review begins.
+
+## Guardrails
+
+- Do not bypass module boundaries.
+- Do not invoke broad MCP tools when built-in repo context is sufficient.
+- Do not edit source files if the task is still in planning or triage mode.
+`````
+
+## File: .github/agents/component.agent.md
+`````markdown
+---
+name: Component Agent
+description: 'Build and refactor UI components with shadcn MCP while preserving project design boundaries.'
+argument-hint: Describe component goal, target route, and required interaction states.
+tools: ['read', 'edit', 'search', 'todo', 'shadcn/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Run QA
+    agent: QA
+    prompt: Verify UI behavior and interaction coverage for updated components.
+    send: false
+---
+
+# Component Agent
+
+Use this agent for shadcn/ui-driven implementation and component composition.
+
+## Guardrails
+
+- Reuse existing tokens and package aliases.
+- Keep component behavior aligned with route ownership and module API boundaries.
+`````
+
+## File: .github/agents/e2e-qa.agent.md
+`````markdown
+---
+name: E2E QA Agent
+description: 'Execute browser-level verification with Playwright MCP and report release readiness evidence.'
+argument-hint: Provide test route, scenario sequence, and acceptance criteria.
+tools: ['read', 'search', 'todo', 'microsoft/playwright-mcp/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Fix Findings
+    agent: Implementer
+    prompt: Fix E2E findings and rerun required verification steps.
+    send: false
+---
+
+# E2E QA Agent
+
+Use this agent to validate user-facing browser behavior and runtime console/network issues.
+
+## Guardrails
+
+- Collect reproducible evidence for each failure.
+- Keep findings separate from improvement suggestions.
 `````
 
 ## File: .github/agents/md-writer.agent.md
@@ -52249,6 +52365,32 @@ You are **QA** — a senior quality assurance engineer who treats software like 
 - Report vague bugs like "it doesn't work" without reproduction steps.
 `````
 
+## File: .github/agents/rag-vector.agent.md
+`````markdown
+---
+name: RAG Vector Agent
+description: 'Handle document ingest and retrieval workflows with MarkItDown MCP and documentation-backed decisions.'
+argument-hint: Provide source format, ingest target, and retrieval quality concerns.
+tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Review Implementation
+    agent: Reviewer
+    prompt: Review ingest and retrieval changes for boundary and regression risk.
+    send: false
+---
+
+# RAG Vector Agent
+
+Use this agent for conversion and retrieval preparation workflows.
+
+## Guardrails
+
+- Keep runtime split: Next.js orchestration and `py_fn` ingestion responsibilities must stay separated.
+- Validate contract alignment before changing ingestion shape.
+`````
+
 ## File: .github/copilot-instructions.md
 `````markdown
 # Xuanwu Copilot Delivery Suite
@@ -52300,6 +52442,58 @@ All agents must use Serena MCP tools for project memory, index, and `.serena/` m
 ## Terminology
 
 See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
+`````
+
+## File: .github/instructions/06-context7-usage.instructions.md
+`````markdown
+---
+description: 'Rules for using Context7 to fetch current external docs only when repository sources are not sufficient.'
+applyTo: '.github/**/*.{md,agent.md,prompt.md,instructions.md}'
+---
+
+# Context7 Usage Rules
+
+## Use Context7 when
+
+- The task depends on current framework or library behavior that can change across versions.
+- The repository does not already contain authoritative guidance for the requested behavior.
+
+## Do not use Context7 when
+
+- The answer is already explicit in `AGENTS.md`, `.github/copilot-instructions.md`, module docs, or local code.
+- The task is purely local refactoring with no external API uncertainty.
+
+## Required output behavior
+
+1. Name the selected documentation source and topic.
+2. Distinguish documented facts from repository conventions.
+3. Apply least-change implementation based on confirmed docs.
+`````
+
+## File: .github/instructions/07-markitdown-rag.instructions.md
+`````markdown
+---
+description: 'Rules for MarkItDown-assisted document conversion in RAG workflows under Xuanwu runtime boundaries.'
+applyTo: '{docs,py_fn,.github}/**/*.{md,py}'
+---
+
+# MarkItDown RAG Rules
+
+## Workflow intent
+
+Use MarkItDown conversion to normalize source documents into markdown before chunking and embedding workflows.
+
+## Boundary rules
+
+- Keep ingestion and parsing responsibilities inside `py_fn` pipelines.
+- Keep user-facing orchestration and route logic in Next.js module interfaces.
+- Do not mix authentication/session behavior into Python ingestion code.
+
+## Validation expectations
+
+1. Verify converted markdown structure is usable for downstream chunking.
+2. Keep source metadata traceable so retrieval citations remain auditable.
+3. Document any format-loss risk for manual follow-up.
 `````
 
 ## File: .github/instructions/app/app-router-parallel-routes.instructions.md
@@ -52448,104 +52642,6 @@ Use this instruction for `modules/*/interfaces` files.
 ## Validation
 
 - Re-check imports for accidental reach-through before finishing.
-`````
-
-## File: .github/mcp_to_agent_mapping.md
-`````markdown
-.github/
-│
-├── agents/                          # Agent 人格定義（.md）
-│   ├── commander.agent.md           # 玄武 MDDD 開發指揮官（Serena 直屬）
-│   │
-│   ├── domain/
-│   │   ├── domain-model.agent.md    # DDD Aggregate / TS interface 設計
-│   │   ├── firestore-schema.agent.md# 租戶路徑 + 資料模型設計
-│   │   └── security-rules.agent.md  # Firestore Rules 分層存取控制
-│   │
-│   ├── frontend/
-│   │   ├── app-router.agent.md      # RSC/CC 邊界 + next-devtools-mcp
-│   │   ├── parallel-routes.agent.md # @slot 平行路由場景設計
-│   │   ├── server-actions.agent.md  # Server Actions + Edge Runtime
-│   │   └── component.agent.md       # shadcn/ui 元件 + shadcn MCP
-│   │
-│   ├── ai/
-│   │   ├── genkit-flow.agent.md     # Genkit Flow 設計 + Tool Calling
-│   │   ├── prompt-engineer.agent.md # Prompt Pipeline + 版本控制
-│   │   └── rag-vector.agent.md      # markitdown MCP + Pinecone / Firestore VS
-│   │
-│   └── quality/
-│       ├── ts-lint.agent.md         # no-any / no-admin-in-client 靜態規則
-│       ├── test-coverage.agent.md   # Firestore 模擬 + Genkit 單元測試
-│       ├── e2e-qa.agent.md          # playwright-mcp E2E 驗收
-│       └── cicd-deploy.agent.md     # GitHub Actions + Firebase Hosting
-│
-├── instructions/                    # Copilot 全域 coding 規範（自動注入）
-│   ├── 00-global-rules.instructions.md     # 通用：no-any、租戶路徑、no-hardcode-config
-│   ├── 01-nextjs-app-router.instructions.md# App Router、RSC/CC 邊界規則
-│   ├── 02-firebase-firestore.instructions.md# Firestore 路徑、Admin SDK 限制
-│   ├── 03-shadcn-ui.instructions.md        # 僅 shadcn/ui，禁止其他 UI 套件
-│   ├── 04-genkit-ai.instructions.md        # Genkit Flow、Tool Calling 規範
-│   ├── 05-security-rules.instructions.md   # Security Rules 設計原則
-│   ├── 06-context7-usage.instructions.md   # 何時呼叫 context7 查文件
-│   └── 07-markitdown-rag.instructions.md   # KB 文件攝取流程規範
-│
-├── prompts/                         # 任務型 prompt（手動觸發 / slash command）
-│   │
-│   ├── scaffolding/
-│   │   ├── new-feature.prompt.md    # 新功能：domain → schema → component 全流程
-│   │   ├── new-agent-flow.prompt.md # 新增 Genkit Agent Flow 骨架
-│   │   └── new-shadcn-page.prompt.md# 新增 shadcn/ui page + parallel route
-│   │
-│   ├── review/
-│   │   ├── pr-review.prompt.md      # PR 審查：serena MCP 語意分析 + 規則驗證
-│   │   ├── security-audit.prompt.md # Security Rules 稽核
-│   │   └── ts-strict-check.prompt.md# TypeScript strict 逐檔檢查
-│   │
-│   ├── diagnosis/
-│   │   ├── bundle-analysis.prompt.md# next-devtools-mcp bundle 分析
-│   │   ├── route-debug.prompt.md    # App Router / parallel route 診斷
-│   │   └── firestore-query-opt.prompt.md # Firestore 查詢優化建議
-│   │
-│   ├── testing/
-│   │   ├── e2e-scenario.prompt.md   # playwright-mcp E2E 場景生成
-│   │   ├── unit-test-gen.prompt.md  # Genkit Flow / Firestore 單元測試生成
-│   │   └── security-rules-test.prompt.md # Rules 測試案例生成
-│   │
-│   └── rag/
-│       ├── ingest-document.prompt.md# markitdown → chunk → embed 流程
-│       └── kb-search-eval.prompt.md # RAG 搜尋品質評估
-│
-└── skills/                          # 可複用技能片段（Agent 引用）
-    ├── firestore/
-    │   ├── tenant-path-pattern.skill.md   # /orgs/{orgId}/... 路徑範式
-    │   ├── subcollection-design.skill.md  # subcollection vs map 選擇
-    │   └── batch-write-pattern.skill.md   # batch / transaction 最佳實踐
-    │
-    ├── nextjs/
-    │   ├── rsc-cc-boundary.skill.md       # RSC / Client Component 切分
-    │   ├── parallel-route-slot.skill.md   # @slot 實作範式
-    │   ├── streaming-suspense.skill.md    # Streaming + Suspense 整合
-    │   └── server-action-pattern.skill.md # Server Action 安全寫法
-    │
-    ├── genkit/
-    │   ├── flow-definition.skill.md       # Flow 定義 + input/output schema
-    │   ├── tool-calling.skill.md          # Tool / Function Calling 封裝
-    │   └── prompt-template.skill.md       # Prompt 版本化管理
-    │
-    ├── shadcn/
-    │   ├── component-composition.skill.md # Radix primitive 組合範式
-    │   ├── design-token.skill.md          # CSS variable + dark mode token
-    │   └── form-pattern.skill.md          # react-hook-form + zod + shadcn
-    │
-    ├── rag/
-    │   ├── markitdown-ingest.skill.md     # markitdown MCP 文件轉換流程
-    │   ├── chunking-strategy.skill.md     # chunk size / overlap 策略
-    │   └── vector-search-query.skill.md   # Pinecone / Firestore VS 查詢
-    │
-    └── testing/
-        ├── playwright-scenario.skill.md   # playwright-mcp 場景範式
-        ├── firestore-emulator.skill.md    # Firestore emulator 測試設定
-        └── genkit-flow-test.skill.md      # Genkit Flow 單元測試範式
 `````
 
 ## File: .github/mcp_to_agent_mapping.svg
@@ -53519,6 +53615,47 @@ export class RegisterUploadedRagDocumentUseCase {
 - Modules that only need standard repository interfaces
 `````
 
+## File: .github/skills/.serena-mcp/SKILL.md
+`````markdown
+---
+name: serena-mcp-integration
+description: >-
+  Auto-loaded background skill for Serena MCP integration. Enables GitHub Copilot
+  Agent to autonomously use Serena MCP tools for reading, querying, and updating
+  project semantic memory, symbol index, and code understanding context. Triggered
+  before any development task begins, after phase completion, or when .serena/
+  memory and index data need to be accessed. Direct .serena/ file edits are forbidden.
+user-invocable: false
+disable-model-invocation: true
+---
+
+# .serena-mcp (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
 ## File: .github/skills/app-router-parallel-routes/SKILL.md
 `````markdown
 ---
@@ -53557,6 +53694,81 @@ Use this skill when work is centered on `app/` composition, especially when a ro
 - State the consumed module APIs
 - Note whether the slice is server or client
 - Report validation performed
+`````
+
+## File: .github/skills/documentation-writer/SKILL.md
+`````markdown
+---
+name: documentation-writer
+description: 'Diátaxis Documentation Expert. An expert technical writer specializing in creating high-quality software documentation, guided by the principles and structure of the Diátaxis technical documentation authoring framework.'
+disable-model-invocation: true
+---
+
+# documentation-writer (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/liteparse/SKILL.md
+`````markdown
+---
+name: liteparse
+description: Use this skill when the user asks to parse, perform multi-format document conversion or spatially extract text from an unstructured file (PDF, DOCX, PPTX, XLSX, images, etc.) locally without cloud dependencies.
+compatibility: Requires Node 18+ and `@llamaindex/liteparse` installed globally via npm (`npm i -g @llamaindex/liteparse`)
+license: MIT
+metadata:
+  author: LlamaIndex
+  version: "0.1.0"
+disable-model-invocation: true
+---
+
+# liteparse (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
 `````
 
 ## File: .github/skills/modules-mddd-api-surface/SKILL.md
@@ -53646,6 +53858,68 @@ All skills are under version control. When editing a skill, update the `descript
 - [.github/README.md](../README.md) — Root navigation
 - [../.github/agents/](../agents/) — Delivery workflow agents
 - [../.github/instructions/](../instructions/) — Always-on coding standards
+`````
+
+## File: .github/skills/serena-mcp/SKILL.md
+`````markdown
+---
+name: serena-mcp
+description: >-
+  Enforce Serena MCP usage for project memory and .serena governance. Use for memory read/write, onboarding checks,
+  phase-end updates, and any .serena scoped operation.
+disable-model-invocation: true
+---
+
+# Serena MCP Enforcement (Condensed)
+
+## When to Use
+
+- Phase start/end (plan/impl/review/qa)
+- Project memory read/write/update
+- Any `.serena/` path operation
+
+## Mandatory Rules
+
+1. Never edit `.serena/` with direct file tools.
+2. Use Serena memory tools for create/update/delete.
+3. Activate project before memory operations.
+4. Execute phase-end memory update before handoff.
+
+## Phase-End Flow
+
+1. Activate project
+2. List memories
+3. Write phase memory
+4. Delete stale memories (if needed)
+5. Summarize changes
+
+## Minimal Phase Memory Template
+
+```markdown
+## Phase: <plan|impl|review|qa>
+## Task: <id or short description>
+## Date: <YYYY-MM-DD>
+
+### Scope
+- <item>
+
+### Decisions / Findings
+- <item>
+
+### Validation / Evidence
+- <item>
+
+### Deviations / Risks
+- <item or none>
+
+### Open Questions
+- <item or none>
+```
+
+## Guardrails
+
+- If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
+- Keep memory names consistent (`workflow/<phase>-<task-id>`).
 `````
 
 ## File: .github/skills/shadcn/SKILL.md
@@ -53879,6 +54153,287 @@ className="bg-background text-foreground"
 | 完成 UI 模組開發 | 透過 `serena-mcp` 更新語意記憶 |
 `````
 
+## File: .github/skills/slavingia-skills-company-values/SKILL.md
+`````markdown
+---
+name: company-values
+description: Help define company values and culture for a minimalist business. Use when someone is setting up their company culture, preparing to hire, or wanting to codify what their company stands for.
+disable-model-invocation: true
+---
+
+# slavingia-skills-company-values (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-find-community/SKILL.md
+`````markdown
+---
+name: find-community
+description: Help identify and evaluate communities to build a minimalist business around. Use when someone is looking for a business idea, trying to find their community, or wondering where to start as an entrepreneur.
+disable-model-invocation: true
+---
+
+# slavingia-skills-find-community (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-first-customers/SKILL.md
+`````markdown
+---
+name: first-customers
+description: Create a strategy for selling to your first 100 customers using the minimalist entrepreneur playbook. Use when someone has a product and needs to find customers, or is struggling with early sales.
+disable-model-invocation: true
+---
+
+# slavingia-skills-first-customers (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-grow-sustainably/SKILL.md
+`````markdown
+---
+name: grow-sustainably
+description: Evaluate business decisions through the lens of sustainable, profitable growth. Use when someone is making decisions about spending, hiring, fundraising, or scaling their business.
+disable-model-invocation: true
+---
+
+# slavingia-skills-grow-sustainably (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-minimalist-review/SKILL.md
+`````markdown
+---
+name: minimalist-review
+description: Review any business decision, plan, or strategy through the minimalist entrepreneur lens. Use when someone wants a gut-check on a business decision, wants to simplify their approach, or needs to decide between options.
+argument-hint: [describe your decision or situation]
+disable-model-invocation: true
+---
+
+# slavingia-skills-minimalist-review (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-mvp/SKILL.md
+`````markdown
+---
+name: mvp
+description: Guide building a minimum viable product the minimalist entrepreneur way — manual first, then processized, then productized. Use when someone is ready to build their first product or struggling with scope.
+disable-model-invocation: true
+---
+
+# slavingia-skills-mvp (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-pricing/SKILL.md
+`````markdown
+---
+name: pricing
+description: Help figure out pricing for a product or service using minimalist entrepreneur principles. Use when someone is setting prices, considering price changes, or struggling with what to charge.
+disable-model-invocation: true
+---
+
+# slavingia-skills-pricing (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-validate-idea/SKILL.md
+`````markdown
+---
+name: validate-idea
+description: Validate a business idea using the minimalist entrepreneur framework. Use when someone has a business idea and wants to test if it's worth pursuing before building anything.
+disable-model-invocation: true
+---
+
+# slavingia-skills-validate-idea (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
 ## File: .github/skills/vercel-composition-patterns/AGENTS.md
 `````markdown
 # React Composition Patterns (Condensed)
@@ -53917,6 +54472,50 @@ Use for component architecture and state-composition refactors in React codebase
 
 - Run `npm run lint`
 - Run `npm run build`
+`````
+
+## File: .github/skills/vercel-composition-patterns/SKILL.md
+`````markdown
+---
+name: vercel-composition-patterns
+description:
+  React composition patterns that scale. Use when refactoring components with
+  boolean prop proliferation, building flexible component libraries, or
+  designing reusable APIs. Triggers on tasks involving compound components,
+  render props, context providers, or component architecture. Includes React 19
+  API changes.
+license: MIT
+metadata:
+  author: vercel
+  version: '1.0.0'
+disable-model-invocation: true
+---
+
+# vercel-composition-patterns (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/advanced-event-handler-refs.md
@@ -54515,6 +55114,443 @@ Use when writing, reviewing, or refactoring React Native UI, state, animation, l
 
 - Run project lint/build commands.
 - Run platform-specific tests where applicable.
+`````
+
+## File: .github/skills/vercel-react-native-skills/SKILL.md
+`````markdown
+---
+name: vercel-react-native-skills
+description:
+  React Native and Expo best practices for building performant mobile apps. Use
+  when building React Native components, optimizing list performance,
+  implementing animations, or working with native modules. Triggers on tasks
+  involving React Native, Expo, mobile performance, or native platform APIs.
+license: MIT
+metadata:
+  author: vercel
+  version: '1.0.0'
+disable-model-invocation: true
+---
+
+# vercel-react-native-skills (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-agent-foundations/SKILL.md
+`````markdown
+---
+name: vscode-agent-foundations
+description: Learn how VS Code agents work and choose the right agent workflow. Use when asked about Ask, Agent, Plan, local agents, planning, memory, tools, subagents, handoffs, or Copilot smart actions in VS Code.
+disable-model-invocation: true
+---
+
+# vscode-agent-foundations (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-context-engineering/SKILL.md
+`````markdown
+---
+name: vscode-context-engineering
+description: Build high-signal AI workflows for a repository. Use when setting up project context, planning workflows, implementation handoffs, documentation layers, or best-practice Copilot customization strategies in VS Code.
+disable-model-invocation: true
+---
+
+# vscode-context-engineering (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-copilot-skillbook/SKILL.md
+`````markdown
+---
+name: vscode-copilot-skillbook
+description: Route VS Code Copilot and customization questions to the right skill. Use when the user wants a skillbook for agents, customizations, context engineering, testing, debugging, TypeScript workflows, or tasks authoring in VS Code.
+user-invocable: true
+disable-model-invocation: true
+---
+
+# vscode-copilot-skillbook (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-customization-architecture/SKILL.md
+`````markdown
+---
+name: vscode-customization-architecture
+description: Design VS Code Copilot customizations correctly. Use when deciding between custom instructions, prompt files, custom agents, agent skills, MCP servers, hooks, or customization layering in a repository.
+disable-model-invocation: true
+---
+
+# vscode-customization-architecture (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-tasks-authoring/SKILL.md
+`````markdown
+---
+name: vscode-tasks-authoring
+description: Author and review VS Code tasks.json workflows. Use when creating build, test, watch, shell, process, background, or problem matcher tasks, or when explaining the tasks.json schema and task execution behavior.
+disable-model-invocation: true
+---
+
+# vscode-tasks-authoring (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-testing-debugging-browser/SKILL.md
+`````markdown
+---
+name: vscode-testing-debugging-browser
+description: Use Copilot to test, debug, and validate applications in VS Code. Use when generating tests, fixing failing tests, setting up debugging, using browser agent tools, or creating closed-loop test and fix workflows.
+disable-model-invocation: true
+---
+
+# vscode-testing-debugging-browser (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vscode-typescript-workbench/SKILL.md
+`````markdown
+---
+name: vscode-typescript-workbench
+description: Work effectively with TypeScript in VS Code. Use when configuring tsconfig, transpiling with tsc, debugging with source maps, editing with IntelliSense, refactoring symbols, or managing TypeScript-specific editor features.
+disable-model-invocation: true
+---
+
+# vscode-typescript-workbench (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/web-design-guidelines/SKILL.md
+`````markdown
+---
+name: web-design-guidelines
+description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
+argument-hint: <file-or-pattern>
+metadata:
+  author: vercel
+  version: "1.0.0"
+---
+
+# Web Interface Guidelines
+
+Review files for compliance with Web Interface Guidelines.
+
+## How It Works
+
+1. Fetch the latest guidelines from the source URL below
+2. Read the specified files (or prompt user for files/pattern)
+3. Check against all rules in the fetched guidelines
+4. Output findings in the terse `file:line` format
+
+## Guidelines Source
+
+Fetch fresh guidelines before each review:
+
+```
+https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
+```
+
+Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
+
+## Usage
+
+When a user provides a file or pattern argument:
+1. Fetch guidelines from the source URL above
+2. Read the specified files
+3. Apply all rules from the fetched guidelines
+4. Output findings using the format specified in the guidelines
+
+If no files specified, ask the user which files to review.
+`````
+
+## File: .github/skills/xuanwu-development-contracts/SKILL.md
+`````markdown
+---
+name: xuanwu-development-contracts
+description: 'Follow Xuanwu''s contract-first development workflow. Use when modifying workflows with explicit contracts, including RAG ingestion, parser, schedule, daily, acceptance, billing, and audit. Triggers include runtime boundaries, state transitions, invariants, and acceptance gates. Helps find the right contract first and align code to it.'
+disable-model-invocation: true
+---
+
+# xuanwu-development-contracts (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/xuanwu-mddd-boundaries/SKILL.md
+`````markdown
+---
+name: xuanwu-mddd-boundaries
+description: 'Enforce Xuanwu''s MDDD module architecture and bounded-context boundaries. Use for cross-module imports, dependency violations, refactors in `modules/`, `packages/`, or `app/`, and changes to repositories, DTOs, or server actions. Preserves correct module ownership, layer placement, package aliases, and public boundaries.'
+disable-model-invocation: true
+---
+
+# xuanwu-mddd-boundaries (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/xuanwu-rag-runtime-boundary/SKILL.md
+`````markdown
+---
+name: xuanwu-rag-runtime-boundary
+description: 'Enforce Xuanwu''s RAG runtime split between Next.js and `py_fn`. Use for uploads, ingestion, parser jobs, chunking, embeddings, Firestore `documents` or `chunks`, vector retrieval, and AI query orchestration. Preserves runtime ownership, fixed ingestion order, and organization/workspace boundaries.'
+disable-model-invocation: true
+---
+
+# xuanwu-rag-runtime-boundary (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
 `````
 
 ## File: AGENTS.md
@@ -68087,6 +69123,37 @@ Required categories:
 - Link detailed references instead of copying handbooks.
 `````
 
+## File: .github/mcp_to_agent_mapping.md
+`````markdown
+# MCP to Agent Mapping (Implemented)
+
+This file records the implemented mapping strategy for using MCP tools through dedicated custom agents, instructions, prompts, and skills.
+
+## Implementation policy
+
+1. Keep custom agents at `.github/agents/` top-level for reliable discovery in this workspace.
+2. Use least-privilege `tools` in agent frontmatter.
+3. Use skills in folder form (`.github/skills/<name>/SKILL.md`), not `*.skill.md` files.
+4. Treat MCP mapping as a preferred routing rule, not a hard lock.
+
+## MCP routing matrix
+
+| MCP server | Primary agent | Supporting assets | Status |
+| --- | --- | --- | --- |
+| `context7/*` | `.github/agents/commander.agent.md` | `.github/instructions/06-context7-usage.instructions.md`, `.github/prompts/context7-mcp.prompt.md` | Implemented |
+| `shadcn/*` | `.github/agents/component.agent.md` | `.github/prompts/shadcn-mcp.prompt.md` | Implemented |
+| `io.github.vercel/next-devtools-mcp/*` | `.github/agents/app-router.agent.md` | `.github/prompts/next‑devtools‑mcp.prompt.md` | Implemented |
+| `microsoft/markitdown/*` | `.github/agents/rag-vector.agent.md` | `.github/instructions/07-markitdown-rag.instructions.md`, `.github/prompts/markitdown-md-optimization.prompt.md` | Implemented |
+| `microsoft/playwright-mcp/*` | `.github/agents/e2e-qa.agent.md` | `.github/prompts/playwright-mcp.prompt.md` | Implemented |
+| `serena/*` | `.github/agents/serena.agent.md`, `.github/agents/commander.agent.md` | `.github/skills/serena-mcp/SKILL.md` | Implemented |
+
+## Phase 2 candidates
+
+1. Add feature-specialized prompts under `prompts/diagnosis` and `prompts/rag` if workflow frequency justifies them.
+2. Add additional agents only when a repeated workflow cannot be covered by existing delivery agents plus prompts.
+3. Keep handoff targets aligned to diagnostics-recognized agent names.
+`````
+
 ## File: .github/prompts/app/create-parallel-route-slice.prompt.md
 `````markdown
 ---
@@ -68319,15 +69386,18 @@ Before implementing new features:
 - Follow module boundaries.
 `````
 
-## File: .github/skills/documentation-writer/SKILL.md
+## File: .github/skills/context7/SKILL.md
 `````markdown
 ---
-name: documentation-writer
-description: 'Diátaxis Documentation Expert. An expert technical writer specializing in creating high-quality software documentation, guided by the principles and structure of the Diátaxis technical documentation authoring framework.'
-disable-model-invocation: true
+name: context7
+description: >
+  Auto-load verification skill for library/framework API accuracy. Use when confidence is below 99% on API signatures,
+  version behavior, or config schema details. Resolve library ID and fetch official docs before answering.
+user-invocable: false
+disable-model-invocation: false
 ---
 
-# documentation-writer (Condensed)
+# context7 (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -68354,20 +69424,58 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/liteparse/SKILL.md
+## File: .github/skills/deploy-to-vercel/SKILL.md
 `````markdown
 ---
-name: liteparse
-description: Use this skill when the user asks to parse, perform multi-format document conversion or spatially extract text from an unstructured file (PDF, DOCX, PPTX, XLSX, images, etc.) locally without cloud dependencies.
-compatibility: Requires Node 18+ and `@llamaindex/liteparse` installed globally via npm (`npm i -g @llamaindex/liteparse`)
+name: deploy-to-vercel
+description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
+metadata:
+  author: vercel
+  version: "3.0.0"
+disable-model-invocation: true
+---
+
+# deploy-to-vercel (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/llamaparse/SKILL.md
+`````markdown
+---
+name: llamaparse
+description: Parse unstructured files (PDF, PPTX, DOCX, XLSX, etc.) via LlamaParse and return requested output formats.
+compatibility: Needs LLAMA_CLOUD_API_KEY in environment and @llamaindex/llama-cloud installed.
 license: MIT
 metadata:
   author: LlamaIndex
-  version: "0.1.0"
+  version: "1.0.0"
 disable-model-invocation: true
 ---
 
-# liteparse (Condensed)
+# llamaparse (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -68394,367 +69502,18 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/serena-mcp/SKILL.md
+## File: .github/skills/vercel-cli-with-tokens/SKILL.md
 `````markdown
 ---
-name: serena-mcp
-description: >-
-  Enforce Serena MCP usage for project memory and .serena governance. Use for memory read/write, onboarding checks,
-  phase-end updates, and any .serena scoped operation.
-disable-model-invocation: true
----
-
-# Serena MCP Enforcement (Condensed)
-
-## When to Use
-
-- Phase start/end (plan/impl/review/qa)
-- Project memory read/write/update
-- Any `.serena/` path operation
-
-## Mandatory Rules
-
-1. Never edit `.serena/` with direct file tools.
-2. Use Serena memory tools for create/update/delete.
-3. Activate project before memory operations.
-4. Execute phase-end memory update before handoff.
-
-## Phase-End Flow
-
-1. Activate project
-2. List memories
-3. Write phase memory
-4. Delete stale memories (if needed)
-5. Summarize changes
-
-## Minimal Phase Memory Template
-
-```markdown
-## Phase: <plan|impl|review|qa>
-## Task: <id or short description>
-## Date: <YYYY-MM-DD>
-
-### Scope
-- <item>
-
-### Decisions / Findings
-- <item>
-
-### Validation / Evidence
-- <item>
-
-### Deviations / Risks
-- <item or none>
-
-### Open Questions
-- <item or none>
-```
-
-## Guardrails
-
-- If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
-- Keep memory names consistent (`workflow/<phase>-<task-id>`).
-`````
-
-## File: .github/skills/slavingia-skills-company-values/SKILL.md
-`````markdown
----
-name: company-values
-description: Help define company values and culture for a minimalist business. Use when someone is setting up their company culture, preparing to hire, or wanting to codify what their company stands for.
-disable-model-invocation: true
----
-
-# slavingia-skills-company-values (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-find-community/SKILL.md
-`````markdown
----
-name: find-community
-description: Help identify and evaluate communities to build a minimalist business around. Use when someone is looking for a business idea, trying to find their community, or wondering where to start as an entrepreneur.
-disable-model-invocation: true
----
-
-# slavingia-skills-find-community (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-first-customers/SKILL.md
-`````markdown
----
-name: first-customers
-description: Create a strategy for selling to your first 100 customers using the minimalist entrepreneur playbook. Use when someone has a product and needs to find customers, or is struggling with early sales.
-disable-model-invocation: true
----
-
-# slavingia-skills-first-customers (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-grow-sustainably/SKILL.md
-`````markdown
----
-name: grow-sustainably
-description: Evaluate business decisions through the lens of sustainable, profitable growth. Use when someone is making decisions about spending, hiring, fundraising, or scaling their business.
-disable-model-invocation: true
----
-
-# slavingia-skills-grow-sustainably (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-minimalist-review/SKILL.md
-`````markdown
----
-name: minimalist-review
-description: Review any business decision, plan, or strategy through the minimalist entrepreneur lens. Use when someone wants a gut-check on a business decision, wants to simplify their approach, or needs to decide between options.
-argument-hint: [describe your decision or situation]
-disable-model-invocation: true
----
-
-# slavingia-skills-minimalist-review (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-mvp/SKILL.md
-`````markdown
----
-name: mvp
-description: Guide building a minimum viable product the minimalist entrepreneur way — manual first, then processized, then productized. Use when someone is ready to build their first product or struggling with scope.
-disable-model-invocation: true
----
-
-# slavingia-skills-mvp (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-pricing/SKILL.md
-`````markdown
----
-name: pricing
-description: Help figure out pricing for a product or service using minimalist entrepreneur principles. Use when someone is setting prices, considering price changes, or struggling with what to charge.
-disable-model-invocation: true
----
-
-# slavingia-skills-pricing (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-validate-idea/SKILL.md
-`````markdown
----
-name: validate-idea
-description: Validate a business idea using the minimalist entrepreneur framework. Use when someone has a business idea and wants to test if it's worth pursuing before building anything.
-disable-model-invocation: true
----
-
-# slavingia-skills-validate-idea (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-composition-patterns/SKILL.md
-`````markdown
----
-name: vercel-composition-patterns
-description:
-  React composition patterns that scale. Use when refactoring components with
-  boolean prop proliferation, building flexible component libraries, or
-  designing reusable APIs. Triggers on tasks involving compound components,
-  render props, context providers, or component architecture. Includes React 19
-  API changes.
-license: MIT
+name: vercel-cli-with-tokens
+description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
 metadata:
   author: vercel
-  version: '1.0.0'
+  version: "1.0.0"
 disable-model-invocation: true
 ---
 
-# vercel-composition-patterns (Condensed)
+# vercel-cli-with-tokens (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -68827,417 +69586,18 @@ Use this guidance when working on React or Next.js implementation, review, or re
 If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
 `````
 
-## File: .github/skills/vercel-react-native-skills/SKILL.md
+## File: .github/skills/vercel-react-best-practices/SKILL.md
 `````markdown
 ---
-name: vercel-react-native-skills
-description:
-  React Native and Expo best practices for building performant mobile apps. Use
-  when building React Native components, optimizing list performance,
-  implementing animations, or working with native modules. Triggers on tasks
-  involving React Native, Expo, mobile performance, or native platform APIs.
+name: vercel-react-best-practices
+description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
 license: MIT
-metadata:
-  author: vercel
-  version: '1.0.0'
-disable-model-invocation: true
----
-
-# vercel-react-native-skills (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-agent-foundations/SKILL.md
-`````markdown
----
-name: vscode-agent-foundations
-description: Learn how VS Code agents work and choose the right agent workflow. Use when asked about Ask, Agent, Plan, local agents, planning, memory, tools, subagents, handoffs, or Copilot smart actions in VS Code.
-disable-model-invocation: true
----
-
-# vscode-agent-foundations (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-context-engineering/SKILL.md
-`````markdown
----
-name: vscode-context-engineering
-description: Build high-signal AI workflows for a repository. Use when setting up project context, planning workflows, implementation handoffs, documentation layers, or best-practice Copilot customization strategies in VS Code.
-disable-model-invocation: true
----
-
-# vscode-context-engineering (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-copilot-skillbook/SKILL.md
-`````markdown
----
-name: vscode-copilot-skillbook
-description: Route VS Code Copilot and customization questions to the right skill. Use when the user wants a skillbook for agents, customizations, context engineering, testing, debugging, TypeScript workflows, or tasks authoring in VS Code.
-user-invocable: true
-disable-model-invocation: true
----
-
-# vscode-copilot-skillbook (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-customization-architecture/SKILL.md
-`````markdown
----
-name: vscode-customization-architecture
-description: Design VS Code Copilot customizations correctly. Use when deciding between custom instructions, prompt files, custom agents, agent skills, MCP servers, hooks, or customization layering in a repository.
-disable-model-invocation: true
----
-
-# vscode-customization-architecture (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-tasks-authoring/SKILL.md
-`````markdown
----
-name: vscode-tasks-authoring
-description: Author and review VS Code tasks.json workflows. Use when creating build, test, watch, shell, process, background, or problem matcher tasks, or when explaining the tasks.json schema and task execution behavior.
-disable-model-invocation: true
----
-
-# vscode-tasks-authoring (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-testing-debugging-browser/SKILL.md
-`````markdown
----
-name: vscode-testing-debugging-browser
-description: Use Copilot to test, debug, and validate applications in VS Code. Use when generating tests, fixing failing tests, setting up debugging, using browser agent tools, or creating closed-loop test and fix workflows.
-disable-model-invocation: true
----
-
-# vscode-testing-debugging-browser (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vscode-typescript-workbench/SKILL.md
-`````markdown
----
-name: vscode-typescript-workbench
-description: Work effectively with TypeScript in VS Code. Use when configuring tsconfig, transpiling with tsc, debugging with source maps, editing with IntelliSense, refactoring symbols, or managing TypeScript-specific editor features.
-disable-model-invocation: true
----
-
-# vscode-typescript-workbench (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/web-design-guidelines/SKILL.md
-`````markdown
----
-name: web-design-guidelines
-description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
-argument-hint: <file-or-pattern>
 metadata:
   author: vercel
   version: "1.0.0"
 ---
 
-# Web Interface Guidelines
-
-Review files for compliance with Web Interface Guidelines.
-
-## How It Works
-
-1. Fetch the latest guidelines from the source URL below
-2. Read the specified files (or prompt user for files/pattern)
-3. Check against all rules in the fetched guidelines
-4. Output findings in the terse `file:line` format
-
-## Guidelines Source
-
-Fetch fresh guidelines before each review:
-
-```
-https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
-```
-
-Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
-
-## Usage
-
-When a user provides a file or pattern argument:
-1. Fetch guidelines from the source URL above
-2. Read the specified files
-3. Apply all rules from the fetched guidelines
-4. Output findings using the format specified in the guidelines
-
-If no files specified, ask the user which files to review.
-`````
-
-## File: .github/skills/xuanwu-development-contracts/SKILL.md
-`````markdown
----
-name: xuanwu-development-contracts
-description: 'Follow Xuanwu''s contract-first development workflow. Use when modifying workflows with explicit contracts, including RAG ingestion, parser, schedule, daily, acceptance, billing, and audit. Triggers include runtime boundaries, state transitions, invariants, and acceptance gates. Helps find the right contract first and align code to it.'
-disable-model-invocation: true
----
-
-# xuanwu-development-contracts (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/xuanwu-mddd-boundaries/SKILL.md
-`````markdown
----
-name: xuanwu-mddd-boundaries
-description: 'Enforce Xuanwu''s MDDD module architecture and bounded-context boundaries. Use for cross-module imports, dependency violations, refactors in `modules/`, `packages/`, or `app/`, and changes to repositories, DTOs, or server actions. Preserves correct module ownership, layer placement, package aliases, and public boundaries.'
-disable-model-invocation: true
----
-
-# xuanwu-mddd-boundaries (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/xuanwu-rag-runtime-boundary/SKILL.md
-`````markdown
----
-name: xuanwu-rag-runtime-boundary
-description: 'Enforce Xuanwu''s RAG runtime split between Next.js and `py_fn`. Use for uploads, ingestion, parser jobs, chunking, embeddings, Firestore `documents` or `chunks`, vector retrieval, and AI query orchestration. Preserves runtime ownership, fixed ingestion order, and organization/workspace boundaries.'
-disable-model-invocation: true
----
-
-# xuanwu-rag-runtime-boundary (Condensed)
+# vercel-react-best-practices (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -77509,163 +77869,6 @@ Preserve established order (do not reorder without updating ADRs):
 - Keep terminology aligned with the existing ingestion, taxonomy, chunk, embedding, and document-status vocabulary already used in the repo.
 `````
 
-## File: .github/skills/.serena-mcp/SKILL.md
-`````markdown
----
-name: serena-mcp-integration
-description: >-
-  Auto-loaded background skill for Serena MCP integration. Enables GitHub Copilot
-  Agent to autonomously use Serena MCP tools for reading, querying, and updating
-  project semantic memory, symbol index, and code understanding context. Triggered
-  before any development task begins, after phase completion, or when .serena/
-  memory and index data need to be accessed. Direct .serena/ file edits are forbidden.
-user-invocable: false
-disable-model-invocation: true
----
-
-# .serena-mcp (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/context7/SKILL.md
-`````markdown
----
-name: context7
-description: >
-  Auto-load verification skill for library/framework API accuracy. Use when confidence is below 99% on API signatures,
-  version behavior, or config schema details. Resolve library ID and fetch official docs before answering.
-user-invocable: false
-disable-model-invocation: false
----
-
-# context7 (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/deploy-to-vercel/SKILL.md
-`````markdown
----
-name: deploy-to-vercel
-description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
-metadata:
-  author: vercel
-  version: "3.0.0"
-disable-model-invocation: true
----
-
-# deploy-to-vercel (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/llamaparse/SKILL.md
-`````markdown
----
-name: llamaparse
-description: Parse unstructured files (PDF, PPTX, DOCX, XLSX, etc.) via LlamaParse and return requested output formats.
-compatibility: Needs LLAMA_CLOUD_API_KEY in environment and @llamaindex/llama-cloud installed.
-license: MIT
-metadata:
-  author: LlamaIndex
-  version: "1.0.0"
-disable-model-invocation: true
----
-
-# llamaparse (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
 ## File: .github/skills/next-devtools-mcp/SKILL.md
 `````markdown
 ---
@@ -77678,82 +77881,6 @@ disable-model-invocation: false
 ---
 
 # next-devtools-mcp (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-cli-with-tokens/SKILL.md
-`````markdown
----
-name: vercel-cli-with-tokens
-description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
-metadata:
-  author: vercel
-  version: "1.0.0"
-disable-model-invocation: true
----
-
-# vercel-cli-with-tokens (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-react-best-practices/SKILL.md
-`````markdown
----
-name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
-license: MIT
-metadata:
-  author: vercel
-  version: "1.0.0"
----
-
-# vercel-react-best-practices (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -79311,58 +79438,6 @@ Recommended fields:
 - https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode#_agent-mode-tools
 `````
 
-## File: .github/agents/README.md
-`````markdown
-# Delivery Workflow Agents
-
-Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
-
-## Delivery Chain
-
-| Stage | Agent | File | Purpose |
-| --- | --- | --- | --- |
-| Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
-| Planning (Docs Variant) | Planner Docs Flow | `planner-docs.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
-| Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
-| Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
-| QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
-
-## Specialized Agents
-
-| Agent | File | Focus | Purpose |
-| --- | --- | --- | --- |
-| Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
-| Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
-| App Router Composer | `app-router-composer.agent.md` | App composition | Build `app/` route slices and parallel-route blocks that consume module APIs only |
-| Modules API Surface Steward | `modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
-| Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
-| Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
-| QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
-
-## Quick Start
-
-1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
-4. **After implementation**: Use `Review Implementation` handoff to Reviewer
-5. **After review**: Use `Run QA` handoff to QA
-6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
-
-## Related References
-
-- [.github/README.md](../README.md) — Root entry for `.github/` navigation
-- [../.github/skills/](../skills/) — Specialized capabilities and workflows
-- [../.github/prompts/](../prompts/) — Slash-command entry points
-- [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
-
-## Maintenance Notes
-
-- Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
-- Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
-- Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
-- Keep app/modules-specialized agents at the top level when diagnostics show nested agent discovery is unavailable in the current workspace behavior.
-`````
-
 ## File: .github/instructions/modules-naming.instructions.md
 `````markdown
 ---
@@ -80914,6 +80989,63 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
+`````
+
+## File: .github/agents/README.md
+`````markdown
+# Delivery Workflow Agents
+
+Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
+
+## Delivery Chain
+
+| Stage | Agent | File | Purpose |
+| --- | --- | --- | --- |
+| Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
+| Planning (Docs Variant) | Planner Docs Flow | `planner-docs.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
+| Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
+| Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
+| QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
+
+## Specialized Agents
+
+| Agent | File | Focus | Purpose |
+| --- | --- | --- | --- |
+| Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
+| Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
+| App Router Composer | `app-router-composer.agent.md` | App composition | Build `app/` route slices and parallel-route blocks that consume module APIs only |
+| Modules API Surface Steward | `modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
+| Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
+| Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
+| QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
+| Commander | `commander.agent.md` | MCP-aware orchestration | Route complex work with Serena-first discovery and Context7 confirmation |
+| App Router Agent | `app-router.agent.md` | Runtime route diagnostics | Use Next DevTools MCP for app-router troubleshooting and fixes |
+| Component Agent | `component.agent.md` | UI composition | Use shadcn MCP for component-focused implementation |
+| RAG Vector Agent | `rag-vector.agent.md` | Ingest + retrieval prep | Use MarkItDown MCP and docs-backed decisions for RAG pipelines |
+| E2E QA Agent | `e2e-qa.agent.md` | Browser verification | Use Playwright MCP to collect acceptance evidence |
+
+## Quick Start
+
+1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
+2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
+3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
+4. **After implementation**: Use `Review Implementation` handoff to Reviewer
+5. **After review**: Use `Run QA` handoff to QA
+6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
+
+## Related References
+
+- [.github/README.md](../README.md) — Root entry for `.github/` navigation
+- [../.github/skills/](../skills/) — Specialized capabilities and workflows
+- [../.github/prompts/](../prompts/) — Slash-command entry points
+- [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
+
+## Maintenance Notes
+
+- Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
+- Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
+- Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
+- Keep app/modules-specialized agents at the top level when diagnostics show nested agent discovery is unavailable in the current workspace behavior.
 `````
 
 ## File: .github/agents/serena.agent.md
