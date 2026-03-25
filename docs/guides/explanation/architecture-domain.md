@@ -4,25 +4,43 @@
 
 ---
 
-## 一、三層架構與有界上下文對應
+## 一、四層架構與有界上下文對應
 
-architecture.md 確立了三層融合架構。每一層對應儲存庫中一組獨立的有界上下文（模組）：
+architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
 
 ```text
 ┌─────────────────────────────────────────────────┐
 │              AI Layer（AI 層）                    │  ← modules/retrieval, modules/agent, modules/knowledge
 ├─────────────────────────────────────────────────┤
-│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph, modules/wiki-beta
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph, modules/wiki-beta, modules/namespace
 ├─────────────────────────────────────────────────┤
-│         Content / UI Layer（內容層）               │  ← modules/content, modules/workspace
+│         Content / UI Layer（內容層）               │  ← modules/content
+├─────────────────────────────────────────────────┤
+│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
+│                                                  │     modules/account, modules/identity
 └─────────────────────────────────────────────────┘
 ```
 
 | 架構層 | 對應模組 | 核心職責 |
 | --- | --- | --- |
-| Content / UI Layer | `content`, `workspace` | Block 編輯器、頁面樹、資料庫、版本歷程 |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載 |
+| Content / UI Layer | `content` | Block 編輯器、頁面樹、資料庫、版本歷程 |
 | Knowledge Graph Layer | `knowledge-graph`, `wiki-beta`, `namespace` | 頁面連結、圖譜邊、分類樹、重定向 |
 | AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
+
+**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
+
+```text
+依賴方向（箭頭表示「依賴」）：
+
+AI Layer
+  ↓ 依賴
+Knowledge Graph Layer
+  ↓ 依賴
+Content / UI Layer
+  ↓ 依賴
+Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
+```
 
 ---
 
@@ -176,7 +194,7 @@ type EdgeType =
 ```
 
 **不變式：**
-- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環），除非 `type` 為 `CATEGORY`（可描述某分類節點屬於自身分類樹的根）。
+- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
 - `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
 
 **Backlink 的領域含義：**  
@@ -197,7 +215,28 @@ Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeI
 | `isRedirect` | `boolean` | 是否為重定向頁面（別名條目） |
 | `redirectTargetId` | `string \| null` | 重定向目標頁面 ID |
 
-### 3.4 Namespace（命名空間）
+### 3.4 WikiBetaLibrary（Wiki 知識庫聚合根）
+
+WikiBetaLibrary 是 wiki-beta 有界上下文的頂層組織單元，相當於 Wiki 的「書架」或 Notion 的「Teamspace」，用於將多個 WikiBetaPage 群組為一個具有獨立存取權限的知識集合。
+
+**實現位置：** `modules/wiki-beta/domain/entities/wiki-beta-library.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Library 唯一 ID（聚合根） |
+| `workspaceId` | `string` | 所屬工作區 |
+| `name` | `string` | Library 名稱（顯示於側邊欄） |
+| `description` | `string \| undefined` | Library 說明 |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**與其他概念的關係：**
+- 一個 Workspace 可包含多個 WikiBetaLibrary。
+- 一個 WikiBetaPage 透過 `libraryId` 歸屬於一個 WikiBetaLibrary。
+- WikiBetaContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
+
+### 3.5 Namespace（命名空間）
 
 對應 Wiki 的 Namespace 機制（User: / Category: / File: 等前綴分類），在 xuanwu-app 中用於 Workspace 層面的知識空間隔離。
 
@@ -242,7 +281,7 @@ uploaded → parsing → chunking → embedding → indexed → stale → re-ind
 | `embedding` | 正在向量化（Embedding 階段） |
 | `indexed` | 已完成索引，可供查詢 |
 | `stale` | 原始文件已更新，需重新索引 |
-| `re-indexing` | 重新索引中；完成後轉回 `parsing` 重新執行完整 Pipeline |
+| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
 | `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
 
 ---
@@ -290,7 +329,7 @@ type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persi
 | `tokenCount` | `number` | Token 數量（分塊品質指標） |
 
 **不變式：**
-- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇記錄在 `Workspace` 聚合根的 `capabilities.embeddingModel` 屬性，由 `modules/workspace` 負責維護。
+- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
 - `content` 長度不得超過所選 Embedding Model 的 token 上限。
 
 ### 4.4 RagQuery（RAG 查詢聚合根）
@@ -383,7 +422,320 @@ interface RagRetrievalSummary {
 | `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
 | `createdAt` | `Timestamp` | 建立時間 |
 
-## 五、三層記憶架構的領域映射
+---
+
+## 五、Platform Foundation Layer 的領域概念
+
+Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
+
+### 5.1 Identity（身份識別）
+
+Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
+
+**實現位置：** `modules/identity/domain/entities/Identity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
+| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
+| `displayName` | `string \| null` | 顯示名稱 |
+| `photoURL` | `string \| null` | 大頭照 URL |
+| `isAnonymous` | `boolean` | 是否為匿名會話 |
+| `emailVerified` | `boolean` | 信箱是否已驗證 |
+
+**值物件：**
+- `SignInCredentials`：`{ email: string; password: string }`
+- `RegistrationInput`：`{ email: string; password: string; name: string }`
+
+**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
+
+#### TokenRefreshSignal（Custom Claims 刷新訊號）
+
+當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
+
+```text
+Party 1（account / organization 模組）
+    → 角色或政策變更
+    → 呼叫 identityApi.emitTokenRefreshSignal()
+
+Party 2（identity 模組 TokenRefreshRepository）
+    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
+
+Party 3（前端 useTokenRefreshListener hook）
+    → 監聽 Firestore 該文件
+    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
+```
+
+**TokenRefreshSignal 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `accountId` | `string` | 觸發刷新的帳戶 ID |
+| `reason` | `TokenRefreshReason` | 觸發原因 |
+| `issuedAt` | `string` | ISO-8601 時間戳 |
+| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
+
+**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
+
+---
+
+### 5.2 Account（帳戶聚合根）
+
+Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
+
+**實現位置：** `modules/account/domain/entities/Account.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
+| `name` | `string` | 帳戶顯示名稱 |
+| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
+| `email` | `string \| undefined` | 聯絡信箱 |
+| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
+| `bio` | `string \| undefined` | 個人簡介或組織描述 |
+| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
+| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
+| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
+| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
+| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
+| `createdAt` | `Timestamp \| undefined` | 建立時間 |
+
+**值物件：**
+- `AccountType`：`"user" | "organization"`
+- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
+- `Presence`：`"active" | "away" | "offline"`
+- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
+- `Wallet`：`{ balance: number }`（積分系統）
+
+**Team 嵌套物件（組織帳戶專屬）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 小組 ID |
+| `name` | `string` | 小組名稱 |
+| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
+| `memberIds` | `string[]` | 成員 ID 列表 |
+
+**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
+
+#### AccountPolicy（帳戶層 ABAC 政策）
+
+Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
+
+**AccountPolicy 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 政策唯一 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `name` | `string` | 政策名稱 |
+| `rules` | `PolicyRule[]` | 規則列表 |
+| `isActive` | `boolean` | 是否啟用 |
+| `createdAt` | `string` | ISO-8601 建立時間 |
+| `traceId` | `string \| undefined` | 審計追蹤 ID |
+
+**PolicyRule 值物件：**
+
+```typescript
+interface PolicyRule {
+  resource: string;                      // 受保護資源路徑
+  actions: string[];                     // 允許或拒絕的操作列表
+  effect: "allow" | "deny";             // 政策效果
+  conditions?: Record<string, string>;   // 條件約束（可選）
+}
+```
+
+政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
+
+---
+
+### 5.3 Organization（組織聚合根）
+
+Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
+
+**實現位置：** `modules/organization/domain/entities/Organization.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 組織唯一 ID（聚合根） |
+| `name` | `string` | 組織名稱 |
+| `ownerId` | `string` | 擁有者 UID |
+| `email` | `string \| undefined` | 組織聯絡信箱 |
+| `description` | `string \| undefined` | 組織描述 |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
+| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
+| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
+| `teams` | `Team[]` | 小組列表 |
+| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**PartnerInvite 值物件（合作夥伴邀請）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邀請唯一 ID |
+| `email` | `string` | 被邀請方信箱 |
+| `teamId` | `string` | 加入的小組 |
+| `role` | `OrganizationRole` | 授予角色 |
+| `inviteState` | `InviteState` | 邀請狀態 |
+| `invitedAt` | `Timestamp` | 邀請時間 |
+| `protocol` | `string` | 協議說明（外部協作規範） |
+
+**InviteState 值物件：** `"pending" | "accepted" | "expired"`
+
+#### OrgPolicy（組織層 ABAC 政策）
+
+與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
+
+**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
+
+**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
+
+---
+
+### 5.4 Workspace（工作區聚合根）
+
+Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
+
+**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 工作區唯一 ID（聚合根） |
+| `name` | `string` | 工作區名稱 |
+| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
+| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
+| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
+| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
+| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
+| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
+| `teamIds` | `string[]` | 關聯的組織小組 |
+| `address` | `Address \| undefined` | 實體地址（選填） |
+| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
+| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**WorkspaceLifecycleState 狀態機：**
+
+```text
+preparatory ──────────→ active ──────────→ stopped
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `preparatory` | 工作區準備中，正在初始化能力與設定 |
+| `active` | 工作區正常運作，可使用全部能力 |
+| `stopped` | 工作區已停用，保留資料但不可新增內容 |
+
+**Capability 值物件（能力模組）：**
+
+工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
+
+```typescript
+interface Capability {
+  id: string;
+  name: string;
+  type: "ui" | "api" | "data" | "governance" | "monitoring";
+  status: "stable" | "beta";
+  description: string;
+  config?: object;  // 各能力的自訂設定
+}
+```
+
+**WorkspaceGrant 值物件（存取授權）：**
+
+```typescript
+interface WorkspaceGrant {
+  userId?: string;   // 個人授權
+  teamId?: string;   // 小組授權
+  role: string;      // 授予的角色
+  protocol?: string; // 授權協議（外部合作適用）
+}
+```
+
+**不變式：**
+- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
+- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
+- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
+
+**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
+
+#### WorkspaceMemberView（工作區成員讀取模型）
+
+WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
+
+**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 成員 ID |
+| `displayName` | `string` | 顯示名稱 |
+| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
+| `isExternal` | `boolean` | 是否為外部合作成員 |
+| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
+
+**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
+
+#### WikiBetaContentTree（側邊欄導覽樹聚合根）
+
+WikiBetaContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
+
+**實現位置：** `modules/workspace/domain/entities/WikiBetaContentTree.ts`
+
+**樹狀結構：**
+
+```text
+WikiBetaAccountContentNode（帳戶節點）
+  ├── accountId, accountName, accountType（personal | organization）
+  ├── membersHref（組織帳戶限定）
+  ├── teamsHref（組織帳戶限定）
+  └── workspaces[]
+        └── WikiBetaWorkspaceContentNode（工作區節點）
+              ├── workspaceId, workspaceName
+              └── contentBaseItems[]
+                    └── WikiBetaContentItemNode（內容入口）
+                          ├── key（spaces | pages | libraries | rag | ai-tools …）
+                          ├── label, href
+                          └── enabled（是否啟用）
+```
+
+**不變式：**
+- Personal 帳戶節點排列在 Organization 帳戶節點之前。
+- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
+
+---
+
+### 5.5 Platform Foundation 跨模組關係
+
+```text
+Identity ──→ Account ──→ Organization ──→ Workspace
+  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
+  │             │               │               │
+  │         AccountPolicy   OrgPolicy       Capability
+  │             │               │
+  └─────────────┴───────────────┘
+         [S6] Claims Refresh Protocol
+         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
+```
+
+| 關係 | 說明 |
+| --- | --- |
+| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
+| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
+| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
+| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
+| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
+
+## 六、三層記憶架構的領域映射
 
 架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
 
@@ -395,7 +747,7 @@ interface RagRetrievalSummary {
 
 ---
 
-## 六、Ingestion Pipeline 的領域事件
+## 七、Ingestion Pipeline 的領域事件
 
 完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
 
@@ -420,7 +772,7 @@ interface DomainEventDTO {
 
 ---
 
-## 七、Query Understanding Layer 的領域服務
+## 八、Query Understanding Layer 的領域服務
 
 Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
 
@@ -442,7 +794,7 @@ interface QueryPlannerService {
 
 ---
 
-## 八、Schema + Ontology Layer 的領域概念
+## 九、Schema + Ontology Layer 的領域概念
 
 架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
 
@@ -468,7 +820,7 @@ CONTRADICTS → 知識矛盾偵測
 
 ---
 
-## 九、Hybrid Retrieval 的技術邊界說明
+## 十、Hybrid Retrieval 的技術邊界說明
 
 architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
 
@@ -484,10 +836,41 @@ architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + R
 
 ---
 
-## 十、完整領域概念清單
+## 十一、完整領域概念清單
 
 | 領域概念 | 類型 | 模組 | 狀態 |
 | --- | --- | --- | --- |
+| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
+| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
+| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
+| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
+| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
+| `Account` | 聚合根 | `account` | ✅ 已實現 |
+| `AccountType` | 值物件 | `account` | ✅ 已實現 |
+| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
+| `Presence` | 值物件 | `account` | ✅ 已實現 |
+| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
+| `Wallet` | 值物件 | `account` | ✅ 已實現 |
+| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
+| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
+| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
+| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
+| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
+| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
+| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
+| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
+| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
+| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
+| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
+| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
+| `WikiBetaContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
 | `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
 | `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
 | `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
