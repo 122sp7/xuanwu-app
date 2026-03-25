@@ -1,7 +1,8 @@
 ---
 name: Planner Docs Flow
 description: 'Plan delivery work and optionally hand off Markdown optimization after plan approval.'
-tools: ['vscode', 'read', 'search', 'web', 'todo']
+tools: ['read', 'search', 'todo']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Start Implementation

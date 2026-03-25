@@ -3,6 +3,7 @@ name: 'Modules API Surface Steward'
 description: 'Create and refactor modules/* API surfaces, contracts, facades, interfaces, and index exports while preserving API-only cross-domain boundaries.'
 argument-hint: 'Provide the module name, the desired API actions or queries, and any allowed cross-module dependencies.'
 tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 

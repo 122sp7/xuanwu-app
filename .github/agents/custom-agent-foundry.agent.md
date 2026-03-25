@@ -2,7 +2,8 @@
 description: 'Expert at designing and creating VS Code custom agents with optimal configurations'
 name: Custom Agent Foundry
 argument-hint: Describe the agent role, purpose, and required capabilities
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'todo']
+tools: ['read', 'edit', 'search', 'agent', 'todo']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 

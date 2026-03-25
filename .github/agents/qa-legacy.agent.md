@@ -3,7 +3,9 @@ name: 'QA Legacy'
 description: 'Meticulous QA subagent for test planning, bug hunting, edge-case analysis, and implementation verification.'
 user-invocable: false
 disable-model-invocation: true
-tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'todo']
+tools: ['read', 'search']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
 ---
 
 ## Identity

@@ -11,6 +11,7 @@ description: >
 argument-hint: Optional arguments for project path or target modules.
 tools: ['agent', 'read', 'edit', 'search', 'todo', 'serena/*', 'context7/*', 'shadcn/*', 'io.github.vercel/next-devtools-mcp/*', 'microsoft/markitdown/*', 'microsoft/playwright-mcp/*']
 agents: ['Explore', 'Planner', 'App Router Composer', 'Modules Architect', 'Module Boundary Steward', 'Modules API Surface Steward']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 

@@ -1,7 +1,8 @@
 ---
 name: Planner
 description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
-tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
+tools: ['read', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Start Implementation

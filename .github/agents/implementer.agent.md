@@ -1,11 +1,12 @@
 ---
 name: Implementer
 description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'todo', 'serena/*']
+tools: ['execute', 'read', 'edit', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Review Implementation
-    agent: Reviewer
+    agent: reviewer
     prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
     send: false
 ---

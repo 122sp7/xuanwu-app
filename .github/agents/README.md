@@ -7,7 +7,7 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 | Stage | Agent | File | Purpose |
 | --- | --- | --- | --- |
 | Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
-| Planning (Docs Variant) | Planner Docs Flow | `planner.chat.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
+| Planning (Docs Variant) | Planner Docs Flow | `planner-docs.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
 | Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
 | Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
 | QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
@@ -22,7 +22,7 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 | Modules API Surface Steward | `modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
 | Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
 | Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
-| QA Legacy | `qa-subagent.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
+| QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
 
 ## Quick Start
 

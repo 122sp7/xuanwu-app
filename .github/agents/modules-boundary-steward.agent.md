@@ -2,6 +2,7 @@
 description: 'Preserves Xuanwu MDDD module ownership, API boundaries, layer placement, and import discipline for work in modules/'
 name: 'Module Boundary Steward'
 tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 

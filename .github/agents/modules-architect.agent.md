@@ -2,6 +2,7 @@
 description: 'Designs, creates, refactors, splits, merges, and deletes modules/ bounded contexts under strict MDDD and API-boundary rules'
 name: 'Modules Architect'
 tools: ['read', 'edit', 'search', 'execute', 'agent']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 

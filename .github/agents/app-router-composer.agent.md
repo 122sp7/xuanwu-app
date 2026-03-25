@@ -3,6 +3,7 @@ name: 'App Router Composer'
 description: 'Design and implement app/ route slices and parallel-route UI blocks that consume module data only through public APIs.'
 argument-hint: 'Provide the route segment, the UI block role, and which module APIs the slice may consume.'
 tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 

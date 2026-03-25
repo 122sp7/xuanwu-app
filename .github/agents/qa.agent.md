@@ -1,11 +1,12 @@
 ---
 name: QA
 description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
-tools: ['vscode', 'execute', 'read', 'search', 'web', 'todo', 'serena/*']
+tools: ['execute', 'read', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Fix QA Findings
-    agent: Implementer
+    agent: implementer
     prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
     send: false
 ---
