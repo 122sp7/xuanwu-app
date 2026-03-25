@@ -19,6 +19,11 @@ const moduleApiEntrypointPattern = {
   message: moduleApiEntrypointMessage,
 };
 
+const moduleNonApiSubpathPattern = {
+  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
+  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
+};
+
 const explicitIndexPathPattern = {
   group: ["**/index", "**/index.ts", "**/index.tsx"],
   message: "Import the target file or public module boundary directly instead of using an explicit index path.",
@@ -281,7 +286,10 @@ const eslintConfig = defineConfig([
       "debug/**/*.{ts,tsx,js,jsx}",
     ],
     rules: {
-      "no-restricted-imports": createRestrictedImportsRule([moduleApiEntrypointPattern]),
+      "no-restricted-imports": createRestrictedImportsRule([
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+      ]),
     },
   },
   // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
@@ -291,6 +299,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": createRestrictedImportsRule([
         explicitIndexPathPattern,
         moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
         moduleInternalLayerPattern,
       ]),
     },
