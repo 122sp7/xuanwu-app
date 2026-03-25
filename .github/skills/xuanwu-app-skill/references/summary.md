@@ -38,21 +38,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-973 files | 77,111 lines
+985 files | 77,763 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 380 | 20,427 |
-| Markdown | 312 | 27,891 |
+| Markdown | 326 | 28,428 |
 | TypeScript (TSX) | 120 | 18,678 |
-| No Extension | 57 | 111 |
+| No Extension | 54 | 108 |
 | Python | 49 | 3,532 |
 | MERMAID | 33 | 2,488 |
 | JSON | 10 | 2,549 |
+| SVG | 3 | 298 |
+| Shell | 2 | 602 |
 | RULES | 2 | 18 |
-| Text | 2 | 105 |
-| JavaScript (ESM) | 2 | 338 |
-| Other | 6 | 974 |
+| Other | 6 | 635 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)

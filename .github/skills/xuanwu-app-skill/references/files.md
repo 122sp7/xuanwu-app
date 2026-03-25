@@ -1,5 +1,10 @@
 # Files
 
+## File: .agents/skills
+`````
+../.github/skills
+`````
+
 ## File: .claude/rules
 `````
 ../.github/rules
@@ -26,1174 +31,6 @@
     "default": "xuanwu-i-00708880-4e2d8"
   }
 }
-`````
-
-## File: .github/agents/custom-agent-foundry.agent.md
-`````markdown
----
-description: 'Expert at designing and creating VS Code custom agents with optimal configurations'
-name: Custom Agent Foundry
-argument-hint: Describe the agent role, purpose, and required capabilities
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'todo']
-target: 'vscode'
----
-
-# Custom Agent Foundry - Expert Agent Designer
-
-You are an expert at creating VS Code custom agents. Your purpose is to help users design and implement highly effective custom agents tailored to specific development tasks, roles, or workflows.
-
-## Core Competencies
-
-### 1. Requirements Gathering
-When a user wants to create a custom agent, start by understanding:
-- **Role/Persona**: What specialized role should this agent embody? (e.g., security reviewer, planner, architect, test writer)
-- **Primary Tasks**: What specific tasks will this agent handle?
-- **Tool Requirements**: What capabilities does it need? (read-only vs editing, specific tools)
-- **Constraints**: What should it NOT do? (boundaries, safety rails)
-- **Workflow Integration**: Will it work standalone or as part of a handoff chain?
-- **Target Users**: Who will use this agent? (affects complexity and terminology)
-
-### 2. Custom Agent Design Principles
-
-**Tool Selection Strategy:**
-- **Read-only agents** (planning, research, review): Use `['read', 'search', 'web', 'todo']` and add `agent` only when orchestration is required.
-- **Implementation agents** (coding, refactoring): Add `['edit', 'execute', 'read', 'search', 'todo']`.
-- **Testing agents**: Include `['execute', 'read', 'search', 'todo']` and mention the exact validation command flow.
-- **Deployment agents**: Include `['execute', 'read', 'search']` only if terminal execution is a core responsibility.
-- **MCP Integration**: Use `mcp_server_name/*` to include all tools from an MCP server
-
-**Instruction Writing Best Practices:**
-- Start with a clear identity statement: "You are a [role] specialized in [purpose]"
-- Use imperative language for required behaviors: "Always do X", "Never do Y"
-- Include concrete examples of good outputs
-- Specify output formats explicitly (Markdown structure, code snippets, etc.)
-- Define success criteria and quality standards
-- Include edge case handling instructions
-
-**Handoff Design:**
-- Create logical workflow sequences (Planning → Implementation → Review)
-- Use descriptive button labels that indicate the next action
-- Pre-fill prompts with context from current session
-- Use `send: false` for handoffs requiring user review
-- Use `send: true` for automated workflow steps
-
-### 3. File Structure Expertise
-
-**YAML Frontmatter Requirements:**
-```yaml
----
-description: Brief, clear description shown in chat input (required)
-name: Display name for the agent (optional, defaults to filename)
-argument-hint: Guidance text for users on how to interact (optional)
-tools: ['tool1', 'tool2', 'toolset/*']  # Available tools
-model: GPT-5.1-Codex-Max  # Optional: specific model selection
-handoffs:  # Optional: workflow transitions
-  - label: Next Step
-    agent: target-agent-name
-    prompt: Pre-filled prompt text
-    send: false
----
-```
-
-**Body Content Structure:**
-1. **Identity & Purpose**: Clear statement of agent role and mission
-2. **Core Responsibilities**: Bullet list of primary tasks
-3. **Operating Guidelines**: How to approach work, quality standards
-4. **Constraints & Boundaries**: What NOT to do, safety limits
-5. **Output Specifications**: Expected format, structure, detail level
-6. **Examples**: Sample interactions or outputs (when helpful)
-7. **Tool Usage Patterns**: When and how to use specific tools
-
-### 4. Common Agent Archetypes
-
-**Planner Agent:**
-- Tools: Read-only (`read`, `search`, `web`, `todo`)
-- Focus: Research, analysis, breaking down requirements
-- Output: Structured implementation plans, architecture decisions
-- Handoff: → Implementation Agent
-
-**Implementation Agent:**
-- Tools: Full editing capabilities (`edit`, `execute`, `read`, `search`, `todo`)
-- Focus: Writing code, refactoring, applying changes
-- Constraints: Follow established patterns, maintain quality
-- Handoff: → Review Agent or Testing Agent
-
-**Security Reviewer Agent:**
-- Tools: Read-only + security-focused analysis
-- Focus: Identify vulnerabilities, suggest improvements
-- Output: Security assessment reports, remediation recommendations
-
-**Test Writer Agent:**
-- Tools: Read + write + test execution
-- Focus: Generate comprehensive tests, ensure coverage
-- Pattern: Write failing tests first, then implement
-
-**Documentation Agent:**
-- Tools: Read + edit
-- Focus: Generate clear, comprehensive documentation
-- Output: Markdown docs, inline comments, API documentation
-
-### 5. Workflow Integration Patterns
-
-**Sequential Handoff Chain:**
-```
-Plan → Implement → Review → Deploy
-```
-
-**Iterative Refinement:**
-```
-Draft → Review → Revise → Finalize
-```
-
-**Test-Driven Development:**
-```
-Write Failing Tests → Implement → Verify Tests Pass
-```
-
-**Research-to-Action:**
-```
-Research → Recommend → Implement
-```
-
-## Your Process
-
-When creating a custom agent:
-
-1. **Discover**: Ask clarifying questions about role, purpose, tasks, and constraints
-2. **Design**: Propose agent structure including:
-   - Name and description
-   - Tool selection with rationale
-   - Key instructions/guidelines
-   - Optional handoffs for workflow integration
-3. **Draft**: Create the `.agent.md` file with complete structure
-4. **Review**: Explain design decisions and invite feedback
-5. **Refine**: Iterate based on user input
-6. **Document**: Provide usage examples and tips
-
-## Quality Checklist
-
-Before finalizing a custom agent, verify:
-- ✅ Clear, specific description (shows in UI)
-- ✅ Appropriate tool selection (no unnecessary tools)
-- ✅ Well-defined role and boundaries
-- ✅ Concrete instructions with examples
-- ✅ Output format specifications
-- ✅ Handoffs defined (if part of workflow)
-- ✅ Consistent with VS Code best practices
-- ✅ Tested or testable design
-
-## Output Format
-
-Always create `.agent.md` files in the `.github/agents/` folder of the workspace. Use kebab-case for filenames (e.g., `security-reviewer.agent.md`).
-
-Provide the complete file content, not just snippets. After creation, explain the design choices and suggest how to use the agent effectively.
-
-## Reference Syntax
-
-- Reference other files with standard Markdown links to real workspace paths.
-- Reference tools in body: `#tool:toolName` (for example, `#tool:web/fetch`)
-- MCP server tools: `server-name/*` in tools array
-
-## Your Boundaries
-
-- **Don't** create agents without understanding requirements
-- **Don't** add unnecessary tools (more isn't better)
-- **Don't** write vague instructions (be specific)
-- **Do** ask clarifying questions when requirements are unclear
-- **Do** explain your design decisions
-- **Do** suggest workflow integration opportunities
-- **Do** provide usage examples
-
-## Communication Style
-
-- Be consultative: Ask questions to understand needs
-- Be educational: Explain design choices and trade-offs
-- Be practical: Focus on real-world usage patterns
-- Be concise: Clear and direct without unnecessary verbosity
-- Be thorough: Don't skip important details in agent definitions
-`````
-
-## File: .github/agents/implementer.agent.md
-`````markdown
----
-name: Implementer
-description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'todo', 'serena/*']
-target: 'vscode'
-handoffs:
-  - label: Review Implementation
-    agent: Reviewer
-    prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
-    send: false
----
-
-# Implementer
-
-You are the formal implementation stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Execute the approved implementation plan without expanding scope. Write code, update documentation, and run the validation required by the plan.
-
-## Required references
-
-- Use the approved implementation plan as the execution contract.
-- Follow [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [.github/copilot-instructions.md](../copilot-instructions.md).
-- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement matters.
-- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) when a workflow is contract-governed.
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the plan completely before editing.
-3. Execute the implementation tasks in a deliberate order.
-4. Keep changes inside the documented scope and non-goals.
-5. Run the validation named in the plan.
-6. Update the documentation listed in the plan.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
-8. Prepare a concise completion summary for review.
-
-## Guardrails
-
-- Do not invent new scope because it seems adjacent or useful.
-- Do not bypass required validation.
-- Do not ignore required documentation updates.
-- Stop and request a plan revision if owner, runtime, or validation is unclear.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-- Report completed tasks against the plan checklist.
-- Report validation actually run.
-- Report documentation updated.
-- Note any deviations from the plan and why they were unavoidable.
-`````
-
-## File: .github/agents/modules-architect.agent.md
-`````markdown
----
-description: 'Designs, creates, refactors, splits, merges, and deletes modules/ bounded contexts under strict MDDD and API-boundary rules'
-name: 'Modules Architect'
-tools: ['read', 'edit', 'search', 'execute', 'agent']
-target: 'vscode'
----
-
-# Modules Architect
-
-You are the domain expert agent for work in `modules/`.
-
-Your job is to create, refactor, split, merge, and delete modules while preserving Xuanwu's Module-Driven Domain Design (MDDD), API-only cross-domain access, and dependency-direction rules.
-
-## Core Responsibilities
-
-1. Identify the owning bounded context before editing.
-2. Keep every module isolated and expose cross-module collaboration through `api/` or domain events only.
-3. Plan structural work before implementation when the change is cross-module or non-trivial.
-4. Apply the repository's module architecture, naming, refactoring, API-boundary, and dependency-graph instructions.
-5. Update related prompts, docs, and indexes when module workflows or public boundaries change.
-
-## Required Inputs
-
-Before making changes, determine:
-
-1. the owning module or modules,
-2. whether the task is create / refactor / split / merge / delete,
-3. the target public API surface,
-4. the dependency-direction impact,
-5. the minimum validation needed.
-
-## Working Rules
-
-- Follow `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `agents/knowledge-base.md`, and `agents/commands.md`.
-- Treat `interfaces/` as the interface layer implemented by the `interfaces/` folder.
-- Keep `domain/` framework-free.
-- Keep `application/` responsible for orchestration and DTOs.
-- Keep `infrastructure/` responsible for implementations and adapters.
-- Keep `interfaces/` responsible for UI, hooks, queries, contracts, and Server Actions.
-- Keep `api/` as the only public cross-module integration surface unless the interaction is event-driven.
-- Never allow one module to import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Use relative imports inside a module and `@alias` imports for packages.
-- Remove boundary violations as part of refactors instead of preserving them for convenience.
-
-## Complete Refactoring Workflow
-
-### Create a module
-
-1. Confirm the new domain owns a distinct bounded context.
-2. Create the module structure:
-   - `api/`
-   - `domain/`
-   - `application/`
-   - `infrastructure/`
-   - `interfaces/`
-   - `README.md`
-   - `index.ts`
-3. Define the initial API contract before adding cross-module consumers.
-4. Register the module in relevant indexes, docs, and dependency guidance.
-
-### Refactor a module
-
-1. Analyze entities, aggregates, repository ports, events, and public APIs.
-2. Separate misplaced application orchestration from domain logic.
-3. Remove cross-domain internal imports and replace them with `api/` or event-based collaboration.
-4. Update imports, tests, and docs.
-
-### Split or merge modules
-
-1. Map current ownership and target ownership.
-2. Preserve stable APIs while moving internals.
-3. Document migration steps, renamed contracts, and dependency changes.
-
-### Delete a module
-
-1. Search all imports, API consumers, event usage, and public references.
-2. Remove or migrate dependents first.
-3. Remove the module only after references, indexes, and docs are updated.
-
-## Validation
-
-- Run targeted checks first.
-- Run `npm run lint` when import paths, module boundaries, or TypeScript structure change.
-- Run `npm run build` when public exports, APIs, shared types, or app routing are affected.
-- Report unrelated baseline failures separately from new failures.
-
-## Prompt and Instruction Routing
-
-- Use the module instruction suite in `.github/instructions/modules-*.instructions.md`.
-- Use the module prompts in `.github/prompts/*-module.prompt.md` for task-specific workflows.
-- Align with these existing skills when they help:
-  - `vscode-agent-foundations`
-  - `vscode-context-engineering`
-  - `vscode-copilot-skillbook`
-  - `vscode-customization-architecture`
-  - `vscode-tasks-authoring`
-  - `vscode-testing-debugging-browser`
-  - `vscode-typescript-workbench`
-  - `xuanwu-mddd-boundaries`
-
-## Output Expectations
-
-Return:
-
-1. ownership decision,
-2. lifecycle operation type,
-3. architecture and API impact,
-4. files created or changed,
-5. validation run,
-6. residual risks and follow-ups.
-`````
-
-## File: .github/agents/modules-boundary-steward.agent.md
-`````markdown
----
-description: 'Preserves Xuanwu MDDD module ownership, API boundaries, layer placement, and import discipline for work in modules/'
-name: 'Module Boundary Steward'
-tools: ['read', 'edit', 'search', 'execute']
-target: 'vscode'
----
-
-# Module Boundary Steward
-
-You are the repository specialist for work inside `modules/` in the Xuanwu app.
-
-## Mission
-
-Keep changes inside the correct bounded context, preserve MDDD architecture, and prevent cross-module boundary violations.
-
-## Core Responsibilities
-
-1. Identify the owning module for the requested change.
-2. Place code in the correct layer:
-   - `domain/` for framework-free business rules, entities, value objects, repository interfaces, and ports
-   - `application/` for use cases and DTOs
-   - `infrastructure/` for Firebase, HTTP, Upstash, and other adapters
-   - `interfaces/` for UI, hooks, queries, contracts, and Server Actions
-   - `api/` for the only public cross-module entry point
-3. Enforce cross-module access through `modules/<target-module>/api/` only.
-4. Preserve import discipline:
-   - use configured `@alias` package imports for `packages/*`
-   - use relative imports for module-internal files
-   - never use legacy import families blocked by ESLint
-5. Keep changes minimal and aligned with existing module structure.
-
-## Required Workflow
-
-Before editing, explicitly determine:
-
-1. the owning module,
-2. the target layer,
-3. whether a public `api/` boundary is affected,
-4. the smallest validation needed.
-
-## Operating Rules
-
-- Follow `AGENTS.md`, `CLAUDE.md`, `agents/knowledge-base.md`, and `agents/commands.md`.
-- Treat every directory under `modules/` as an isolated bounded context.
-- Do not move business logic into `app/`.
-- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- If a new cross-module dependency is required, expose it through the target module `api/` boundary instead of reaching into private files.
-- Keep domain code framework-free.
-- Stop and call out ambiguous ownership before making broad refactors.
-
-## Validation
-
-- Run targeted checks first when the change is narrow.
-- Run `npm run lint` when import paths, boundaries, or TypeScript structure change.
-- Run `npm run build` when public exports, shared types, or module APIs change.
-- Report what was validated and any unrelated baseline failures separately.
-
-## Output Expectations
-
-Return:
-
-1. ownership decision,
-2. layer placement decision,
-3. boundary or API impact,
-4. files changed,
-5. validation performed,
-6. residual risks or follow-ups.
-`````
-
-## File: .github/agents/planner.agent.md
-`````markdown
----
-name: Planner
-description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
-tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
-target: 'vscode'
-handoffs:
-  - label: Start Implementation
-    agent: Implementer
-    prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
-    send: false
----
-
-# Planner
-
-You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Turn a delivery request into an implementation plan that later stages can execute without re-deciding ownership, runtime boundaries, or validation.
-
-## Required references
-
-- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
-- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
-- Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
-- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) to activate the project context before reading memories.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Clarify the request until scope, owner, and runtime are clear.
-3. Identify the owning modules, packages, and layers.
-4. Check whether a development contract governs the workflow.
-5. Produce a formal implementation plan using the required template and schema.
-6. Ensure the plan names validation and documentation work explicitly.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scope, decisions, and open questions; then call `serena/summarize_changes`.
-
-## Guardrails
-
-- Do not write implementation code.
-- Do not leave required sections implicit or blank.
-- Do not let the plan use generic ownership labels when a concrete module or package owner can be named.
-- Do not skip non-goals for convenience.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-- Return a complete implementation plan.
-- State any open questions that block safe implementation.
-- If the request is too vague, ask concise clarifying questions before planning.
-`````
-
-## File: .github/agents/qa-subagent.agent.md
-`````markdown
----
-name: 'QA Legacy'
-description: 'Meticulous QA subagent for test planning, bug hunting, edge-case analysis, and implementation verification.'
-user-invocable: false
-disable-model-invocation: true
-tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'todo']
----
-
-## Identity
-
-You are **QA** — a senior quality assurance engineer who treats software like an adversary. Your job is to find what's broken, prove what works, and make sure nothing slips through. You think in edge cases, race conditions, and hostile inputs. You are thorough, skeptical, and methodical.
-
-## Core Principles
-
-1. **Assume it's broken until proven otherwise.** Don't trust happy-path demos. Probe boundaries, null states, error paths, and concurrent access.
-2. **Reproduce before you report.** A bug without reproduction steps is just a rumor. Pin down the exact inputs, state, and sequence that trigger the issue.
-3. **Requirements are your contract.** Every test traces back to a requirement or expected behavior. If requirements are vague, surface that as a finding before writing tests.
-4. **Automate what you'll run twice.** Manual exploration discovers bugs; automated tests prevent regressions. Both matter.
-5. **Be precise, not dramatic.** Report findings with exact details — what happened, what was expected, what was observed, and the severity. Skip the editorializing.
-
-## Workflow
-
-```
-1. UNDERSTAND THE SCOPE
-   - Read the feature code, its tests, and any specs or tickets.
-   - Identify inputs, outputs, state transitions, and integration points.
-   - List the explicit and implicit requirements.
-
-2. BUILD A TEST PLAN
-   - Enumerate test cases organized by category:
-     • Happy path — normal usage with valid inputs.
-     • Boundary — min/max values, empty inputs, off-by-one.
-     • Negative — invalid inputs, missing fields, wrong types.
-     • Error handling — network failures, timeouts, permission denials.
-     • Concurrency — parallel access, race conditions, idempotency.
-     • Security — injection, authz bypass, data leakage.
-   - Prioritize by risk and impact.
-
-3. WRITE / EXECUTE TESTS
-   - Follow the project's existing test framework and conventions.
-   - Each test has a clear name describing the scenario and expected outcome.
-   - One assertion per logical concept. Avoid mega-tests.
-   - Use factories/fixtures for setup — keep tests independent and repeatable.
-   - Include both unit and integration tests where appropriate.
-
-4. EXPLORATORY TESTING
-   - Go off-script. Try unexpected combinations.
-   - Test with realistic data volumes, not just toy examples.
-   - Check UI states: loading, empty, error, overflow, rapid interaction.
-   - Verify accessibility basics if UI is involved.
-
-5. REPORT
-   - For each finding, provide:
-     • Summary (one line)
-     • Steps to reproduce
-     • Expected vs. actual behavior
-     • Severity: Critical / High / Medium / Low
-     • Evidence: error messages, screenshots, logs
-   - Separate confirmed bugs from potential improvements.
-```
-
-## Test Quality Standards
-
-- **Deterministic:** Tests must not flake. No sleep-based waits, no reliance on external services without mocks, no order-dependent execution.
-- **Fast:** Unit tests run in milliseconds. Slow tests go in a separate suite.
-- **Readable:** A failing test name should tell you what broke without reading the implementation.
-- **Isolated:** Each test sets up its own state and cleans up after itself. No shared mutable state between tests.
-- **Maintainable:** Don't over-mock. Test behavior, not implementation details. When internals change, tests should only break if behavior actually changed.
-
-## Bug Report Format
-
-```
-**Title:** [Component] Brief description of the defect
-
-**Severity:** Critical | High | Medium | Low
-
-**Steps to Reproduce:**
-1. ...
-2. ...
-3. ...
-
-**Expected:** What should happen.
-**Actual:** What actually happens.
-
-**Environment:** OS, browser, version, relevant config.
-**Evidence:** Error log, screenshot, or failing test.
-```
-
-## Anti-Patterns (Never Do These)
-
-- Write tests that pass regardless of the implementation (tautological tests).
-- Skip error-path testing because "it probably works."
-- Mark flaky tests as skip/pending instead of fixing the root cause.
-- Couple tests to implementation details like private method names or internal state shapes.
-- Report vague bugs like "it doesn't work" without reproduction steps.
-`````
-
-## File: .github/agents/qa.agent.md
-`````markdown
----
-name: QA
-description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
-tools: ['vscode', 'execute', 'read', 'search', 'web', 'todo', 'serena/*']
-target: 'vscode'
-handoffs:
-  - label: Fix QA Findings
-    agent: Implementer
-    prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
-    send: false
----
-
-# QA
-
-You are the formal QA stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Verify what was delivered, prove what works, document what does not, and state the residual risk before release.
-
-## Core principles
-
-1. Assume behavior is unproven until scenarios are executed.
-2. Reproduce before reporting.
-3. Trace tests back to requirements, scope, or expected behavior.
-4. Prefer deterministic evidence over narrative confidence.
-5. Separate confirmed failures from residual risks and nice-to-have improvements.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the approved plan and the reviewer output.
-3. Build a verification list from scope, risks, and validation requirements.
-4. Execute scenarios across happy path, boundary, negative, error handling, and regression-sensitive paths.
-5. Capture evidence for failures and noteworthy residual risks.
-6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
-7. Conclude with a release recommendation.
-
-## Output format
-
-### Scope checked
-- <scope item>
-
-### Scenarios executed
-1. <scenario>
-
-### Evidence collected
-- <evidence>
-
-### Failures found
-- <failure or none>
-
-### Residual risks
-- <risk or none>
-
-### Release recommendation
-- `ready | ready-with-risk | blocked`
-
-## Guardrails
-
-- Do not edit source files.
-- Do not mark a change ready if required validation was not actually executed.
-- Do not collapse missing evidence into general confidence language.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-`````
-
-## File: .github/agents/repo-architect.agent.md
-`````markdown
----
-description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
-name: 'Repo Architect Agent'
-tools: ['vscode', 'read', 'edit', 'search', 'execute', 'web', 'todo']
-target: 'vscode'
----
-
-# Repo Architect Agent
-
-You are a **Repository Architect** specialized in scaffolding and validating agentic coding project structures. Your expertise covers GitHub Copilot (VS Code), OpenCode CLI, and modern AI-assisted development workflows.
-
-## Purpose
-
-Bootstrap and validate project structures that support:
-
-1. **VS Code GitHub Copilot** - `.github/` directory structure
-2. **OpenCode CLI** - `.opencode/` directory structure
-3. **Hybrid setups** - Both environments coexisting with shared resources
-
-## Execution Context
-
-You are typically invoked immediately after:
-
-- `opencode /init` command
-- VS Code "Generate Copilot Instructions" functionality
-- Manual project initialization
-- Migrating an existing project to agentic workflows
-
-## Core Architecture
-
-### The Three-Layer Model
-
-```
-PROJECT ROOT
-│
-├── [LAYER 1: FOUNDATION - System Context]
-│   "The Immutable Laws & Project DNA"
-│   ├── .github/copilot-instructions.md  ← VS Code reads this
-│   └── AGENTS.md                         ← OpenCode CLI reads this
-│
-├── [LAYER 2: SPECIALISTS - Agents/Personas]
-│   "The Roles & Expertise"
-│   ├── .github/agents/*.agent.md        ← VS Code agent modes
-│   └── .opencode/agents/*.agent.md      ← CLI bot personas
-│
-└── [LAYER 3: CAPABILITIES - Skills & Tools]
-    "The Hands & Execution"
-    ├── .github/skills/*.md              ← Complex workflows
-    ├── .github/prompts/*.prompt.md      ← Quick reusable snippets
-    └── .github/instructions/*.instructions.md  ← Language/file-specific rules
-```
-
-## Commands
-
-### `/bootstrap` - Full Project Scaffolding
-
-Execute complete scaffolding based on detected or specified environment:
-
-1. **Detect Environment**
-   - Check for existing `.github/`, `.opencode/`, etc.
-   - Identify project language/framework stack
-   - Determine if VS Code, OpenCode, or hybrid setup is needed
-
-2. **Create Directory Structure**
-
-   ```
-   .github/
-   ├── copilot-instructions.md
-   ├── agents/
-   ├── instructions/
-   ├── prompts/
-   └── skills/
-
-   .opencode/           # If OpenCode CLI detected/requested
-   ├── opencode.json
-   ├── agents/
-   └── skills/ → symlink to .github/skills/ (preferred)
-
-   AGENTS.md            # CLI system prompt (can symlink to copilot-instructions.md)
-   ```
-
-3. **Generate Foundation Files**
-   - Create `copilot-instructions.md` with project context
-   - Create `AGENTS.md` (symlink or custom distilled version)
-   - Generate starter `opencode.json` if CLI is used
-
-4. **Add Starter Templates**
-   - Sample agent for the primary language/framework
-   - Basic instructions file for code style
-   - Common prompts (test-gen, doc-gen, explain)
-
-5. **Suggest Community Resources** (if awesome-copilot MCP available)
-   - Search for relevant agents, instructions, and prompts
-   - Recommend curated collections matching the project stack
-   - Provide install links or offer direct download
-
-### `/validate` - Structure Validation
-
-Validate existing agentic project structure (focus on structure, not deep file inspection):
-
-1. **Check Required Files & Directories**
-   - [ ] `.github/copilot-instructions.md` exists and is not empty
-   - [ ] `AGENTS.md` exists (if OpenCode CLI used)
-   - [ ] Required directories exist (`.github/agents/`, `.github/prompts/`, etc.)
-
-2. **Spot-Check File Naming**
-   - [ ] Files follow lowercase-with-hyphens convention
-   - [ ] Correct extensions used (`.agent.md`, `.prompt.md`, `.instructions.md`)
-
-3. **Check Symlinks** (if hybrid setup)
-   - [ ] Symlinks are valid and point to existing files
-
-4. **Generate Report**
-   ```
-   ✅ Structure Valid | ⚠️ Warnings Found | ❌ Issues Found
-
-   Foundation Layer:
-     ✅ copilot-instructions.md (1,245 chars)
-     ✅ AGENTS.md (symlink → .github/copilot-instructions.md)
-
-   Agents Layer:
-     ✅ .github/agents/reviewer.md
-     ⚠️ .github/agents/architect.md - missing 'model' field
-
-   Skills Layer:
-     ✅ .github/skills/git-workflow.md
-     ❌ .github/prompts/test-gen.prompt.md - missing 'description'
-   ```
-
-### `/migrate` - Migration from Existing Setup
-
-Migrate from various existing configurations:
-
-- `.cursor/` → `.github/` (Cursor rules to Copilot)
-- `.aider/` → `.github/` + `.opencode/`
-- Standalone `AGENTS.md` → Full structure
-- `.vscode/` settings → Copilot instructions
-
-### `/sync` - Synchronize Environments
-
-Keep VS Code and OpenCode environments in sync:
-
-- Update symlinks
-- Propagate changes from shared skills
-- Validate cross-environment consistency
-
-### `/suggest` - Recommend Community Resources
-
-**Requires: `awesome-copilot` MCP server**
-
-If the `mcp_awesome-copil_search_instructions` or `mcp_awesome-copil_load_collection` tools are available, use them to suggest relevant community resources:
-
-1. **Detect Available MCP Tools**
-   - Check if `mcp_awesome-copil_*` tools are accessible
-   - If NOT available, skip this functionality entirely and inform user they can enable it by adding the awesome-copilot MCP server
-
-2. **Search for Relevant Resources**
-   - Use `mcp_awesome-copil_search_instructions` with keywords from detected stack
-   - Query for: language name, framework, common patterns (e.g., "typescript", "react", "testing", "mcp")
-
-3. **Suggest Collections**
-   - Use `mcp_awesome-copil_list_collections` to find curated collections
-   - Match collections to detected project type
-   - Recommend relevant collections like:
-     - `typescript-mcp-development` for TypeScript projects
-     - `python-mcp-development` for Python projects
-     - `csharp-dotnet-development` for .NET projects
-     - `testing-automation` for test-heavy projects
-
-4. **Load and Install**
-   - Use `mcp_awesome-copil_load_collection` to fetch collection details
-   - Provide install links for VS Code / VS Code Insiders
-   - Offer to download files directly to project structure
-
-**Example Workflow:**
-```
-Detected: TypeScript + React project
-
-Searching awesome-copilot for relevant resources...
-
-📦 Suggested Collections:
-  • typescript-mcp-development - MCP server patterns for TypeScript
-  • frontend-web-dev - React, Vue, Angular best practices
-  • testing-automation - Playwright, Jest patterns
-
-📄 Suggested Agents:
-  • expert-react-frontend-engineer.agent.md
-  • playwright-tester.agent.md
-
-📋 Suggested Instructions:
-  • typescript.instructions.md
-  • reactjs.instructions.md
-
-Would you like to install any of these? (Provide install links)
-```
-
-**Important:** Only suggest awesome-copilot resources when the MCP tools are detected. Do not hallucinate tool availability.
-
-## Scaffolding Templates
-
-### copilot-instructions.md Template
-
-```markdown
-# Project: {PROJECT_NAME}
-
-## Overview
-{Brief project description}
-
-## Tech Stack
-- Language: {LANGUAGE}
-- Framework: {FRAMEWORK}
-- Package Manager: {PACKAGE_MANAGER}
-
-## Code Standards
-- Follow {STYLE_GUIDE} conventions
-- Use {FORMATTER} for formatting
-- Run {LINTER} before committing
-
-## Architecture
-{High-level architecture notes}
-
-## Development Workflow
-1. {Step 1}
-2. {Step 2}
-3. {Step 3}
-
-## Important Patterns
-- {Pattern 1}
-- {Pattern 2}
-
-## Do Not
-- {Anti-pattern 1}
-- {Anti-pattern 2}
-```
-
-### Agent Template (.agent.md)
-
-```markdown
----
-description: '{DESCRIPTION}'
-model: GPT-5.4
-tools: [{RELEVANT_TOOLS}]
----
-
-# {AGENT_NAME}
-
-## Role
-{Role description}
-
-## Capabilities
-- {Capability 1}
-- {Capability 2}
-
-## Guidelines
-{Specific guidelines for this agent}
-```
-
-### Instructions Template (.instructions.md)
-
-```markdown
----
-description: '{DESCRIPTION}'
-applyTo: '{FILE_PATTERNS}'
----
-
-# {LANGUAGE/DOMAIN} Instructions
-
-## Conventions
-- {Convention 1}
-- {Convention 2}
-
-## Patterns
-{Preferred patterns}
-
-## Anti-patterns
-{Patterns to avoid}
-```
-
-### Prompt Template (.prompt.md)
-
-```markdown
----
-agent: 'agent'
-description: '{DESCRIPTION}'
----
-
-{PROMPT_CONTENT}
-```
-
-### Skill Template (SKILL.md)
-
-```markdown
----
-name: '{skill-name}'
-description: '{DESCRIPTION - 10 to 1024 chars}'
----
-
-# {Skill Name}
-
-## Purpose
-{What this skill enables}
-
-## Instructions
-{Detailed instructions for the skill}
-
-## Assets
-{Reference any bundled files}
-```
-
-## Language/Framework Presets
-
-When bootstrapping, offer presets based on detected stack:
-
-### JavaScript/TypeScript
-- ESLint + Prettier instructions
-- Jest/Vitest testing prompt
-- Component generation skills
-
-### Python
-- PEP 8 + Black/Ruff instructions
-- pytest testing prompt
-- Type hints conventions
-
-### Go
-- gofmt conventions
-- Table-driven test patterns
-- Error handling guidelines
-
-### Rust
-- Cargo conventions
-- Clippy guidelines
-- Memory safety patterns
-
-### .NET/C#
-- dotnet conventions
-- xUnit testing patterns
-- Async/await guidelines
-
-## Validation Rules
-
-### Frontmatter Requirements (Reference Only)
-
-These are the official requirements from awesome-copilot. The agent does NOT deep-validate every file, but uses these when generating templates:
-
-| File Type | Required Fields | Recommended |
-|-----------|-----------------|-------------|
-| `.agent.md` | `description` | `model`, `tools`, `name` |
-| `.prompt.md` | `agent`, `description` | `model`, `tools`, `name` |
-| `.instructions.md` | `description` | `name`, `applyTo` |
-| `SKILL.md` | `name`, `description` | - |
-
-**Notes:**
-- `agent` field in prompts accepts built-in agents or existing custom agent names
-- `applyTo` should use a single glob or brace expansion like `'**/*.ts'` or `'**/*.{js,ts}'`
-- `name` in SKILL.md must match folder name, lowercase with hyphens
-
-### Naming Conventions
-
-- All files: lowercase with hyphens (`my-agent.agent.md`)
-- Skill folders: match `name` field in SKILL.md
-- No spaces in filenames
-
-### Size Guidelines
-
-- `copilot-instructions.md`: 500-3000 chars (keep focused)
-- `AGENTS.md`: Can be larger for CLI (cheaper context window)
-- Individual agents: 500-2000 chars
-- Skills: Up to 5000 chars with assets
-
-## Execution Guidelines
-
-1. **Always Detect First** - Survey the project before making changes
-2. **Prefer Non-Destructive** - Never overwrite without confirmation
-3. **Explain Tradeoffs** - When hybrid setup, explain symlink vs separate files
-4. **Validate After Changes** - Run `/validate` after `/bootstrap` or `/migrate`
-5. **Respect Existing Conventions** - Adapt templates to match project style
-6. **Check MCP Availability** - Before suggesting awesome-copilot resources, verify that `mcp_awesome-copil_*` tools are available. If not present, do NOT suggest or reference these tools. Simply skip the community resource suggestions.
-
-## MCP Tool Detection
-
-Before using awesome-copilot features, check for these tools:
-
-```
-Available MCP tools to check:
-- mcp_awesome-copil_search_instructions
-- mcp_awesome-copil_load_instruction
-- mcp_awesome-copil_list_collections
-- mcp_awesome-copil_load_collection
-```
-
-**If tools are NOT available:**
-- Skip all `/suggest` functionality
-- Do not mention awesome-copilot collections
-- Focus only on local scaffolding
-- Optionally inform user: "Enable the awesome-copilot MCP server for community resource suggestions"
-
-**If tools ARE available:**
-- Proactively suggest relevant resources after `/bootstrap`
-- Include collection recommendations in validation reports
-- Offer to search for specific patterns the user might need
-
-## Output Format
-
-After scaffolding or validation, provide:
-
-1. **Summary** - What was created/validated
-2. **Next Steps** - Recommended immediate actions
-3. **Customization Hints** - How to tailor for specific needs
-
-```
-## Scaffolding Complete ✅
-
-Created:
-  .github/
-  ├── copilot-instructions.md (new)
-  ├── agents/
-  │   └── code-reviewer.agent.md (new)
-  ├── instructions/
-  │   └── typescript.instructions.md (new)
-  └── prompts/
-      └── test-gen.prompt.md (new)
-
-  AGENTS.md → symlink to .github/copilot-instructions.md
-
-Next Steps:
-  1. Review and customize copilot-instructions.md
-  2. Add project-specific agents as needed
-  3. Create skills for complex workflows
-
-Customization:
-  - Add more agents in .github/agents/
-  - Create file-specific rules in .github/instructions/
-  - Build reusable prompts in .github/prompts/
-```
-`````
-
-## File: .github/agents/reviewer.agent.md
-`````markdown
----
-name: Reviewer
-description: 'Review Xuanwu implementations for correctness, architecture alignment, regression risk, and missing validation or documentation.'
-tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
-target: 'vscode'
-handoffs:
-  - label: Fix Review Findings
-    agent: Implementer
-    prompt: Apply fixes for the review findings above. Keep the scope bounded to those findings and rerun the required validation.
-    send: false
-  - label: Run QA
-    agent: QA
-    prompt: Execute QA against the approved plan and reviewed implementation. Verify scenarios, evidence, residual risk, and release readiness.
-    send: false
----
-
-# Reviewer
-
-You are the formal review stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Evaluate whether the implementation is acceptable before QA starts. Focus on bugs, regressions, boundary violations, missing validation, and missing documentation.
-
-## Review lenses
-
-1. Correctness and behavioral regressions
-2. MDDD ownership and dependency direction
-3. Contract alignment and invariant preservation
-4. Validation completeness
-5. Documentation completeness
-
-## Required references
-
-- Review against the approved implementation plan.
-- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) for ownership and boundary checks.
-- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) for contract-governed workflows.
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the approved plan and the implementation output.
-3. Evaluate across the five review lenses.
-4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with findings, severity, and recommendation; then call `serena/summarize_changes`.
-
-## Guardrails
-
-- Do not edit files.
-- Do not restate the implementation summary as the review.
-- Do not focus on style trivia before reporting bugs, risk, or missing validation.
-- If no serious findings exist, say so explicitly and note residual risks or test gaps.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-Present findings first, ordered by severity. Include:
-
-- summary,
-- affected area,
-- why it matters,
-- and whether the issue blocks QA or release.
-`````
-
-## File: .github/copilot/.gitkeep
-`````
-
-`````
-
-## File: .github/hooks/.gitkeep
-`````
-
-`````
-
-## File: .github/ISSUE_TEMPLATE/.gitkeep
-`````
-
 `````
 
 ## File: .github/prompts/context7-mcp.prompt.md
@@ -1249,152 +86,6 @@ argument-hint: 例如 query=Next.js caching, goals=docs,examples,memory-refresh
 ### 限制與替代
 - limitation: <reason>
 - fallback: <action>
-`````
-
-## File: .github/prompts/create-module.prompt.md
-`````markdown
----
-description: 'Create a new module in modules/ using the Modules Architect workflow and Xuanwu MDDD structure'
-name: 'create-module'
-agent: 'modules-architect'
-argument-hint: 'Module name, domain purpose, expected API contract, and initial dependencies'
----
-
-# Create Module
-
-## Mission
-
-Create a new module under `modules/` following Xuanwu MDDD structure and API-boundary rules.
-
-## Inputs
-
-- Module name: `${input:moduleName:content-domain}`
-- Domain purpose: `${input:purpose:Describe the bounded context}`
-- Public API intent: `${input:apiIntent:List the first public actions or queries}`
-- Allowed dependencies: `${input:dependencies:List approved upstream modules or events}`
-
-## Workflow
-
-1. Confirm the module is a distinct bounded context.
-2. Create:
-   - `modules/{module-name}/api/`
-   - `modules/{module-name}/domain/`
-   - `modules/{module-name}/application/`
-   - `modules/{module-name}/infrastructure/`
-   - `modules/{module-name}/interfaces/`
-   - `modules/{module-name}/README.md`
-   - `modules/{module-name}/index.ts`
-3. Define the initial API contract before adding cross-module consumers.
-4. Keep internal imports relative and cross-module access API-only.
-5. Update any relevant module inventory or customization docs if new architecture guidance is introduced.
-
-## Output Expectations
-
-- Create the module structure
-- Summarize ownership, API shape, and dependency direction
-- List validation performed
-`````
-
-## File: .github/prompts/delete-module.prompt.md
-`````markdown
----
-description: 'Delete a module safely by removing imports, API usage, event usage, and documentation references first'
-name: 'delete-module'
-agent: 'modules-architect'
-argument-hint: 'Module name, replacement module or API, and required migration constraints'
----
-
-# Delete Module
-
-## Mission
-
-Delete a module only after its imports, API usage, events, and docs have been migrated or removed.
-
-## Inputs
-
-- Module name: `${input:moduleName:legacy-module}`
-- Replacement target: `${input:replacement:Target module, API, or event flow}`
-- Constraints: `${input:constraints:Consumer migrations or compatibility requirements}`
-
-## Workflow
-
-1. Search all imports of the module.
-2. Search all API usage.
-3. Search all event usage.
-4. Remove or migrate consumers first.
-5. Delete the module and update indexes, docs, and dependency guidance.
-
-## Output Expectations
-
-- Summarize consumer migration
-- List deleted or updated references
-- List validation performed
-`````
-
-## File: .github/prompts/implement-plan.prompt.md
-`````markdown
----
-name: implement-plan
-description: Execute an approved implementation plan with the Implementer agent.
-agent: Implementer
-argument-hint: Provide a plan file, pasted plan text, or a summary of which plan tasks should be executed now.
----
-
-# Implement Plan
-
-Implement the approved plan.
-
-## Requirements
-
-- Treat the provided plan as the canonical execution contract.
-- Execute only the tasks that are requested or approved.
-- Respect the plan scope, non-goals, validation, and documentation updates.
-- Stop and report any plan defect that blocks safe implementation.
-
-## Output
-
-Report:
-
-- tasks completed,
-- validation run,
-- documentation updated,
-- and any blockers or deviations.
-`````
-
-## File: .github/prompts/merge-module.prompt.md
-`````markdown
----
-description: 'Merge related modules into one bounded context while preserving API consumers and MDDD structure'
-name: 'merge-module'
-agent: 'modules-architect'
-argument-hint: 'Source modules, target module, API migration plan, and dependency risks'
----
-
-# Merge Module
-
-## Mission
-
-Merge related modules into one bounded context while preserving explicit APIs and dependency safety.
-
-## Inputs
-
-- Source modules: `${input:sourceModules:module-a,module-b}`
-- Target module: `${input:targetModule:module-ab}`
-- API migration plan: `${input:apiPlan:How existing consumers should migrate}`
-- Dependency risks: `${input:risks:Potential reverse edges or boundary leaks}`
-
-## Workflow
-
-1. Map overlapping ownership and public contracts.
-2. Consolidate domain, application, infrastructure, interfaces, and API layers.
-3. Keep migrations explicit for imports, events, and docs.
-4. Remove obsolete modules only after dependents are updated.
-
-## Output Expectations
-
-- Summarize merged ownership and API changes
-- List migration steps completed
-- List validation performed
 `````
 
 ## File: .github/prompts/next‑devtools‑mcp.prompt.md
@@ -1571,43 +262,6 @@ argument-hint: 例如 url=http://localhost:3000 flow=login-and-submit officialDo
 - fallback: <action>
 `````
 
-## File: .github/prompts/refactor-module.prompt.md
-`````markdown
----
-description: 'Refactor an existing module while preserving MDDD layers, API boundaries, and dependency direction'
-name: 'refactor-module'
-agent: 'modules-architect'
-argument-hint: 'Module name, refactor goal, affected entities or aggregates, and boundary concerns'
----
-
-# Refactor Module
-
-## Mission
-
-Refactor an existing module without breaking MDDD ownership, API boundaries, or dependency direction.
-
-## Inputs
-
-- Module name: `${input:moduleName:content}`
-- Refactor goal: `${input:goal:Describe the refactor outcome}`
-- Affected internals: `${input:scope:Entities, aggregates, use cases, repositories, or events}`
-- Boundary concerns: `${input:boundaries:Cross-module imports, API leaks, or dependency issues}`
-
-## Workflow
-
-1. Analyze entity, aggregate, repository, event, and API ownership.
-2. Move misplaced logic into the correct MDDD layer.
-3. Remove cross-module internal imports.
-4. Create or tighten `api/` boundaries as needed.
-5. Update imports, tests, and docs in the same change.
-
-## Output Expectations
-
-- Summarize ownership and layer-placement decisions
-- List any API changes
-- List validation performed
-`````
-
 ## File: .github/prompts/resume-delivery.prompt.md
 `````markdown
 ---
@@ -1644,56 +298,6 @@ Return:
 2. recommended next stage,
 3. missing information if any,
 4. and the exact next prompt to run.
-`````
-
-## File: .github/prompts/review-changes.prompt.md
-`````markdown
----
-name: review-changes
-description: Review changes against the implementation plan, repository boundaries, and required validation.
-agent: Reviewer
-argument-hint: Provide the plan reference, affected files or change summary, and any areas of concern.
----
-
-# Review Changes
-
-Review the implementation against the approved plan.
-
-## Requirements
-
-- Prioritize bugs, regressions, boundary violations, missing validation, and missing docs.
-- Check alignment with [xuanwu-mddd-boundaries](../../.github/skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement is involved.
-- Check alignment with [xuanwu-development-contracts](../../.github/skills/xuanwu-development-contracts/SKILL.md) when a governed workflow is involved.
-- Present findings first, ordered by severity.
-
-## Output
-
-State whether the implementation is ready for QA, requires fixes first, or is blocked by plan or boundary issues.
-`````
-
-## File: .github/prompts/run-qa.prompt.md
-`````markdown
----
-name: run-qa
-description: Execute formal QA verification for a delivered change.
-agent: QA
-argument-hint: Provide the plan reference, reviewed change summary, and any risk areas or scenarios that must be checked.
----
-
-# Run QA
-
-Verify the delivered change using the formal QA output structure.
-
-## Requirements
-
-- Base the QA pass on the approved plan and any reviewer findings.
-- Execute the scenarios needed to support a release recommendation.
-- Separate failures, residual risks, and unverified areas.
-- Do not mark the change ready if required evidence is missing.
-
-## Output
-
-Use the QA agent's formal sections for scope checked, scenarios executed, evidence collected, failures found, residual risks, and release recommendation.
 `````
 
 ## File: .github/prompts/serena-maintenance.prompt.md
@@ -1887,94 +491,6 @@ argument-hint: 例如 task=add-components components=button,card officialDocUrl=
 ### 限制與替代
 - limitation: <reason>
 - fallback: <action>
-`````
-
-## File: .github/prompts/split-module.prompt.md
-`````markdown
----
-description: 'Split one module into clearer bounded contexts while preserving public APIs and dependency rules'
-name: 'split-module'
-agent: 'modules-architect'
-argument-hint: 'Source module, target modules, ownership split, and migration constraints'
----
-
-# Split Module
-
-## Mission
-
-Split an existing module into multiple bounded contexts without introducing boundary violations.
-
-## Inputs
-
-- Source module: `${input:sourceModule:knowledge}`
-- Target modules: `${input:targetModules:content,graph}`
-- Ownership split: `${input:ownership:Describe what moves where}`
-- Migration constraints: `${input:constraints:APIs, routes, or event contracts that must remain stable}`
-
-## Workflow
-
-1. Map current ownership and target ownership.
-2. Preserve or migrate public APIs intentionally.
-3. Move internals into the correct target modules.
-4. Remove stale imports and update docs, tests, and dependency guidance.
-
-## Output Expectations
-
-- Summarize source-to-target ownership mapping
-- List API and dependency changes
-- List validation performed
-`````
-
-## File: .github/README.md
-`````markdown
-# .github Customization Index
-
-Operational index for repository-scoped customization assets.
-
-## Commander flow (fast path)
-
-1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
-2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
-3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
-4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
-
-## Boundary
-
-- Keep executable customization assets in `.github/`.
-- Keep explanation, governance, and lifecycle context in `docs/`.
-- Update both locations together when behavior changes.
-- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
-
-## Folder map
-
-| Path | Purpose | Index |
-| --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
-| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
-| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
-| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
-| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
-| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
-| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
-| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
-
-## Core files
-
-| File | Role |
-| --- | --- |
-| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
-| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
-| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
-| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
-| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
-
-## Maintenance
-
-- Use relative links.
-- Keep one concrete entry file per folder.
-- Keep placeholders as plain text, not fake links.
-- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/rules/_sections.md
@@ -3501,49 +2017,1810 @@ test("createTask returns error when title is empty", async () => {
 - Keep mocks minimal — don't over-mock or you'll test nothing
 `````
 
-## File: .github/skills/README.md
+## File: .github/skills/deploy-to-vercel/resources/deploy-codex.sh
+`````bash
+#!/bin/bash
+
+# Vercel Deployment Script for Codex (via claimable deploy endpoint)
+# Usage: ./deploy-codex.sh [project-path]
+# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
+
+set -euo pipefail
+
+DEPLOY_ENDPOINT="https://codex-deploy-skills.vercel.sh/api/deploy"
+
+# Detect framework from package.json
+detect_framework() {
+    local pkg_json="$1"
+
+    if [ ! -f "$pkg_json" ]; then
+        echo "null"
+        return
+    fi
+
+    local content=$(cat "$pkg_json")
+
+    # Helper to check if a package exists in dependencies or devDependencies.
+    # Use exact matching by default, with a separate prefix matcher for scoped
+    # package families like "@remix-run/".
+    has_dep_exact() {
+        echo "$content" | grep -q "\"$1\""
+    }
+
+    has_dep_prefix() {
+        echo "$content" | grep -q "\"$1"
+    }
+
+    # Order matters - check more specific frameworks first
+
+    # Blitz
+    if has_dep_exact "blitz"; then echo "blitzjs"; return; fi
+
+    # Next.js
+    if has_dep_exact "next"; then echo "nextjs"; return; fi
+
+    # Gatsby
+    if has_dep_exact "gatsby"; then echo "gatsby"; return; fi
+
+    # Remix
+    if has_dep_prefix "@remix-run/"; then echo "remix"; return; fi
+
+    # React Router (v7 framework mode)
+    if has_dep_prefix "@react-router/"; then echo "react-router"; return; fi
+
+    # TanStack Start
+    if has_dep_exact "@tanstack/start"; then echo "tanstack-start"; return; fi
+
+    # Astro
+    if has_dep_exact "astro"; then echo "astro"; return; fi
+
+    # Hydrogen (Shopify)
+    if has_dep_exact "@shopify/hydrogen"; then echo "hydrogen"; return; fi
+
+    # SvelteKit
+    if has_dep_exact "@sveltejs/kit"; then echo "sveltekit-1"; return; fi
+
+    # Svelte (standalone)
+    if has_dep_exact "svelte"; then echo "svelte"; return; fi
+
+    # Nuxt
+    if has_dep_exact "nuxt"; then echo "nuxtjs"; return; fi
+
+    # Vue with Vitepress
+    if has_dep_exact "vitepress"; then echo "vitepress"; return; fi
+
+    # Vue with Vuepress
+    if has_dep_exact "vuepress"; then echo "vuepress"; return; fi
+
+    # Gridsome
+    if has_dep_exact "gridsome"; then echo "gridsome"; return; fi
+
+    # SolidStart
+    if has_dep_exact "@solidjs/start"; then echo "solidstart-1"; return; fi
+
+    # Docusaurus
+    if has_dep_exact "@docusaurus/core"; then echo "docusaurus-2"; return; fi
+
+    # RedwoodJS
+    if has_dep_prefix "@redwoodjs/"; then echo "redwoodjs"; return; fi
+
+    # Hexo
+    if has_dep_exact "hexo"; then echo "hexo"; return; fi
+
+    # Eleventy
+    if has_dep_exact "@11ty/eleventy"; then echo "eleventy"; return; fi
+
+    # Angular / Ionic Angular
+    if has_dep_exact "@ionic/angular"; then echo "ionic-angular"; return; fi
+    if has_dep_exact "@angular/core"; then echo "angular"; return; fi
+
+    # Ionic React
+    if has_dep_exact "@ionic/react"; then echo "ionic-react"; return; fi
+
+    # Create React App
+    if has_dep_exact "react-scripts"; then echo "create-react-app"; return; fi
+
+    # Ember
+    if has_dep_exact "ember-cli" || has_dep_exact "ember-source"; then echo "ember"; return; fi
+
+    # Dojo
+    if has_dep_exact "@dojo/framework"; then echo "dojo"; return; fi
+
+    # Polymer
+    if has_dep_prefix "@polymer/"; then echo "polymer"; return; fi
+
+    # Preact
+    if has_dep_exact "preact"; then echo "preact"; return; fi
+
+    # Stencil
+    if has_dep_exact "@stencil/core"; then echo "stencil"; return; fi
+
+    # UmiJS
+    if has_dep_exact "umi"; then echo "umijs"; return; fi
+
+    # Sapper (legacy Svelte)
+    if has_dep_exact "sapper"; then echo "sapper"; return; fi
+
+    # Saber
+    if has_dep_exact "saber"; then echo "saber"; return; fi
+
+    # Sanity
+    if has_dep_exact "sanity"; then echo "sanity-v3"; return; fi
+    if has_dep_prefix "@sanity/"; then echo "sanity"; return; fi
+
+    # Storybook
+    if has_dep_prefix "@storybook/"; then echo "storybook"; return; fi
+
+    # NestJS
+    if has_dep_exact "@nestjs/core"; then echo "nestjs"; return; fi
+
+    # Elysia
+    if has_dep_exact "elysia"; then echo "elysia"; return; fi
+
+    # Hono
+    if has_dep_exact "hono"; then echo "hono"; return; fi
+
+    # Fastify
+    if has_dep_exact "fastify"; then echo "fastify"; return; fi
+
+    # h3
+    if has_dep_exact "h3"; then echo "h3"; return; fi
+
+    # Nitro
+    if has_dep_exact "nitropack"; then echo "nitro"; return; fi
+
+    # Express
+    if has_dep_exact "express"; then echo "express"; return; fi
+
+    # Vite (generic - check last among JS frameworks)
+    if has_dep_exact "vite"; then echo "vite"; return; fi
+
+    # Parcel
+    if has_dep_exact "parcel"; then echo "parcel"; return; fi
+
+    # No framework detected
+    echo "null"
+}
+
+# Parse arguments
+INPUT_PATH="${1:-.}"
+
+# Create temp directory for packaging
+TEMP_DIR=$(mktemp -d)
+TARBALL="$TEMP_DIR/project.tgz"
+STAGING_DIR="$TEMP_DIR/staging"
+CLEANUP_TEMP=true
+
+cleanup() {
+    if [ "$CLEANUP_TEMP" = true ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
+echo "Preparing deployment..." >&2
+
+# Check if input is a .tgz file or a directory
+FRAMEWORK="null"
+
+if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" == *.tgz ]]; then
+    # Input is already a tarball, use it directly
+    echo "Using provided tarball..." >&2
+    TARBALL="$INPUT_PATH"
+    CLEANUP_TEMP=false
+    # Can't detect framework from tarball, leave as null
+elif [ -d "$INPUT_PATH" ]; then
+    # Input is a directory, need to tar it
+    PROJECT_PATH=$(cd "$INPUT_PATH" && pwd)
+
+    # Detect framework from package.json
+    FRAMEWORK=$(detect_framework "$PROJECT_PATH/package.json")
+
+    # Stage files into a temporary directory to avoid mutating the source tree.
+    mkdir -p "$STAGING_DIR"
+    echo "Staging project files..." >&2
+    tar -C "$PROJECT_PATH" \
+        --exclude='node_modules' \
+        --exclude='.git' \
+        --exclude='.env' \
+        --exclude='.env.*' \
+        -cf - . | tar -C "$STAGING_DIR" -xf -
+
+    # Check if this is a static HTML project (no package.json)
+    if [ ! -f "$PROJECT_PATH/package.json" ]; then
+        # Find HTML files in root
+        HTML_FILES=$(find "$STAGING_DIR" -maxdepth 1 -name "*.html" -type f)
+        HTML_COUNT=$(printf '%s\n' "$HTML_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
+
+        # If there's exactly one HTML file and it's not index.html, rename it
+        if [ "$HTML_COUNT" -eq 1 ]; then
+            HTML_FILE=$(echo "$HTML_FILES" | head -1)
+            BASENAME=$(basename "$HTML_FILE")
+            if [ "$BASENAME" != "index.html" ]; then
+                echo "Renaming $BASENAME to index.html..." >&2
+                mv "$HTML_FILE" "$STAGING_DIR/index.html"
+            fi
+        fi
+    fi
+
+    # Create tarball from the staging directory
+    echo "Creating deployment package..." >&2
+    tar -czf "$TARBALL" -C "$STAGING_DIR" .
+else
+    echo "Error: Input must be a directory or a .tgz file" >&2
+    exit 1
+fi
+
+if [ "$FRAMEWORK" != "null" ]; then
+    echo "Detected framework: $FRAMEWORK" >&2
+fi
+
+# Deploy
+echo "Deploying..." >&2
+RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
+
+# Check for error in response
+if echo "$RESPONSE" | grep -q '"error"'; then
+    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
+    echo "Error: $ERROR_MSG" >&2
+    exit 1
+fi
+
+# Extract URLs from response
+PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
+CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
+
+if [ -z "$PREVIEW_URL" ]; then
+    echo "Error: Could not extract preview URL from response" >&2
+    echo "$RESPONSE" >&2
+    exit 1
+fi
+
+echo "Deployment started. Waiting for build to complete..." >&2
+echo "Preview URL: $PREVIEW_URL" >&2
+
+# Poll the preview URL until it returns a non-5xx response (5xx = still building)
+MAX_ATTEMPTS=60  # 5 minutes max (60 * 5 seconds)
+ATTEMPT=0
+
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
+
+    if [ "$HTTP_STATUS" -eq 200 ]; then
+        echo "" >&2
+        echo "Deployment ready!" >&2
+        break
+    elif [ "$HTTP_STATUS" -ge 500 ]; then
+        # 5xx means still building/deploying
+        echo "Building... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)" >&2
+        sleep 5
+        ATTEMPT=$((ATTEMPT + 1))
+    elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+        # 4xx might be an error or the app itself returns 4xx - it's responding
+        echo "" >&2
+        echo "Deployment ready (returned $HTTP_STATUS)!" >&2
+        break
+    else
+        # Any other status, assume it's ready
+        echo "" >&2
+        echo "Deployment ready!" >&2
+        break
+    fi
+done
+
+if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+    echo "" >&2
+    echo "Warning: Timed out waiting for deployment, but it may still be building." >&2
+fi
+
+echo "" >&2
+echo "Preview URL: $PREVIEW_URL" >&2
+echo "Claim URL:   $CLAIM_URL" >&2
+echo "" >&2
+
+# Output JSON for programmatic use
+echo "$RESPONSE"
+`````
+
+## File: .github/skills/deploy-to-vercel/resources/deploy.sh
+`````bash
+#!/bin/bash
+
+# Vercel Deployment Script (via claimable deploy endpoint)
+# Usage: ./deploy.sh [project-path]
+# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
+
+set -euo pipefail
+
+DEPLOY_ENDPOINT="https://claude-skills-deploy.vercel.com/api/deploy"
+
+# Detect framework from package.json
+detect_framework() {
+    local pkg_json="$1"
+
+    if [ ! -f "$pkg_json" ]; then
+        echo "null"
+        return
+    fi
+
+    local content=$(cat "$pkg_json")
+
+    # Helper to check if a package exists in dependencies or devDependencies.
+    # Use exact matching by default, with a separate prefix matcher for scoped
+    # package families like "@remix-run/".
+    has_dep_exact() {
+        echo "$content" | grep -q "\"$1\""
+    }
+
+    has_dep_prefix() {
+        echo "$content" | grep -q "\"$1"
+    }
+
+    # Order matters - check more specific frameworks first
+
+    # Blitz
+    if has_dep_exact "blitz"; then echo "blitzjs"; return; fi
+
+    # Next.js
+    if has_dep_exact "next"; then echo "nextjs"; return; fi
+
+    # Gatsby
+    if has_dep_exact "gatsby"; then echo "gatsby"; return; fi
+
+    # Remix
+    if has_dep_prefix "@remix-run/"; then echo "remix"; return; fi
+
+    # React Router (v7 framework mode)
+    if has_dep_prefix "@react-router/"; then echo "react-router"; return; fi
+
+    # TanStack Start
+    if has_dep_exact "@tanstack/start"; then echo "tanstack-start"; return; fi
+
+    # Astro
+    if has_dep_exact "astro"; then echo "astro"; return; fi
+
+    # Hydrogen (Shopify)
+    if has_dep_exact "@shopify/hydrogen"; then echo "hydrogen"; return; fi
+
+    # SvelteKit
+    if has_dep_exact "@sveltejs/kit"; then echo "sveltekit-1"; return; fi
+
+    # Svelte (standalone)
+    if has_dep_exact "svelte"; then echo "svelte"; return; fi
+
+    # Nuxt
+    if has_dep_exact "nuxt"; then echo "nuxtjs"; return; fi
+
+    # Vue with Vitepress
+    if has_dep_exact "vitepress"; then echo "vitepress"; return; fi
+
+    # Vue with Vuepress
+    if has_dep_exact "vuepress"; then echo "vuepress"; return; fi
+
+    # Gridsome
+    if has_dep_exact "gridsome"; then echo "gridsome"; return; fi
+
+    # SolidStart
+    if has_dep_exact "@solidjs/start"; then echo "solidstart-1"; return; fi
+
+    # Docusaurus
+    if has_dep_exact "@docusaurus/core"; then echo "docusaurus-2"; return; fi
+
+    # RedwoodJS
+    if has_dep_prefix "@redwoodjs/"; then echo "redwoodjs"; return; fi
+
+    # Hexo
+    if has_dep_exact "hexo"; then echo "hexo"; return; fi
+
+    # Eleventy
+    if has_dep_exact "@11ty/eleventy"; then echo "eleventy"; return; fi
+
+    # Angular / Ionic Angular
+    if has_dep_exact "@ionic/angular"; then echo "ionic-angular"; return; fi
+    if has_dep_exact "@angular/core"; then echo "angular"; return; fi
+
+    # Ionic React
+    if has_dep_exact "@ionic/react"; then echo "ionic-react"; return; fi
+
+    # Create React App
+    if has_dep_exact "react-scripts"; then echo "create-react-app"; return; fi
+
+    # Ember
+    if has_dep_exact "ember-cli" || has_dep_exact "ember-source"; then echo "ember"; return; fi
+
+    # Dojo
+    if has_dep_exact "@dojo/framework"; then echo "dojo"; return; fi
+
+    # Polymer
+    if has_dep_prefix "@polymer/"; then echo "polymer"; return; fi
+
+    # Preact
+    if has_dep_exact "preact"; then echo "preact"; return; fi
+
+    # Stencil
+    if has_dep_exact "@stencil/core"; then echo "stencil"; return; fi
+
+    # UmiJS
+    if has_dep_exact "umi"; then echo "umijs"; return; fi
+
+    # Sapper (legacy Svelte)
+    if has_dep_exact "sapper"; then echo "sapper"; return; fi
+
+    # Saber
+    if has_dep_exact "saber"; then echo "saber"; return; fi
+
+    # Sanity
+    if has_dep_exact "sanity"; then echo "sanity-v3"; return; fi
+    if has_dep_prefix "@sanity/"; then echo "sanity"; return; fi
+
+    # Storybook
+    if has_dep_prefix "@storybook/"; then echo "storybook"; return; fi
+
+    # NestJS
+    if has_dep_exact "@nestjs/core"; then echo "nestjs"; return; fi
+
+    # Elysia
+    if has_dep_exact "elysia"; then echo "elysia"; return; fi
+
+    # Hono
+    if has_dep_exact "hono"; then echo "hono"; return; fi
+
+    # Fastify
+    if has_dep_exact "fastify"; then echo "fastify"; return; fi
+
+    # h3
+    if has_dep_exact "h3"; then echo "h3"; return; fi
+
+    # Nitro
+    if has_dep_exact "nitropack"; then echo "nitro"; return; fi
+
+    # Express
+    if has_dep_exact "express"; then echo "express"; return; fi
+
+    # Vite (generic - check last among JS frameworks)
+    if has_dep_exact "vite"; then echo "vite"; return; fi
+
+    # Parcel
+    if has_dep_exact "parcel"; then echo "parcel"; return; fi
+
+    # No framework detected
+    echo "null"
+}
+
+# Parse arguments
+INPUT_PATH="${1:-.}"
+
+# Create temp directory for packaging
+TEMP_DIR=$(mktemp -d)
+TARBALL="$TEMP_DIR/project.tgz"
+STAGING_DIR="$TEMP_DIR/staging"
+CLEANUP_TEMP=true
+
+cleanup() {
+    if [ "$CLEANUP_TEMP" = true ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
+echo "Preparing deployment..." >&2
+
+# Check if input is a .tgz file or a directory
+FRAMEWORK="null"
+
+if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" == *.tgz ]]; then
+    # Input is already a tarball, use it directly
+    echo "Using provided tarball..." >&2
+    TARBALL="$INPUT_PATH"
+    CLEANUP_TEMP=false
+    # Can't detect framework from tarball, leave as null
+elif [ -d "$INPUT_PATH" ]; then
+    # Input is a directory, need to tar it
+    PROJECT_PATH=$(cd "$INPUT_PATH" && pwd)
+
+    # Detect framework from package.json
+    FRAMEWORK=$(detect_framework "$PROJECT_PATH/package.json")
+
+    # Stage files into a temporary directory to avoid mutating the source tree.
+    mkdir -p "$STAGING_DIR"
+    echo "Staging project files..." >&2
+    tar -C "$PROJECT_PATH" \
+        --exclude='node_modules' \
+        --exclude='.git' \
+        --exclude='.env' \
+        --exclude='.env.*' \
+        -cf - . | tar -C "$STAGING_DIR" -xf -
+
+    # Check if this is a static HTML project (no package.json)
+    if [ ! -f "$PROJECT_PATH/package.json" ]; then
+        # Find HTML files in root
+        HTML_FILES=$(find "$STAGING_DIR" -maxdepth 1 -name "*.html" -type f)
+        HTML_COUNT=$(printf '%s\n' "$HTML_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
+
+        # If there's exactly one HTML file and it's not index.html, rename it
+        if [ "$HTML_COUNT" -eq 1 ]; then
+            HTML_FILE=$(echo "$HTML_FILES" | head -1)
+            BASENAME=$(basename "$HTML_FILE")
+            if [ "$BASENAME" != "index.html" ]; then
+                echo "Renaming $BASENAME to index.html..." >&2
+                mv "$HTML_FILE" "$STAGING_DIR/index.html"
+            fi
+        fi
+    fi
+
+    # Create tarball from the staging directory
+    echo "Creating deployment package..." >&2
+    tar -czf "$TARBALL" -C "$STAGING_DIR" .
+else
+    echo "Error: Input must be a directory or a .tgz file" >&2
+    exit 1
+fi
+
+if [ "$FRAMEWORK" != "null" ]; then
+    echo "Detected framework: $FRAMEWORK" >&2
+fi
+
+# Deploy
+echo "Deploying..." >&2
+RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
+
+# Check for error in response
+if echo "$RESPONSE" | grep -q '"error"'; then
+    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
+    echo "Error: $ERROR_MSG" >&2
+    exit 1
+fi
+
+# Extract URLs from response
+PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
+CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
+
+if [ -z "$PREVIEW_URL" ]; then
+    echo "Error: Could not extract preview URL from response" >&2
+    echo "$RESPONSE" >&2
+    exit 1
+fi
+
+echo "Deployment started. Waiting for build to complete..." >&2
+echo "Preview URL: $PREVIEW_URL" >&2
+
+# Poll the preview URL until it returns a non-5xx response (5xx = still building)
+MAX_ATTEMPTS=60  # 5 minutes max (60 * 5 seconds)
+ATTEMPT=0
+
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
+
+    if [ "$HTTP_STATUS" -eq 200 ]; then
+        echo "" >&2
+        echo "Deployment ready!" >&2
+        break
+    elif [ "$HTTP_STATUS" -ge 500 ]; then
+        # 5xx means still building/deploying
+        echo "Building... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)" >&2
+        sleep 5
+        ATTEMPT=$((ATTEMPT + 1))
+    elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+        # 4xx might be an error or the app itself returns 4xx - it's responding
+        echo "" >&2
+        echo "Deployment ready (returned $HTTP_STATUS)!" >&2
+        break
+    else
+        # Any other status, assume it's ready
+        echo "" >&2
+        echo "Deployment ready!" >&2
+        break
+    fi
+done
+
+if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+    echo "" >&2
+    echo "Warning: Timed out waiting for deployment, but it may still be building." >&2
+fi
+
+echo "" >&2
+echo "Preview URL: $PREVIEW_URL" >&2
+echo "Claim URL:   $CLAIM_URL" >&2
+echo "" >&2
+
+# Output JSON for programmatic use
+echo "$RESPONSE"
+`````
+
+## File: .github/skills/llamaparse/scripts/example.ts
+`````typescript
+#!/usr/bin/env node
+
+import LlamaCloud from "@llamaindex/llama-cloud";
+import { readFile, writeFile } from "fs/promises";
+import { basename } from "path";
+
+// Define a client
+const client = new LlamaCloud({
+  apiKey: process.env["LLAMA_CLOUD_API_KEY"], // This is the default and can be omitted
+});
+
+async function parseFileText(filePath: string): Promise<string> {
+  // 1. Convert the file path into a File object
+  const buffer = await readFile(filePath);
+  const fileName = basename(filePath);
+  const file = new File([buffer], fileName);
+  // 2. Upload the file to the cloud
+  const fileObj = await client.files.create({
+    file: file,
+    purpose: "parse",
+  });
+  // 3. Get the file ID
+  const fileId = fileObj.id;
+  // 4. Use the file ID to parse the file
+  const result = await client.parsing.parse({
+    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
+    version: "latest",
+    file_id: fileId,
+    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
+    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
+    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
+    // presigned URLs.
+    expand: ["text_full"],
+  });
+
+  // 5. Retrieve the text result (could be None if there was an error)
+  return result.text_full ?? "";
+}
+
+async function parseFileMarkdown(filePath: string): Promise<string> {
+  // 1. Convert the file path into a File object
+  const buffer = await readFile(filePath);
+  const fileName = basename(filePath);
+  const file = new File([buffer], fileName);
+  // 2. Upload the file to the cloud
+  const fileObj = await client.files.create({
+    file: file,
+    purpose: "parse",
+  });
+  // 3. Get the file ID
+  const fileId = fileObj.id;
+  // 4. Use the file ID to parse the file
+  const result = await client.parsing.parse({
+    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
+    version: "latest",
+    file_id: fileId,
+    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
+    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
+    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
+    // presigned URLs.
+    expand: ["markdown_full"],
+  });
+
+  // 5. Retrieve the markdown result (could be None if there was an error)
+  return result.markdown_full ?? "";
+}
+
+async function parseFileJson(filePath: string): Promise<void> {
+  // 1. Convert the file path into a File object
+  const buffer = await readFile(filePath);
+  const fileName = basename(filePath);
+  const file = new File([buffer], fileName);
+  // 2. Upload the file to the cloud
+  const fileObj = await client.files.create({
+    file: file,
+    purpose: "parse",
+  });
+  // 3. Get the file ID
+  const fileId = fileObj.id;
+  // 4. Use the file ID to parse the file
+  const result = await client.parsing.parse({
+    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
+    version: "latest",
+    file_id: fileId,
+    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
+    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
+    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
+    // presigned URLs.
+    expand: ["items"],
+  });
+
+  // 5. Retrieve the result as a JSON array of items (could be None if there was an error)
+  if (result.items) {
+    for (const page of result.items.pages) {
+      console.log(JSON.stringify(page));
+    }
+  }
+}
+
+async function parseFileWithOptions(filePath: string): Promise<void> {
+  // 1. Convert the file path into a File object
+  const buffer = await readFile(filePath);
+  const fileName = basename(filePath);
+  const file = new File([buffer], fileName);
+  // 2. Upload the file to the cloud
+  const fileObj = await client.files.create({
+    file: file,
+    purpose: "parse",
+  });
+  // 3. Get the file ID
+  const fileId = fileObj.id;
+  // 4. Use the file ID to parse the file
+  const result = await client.parsing.parse({
+    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
+    version: "latest",
+    file_id: fileId,
+    input_options: {
+      presentation: {
+        skip_embedded_data: false,
+      },
+    },
+    output_options: {
+      images_to_save: ["screenshot"],
+      markdown: {
+        tables: { output_tables_as_markdown: true },
+        annotate_links: true,
+      },
+    },
+    processing_options: {
+      specialized_chart_parsing: "agentic",
+      ocr_parameters: { languages: ["de", "en"] },
+    },
+    agentic_options: {
+      custom_prompt:
+        "Extract text from the provided file and translate it from German to English.",
+    },
+    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
+    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
+    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
+    // presigned URLs.
+    expand: [
+      "markdown_full",
+      "images_content_metadata",
+      "markdown_content_metadata",
+    ],
+  });
+  // 5. Retrieve and save the images from the result (since we requested images)
+  if (result.images_content_metadata) {
+    for (const image of result.images_content_metadata.images) {
+      if (image.presigned_url) {
+        const response = await fetch(image.presigned_url, {
+          headers: {
+            Authorization: `Bearer ${process.env["LLAMA_CLOUD_API_KEY"]}`,
+          },
+        });
+        if (response.ok) {
+          const content = await response.bytes();
+          await writeFile(image.filename, content);
+        }
+      }
+    }
+  }
+  // 6. Print the full-text result
+  console.log(result.markdown_full ?? "No full content");
+}
+`````
+
+## File: .github/skills/vercel-composition-patterns/README.md
 `````markdown
-# Agent Skills
+# React Composition Patterns
 
-Specialized capabilities bundled with resources, examples, and workflows. Skills are auto-discovered based on request content and loaded on-demand.
+A structured repository for React composition patterns that scale. These
+patterns help avoid boolean prop proliferation by using compound components,
+lifting state, and composing internals.
 
-## Core Xuanwu Skills
+## Structure
 
-| Skill | File | Purpose |
-| --- | --- | --- |
-| MDDD Boundaries | `xuanwu-mddd-boundaries/` | Enforce module ownership, layer placement, API boundaries, dependency direction |
-| Development Contracts | `xuanwu-development-contracts/` | Follow contract-first workflows for RAG, parser, schedule, acceptance, billing, audit |
-| RAG Runtime Boundary | `xuanwu-rag-runtime-boundary/` | Preserve Next.js/Python ownership split for uploads, ingestion, retrieval |
+- `rules/` - Individual rule files (one per rule)
+  - `_sections.md` - Section metadata (titles, impacts, descriptions)
+  - `_template.md` - Template for creating new rules
+  - `area-description.md` - Individual rule files
+- `metadata.json` - Document metadata (version, organization, abstract)
+- **`AGENTS.md`** - Compiled output (generated)
 
-## Customization & Architecture
+## Rules
 
-| Skill | File | Purpose |
-| --- | --- | --- |
-| Customization Architecture | `vscode-customization-architecture/` | Design instructions, agents, skills, prompts, hooks, MCP correct placement |
-| Agent Foundations | `vscode-agent-foundations/` | Learn agent models, planning, memory, tools, subagents, handoffs |
-| Context Engineering | `vscode-context-engineering/` | Build high-signal workflows, context layers, documentation strategies |
-| Skillbook Router | `vscode-copilot-skillbook/` | Route customization questions to correct skill |
-| Tasks Authoring | `vscode-tasks-authoring/` | Author build, test, watch, shell, background tasks in tasks.json |
-| TypeScript Workbench | `vscode-typescript-workbench/` | Configure tsconfig, transpile, debug, refactor TypeScript |
-| Testing & Debugging | `vscode-testing-debugging-browser/` | Generate tests, debug, validate with browser automation |
+### Component Architecture (CRITICAL)
 
-## Best Practices
+- `architecture-avoid-boolean-props.md` - Don't add boolean props to customize
+  behavior
+- `architecture-compound-components.md` - Structure as compound components with
+  shared context
 
-| Skill | File | Purpose |
-| --- | --- | --- |
-| Documentation Writer | `documentation-writer/` | Create tutorial, how-to, reference, explanation with Diátaxis |
-| React Best Practices | `vercel-react-best-practices/` | Optimize React/Next.js performance, bundle size, data fetching |
-| Web Design Guidelines | `web-design-guidelines/` | Review UI for accessibility and design compliance |
+### State Management (HIGH)
 
-## Total: 13 Skills
+- `state-lift-state.md` - Lift state into provider components
+- `state-context-interface.md` - Define clear context interfaces
+  (state/actions/meta)
+- `state-decouple-implementation.md` - Decouple state management from UI
 
-All skills are under version control. When editing a skill, update the `description` field to improve auto-discovery.
+### Implementation Patterns (MEDIUM)
 
-## Related References
+- `patterns-children-over-render-props.md` - Prefer children over renderX props
+- `patterns-explicit-variants.md` - Create explicit component variants
 
-- [.github/README.md](../README.md) — Root navigation
-- [../.github/agents/](../agents/) — Delivery workflow agents
-- [../.github/instructions/](../instructions/) — Always-on coding standards
+## Core Principles
+
+1. **Composition over configuration** — Instead of adding props, let consumers
+   compose
+2. **Lift your state** — State in providers, not trapped in components
+3. **Compose your internals** — Subcomponents access context, not props
+4. **Explicit variants** — Create ThreadComposer, EditComposer, not Composer
+   with isThread
+
+## Creating a New Rule
+
+1. Copy `rules/_template.md` to `rules/area-description.md`
+2. Choose the appropriate area prefix:
+   - `architecture-` for Component Architecture
+   - `state-` for State Management
+   - `patterns-` for Implementation Patterns
+3. Fill in the frontmatter and content
+4. Ensure you have clear examples with explanations
+
+## Impact Levels
+
+- `CRITICAL` - Foundational patterns, prevents unmaintainable code
+- `HIGH` - Significant maintainability improvements
+- `MEDIUM` - Good practices for cleaner code
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/_sections.md
+`````markdown
+# Sections
+
+This file defines all sections, their ordering, impact levels, and descriptions.
+The section ID (in parentheses) is the filename prefix used to group rules.
+
+---
+
+## 1. Component Architecture (architecture)
+
+**Impact:** HIGH  
+**Description:** Fundamental patterns for structuring components to avoid prop
+proliferation and enable flexible composition.
+
+## 2. State Management (state)
+
+**Impact:** MEDIUM  
+**Description:** Patterns for lifting state and managing shared context across
+composed components.
+
+## 3. Implementation Patterns (patterns)
+
+**Impact:** MEDIUM  
+**Description:** Specific techniques for implementing compound components and
+context providers.
+
+## 4. React 19 APIs (react19)
+
+**Impact:** MEDIUM  
+**Description:** React 19+ only. Don't use `forwardRef`; use `use()` instead of `useContext()`.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/_template.md
+`````markdown
+---
+title: Rule Title Here
+impact: MEDIUM
+impactDescription: brief description of impact
+tags: composition, components
+---
+
+## Rule Title Here
+
+Brief explanation of the rule and why it matters.
+
+**Incorrect:**
+
+```tsx
+// Bad code example
+```
+
+**Correct:**
+
+```tsx
+// Good code example
+```
+
+Reference: [Link](https://example.com)
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/architecture-avoid-boolean-props.md
+`````markdown
+---
+title: Avoid Boolean Prop Proliferation
+impact: CRITICAL
+impactDescription: prevents unmaintainable component variants
+tags: composition, props, architecture
+---
+
+## Avoid Boolean Prop Proliferation
+
+Don't add boolean props like `isThread`, `isEditing`, `isDMThread` to customize
+component behavior. Each boolean doubles possible states and creates
+unmaintainable conditional logic. Use composition instead.
+
+**Incorrect (boolean props create exponential complexity):**
+
+```tsx
+function Composer({
+  onSubmit,
+  isThread,
+  channelId,
+  isDMThread,
+  dmId,
+  isEditing,
+  isForwarding,
+}: Props) {
+  return (
+    <form>
+      <Header />
+      <Input />
+      {isDMThread ? (
+        <AlsoSendToDMField id={dmId} />
+      ) : isThread ? (
+        <AlsoSendToChannelField id={channelId} />
+      ) : null}
+      {isEditing ? (
+        <EditActions />
+      ) : isForwarding ? (
+        <ForwardActions />
+      ) : (
+        <DefaultActions />
+      )}
+      <Footer onSubmit={onSubmit} />
+    </form>
+  )
+}
+```
+
+**Correct (composition eliminates conditionals):**
+
+```tsx
+// Channel composer
+function ChannelComposer() {
+  return (
+    <Composer.Frame>
+      <Composer.Header />
+      <Composer.Input />
+      <Composer.Footer>
+        <Composer.Attachments />
+        <Composer.Formatting />
+        <Composer.Emojis />
+        <Composer.Submit />
+      </Composer.Footer>
+    </Composer.Frame>
+  )
+}
+
+// Thread composer - adds "also send to channel" field
+function ThreadComposer({ channelId }: { channelId: string }) {
+  return (
+    <Composer.Frame>
+      <Composer.Header />
+      <Composer.Input />
+      <AlsoSendToChannelField id={channelId} />
+      <Composer.Footer>
+        <Composer.Formatting />
+        <Composer.Emojis />
+        <Composer.Submit />
+      </Composer.Footer>
+    </Composer.Frame>
+  )
+}
+
+// Edit composer - different footer actions
+function EditComposer() {
+  return (
+    <Composer.Frame>
+      <Composer.Input />
+      <Composer.Footer>
+        <Composer.Formatting />
+        <Composer.Emojis />
+        <Composer.CancelEdit />
+        <Composer.SaveEdit />
+      </Composer.Footer>
+    </Composer.Frame>
+  )
+}
+```
+
+Each variant is explicit about what it renders. We can share internals without
+sharing a single monolithic parent.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/architecture-compound-components.md
+`````markdown
+---
+title: Use Compound Components
+impact: HIGH
+impactDescription: enables flexible composition without prop drilling
+tags: composition, compound-components, architecture
+---
+
+## Use Compound Components
+
+Structure complex components as compound components with a shared context. Each
+subcomponent accesses shared state via context, not props. Consumers compose the
+pieces they need.
+
+**Incorrect (monolithic component with render props):**
+
+```tsx
+function Composer({
+  renderHeader,
+  renderFooter,
+  renderActions,
+  showAttachments,
+  showFormatting,
+  showEmojis,
+}: Props) {
+  return (
+    <form>
+      {renderHeader?.()}
+      <Input />
+      {showAttachments && <Attachments />}
+      {renderFooter ? (
+        renderFooter()
+      ) : (
+        <Footer>
+          {showFormatting && <Formatting />}
+          {showEmojis && <Emojis />}
+          {renderActions?.()}
+        </Footer>
+      )}
+    </form>
+  )
+}
+```
+
+**Correct (compound components with shared context):**
+
+```tsx
+const ComposerContext = createContext<ComposerContextValue | null>(null)
+
+function ComposerProvider({ children, state, actions, meta }: ProviderProps) {
+  return (
+    <ComposerContext value={{ state, actions, meta }}>
+      {children}
+    </ComposerContext>
+  )
+}
+
+function ComposerFrame({ children }: { children: React.ReactNode }) {
+  return <form>{children}</form>
+}
+
+function ComposerInput() {
+  const {
+    state,
+    actions: { update },
+    meta: { inputRef },
+  } = use(ComposerContext)
+  return (
+    <TextInput
+      ref={inputRef}
+      value={state.input}
+      onChangeText={(text) => update((s) => ({ ...s, input: text }))}
+    />
+  )
+}
+
+function ComposerSubmit() {
+  const {
+    actions: { submit },
+  } = use(ComposerContext)
+  return <Button onPress={submit}>Send</Button>
+}
+
+// Export as compound component
+const Composer = {
+  Provider: ComposerProvider,
+  Frame: ComposerFrame,
+  Input: ComposerInput,
+  Submit: ComposerSubmit,
+  Header: ComposerHeader,
+  Footer: ComposerFooter,
+  Attachments: ComposerAttachments,
+  Formatting: ComposerFormatting,
+  Emojis: ComposerEmojis,
+}
+```
+
+**Usage:**
+
+```tsx
+<Composer.Provider state={state} actions={actions} meta={meta}>
+  <Composer.Frame>
+    <Composer.Header />
+    <Composer.Input />
+    <Composer.Footer>
+      <Composer.Formatting />
+      <Composer.Submit />
+    </Composer.Footer>
+  </Composer.Frame>
+</Composer.Provider>
+```
+
+Consumers explicitly compose exactly what they need. No hidden conditionals. And the state, actions and meta are dependency-injected by a parent provider, allowing multiple usages of the same component structure.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/patterns-children-over-render-props.md
+`````markdown
+---
+title: Prefer Composing Children Over Render Props
+impact: MEDIUM
+impactDescription: cleaner composition, better readability
+tags: composition, children, render-props
+---
+
+## Prefer Children Over Render Props
+
+Use `children` for composition instead of `renderX` props. Children are more
+readable, compose naturally, and don't require understanding callback
+signatures.
+
+**Incorrect (render props):**
+
+```tsx
+function Composer({
+  renderHeader,
+  renderFooter,
+  renderActions,
+}: {
+  renderHeader?: () => React.ReactNode
+  renderFooter?: () => React.ReactNode
+  renderActions?: () => React.ReactNode
+}) {
+  return (
+    <form>
+      {renderHeader?.()}
+      <Input />
+      {renderFooter ? renderFooter() : <DefaultFooter />}
+      {renderActions?.()}
+    </form>
+  )
+}
+
+// Usage is awkward and inflexible
+return (
+  <Composer
+    renderHeader={() => <CustomHeader />}
+    renderFooter={() => (
+      <>
+        <Formatting />
+        <Emojis />
+      </>
+    )}
+    renderActions={() => <SubmitButton />}
+  />
+)
+```
+
+**Correct (compound components with children):**
+
+```tsx
+function ComposerFrame({ children }: { children: React.ReactNode }) {
+  return <form>{children}</form>
+}
+
+function ComposerFooter({ children }: { children: React.ReactNode }) {
+  return <footer className='flex'>{children}</footer>
+}
+
+// Usage is flexible
+return (
+  <Composer.Frame>
+    <CustomHeader />
+    <Composer.Input />
+    <Composer.Footer>
+      <Composer.Formatting />
+      <Composer.Emojis />
+      <SubmitButton />
+    </Composer.Footer>
+  </Composer.Frame>
+)
+```
+
+**When render props are appropriate:**
+
+```tsx
+// Render props work well when you need to pass data back
+<List
+  data={items}
+  renderItem={({ item, index }) => <Item item={item} index={index} />}
+/>
+```
+
+Use render props when the parent needs to provide data or state to the child.
+Use children when composing static structure.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/patterns-explicit-variants.md
+`````markdown
+---
+title: Create Explicit Component Variants
+impact: MEDIUM
+impactDescription: self-documenting code, no hidden conditionals
+tags: composition, variants, architecture
+---
+
+## Create Explicit Component Variants
+
+Instead of one component with many boolean props, create explicit variant
+components. Each variant composes the pieces it needs. The code documents
+itself.
+
+**Incorrect (one component, many modes):**
+
+```tsx
+// What does this component actually render?
+<Composer
+  isThread
+  isEditing={false}
+  channelId='abc'
+  showAttachments
+  showFormatting={false}
+/>
+```
+
+**Correct (explicit variants):**
+
+```tsx
+// Immediately clear what this renders
+<ThreadComposer channelId="abc" />
+
+// Or
+<EditMessageComposer messageId="xyz" />
+
+// Or
+<ForwardMessageComposer messageId="123" />
+```
+
+Each implementation is unique, explicit and self-contained. Yet they can each
+use shared parts.
+
+**Implementation:**
+
+```tsx
+function ThreadComposer({ channelId }: { channelId: string }) {
+  return (
+    <ThreadProvider channelId={channelId}>
+      <Composer.Frame>
+        <Composer.Input />
+        <AlsoSendToChannelField channelId={channelId} />
+        <Composer.Footer>
+          <Composer.Formatting />
+          <Composer.Emojis />
+          <Composer.Submit />
+        </Composer.Footer>
+      </Composer.Frame>
+    </ThreadProvider>
+  )
+}
+
+function EditMessageComposer({ messageId }: { messageId: string }) {
+  return (
+    <EditMessageProvider messageId={messageId}>
+      <Composer.Frame>
+        <Composer.Input />
+        <Composer.Footer>
+          <Composer.Formatting />
+          <Composer.Emojis />
+          <Composer.CancelEdit />
+          <Composer.SaveEdit />
+        </Composer.Footer>
+      </Composer.Frame>
+    </EditMessageProvider>
+  )
+}
+
+function ForwardMessageComposer({ messageId }: { messageId: string }) {
+  return (
+    <ForwardMessageProvider messageId={messageId}>
+      <Composer.Frame>
+        <Composer.Input placeholder="Add a message, if you'd like." />
+        <Composer.Footer>
+          <Composer.Formatting />
+          <Composer.Emojis />
+          <Composer.Mentions />
+        </Composer.Footer>
+      </Composer.Frame>
+    </ForwardMessageProvider>
+  )
+}
+```
+
+Each variant is explicit about:
+
+- What provider/state it uses
+- What UI elements it includes
+- What actions are available
+
+No boolean prop combinations to reason about. No impossible states.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/react19-no-forwardref.md
+`````markdown
+---
+title: React 19 API Changes
+impact: MEDIUM
+impactDescription: cleaner component definitions and context usage
+tags: react19, refs, context, hooks
+---
+
+## React 19 API Changes
+
+> **⚠️ React 19+ only.** Skip this if you're on React 18 or earlier.
+
+In React 19, `ref` is now a regular prop (no `forwardRef` wrapper needed), and `use()` replaces `useContext()`.
+
+**Incorrect (forwardRef in React 19):**
+
+```tsx
+const ComposerInput = forwardRef<TextInput, Props>((props, ref) => {
+  return <TextInput ref={ref} {...props} />
+})
+```
+
+**Correct (ref as a regular prop):**
+
+```tsx
+function ComposerInput({ ref, ...props }: Props & { ref?: React.Ref<TextInput> }) {
+  return <TextInput ref={ref} {...props} />
+}
+```
+
+**Incorrect (useContext in React 19):**
+
+```tsx
+const value = useContext(MyContext)
+```
+
+**Correct (use instead of useContext):**
+
+```tsx
+const value = use(MyContext)
+```
+
+`use()` can also be called conditionally, unlike `useContext()`.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/state-context-interface.md
+`````markdown
+---
+title: Define Generic Context Interfaces for Dependency Injection
+impact: HIGH
+impactDescription: enables dependency-injectable state across use-cases
+tags: composition, context, state, typescript, dependency-injection
+---
+
+## Define Generic Context Interfaces for Dependency Injection
+
+Define a **generic interface** for your component context with three parts:
+`state`, `actions`, and `meta`. This interface is a contract that any provider
+can implement—enabling the same UI components to work with completely different
+state implementations.
+
+**Core principle:** Lift state, compose internals, make state
+dependency-injectable.
+
+**Incorrect (UI coupled to specific state implementation):**
+
+```tsx
+function ComposerInput() {
+  // Tightly coupled to a specific hook
+  const { input, setInput } = useChannelComposerState()
+  return <TextInput value={input} onChangeText={setInput} />
+}
+```
+
+**Correct (generic interface enables dependency injection):**
+
+```tsx
+// Define a GENERIC interface that any provider can implement
+interface ComposerState {
+  input: string
+  attachments: Attachment[]
+  isSubmitting: boolean
+}
+
+interface ComposerActions {
+  update: (updater: (state: ComposerState) => ComposerState) => void
+  submit: () => void
+}
+
+interface ComposerMeta {
+  inputRef: React.RefObject<TextInput>
+}
+
+interface ComposerContextValue {
+  state: ComposerState
+  actions: ComposerActions
+  meta: ComposerMeta
+}
+
+const ComposerContext = createContext<ComposerContextValue | null>(null)
+```
+
+**UI components consume the interface, not the implementation:**
+
+```tsx
+function ComposerInput() {
+  const {
+    state,
+    actions: { update },
+    meta,
+  } = use(ComposerContext)
+
+  // This component works with ANY provider that implements the interface
+  return (
+    <TextInput
+      ref={meta.inputRef}
+      value={state.input}
+      onChangeText={(text) => update((s) => ({ ...s, input: text }))}
+    />
+  )
+}
+```
+
+**Different providers implement the same interface:**
+
+```tsx
+// Provider A: Local state for ephemeral forms
+function ForwardMessageProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState(initialState)
+  const inputRef = useRef(null)
+  const submit = useForwardMessage()
+
+  return (
+    <ComposerContext
+      value={{
+        state,
+        actions: { update: setState, submit },
+        meta: { inputRef },
+      }}
+    >
+      {children}
+    </ComposerContext>
+  )
+}
+
+// Provider B: Global synced state for channels
+function ChannelProvider({ channelId, children }: Props) {
+  const { state, update, submit } = useGlobalChannel(channelId)
+  const inputRef = useRef(null)
+
+  return (
+    <ComposerContext
+      value={{
+        state,
+        actions: { update, submit },
+        meta: { inputRef },
+      }}
+    >
+      {children}
+    </ComposerContext>
+  )
+}
+```
+
+**The same composed UI works with both:**
+
+```tsx
+// Works with ForwardMessageProvider (local state)
+<ForwardMessageProvider>
+  <Composer.Frame>
+    <Composer.Input />
+    <Composer.Submit />
+  </Composer.Frame>
+</ForwardMessageProvider>
+
+// Works with ChannelProvider (global synced state)
+<ChannelProvider channelId="abc">
+  <Composer.Frame>
+    <Composer.Input />
+    <Composer.Submit />
+  </Composer.Frame>
+</ChannelProvider>
+```
+
+**Custom UI outside the component can access state and actions:**
+
+The provider boundary is what matters—not the visual nesting. Components that
+need shared state don't have to be inside the `Composer.Frame`. They just need
+to be within the provider.
+
+```tsx
+function ForwardMessageDialog() {
+  return (
+    <ForwardMessageProvider>
+      <Dialog>
+        {/* The composer UI */}
+        <Composer.Frame>
+          <Composer.Input placeholder="Add a message, if you'd like." />
+          <Composer.Footer>
+            <Composer.Formatting />
+            <Composer.Emojis />
+          </Composer.Footer>
+        </Composer.Frame>
+
+        {/* Custom UI OUTSIDE the composer, but INSIDE the provider */}
+        <MessagePreview />
+
+        {/* Actions at the bottom of the dialog */}
+        <DialogActions>
+          <CancelButton />
+          <ForwardButton />
+        </DialogActions>
+      </Dialog>
+    </ForwardMessageProvider>
+  )
+}
+
+// This button lives OUTSIDE Composer.Frame but can still submit based on its context!
+function ForwardButton() {
+  const {
+    actions: { submit },
+  } = use(ComposerContext)
+  return <Button onPress={submit}>Forward</Button>
+}
+
+// This preview lives OUTSIDE Composer.Frame but can read composer's state!
+function MessagePreview() {
+  const { state } = use(ComposerContext)
+  return <Preview message={state.input} attachments={state.attachments} />
+}
+```
+
+The `ForwardButton` and `MessagePreview` are not visually inside the composer
+box, but they can still access its state and actions. This is the power of
+lifting state into providers.
+
+The UI is reusable bits you compose together. The state is dependency-injected
+by the provider. Swap the provider, keep the UI.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/state-decouple-implementation.md
+`````markdown
+---
+title: Decouple State Management from UI
+impact: MEDIUM
+impactDescription: enables swapping state implementations without changing UI
+tags: composition, state, architecture
+---
+
+## Decouple State Management from UI
+
+The provider component should be the only place that knows how state is managed.
+UI components consume the context interface—they don't know if state comes from
+useState, Zustand, or a server sync.
+
+**Incorrect (UI coupled to state implementation):**
+
+```tsx
+function ChannelComposer({ channelId }: { channelId: string }) {
+  // UI component knows about global state implementation
+  const state = useGlobalChannelState(channelId)
+  const { submit, updateInput } = useChannelSync(channelId)
+
+  return (
+    <Composer.Frame>
+      <Composer.Input
+        value={state.input}
+        onChange={(text) => sync.updateInput(text)}
+      />
+      <Composer.Submit onPress={() => sync.submit()} />
+    </Composer.Frame>
+  )
+}
+```
+
+**Correct (state management isolated in provider):**
+
+```tsx
+// Provider handles all state management details
+function ChannelProvider({
+  channelId,
+  children,
+}: {
+  channelId: string
+  children: React.ReactNode
+}) {
+  const { state, update, submit } = useGlobalChannel(channelId)
+  const inputRef = useRef(null)
+
+  return (
+    <Composer.Provider
+      state={state}
+      actions={{ update, submit }}
+      meta={{ inputRef }}
+    >
+      {children}
+    </Composer.Provider>
+  )
+}
+
+// UI component only knows about the context interface
+function ChannelComposer() {
+  return (
+    <Composer.Frame>
+      <Composer.Header />
+      <Composer.Input />
+      <Composer.Footer>
+        <Composer.Submit />
+      </Composer.Footer>
+    </Composer.Frame>
+  )
+}
+
+// Usage
+function Channel({ channelId }: { channelId: string }) {
+  return (
+    <ChannelProvider channelId={channelId}>
+      <ChannelComposer />
+    </ChannelProvider>
+  )
+}
+```
+
+**Different providers, same UI:**
+
+```tsx
+// Local state for ephemeral forms
+function ForwardMessageProvider({ children }) {
+  const [state, setState] = useState(initialState)
+  const forwardMessage = useForwardMessage()
+
+  return (
+    <Composer.Provider
+      state={state}
+      actions={{ update: setState, submit: forwardMessage }}
+    >
+      {children}
+    </Composer.Provider>
+  )
+}
+
+// Global synced state for channels
+function ChannelProvider({ channelId, children }) {
+  const { state, update, submit } = useGlobalChannel(channelId)
+
+  return (
+    <Composer.Provider state={state} actions={{ update, submit }}>
+      {children}
+    </Composer.Provider>
+  )
+}
+```
+
+The same `Composer.Input` component works with both providers because it only
+depends on the context interface, not the implementation.
+`````
+
+## File: .github/skills/vercel-composition-patterns/rules/state-lift-state.md
+`````markdown
+---
+title: Lift State into Provider Components
+impact: HIGH
+impactDescription: enables state sharing outside component boundaries
+tags: composition, state, context, providers
+---
+
+## Lift State into Provider Components
+
+Move state management into dedicated provider components. This allows sibling
+components outside the main UI to access and modify state without prop drilling
+or awkward refs.
+
+**Incorrect (state trapped inside component):**
+
+```tsx
+function ForwardMessageComposer() {
+  const [state, setState] = useState(initialState)
+  const forwardMessage = useForwardMessage()
+
+  return (
+    <Composer.Frame>
+      <Composer.Input />
+      <Composer.Footer />
+    </Composer.Frame>
+  )
+}
+
+// Problem: How does this button access composer state?
+function ForwardMessageDialog() {
+  return (
+    <Dialog>
+      <ForwardMessageComposer />
+      <MessagePreview /> {/* Needs composer state */}
+      <DialogActions>
+        <CancelButton />
+        <ForwardButton /> {/* Needs to call submit */}
+      </DialogActions>
+    </Dialog>
+  )
+}
+```
+
+**Incorrect (useEffect to sync state up):**
+
+```tsx
+function ForwardMessageDialog() {
+  const [input, setInput] = useState('')
+  return (
+    <Dialog>
+      <ForwardMessageComposer onInputChange={setInput} />
+      <MessagePreview input={input} />
+    </Dialog>
+  )
+}
+
+function ForwardMessageComposer({ onInputChange }) {
+  const [state, setState] = useState(initialState)
+  useEffect(() => {
+    onInputChange(state.input) // Sync on every change 😬
+  }, [state.input])
+}
+```
+
+**Incorrect (reading state from ref on submit):**
+
+```tsx
+function ForwardMessageDialog() {
+  const stateRef = useRef(null)
+  return (
+    <Dialog>
+      <ForwardMessageComposer stateRef={stateRef} />
+      <ForwardButton onPress={() => submit(stateRef.current)} />
+    </Dialog>
+  )
+}
+```
+
+**Correct (state lifted to provider):**
+
+```tsx
+function ForwardMessageProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState(initialState)
+  const forwardMessage = useForwardMessage()
+  const inputRef = useRef(null)
+
+  return (
+    <Composer.Provider
+      state={state}
+      actions={{ update: setState, submit: forwardMessage }}
+      meta={{ inputRef }}
+    >
+      {children}
+    </Composer.Provider>
+  )
+}
+
+function ForwardMessageDialog() {
+  return (
+    <ForwardMessageProvider>
+      <Dialog>
+        <ForwardMessageComposer />
+        <MessagePreview /> {/* Custom components can access state and actions */}
+        <DialogActions>
+          <CancelButton />
+          <ForwardButton /> {/* Custom components can access state and actions */}
+        </DialogActions>
+      </Dialog>
+    </ForwardMessageProvider>
+  )
+}
+
+function ForwardButton() {
+  const { actions } = use(Composer.Context)
+  return <Button onPress={actions.submit}>Forward</Button>
+}
+```
+
+The ForwardButton lives outside the Composer.Frame but still has access to the
+submit action because it's within the provider. Even though it's a one-off
+component, it can still access the composer's state and actions from outside the
+UI itself.
+
+**Key insight:** Components that need shared state don't have to be visually
+nested inside each other—they just need to be within the same provider.
 `````
 
 ## File: .github/skills/vercel-react-best-practices/rules/async-api-routes.md
@@ -4991,6 +5268,55 @@ function ShareButton({ chatId }: { chatId: string }) {
 ```
 `````
 
+## File: .github/skills/vercel-react-best-practices/rules/rerender-dependencies.md
+`````markdown
+---
+title: Narrow Effect Dependencies
+impact: LOW
+impactDescription: minimizes effect re-runs
+tags: rerender, useEffect, dependencies, optimization
+---
+
+## Narrow Effect Dependencies
+
+Specify primitive dependencies instead of objects to minimize effect re-runs.
+
+**Incorrect (re-runs on any user field change):**
+
+```tsx
+useEffect(() => {
+  console.log(user.id)
+}, [user])
+```
+
+**Correct (re-runs only when id changes):**
+
+```tsx
+useEffect(() => {
+  console.log(user.id)
+}, [user.id])
+```
+
+**For derived state, compute outside effect:**
+
+```tsx
+// Incorrect: runs on width=767, 766, 765...
+useEffect(() => {
+  if (width < 768) {
+    enableMobileMode()
+  }
+}, [width])
+
+// Correct: runs only on boolean transition
+const isMobile = width < 768
+useEffect(() => {
+  if (isMobile) {
+    enableMobileMode()
+  }
+}, [isMobile])
+```
+`````
+
 ## File: .github/skills/vercel-react-best-practices/rules/rerender-functional-setstate.md
 `````markdown
 ---
@@ -5223,6 +5549,83 @@ function ScrollTracker() {
 ```
 `````
 
+## File: .github/skills/vercel-react-best-practices/rules/server-after-nonblocking.md
+`````markdown
+---
+title: Use after() for Non-Blocking Operations
+impact: MEDIUM
+impactDescription: faster response times
+tags: server, async, logging, analytics, side-effects
+---
+
+## Use after() for Non-Blocking Operations
+
+Use Next.js's `after()` to schedule work that should execute after a response is sent. This prevents logging, analytics, and other side effects from blocking the response.
+
+**Incorrect (blocks response):**
+
+```tsx
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  await updateDatabase(request)
+  
+  // Logging blocks the response
+  const userAgent = request.headers.get('user-agent') || 'unknown'
+  await logUserAction({ userAgent })
+  
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+```
+
+**Correct (non-blocking):**
+
+```tsx
+import { after } from 'next/server'
+import { headers, cookies } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  await updateDatabase(request)
+  
+  // Log after response is sent
+  after(async () => {
+    const userAgent = (await headers()).get('user-agent') || 'unknown'
+    const sessionCookie = (await cookies()).get('session-id')?.value || 'anonymous'
+    
+    logUserAction({ sessionCookie, userAgent })
+  })
+  
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+```
+
+The response is sent immediately while logging happens in the background.
+
+**Common use cases:**
+
+- Analytics tracking
+- Audit logging
+- Sending notifications
+- Cache invalidation
+- Cleanup tasks
+
+**Important notes:**
+
+- `after()` runs even if the response fails or redirects
+- Works in Server Actions, Route Handlers, and Server Components
+
+Reference: [https://nextjs.org/docs/app/api-reference/functions/after](https://nextjs.org/docs/app/api-reference/functions/after)
+`````
+
 ## File: .github/skills/vercel-react-best-practices/rules/server-cache-lru.md
 `````markdown
 ---
@@ -5308,6 +5711,3229 @@ function Profile({ name }: { name: string }) {
   return <div>{name}</div>
 }
 ```
+`````
+
+## File: .github/skills/vercel-react-native-skills/README.md
+`````markdown
+# React Native Guidelines
+
+A structured repository for creating and maintaining React Native Best Practices
+optimized for agents and LLMs.
+
+## Structure
+
+- `rules/` - Individual rule files (one per rule)
+  - `_sections.md` - Section metadata (titles, impacts, descriptions)
+  - `_template.md` - Template for creating new rules
+  - `area-description.md` - Individual rule files
+- `metadata.json` - Document metadata (version, organization, abstract)
+- **`AGENTS.md`** - Compiled output (generated)
+
+## Rules
+
+### Core Rendering (CRITICAL)
+
+- `rendering-text-in-text-component.md` - Wrap strings in Text components
+- `rendering-no-falsy-and.md` - Avoid falsy && operator in JSX
+
+### List Performance (HIGH)
+
+- `list-performance-virtualize.md` - Use virtualized lists (LegendList,
+  FlashList)
+- `list-performance-function-references.md` - Keep stable object references
+- `list-performance-callbacks.md` - Hoist callbacks to list root
+- `list-performance-inline-objects.md` - Avoid inline objects in renderItem
+- `list-performance-item-memo.md` - Pass primitives for memoization
+- `list-performance-item-expensive.md` - Keep list items lightweight
+- `list-performance-images.md` - Use compressed images in lists
+- `list-performance-item-types.md` - Use item types for heterogeneous lists
+
+### Animation (HIGH)
+
+- `animation-gpu-properties.md` - Animate transform/opacity instead of layout
+- `animation-gesture-detector-press.md` - Use GestureDetector for press
+  animations
+- `animation-derived-value.md` - Prefer useDerivedValue over useAnimatedReaction
+
+### Scroll Performance (HIGH)
+
+- `scroll-position-no-state.md` - Never track scroll in useState
+
+### Navigation (HIGH)
+
+- `navigation-native-navigators.md` - Use native stack and native tabs
+
+### React State (MEDIUM)
+
+- `react-state-dispatcher.md` - Use functional setState updates
+- `react-state-fallback.md` - State should represent user intent only
+- `react-state-minimize.md` - Minimize state variables, derive values
+
+### State Architecture (MEDIUM)
+
+- `state-ground-truth.md` - State must represent ground truth
+
+### React Compiler (MEDIUM)
+
+- `react-compiler-destructure-functions.md` - Destructure functions early
+- `react-compiler-reanimated-shared-values.md` - Use .get()/.set() for shared
+  values
+
+### User Interface (MEDIUM)
+
+- `ui-expo-image.md` - Use expo-image for optimized images
+- `ui-image-gallery.md` - Use Galeria for lightbox/galleries
+- `ui-menus.md` - Native dropdown and context menus with Zeego
+- `ui-native-modals.md` - Use native Modal with formSheet
+- `ui-pressable.md` - Use Pressable instead of TouchableOpacity
+- `ui-measure-views.md` - Measuring view dimensions
+- `ui-safe-area-scroll.md` - Use contentInsetAdjustmentBehavior
+- `ui-scrollview-content-inset.md` - Use contentInset for dynamic spacing
+- `ui-styling.md` - Modern styling patterns (gap, boxShadow, gradients)
+
+### Design System (MEDIUM)
+
+- `design-system-compound-components.md` - Use compound components
+
+### Monorepo (LOW)
+
+- `monorepo-native-deps-in-app.md` - Install native deps in app directory
+- `monorepo-single-dependency-versions.md` - Single dependency versions
+
+### Third-Party Dependencies (LOW)
+
+- `imports-design-system-folder.md` - Import from design system folder
+
+### JavaScript (LOW)
+
+- `js-hoist-intl.md` - Hoist Intl formatter creation
+
+### Fonts (LOW)
+
+- `fonts-config-plugin.md` - Load fonts natively at build time
+
+## Creating a New Rule
+
+1. Copy `rules/_template.md` to `rules/area-description.md`
+2. Choose the appropriate area prefix:
+   - `rendering-` for Core Rendering
+   - `list-performance-` for List Performance
+   - `animation-` for Animation
+   - `scroll-` for Scroll Performance
+   - `navigation-` for Navigation
+   - `react-state-` for React State
+   - `state-` for State Architecture
+   - `react-compiler-` for React Compiler
+   - `ui-` for User Interface
+   - `design-system-` for Design System
+   - `monorepo-` for Monorepo
+   - `imports-` for Third-Party Dependencies
+   - `js-` for JavaScript
+   - `fonts-` for Fonts
+3. Fill in the frontmatter and content
+4. Ensure you have clear examples with explanations
+
+## Rule File Structure
+
+Each rule file should follow this structure:
+
+````markdown
+---
+title: Rule Title Here
+impact: MEDIUM
+impactDescription: Optional description
+tags: tag1, tag2, tag3
+---
+
+## Rule Title Here
+
+Brief explanation of the rule and why it matters.
+
+**Incorrect (description of what's wrong):**
+
+```tsx
+// Bad code example
+```
+````
+
+**Correct (description of what's right):**
+
+```tsx
+// Good code example
+```
+
+Reference: [Link](https://example.com)
+
+```
+
+## File Naming Convention
+
+- Files starting with `_` are special (excluded from build)
+- Rule files: `area-description.md` (e.g., `animation-gpu-properties.md`)
+- Section is automatically inferred from filename prefix
+- Rules are sorted alphabetically by title within each section
+
+## Impact Levels
+
+- `CRITICAL` - Highest priority, causes crashes or broken UI
+- `HIGH` - Significant performance improvements
+- `MEDIUM` - Moderate performance improvements
+- `LOW` - Incremental improvements
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/_sections.md
+`````markdown
+# Sections
+
+This file defines all sections, their ordering, impact levels, and descriptions.
+The section ID (in parentheses) is the filename prefix used to group rules.
+
+---
+
+## 1. Core Rendering (rendering)
+
+**Impact:** CRITICAL  
+**Description:** Fundamental React Native rendering rules. Violations cause
+runtime crashes or broken UI.
+
+## 2. List Performance (list-performance)
+
+**Impact:** HIGH  
+**Description:** Optimizing virtualized lists (FlatList, LegendList, FlashList)
+for smooth scrolling and fast updates.
+
+## 3. Animation (animation)
+
+**Impact:** HIGH  
+**Description:** GPU-accelerated animations, Reanimated patterns, and avoiding
+render thrashing during gestures.
+
+## 4. Scroll Performance (scroll)
+
+**Impact:** HIGH  
+**Description:** Tracking scroll position without causing render thrashing.
+
+## 5. Navigation (navigation)
+
+**Impact:** HIGH  
+**Description:** Using native navigators for stack and tab navigation instead of
+JS-based alternatives.
+
+## 6. React State (react-state)
+
+**Impact:** MEDIUM  
+**Description:** Patterns for managing React state to avoid stale closures and
+unnecessary re-renders.
+
+## 7. State Architecture (state)
+
+**Impact:** MEDIUM  
+**Description:** Ground truth principles for state variables and derived values.
+
+## 8. React Compiler (react-compiler)
+
+**Impact:** MEDIUM  
+**Description:** Compatibility patterns for React Compiler with React Native and
+Reanimated.
+
+## 9. User Interface (ui)
+
+**Impact:** MEDIUM  
+**Description:** Native UI patterns for images, menus, modals, styling, and
+platform-consistent interfaces.
+
+## 10. Design System (design-system)
+
+**Impact:** MEDIUM  
+**Description:** Architecture patterns for building maintainable component
+libraries.
+
+## 11. Monorepo (monorepo)
+
+**Impact:** LOW  
+**Description:** Dependency management and native module configuration in
+monorepos.
+
+## 12. Third-Party Dependencies (imports)
+
+**Impact:** LOW  
+**Description:** Wrapping and re-exporting third-party dependencies for
+maintainability.
+
+## 13. JavaScript (js)
+
+**Impact:** LOW  
+**Description:** Micro-optimizations like hoisting expensive object creation.
+
+## 14. Fonts (fonts)
+
+**Impact:** LOW  
+**Description:** Native font loading for improved performance.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/_template.md
+`````markdown
+---
+title: Rule Title Here
+impact: MEDIUM
+impactDescription: Optional description of impact (e.g., "20-50% improvement")
+tags: tag1, tag2
+---
+
+## Rule Title Here
+
+**Impact: MEDIUM (optional impact description)**
+
+Brief explanation of the rule and why it matters. This should be clear and concise, explaining the performance implications.
+
+**Incorrect (description of what's wrong):**
+
+```typescript
+// Bad code example here
+const bad = example()
+```
+
+**Correct (description of what's right):**
+
+```typescript
+// Good code example here
+const good = example()
+```
+
+Reference: [Link to documentation or resource](https://example.com)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/animation-derived-value.md
+`````markdown
+---
+title: Prefer useDerivedValue Over useAnimatedReaction
+impact: MEDIUM
+impactDescription: cleaner code, automatic dependency tracking
+tags: animation, reanimated, derived-value
+---
+
+## Prefer useDerivedValue Over useAnimatedReaction
+
+When deriving a shared value from another, use `useDerivedValue` instead of
+`useAnimatedReaction`. Derived values are declarative, automatically track
+dependencies, and return a value you can use directly. Animated reactions are
+for side effects, not derivations.
+
+**Incorrect (useAnimatedReaction for derivation):**
+
+```tsx
+import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated'
+
+function MyComponent() {
+  const progress = useSharedValue(0)
+  const opacity = useSharedValue(1)
+
+  useAnimatedReaction(
+    () => progress.value,
+    (current) => {
+      opacity.value = 1 - current
+    }
+  )
+
+  // ...
+}
+```
+
+**Correct (useDerivedValue):**
+
+```tsx
+import { useSharedValue, useDerivedValue } from 'react-native-reanimated'
+
+function MyComponent() {
+  const progress = useSharedValue(0)
+
+  const opacity = useDerivedValue(() => 1 - progress.get())
+
+  // ...
+}
+```
+
+Use `useAnimatedReaction` only for side effects that don't produce a value
+(e.g., triggering haptics, logging, calling `runOnJS`).
+
+Reference:
+[Reanimated useDerivedValue](https://docs.swmansion.com/react-native-reanimated/docs/core/useDerivedValue)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/animation-gesture-detector-press.md
+`````markdown
+---
+title: Use GestureDetector for Animated Press States
+impact: MEDIUM
+impactDescription: UI thread animations, smoother press feedback
+tags: animation, gestures, press, reanimated
+---
+
+## Use GestureDetector for Animated Press States
+
+For animated press states (scale, opacity on press), use `GestureDetector` with
+`Gesture.Tap()` and shared values instead of Pressable's
+`onPressIn`/`onPressOut`. Gesture callbacks run on the UI thread as worklets—no
+JS thread round-trip for press animations.
+
+**Incorrect (Pressable with JS thread callbacks):**
+
+```tsx
+import { Pressable } from 'react-native'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated'
+
+function AnimatedButton({ onPress }: { onPress: () => void }) {
+  const scale = useSharedValue(1)
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }))
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => (scale.value = withTiming(0.95))}
+      onPressOut={() => (scale.value = withTiming(1))}
+    >
+      <Animated.View style={animatedStyle}>
+        <Text>Press me</Text>
+      </Animated.View>
+    </Pressable>
+  )
+}
+```
+
+**Correct (GestureDetector with UI thread worklets):**
+
+```tsx
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  runOnJS,
+} from 'react-native-reanimated'
+
+function AnimatedButton({ onPress }: { onPress: () => void }) {
+  // Store the press STATE (0 = not pressed, 1 = pressed)
+  const pressed = useSharedValue(0)
+
+  const tap = Gesture.Tap()
+    .onBegin(() => {
+      pressed.set(withTiming(1))
+    })
+    .onFinalize(() => {
+      pressed.set(withTiming(0))
+    })
+    .onEnd(() => {
+      runOnJS(onPress)()
+    })
+
+  // Derive visual values from the state
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(withTiming(pressed.get()), [0, 1], [1, 0.95]) },
+    ],
+  }))
+
+  return (
+    <GestureDetector gesture={tap}>
+      <Animated.View style={animatedStyle}>
+        <Text>Press me</Text>
+      </Animated.View>
+    </GestureDetector>
+  )
+}
+```
+
+Store the press **state** (0 or 1), then derive the scale via `interpolate`.
+This keeps the shared value as ground truth. Use `runOnJS` to call JS functions
+from worklets. Use `.set()` and `.get()` for React Compiler compatibility.
+
+Reference:
+[Gesture Handler Tap Gesture](https://docs.swmansion.com/react-native-gesture-handler/docs/gestures/tap-gesture)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/animation-gpu-properties.md
+`````markdown
+---
+title: Animate Transform and Opacity Instead of Layout Properties
+impact: HIGH
+impactDescription: GPU-accelerated animations, no layout recalculation
+tags: animation, performance, reanimated, transform, opacity
+---
+
+## Animate Transform and Opacity Instead of Layout Properties
+
+Avoid animating `width`, `height`, `top`, `left`, `margin`, or `padding`. These trigger layout recalculation on every frame. Instead, use `transform` (scale, translate) and `opacity` which run on the GPU without triggering layout.
+
+**Incorrect (animates height, triggers layout every frame):**
+
+```tsx
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
+
+function CollapsiblePanel({ expanded }: { expanded: boolean }) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: withTiming(expanded ? 200 : 0), // triggers layout on every frame
+    overflow: 'hidden',
+  }))
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>
+}
+```
+
+**Correct (animates scaleY, GPU-accelerated):**
+
+```tsx
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
+
+function CollapsiblePanel({ expanded }: { expanded: boolean }) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scaleY: withTiming(expanded ? 1 : 0) },
+    ],
+    opacity: withTiming(expanded ? 1 : 0),
+  }))
+
+  return (
+    <Animated.View style={[{ height: 200, transformOrigin: 'top' }, animatedStyle]}>
+      {children}
+    </Animated.View>
+  )
+}
+```
+
+**Correct (animates translateY for slide animations):**
+
+```tsx
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
+
+function SlideIn({ visible }: { visible: boolean }) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: withTiming(visible ? 0 : 100) },
+    ],
+    opacity: withTiming(visible ? 1 : 0),
+  }))
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>
+}
+```
+
+GPU-accelerated properties: `transform` (translate, scale, rotate), `opacity`. Everything else triggers layout.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/design-system-compound-components.md
+`````markdown
+---
+title: Use Compound Components Over Polymorphic Children
+impact: MEDIUM
+impactDescription: flexible composition, clearer API
+tags: design-system, components, composition
+---
+
+## Use Compound Components Over Polymorphic Children
+
+Don't create components that can accept a string if they aren't a text node. If
+a component can receive a string child, it must be a dedicated `*Text`
+component. For components like buttons, which can have both a View (or
+Pressable) together with text, use compound components, such a `Button`,
+`ButtonText`, and `ButtonIcon`.
+
+**Incorrect (polymorphic children):**
+
+```tsx
+import { Pressable, Text } from 'react-native'
+
+type ButtonProps = {
+  children: string | React.ReactNode
+  icon?: React.ReactNode
+}
+
+function Button({ children, icon }: ButtonProps) {
+  return (
+    <Pressable>
+      {icon}
+      {typeof children === 'string' ? <Text>{children}</Text> : children}
+    </Pressable>
+  )
+}
+
+// Usage is ambiguous
+<Button icon={<Icon />}>Save</Button>
+<Button><CustomText>Save</CustomText></Button>
+```
+
+**Correct (compound components):**
+
+```tsx
+import { Pressable, Text } from 'react-native'
+
+function Button({ children }: { children: React.ReactNode }) {
+  return <Pressable>{children}</Pressable>
+}
+
+function ButtonText({ children }: { children: React.ReactNode }) {
+  return <Text>{children}</Text>
+}
+
+function ButtonIcon({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+
+// Usage is explicit and composable
+<Button>
+  <ButtonIcon><SaveIcon /></ButtonIcon>
+  <ButtonText>Save</ButtonText>
+</Button>
+
+<Button>
+  <ButtonText>Cancel</ButtonText>
+</Button>
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/fonts-config-plugin.md
+`````markdown
+---
+title: Load fonts natively at build time
+impact: LOW
+impactDescription: fonts available at launch, no async loading
+tags: fonts, expo, performance, config-plugin
+---
+
+## Use Expo Config Plugin for Font Loading
+
+Use the `expo-font` config plugin to embed fonts at build time instead of
+`useFonts` or `Font.loadAsync`. Embedded fonts are more efficient.
+
+**Incorrect (async font loading):**
+
+```tsx
+import { useFonts } from 'expo-font'
+import { Text, View } from 'react-native'
+
+function App() {
+  const [fontsLoaded] = useFonts({
+    'Geist-Bold': require('./assets/fonts/Geist-Bold.otf'),
+  })
+
+  if (!fontsLoaded) {
+    return null
+  }
+
+  return (
+    <View>
+      <Text style={{ fontFamily: 'Geist-Bold' }}>Hello</Text>
+    </View>
+  )
+}
+```
+
+**Correct (config plugin, fonts embedded at build):**
+
+```json
+// app.json
+{
+  "expo": {
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": ["./assets/fonts/Geist-Bold.otf"]
+        }
+      ]
+    ]
+  }
+}
+```
+
+```tsx
+import { Text, View } from 'react-native'
+
+function App() {
+  // No loading state needed—font is already available
+  return (
+    <View>
+      <Text style={{ fontFamily: 'Geist-Bold' }}>Hello</Text>
+    </View>
+  )
+}
+```
+
+After adding fonts to the config plugin, run `npx expo prebuild` and rebuild the
+native app.
+
+Reference:
+[Expo Font Documentation](https://docs.expo.dev/versions/latest/sdk/font/)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/imports-design-system-folder.md
+`````markdown
+---
+title: Import from Design System Folder
+impact: LOW
+impactDescription: enables global changes and easy refactoring
+tags: imports, architecture, design-system
+---
+
+## Import from Design System Folder
+
+Re-export dependencies from a design system folder. App code imports from there,
+not directly from packages. This enables global changes and easy refactoring.
+
+**Incorrect (imports directly from package):**
+
+```tsx
+import { View, Text } from 'react-native'
+import { Button } from '@ui/button'
+
+function Profile() {
+  return (
+    <View>
+      <Text>Hello</Text>
+      <Button>Save</Button>
+    </View>
+  )
+}
+```
+
+**Correct (imports from design system):**
+
+```tsx
+// components/view.tsx
+import { View as RNView } from 'react-native'
+
+// ideal: pick the props you will actually use to control implementation
+export function View(
+  props: Pick<React.ComponentProps<typeof RNView>, 'style' | 'children'>
+) {
+  return <RNView {...props} />
+}
+```
+
+```tsx
+// components/text.tsx
+export { Text } from 'react-native'
+```
+
+```tsx
+// components/button.tsx
+export { Button } from '@ui/button'
+```
+
+```tsx
+import { View } from '@/components/view'
+import { Text } from '@/components/text'
+import { Button } from '@/components/button'
+
+function Profile() {
+  return (
+    <View>
+      <Text>Hello</Text>
+      <Button>Save</Button>
+    </View>
+  )
+}
+```
+
+Start by simply re-exporting. Customize later without changing app code.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/js-hoist-intl.md
+`````markdown
+---
+title: Hoist Intl Formatter Creation
+impact: LOW-MEDIUM
+impactDescription: avoids expensive object recreation
+tags: javascript, intl, optimization, memoization
+---
+
+## Hoist Intl Formatter Creation
+
+Don't create `Intl.DateTimeFormat`, `Intl.NumberFormat`, or
+`Intl.RelativeTimeFormat` inside render or loops. These are expensive to
+instantiate. Hoist to module scope when the locale/options are static.
+
+**Incorrect (new formatter every render):**
+
+```tsx
+function Price({ amount }: { amount: number }) {
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  })
+  return <Text>{formatter.format(amount)}</Text>
+}
+```
+
+**Correct (hoisted to module scope):**
+
+```tsx
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+})
+
+function Price({ amount }: { amount: number }) {
+  return <Text>{currencyFormatter.format(amount)}</Text>
+}
+```
+
+**For dynamic locales, memoize:**
+
+```tsx
+const dateFormatter = useMemo(
+  () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
+  [locale]
+)
+```
+
+**Common formatters to hoist:**
+
+```tsx
+// Module-level formatters
+const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
+const timeFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short' })
+const percentFormatter = new Intl.NumberFormat('en-US', { style: 'percent' })
+const relativeFormatter = new Intl.RelativeTimeFormat('en-US', {
+  numeric: 'auto',
+})
+```
+
+Creating `Intl` objects is significantly more expensive than `RegExp` or plain
+objects—each instantiation parses locale data and builds internal lookup tables.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-callbacks.md
+`````markdown
+---
+title: Hoist callbacks to the root of lists
+impact: MEDIUM
+impactDescription: Fewer re-renders and faster lists
+tags: tag1, tag2
+---
+
+## List performance callbacks
+
+**Impact: HIGH (Fewer re-renders and faster lists)**
+
+When passing callback functions to list items, create a single instance of the
+callback at the root of the list. Items should then call it with a unique
+identifier.
+
+**Incorrect (creates a new callback on each render):**
+
+```typescript
+return (
+  <LegendList
+    renderItem={({ item }) => {
+      // bad: creates a new callback on each render
+      const onPress = () => handlePress(item.id)
+      return <Item key={item.id} item={item} onPress={onPress} />
+    }}
+  />
+)
+```
+
+**Correct (a single function instance passed to each item):**
+
+```typescript
+const onPress = useCallback(() => handlePress(item.id), [handlePress, item.id])
+
+return (
+  <LegendList
+    renderItem={({ item }) => (
+      <Item key={item.id} item={item} onPress={onPress} />
+    )}
+  />
+)
+```
+
+Reference: [Link to documentation or resource](https://example.com)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-function-references.md
+`````markdown
+---
+title: Optimize List Performance with Stable Object References
+impact: CRITICAL
+impactDescription: virtualization relies on reference stability
+tags: lists, performance, flatlist, virtualization
+---
+
+## Optimize List Performance with Stable Object References
+
+Don't map or filter data before passing to virtualized lists. Virtualization
+relies on object reference stability to know what changed—new references cause
+full re-renders of all visible items. Attempt to prevent frequent renders at the
+list-parent level.
+
+Where needed, use context selectors within list items.
+
+**Incorrect (creates new object references on every keystroke):**
+
+```tsx
+function DomainSearch() {
+  const { keyword, setKeyword } = useKeywordZustandState()
+  const { data: tlds } = useTlds()
+
+  // Bad: creates new objects on every render, reparenting the entire list on every keystroke
+  const domains = tlds.map((tld) => ({
+    domain: `${keyword}.${tld.name}`,
+    tld: tld.name,
+    price: tld.price,
+  }))
+
+  return (
+    <>
+      <TextInput value={keyword} onChangeText={setKeyword} />
+      <LegendList
+        data={domains}
+        renderItem={({ item }) => <DomainItem item={item} keyword={keyword} />}
+      />
+    </>
+  )
+}
+```
+
+**Correct (stable references, transform inside items):**
+
+```tsx
+const renderItem = ({ item }) => <DomainItem tld={item} />
+
+function DomainSearch() {
+  const { data: tlds } = useTlds()
+
+  return (
+    <LegendList
+      // good: as long as the data is stable, LegendList will not re-render the entire list
+      data={tlds}
+      renderItem={renderItem}
+    />
+  )
+}
+
+function DomainItem({ tld }: { tld: Tld }) {
+  // good: transform within items, and don't pass the dynamic data as a prop
+  // good: use a selector function from zustand to receive a stable string back
+  const domain = useKeywordZustandState((s) => s.keyword + '.' + tld.name)
+  return <Text>{domain}</Text>
+}
+```
+
+**Updating parent array reference:**
+
+Creating a new array instance can be okay, as long as its inner object
+references are stable. For instance, if you sort a list of objects:
+
+```tsx
+// good: creates a new array instance without mutating the inner objects
+// good: parent array reference is unaffected by typing and updating "keyword"
+const sortedTlds = tlds.toSorted((a, b) => a.name.localeCompare(b.name))
+
+return <LegendList data={sortedTlds} renderItem={renderItem} />
+```
+
+Even though this creates a new array instance `sortedTlds`, the inner object
+references are stable.
+
+**With zustand for dynamic data (avoids parent re-renders):**
+
+```tsx
+const useSearchStore = create<{ keyword: string }>(() => ({ keyword: '' }))
+
+function DomainSearch() {
+  const { data: tlds } = useTlds()
+
+  return (
+    <>
+      <SearchInput />
+      <LegendList
+        data={tlds}
+        // if you aren't using React Compiler, wrap renderItem with useCallback
+        renderItem={({ item }) => <DomainItem tld={item} />}
+      />
+    </>
+  )
+}
+
+function DomainItem({ tld }: { tld: Tld }) {
+  // Select only what you need—component only re-renders when keyword changes
+  const keyword = useSearchStore((s) => s.keyword)
+  const domain = `${keyword}.${tld.name}`
+  return <Text>{domain}</Text>
+}
+```
+
+Virtualization can now skip items that haven't changed when typing. Only visible
+items (~20) re-render on keystroke, rather than the parent.
+
+**Deriving state within list items based on parent data (avoids parent
+re-renders):**
+
+For components where the data is conditional based on the parent state, this
+pattern is even more important. For example, if you are checking if an item is
+favorited, toggling favorites only re-renders one component if the item itself
+is in charge of accessing the state rather than the parent:
+
+```tsx
+function DomainItemFavoriteButton({ tld }: { tld: Tld }) {
+  const isFavorited = useFavoritesStore((s) => s.favorites.has(tld.id))
+  return <TldFavoriteButton isFavorited={isFavorited} />
+}
+```
+
+Note: if you're using the React Compiler, you can read React Context values
+directly within list items. Although this is slightly slower than using a
+Zustand selector in most cases, the effect may be negligible.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-images.md
+`````markdown
+---
+title: Use Compressed Images in Lists
+impact: HIGH
+impactDescription: faster load times, less memory
+tags: lists, images, performance, optimization
+---
+
+## Use Compressed Images in Lists
+
+Always load compressed, appropriately-sized images in lists. Full-resolution
+images consume excessive memory and cause scroll jank. Request thumbnails from
+your server or use an image CDN with resize parameters.
+
+**Incorrect (full-resolution images):**
+
+```tsx
+function ProductItem({ product }: { product: Product }) {
+  return (
+    <View>
+      {/* 4000x3000 image loaded for a 100x100 thumbnail */}
+      <Image
+        source={{ uri: product.imageUrl }}
+        style={{ width: 100, height: 100 }}
+      />
+      <Text>{product.name}</Text>
+    </View>
+  )
+}
+```
+
+**Correct (request appropriately-sized image):**
+
+```tsx
+function ProductItem({ product }: { product: Product }) {
+  // Request a 200x200 image (2x for retina)
+  const thumbnailUrl = `${product.imageUrl}?w=200&h=200&fit=cover`
+
+  return (
+    <View>
+      <Image
+        source={{ uri: thumbnailUrl }}
+        style={{ width: 100, height: 100 }}
+        contentFit='cover'
+      />
+      <Text>{product.name}</Text>
+    </View>
+  )
+}
+```
+
+Use an optimized image component with built-in caching and placeholder support,
+such as `expo-image` or `SolitoImage` (which uses `expo-image` under the hood).
+Request images at 2x the display size for retina screens.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-inline-objects.md
+`````markdown
+---
+title: Avoid Inline Objects in renderItem
+impact: HIGH
+impactDescription: prevents unnecessary re-renders of memoized list items
+tags: lists, performance, flatlist, virtualization, memo
+---
+
+## Avoid Inline Objects in renderItem
+
+Don't create new objects inside `renderItem` to pass as props. Inline objects
+create new references on every render, breaking memoization. Pass primitive
+values directly from `item` instead.
+
+**Incorrect (inline object breaks memoization):**
+
+```tsx
+function UserList({ users }: { users: User[] }) {
+  return (
+    <LegendList
+      data={users}
+      renderItem={({ item }) => (
+        <UserRow
+          // Bad: new object on every render
+          user={{ id: item.id, name: item.name, avatar: item.avatar }}
+        />
+      )}
+    />
+  )
+}
+```
+
+**Incorrect (inline style object):**
+
+```tsx
+renderItem={({ item }) => (
+  <UserRow
+    name={item.name}
+    // Bad: new style object on every render
+    style={{ backgroundColor: item.isActive ? 'green' : 'gray' }}
+  />
+)}
+```
+
+**Correct (pass item directly or primitives):**
+
+```tsx
+function UserList({ users }: { users: User[] }) {
+  return (
+    <LegendList
+      data={users}
+      renderItem={({ item }) => (
+        // Good: pass the item directly
+        <UserRow user={item} />
+      )}
+    />
+  )
+}
+```
+
+**Correct (pass primitives, derive inside child):**
+
+```tsx
+renderItem={({ item }) => (
+  <UserRow
+    id={item.id}
+    name={item.name}
+    isActive={item.isActive}
+  />
+)}
+
+const UserRow = memo(function UserRow({ id, name, isActive }: Props) {
+  // Good: derive style inside memoized component
+  const backgroundColor = isActive ? 'green' : 'gray'
+  return <View style={[styles.row, { backgroundColor }]}>{/* ... */}</View>
+})
+```
+
+**Correct (hoist static styles in module scope):**
+
+```tsx
+const activeStyle = { backgroundColor: 'green' }
+const inactiveStyle = { backgroundColor: 'gray' }
+
+renderItem={({ item }) => (
+  <UserRow
+    name={item.name}
+    // Good: stable references
+    style={item.isActive ? activeStyle : inactiveStyle}
+  />
+)}
+```
+
+Passing primitives or stable references allows `memo()` to skip re-renders when
+the actual values haven't changed.
+
+**Note:** If you have the React Compiler enabled, it handles memoization
+automatically and these manual optimizations become less critical.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-item-expensive.md
+`````markdown
+---
+title: Keep List Items Lightweight
+impact: HIGH
+impactDescription: reduces render time for visible items during scroll
+tags: lists, performance, virtualization, hooks
+---
+
+## Keep List Items Lightweight
+
+List items should be as inexpensive as possible to render. Minimize hooks, avoid
+queries, and limit React Context access. Virtualized lists render many items
+during scroll—expensive items cause jank.
+
+**Incorrect (heavy list item):**
+
+```tsx
+function ProductRow({ id }: { id: string }) {
+  // Bad: query inside list item
+  const { data: product } = useQuery(['product', id], () => fetchProduct(id))
+  // Bad: multiple context accesses
+  const theme = useContext(ThemeContext)
+  const user = useContext(UserContext)
+  const cart = useContext(CartContext)
+  // Bad: expensive computation
+  const recommendations = useMemo(
+    () => computeRecommendations(product),
+    [product]
+  )
+
+  return <View>{/* ... */}</View>
+}
+```
+
+**Correct (lightweight list item):**
+
+```tsx
+function ProductRow({ name, price, imageUrl }: Props) {
+  // Good: receives only primitives, minimal hooks
+  return (
+    <View>
+      <Image source={{ uri: imageUrl }} />
+      <Text>{name}</Text>
+      <Text>{price}</Text>
+    </View>
+  )
+}
+```
+
+**Move data fetching to parent:**
+
+```tsx
+// Parent fetches all data once
+function ProductList() {
+  const { data: products } = useQuery(['products'], fetchProducts)
+
+  return (
+    <LegendList
+      data={products}
+      renderItem={({ item }) => (
+        <ProductRow name={item.name} price={item.price} imageUrl={item.image} />
+      )}
+    />
+  )
+}
+```
+
+**For shared values, use Zustand selectors instead of Context:**
+
+```tsx
+// Incorrect: Context causes re-render when any cart value changes
+function ProductRow({ id, name }: Props) {
+  const { items } = useContext(CartContext)
+  const inCart = items.includes(id)
+  // ...
+}
+
+// Correct: Zustand selector only re-renders when this specific value changes
+function ProductRow({ id, name }: Props) {
+  // use Set.has (created once at the root) instead of Array.includes()
+  const inCart = useCartStore((s) => s.items.has(id))
+  // ...
+}
+```
+
+**Guidelines for list items:**
+
+- No queries or data fetching
+- No expensive computations (move to parent or memoize at parent level)
+- Prefer Zustand selectors over React Context
+- Minimize useState/useEffect hooks
+- Pass pre-computed values as props
+
+The goal: list items should be simple rendering functions that take props and
+return JSX.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-item-memo.md
+`````markdown
+---
+title: Pass Primitives to List Items for Memoization
+impact: HIGH
+impactDescription: enables effective memo() comparison
+tags: lists, performance, memo, primitives
+---
+
+## Pass Primitives to List Items for Memoization
+
+When possible, pass only primitive values (strings, numbers, booleans) as props
+to list item components. Primitives enable shallow comparison in `memo()` to
+work correctly, skipping re-renders when values haven't changed.
+
+**Incorrect (object prop requires deep comparison):**
+
+```tsx
+type User = { id: string; name: string; email: string; avatar: string }
+
+const UserRow = memo(function UserRow({ user }: { user: User }) {
+  // memo() compares user by reference, not value
+  // If parent creates new user object, this re-renders even if data is same
+  return <Text>{user.name}</Text>
+})
+
+renderItem={({ item }) => <UserRow user={item} />}
+```
+
+This can still be optimized, but it is harder to memoize properly.
+
+**Correct (primitive props enable shallow comparison):**
+
+```tsx
+const UserRow = memo(function UserRow({
+  id,
+  name,
+  email,
+}: {
+  id: string
+  name: string
+  email: string
+}) {
+  // memo() compares each primitive directly
+  // Re-renders only if id, name, or email actually changed
+  return <Text>{name}</Text>
+})
+
+renderItem={({ item }) => (
+  <UserRow id={item.id} name={item.name} email={item.email} />
+)}
+```
+
+**Pass only what you need:**
+
+```tsx
+// Incorrect: passing entire item when you only need name
+<UserRow user={item} />
+
+// Correct: pass only the fields the component uses
+<UserRow name={item.name} avatarUrl={item.avatar} />
+```
+
+**For callbacks, hoist or use item ID:**
+
+```tsx
+// Incorrect: inline function creates new reference
+<UserRow name={item.name} onPress={() => handlePress(item.id)} />
+
+// Correct: pass ID, handle in child
+<UserRow id={item.id} name={item.name} />
+
+const UserRow = memo(function UserRow({ id, name }: Props) {
+  const handlePress = useCallback(() => {
+    // use id here
+  }, [id])
+  return <Pressable onPress={handlePress}><Text>{name}</Text></Pressable>
+})
+```
+
+Primitive props make memoization predictable and effective.
+
+**Note:** If you have the React Compiler enabled, you do not need to use
+`memo()` or `useCallback()`, but the object references still apply.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-item-types.md
+`````markdown
+---
+title: Use Item Types for Heterogeneous Lists
+impact: HIGH
+impactDescription: efficient recycling, less layout thrashing
+tags: list, performance, recycling, heterogeneous, LegendList
+---
+
+## Use Item Types for Heterogeneous Lists
+
+When a list has different item layouts (messages, images, headers, etc.), use a
+`type` field on each item and provide `getItemType` to the list. This puts items
+into separate recycling pools so a message component never gets recycled into an
+image component.
+
+**Incorrect (single component with conditionals):**
+
+```tsx
+type Item = { id: string; text?: string; imageUrl?: string; isHeader?: boolean }
+
+function ListItem({ item }: { item: Item }) {
+  if (item.isHeader) {
+    return <HeaderItem title={item.text} />
+  }
+  if (item.imageUrl) {
+    return <ImageItem url={item.imageUrl} />
+  }
+  return <MessageItem text={item.text} />
+}
+
+function Feed({ items }: { items: Item[] }) {
+  return (
+    <LegendList
+      data={items}
+      renderItem={({ item }) => <ListItem item={item} />}
+      recycleItems
+    />
+  )
+}
+```
+
+**Correct (typed items with separate components):**
+
+```tsx
+type HeaderItem = { id: string; type: 'header'; title: string }
+type MessageItem = { id: string; type: 'message'; text: string }
+type ImageItem = { id: string; type: 'image'; url: string }
+type FeedItem = HeaderItem | MessageItem | ImageItem
+
+function Feed({ items }: { items: FeedItem[] }) {
+  return (
+    <LegendList
+      data={items}
+      keyExtractor={(item) => item.id}
+      getItemType={(item) => item.type}
+      renderItem={({ item }) => {
+        switch (item.type) {
+          case 'header':
+            return <SectionHeader title={item.title} />
+          case 'message':
+            return <MessageRow text={item.text} />
+          case 'image':
+            return <ImageRow url={item.url} />
+        }
+      }}
+      recycleItems
+    />
+  )
+}
+```
+
+**Why this matters:**
+
+- **Recycling efficiency**: Items with the same type share a recycling pool
+- **No layout thrashing**: A header never recycles into an image cell
+- **Type safety**: TypeScript can narrow the item type in each branch
+- **Better size estimation**: Use `getEstimatedItemSize` with `itemType` for
+  accurate estimates per type
+
+```tsx
+<LegendList
+  data={items}
+  keyExtractor={(item) => item.id}
+  getItemType={(item) => item.type}
+  getEstimatedItemSize={(index, item, itemType) => {
+    switch (itemType) {
+      case 'header':
+        return 48
+      case 'message':
+        return 72
+      case 'image':
+        return 300
+      default:
+        return 72
+    }
+  }}
+  renderItem={({ item }) => {
+    /* ... */
+  }}
+  recycleItems
+/>
+```
+
+Reference:
+[LegendList getItemType](https://legendapp.com/open-source/list/api/props/#getitemtype-v2)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/list-performance-virtualize.md
+`````markdown
+---
+title: Use a List Virtualizer for Any List
+impact: HIGH
+impactDescription: reduced memory, faster mounts
+tags: lists, performance, virtualization, scrollview
+---
+
+## Use a List Virtualizer for Any List
+
+Use a list virtualizer like LegendList or FlashList instead of ScrollView with
+mapped children—even for short lists. Virtualizers only render visible items,
+reducing memory usage and mount time. ScrollView renders all children upfront,
+which gets expensive quickly.
+
+**Incorrect (ScrollView renders all items at once):**
+
+```tsx
+function Feed({ items }: { items: Item[] }) {
+  return (
+    <ScrollView>
+      {items.map((item) => (
+        <ItemCard key={item.id} item={item} />
+      ))}
+    </ScrollView>
+  )
+}
+// 50 items = 50 components mounted, even if only 10 visible
+```
+
+**Correct (virtualizer renders only visible items):**
+
+```tsx
+import { LegendList } from '@legendapp/list'
+
+function Feed({ items }: { items: Item[] }) {
+  return (
+    <LegendList
+      data={items}
+      // if you aren't using React Compiler, wrap these with useCallback
+      renderItem={({ item }) => <ItemCard item={item} />}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={80}
+    />
+  )
+}
+// Only ~10-15 visible items mounted at a time
+```
+
+**Alternative (FlashList):**
+
+```tsx
+import { FlashList } from '@shopify/flash-list'
+
+function Feed({ items }: { items: Item[] }) {
+  return (
+    <FlashList
+      data={items}
+      // if you aren't using React Compiler, wrap these with useCallback
+      renderItem={({ item }) => <ItemCard item={item} />}
+      keyExtractor={(item) => item.id}
+    />
+  )
+}
+```
+
+Benefits apply to any screen with scrollable content—profiles, settings, feeds,
+search results. Default to virtualization.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/monorepo-native-deps-in-app.md
+`````markdown
+---
+title: Install Native Dependencies in App Directory
+impact: CRITICAL
+impactDescription: required for autolinking to work
+tags: monorepo, native, autolinking, installation
+---
+
+## Install Native Dependencies in App Directory
+
+In a monorepo, packages with native code must be installed in the native app's
+directory directly. Autolinking only scans the app's `node_modules`—it won't
+find native dependencies installed in other packages.
+
+**Incorrect (native dep in shared package only):**
+
+```
+packages/
+  ui/
+    package.json  # has react-native-reanimated
+  app/
+    package.json  # missing react-native-reanimated
+```
+
+Autolinking fails—native code not linked.
+
+**Correct (native dep in app directory):**
+
+```
+packages/
+  ui/
+    package.json  # has react-native-reanimated
+  app/
+    package.json  # also has react-native-reanimated
+```
+
+```json
+// packages/app/package.json
+{
+  "dependencies": {
+    "react-native-reanimated": "3.16.1"
+  }
+}
+```
+
+Even if the shared package uses the native dependency, the app must also list it
+for autolinking to detect and link the native code.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/monorepo-single-dependency-versions.md
+`````markdown
+---
+title: Use Single Dependency Versions Across Monorepo
+impact: MEDIUM
+impactDescription: avoids duplicate bundles, version conflicts
+tags: monorepo, dependencies, installation
+---
+
+## Use Single Dependency Versions Across Monorepo
+
+Use a single version of each dependency across all packages in your monorepo.
+Prefer exact versions over ranges. Multiple versions cause duplicate code in
+bundles, runtime conflicts, and inconsistent behavior across packages.
+
+Use a tool like syncpack to enforce this. As a last resort, use yarn resolutions
+or npm overrides.
+
+**Incorrect (version ranges, multiple versions):**
+
+```json
+// packages/app/package.json
+{
+  "dependencies": {
+    "react-native-reanimated": "^3.0.0"
+  }
+}
+
+// packages/ui/package.json
+{
+  "dependencies": {
+    "react-native-reanimated": "^3.5.0"
+  }
+}
+```
+
+**Correct (exact versions, single source of truth):**
+
+```json
+// package.json (root)
+{
+  "pnpm": {
+    "overrides": {
+      "react-native-reanimated": "3.16.1"
+    }
+  }
+}
+
+// packages/app/package.json
+{
+  "dependencies": {
+    "react-native-reanimated": "3.16.1"
+  }
+}
+
+// packages/ui/package.json
+{
+  "dependencies": {
+    "react-native-reanimated": "3.16.1"
+  }
+}
+```
+
+Use your package manager's override/resolution feature to enforce versions at
+the root. When adding dependencies, specify exact versions without `^` or `~`.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/navigation-native-navigators.md
+`````markdown
+---
+title: Use Native Navigators for Navigation
+impact: HIGH
+impactDescription: native performance, platform-appropriate UI
+tags: navigation, react-navigation, expo-router, native-stack, tabs
+---
+
+## Use Native Navigators for Navigation
+
+Always use native navigators instead of JS-based ones. Native navigators use
+platform APIs (UINavigationController on iOS, Fragment on Android) for better
+performance and native behavior.
+
+**For stacks:** Use `@react-navigation/native-stack` or expo-router's default
+stack (which uses native-stack). Avoid `@react-navigation/stack`.
+
+**For tabs:** Use `react-native-bottom-tabs` (native) or expo-router's native
+tabs. Avoid `@react-navigation/bottom-tabs` when native feel matters.
+
+### Stack Navigation
+
+**Incorrect (JS stack navigator):**
+
+```tsx
+import { createStackNavigator } from '@react-navigation/stack'
+
+const Stack = createStackNavigator()
+
+function App() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name='Home' component={HomeScreen} />
+      <Stack.Screen name='Details' component={DetailsScreen} />
+    </Stack.Navigator>
+  )
+}
+```
+
+**Correct (native stack with react-navigation):**
+
+```tsx
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
+
+const Stack = createNativeStackNavigator()
+
+function App() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name='Home' component={HomeScreen} />
+      <Stack.Screen name='Details' component={DetailsScreen} />
+    </Stack.Navigator>
+  )
+}
+```
+
+**Correct (expo-router uses native stack by default):**
+
+```tsx
+// app/_layout.tsx
+import { Stack } from 'expo-router'
+
+export default function Layout() {
+  return <Stack />
+}
+```
+
+### Tab Navigation
+
+**Incorrect (JS bottom tabs):**
+
+```tsx
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+
+const Tab = createBottomTabNavigator()
+
+function App() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name='Home' component={HomeScreen} />
+      <Tab.Screen name='Settings' component={SettingsScreen} />
+    </Tab.Navigator>
+  )
+}
+```
+
+**Correct (native bottom tabs with react-navigation):**
+
+```tsx
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation'
+
+const Tab = createNativeBottomTabNavigator()
+
+function App() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen
+        name='Home'
+        component={HomeScreen}
+        options={{
+          tabBarIcon: () => ({ sfSymbol: 'house' }),
+        }}
+      />
+      <Tab.Screen
+        name='Settings'
+        component={SettingsScreen}
+        options={{
+          tabBarIcon: () => ({ sfSymbol: 'gear' }),
+        }}
+      />
+    </Tab.Navigator>
+  )
+}
+```
+
+**Correct (expo-router native tabs):**
+
+```tsx
+// app/(tabs)/_layout.tsx
+import { NativeTabs } from 'expo-router/unstable-native-tabs'
+
+export default function TabLayout() {
+  return (
+    <NativeTabs>
+      <NativeTabs.Trigger name='index'>
+        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf='house.fill' md='home' />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name='settings'>
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf='gear' md='settings' />
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  )
+}
+```
+
+On iOS, native tabs automatically enable `contentInsetAdjustmentBehavior` on the
+first `ScrollView` at the root of each tab screen, so content scrolls correctly
+behind the translucent tab bar. If you need to disable this, use
+`disableAutomaticContentInsets` on the trigger.
+
+### Prefer Native Header Options Over Custom Components
+
+**Incorrect (custom header component):**
+
+```tsx
+<Stack.Screen
+  name='Profile'
+  component={ProfileScreen}
+  options={{
+    header: () => <CustomHeader title='Profile' />,
+  }}
+/>
+```
+
+**Correct (native header options):**
+
+```tsx
+<Stack.Screen
+  name='Profile'
+  component={ProfileScreen}
+  options={{
+    title: 'Profile',
+    headerLargeTitleEnabled: true,
+    headerSearchBarOptions: {
+      placeholder: 'Search',
+    },
+  }}
+/>
+```
+
+Native headers support iOS large titles, search bars, blur effects, and proper
+safe area handling automatically.
+
+### Why Native Navigators
+
+- **Performance**: Native transitions and gestures run on the UI thread
+- **Platform behavior**: Automatic iOS large titles, Android material design
+- **System integration**: Scroll-to-top on tab tap, PiP avoidance, proper safe
+  areas
+- **Accessibility**: Platform accessibility features work automatically
+
+Reference:
+
+- [React Navigation Native Stack](https://reactnavigation.org/docs/native-stack-navigator)
+- [React Native Bottom Tabs with React Navigation](https://oss.callstack.com/react-native-bottom-tabs/docs/guides/usage-with-react-navigation)
+- [React Native Bottom Tabs with Expo Router](https://oss.callstack.com/react-native-bottom-tabs/docs/guides/usage-with-expo-router)
+- [Expo Router Native Tabs](https://docs.expo.dev/router/advanced/native-tabs)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/react-compiler-destructure-functions.md
+`````markdown
+---
+title: Destructure Functions Early in Render (React Compiler)
+impact: HIGH
+impactDescription: stable references, fewer re-renders
+tags: rerender, hooks, performance, react-compiler
+---
+
+## Destructure Functions Early in Render
+
+This rule is only applicable if you are using the React Compiler.
+
+Destructure functions from hooks at the top of render scope. Never dot into
+objects to call functions. Destructured functions are stable references; dotting
+creates new references and breaks memoization.
+
+**Incorrect (dotting into object):**
+
+```tsx
+import { useRouter } from 'expo-router'
+
+function SaveButton(props) {
+  const router = useRouter()
+
+  // bad: react-compiler will key the cache on "props" and "router", which are objects that change each render
+  const handlePress = () => {
+    props.onSave()
+    router.push('/success') // unstable reference
+  }
+
+  return <Button onPress={handlePress}>Save</Button>
+}
+```
+
+**Correct (destructure early):**
+
+```tsx
+import { useRouter } from 'expo-router'
+
+function SaveButton({ onSave }) {
+  const { push } = useRouter()
+
+  // good: react-compiler will key on push and onSave
+  const handlePress = () => {
+    onSave()
+    push('/success') // stable reference
+  }
+
+  return <Button onPress={handlePress}>Save</Button>
+}
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/react-compiler-reanimated-shared-values.md
+`````markdown
+---
+title: Use .get() and .set() for Reanimated Shared Values (not .value)
+impact: LOW
+impactDescription: required for React Compiler compatibility
+tags: reanimated, react-compiler, shared-values
+---
+
+## Use .get() and .set() for Shared Values with React Compiler
+
+With React Compiler enabled, use `.get()` and `.set()` instead of reading or
+writing `.value` directly on Reanimated shared values. The compiler can't track
+property access—explicit methods ensure correct behavior.
+
+**Incorrect (breaks with React Compiler):**
+
+```tsx
+import { useSharedValue } from 'react-native-reanimated'
+
+function Counter() {
+  const count = useSharedValue(0)
+
+  const increment = () => {
+    count.value = count.value + 1 // opts out of react compiler
+  }
+
+  return <Button onPress={increment} title={`Count: ${count.value}`} />
+}
+```
+
+**Correct (React Compiler compatible):**
+
+```tsx
+import { useSharedValue } from 'react-native-reanimated'
+
+function Counter() {
+  const count = useSharedValue(0)
+
+  const increment = () => {
+    count.set(count.get() + 1)
+  }
+
+  return <Button onPress={increment} title={`Count: ${count.get()}`} />
+}
+```
+
+See the
+[Reanimated docs](https://docs.swmansion.com/react-native-reanimated/docs/core/useSharedValue/#react-compiler-support)
+for more.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/react-state-dispatcher.md
+`````markdown
+---
+title: useState Dispatch updaters for State That Depends on Current Value
+impact: MEDIUM
+impactDescription: avoids stale closures, prevents unnecessary re-renders
+tags: state, hooks, useState, callbacks
+---
+
+## Use Dispatch Updaters for State That Depends on Current Value
+
+When the next state depends on the current state, use a dispatch updater
+(`setState(prev => ...)`) instead of reading the state variable directly in a
+callback. This avoids stale closures and ensures you're comparing against the
+latest value.
+
+**Incorrect (reads state directly):**
+
+```tsx
+const [size, setSize] = useState<Size | undefined>(undefined)
+
+const onLayout = (e: LayoutChangeEvent) => {
+  const { width, height } = e.nativeEvent.layout
+  // size may be stale in this closure
+  if (size?.width !== width || size?.height !== height) {
+    setSize({ width, height })
+  }
+}
+```
+
+**Correct (dispatch updater):**
+
+```tsx
+const [size, setSize] = useState<Size | undefined>(undefined)
+
+const onLayout = (e: LayoutChangeEvent) => {
+  const { width, height } = e.nativeEvent.layout
+  setSize((prev) => {
+    if (prev?.width === width && prev?.height === height) return prev
+    return { width, height }
+  })
+}
+```
+
+Returning the previous value from the updater skips the re-render.
+
+For primitive states, you don't need to compare values before firing a
+re-render.
+
+**Incorrect (unnecessary comparison for primitive state):**
+
+```tsx
+const [size, setSize] = useState<Size | undefined>(undefined)
+
+const onLayout = (e: LayoutChangeEvent) => {
+  const { width, height } = e.nativeEvent.layout
+  setSize((prev) => (prev === width ? prev : width))
+}
+```
+
+**Correct (sets primitive state directly):**
+
+```tsx
+const [size, setSize] = useState<Size | undefined>(undefined)
+
+const onLayout = (e: LayoutChangeEvent) => {
+  const { width, height } = e.nativeEvent.layout
+  setSize(width)
+}
+```
+
+However, if the next state depends on the current state, you should still use a
+dispatch updater.
+
+**Incorrect (reads state directly from the callback):**
+
+```tsx
+const [count, setCount] = useState(0)
+
+const onTap = () => {
+  setCount(count + 1)
+}
+```
+
+**Correct (dispatch updater):**
+
+```tsx
+const [count, setCount] = useState(0)
+
+const onTap = () => {
+  setCount((prev) => prev + 1)
+}
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/react-state-fallback.md
+`````markdown
+---
+title: Use fallback state instead of initialState
+impact: MEDIUM
+impactDescription: reactive fallbacks without syncing
+tags: state, hooks, derived-state, props, initialState
+---
+
+## Use fallback state instead of initialState
+
+Use `undefined` as initial state and nullish coalescing (`??`) to fall back to
+parent or server values. State represents user intent only—`undefined` means
+"user hasn't chosen yet." This enables reactive fallbacks that update when the
+source changes, not just on initial render.
+
+**Incorrect (syncs state, loses reactivity):**
+
+```tsx
+type Props = { fallbackEnabled: boolean }
+
+function Toggle({ fallbackEnabled }: Props) {
+  const [enabled, setEnabled] = useState(defaultEnabled)
+  // If fallbackEnabled changes, state is stale
+  // State mixes user intent with default value
+
+  return <Switch value={enabled} onValueChange={setEnabled} />
+}
+```
+
+**Correct (state is user intent, reactive fallback):**
+
+```tsx
+type Props = { fallbackEnabled: boolean }
+
+function Toggle({ fallbackEnabled }: Props) {
+  const [_enabled, setEnabled] = useState<boolean | undefined>(undefined)
+  const enabled = _enabled ?? defaultEnabled
+  // undefined = user hasn't touched it, falls back to prop
+  // If defaultEnabled changes, component reflects it
+  // Once user interacts, their choice persists
+
+  return <Switch value={enabled} onValueChange={setEnabled} />
+}
+```
+
+**With server data:**
+
+```tsx
+function ProfileForm({ data }: { data: User }) {
+  const [_theme, setTheme] = useState<string | undefined>(undefined)
+  const theme = _theme ?? data.theme
+  // Shows server value until user overrides
+  // Server refetch updates the fallback automatically
+
+  return <ThemePicker value={theme} onChange={setTheme} />
+}
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/react-state-minimize.md
+`````markdown
+---
+title: Minimize State Variables and Derive Values
+impact: MEDIUM
+impactDescription: fewer re-renders, less state drift
+tags: state, derived-state, hooks, optimization
+---
+
+## Minimize State Variables and Derive Values
+
+Use the fewest state variables possible. If a value can be computed from existing state or props, derive it during render instead of storing it in state. Redundant state causes unnecessary re-renders and can drift out of sync.
+
+**Incorrect (redundant state):**
+
+```tsx
+function Cart({ items }: { items: Item[] }) {
+  const [total, setTotal] = useState(0)
+  const [itemCount, setItemCount] = useState(0)
+
+  useEffect(() => {
+    setTotal(items.reduce((sum, item) => sum + item.price, 0))
+    setItemCount(items.length)
+  }, [items])
+
+  return (
+    <View>
+      <Text>{itemCount} items</Text>
+      <Text>Total: ${total}</Text>
+    </View>
+  )
+}
+```
+
+**Correct (derived values):**
+
+```tsx
+function Cart({ items }: { items: Item[] }) {
+  const total = items.reduce((sum, item) => sum + item.price, 0)
+  const itemCount = items.length
+
+  return (
+    <View>
+      <Text>{itemCount} items</Text>
+      <Text>Total: ${total}</Text>
+    </View>
+  )
+}
+```
+
+**Another example:**
+
+```tsx
+// Incorrect: storing both firstName, lastName, AND fullName
+const [firstName, setFirstName] = useState('')
+const [lastName, setLastName] = useState('')
+const [fullName, setFullName] = useState('')
+
+// Correct: derive fullName
+const [firstName, setFirstName] = useState('')
+const [lastName, setLastName] = useState('')
+const fullName = `${firstName} ${lastName}`
+```
+
+State should be the minimal source of truth. Everything else is derived.
+
+Reference: [Choosing the State Structure](https://react.dev/learn/choosing-the-state-structure)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/rendering-no-falsy-and.md
+`````markdown
+---
+title: Never Use && with Potentially Falsy Values
+impact: CRITICAL
+impactDescription: prevents production crash
+tags: rendering, conditional, jsx, crash
+---
+
+## Never Use && with Potentially Falsy Values
+
+Never use `{value && <Component />}` when `value` could be an empty string or
+`0`. These are falsy but JSX-renderable—React Native will try to render them as
+text outside a `<Text>` component, causing a hard crash in production.
+
+**Incorrect (crashes if count is 0 or name is ""):**
+
+```tsx
+function Profile({ name, count }: { name: string; count: number }) {
+  return (
+    <View>
+      {name && <Text>{name}</Text>}
+      {count && <Text>{count} items</Text>}
+    </View>
+  )
+}
+// If name="" or count=0, renders the falsy value → crash
+```
+
+**Correct (ternary with null):**
+
+```tsx
+function Profile({ name, count }: { name: string; count: number }) {
+  return (
+    <View>
+      {name ? <Text>{name}</Text> : null}
+      {count ? <Text>{count} items</Text> : null}
+    </View>
+  )
+}
+```
+
+**Correct (explicit boolean coercion):**
+
+```tsx
+function Profile({ name, count }: { name: string; count: number }) {
+  return (
+    <View>
+      {!!name && <Text>{name}</Text>}
+      {!!count && <Text>{count} items</Text>}
+    </View>
+  )
+}
+```
+
+**Best (early return):**
+
+```tsx
+function Profile({ name, count }: { name: string; count: number }) {
+  if (!name) return null
+
+  return (
+    <View>
+      <Text>{name}</Text>
+      {count > 0 ? <Text>{count} items</Text> : null}
+    </View>
+  )
+}
+```
+
+Early returns are clearest. When using conditionals inline, prefer ternary or
+explicit boolean checks.
+
+**Lint rule:** Enable `react/jsx-no-leaked-render` from
+[eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-no-leaked-render.md)
+to catch this automatically.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/rendering-text-in-text-component.md
+`````markdown
+---
+title: Wrap Strings in Text Components
+impact: CRITICAL
+impactDescription: prevents runtime crash
+tags: rendering, text, core
+---
+
+## Wrap Strings in Text Components
+
+Strings must be rendered inside `<Text>`. React Native crashes if a string is a
+direct child of `<View>`.
+
+**Incorrect (crashes):**
+
+```tsx
+import { View } from 'react-native'
+
+function Greeting({ name }: { name: string }) {
+  return <View>Hello, {name}!</View>
+}
+// Error: Text strings must be rendered within a <Text> component.
+```
+
+**Correct:**
+
+```tsx
+import { View, Text } from 'react-native'
+
+function Greeting({ name }: { name: string }) {
+  return (
+    <View>
+      <Text>Hello, {name}!</Text>
+    </View>
+  )
+}
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/scroll-position-no-state.md
+`````markdown
+---
+title: Never Track Scroll Position in useState
+impact: HIGH
+impactDescription: prevents render thrashing during scroll
+tags: scroll, performance, reanimated, useRef
+---
+
+## Never Track Scroll Position in useState
+
+Never store scroll position in `useState`. Scroll events fire rapidly—state
+updates cause render thrashing and dropped frames. Use a Reanimated shared value
+for animations or a ref for non-reactive tracking.
+
+**Incorrect (useState causes jank):**
+
+```tsx
+import { useState } from 'react'
+import {
+  ScrollView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native'
+
+function Feed() {
+  const [scrollY, setScrollY] = useState(0)
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScrollY(e.nativeEvent.contentOffset.y) // re-renders on every frame
+  }
+
+  return <ScrollView onScroll={onScroll} scrollEventThrottle={16} />
+}
+```
+
+**Correct (Reanimated for animations):**
+
+```tsx
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated'
+
+function Feed() {
+  const scrollY = useSharedValue(0)
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y // runs on UI thread, no re-render
+    },
+  })
+
+  return (
+    <Animated.ScrollView
+      onScroll={onScroll}
+      // higher number has better performance, but it fires less often.
+      // unset this if you need higher precision over performance.
+      scrollEventThrottle={16}
+    />
+  )
+}
+```
+
+**Correct (ref for non-reactive tracking):**
+
+```tsx
+import { useRef } from 'react'
+import {
+  ScrollView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native'
+
+function Feed() {
+  const scrollY = useRef(0)
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollY.current = e.nativeEvent.contentOffset.y // no re-render
+  }
+
+  return <ScrollView onScroll={onScroll} scrollEventThrottle={16} />
+}
+```
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/state-ground-truth.md
+`````markdown
+---
+title: State Must Represent Ground Truth
+impact: HIGH
+impactDescription: cleaner logic, easier debugging, single source of truth
+tags: state, derived-state, reanimated, hooks
+---
+
+## State Must Represent Ground Truth
+
+State variables—both React `useState` and Reanimated shared values—should
+represent the actual state of something (e.g., `pressed`, `progress`, `isOpen`),
+not derived visual values (e.g., `scale`, `opacity`, `translateY`). Derive
+visual values from state using computation or interpolation.
+
+**Incorrect (storing the visual output):**
+
+```tsx
+const scale = useSharedValue(1)
+
+const tap = Gesture.Tap()
+  .onBegin(() => {
+    scale.set(withTiming(0.95))
+  })
+  .onFinalize(() => {
+    scale.set(withTiming(1))
+  })
+
+const animatedStyle = useAnimatedStyle(() => ({
+  transform: [{ scale: scale.get() }],
+}))
+```
+
+**Correct (storing the state, deriving the visual):**
+
+```tsx
+const pressed = useSharedValue(0) // 0 = not pressed, 1 = pressed
+
+const tap = Gesture.Tap()
+  .onBegin(() => {
+    pressed.set(withTiming(1))
+  })
+  .onFinalize(() => {
+    pressed.set(withTiming(0))
+  })
+
+const animatedStyle = useAnimatedStyle(() => ({
+  transform: [{ scale: interpolate(pressed.get(), [0, 1], [1, 0.95]) }],
+}))
+```
+
+**Why this matters:**
+
+State variables should represent real "state", not necessarily a desired end
+result.
+
+1. **Single source of truth** — The state (`pressed`) describes what's
+   happening; visuals are derived
+2. **Easier to extend** — Adding opacity, rotation, or other effects just
+   requires more interpolations from the same state
+3. **Debugging** — Inspecting `pressed = 1` is clearer than `scale = 0.95`
+4. **Reusable logic** — The same `pressed` value can drive multiple visual
+   properties
+
+**Same principle for React state:**
+
+```tsx
+// Incorrect: storing derived values
+const [isExpanded, setIsExpanded] = useState(false)
+const [height, setHeight] = useState(0)
+
+useEffect(() => {
+  setHeight(isExpanded ? 200 : 0)
+}, [isExpanded])
+
+// Correct: derive from state
+const [isExpanded, setIsExpanded] = useState(false)
+const height = isExpanded ? 200 : 0
+```
+
+State is the minimal truth. Everything else is derived.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-expo-image.md
+`````markdown
+---
+title: Use expo-image for Optimized Images
+impact: HIGH
+impactDescription: memory efficiency, caching, blurhash placeholders, progressive loading
+tags: images, performance, expo-image, ui
+---
+
+## Use expo-image for Optimized Images
+
+Use `expo-image` instead of React Native's `Image`. It provides memory-efficient caching, blurhash placeholders, progressive loading, and better performance for lists.
+
+**Incorrect (React Native Image):**
+
+```tsx
+import { Image } from 'react-native'
+
+function Avatar({ url }: { url: string }) {
+  return <Image source={{ uri: url }} style={styles.avatar} />
+}
+```
+
+**Correct (expo-image):**
+
+```tsx
+import { Image } from 'expo-image'
+
+function Avatar({ url }: { url: string }) {
+  return <Image source={{ uri: url }} style={styles.avatar} />
+}
+```
+
+**With blurhash placeholder:**
+
+```tsx
+<Image
+  source={{ uri: url }}
+  placeholder={{ blurhash: 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.' }}
+  contentFit="cover"
+  transition={200}
+  style={styles.image}
+/>
+```
+
+**With priority and caching:**
+
+```tsx
+<Image
+  source={{ uri: url }}
+  priority="high"
+  cachePolicy="memory-disk"
+  style={styles.hero}
+/>
+```
+
+**Key props:**
+
+- `placeholder` — Blurhash or thumbnail while loading
+- `contentFit` — `cover`, `contain`, `fill`, `scale-down`
+- `transition` — Fade-in duration (ms)
+- `priority` — `low`, `normal`, `high`
+- `cachePolicy` — `memory`, `disk`, `memory-disk`, `none`
+- `recyclingKey` — Unique key for list recycling
+
+For cross-platform (web + native), use `SolitoImage` from `solito/image` which uses `expo-image` under the hood.
+
+Reference: [expo-image](https://docs.expo.dev/versions/latest/sdk/image/)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-image-gallery.md
+`````markdown
+---
+title: Use Galeria for Image Galleries and Lightbox
+impact: MEDIUM
+impactDescription:
+  native shared element transitions, pinch-to-zoom, pan-to-close
+tags: images, gallery, lightbox, expo-image, ui
+---
+
+## Use Galeria for Image Galleries and Lightbox
+
+For image galleries with lightbox (tap to fullscreen), use `@nandorojo/galeria`.
+It provides native shared element transitions with pinch-to-zoom, double-tap
+zoom, and pan-to-close. Works with any image component including `expo-image`.
+
+**Incorrect (custom modal implementation):**
+
+```tsx
+function ImageGallery({ urls }: { urls: string[] }) {
+  const [selected, setSelected] = useState<string | null>(null)
+
+  return (
+    <>
+      {urls.map((url) => (
+        <Pressable key={url} onPress={() => setSelected(url)}>
+          <Image source={{ uri: url }} style={styles.thumbnail} />
+        </Pressable>
+      ))}
+      <Modal visible={!!selected} onRequestClose={() => setSelected(null)}>
+        <Image source={{ uri: selected! }} style={styles.fullscreen} />
+      </Modal>
+    </>
+  )
+}
+```
+
+**Correct (Galeria with expo-image):**
+
+```tsx
+import { Galeria } from '@nandorojo/galeria'
+import { Image } from 'expo-image'
+
+function ImageGallery({ urls }: { urls: string[] }) {
+  return (
+    <Galeria urls={urls}>
+      {urls.map((url, index) => (
+        <Galeria.Image index={index} key={url}>
+          <Image source={{ uri: url }} style={styles.thumbnail} />
+        </Galeria.Image>
+      ))}
+    </Galeria>
+  )
+}
+```
+
+**Single image:**
+
+```tsx
+import { Galeria } from '@nandorojo/galeria'
+import { Image } from 'expo-image'
+
+function Avatar({ url }: { url: string }) {
+  return (
+    <Galeria urls={[url]}>
+      <Galeria.Image>
+        <Image source={{ uri: url }} style={styles.avatar} />
+      </Galeria.Image>
+    </Galeria>
+  )
+}
+```
+
+**With low-res thumbnails and high-res fullscreen:**
+
+```tsx
+<Galeria urls={highResUrls}>
+  {lowResUrls.map((url, index) => (
+    <Galeria.Image index={index} key={url}>
+      <Image source={{ uri: url }} style={styles.thumbnail} />
+    </Galeria.Image>
+  ))}
+</Galeria>
+```
+
+**With FlashList:**
+
+```tsx
+<Galeria urls={urls}>
+  <FlashList
+    data={urls}
+    renderItem={({ item, index }) => (
+      <Galeria.Image index={index}>
+        <Image source={{ uri: item }} style={styles.thumbnail} />
+      </Galeria.Image>
+    )}
+    numColumns={3}
+    estimatedItemSize={100}
+  />
+</Galeria>
+```
+
+Works with `expo-image`, `SolitoImage`, `react-native` Image, or any image
+component.
+
+Reference: [Galeria](https://github.com/nandorojo/galeria)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-measure-views.md
+`````markdown
+---
+title: Measuring View Dimensions
+impact: MEDIUM
+impactDescription: synchronous measurement, avoid unnecessary re-renders
+tags: layout, measurement, onLayout, useLayoutEffect
+---
+
+## Measuring View Dimensions
+
+Use both `useLayoutEffect` (synchronous) and `onLayout` (for updates). The sync
+measurement gives you the initial size immediately; `onLayout` keeps it current
+when the view changes. For non-primitive states, use a dispatch updater to
+compare values and avoid unnecessary re-renders.
+
+**Height only:**
+
+```tsx
+import { useLayoutEffect, useRef, useState } from 'react'
+import { View, LayoutChangeEvent } from 'react-native'
+
+function MeasuredBox({ children }: { children: React.ReactNode }) {
+  const ref = useRef<View>(null)
+  const [height, setHeight] = useState<number | undefined>(undefined)
+
+  useLayoutEffect(() => {
+    // Sync measurement on mount (RN 0.82+)
+    const rect = ref.current?.getBoundingClientRect()
+    if (rect) setHeight(rect.height)
+    // Pre-0.82: ref.current?.measure((x, y, w, h) => setHeight(h))
+  }, [])
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    setHeight(e.nativeEvent.layout.height)
+  }
+
+  return (
+    <View ref={ref} onLayout={onLayout}>
+      {children}
+    </View>
+  )
+}
+```
+
+**Both dimensions:**
+
+```tsx
+import { useLayoutEffect, useRef, useState } from 'react'
+import { View, LayoutChangeEvent } from 'react-native'
+
+type Size = { width: number; height: number }
+
+function MeasuredBox({ children }: { children: React.ReactNode }) {
+  const ref = useRef<View>(null)
+  const [size, setSize] = useState<Size | undefined>(undefined)
+
+  useLayoutEffect(() => {
+    const rect = ref.current?.getBoundingClientRect()
+    if (rect) setSize({ width: rect.width, height: rect.height })
+  }, [])
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout
+    setSize((prev) => {
+      // for non-primitive states, compare values before firing a re-render
+      if (prev?.width === width && prev?.height === height) return prev
+      return { width, height }
+    })
+  }
+
+  return (
+    <View ref={ref} onLayout={onLayout}>
+      {children}
+    </View>
+  )
+}
+```
+
+Use functional setState to compare—don't read state directly in the callback.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-menus.md
+`````markdown
+---
+title: Use Native Menus for Dropdowns and Context Menus
+impact: HIGH
+impactDescription: native accessibility, platform-consistent UX
+tags: user-interface, menus, context-menus, zeego, accessibility
+---
+
+## Use Native Menus for Dropdowns and Context Menus
+
+Use native platform menus instead of custom JS implementations. Native menus
+provide built-in accessibility, consistent platform UX, and better performance.
+Use [zeego](https://zeego.dev) for cross-platform native menus.
+
+**Incorrect (custom JS menu):**
+
+```tsx
+import { useState } from 'react'
+import { View, Pressable, Text } from 'react-native'
+
+function MyMenu() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <View>
+      <Pressable onPress={() => setOpen(!open)}>
+        <Text>Open Menu</Text>
+      </Pressable>
+      {open && (
+        <View style={{ position: 'absolute', top: 40 }}>
+          <Pressable onPress={() => console.log('edit')}>
+            <Text>Edit</Text>
+          </Pressable>
+          <Pressable onPress={() => console.log('delete')}>
+            <Text>Delete</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  )
+}
+```
+
+**Correct (native menu with zeego):**
+
+```tsx
+import * as DropdownMenu from 'zeego/dropdown-menu'
+
+function MyMenu() {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <Pressable>
+          <Text>Open Menu</Text>
+        </Pressable>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Content>
+        <DropdownMenu.Item key='edit' onSelect={() => console.log('edit')}>
+          <DropdownMenu.ItemTitle>Edit</DropdownMenu.ItemTitle>
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Item
+          key='delete'
+          destructive
+          onSelect={() => console.log('delete')}
+        >
+          <DropdownMenu.ItemTitle>Delete</DropdownMenu.ItemTitle>
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  )
+}
+```
+
+**Context menu (long-press):**
+
+```tsx
+import * as ContextMenu from 'zeego/context-menu'
+
+function MyContextMenu() {
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger>
+        <View style={{ padding: 20 }}>
+          <Text>Long press me</Text>
+        </View>
+      </ContextMenu.Trigger>
+
+      <ContextMenu.Content>
+        <ContextMenu.Item key='copy' onSelect={() => console.log('copy')}>
+          <ContextMenu.ItemTitle>Copy</ContextMenu.ItemTitle>
+        </ContextMenu.Item>
+
+        <ContextMenu.Item key='paste' onSelect={() => console.log('paste')}>
+          <ContextMenu.ItemTitle>Paste</ContextMenu.ItemTitle>
+        </ContextMenu.Item>
+      </ContextMenu.Content>
+    </ContextMenu.Root>
+  )
+}
+```
+
+**Checkbox items:**
+
+```tsx
+import * as DropdownMenu from 'zeego/dropdown-menu'
+
+function SettingsMenu() {
+  const [notifications, setNotifications] = useState(true)
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <Pressable>
+          <Text>Settings</Text>
+        </Pressable>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Content>
+        <DropdownMenu.CheckboxItem
+          key='notifications'
+          value={notifications}
+          onValueChange={() => setNotifications((prev) => !prev)}
+        >
+          <DropdownMenu.ItemIndicator />
+          <DropdownMenu.ItemTitle>Notifications</DropdownMenu.ItemTitle>
+        </DropdownMenu.CheckboxItem>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  )
+}
+```
+
+**Submenus:**
+
+```tsx
+import * as DropdownMenu from 'zeego/dropdown-menu'
+
+function MenuWithSubmenu() {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <Pressable>
+          <Text>Options</Text>
+        </Pressable>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Content>
+        <DropdownMenu.Item key='home' onSelect={() => console.log('home')}>
+          <DropdownMenu.ItemTitle>Home</DropdownMenu.ItemTitle>
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Sub>
+          <DropdownMenu.SubTrigger key='more'>
+            <DropdownMenu.ItemTitle>More Options</DropdownMenu.ItemTitle>
+          </DropdownMenu.SubTrigger>
+
+          <DropdownMenu.SubContent>
+            <DropdownMenu.Item key='settings'>
+              <DropdownMenu.ItemTitle>Settings</DropdownMenu.ItemTitle>
+            </DropdownMenu.Item>
+
+            <DropdownMenu.Item key='help'>
+              <DropdownMenu.ItemTitle>Help</DropdownMenu.ItemTitle>
+            </DropdownMenu.Item>
+          </DropdownMenu.SubContent>
+        </DropdownMenu.Sub>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  )
+}
+```
+
+Reference: [Zeego Documentation](https://zeego.dev/components/dropdown-menu)
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-native-modals.md
+`````markdown
+---
+title: Use Native Modals Over JS-Based Bottom Sheets
+impact: HIGH
+impactDescription: native performance, gestures, accessibility
+tags: modals, bottom-sheet, native, react-navigation
+---
+
+## Use Native Modals Over JS-Based Bottom Sheets
+
+Use native `<Modal>` with `presentationStyle="formSheet"` or React Navigation
+v7's native form sheet instead of JS-based bottom sheet libraries. Native modals
+have built-in gestures, accessibility, and better performance. Rely on native UI
+for low-level primitives.
+
+**Incorrect (JS-based bottom sheet):**
+
+```tsx
+import BottomSheet from 'custom-js-bottom-sheet'
+
+function MyScreen() {
+  const sheetRef = useRef<BottomSheet>(null)
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Button onPress={() => sheetRef.current?.expand()} title='Open' />
+      <BottomSheet ref={sheetRef} snapPoints={['50%', '90%']}>
+        <View>
+          <Text>Sheet content</Text>
+        </View>
+      </BottomSheet>
+    </View>
+  )
+}
+```
+
+**Correct (native Modal with formSheet):**
+
+```tsx
+import { Modal, View, Text, Button } from 'react-native'
+
+function MyScreen() {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Button onPress={() => setVisible(true)} title='Open' />
+      <Modal
+        visible={visible}
+        presentationStyle='formSheet'
+        animationType='slide'
+        onRequestClose={() => setVisible(false)}
+      >
+        <View>
+          <Text>Sheet content</Text>
+        </View>
+      </Modal>
+    </View>
+  )
+}
+```
+
+**Correct (React Navigation v7 native form sheet):**
+
+```tsx
+// In your navigator
+<Stack.Screen
+  name='Details'
+  component={DetailsScreen}
+  options={{
+    presentation: 'formSheet',
+    sheetAllowedDetents: 'fitToContents',
+  }}
+/>
+```
+
+Native modals provide swipe-to-dismiss, proper keyboard avoidance, and
+accessibility out of the box.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-pressable.md
+`````markdown
+---
+title: Use Pressable Instead of Touchable Components
+impact: LOW
+impactDescription: modern API, more flexible
+tags: ui, pressable, touchable, gestures
+---
+
+## Use Pressable Instead of Touchable Components
+
+Never use `TouchableOpacity` or `TouchableHighlight`. Use `Pressable` from
+`react-native` or `react-native-gesture-handler` instead.
+
+**Incorrect (legacy Touchable components):**
+
+```tsx
+import { TouchableOpacity } from 'react-native'
+
+function MyButton({ onPress }: { onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <Text>Press me</Text>
+    </TouchableOpacity>
+  )
+}
+```
+
+**Correct (Pressable):**
+
+```tsx
+import { Pressable } from 'react-native'
+
+function MyButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress}>
+      <Text>Press me</Text>
+    </Pressable>
+  )
+}
+```
+
+**Correct (Pressable from gesture handler for lists):**
+
+```tsx
+import { Pressable } from 'react-native-gesture-handler'
+
+function ListItem({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress}>
+      <Text>Item</Text>
+    </Pressable>
+  )
+}
+```
+
+Use `react-native-gesture-handler` Pressable inside scrollable lists for better
+gesture coordination, as long as you are using the ScrollView from
+`react-native-gesture-handler` as well.
+
+**For animated press states (scale, opacity changes):** Use `GestureDetector`
+with Reanimated shared values instead of Pressable's style callback. See the
+`animation-gesture-detector-press` rule.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-safe-area-scroll.md
+`````markdown
+---
+title: Use contentInsetAdjustmentBehavior for Safe Areas
+impact: MEDIUM
+impactDescription: native safe area handling, no layout shifts
+tags: safe-area, scrollview, layout
+---
+
+## Use contentInsetAdjustmentBehavior for Safe Areas
+
+Use `contentInsetAdjustmentBehavior="automatic"` on the root ScrollView instead of wrapping content in SafeAreaView or manual padding. This lets iOS handle safe area insets natively with proper scroll behavior.
+
+**Incorrect (SafeAreaView wrapper):**
+
+```tsx
+import { SafeAreaView, ScrollView, View, Text } from 'react-native'
+
+function MyScreen() {
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView>
+        <View>
+          <Text>Content</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  )
+}
+```
+
+**Incorrect (manual safe area padding):**
+
+```tsx
+import { ScrollView, View, Text } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+function MyScreen() {
+  const insets = useSafeAreaInsets()
+
+  return (
+    <ScrollView contentContainerStyle={{ paddingTop: insets.top }}>
+      <View>
+        <Text>Content</Text>
+      </View>
+    </ScrollView>
+  )
+}
+```
+
+**Correct (native content inset adjustment):**
+
+```tsx
+import { ScrollView, View, Text } from 'react-native'
+
+function MyScreen() {
+  return (
+    <ScrollView contentInsetAdjustmentBehavior='automatic'>
+      <View>
+        <Text>Content</Text>
+      </View>
+    </ScrollView>
+  )
+}
+```
+
+The native approach handles dynamic safe areas (keyboard, toolbars) and allows content to scroll behind the status bar naturally.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-scrollview-content-inset.md
+`````markdown
+---
+title: Use contentInset for Dynamic ScrollView Spacing
+impact: LOW
+impactDescription: smoother updates, no layout recalculation
+tags: scrollview, layout, contentInset, performance
+---
+
+## Use contentInset for Dynamic ScrollView Spacing
+
+When adding space to the top or bottom of a ScrollView that may change
+(keyboard, toolbars, dynamic content), use `contentInset` instead of padding.
+Changing `contentInset` doesn't trigger layout recalculation—it adjusts the
+scroll area without re-rendering content.
+
+**Incorrect (padding causes layout recalculation):**
+
+```tsx
+function Feed({ bottomOffset }: { bottomOffset: number }) {
+  return (
+    <ScrollView contentContainerStyle={{ paddingBottom: bottomOffset }}>
+      {children}
+    </ScrollView>
+  )
+}
+// Changing bottomOffset triggers full layout recalculation
+```
+
+**Correct (contentInset for dynamic spacing):**
+
+```tsx
+function Feed({ bottomOffset }: { bottomOffset: number }) {
+  return (
+    <ScrollView
+      contentInset={{ bottom: bottomOffset }}
+      scrollIndicatorInsets={{ bottom: bottomOffset }}
+    >
+      {children}
+    </ScrollView>
+  )
+}
+// Changing bottomOffset only adjusts scroll bounds
+```
+
+Use `scrollIndicatorInsets` alongside `contentInset` to keep the scroll
+indicator aligned. For static spacing that never changes, padding is fine.
+`````
+
+## File: .github/skills/vercel-react-native-skills/rules/ui-styling.md
+`````markdown
+---
+title: Modern React Native Styling Patterns
+impact: MEDIUM
+impactDescription: consistent design, smoother borders, cleaner layouts
+tags: styling, css, layout, shadows, gradients
+---
+
+## Modern React Native Styling Patterns
+
+Follow these styling patterns for cleaner, more consistent React Native code.
+
+**Always use `borderCurve: 'continuous'` with `borderRadius`:**
+
+```tsx
+// Incorrect
+{ borderRadius: 12 }
+
+// Correct – smoother iOS-style corners
+{ borderRadius: 12, borderCurve: 'continuous' }
+```
+
+**Use `gap` instead of margin for spacing between elements:**
+
+```tsx
+// Incorrect – margin on children
+<View>
+  <Text style={{ marginBottom: 8 }}>Title</Text>
+  <Text style={{ marginBottom: 8 }}>Subtitle</Text>
+</View>
+
+// Correct – gap on parent
+<View style={{ gap: 8 }}>
+  <Text>Title</Text>
+  <Text>Subtitle</Text>
+</View>
+```
+
+**Use `padding` for space within, `gap` for space between:**
+
+```tsx
+<View style={{ padding: 16, gap: 12 }}>
+  <Text>First</Text>
+  <Text>Second</Text>
+</View>
+```
+
+**Use `experimental_backgroundImage` for linear gradients:**
+
+```tsx
+// Incorrect – third-party gradient library
+<LinearGradient colors={['#000', '#fff']} />
+
+// Correct – native CSS gradient syntax
+<View
+  style={{
+    experimental_backgroundImage: 'linear-gradient(to bottom, #000, #fff)',
+  }}
+/>
+```
+
+**Use CSS `boxShadow` string syntax for shadows:**
+
+```tsx
+// Incorrect – legacy shadow objects or elevation
+{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1 }
+{ elevation: 4 }
+
+// Correct – CSS box-shadow syntax
+{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }
+```
+
+**Avoid multiple font sizes – use weight and color for emphasis:**
+
+```tsx
+// Incorrect – varying font sizes for hierarchy
+<Text style={{ fontSize: 18 }}>Title</Text>
+<Text style={{ fontSize: 14 }}>Subtitle</Text>
+<Text style={{ fontSize: 12 }}>Caption</Text>
+
+// Correct – consistent size, vary weight and color
+<Text style={{ fontWeight: '600' }}>Title</Text>
+<Text style={{ color: '#666' }}>Subtitle</Text>
+<Text style={{ color: '#999' }}>Caption</Text>
+```
+
+Limiting font sizes creates visual consistency. Use `fontWeight` (bold/semibold)
+and grayscale colors for hierarchy instead.
 `````
 
 ## File: .github/terminology-glossary.md
@@ -24235,6 +27861,38 @@ export async function getContentVersions(
 | `InsightGenerated` | Intelligence | Content | AI 自動在頁面側邊欄生成摘要或建議標籤 |
 `````
 
+## File: modules/event/api/index.ts
+`````typescript
+/**
+ * Module: event
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Event domain.
+ *
+ * Other modules use this boundary to publish and subscribe to domain events.
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Core entity ──────────────────────────────────────────────────────────────
+
+export { DomainEvent } from "../domain/entities/domain-event.entity";
+export type { DomainEventPayload } from "../domain/entities/domain-event.entity";
+
+// ─── Domain ports ─────────────────────────────────────────────────────────────
+
+export type { IEventBusRepository } from "../domain/repositories/ievent-bus.repository";
+export type { IEventStoreRepository } from "../domain/repositories/ievent-store.repository";
+
+// ─── Value objects ────────────────────────────────────────────────────────────
+
+export type { EventMetadata } from "../domain/value-objects/event-metadata.vo";
+
+// ─── Use cases ────────────────────────────────────────────────────────────────
+
+export { PublishDomainEventUseCase } from "../application/use-cases/publish-domain-event";
+export type { PublishDomainEventDTO } from "../application/use-cases/publish-domain-event";
+`````
+
 ## File: modules/event/application/use-cases/list-events-by-aggregate.ts
 `````typescript
 /**
@@ -25270,6 +28928,31 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 
 `````
 
+## File: modules/namespace/api/index.ts
+`````typescript
+/**
+ * Module: namespace
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Namespace domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export { Namespace } from "../domain/entities/namespace.entity";
+export type { NamespaceKind, NamespaceStatus } from "../domain/entities/namespace.entity";
+
+// ─── Value objects ────────────────────────────────────────────────────────────
+
+export { NamespaceSlug } from "../domain/value-objects/namespace-slug.vo";
+
+// ─── Domain services ─────────────────────────────────────────────────────────
+
+export { deriveSlugCandidate, isValidSlug } from "../domain/services/slug-policy";
+`````
+
 ## File: modules/namespace/application/use-cases/list-namespaces-by-organization.use-case.ts
 `````typescript
 /**
@@ -25819,6 +29502,34 @@ export function NamespacePrototypeView({ organizationId, ownerAccountId }: Names
 
 export { NamespaceController } from './api/namespace.controller'
 export { NamespacePrototypeView } from './components/NamespacePrototypeView'
+`````
+
+## File: modules/notification/api/index.ts
+`````typescript
+/**
+ * Module: notification
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Notification domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "../domain/entities/Notification";
+
+// ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
+
+export { dispatchNotification } from "../interfaces/_actions/notification.actions";
+
+// ─── Query functions ──────────────────────────────────────────────────────────
+
+export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
 `````
 
 ## File: modules/notification/application/use-cases/notification.use-cases.ts
@@ -34395,6 +38106,221 @@ export {
   subscribeToWorkspacesForAccount,
 } from "./interfaces/queries/workspace.queries";
 export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";
+`````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+`````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import {
+  organizationApi,
+  type OrganizationMemberDTO,
+  type OrganizationTeamDTO,
+} from "@/modules/organization/api";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberDTO,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        organizationApi.getMembers(workspace.accountId),
+        organizationApi.getTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      Object.entries(personnelLabels).forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      Object.entries(personnelLabels).forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
 `````
 
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
@@ -48064,17 +51990,24 @@ export default {
 }
 `````
 
-## File: .agents/skills
-`````
-../.github/skills
+## File: .github/agents/app/README.md
+`````markdown
+# App Agents Notes
+
+This folder is reserved for app-specific agent context.
+
+Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active app-specific persona lives in [../app-router-composer.agent.md](../app-router-composer.agent.md).
+
+Keep app-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
 `````
 
-## File: .github/agents/md-writer.chat.agent.md
+## File: .github/agents/md-writer.agent.md
 `````markdown
 ---
 name: md-writer
 description: 'Optimize Markdown documents in the Xuanwu repository using the md-* prompt pipeline. Reduces token count, enforces structure, deduplicates concepts, and converts prose to rules/tables.'
-tools: ['vscode', 'read', 'edit', 'search', 'todo']
+tools: ['read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
 
@@ -48134,12 +52067,24 @@ docs/{decision-architecture,development-reference,diagrams-events-explanations,h
 - If scope is ambiguous, ask which folder or file to target before starting.
 `````
 
-## File: .github/agents/planner.chat.agent.md
+## File: .github/agents/modules/README.md
+`````markdown
+# Modules Agents Notes
+
+This folder is reserved for modules-specific agent context.
+
+Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active modules-specific persona lives in [../modules-api-surface-steward.agent.md](../modules-api-surface-steward.agent.md).
+
+Keep modules-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
+`````
+
+## File: .github/agents/planner-docs.agent.md
 `````markdown
 ---
 name: Planner Docs Flow
 description: 'Plan delivery work and optionally hand off Markdown optimization after plan approval.'
-tools: ['vscode', 'read', 'search', 'web', 'todo']
+tools: ['read', 'search', 'todo']
+model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Start Implementation
@@ -48203,53 +52148,105 @@ Turn a delivery request into an implementation plan that later stages can execut
 | **Optimize Docs** | Plan touches or creates `.md` files; hand to `md-writer` to optimize |
 `````
 
-## File: .github/agents/README.md
+## File: .github/agents/qa-legacy.agent.md
 `````markdown
-# Delivery Workflow Agents
+---
+name: 'QA Legacy'
+description: 'Meticulous QA subagent for test planning, bug hunting, edge-case analysis, and implementation verification.'
+user-invocable: false
+disable-model-invocation: true
+tools: ['read', 'search']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
 
-Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
+## Identity
 
-## Delivery Chain
+You are **QA** — a senior quality assurance engineer who treats software like an adversary. Your job is to find what's broken, prove what works, and make sure nothing slips through. You think in edge cases, race conditions, and hostile inputs. You are thorough, skeptical, and methodical.
 
-| Stage | Agent | File | Purpose |
-| --- | --- | --- | --- |
-| Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
-| Planning (Docs Variant) | Planner Docs Flow | `planner.chat.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
-| Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
-| Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
-| QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
+## Core Principles
 
-## Specialized Agents
+1. **Assume it's broken until proven otherwise.** Don't trust happy-path demos. Probe boundaries, null states, error paths, and concurrent access.
+2. **Reproduce before you report.** A bug without reproduction steps is just a rumor. Pin down the exact inputs, state, and sequence that trigger the issue.
+3. **Requirements are your contract.** Every test traces back to a requirement or expected behavior. If requirements are vague, surface that as a finding before writing tests.
+4. **Automate what you'll run twice.** Manual exploration discovers bugs; automated tests prevent regressions. Both matter.
+5. **Be precise, not dramatic.** Report findings with exact details — what happened, what was expected, what was observed, and the severity. Skip the editorializing.
 
-| Agent | File | Focus | Purpose |
-| --- | --- | --- | --- |
-| Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
-| Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
-| Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
-| Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
-| QA Legacy | `qa-subagent.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
+## Workflow
 
-## Quick Start
+```
+1. UNDERSTAND THE SCOPE
+   - Read the feature code, its tests, and any specs or tickets.
+   - Identify inputs, outputs, state transitions, and integration points.
+   - List the explicit and implicit requirements.
 
-1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
-4. **After implementation**: Use `Review Implementation` handoff to Reviewer
-5. **After review**: Use `Run QA` handoff to QA
-6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
+2. BUILD A TEST PLAN
+   - Enumerate test cases organized by category:
+     • Happy path — normal usage with valid inputs.
+     • Boundary — min/max values, empty inputs, off-by-one.
+     • Negative — invalid inputs, missing fields, wrong types.
+     • Error handling — network failures, timeouts, permission denials.
+     • Concurrency — parallel access, race conditions, idempotency.
+     • Security — injection, authz bypass, data leakage.
+   - Prioritize by risk and impact.
 
-## Related References
+3. WRITE / EXECUTE TESTS
+   - Follow the project's existing test framework and conventions.
+   - Each test has a clear name describing the scenario and expected outcome.
+   - One assertion per logical concept. Avoid mega-tests.
+   - Use factories/fixtures for setup — keep tests independent and repeatable.
+   - Include both unit and integration tests where appropriate.
 
-- [.github/README.md](../README.md) — Root entry for `.github/` navigation
-- [../.github/skills/](../skills/) — Specialized capabilities and workflows
-- [../.github/prompts/](../prompts/) — Slash-command entry points
-- [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
+4. EXPLORATORY TESTING
+   - Go off-script. Try unexpected combinations.
+   - Test with realistic data volumes, not just toy examples.
+   - Check UI states: loading, empty, error, overflow, rapid interaction.
+   - Verify accessibility basics if UI is involved.
 
-## Maintenance Notes
+5. REPORT
+   - For each finding, provide:
+     • Summary (one line)
+     • Steps to reproduce
+     • Expected vs. actual behavior
+     • Severity: Critical / High / Medium / Low
+     • Evidence: error messages, screenshots, logs
+   - Separate confirmed bugs from potential improvements.
+```
 
-- Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
-- Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
-- Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
+## Test Quality Standards
+
+- **Deterministic:** Tests must not flake. No sleep-based waits, no reliance on external services without mocks, no order-dependent execution.
+- **Fast:** Unit tests run in milliseconds. Slow tests go in a separate suite.
+- **Readable:** A failing test name should tell you what broke without reading the implementation.
+- **Isolated:** Each test sets up its own state and cleans up after itself. No shared mutable state between tests.
+- **Maintainable:** Don't over-mock. Test behavior, not implementation details. When internals change, tests should only break if behavior actually changed.
+
+## Bug Report Format
+
+```
+**Title:** [Component] Brief description of the defect
+
+**Severity:** Critical | High | Medium | Low
+
+**Steps to Reproduce:**
+1. ...
+2. ...
+3. ...
+
+**Expected:** What should happen.
+**Actual:** What actually happens.
+
+**Environment:** OS, browser, version, relevant config.
+**Evidence:** Error log, screenshot, or failing test.
+```
+
+## Anti-Patterns (Never Do These)
+
+- Write tests that pass regardless of the implementation (tautological tests).
+- Skip error-path testing because "it probably works."
+- Mark flaky tests as skip/pending instead of fixing the root cause.
+- Couple tests to implementation details like private method names or internal state shapes.
+- Report vague bugs like "it doesn't work" without reproduction steps.
 `````
 
 ## File: .github/copilot-instructions.md
@@ -48305,81 +52302,482 @@ All agents must use Serena MCP tools for project memory, index, and `.serena/` m
 See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
 `````
 
-## File: .github/instructions/dotnet-architecture-good-practices.instructions.md
+## File: .github/instructions/app/app-router-parallel-routes.instructions.md
 `````markdown
 ---
-name: 'Dotnet Architecture Guidelines'
-description: "DDD and .NET architecture guidelines"
-applyTo: '**/*.{cs,csproj,razor}'
+name: 'App Router Parallel Routes'
+description: 'Rules for app/ route slices and parallel-route UI blocks that compose module APIs without importing module internals.'
+applyTo: 'app/**/*.{ts,tsx}'
 ---
 
-# DDD Systems and .NET Guidelines (Condensed)
+# App Router Parallel Routes
 
-Use these rules for .NET code generation and review.
+Use this instruction for work in `app/`.
 
-## Mandatory Pre-Coding Analysis
+## Composition Rules
 
-Before implementation, state briefly:
-1. Which DDD concepts apply (aggregate, value object, domain event, service).
-2. Which layer changes (Domain/Application/Infrastructure).
-3. Which business invariants must be preserved.
-4. Which tests will be added (`MethodName_Condition_ExpectedResult`).
+- Treat each route slice or parallel-route block as one feature area: dashboard surface, sidebar tool, modal, or chat console.
+- Keep data flow one-way from module API -> route composition -> local UI state.
+- Import module behavior through `@/modules/<target>/api` only.
+- Keep route files focused on composition, loading states, and rendering.
 
-If this is unclear, request clarification.
+## Guardrails
 
-## Core Architecture Rules
+- Do not import `domain/`, `application/`, or `infrastructure/` from any module.
+- Do not move business rules into `app/`.
+- Keep slot-local state isolated; do not hide coupling through shared mutable module state.
+- Prefer Server Components by default; add `use client` only where interactivity requires it.
 
-- Keep ubiquitous language consistent in names and docs.
-- Domain layer owns business rules and invariants.
-- Application layer orchestrates use-cases and validation.
-- Infrastructure implements ports/repositories and adapters.
-- Depend on abstractions (DIP), keep single responsibility (SRP).
+## Validation
 
-## .NET Engineering Rules
+- Run the app-level commands from `agents/commands.md` that match the touched files.
+- If routing or public API usage changes, update affected docs or prompt/instruction references in the same change.
+`````
 
-- Prefer async/await for I/O-bound operations.
-- Use DI constructor injection.
-- Use clear exception handling and logging policy.
-- Use modern C# features when they improve clarity.
+## File: .github/instructions/modules/modules-api-surface.instructions.md
+`````markdown
+---
+name: 'Modules API Surface'
+description: 'Rules for modules/*/api files so cross-domain access stays API-only through contracts and facades.'
+applyTo: 'modules/**/api/**/*.ts'
+---
 
-## Security and Compliance
+# Modules API Surface
 
-- Enforce authorization at aggregate/application boundaries.
-- Preserve auditable domain events for critical state changes.
-- Handle sensitive/regulated data explicitly (PCI/SOX/LGPD context when relevant).
+Use this instruction for `modules/*/api` files.
 
-## Financial Rules (When Applicable)
+## Required Shape
 
-- Use `decimal` for money.
-- Keep transaction boundaries explicit.
-- Keep audit trail for financial operations.
-- Encapsulate calculations in domain services/value objects.
+- Keep `contracts.ts` for DTOs, request types, response types, and stable public contracts.
+- Keep `facade.ts` for outward use-case entry points that the app layer or other modules can call.
+- Export the minimum stable surface needed by consumers.
 
-## Testing Standard
+## Guardrails
 
-Naming:
-- `MethodName_Condition_ExpectedResult()`
+- Do not instantiate infrastructure adapters directly in `api/`.
+- Do not expose private domain entities or repository implementations unless a public contract explicitly requires a translated type.
+- Do not reach into other modules except through their own `api/` boundaries.
 
-Required categories:
-- Unit tests for domain logic.
-- Integration tests for persistence/boundaries.
-- Acceptance tests for end-to-end scenarios as needed.
+## Validation
 
-## Minimal Delivery Checklist
+- Re-check every new export and downstream import path.
+- Run validation from `agents/commands.md` when API signatures or import surfaces change.
+`````
 
-- [ ] Domain boundaries and invariants are explicit.
-- [ ] SOLID adherence reviewed (at least SRP/DIP).
-- [ ] Validation and error paths are covered.
-- [ ] Test names follow required convention.
-- [ ] Security/compliance impact reviewed.
-- [ ] Performance implications considered.
+## File: .github/instructions/modules/modules-index-entry.instructions.md
+`````markdown
+---
+name: 'Modules Index Entry'
+description: 'Rules for modules/*/index.ts files so they remain aggregate exports without embedded business logic.'
+applyTo: 'modules/**/index.ts'
+---
 
-## Anti-Noise Rules
+# Modules Index Entry
 
-- Avoid repeating long theory in PR output.
-- Keep analysis concise and decision-oriented.
-- Prefer short checklists over duplicated prose.
-- Link detailed references instead of copying handbooks.
+Use this instruction for module root `index.ts` files.
+
+## Rules
+
+- `index.ts` is an aggregate export only.
+- Re-export stable public members from `api/` or other intentionally public entry points.
+- Keep the file free of orchestration, conditionals, adapter wiring, and business logic.
+
+## Guardrails
+
+- Do not implement use cases, facades, or stateful helpers here.
+- Do not expose private infrastructure or domain internals through convenience exports.
+
+## Validation
+
+- Verify that app-layer or cross-module imports still resolve through the intended public surface.
+`````
+
+## File: .github/instructions/modules/modules-infrastructure-adapters.instructions.md
+`````markdown
+---
+name: 'Modules Infrastructure Adapters'
+description: 'Rules for modules/*/infrastructure files so external resources stay in adapters with downward-only dependencies.'
+applyTo: 'modules/**/infrastructure/**/*.{ts,tsx,js,jsx}'
+---
+
+# Modules Infrastructure Adapters
+
+Use this instruction for `modules/*/infrastructure` files.
+
+## Rules
+
+- Keep Firebase, storage, HTTP, queue, and third-party adapters here.
+- Infrastructure may depend on `domain/` contracts and entities needed to implement ports.
+- Keep adapter wiring explicit and local to infrastructure.
+
+## Guardrails
+
+- Do not depend on `application/`, `api/`, or `interfaces/`.
+- Do not place domain decision logic here.
+- Do not let app-layer concerns leak into adapter code.
+
+## Validation
+
+- Re-check dependency direction after import changes.
+`````
+
+## File: .github/instructions/modules/modules-interfaces-api-consumption.instructions.md
+`````markdown
+---
+name: 'Modules Interfaces API Consumption'
+description: 'Rules for modules/*/interfaces files so UI, hooks, and external interfaces consume module behavior only through api/.'
+applyTo: 'modules/**/interfaces/**/*.{ts,tsx,js,jsx}'
+---
+
+# Modules Interfaces API Consumption
+
+Use this instruction for `modules/*/interfaces` files.
+
+## Rules
+
+- Put UI components, hooks, route-facing adapters, and interface DTOs here.
+- Consume module behavior through the module's own `api/` surface.
+- Keep local view state or interaction state inside the interface layer.
+
+## Guardrails
+
+- Do not import the same module's `domain/` or `application/` directly.
+- Do not import another module's internals.
+- Do not place external resource adapters here.
+
+## Validation
+
+- Re-check imports for accidental reach-through before finishing.
+`````
+
+## File: .github/mcp_to_agent_mapping.md
+`````markdown
+.github/
+│
+├── agents/                          # Agent 人格定義（.md）
+│   ├── commander.agent.md           # 玄武 MDDD 開發指揮官（Serena 直屬）
+│   │
+│   ├── domain/
+│   │   ├── domain-model.agent.md    # DDD Aggregate / TS interface 設計
+│   │   ├── firestore-schema.agent.md# 租戶路徑 + 資料模型設計
+│   │   └── security-rules.agent.md  # Firestore Rules 分層存取控制
+│   │
+│   ├── frontend/
+│   │   ├── app-router.agent.md      # RSC/CC 邊界 + next-devtools-mcp
+│   │   ├── parallel-routes.agent.md # @slot 平行路由場景設計
+│   │   ├── server-actions.agent.md  # Server Actions + Edge Runtime
+│   │   └── component.agent.md       # shadcn/ui 元件 + shadcn MCP
+│   │
+│   ├── ai/
+│   │   ├── genkit-flow.agent.md     # Genkit Flow 設計 + Tool Calling
+│   │   ├── prompt-engineer.agent.md # Prompt Pipeline + 版本控制
+│   │   └── rag-vector.agent.md      # markitdown MCP + Pinecone / Firestore VS
+│   │
+│   └── quality/
+│       ├── ts-lint.agent.md         # no-any / no-admin-in-client 靜態規則
+│       ├── test-coverage.agent.md   # Firestore 模擬 + Genkit 單元測試
+│       ├── e2e-qa.agent.md          # playwright-mcp E2E 驗收
+│       └── cicd-deploy.agent.md     # GitHub Actions + Firebase Hosting
+│
+├── instructions/                    # Copilot 全域 coding 規範（自動注入）
+│   ├── 00-global-rules.instructions.md     # 通用：no-any、租戶路徑、no-hardcode-config
+│   ├── 01-nextjs-app-router.instructions.md# App Router、RSC/CC 邊界規則
+│   ├── 02-firebase-firestore.instructions.md# Firestore 路徑、Admin SDK 限制
+│   ├── 03-shadcn-ui.instructions.md        # 僅 shadcn/ui，禁止其他 UI 套件
+│   ├── 04-genkit-ai.instructions.md        # Genkit Flow、Tool Calling 規範
+│   ├── 05-security-rules.instructions.md   # Security Rules 設計原則
+│   ├── 06-context7-usage.instructions.md   # 何時呼叫 context7 查文件
+│   └── 07-markitdown-rag.instructions.md   # KB 文件攝取流程規範
+│
+├── prompts/                         # 任務型 prompt（手動觸發 / slash command）
+│   │
+│   ├── scaffolding/
+│   │   ├── new-feature.prompt.md    # 新功能：domain → schema → component 全流程
+│   │   ├── new-agent-flow.prompt.md # 新增 Genkit Agent Flow 骨架
+│   │   └── new-shadcn-page.prompt.md# 新增 shadcn/ui page + parallel route
+│   │
+│   ├── review/
+│   │   ├── pr-review.prompt.md      # PR 審查：serena MCP 語意分析 + 規則驗證
+│   │   ├── security-audit.prompt.md # Security Rules 稽核
+│   │   └── ts-strict-check.prompt.md# TypeScript strict 逐檔檢查
+│   │
+│   ├── diagnosis/
+│   │   ├── bundle-analysis.prompt.md# next-devtools-mcp bundle 分析
+│   │   ├── route-debug.prompt.md    # App Router / parallel route 診斷
+│   │   └── firestore-query-opt.prompt.md # Firestore 查詢優化建議
+│   │
+│   ├── testing/
+│   │   ├── e2e-scenario.prompt.md   # playwright-mcp E2E 場景生成
+│   │   ├── unit-test-gen.prompt.md  # Genkit Flow / Firestore 單元測試生成
+│   │   └── security-rules-test.prompt.md # Rules 測試案例生成
+│   │
+│   └── rag/
+│       ├── ingest-document.prompt.md# markitdown → chunk → embed 流程
+│       └── kb-search-eval.prompt.md # RAG 搜尋品質評估
+│
+└── skills/                          # 可複用技能片段（Agent 引用）
+    ├── firestore/
+    │   ├── tenant-path-pattern.skill.md   # /orgs/{orgId}/... 路徑範式
+    │   ├── subcollection-design.skill.md  # subcollection vs map 選擇
+    │   └── batch-write-pattern.skill.md   # batch / transaction 最佳實踐
+    │
+    ├── nextjs/
+    │   ├── rsc-cc-boundary.skill.md       # RSC / Client Component 切分
+    │   ├── parallel-route-slot.skill.md   # @slot 實作範式
+    │   ├── streaming-suspense.skill.md    # Streaming + Suspense 整合
+    │   └── server-action-pattern.skill.md # Server Action 安全寫法
+    │
+    ├── genkit/
+    │   ├── flow-definition.skill.md       # Flow 定義 + input/output schema
+    │   ├── tool-calling.skill.md          # Tool / Function Calling 封裝
+    │   └── prompt-template.skill.md       # Prompt 版本化管理
+    │
+    ├── shadcn/
+    │   ├── component-composition.skill.md # Radix primitive 組合範式
+    │   ├── design-token.skill.md          # CSS variable + dark mode token
+    │   └── form-pattern.skill.md          # react-hook-form + zod + shadcn
+    │
+    ├── rag/
+    │   ├── markitdown-ingest.skill.md     # markitdown MCP 文件轉換流程
+    │   ├── chunking-strategy.skill.md     # chunk size / overlap 策略
+    │   └── vector-search-query.skill.md   # Pinecone / Firestore VS 查詢
+    │
+    └── testing/
+        ├── playwright-scenario.skill.md   # playwright-mcp 場景範式
+        ├── firestore-emulator.skill.md    # Firestore emulator 測試設定
+        └── genkit-flow-test.skill.md      # Genkit Flow 單元測試範式
+`````
+
+## File: .github/mcp_to_agent_mapping.svg
+`````xml
+<svg width="100%" viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- MCP column header -->
+<text x="110" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">MCP 工具</text>
+<text x="430" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">對應 Agent / 目錄用途</text>
+<line x1="40" y1="32" x2="640" y2="32" stroke="var(--t)" stroke-width="0.5" opacity="0.3" style="fill:rgb(0, 0, 0);stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.3;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Row 1: context7 -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="44" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">context7</text>
+</g>
+<line x1="180" y1="64" x2="220" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="44" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="57" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">全域共用</text>
+  <text x="310" y="74" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">instructions / skills</text>
+</g>
+<line x1="400" y1="64" x2="440" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="44" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">查官方文件 → 注入 instructions</text>
+</g>
+
+<!-- Row 2: shadcn -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="100" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">shadcn MCP</text>
+</g>
+<line x1="180" y1="120" x2="220" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="100" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="113" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Component Agent</text>
+  <text x="310" y="130" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
+</g>
+<line x1="400" y1="120" x2="440" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="100" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">scaffolding shadcn/ui 元件</text>
+</g>
+
+<!-- Row 3: serena -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="156" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">serena MCP</text>
+</g>
+<line x1="180" y1="176" x2="220" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="156" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="169" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">指揮官 / 審查 Agent</text>
+  <text x="310" y="186" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
+</g>
+<line x1="400" y1="176" x2="440" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="156" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">語意理解 / 重構分析</text>
+</g>
+
+<!-- Row 4: next-devtools -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="212" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">next-devtools</text>
+  <text x="110" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
+</g>
+<line x1="180" y1="232" x2="220" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="212" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">App Router Agent</text>
+  <text x="310" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / instructions</text>
+</g>
+<line x1="400" y1="232" x2="440" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="212" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="232" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">bundle / route 診斷</text>
+</g>
+
+<!-- Row 5: markitdown -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="268" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">markitdown</text>
+  <text x="110" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
+</g>
+<line x1="180" y1="288" x2="220" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="268" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">RAG / KB Agent</text>
+  <text x="310" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
+</g>
+<line x1="400" y1="288" x2="440" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="268" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="288" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">PDF/DOCX → MD → 向量化</text>
+</g>
+
+<!-- Row 6: playwright -->
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="40" y="324" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="110" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">playwright MCP</text>
+</g>
+<line x1="180" y1="344" x2="220" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="220" y="324" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="310" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">E2E / QA Agent</text>
+  <text x="310" y="355" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
+</g>
+<line x1="400" y1="344" x2="440" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+  <rect x="440" y="324" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="540" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">瀏覽器 E2E 驗收測試</text>
+</g>
+
+<text x="340" y="400" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">點擊各列深入了解</text>
+</svg>
+`````
+
+## File: .github/prompts/create-module.prompt.md
+`````markdown
+---
+description: 'Create a new module in modules/ using the Modules Architect workflow and Xuanwu MDDD structure'
+name: 'create-module'
+agent: 'Modules Architect'
+argument-hint: 'Module name, domain purpose, expected API contract, and initial dependencies'
+---
+
+# Create Module
+
+## Mission
+
+Create a new module under `modules/` following Xuanwu MDDD structure and API-boundary rules.
+
+## Inputs
+
+- Module name: `${input:moduleName:content-domain}`
+- Domain purpose: `${input:purpose:Describe the bounded context}`
+- Public API intent: `${input:apiIntent:List the first public actions or queries}`
+- Allowed dependencies: `${input:dependencies:List approved upstream modules or events}`
+
+## Workflow
+
+1. Confirm the module is a distinct bounded context.
+2. Create:
+   - `modules/{module-name}/api/`
+   - `modules/{module-name}/domain/`
+   - `modules/{module-name}/application/`
+   - `modules/{module-name}/infrastructure/`
+   - `modules/{module-name}/interfaces/`
+   - `modules/{module-name}/README.md`
+   - `modules/{module-name}/index.ts`
+3. Define the initial API contract before adding cross-module consumers.
+4. Keep internal imports relative and cross-module access API-only.
+5. Update any relevant module inventory or customization docs if new architecture guidance is introduced.
+
+## Output Expectations
+
+- Create the module structure
+- Summarize ownership, API shape, and dependency direction
+- List validation performed
+`````
+
+## File: .github/prompts/delete-module.prompt.md
+`````markdown
+---
+description: 'Delete a module safely by removing imports, API usage, event usage, and documentation references first'
+name: 'delete-module'
+agent: 'Modules Architect'
+argument-hint: 'Module name, replacement module or API, and required migration constraints'
+---
+
+# Delete Module
+
+## Mission
+
+Delete a module only after its imports, API usage, events, and docs have been migrated or removed.
+
+## Inputs
+
+- Module name: `${input:moduleName:legacy-module}`
+- Replacement target: `${input:replacement:Target module, API, or event flow}`
+- Constraints: `${input:constraints:Consumer migrations or compatibility requirements}`
+
+## Workflow
+
+1. Search all imports of the module.
+2. Search all API usage.
+3. Search all event usage.
+4. Remove or migrate consumers first.
+5. Delete the module and update indexes, docs, and dependency guidance.
+
+## Output Expectations
+
+- Summarize consumer migration
+- List deleted or updated references
+- List validation performed
+`````
+
+## File: .github/prompts/implement-plan.prompt.md
+`````markdown
+---
+name: implement-plan
+description: Execute an approved implementation plan with the Implementer agent.
+agent: Implementer
+argument-hint: Provide a plan file, pasted plan text, or a summary of which plan tasks should be executed now.
+---
+
+# Implement Plan
+
+Implement the approved plan.
+
+## Requirements
+
+- Treat the provided plan as the canonical execution contract.
+- Execute only the tasks that are requested or approved.
+- Respect the plan scope, non-goals, validation, and documentation updates.
+- Stop and report any plan defect that blocks safe implementation.
+
+## Output
+
+Report:
+
+- tasks completed,
+- validation run,
+- documentation updated,
+- and any blockers or deviations.
 `````
 
 ## File: .github/prompts/markitdown-md-optimization.prompt.md
@@ -48822,101 +53220,217 @@ Paragraphs           ← avoid
 | Inline code in prose | Extract to code block |
 `````
 
-## File: .github/prompts/README.md
+## File: .github/prompts/merge-module.prompt.md
 `````markdown
-# Slash-Command Prompts
+---
+description: 'Merge related modules into one bounded context while preserving API consumers and MDDD structure'
+name: 'merge-module'
+agent: 'Modules Architect'
+argument-hint: 'Source modules, target module, API migration plan, and dependency risks'
+---
 
-Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
+# Merge Module
 
-## Delivery Workflow
+## Mission
 
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/plan-feature` | `plan-feature.prompt.md` | Create formal implementation plan for feature/enhancement |
-| `/plan-bugfix` | `plan-bugfix.prompt.md` | Create plan with reproduction, root cause, regression assessment |
-| `/implement-plan` | `implement-plan.prompt.md` | Execute a saved implementation plan |
-| `/review-changes` | `review-changes.prompt.md` | Review completed work against plan and boundaries |
-| `/run-qa` | `run-qa.prompt.md` | Execute QA verification with scenario coverage and evidence |
-| `/resume-delivery` | `resume-delivery.prompt.md` | Resume interrupted workflow from last checkpoint |
+Merge related modules into one bounded context while preserving explicit APIs and dependency safety.
 
-## Module Management
+## Inputs
 
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/create-module` | `create-module.prompt.md` | Create new module under `modules/` with MDDD structure |
-| `/refactor-module` | `refactor-module.prompt.md` | Refactor internal module structure |
-| `/split-module` | `split-module.prompt.md` | Split one module into two bounded contexts |
-| `/merge-module` | `merge-module.prompt.md` | Merge two modules into one bounded context |
-| `/delete-module` | `delete-module.prompt.md` | Delete module with safe cross-module cleanup |
+- Source modules: `${input:sourceModules:module-a,module-b}`
+- Target module: `${input:targetModule:module-ab}`
+- API migration plan: `${input:apiPlan:How existing consumers should migrate}`
+- Dependency risks: `${input:risks:Potential reverse edges or boundary leaks}`
 
-## Customization & Integration
+## Workflow
 
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/serena-agent` | `serena-agent.prompt.md` | Serena coding workflow with symbolic editing guardrails |
-| `/serena-maintenance` | `serena-maintenance.prompt.md` | Maintenance tasks for Serena MCP integration |
-| `/markitdown-md-optimization` | `markitdown-md-optimization.prompt.md` | Markitdown-driven end-to-end markdown optimization |
-| `/md-optimize` | `md-optimize.prompt.md` | Orchestrate markdown optimization pipeline |
-| `/md-lint` | `md-lint.prompt.md` | Lint and validate markdown files |
-| `/md-compress` | `md-compress.prompt.md` | Compress markdown while preserving information |
-| `/md-dedup` | `md-dedup.prompt.md` | Remove duplicated concepts across docs |
-| `/md-rules` | `md-rules.prompt.md` | Convert prose to rules and tables |
-| `/md-structure` | `md-structure.prompt.md` | Enforce markdown section hierarchy |
-| `/md-index` | `md-index.prompt.md` | Generate/update folder index files |
+1. Map overlapping ownership and public contracts.
+2. Consolidate domain, application, infrastructure, interfaces, and API layers.
+3. Keep migrations explicit for imports, events, and docs.
+4. Remove obsolete modules only after dependents are updated.
 
-## Tool-Specific Prompts
+## Output Expectations
 
-| Prompt | File | Purpose |
-| --- | --- | --- |
-| `/playwright-mcp` | `playwright-mcp.prompt.md` | Browser automation for UI testing and verification |
-| `/context7-mcp` | `context7-mcp.prompt.md` | Upstash Context7 integration workflows |
-| `/shadcn-mcp` | `shadcn-mcp.prompt.md` | shadcn component management with MCP |
-| `/next-devtools-mcp` | `next‑devtools‑mcp.prompt.md` | Next.js development tools integration |
-
-## Total: 26 Prompts
-
-## Quick Reference
-
-Each prompt includes:
-- Clear description and use case
-- Required inputs and optional arguments
-- Example invocations
-- Validation or output format hints
-
-## Related References
-
-- [.github/README.md](../README.md) — Root navigation
-- [../.github/agents/](../agents/) — Delivery workflow agents
-- [docs/development-reference/reference/ai/implementation-plan-template.md](../../docs/development-reference/reference/ai/implementation-plan-template.md) — Plan structure
+- Summarize merged ownership and API changes
+- List migration steps completed
+- List validation performed
 `````
 
-## File: .github/prompts/serena-agent.prompt.md
+## File: .github/prompts/refactor-module.prompt.md
 `````markdown
 ---
-name: serena-coding-agent
-description: >
-  System prompt and workflow instructions for Serena MCP coding agent.
-  Defines how the agent should onboard projects, search symbols, check references,
-  and modify code minimally and safely.
-agent: serena-coding-agent
-argument-hint: Optional arguments can be provided for project paths or modules.
+description: 'Refactor an existing module while preserving MDDD layers, API boundaries, and dependency direction'
+name: 'refactor-module'
+agent: 'Modules Architect'
+argument-hint: 'Module name, refactor goal, affected entities or aggregates, and boundary concerns'
 ---
 
-# Workflow
-- First onboard the project
-- Use semantic search to locate relevant code
-- Use symbol search instead of file search
-- Before editing, check symbol references
-- Prefer insert_after_symbol instead of rewriting files
-- Keep changes minimal and localized
-- Update types and interfaces if needed
-- Use xuanwu-app-skill when repository-specific patterns or templates are needed
+# Refactor Module
 
-# Best Practices
-Before implementing new features:
-- Search for existing services, repositories, and DTOs.
-- Reuse existing modules when possible.
-- Follow module boundaries.
+## Mission
+
+Refactor an existing module without breaking MDDD ownership, API boundaries, or dependency direction.
+
+## Inputs
+
+- Module name: `${input:moduleName:content}`
+- Refactor goal: `${input:goal:Describe the refactor outcome}`
+- Affected internals: `${input:scope:Entities, aggregates, use cases, repositories, or events}`
+- Boundary concerns: `${input:boundaries:Cross-module imports, API leaks, or dependency issues}`
+
+## Workflow
+
+1. Analyze entity, aggregate, repository, event, and API ownership.
+2. Move misplaced logic into the correct MDDD layer.
+3. Remove cross-module internal imports.
+4. Create or tighten `api/` boundaries as needed.
+5. Update imports, tests, and docs in the same change.
+
+## Output Expectations
+
+- Summarize ownership and layer-placement decisions
+- List any API changes
+- List validation performed
+`````
+
+## File: .github/prompts/review-changes.prompt.md
+`````markdown
+---
+name: review-changes
+description: Review changes against the implementation plan, repository boundaries, and required validation.
+agent: Reviewer
+argument-hint: Provide the plan reference, affected files or change summary, and any areas of concern.
+---
+
+# Review Changes
+
+Review the implementation against the approved plan.
+
+## Requirements
+
+- Prioritize bugs, regressions, boundary violations, missing validation, and missing docs.
+- Check alignment with [xuanwu-mddd-boundaries](../../.github/skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement is involved.
+- Check alignment with [xuanwu-development-contracts](../../.github/skills/xuanwu-development-contracts/SKILL.md) when a governed workflow is involved.
+- Present findings first, ordered by severity.
+
+## Output
+
+State whether the implementation is ready for QA, requires fixes first, or is blocked by plan or boundary issues.
+`````
+
+## File: .github/prompts/run-qa.prompt.md
+`````markdown
+---
+name: run-qa
+description: Execute formal QA verification for a delivered change.
+agent: QA
+argument-hint: Provide the plan reference, reviewed change summary, and any risk areas or scenarios that must be checked.
+---
+
+# Run QA
+
+Verify the delivered change using the formal QA output structure.
+
+## Requirements
+
+- Base the QA pass on the approved plan and any reviewer findings.
+- Execute the scenarios needed to support a release recommendation.
+- Separate failures, residual risks, and unverified areas.
+- Do not mark the change ready if required evidence is missing.
+
+## Output
+
+Use the QA agent's formal sections for scope checked, scenarios executed, evidence collected, failures found, residual risks, and release recommendation.
+`````
+
+## File: .github/prompts/split-module.prompt.md
+`````markdown
+---
+description: 'Split one module into clearer bounded contexts while preserving public APIs and dependency rules'
+name: 'split-module'
+agent: 'Modules Architect'
+argument-hint: 'Source module, target modules, ownership split, and migration constraints'
+---
+
+# Split Module
+
+## Mission
+
+Split an existing module into multiple bounded contexts without introducing boundary violations.
+
+## Inputs
+
+- Source module: `${input:sourceModule:knowledge}`
+- Target modules: `${input:targetModules:content,graph}`
+- Ownership split: `${input:ownership:Describe what moves where}`
+- Migration constraints: `${input:constraints:APIs, routes, or event contracts that must remain stable}`
+
+## Workflow
+
+1. Map current ownership and target ownership.
+2. Preserve or migrate public APIs intentionally.
+3. Move internals into the correct target modules.
+4. Remove stale imports and update docs, tests, and dependency guidance.
+
+## Output Expectations
+
+- Summarize source-to-target ownership mapping
+- List API and dependency changes
+- List validation performed
+`````
+
+## File: .github/README.md
+`````markdown
+# .github Customization Index
+
+Operational index for repository-scoped customization assets.
+
+## Commander flow (fast path)
+
+1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
+2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
+3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
+4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
+
+## Boundary
+
+- Keep executable customization assets in `.github/`.
+- Keep explanation, governance, and lifecycle context in `docs/`.
+- Update both locations together when behavior changes.
+- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
+
+## Folder map
+
+| Path | Purpose | Index |
+| --- | --- | --- |
+| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
+| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
+| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
+| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
+| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
+| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
+| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
+| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
+| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
+
+Nested customizations are supported recursively under these folders. The repository now uses dedicated `app/` and `modules/` subfolders inside `agents/`, `instructions/`, and `prompts/` for narrower discovery and lower context noise.
+
+## Core files
+
+| File | Role |
+| --- | --- |
+| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
+| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
+| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
+| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
+| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
+
+## Maintenance
+
+- Use relative links.
+- Keep one concrete entry file per folder.
+- Keep placeholders as plain text, not fake links.
+- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/rules/architecture-hexagonal-ports.md
@@ -49005,783 +53519,133 @@ export class RegisterUploadedRagDocumentUseCase {
 - Modules that only need standard repository interfaces
 `````
 
-## File: .github/skills/deploy-to-vercel/resources/deploy-codex.sh
-`````bash
-#!/bin/bash
+## File: .github/skills/app-router-parallel-routes/SKILL.md
+`````markdown
+---
+name: app-router-parallel-routes
+description: Build and refactor Next.js app route slices and parallel-route UI blocks that keep data flow one-way, isolate local state, and consume Xuanwu modules only through public api boundaries. Use for dashboard areas, side tools, modals, chat consoles, and route composition work in app/.
+---
 
-# Vercel Deployment Script for Codex (via claimable deploy endpoint)
-# Usage: ./deploy-codex.sh [project-path]
-# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
+# App Router Parallel Routes
 
-set -euo pipefail
+Use this skill when work is centered on `app/` composition, especially when a route slice or parallel-route block must coordinate one UI feature area without leaking module internals into the route layer.
 
-DEPLOY_ENDPOINT="https://codex-deploy-skills.vercel.sh/api/deploy"
+## When to use
 
-# Detect framework from package.json
-detect_framework() {
-    local pkg_json="$1"
+- Creating or refactoring dashboard slices
+- Adding a sidebar tool, modal slot, or chat console block
+- Rewiring route composition to use module APIs only
+- Separating local UI state between neighboring route blocks
 
-    if [ ! -f "$pkg_json" ]; then
-        echo "null"
-        return
-    fi
+## Workflow
 
-    local content=$(cat "$pkg_json")
+1. Identify the route segment and its single UI responsibility.
+2. List the module APIs the slice may consume.
+3. Keep route files thin: composition, loading states, and rendering only.
+4. Move interactive state into local components or hooks when needed.
+5. Validate imports so no module internals are pulled into `app/`.
 
-    # Helper to check if a package exists in dependencies or devDependencies.
-    # Use exact matching by default, with a separate prefix matcher for scoped
-    # package families like "@remix-run/".
-    has_dep_exact() {
-        echo "$content" | grep -q "\"$1\""
-    }
+## Guardrails
 
-    has_dep_prefix() {
-        echo "$content" | grep -q "\"$1"
-    }
+- Do not import `domain/`, `application/`, or `infrastructure/` from `modules/`.
+- Do not move business rules into route files.
+- Do not create hidden state coupling between route blocks.
 
-    # Order matters - check more specific frameworks first
+## Output expectations
 
-    # Blitz
-    if has_dep_exact "blitz"; then echo "blitzjs"; return; fi
-
-    # Next.js
-    if has_dep_exact "next"; then echo "nextjs"; return; fi
-
-    # Gatsby
-    if has_dep_exact "gatsby"; then echo "gatsby"; return; fi
-
-    # Remix
-    if has_dep_prefix "@remix-run/"; then echo "remix"; return; fi
-
-    # React Router (v7 framework mode)
-    if has_dep_prefix "@react-router/"; then echo "react-router"; return; fi
-
-    # TanStack Start
-    if has_dep_exact "@tanstack/start"; then echo "tanstack-start"; return; fi
-
-    # Astro
-    if has_dep_exact "astro"; then echo "astro"; return; fi
-
-    # Hydrogen (Shopify)
-    if has_dep_exact "@shopify/hydrogen"; then echo "hydrogen"; return; fi
-
-    # SvelteKit
-    if has_dep_exact "@sveltejs/kit"; then echo "sveltekit-1"; return; fi
-
-    # Svelte (standalone)
-    if has_dep_exact "svelte"; then echo "svelte"; return; fi
-
-    # Nuxt
-    if has_dep_exact "nuxt"; then echo "nuxtjs"; return; fi
-
-    # Vue with Vitepress
-    if has_dep_exact "vitepress"; then echo "vitepress"; return; fi
-
-    # Vue with Vuepress
-    if has_dep_exact "vuepress"; then echo "vuepress"; return; fi
-
-    # Gridsome
-    if has_dep_exact "gridsome"; then echo "gridsome"; return; fi
-
-    # SolidStart
-    if has_dep_exact "@solidjs/start"; then echo "solidstart-1"; return; fi
-
-    # Docusaurus
-    if has_dep_exact "@docusaurus/core"; then echo "docusaurus-2"; return; fi
-
-    # RedwoodJS
-    if has_dep_prefix "@redwoodjs/"; then echo "redwoodjs"; return; fi
-
-    # Hexo
-    if has_dep_exact "hexo"; then echo "hexo"; return; fi
-
-    # Eleventy
-    if has_dep_exact "@11ty/eleventy"; then echo "eleventy"; return; fi
-
-    # Angular / Ionic Angular
-    if has_dep_exact "@ionic/angular"; then echo "ionic-angular"; return; fi
-    if has_dep_exact "@angular/core"; then echo "angular"; return; fi
-
-    # Ionic React
-    if has_dep_exact "@ionic/react"; then echo "ionic-react"; return; fi
-
-    # Create React App
-    if has_dep_exact "react-scripts"; then echo "create-react-app"; return; fi
-
-    # Ember
-    if has_dep_exact "ember-cli" || has_dep_exact "ember-source"; then echo "ember"; return; fi
-
-    # Dojo
-    if has_dep_exact "@dojo/framework"; then echo "dojo"; return; fi
-
-    # Polymer
-    if has_dep_prefix "@polymer/"; then echo "polymer"; return; fi
-
-    # Preact
-    if has_dep_exact "preact"; then echo "preact"; return; fi
-
-    # Stencil
-    if has_dep_exact "@stencil/core"; then echo "stencil"; return; fi
-
-    # UmiJS
-    if has_dep_exact "umi"; then echo "umijs"; return; fi
-
-    # Sapper (legacy Svelte)
-    if has_dep_exact "sapper"; then echo "sapper"; return; fi
-
-    # Saber
-    if has_dep_exact "saber"; then echo "saber"; return; fi
-
-    # Sanity
-    if has_dep_exact "sanity"; then echo "sanity-v3"; return; fi
-    if has_dep_prefix "@sanity/"; then echo "sanity"; return; fi
-
-    # Storybook
-    if has_dep_prefix "@storybook/"; then echo "storybook"; return; fi
-
-    # NestJS
-    if has_dep_exact "@nestjs/core"; then echo "nestjs"; return; fi
-
-    # Elysia
-    if has_dep_exact "elysia"; then echo "elysia"; return; fi
-
-    # Hono
-    if has_dep_exact "hono"; then echo "hono"; return; fi
-
-    # Fastify
-    if has_dep_exact "fastify"; then echo "fastify"; return; fi
-
-    # h3
-    if has_dep_exact "h3"; then echo "h3"; return; fi
-
-    # Nitro
-    if has_dep_exact "nitropack"; then echo "nitro"; return; fi
-
-    # Express
-    if has_dep_exact "express"; then echo "express"; return; fi
-
-    # Vite (generic - check last among JS frameworks)
-    if has_dep_exact "vite"; then echo "vite"; return; fi
-
-    # Parcel
-    if has_dep_exact "parcel"; then echo "parcel"; return; fi
-
-    # No framework detected
-    echo "null"
-}
-
-# Parse arguments
-INPUT_PATH="${1:-.}"
-
-# Create temp directory for packaging
-TEMP_DIR=$(mktemp -d)
-TARBALL="$TEMP_DIR/project.tgz"
-STAGING_DIR="$TEMP_DIR/staging"
-CLEANUP_TEMP=true
-
-cleanup() {
-    if [ "$CLEANUP_TEMP" = true ]; then
-        rm -rf "$TEMP_DIR"
-    fi
-}
-trap cleanup EXIT
-
-echo "Preparing deployment..." >&2
-
-# Check if input is a .tgz file or a directory
-FRAMEWORK="null"
-
-if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" == *.tgz ]]; then
-    # Input is already a tarball, use it directly
-    echo "Using provided tarball..." >&2
-    TARBALL="$INPUT_PATH"
-    CLEANUP_TEMP=false
-    # Can't detect framework from tarball, leave as null
-elif [ -d "$INPUT_PATH" ]; then
-    # Input is a directory, need to tar it
-    PROJECT_PATH=$(cd "$INPUT_PATH" && pwd)
-
-    # Detect framework from package.json
-    FRAMEWORK=$(detect_framework "$PROJECT_PATH/package.json")
-
-    # Stage files into a temporary directory to avoid mutating the source tree.
-    mkdir -p "$STAGING_DIR"
-    echo "Staging project files..." >&2
-    tar -C "$PROJECT_PATH" \
-        --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='.env' \
-        --exclude='.env.*' \
-        -cf - . | tar -C "$STAGING_DIR" -xf -
-
-    # Check if this is a static HTML project (no package.json)
-    if [ ! -f "$PROJECT_PATH/package.json" ]; then
-        # Find HTML files in root
-        HTML_FILES=$(find "$STAGING_DIR" -maxdepth 1 -name "*.html" -type f)
-        HTML_COUNT=$(printf '%s\n' "$HTML_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
-
-        # If there's exactly one HTML file and it's not index.html, rename it
-        if [ "$HTML_COUNT" -eq 1 ]; then
-            HTML_FILE=$(echo "$HTML_FILES" | head -1)
-            BASENAME=$(basename "$HTML_FILE")
-            if [ "$BASENAME" != "index.html" ]; then
-                echo "Renaming $BASENAME to index.html..." >&2
-                mv "$HTML_FILE" "$STAGING_DIR/index.html"
-            fi
-        fi
-    fi
-
-    # Create tarball from the staging directory
-    echo "Creating deployment package..." >&2
-    tar -czf "$TARBALL" -C "$STAGING_DIR" .
-else
-    echo "Error: Input must be a directory or a .tgz file" >&2
-    exit 1
-fi
-
-if [ "$FRAMEWORK" != "null" ]; then
-    echo "Detected framework: $FRAMEWORK" >&2
-fi
-
-# Deploy
-echo "Deploying..." >&2
-RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
-
-# Check for error in response
-if echo "$RESPONSE" | grep -q '"error"'; then
-    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
-    echo "Error: $ERROR_MSG" >&2
-    exit 1
-fi
-
-# Extract URLs from response
-PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
-CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
-
-if [ -z "$PREVIEW_URL" ]; then
-    echo "Error: Could not extract preview URL from response" >&2
-    echo "$RESPONSE" >&2
-    exit 1
-fi
-
-echo "Deployment started. Waiting for build to complete..." >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-
-# Poll the preview URL until it returns a non-5xx response (5xx = still building)
-MAX_ATTEMPTS=60  # 5 minutes max (60 * 5 seconds)
-ATTEMPT=0
-
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
-
-    if [ "$HTTP_STATUS" -eq 200 ]; then
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    elif [ "$HTTP_STATUS" -ge 500 ]; then
-        # 5xx means still building/deploying
-        echo "Building... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)" >&2
-        sleep 5
-        ATTEMPT=$((ATTEMPT + 1))
-    elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
-        # 4xx might be an error or the app itself returns 4xx - it's responding
-        echo "" >&2
-        echo "Deployment ready (returned $HTTP_STATUS)!" >&2
-        break
-    else
-        # Any other status, assume it's ready
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    fi
-done
-
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "" >&2
-    echo "Warning: Timed out waiting for deployment, but it may still be building." >&2
-fi
-
-echo "" >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-echo "Claim URL:   $CLAIM_URL" >&2
-echo "" >&2
-
-# Output JSON for programmatic use
-echo "$RESPONSE"
+- State the route slice responsibility
+- State the consumed module APIs
+- Note whether the slice is server or client
+- Report validation performed
 `````
 
-## File: .github/skills/deploy-to-vercel/resources/deploy.sh
-`````bash
-#!/bin/bash
+## File: .github/skills/modules-mddd-api-surface/SKILL.md
+`````markdown
+---
+name: modules-mddd-api-surface
+description: Create and refine Xuanwu module public api surfaces with contracts.ts, facade.ts, index.ts aggregate exports, API-only cross-module access, interface-layer API consumption, and infrastructure adapters that depend downward only. Use for modules/* boundary work and MDDD surface design.
+---
 
-# Vercel Deployment Script (via claimable deploy endpoint)
-# Usage: ./deploy.sh [project-path]
-# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
+# Modules MDDD API Surface
 
-set -euo pipefail
+Use this skill when work changes how a module exposes behavior to the app layer or other modules.
 
-DEPLOY_ENDPOINT="https://claude-skills-deploy.vercel.com/api/deploy"
+## When to use
 
-# Detect framework from package.json
-detect_framework() {
-    local pkg_json="$1"
+- Adding or refactoring `modules/*/api/contracts.ts`
+- Adding or refactoring `modules/*/api/facade.ts`
+- Cleaning `modules/*/index.ts` exports
+- Moving interface-layer code to consume `api/` instead of internal layers
+- Keeping infrastructure adapters isolated from `application/` and `api/`
 
-    if [ ! -f "$pkg_json" ]; then
-        echo "null"
-        return
-    fi
+## Workflow
 
-    local content=$(cat "$pkg_json")
+1. Confirm the owning bounded context.
+2. Define the stable public contracts first.
+3. Expose outward behavior through the facade.
+4. Keep `index.ts` as an aggregate export only.
+5. Check `interfaces/` and consumers for internal-layer reach-through.
+6. Check `infrastructure/` dependency direction after every import change.
 
-    # Helper to check if a package exists in dependencies or devDependencies.
-    # Use exact matching by default, with a separate prefix matcher for scoped
-    # package families like "@remix-run/".
-    has_dep_exact() {
-        echo "$content" | grep -q "\"$1\""
-    }
+## Guardrails
 
-    has_dep_prefix() {
-        echo "$content" | grep -q "\"$1"
-    }
+- Cross-module access must go through `api/`.
+- `index.ts` must not contain business logic.
+- `interfaces/` must not import `domain/` or `application/` directly.
+- `infrastructure/` must not depend on `application/` or `api/`.
 
-    # Order matters - check more specific frameworks first
+## Output expectations
 
-    # Blitz
-    if has_dep_exact "blitz"; then echo "blitzjs"; return; fi
-
-    # Next.js
-    if has_dep_exact "next"; then echo "nextjs"; return; fi
-
-    # Gatsby
-    if has_dep_exact "gatsby"; then echo "gatsby"; return; fi
-
-    # Remix
-    if has_dep_prefix "@remix-run/"; then echo "remix"; return; fi
-
-    # React Router (v7 framework mode)
-    if has_dep_prefix "@react-router/"; then echo "react-router"; return; fi
-
-    # TanStack Start
-    if has_dep_exact "@tanstack/start"; then echo "tanstack-start"; return; fi
-
-    # Astro
-    if has_dep_exact "astro"; then echo "astro"; return; fi
-
-    # Hydrogen (Shopify)
-    if has_dep_exact "@shopify/hydrogen"; then echo "hydrogen"; return; fi
-
-    # SvelteKit
-    if has_dep_exact "@sveltejs/kit"; then echo "sveltekit-1"; return; fi
-
-    # Svelte (standalone)
-    if has_dep_exact "svelte"; then echo "svelte"; return; fi
-
-    # Nuxt
-    if has_dep_exact "nuxt"; then echo "nuxtjs"; return; fi
-
-    # Vue with Vitepress
-    if has_dep_exact "vitepress"; then echo "vitepress"; return; fi
-
-    # Vue with Vuepress
-    if has_dep_exact "vuepress"; then echo "vuepress"; return; fi
-
-    # Gridsome
-    if has_dep_exact "gridsome"; then echo "gridsome"; return; fi
-
-    # SolidStart
-    if has_dep_exact "@solidjs/start"; then echo "solidstart-1"; return; fi
-
-    # Docusaurus
-    if has_dep_exact "@docusaurus/core"; then echo "docusaurus-2"; return; fi
-
-    # RedwoodJS
-    if has_dep_prefix "@redwoodjs/"; then echo "redwoodjs"; return; fi
-
-    # Hexo
-    if has_dep_exact "hexo"; then echo "hexo"; return; fi
-
-    # Eleventy
-    if has_dep_exact "@11ty/eleventy"; then echo "eleventy"; return; fi
-
-    # Angular / Ionic Angular
-    if has_dep_exact "@ionic/angular"; then echo "ionic-angular"; return; fi
-    if has_dep_exact "@angular/core"; then echo "angular"; return; fi
-
-    # Ionic React
-    if has_dep_exact "@ionic/react"; then echo "ionic-react"; return; fi
-
-    # Create React App
-    if has_dep_exact "react-scripts"; then echo "create-react-app"; return; fi
-
-    # Ember
-    if has_dep_exact "ember-cli" || has_dep_exact "ember-source"; then echo "ember"; return; fi
-
-    # Dojo
-    if has_dep_exact "@dojo/framework"; then echo "dojo"; return; fi
-
-    # Polymer
-    if has_dep_prefix "@polymer/"; then echo "polymer"; return; fi
-
-    # Preact
-    if has_dep_exact "preact"; then echo "preact"; return; fi
-
-    # Stencil
-    if has_dep_exact "@stencil/core"; then echo "stencil"; return; fi
-
-    # UmiJS
-    if has_dep_exact "umi"; then echo "umijs"; return; fi
-
-    # Sapper (legacy Svelte)
-    if has_dep_exact "sapper"; then echo "sapper"; return; fi
-
-    # Saber
-    if has_dep_exact "saber"; then echo "saber"; return; fi
-
-    # Sanity
-    if has_dep_exact "sanity"; then echo "sanity-v3"; return; fi
-    if has_dep_prefix "@sanity/"; then echo "sanity"; return; fi
-
-    # Storybook
-    if has_dep_prefix "@storybook/"; then echo "storybook"; return; fi
-
-    # NestJS
-    if has_dep_exact "@nestjs/core"; then echo "nestjs"; return; fi
-
-    # Elysia
-    if has_dep_exact "elysia"; then echo "elysia"; return; fi
-
-    # Hono
-    if has_dep_exact "hono"; then echo "hono"; return; fi
-
-    # Fastify
-    if has_dep_exact "fastify"; then echo "fastify"; return; fi
-
-    # h3
-    if has_dep_exact "h3"; then echo "h3"; return; fi
-
-    # Nitro
-    if has_dep_exact "nitropack"; then echo "nitro"; return; fi
-
-    # Express
-    if has_dep_exact "express"; then echo "express"; return; fi
-
-    # Vite (generic - check last among JS frameworks)
-    if has_dep_exact "vite"; then echo "vite"; return; fi
-
-    # Parcel
-    if has_dep_exact "parcel"; then echo "parcel"; return; fi
-
-    # No framework detected
-    echo "null"
-}
-
-# Parse arguments
-INPUT_PATH="${1:-.}"
-
-# Create temp directory for packaging
-TEMP_DIR=$(mktemp -d)
-TARBALL="$TEMP_DIR/project.tgz"
-STAGING_DIR="$TEMP_DIR/staging"
-CLEANUP_TEMP=true
-
-cleanup() {
-    if [ "$CLEANUP_TEMP" = true ]; then
-        rm -rf "$TEMP_DIR"
-    fi
-}
-trap cleanup EXIT
-
-echo "Preparing deployment..." >&2
-
-# Check if input is a .tgz file or a directory
-FRAMEWORK="null"
-
-if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" == *.tgz ]]; then
-    # Input is already a tarball, use it directly
-    echo "Using provided tarball..." >&2
-    TARBALL="$INPUT_PATH"
-    CLEANUP_TEMP=false
-    # Can't detect framework from tarball, leave as null
-elif [ -d "$INPUT_PATH" ]; then
-    # Input is a directory, need to tar it
-    PROJECT_PATH=$(cd "$INPUT_PATH" && pwd)
-
-    # Detect framework from package.json
-    FRAMEWORK=$(detect_framework "$PROJECT_PATH/package.json")
-
-    # Stage files into a temporary directory to avoid mutating the source tree.
-    mkdir -p "$STAGING_DIR"
-    echo "Staging project files..." >&2
-    tar -C "$PROJECT_PATH" \
-        --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='.env' \
-        --exclude='.env.*' \
-        -cf - . | tar -C "$STAGING_DIR" -xf -
-
-    # Check if this is a static HTML project (no package.json)
-    if [ ! -f "$PROJECT_PATH/package.json" ]; then
-        # Find HTML files in root
-        HTML_FILES=$(find "$STAGING_DIR" -maxdepth 1 -name "*.html" -type f)
-        HTML_COUNT=$(printf '%s\n' "$HTML_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
-
-        # If there's exactly one HTML file and it's not index.html, rename it
-        if [ "$HTML_COUNT" -eq 1 ]; then
-            HTML_FILE=$(echo "$HTML_FILES" | head -1)
-            BASENAME=$(basename "$HTML_FILE")
-            if [ "$BASENAME" != "index.html" ]; then
-                echo "Renaming $BASENAME to index.html..." >&2
-                mv "$HTML_FILE" "$STAGING_DIR/index.html"
-            fi
-        fi
-    fi
-
-    # Create tarball from the staging directory
-    echo "Creating deployment package..." >&2
-    tar -czf "$TARBALL" -C "$STAGING_DIR" .
-else
-    echo "Error: Input must be a directory or a .tgz file" >&2
-    exit 1
-fi
-
-if [ "$FRAMEWORK" != "null" ]; then
-    echo "Detected framework: $FRAMEWORK" >&2
-fi
-
-# Deploy
-echo "Deploying..." >&2
-RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
-
-# Check for error in response
-if echo "$RESPONSE" | grep -q '"error"'; then
-    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
-    echo "Error: $ERROR_MSG" >&2
-    exit 1
-fi
-
-# Extract URLs from response
-PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
-CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
-
-if [ -z "$PREVIEW_URL" ]; then
-    echo "Error: Could not extract preview URL from response" >&2
-    echo "$RESPONSE" >&2
-    exit 1
-fi
-
-echo "Deployment started. Waiting for build to complete..." >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-
-# Poll the preview URL until it returns a non-5xx response (5xx = still building)
-MAX_ATTEMPTS=60  # 5 minutes max (60 * 5 seconds)
-ATTEMPT=0
-
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
-
-    if [ "$HTTP_STATUS" -eq 200 ]; then
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    elif [ "$HTTP_STATUS" -ge 500 ]; then
-        # 5xx means still building/deploying
-        echo "Building... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)" >&2
-        sleep 5
-        ATTEMPT=$((ATTEMPT + 1))
-    elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
-        # 4xx might be an error or the app itself returns 4xx - it's responding
-        echo "" >&2
-        echo "Deployment ready (returned $HTTP_STATUS)!" >&2
-        break
-    else
-        # Any other status, assume it's ready
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    fi
-done
-
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "" >&2
-    echo "Warning: Timed out waiting for deployment, but it may still be building." >&2
-fi
-
-echo "" >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-echo "Claim URL:   $CLAIM_URL" >&2
-echo "" >&2
-
-# Output JSON for programmatic use
-echo "$RESPONSE"
+- State the API surface changed
+- State the consumers affected
+- Report validation performed
 `````
 
-## File: .github/skills/llamaparse/scripts/example.ts
-`````typescript
-#!/usr/bin/env node
+## File: .github/skills/README.md
+`````markdown
+# Agent Skills
 
-import LlamaCloud from "@llamaindex/llama-cloud";
-import { readFile, writeFile } from "fs/promises";
-import { basename } from "path";
+Specialized capabilities bundled with resources, examples, and workflows. Skills are auto-discovered based on request content and loaded on-demand.
 
-// Define a client
-const client = new LlamaCloud({
-  apiKey: process.env["LLAMA_CLOUD_API_KEY"], // This is the default and can be omitted
-});
+## Core Xuanwu Skills
 
-async function parseFileText(filePath: string): Promise<string> {
-  // 1. Convert the file path into a File object
-  const buffer = await readFile(filePath);
-  const fileName = basename(filePath);
-  const file = new File([buffer], fileName);
-  // 2. Upload the file to the cloud
-  const fileObj = await client.files.create({
-    file: file,
-    purpose: "parse",
-  });
-  // 3. Get the file ID
-  const fileId = fileObj.id;
-  // 4. Use the file ID to parse the file
-  const result = await client.parsing.parse({
-    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
-    version: "latest",
-    file_id: fileId,
-    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
-    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
-    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
-    // presigned URLs.
-    expand: ["text_full"],
-  });
+| Skill | File | Purpose |
+| --- | --- | --- |
+| MDDD Boundaries | `xuanwu-mddd-boundaries/` | Enforce module ownership, layer placement, API boundaries, dependency direction |
+| Development Contracts | `xuanwu-development-contracts/` | Follow contract-first workflows for RAG, parser, schedule, acceptance, billing, audit |
+| RAG Runtime Boundary | `xuanwu-rag-runtime-boundary/` | Preserve Next.js/Python ownership split for uploads, ingestion, retrieval |
+| App Router Parallel Routes | `app-router-parallel-routes/` | Compose app route slices and parallel-route UI blocks around API-only module access |
+| Modules MDDD API Surface | `modules-mddd-api-surface/` | Build module contracts, facades, clean exports, and layer-safe API consumption |
 
-  // 5. Retrieve the text result (could be None if there was an error)
-  return result.text_full ?? "";
-}
+## Customization & Architecture
 
-async function parseFileMarkdown(filePath: string): Promise<string> {
-  // 1. Convert the file path into a File object
-  const buffer = await readFile(filePath);
-  const fileName = basename(filePath);
-  const file = new File([buffer], fileName);
-  // 2. Upload the file to the cloud
-  const fileObj = await client.files.create({
-    file: file,
-    purpose: "parse",
-  });
-  // 3. Get the file ID
-  const fileId = fileObj.id;
-  // 4. Use the file ID to parse the file
-  const result = await client.parsing.parse({
-    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
-    version: "latest",
-    file_id: fileId,
-    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
-    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
-    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
-    // presigned URLs.
-    expand: ["markdown_full"],
-  });
+| Skill | File | Purpose |
+| --- | --- | --- |
+| Customization Architecture | `vscode-customization-architecture/` | Design instructions, agents, skills, prompts, hooks, MCP correct placement |
+| Agent Foundations | `vscode-agent-foundations/` | Learn agent models, planning, memory, tools, subagents, handoffs |
+| Context Engineering | `vscode-context-engineering/` | Build high-signal workflows, context layers, documentation strategies |
+| Skillbook Router | `vscode-copilot-skillbook/` | Route customization questions to correct skill |
+| Tasks Authoring | `vscode-tasks-authoring/` | Author build, test, watch, shell, background tasks in tasks.json |
+| TypeScript Workbench | `vscode-typescript-workbench/` | Configure tsconfig, transpile, debug, refactor TypeScript |
+| Testing & Debugging | `vscode-testing-debugging-browser/` | Generate tests, debug, validate with browser automation |
 
-  // 5. Retrieve the markdown result (could be None if there was an error)
-  return result.markdown_full ?? "";
-}
+## Best Practices
 
-async function parseFileJson(filePath: string): Promise<void> {
-  // 1. Convert the file path into a File object
-  const buffer = await readFile(filePath);
-  const fileName = basename(filePath);
-  const file = new File([buffer], fileName);
-  // 2. Upload the file to the cloud
-  const fileObj = await client.files.create({
-    file: file,
-    purpose: "parse",
-  });
-  // 3. Get the file ID
-  const fileId = fileObj.id;
-  // 4. Use the file ID to parse the file
-  const result = await client.parsing.parse({
-    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
-    version: "latest",
-    file_id: fileId,
-    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
-    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
-    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
-    // presigned URLs.
-    expand: ["items"],
-  });
+| Skill | File | Purpose |
+| --- | --- | --- |
+| Documentation Writer | `documentation-writer/` | Create tutorial, how-to, reference, explanation with Diátaxis |
+| React Best Practices | `vercel-react-best-practices/` | Optimize React/Next.js performance, bundle size, data fetching |
+| Web Design Guidelines | `web-design-guidelines/` | Review UI for accessibility and design compliance |
 
-  // 5. Retrieve the result as a JSON array of items (could be None if there was an error)
-  if (result.items) {
-    for (const page of result.items.pages) {
-      console.log(JSON.stringify(page));
-    }
-  }
-}
+## Total: 15 Skills
 
-async function parseFileWithOptions(filePath: string): Promise<void> {
-  // 1. Convert the file path into a File object
-  const buffer = await readFile(filePath);
-  const fileName = basename(filePath);
-  const file = new File([buffer], fileName);
-  // 2. Upload the file to the cloud
-  const fileObj = await client.files.create({
-    file: file,
-    purpose: "parse",
-  });
-  // 3. Get the file ID
-  const fileId = fileObj.id;
-  // 4. Use the file ID to parse the file
-  const result = await client.parsing.parse({
-    tier: "agentic", // allowed values: fast,cost_effective,agentic,agentic_plus
-    version: "latest",
-    file_id: fileId,
-    input_options: {
-      presentation: {
-        skip_embedded_data: false,
-      },
-    },
-    output_options: {
-      images_to_save: ["screenshot"],
-      markdown: {
-        tables: { output_tables_as_markdown: true },
-        annotate_links: true,
-      },
-    },
-    processing_options: {
-      specialized_chart_parsing: "agentic",
-      ocr_parameters: { languages: ["de", "en"] },
-    },
-    agentic_options: {
-      custom_prompt:
-        "Extract text from the provided file and translate it from German to English.",
-    },
-    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,
-    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,
-    // output_pdf_content_metadata, images_content_metadata. Metadata fields include
-    // presigned URLs.
-    expand: [
-      "markdown_full",
-      "images_content_metadata",
-      "markdown_content_metadata",
-    ],
-  });
-  // 5. Retrieve and save the images from the result (since we requested images)
-  if (result.images_content_metadata) {
-    for (const image of result.images_content_metadata.images) {
-      if (image.presigned_url) {
-        const response = await fetch(image.presigned_url, {
-          headers: {
-            Authorization: `Bearer ${process.env["LLAMA_CLOUD_API_KEY"]}`,
-          },
-        });
-        if (response.ok) {
-          const content = await response.bytes();
-          await writeFile(image.filename, content);
-        }
-      }
-    }
-  }
-  // 6. Print the full-text result
-  console.log(result.markdown_full ?? "No full content");
-}
+All skills are under version control. When editing a skill, update the `description` field to improve auto-discovery.
+
+## Related References
+
+- [.github/README.md](../README.md) — Root navigation
+- [../.github/agents/](../agents/) — Delivery workflow agents
+- [../.github/instructions/](../instructions/) — Always-on coding standards
 `````
 
 ## File: .github/skills/shadcn/SKILL.md
@@ -50015,4380 +53879,642 @@ className="bg-background text-foreground"
 | 完成 UI 模組開發 | 透過 `serena-mcp` 更新語意記憶 |
 `````
 
-## File: .github/skills/vercel-composition-patterns/README.md
+## File: .github/skills/vercel-composition-patterns/AGENTS.md
 `````markdown
-# React Composition Patterns
+# React Composition Patterns (Condensed)
 
-A structured repository for React composition patterns that scale. These
-patterns help avoid boolean prop proliferation by using compound components,
-lifting state, and composing internals.
+This AGENTS file is intentionally compact to reduce repeated context load.
 
-## Structure
+## Source of Truth
 
-- `rules/` - Individual rule files (one per rule)
-  - `_sections.md` - Section metadata (titles, impacts, descriptions)
-  - `_template.md` - Template for creating new rules
-  - `area-description.md` - Individual rule files
-- `metadata.json` - Document metadata (version, organization, abstract)
-- **`AGENTS.md`** - Compiled output (generated)
+- Primary workflow: `./SKILL.md`
 
-## Rules
+## When to Apply
 
-### Component Architecture (CRITICAL)
+Use for component architecture and state-composition refactors in React codebases.
 
-- `architecture-avoid-boolean-props.md` - Don't add boolean props to customize
-  behavior
-- `architecture-compound-components.md` - Structure as compound components with
-  shared context
+## Core Rules
 
-### State Management (HIGH)
+1. Avoid boolean-prop proliferation for variants.
+2. Prefer compound components for complex composition.
+3. Lift state into provider boundaries when shared behavior is required.
+4. Keep UI composition explicit and variant-specific.
 
-- `state-lift-state.md` - Lift state into provider components
-- `state-context-interface.md` - Define clear context interfaces
-  (state/actions/meta)
-- `state-decouple-implementation.md` - Decouple state management from UI
+## Minimal Execution Flow
 
-### Implementation Patterns (MEDIUM)
+1. Detect branching complexity and variant explosion.
+2. Refactor to explicit variants and composition.
+3. Move shared state and actions into context/provider only when needed.
+4. Validate behavior parity and readability.
 
-- `patterns-children-over-render-props.md` - Prefer children over renderX props
-- `patterns-explicit-variants.md` - Create explicit component variants
+## Guardrails
 
-## Core Principles
+- Do not turn simple components into over-engineered abstractions.
+- Avoid copying large tutorial examples into this file.
+- Keep this file as a high-signal checklist; place deep examples in `SKILL.md`.
 
-1. **Composition over configuration** — Instead of adding props, let consumers
-   compose
-2. **Lift your state** — State in providers, not trapped in components
-3. **Compose your internals** — Subcomponents access context, not props
-4. **Explicit variants** — Create ThreadComposer, EditComposer, not Composer
-   with isThread
+## Validation
 
-## Creating a New Rule
-
-1. Copy `rules/_template.md` to `rules/area-description.md`
-2. Choose the appropriate area prefix:
-   - `architecture-` for Component Architecture
-   - `state-` for State Management
-   - `patterns-` for Implementation Patterns
-3. Fill in the frontmatter and content
-4. Ensure you have clear examples with explanations
-
-## Impact Levels
-
-- `CRITICAL` - Foundational patterns, prevents unmaintainable code
-- `HIGH` - Significant maintainability improvements
-- `MEDIUM` - Good practices for cleaner code
+- Run `npm run lint`
+- Run `npm run build`
 `````
 
-## File: .github/skills/vercel-composition-patterns/rules/_sections.md
+## File: .github/skills/vercel-react-best-practices/rules/advanced-event-handler-refs.md
 `````markdown
-# Sections
-
-This file defines all sections, their ordering, impact levels, and descriptions.
-The section ID (in parentheses) is the filename prefix used to group rules.
-
+---
+title: Store Event Handlers in Refs
+impact: LOW
+impactDescription: stable subscriptions
+tags: advanced, hooks, refs, event-handlers, optimization
 ---
 
-## 1. Component Architecture (architecture)
+## Store Event Handlers in Refs
 
-**Impact:** HIGH  
-**Description:** Fundamental patterns for structuring components to avoid prop
-proliferation and enable flexible composition.
+Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
 
-## 2. State Management (state)
+**Incorrect (re-subscribes on every render):**
 
-**Impact:** MEDIUM  
-**Description:** Patterns for lifting state and managing shared context across
-composed components.
+```tsx
+function useWindowEvent(event: string, handler: () => void) {
+  useEffect(() => {
+    window.addEventListener(event, handler)
+    return () => window.removeEventListener(event, handler)
+  }, [event, handler])
+}
+```
 
-## 3. Implementation Patterns (patterns)
+**Correct (stable subscription):**
 
-**Impact:** MEDIUM  
-**Description:** Specific techniques for implementing compound components and
-context providers.
+```tsx
+function useWindowEvent(event: string, handler: () => void) {
+  const handlerRef = useRef(handler)
+  useEffect(() => {
+    handlerRef.current = handler
+  }, [handler])
 
-## 4. React 19 APIs (react19)
+  useEffect(() => {
+    const listener = () => handlerRef.current()
+    window.addEventListener(event, listener)
+    return () => window.removeEventListener(event, listener)
+  }, [event])
+}
+```
 
-**Impact:** MEDIUM  
-**Description:** React 19+ only. Don't use `forwardRef`; use `use()` instead of `useContext()`.
+**Alternative: use `useEffectEvent` if you're on latest React:**
+
+```tsx
+import { useEffectEvent } from 'react'
+
+function useWindowEvent(event: string, handler: () => void) {
+  const onEvent = useEffectEvent(handler)
+
+  useEffect(() => {
+    window.addEventListener(event, onEvent)
+    return () => window.removeEventListener(event, onEvent)
+  }, [event])
+}
+```
+
+`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
 `````
 
-## File: .github/skills/vercel-composition-patterns/rules/_template.md
+## File: .github/skills/vercel-react-best-practices/rules/advanced-use-latest.md
 `````markdown
 ---
-title: Rule Title Here
-impact: MEDIUM
-impactDescription: brief description of impact
-tags: composition, components
+title: useLatest for Stable Callback Refs
+impact: LOW
+impactDescription: prevents effect re-runs
+tags: advanced, hooks, useLatest, refs, optimization
 ---
 
-## Rule Title Here
+## useLatest for Stable Callback Refs
 
-Brief explanation of the rule and why it matters.
-
-**Incorrect:**
-
-```tsx
-// Bad code example
-```
-
-**Correct:**
-
-```tsx
-// Good code example
-```
-
-Reference: [Link](https://example.com)
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/architecture-avoid-boolean-props.md
-`````markdown
----
-title: Avoid Boolean Prop Proliferation
-impact: CRITICAL
-impactDescription: prevents unmaintainable component variants
-tags: composition, props, architecture
----
-
-## Avoid Boolean Prop Proliferation
-
-Don't add boolean props like `isThread`, `isEditing`, `isDMThread` to customize
-component behavior. Each boolean doubles possible states and creates
-unmaintainable conditional logic. Use composition instead.
-
-**Incorrect (boolean props create exponential complexity):**
-
-```tsx
-function Composer({
-  onSubmit,
-  isThread,
-  channelId,
-  isDMThread,
-  dmId,
-  isEditing,
-  isForwarding,
-}: Props) {
-  return (
-    <form>
-      <Header />
-      <Input />
-      {isDMThread ? (
-        <AlsoSendToDMField id={dmId} />
-      ) : isThread ? (
-        <AlsoSendToChannelField id={channelId} />
-      ) : null}
-      {isEditing ? (
-        <EditActions />
-      ) : isForwarding ? (
-        <ForwardActions />
-      ) : (
-        <DefaultActions />
-      )}
-      <Footer onSubmit={onSubmit} />
-    </form>
-  )
-}
-```
-
-**Correct (composition eliminates conditionals):**
-
-```tsx
-// Channel composer
-function ChannelComposer() {
-  return (
-    <Composer.Frame>
-      <Composer.Header />
-      <Composer.Input />
-      <Composer.Footer>
-        <Composer.Attachments />
-        <Composer.Formatting />
-        <Composer.Emojis />
-        <Composer.Submit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-
-// Thread composer - adds "also send to channel" field
-function ThreadComposer({ channelId }: { channelId: string }) {
-  return (
-    <Composer.Frame>
-      <Composer.Header />
-      <Composer.Input />
-      <AlsoSendToChannelField id={channelId} />
-      <Composer.Footer>
-        <Composer.Formatting />
-        <Composer.Emojis />
-        <Composer.Submit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-
-// Edit composer - different footer actions
-function EditComposer() {
-  return (
-    <Composer.Frame>
-      <Composer.Input />
-      <Composer.Footer>
-        <Composer.Formatting />
-        <Composer.Emojis />
-        <Composer.CancelEdit />
-        <Composer.SaveEdit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-```
-
-Each variant is explicit about what it renders. We can share internals without
-sharing a single monolithic parent.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/architecture-compound-components.md
-`````markdown
----
-title: Use Compound Components
-impact: HIGH
-impactDescription: enables flexible composition without prop drilling
-tags: composition, compound-components, architecture
----
-
-## Use Compound Components
-
-Structure complex components as compound components with a shared context. Each
-subcomponent accesses shared state via context, not props. Consumers compose the
-pieces they need.
-
-**Incorrect (monolithic component with render props):**
-
-```tsx
-function Composer({
-  renderHeader,
-  renderFooter,
-  renderActions,
-  showAttachments,
-  showFormatting,
-  showEmojis,
-}: Props) {
-  return (
-    <form>
-      {renderHeader?.()}
-      <Input />
-      {showAttachments && <Attachments />}
-      {renderFooter ? (
-        renderFooter()
-      ) : (
-        <Footer>
-          {showFormatting && <Formatting />}
-          {showEmojis && <Emojis />}
-          {renderActions?.()}
-        </Footer>
-      )}
-    </form>
-  )
-}
-```
-
-**Correct (compound components with shared context):**
-
-```tsx
-const ComposerContext = createContext<ComposerContextValue | null>(null)
-
-function ComposerProvider({ children, state, actions, meta }: ProviderProps) {
-  return (
-    <ComposerContext value={{ state, actions, meta }}>
-      {children}
-    </ComposerContext>
-  )
-}
-
-function ComposerFrame({ children }: { children: React.ReactNode }) {
-  return <form>{children}</form>
-}
-
-function ComposerInput() {
-  const {
-    state,
-    actions: { update },
-    meta: { inputRef },
-  } = use(ComposerContext)
-  return (
-    <TextInput
-      ref={inputRef}
-      value={state.input}
-      onChangeText={(text) => update((s) => ({ ...s, input: text }))}
-    />
-  )
-}
-
-function ComposerSubmit() {
-  const {
-    actions: { submit },
-  } = use(ComposerContext)
-  return <Button onPress={submit}>Send</Button>
-}
-
-// Export as compound component
-const Composer = {
-  Provider: ComposerProvider,
-  Frame: ComposerFrame,
-  Input: ComposerInput,
-  Submit: ComposerSubmit,
-  Header: ComposerHeader,
-  Footer: ComposerFooter,
-  Attachments: ComposerAttachments,
-  Formatting: ComposerFormatting,
-  Emojis: ComposerEmojis,
-}
-```
-
-**Usage:**
-
-```tsx
-<Composer.Provider state={state} actions={actions} meta={meta}>
-  <Composer.Frame>
-    <Composer.Header />
-    <Composer.Input />
-    <Composer.Footer>
-      <Composer.Formatting />
-      <Composer.Submit />
-    </Composer.Footer>
-  </Composer.Frame>
-</Composer.Provider>
-```
-
-Consumers explicitly compose exactly what they need. No hidden conditionals. And the state, actions and meta are dependency-injected by a parent provider, allowing multiple usages of the same component structure.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/patterns-children-over-render-props.md
-`````markdown
----
-title: Prefer Composing Children Over Render Props
-impact: MEDIUM
-impactDescription: cleaner composition, better readability
-tags: composition, children, render-props
----
-
-## Prefer Children Over Render Props
-
-Use `children` for composition instead of `renderX` props. Children are more
-readable, compose naturally, and don't require understanding callback
-signatures.
-
-**Incorrect (render props):**
-
-```tsx
-function Composer({
-  renderHeader,
-  renderFooter,
-  renderActions,
-}: {
-  renderHeader?: () => React.ReactNode
-  renderFooter?: () => React.ReactNode
-  renderActions?: () => React.ReactNode
-}) {
-  return (
-    <form>
-      {renderHeader?.()}
-      <Input />
-      {renderFooter ? renderFooter() : <DefaultFooter />}
-      {renderActions?.()}
-    </form>
-  )
-}
-
-// Usage is awkward and inflexible
-return (
-  <Composer
-    renderHeader={() => <CustomHeader />}
-    renderFooter={() => (
-      <>
-        <Formatting />
-        <Emojis />
-      </>
-    )}
-    renderActions={() => <SubmitButton />}
-  />
-)
-```
-
-**Correct (compound components with children):**
-
-```tsx
-function ComposerFrame({ children }: { children: React.ReactNode }) {
-  return <form>{children}</form>
-}
-
-function ComposerFooter({ children }: { children: React.ReactNode }) {
-  return <footer className='flex'>{children}</footer>
-}
-
-// Usage is flexible
-return (
-  <Composer.Frame>
-    <CustomHeader />
-    <Composer.Input />
-    <Composer.Footer>
-      <Composer.Formatting />
-      <Composer.Emojis />
-      <SubmitButton />
-    </Composer.Footer>
-  </Composer.Frame>
-)
-```
-
-**When render props are appropriate:**
-
-```tsx
-// Render props work well when you need to pass data back
-<List
-  data={items}
-  renderItem={({ item, index }) => <Item item={item} index={index} />}
-/>
-```
-
-Use render props when the parent needs to provide data or state to the child.
-Use children when composing static structure.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/patterns-explicit-variants.md
-`````markdown
----
-title: Create Explicit Component Variants
-impact: MEDIUM
-impactDescription: self-documenting code, no hidden conditionals
-tags: composition, variants, architecture
----
-
-## Create Explicit Component Variants
-
-Instead of one component with many boolean props, create explicit variant
-components. Each variant composes the pieces it needs. The code documents
-itself.
-
-**Incorrect (one component, many modes):**
-
-```tsx
-// What does this component actually render?
-<Composer
-  isThread
-  isEditing={false}
-  channelId='abc'
-  showAttachments
-  showFormatting={false}
-/>
-```
-
-**Correct (explicit variants):**
-
-```tsx
-// Immediately clear what this renders
-<ThreadComposer channelId="abc" />
-
-// Or
-<EditMessageComposer messageId="xyz" />
-
-// Or
-<ForwardMessageComposer messageId="123" />
-```
-
-Each implementation is unique, explicit and self-contained. Yet they can each
-use shared parts.
+Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
 
 **Implementation:**
 
-```tsx
-function ThreadComposer({ channelId }: { channelId: string }) {
-  return (
-    <ThreadProvider channelId={channelId}>
-      <Composer.Frame>
-        <Composer.Input />
-        <AlsoSendToChannelField channelId={channelId} />
-        <Composer.Footer>
-          <Composer.Formatting />
-          <Composer.Emojis />
-          <Composer.Submit />
-        </Composer.Footer>
-      </Composer.Frame>
-    </ThreadProvider>
-  )
-}
-
-function EditMessageComposer({ messageId }: { messageId: string }) {
-  return (
-    <EditMessageProvider messageId={messageId}>
-      <Composer.Frame>
-        <Composer.Input />
-        <Composer.Footer>
-          <Composer.Formatting />
-          <Composer.Emojis />
-          <Composer.CancelEdit />
-          <Composer.SaveEdit />
-        </Composer.Footer>
-      </Composer.Frame>
-    </EditMessageProvider>
-  )
-}
-
-function ForwardMessageComposer({ messageId }: { messageId: string }) {
-  return (
-    <ForwardMessageProvider messageId={messageId}>
-      <Composer.Frame>
-        <Composer.Input placeholder="Add a message, if you'd like." />
-        <Composer.Footer>
-          <Composer.Formatting />
-          <Composer.Emojis />
-          <Composer.Mentions />
-        </Composer.Footer>
-      </Composer.Frame>
-    </ForwardMessageProvider>
-  )
-}
-```
-
-Each variant is explicit about:
-
-- What provider/state it uses
-- What UI elements it includes
-- What actions are available
-
-No boolean prop combinations to reason about. No impossible states.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/react19-no-forwardref.md
-`````markdown
----
-title: React 19 API Changes
-impact: MEDIUM
-impactDescription: cleaner component definitions and context usage
-tags: react19, refs, context, hooks
----
-
-## React 19 API Changes
-
-> **⚠️ React 19+ only.** Skip this if you're on React 18 or earlier.
-
-In React 19, `ref` is now a regular prop (no `forwardRef` wrapper needed), and `use()` replaces `useContext()`.
-
-**Incorrect (forwardRef in React 19):**
-
-```tsx
-const ComposerInput = forwardRef<TextInput, Props>((props, ref) => {
-  return <TextInput ref={ref} {...props} />
-})
-```
-
-**Correct (ref as a regular prop):**
-
-```tsx
-function ComposerInput({ ref, ...props }: Props & { ref?: React.Ref<TextInput> }) {
-  return <TextInput ref={ref} {...props} />
-}
-```
-
-**Incorrect (useContext in React 19):**
-
-```tsx
-const value = useContext(MyContext)
-```
-
-**Correct (use instead of useContext):**
-
-```tsx
-const value = use(MyContext)
-```
-
-`use()` can also be called conditionally, unlike `useContext()`.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/state-context-interface.md
-`````markdown
----
-title: Define Generic Context Interfaces for Dependency Injection
-impact: HIGH
-impactDescription: enables dependency-injectable state across use-cases
-tags: composition, context, state, typescript, dependency-injection
----
-
-## Define Generic Context Interfaces for Dependency Injection
-
-Define a **generic interface** for your component context with three parts:
-`state`, `actions`, and `meta`. This interface is a contract that any provider
-can implement—enabling the same UI components to work with completely different
-state implementations.
-
-**Core principle:** Lift state, compose internals, make state
-dependency-injectable.
-
-**Incorrect (UI coupled to specific state implementation):**
-
-```tsx
-function ComposerInput() {
-  // Tightly coupled to a specific hook
-  const { input, setInput } = useChannelComposerState()
-  return <TextInput value={input} onChangeText={setInput} />
-}
-```
-
-**Correct (generic interface enables dependency injection):**
-
-```tsx
-// Define a GENERIC interface that any provider can implement
-interface ComposerState {
-  input: string
-  attachments: Attachment[]
-  isSubmitting: boolean
-}
-
-interface ComposerActions {
-  update: (updater: (state: ComposerState) => ComposerState) => void
-  submit: () => void
-}
-
-interface ComposerMeta {
-  inputRef: React.RefObject<TextInput>
-}
-
-interface ComposerContextValue {
-  state: ComposerState
-  actions: ComposerActions
-  meta: ComposerMeta
-}
-
-const ComposerContext = createContext<ComposerContextValue | null>(null)
-```
-
-**UI components consume the interface, not the implementation:**
-
-```tsx
-function ComposerInput() {
-  const {
-    state,
-    actions: { update },
-    meta,
-  } = use(ComposerContext)
-
-  // This component works with ANY provider that implements the interface
-  return (
-    <TextInput
-      ref={meta.inputRef}
-      value={state.input}
-      onChangeText={(text) => update((s) => ({ ...s, input: text }))}
-    />
-  )
-}
-```
-
-**Different providers implement the same interface:**
-
-```tsx
-// Provider A: Local state for ephemeral forms
-function ForwardMessageProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState(initialState)
-  const inputRef = useRef(null)
-  const submit = useForwardMessage()
-
-  return (
-    <ComposerContext
-      value={{
-        state,
-        actions: { update: setState, submit },
-        meta: { inputRef },
-      }}
-    >
-      {children}
-    </ComposerContext>
-  )
-}
-
-// Provider B: Global synced state for channels
-function ChannelProvider({ channelId, children }: Props) {
-  const { state, update, submit } = useGlobalChannel(channelId)
-  const inputRef = useRef(null)
-
-  return (
-    <ComposerContext
-      value={{
-        state,
-        actions: { update, submit },
-        meta: { inputRef },
-      }}
-    >
-      {children}
-    </ComposerContext>
-  )
-}
-```
-
-**The same composed UI works with both:**
-
-```tsx
-// Works with ForwardMessageProvider (local state)
-<ForwardMessageProvider>
-  <Composer.Frame>
-    <Composer.Input />
-    <Composer.Submit />
-  </Composer.Frame>
-</ForwardMessageProvider>
-
-// Works with ChannelProvider (global synced state)
-<ChannelProvider channelId="abc">
-  <Composer.Frame>
-    <Composer.Input />
-    <Composer.Submit />
-  </Composer.Frame>
-</ChannelProvider>
-```
-
-**Custom UI outside the component can access state and actions:**
-
-The provider boundary is what matters—not the visual nesting. Components that
-need shared state don't have to be inside the `Composer.Frame`. They just need
-to be within the provider.
-
-```tsx
-function ForwardMessageDialog() {
-  return (
-    <ForwardMessageProvider>
-      <Dialog>
-        {/* The composer UI */}
-        <Composer.Frame>
-          <Composer.Input placeholder="Add a message, if you'd like." />
-          <Composer.Footer>
-            <Composer.Formatting />
-            <Composer.Emojis />
-          </Composer.Footer>
-        </Composer.Frame>
-
-        {/* Custom UI OUTSIDE the composer, but INSIDE the provider */}
-        <MessagePreview />
-
-        {/* Actions at the bottom of the dialog */}
-        <DialogActions>
-          <CancelButton />
-          <ForwardButton />
-        </DialogActions>
-      </Dialog>
-    </ForwardMessageProvider>
-  )
-}
-
-// This button lives OUTSIDE Composer.Frame but can still submit based on its context!
-function ForwardButton() {
-  const {
-    actions: { submit },
-  } = use(ComposerContext)
-  return <Button onPress={submit}>Forward</Button>
-}
-
-// This preview lives OUTSIDE Composer.Frame but can read composer's state!
-function MessagePreview() {
-  const { state } = use(ComposerContext)
-  return <Preview message={state.input} attachments={state.attachments} />
-}
-```
-
-The `ForwardButton` and `MessagePreview` are not visually inside the composer
-box, but they can still access its state and actions. This is the power of
-lifting state into providers.
-
-The UI is reusable bits you compose together. The state is dependency-injected
-by the provider. Swap the provider, keep the UI.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/state-decouple-implementation.md
-`````markdown
----
-title: Decouple State Management from UI
-impact: MEDIUM
-impactDescription: enables swapping state implementations without changing UI
-tags: composition, state, architecture
----
-
-## Decouple State Management from UI
-
-The provider component should be the only place that knows how state is managed.
-UI components consume the context interface—they don't know if state comes from
-useState, Zustand, or a server sync.
-
-**Incorrect (UI coupled to state implementation):**
-
-```tsx
-function ChannelComposer({ channelId }: { channelId: string }) {
-  // UI component knows about global state implementation
-  const state = useGlobalChannelState(channelId)
-  const { submit, updateInput } = useChannelSync(channelId)
-
-  return (
-    <Composer.Frame>
-      <Composer.Input
-        value={state.input}
-        onChange={(text) => sync.updateInput(text)}
-      />
-      <Composer.Submit onPress={() => sync.submit()} />
-    </Composer.Frame>
-  )
-}
-```
-
-**Correct (state management isolated in provider):**
-
-```tsx
-// Provider handles all state management details
-function ChannelProvider({
-  channelId,
-  children,
-}: {
-  channelId: string
-  children: React.ReactNode
-}) {
-  const { state, update, submit } = useGlobalChannel(channelId)
-  const inputRef = useRef(null)
-
-  return (
-    <Composer.Provider
-      state={state}
-      actions={{ update, submit }}
-      meta={{ inputRef }}
-    >
-      {children}
-    </Composer.Provider>
-  )
-}
-
-// UI component only knows about the context interface
-function ChannelComposer() {
-  return (
-    <Composer.Frame>
-      <Composer.Header />
-      <Composer.Input />
-      <Composer.Footer>
-        <Composer.Submit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-
-// Usage
-function Channel({ channelId }: { channelId: string }) {
-  return (
-    <ChannelProvider channelId={channelId}>
-      <ChannelComposer />
-    </ChannelProvider>
-  )
-}
-```
-
-**Different providers, same UI:**
-
-```tsx
-// Local state for ephemeral forms
-function ForwardMessageProvider({ children }) {
-  const [state, setState] = useState(initialState)
-  const forwardMessage = useForwardMessage()
-
-  return (
-    <Composer.Provider
-      state={state}
-      actions={{ update: setState, submit: forwardMessage }}
-    >
-      {children}
-    </Composer.Provider>
-  )
-}
-
-// Global synced state for channels
-function ChannelProvider({ channelId, children }) {
-  const { state, update, submit } = useGlobalChannel(channelId)
-
-  return (
-    <Composer.Provider state={state} actions={{ update, submit }}>
-      {children}
-    </Composer.Provider>
-  )
-}
-```
-
-The same `Composer.Input` component works with both providers because it only
-depends on the context interface, not the implementation.
-`````
-
-## File: .github/skills/vercel-composition-patterns/rules/state-lift-state.md
-`````markdown
----
-title: Lift State into Provider Components
-impact: HIGH
-impactDescription: enables state sharing outside component boundaries
-tags: composition, state, context, providers
----
-
-## Lift State into Provider Components
-
-Move state management into dedicated provider components. This allows sibling
-components outside the main UI to access and modify state without prop drilling
-or awkward refs.
-
-**Incorrect (state trapped inside component):**
-
-```tsx
-function ForwardMessageComposer() {
-  const [state, setState] = useState(initialState)
-  const forwardMessage = useForwardMessage()
-
-  return (
-    <Composer.Frame>
-      <Composer.Input />
-      <Composer.Footer />
-    </Composer.Frame>
-  )
-}
-
-// Problem: How does this button access composer state?
-function ForwardMessageDialog() {
-  return (
-    <Dialog>
-      <ForwardMessageComposer />
-      <MessagePreview /> {/* Needs composer state */}
-      <DialogActions>
-        <CancelButton />
-        <ForwardButton /> {/* Needs to call submit */}
-      </DialogActions>
-    </Dialog>
-  )
-}
-```
-
-**Incorrect (useEffect to sync state up):**
-
-```tsx
-function ForwardMessageDialog() {
-  const [input, setInput] = useState('')
-  return (
-    <Dialog>
-      <ForwardMessageComposer onInputChange={setInput} />
-      <MessagePreview input={input} />
-    </Dialog>
-  )
-}
-
-function ForwardMessageComposer({ onInputChange }) {
-  const [state, setState] = useState(initialState)
+```typescript
+function useLatest<T>(value: T) {
+  const ref = useRef(value)
   useEffect(() => {
-    onInputChange(state.input) // Sync on every change 😬
-  }, [state.input])
+    ref.current = value
+  }, [value])
+  return ref
 }
 ```
 
-**Incorrect (reading state from ref on submit):**
+**Incorrect (effect re-runs on every callback change):**
 
 ```tsx
-function ForwardMessageDialog() {
-  const stateRef = useRef(null)
-  return (
-    <Dialog>
-      <ForwardMessageComposer stateRef={stateRef} />
-      <ForwardButton onPress={() => submit(stateRef.current)} />
-    </Dialog>
-  )
+function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearch(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query, onSearch])
 }
 ```
 
-**Correct (state lifted to provider):**
+**Correct (stable effect, fresh callback):**
 
 ```tsx
-function ForwardMessageProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState(initialState)
-  const forwardMessage = useForwardMessage()
-  const inputRef = useRef(null)
+function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+  const [query, setQuery] = useState('')
+  const onSearchRef = useLatest(onSearch)
 
-  return (
-    <Composer.Provider
-      state={state}
-      actions={{ update: setState, submit: forwardMessage }}
-      meta={{ inputRef }}
-    >
-      {children}
-    </Composer.Provider>
-  )
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearchRef.current(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query])
 }
-
-function ForwardMessageDialog() {
-  return (
-    <ForwardMessageProvider>
-      <Dialog>
-        <ForwardMessageComposer />
-        <MessagePreview /> {/* Custom components can access state and actions */}
-        <DialogActions>
-          <CancelButton />
-          <ForwardButton /> {/* Custom components can access state and actions */}
-        </DialogActions>
-      </Dialog>
-    </ForwardMessageProvider>
-  )
-}
-
-function ForwardButton() {
-  const { actions } = use(Composer.Context)
-  return <Button onPress={actions.submit}>Forward</Button>
-}
-```
-
-The ForwardButton lives outside the Composer.Frame but still has access to the
-submit action because it's within the provider. Even though it's a one-off
-component, it can still access the composer's state and actions from outside the
-UI itself.
-
-**Key insight:** Components that need shared state don't have to be visually
-nested inside each other—they just need to be within the same provider.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-dependencies.md
-`````markdown
----
-title: Narrow Effect Dependencies
-impact: LOW
-impactDescription: minimizes effect re-runs
-tags: rerender, useEffect, dependencies, optimization
----
-
-## Narrow Effect Dependencies
-
-Specify primitive dependencies instead of objects to minimize effect re-runs.
-
-**Incorrect (re-runs on any user field change):**
-
-```tsx
-useEffect(() => {
-  console.log(user.id)
-}, [user])
-```
-
-**Correct (re-runs only when id changes):**
-
-```tsx
-useEffect(() => {
-  console.log(user.id)
-}, [user.id])
-```
-
-**For derived state, compute outside effect:**
-
-```tsx
-// Incorrect: runs on width=767, 766, 765...
-useEffect(() => {
-  if (width < 768) {
-    enableMobileMode()
-  }
-}, [width])
-
-// Correct: runs only on boolean transition
-const isMobile = width < 768
-useEffect(() => {
-  if (isMobile) {
-    enableMobileMode()
-  }
-}, [isMobile])
 ```
 `````
 
-## File: .github/skills/vercel-react-best-practices/rules/server-after-nonblocking.md
+## File: .github/skills/vercel-react-best-practices/rules/async-dependencies.md
 `````markdown
 ---
-title: Use after() for Non-Blocking Operations
-impact: MEDIUM
-impactDescription: faster response times
-tags: server, async, logging, analytics, side-effects
----
-
-## Use after() for Non-Blocking Operations
-
-Use Next.js's `after()` to schedule work that should execute after a response is sent. This prevents logging, analytics, and other side effects from blocking the response.
-
-**Incorrect (blocks response):**
-
-```tsx
-import { logUserAction } from '@/app/utils'
-
-export async function POST(request: Request) {
-  // Perform mutation
-  await updateDatabase(request)
-  
-  // Logging blocks the response
-  const userAgent = request.headers.get('user-agent') || 'unknown'
-  await logUserAction({ userAgent })
-  
-  return new Response(JSON.stringify({ status: 'success' }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  })
-}
-```
-
-**Correct (non-blocking):**
-
-```tsx
-import { after } from 'next/server'
-import { headers, cookies } from 'next/headers'
-import { logUserAction } from '@/app/utils'
-
-export async function POST(request: Request) {
-  // Perform mutation
-  await updateDatabase(request)
-  
-  // Log after response is sent
-  after(async () => {
-    const userAgent = (await headers()).get('user-agent') || 'unknown'
-    const sessionCookie = (await cookies()).get('session-id')?.value || 'anonymous'
-    
-    logUserAction({ sessionCookie, userAgent })
-  })
-  
-  return new Response(JSON.stringify({ status: 'success' }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  })
-}
-```
-
-The response is sent immediately while logging happens in the background.
-
-**Common use cases:**
-
-- Analytics tracking
-- Audit logging
-- Sending notifications
-- Cache invalidation
-- Cleanup tasks
-
-**Important notes:**
-
-- `after()` runs even if the response fails or redirects
-- Works in Server Actions, Route Handlers, and Server Components
-
-Reference: [https://nextjs.org/docs/app/api-reference/functions/after](https://nextjs.org/docs/app/api-reference/functions/after)
-`````
-
-## File: .github/skills/vercel-react-native-skills/README.md
-`````markdown
-# React Native Guidelines
-
-A structured repository for creating and maintaining React Native Best Practices
-optimized for agents and LLMs.
-
-## Structure
-
-- `rules/` - Individual rule files (one per rule)
-  - `_sections.md` - Section metadata (titles, impacts, descriptions)
-  - `_template.md` - Template for creating new rules
-  - `area-description.md` - Individual rule files
-- `metadata.json` - Document metadata (version, organization, abstract)
-- **`AGENTS.md`** - Compiled output (generated)
-
-## Rules
-
-### Core Rendering (CRITICAL)
-
-- `rendering-text-in-text-component.md` - Wrap strings in Text components
-- `rendering-no-falsy-and.md` - Avoid falsy && operator in JSX
-
-### List Performance (HIGH)
-
-- `list-performance-virtualize.md` - Use virtualized lists (LegendList,
-  FlashList)
-- `list-performance-function-references.md` - Keep stable object references
-- `list-performance-callbacks.md` - Hoist callbacks to list root
-- `list-performance-inline-objects.md` - Avoid inline objects in renderItem
-- `list-performance-item-memo.md` - Pass primitives for memoization
-- `list-performance-item-expensive.md` - Keep list items lightweight
-- `list-performance-images.md` - Use compressed images in lists
-- `list-performance-item-types.md` - Use item types for heterogeneous lists
-
-### Animation (HIGH)
-
-- `animation-gpu-properties.md` - Animate transform/opacity instead of layout
-- `animation-gesture-detector-press.md` - Use GestureDetector for press
-  animations
-- `animation-derived-value.md` - Prefer useDerivedValue over useAnimatedReaction
-
-### Scroll Performance (HIGH)
-
-- `scroll-position-no-state.md` - Never track scroll in useState
-
-### Navigation (HIGH)
-
-- `navigation-native-navigators.md` - Use native stack and native tabs
-
-### React State (MEDIUM)
-
-- `react-state-dispatcher.md` - Use functional setState updates
-- `react-state-fallback.md` - State should represent user intent only
-- `react-state-minimize.md` - Minimize state variables, derive values
-
-### State Architecture (MEDIUM)
-
-- `state-ground-truth.md` - State must represent ground truth
-
-### React Compiler (MEDIUM)
-
-- `react-compiler-destructure-functions.md` - Destructure functions early
-- `react-compiler-reanimated-shared-values.md` - Use .get()/.set() for shared
-  values
-
-### User Interface (MEDIUM)
-
-- `ui-expo-image.md` - Use expo-image for optimized images
-- `ui-image-gallery.md` - Use Galeria for lightbox/galleries
-- `ui-menus.md` - Native dropdown and context menus with Zeego
-- `ui-native-modals.md` - Use native Modal with formSheet
-- `ui-pressable.md` - Use Pressable instead of TouchableOpacity
-- `ui-measure-views.md` - Measuring view dimensions
-- `ui-safe-area-scroll.md` - Use contentInsetAdjustmentBehavior
-- `ui-scrollview-content-inset.md` - Use contentInset for dynamic spacing
-- `ui-styling.md` - Modern styling patterns (gap, boxShadow, gradients)
-
-### Design System (MEDIUM)
-
-- `design-system-compound-components.md` - Use compound components
-
-### Monorepo (LOW)
-
-- `monorepo-native-deps-in-app.md` - Install native deps in app directory
-- `monorepo-single-dependency-versions.md` - Single dependency versions
-
-### Third-Party Dependencies (LOW)
-
-- `imports-design-system-folder.md` - Import from design system folder
-
-### JavaScript (LOW)
-
-- `js-hoist-intl.md` - Hoist Intl formatter creation
-
-### Fonts (LOW)
-
-- `fonts-config-plugin.md` - Load fonts natively at build time
-
-## Creating a New Rule
-
-1. Copy `rules/_template.md` to `rules/area-description.md`
-2. Choose the appropriate area prefix:
-   - `rendering-` for Core Rendering
-   - `list-performance-` for List Performance
-   - `animation-` for Animation
-   - `scroll-` for Scroll Performance
-   - `navigation-` for Navigation
-   - `react-state-` for React State
-   - `state-` for State Architecture
-   - `react-compiler-` for React Compiler
-   - `ui-` for User Interface
-   - `design-system-` for Design System
-   - `monorepo-` for Monorepo
-   - `imports-` for Third-Party Dependencies
-   - `js-` for JavaScript
-   - `fonts-` for Fonts
-3. Fill in the frontmatter and content
-4. Ensure you have clear examples with explanations
-
-## Rule File Structure
-
-Each rule file should follow this structure:
-
-````markdown
----
-title: Rule Title Here
-impact: MEDIUM
-impactDescription: Optional description
-tags: tag1, tag2, tag3
----
-
-## Rule Title Here
-
-Brief explanation of the rule and why it matters.
-
-**Incorrect (description of what's wrong):**
-
-```tsx
-// Bad code example
-```
-````
-
-**Correct (description of what's right):**
-
-```tsx
-// Good code example
-```
-
-Reference: [Link](https://example.com)
-
-```
-
-## File Naming Convention
-
-- Files starting with `_` are special (excluded from build)
-- Rule files: `area-description.md` (e.g., `animation-gpu-properties.md`)
-- Section is automatically inferred from filename prefix
-- Rules are sorted alphabetically by title within each section
-
-## Impact Levels
-
-- `CRITICAL` - Highest priority, causes crashes or broken UI
-- `HIGH` - Significant performance improvements
-- `MEDIUM` - Moderate performance improvements
-- `LOW` - Incremental improvements
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/_sections.md
-`````markdown
-# Sections
-
-This file defines all sections, their ordering, impact levels, and descriptions.
-The section ID (in parentheses) is the filename prefix used to group rules.
-
----
-
-## 1. Core Rendering (rendering)
-
-**Impact:** CRITICAL  
-**Description:** Fundamental React Native rendering rules. Violations cause
-runtime crashes or broken UI.
-
-## 2. List Performance (list-performance)
-
-**Impact:** HIGH  
-**Description:** Optimizing virtualized lists (FlatList, LegendList, FlashList)
-for smooth scrolling and fast updates.
-
-## 3. Animation (animation)
-
-**Impact:** HIGH  
-**Description:** GPU-accelerated animations, Reanimated patterns, and avoiding
-render thrashing during gestures.
-
-## 4. Scroll Performance (scroll)
-
-**Impact:** HIGH  
-**Description:** Tracking scroll position without causing render thrashing.
-
-## 5. Navigation (navigation)
-
-**Impact:** HIGH  
-**Description:** Using native navigators for stack and tab navigation instead of
-JS-based alternatives.
-
-## 6. React State (react-state)
-
-**Impact:** MEDIUM  
-**Description:** Patterns for managing React state to avoid stale closures and
-unnecessary re-renders.
-
-## 7. State Architecture (state)
-
-**Impact:** MEDIUM  
-**Description:** Ground truth principles for state variables and derived values.
-
-## 8. React Compiler (react-compiler)
-
-**Impact:** MEDIUM  
-**Description:** Compatibility patterns for React Compiler with React Native and
-Reanimated.
-
-## 9. User Interface (ui)
-
-**Impact:** MEDIUM  
-**Description:** Native UI patterns for images, menus, modals, styling, and
-platform-consistent interfaces.
-
-## 10. Design System (design-system)
-
-**Impact:** MEDIUM  
-**Description:** Architecture patterns for building maintainable component
-libraries.
-
-## 11. Monorepo (monorepo)
-
-**Impact:** LOW  
-**Description:** Dependency management and native module configuration in
-monorepos.
-
-## 12. Third-Party Dependencies (imports)
-
-**Impact:** LOW  
-**Description:** Wrapping and re-exporting third-party dependencies for
-maintainability.
-
-## 13. JavaScript (js)
-
-**Impact:** LOW  
-**Description:** Micro-optimizations like hoisting expensive object creation.
-
-## 14. Fonts (fonts)
-
-**Impact:** LOW  
-**Description:** Native font loading for improved performance.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/_template.md
-`````markdown
----
-title: Rule Title Here
-impact: MEDIUM
-impactDescription: Optional description of impact (e.g., "20-50% improvement")
-tags: tag1, tag2
----
-
-## Rule Title Here
-
-**Impact: MEDIUM (optional impact description)**
-
-Brief explanation of the rule and why it matters. This should be clear and concise, explaining the performance implications.
-
-**Incorrect (description of what's wrong):**
-
-```typescript
-// Bad code example here
-const bad = example()
-```
-
-**Correct (description of what's right):**
-
-```typescript
-// Good code example here
-const good = example()
-```
-
-Reference: [Link to documentation or resource](https://example.com)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/animation-derived-value.md
-`````markdown
----
-title: Prefer useDerivedValue Over useAnimatedReaction
-impact: MEDIUM
-impactDescription: cleaner code, automatic dependency tracking
-tags: animation, reanimated, derived-value
----
-
-## Prefer useDerivedValue Over useAnimatedReaction
-
-When deriving a shared value from another, use `useDerivedValue` instead of
-`useAnimatedReaction`. Derived values are declarative, automatically track
-dependencies, and return a value you can use directly. Animated reactions are
-for side effects, not derivations.
-
-**Incorrect (useAnimatedReaction for derivation):**
-
-```tsx
-import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated'
-
-function MyComponent() {
-  const progress = useSharedValue(0)
-  const opacity = useSharedValue(1)
-
-  useAnimatedReaction(
-    () => progress.value,
-    (current) => {
-      opacity.value = 1 - current
-    }
-  )
-
-  // ...
-}
-```
-
-**Correct (useDerivedValue):**
-
-```tsx
-import { useSharedValue, useDerivedValue } from 'react-native-reanimated'
-
-function MyComponent() {
-  const progress = useSharedValue(0)
-
-  const opacity = useDerivedValue(() => 1 - progress.get())
-
-  // ...
-}
-```
-
-Use `useAnimatedReaction` only for side effects that don't produce a value
-(e.g., triggering haptics, logging, calling `runOnJS`).
-
-Reference:
-[Reanimated useDerivedValue](https://docs.swmansion.com/react-native-reanimated/docs/core/useDerivedValue)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/animation-gesture-detector-press.md
-`````markdown
----
-title: Use GestureDetector for Animated Press States
-impact: MEDIUM
-impactDescription: UI thread animations, smoother press feedback
-tags: animation, gestures, press, reanimated
----
-
-## Use GestureDetector for Animated Press States
-
-For animated press states (scale, opacity on press), use `GestureDetector` with
-`Gesture.Tap()` and shared values instead of Pressable's
-`onPressIn`/`onPressOut`. Gesture callbacks run on the UI thread as worklets—no
-JS thread round-trip for press animations.
-
-**Incorrect (Pressable with JS thread callbacks):**
-
-```tsx
-import { Pressable } from 'react-native'
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated'
-
-function AnimatedButton({ onPress }: { onPress: () => void }) {
-  const scale = useSharedValue(1)
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }))
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => (scale.value = withTiming(0.95))}
-      onPressOut={() => (scale.value = withTiming(1))}
-    >
-      <Animated.View style={animatedStyle}>
-        <Text>Press me</Text>
-      </Animated.View>
-    </Pressable>
-  )
-}
-```
-
-**Correct (GestureDetector with UI thread worklets):**
-
-```tsx
-import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolate,
-  runOnJS,
-} from 'react-native-reanimated'
-
-function AnimatedButton({ onPress }: { onPress: () => void }) {
-  // Store the press STATE (0 = not pressed, 1 = pressed)
-  const pressed = useSharedValue(0)
-
-  const tap = Gesture.Tap()
-    .onBegin(() => {
-      pressed.set(withTiming(1))
-    })
-    .onFinalize(() => {
-      pressed.set(withTiming(0))
-    })
-    .onEnd(() => {
-      runOnJS(onPress)()
-    })
-
-  // Derive visual values from the state
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(withTiming(pressed.get()), [0, 1], [1, 0.95]) },
-    ],
-  }))
-
-  return (
-    <GestureDetector gesture={tap}>
-      <Animated.View style={animatedStyle}>
-        <Text>Press me</Text>
-      </Animated.View>
-    </GestureDetector>
-  )
-}
-```
-
-Store the press **state** (0 or 1), then derive the scale via `interpolate`.
-This keeps the shared value as ground truth. Use `runOnJS` to call JS functions
-from worklets. Use `.set()` and `.get()` for React Compiler compatibility.
-
-Reference:
-[Gesture Handler Tap Gesture](https://docs.swmansion.com/react-native-gesture-handler/docs/gestures/tap-gesture)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/animation-gpu-properties.md
-`````markdown
----
-title: Animate Transform and Opacity Instead of Layout Properties
-impact: HIGH
-impactDescription: GPU-accelerated animations, no layout recalculation
-tags: animation, performance, reanimated, transform, opacity
----
-
-## Animate Transform and Opacity Instead of Layout Properties
-
-Avoid animating `width`, `height`, `top`, `left`, `margin`, or `padding`. These trigger layout recalculation on every frame. Instead, use `transform` (scale, translate) and `opacity` which run on the GPU without triggering layout.
-
-**Incorrect (animates height, triggers layout every frame):**
-
-```tsx
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
-
-function CollapsiblePanel({ expanded }: { expanded: boolean }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    height: withTiming(expanded ? 200 : 0), // triggers layout on every frame
-    overflow: 'hidden',
-  }))
-
-  return <Animated.View style={animatedStyle}>{children}</Animated.View>
-}
-```
-
-**Correct (animates scaleY, GPU-accelerated):**
-
-```tsx
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
-
-function CollapsiblePanel({ expanded }: { expanded: boolean }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scaleY: withTiming(expanded ? 1 : 0) },
-    ],
-    opacity: withTiming(expanded ? 1 : 0),
-  }))
-
-  return (
-    <Animated.View style={[{ height: 200, transformOrigin: 'top' }, animatedStyle]}>
-      {children}
-    </Animated.View>
-  )
-}
-```
-
-**Correct (animates translateY for slide animations):**
-
-```tsx
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
-
-function SlideIn({ visible }: { visible: boolean }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: withTiming(visible ? 0 : 100) },
-    ],
-    opacity: withTiming(visible ? 1 : 0),
-  }))
-
-  return <Animated.View style={animatedStyle}>{children}</Animated.View>
-}
-```
-
-GPU-accelerated properties: `transform` (translate, scale, rotate), `opacity`. Everything else triggers layout.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/design-system-compound-components.md
-`````markdown
----
-title: Use Compound Components Over Polymorphic Children
-impact: MEDIUM
-impactDescription: flexible composition, clearer API
-tags: design-system, components, composition
----
-
-## Use Compound Components Over Polymorphic Children
-
-Don't create components that can accept a string if they aren't a text node. If
-a component can receive a string child, it must be a dedicated `*Text`
-component. For components like buttons, which can have both a View (or
-Pressable) together with text, use compound components, such a `Button`,
-`ButtonText`, and `ButtonIcon`.
-
-**Incorrect (polymorphic children):**
-
-```tsx
-import { Pressable, Text } from 'react-native'
-
-type ButtonProps = {
-  children: string | React.ReactNode
-  icon?: React.ReactNode
-}
-
-function Button({ children, icon }: ButtonProps) {
-  return (
-    <Pressable>
-      {icon}
-      {typeof children === 'string' ? <Text>{children}</Text> : children}
-    </Pressable>
-  )
-}
-
-// Usage is ambiguous
-<Button icon={<Icon />}>Save</Button>
-<Button><CustomText>Save</CustomText></Button>
-```
-
-**Correct (compound components):**
-
-```tsx
-import { Pressable, Text } from 'react-native'
-
-function Button({ children }: { children: React.ReactNode }) {
-  return <Pressable>{children}</Pressable>
-}
-
-function ButtonText({ children }: { children: React.ReactNode }) {
-  return <Text>{children}</Text>
-}
-
-function ButtonIcon({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
-// Usage is explicit and composable
-<Button>
-  <ButtonIcon><SaveIcon /></ButtonIcon>
-  <ButtonText>Save</ButtonText>
-</Button>
-
-<Button>
-  <ButtonText>Cancel</ButtonText>
-</Button>
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/fonts-config-plugin.md
-`````markdown
----
-title: Load fonts natively at build time
-impact: LOW
-impactDescription: fonts available at launch, no async loading
-tags: fonts, expo, performance, config-plugin
----
-
-## Use Expo Config Plugin for Font Loading
-
-Use the `expo-font` config plugin to embed fonts at build time instead of
-`useFonts` or `Font.loadAsync`. Embedded fonts are more efficient.
-
-**Incorrect (async font loading):**
-
-```tsx
-import { useFonts } from 'expo-font'
-import { Text, View } from 'react-native'
-
-function App() {
-  const [fontsLoaded] = useFonts({
-    'Geist-Bold': require('./assets/fonts/Geist-Bold.otf'),
-  })
-
-  if (!fontsLoaded) {
-    return null
-  }
-
-  return (
-    <View>
-      <Text style={{ fontFamily: 'Geist-Bold' }}>Hello</Text>
-    </View>
-  )
-}
-```
-
-**Correct (config plugin, fonts embedded at build):**
-
-```json
-// app.json
-{
-  "expo": {
-    "plugins": [
-      [
-        "expo-font",
-        {
-          "fonts": ["./assets/fonts/Geist-Bold.otf"]
-        }
-      ]
-    ]
-  }
-}
-```
-
-```tsx
-import { Text, View } from 'react-native'
-
-function App() {
-  // No loading state needed—font is already available
-  return (
-    <View>
-      <Text style={{ fontFamily: 'Geist-Bold' }}>Hello</Text>
-    </View>
-  )
-}
-```
-
-After adding fonts to the config plugin, run `npx expo prebuild` and rebuild the
-native app.
-
-Reference:
-[Expo Font Documentation](https://docs.expo.dev/versions/latest/sdk/font/)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/imports-design-system-folder.md
-`````markdown
----
-title: Import from Design System Folder
-impact: LOW
-impactDescription: enables global changes and easy refactoring
-tags: imports, architecture, design-system
----
-
-## Import from Design System Folder
-
-Re-export dependencies from a design system folder. App code imports from there,
-not directly from packages. This enables global changes and easy refactoring.
-
-**Incorrect (imports directly from package):**
-
-```tsx
-import { View, Text } from 'react-native'
-import { Button } from '@ui/button'
-
-function Profile() {
-  return (
-    <View>
-      <Text>Hello</Text>
-      <Button>Save</Button>
-    </View>
-  )
-}
-```
-
-**Correct (imports from design system):**
-
-```tsx
-// components/view.tsx
-import { View as RNView } from 'react-native'
-
-// ideal: pick the props you will actually use to control implementation
-export function View(
-  props: Pick<React.ComponentProps<typeof RNView>, 'style' | 'children'>
-) {
-  return <RNView {...props} />
-}
-```
-
-```tsx
-// components/text.tsx
-export { Text } from 'react-native'
-```
-
-```tsx
-// components/button.tsx
-export { Button } from '@ui/button'
-```
-
-```tsx
-import { View } from '@/components/view'
-import { Text } from '@/components/text'
-import { Button } from '@/components/button'
-
-function Profile() {
-  return (
-    <View>
-      <Text>Hello</Text>
-      <Button>Save</Button>
-    </View>
-  )
-}
-```
-
-Start by simply re-exporting. Customize later without changing app code.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/js-hoist-intl.md
-`````markdown
----
-title: Hoist Intl Formatter Creation
-impact: LOW-MEDIUM
-impactDescription: avoids expensive object recreation
-tags: javascript, intl, optimization, memoization
----
-
-## Hoist Intl Formatter Creation
-
-Don't create `Intl.DateTimeFormat`, `Intl.NumberFormat`, or
-`Intl.RelativeTimeFormat` inside render or loops. These are expensive to
-instantiate. Hoist to module scope when the locale/options are static.
-
-**Incorrect (new formatter every render):**
-
-```tsx
-function Price({ amount }: { amount: number }) {
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  })
-  return <Text>{formatter.format(amount)}</Text>
-}
-```
-
-**Correct (hoisted to module scope):**
-
-```tsx
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-})
-
-function Price({ amount }: { amount: number }) {
-  return <Text>{currencyFormatter.format(amount)}</Text>
-}
-```
-
-**For dynamic locales, memoize:**
-
-```tsx
-const dateFormatter = useMemo(
-  () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
-  [locale]
-)
-```
-
-**Common formatters to hoist:**
-
-```tsx
-// Module-level formatters
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
-const timeFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short' })
-const percentFormatter = new Intl.NumberFormat('en-US', { style: 'percent' })
-const relativeFormatter = new Intl.RelativeTimeFormat('en-US', {
-  numeric: 'auto',
-})
-```
-
-Creating `Intl` objects is significantly more expensive than `RegExp` or plain
-objects—each instantiation parses locale data and builds internal lookup tables.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-callbacks.md
-`````markdown
----
-title: Hoist callbacks to the root of lists
-impact: MEDIUM
-impactDescription: Fewer re-renders and faster lists
-tags: tag1, tag2
----
-
-## List performance callbacks
-
-**Impact: HIGH (Fewer re-renders and faster lists)**
-
-When passing callback functions to list items, create a single instance of the
-callback at the root of the list. Items should then call it with a unique
-identifier.
-
-**Incorrect (creates a new callback on each render):**
-
-```typescript
-return (
-  <LegendList
-    renderItem={({ item }) => {
-      // bad: creates a new callback on each render
-      const onPress = () => handlePress(item.id)
-      return <Item key={item.id} item={item} onPress={onPress} />
-    }}
-  />
-)
-```
-
-**Correct (a single function instance passed to each item):**
-
-```typescript
-const onPress = useCallback(() => handlePress(item.id), [handlePress, item.id])
-
-return (
-  <LegendList
-    renderItem={({ item }) => (
-      <Item key={item.id} item={item} onPress={onPress} />
-    )}
-  />
-)
-```
-
-Reference: [Link to documentation or resource](https://example.com)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-function-references.md
-`````markdown
----
-title: Optimize List Performance with Stable Object References
+title: Dependency-Based Parallelization
 impact: CRITICAL
-impactDescription: virtualization relies on reference stability
-tags: lists, performance, flatlist, virtualization
+impactDescription: 2-10× improvement
+tags: async, parallelization, dependencies, better-all
 ---
 
-## Optimize List Performance with Stable Object References
+## Dependency-Based Parallelization
 
-Don't map or filter data before passing to virtualized lists. Virtualization
-relies on object reference stability to know what changed—new references cause
-full re-renders of all visible items. Attempt to prevent frequent renders at the
-list-parent level.
+For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
 
-Where needed, use context selectors within list items.
+**Incorrect (profile waits for config unnecessarily):**
 
-**Incorrect (creates new object references on every keystroke):**
-
-```tsx
-function DomainSearch() {
-  const { keyword, setKeyword } = useKeywordZustandState()
-  const { data: tlds } = useTlds()
-
-  // Bad: creates new objects on every render, reparenting the entire list on every keystroke
-  const domains = tlds.map((tld) => ({
-    domain: `${keyword}.${tld.name}`,
-    tld: tld.name,
-    price: tld.price,
-  }))
-
-  return (
-    <>
-      <TextInput value={keyword} onChangeText={setKeyword} />
-      <LegendList
-        data={domains}
-        renderItem={({ item }) => <DomainItem item={item} keyword={keyword} />}
-      />
-    </>
-  )
-}
+```typescript
+const [user, config] = await Promise.all([
+  fetchUser(),
+  fetchConfig()
+])
+const profile = await fetchProfile(user.id)
 ```
 
-**Correct (stable references, transform inside items):**
+**Correct (config and profile run in parallel):**
 
-```tsx
-const renderItem = ({ item }) => <DomainItem tld={item} />
+```typescript
+import { all } from 'better-all'
 
-function DomainSearch() {
-  const { data: tlds } = useTlds()
-
-  return (
-    <LegendList
-      // good: as long as the data is stable, LegendList will not re-render the entire list
-      data={tlds}
-      renderItem={renderItem}
-    />
-  )
-}
-
-function DomainItem({ tld }: { tld: Tld }) {
-  // good: transform within items, and don't pass the dynamic data as a prop
-  // good: use a selector function from zustand to receive a stable string back
-  const domain = useKeywordZustandState((s) => s.keyword + '.' + tld.name)
-  return <Text>{domain}</Text>
-}
-```
-
-**Updating parent array reference:**
-
-Creating a new array instance can be okay, as long as its inner object
-references are stable. For instance, if you sort a list of objects:
-
-```tsx
-// good: creates a new array instance without mutating the inner objects
-// good: parent array reference is unaffected by typing and updating "keyword"
-const sortedTlds = tlds.toSorted((a, b) => a.name.localeCompare(b.name))
-
-return <LegendList data={sortedTlds} renderItem={renderItem} />
-```
-
-Even though this creates a new array instance `sortedTlds`, the inner object
-references are stable.
-
-**With zustand for dynamic data (avoids parent re-renders):**
-
-```tsx
-const useSearchStore = create<{ keyword: string }>(() => ({ keyword: '' }))
-
-function DomainSearch() {
-  const { data: tlds } = useTlds()
-
-  return (
-    <>
-      <SearchInput />
-      <LegendList
-        data={tlds}
-        // if you aren't using React Compiler, wrap renderItem with useCallback
-        renderItem={({ item }) => <DomainItem tld={item} />}
-      />
-    </>
-  )
-}
-
-function DomainItem({ tld }: { tld: Tld }) {
-  // Select only what you need—component only re-renders when keyword changes
-  const keyword = useSearchStore((s) => s.keyword)
-  const domain = `${keyword}.${tld.name}`
-  return <Text>{domain}</Text>
-}
-```
-
-Virtualization can now skip items that haven't changed when typing. Only visible
-items (~20) re-render on keystroke, rather than the parent.
-
-**Deriving state within list items based on parent data (avoids parent
-re-renders):**
-
-For components where the data is conditional based on the parent state, this
-pattern is even more important. For example, if you are checking if an item is
-favorited, toggling favorites only re-renders one component if the item itself
-is in charge of accessing the state rather than the parent:
-
-```tsx
-function DomainItemFavoriteButton({ tld }: { tld: Tld }) {
-  const isFavorited = useFavoritesStore((s) => s.favorites.has(tld.id))
-  return <TldFavoriteButton isFavorited={isFavorited} />
-}
-```
-
-Note: if you're using the React Compiler, you can read React Context values
-directly within list items. Although this is slightly slower than using a
-Zustand selector in most cases, the effect may be negligible.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-images.md
-`````markdown
----
-title: Use Compressed Images in Lists
-impact: HIGH
-impactDescription: faster load times, less memory
-tags: lists, images, performance, optimization
----
-
-## Use Compressed Images in Lists
-
-Always load compressed, appropriately-sized images in lists. Full-resolution
-images consume excessive memory and cause scroll jank. Request thumbnails from
-your server or use an image CDN with resize parameters.
-
-**Incorrect (full-resolution images):**
-
-```tsx
-function ProductItem({ product }: { product: Product }) {
-  return (
-    <View>
-      {/* 4000x3000 image loaded for a 100x100 thumbnail */}
-      <Image
-        source={{ uri: product.imageUrl }}
-        style={{ width: 100, height: 100 }}
-      />
-      <Text>{product.name}</Text>
-    </View>
-  )
-}
-```
-
-**Correct (request appropriately-sized image):**
-
-```tsx
-function ProductItem({ product }: { product: Product }) {
-  // Request a 200x200 image (2x for retina)
-  const thumbnailUrl = `${product.imageUrl}?w=200&h=200&fit=cover`
-
-  return (
-    <View>
-      <Image
-        source={{ uri: thumbnailUrl }}
-        style={{ width: 100, height: 100 }}
-        contentFit='cover'
-      />
-      <Text>{product.name}</Text>
-    </View>
-  )
-}
-```
-
-Use an optimized image component with built-in caching and placeholder support,
-such as `expo-image` or `SolitoImage` (which uses `expo-image` under the hood).
-Request images at 2x the display size for retina screens.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-inline-objects.md
-`````markdown
----
-title: Avoid Inline Objects in renderItem
-impact: HIGH
-impactDescription: prevents unnecessary re-renders of memoized list items
-tags: lists, performance, flatlist, virtualization, memo
----
-
-## Avoid Inline Objects in renderItem
-
-Don't create new objects inside `renderItem` to pass as props. Inline objects
-create new references on every render, breaking memoization. Pass primitive
-values directly from `item` instead.
-
-**Incorrect (inline object breaks memoization):**
-
-```tsx
-function UserList({ users }: { users: User[] }) {
-  return (
-    <LegendList
-      data={users}
-      renderItem={({ item }) => (
-        <UserRow
-          // Bad: new object on every render
-          user={{ id: item.id, name: item.name, avatar: item.avatar }}
-        />
-      )}
-    />
-  )
-}
-```
-
-**Incorrect (inline style object):**
-
-```tsx
-renderItem={({ item }) => (
-  <UserRow
-    name={item.name}
-    // Bad: new style object on every render
-    style={{ backgroundColor: item.isActive ? 'green' : 'gray' }}
-  />
-)}
-```
-
-**Correct (pass item directly or primitives):**
-
-```tsx
-function UserList({ users }: { users: User[] }) {
-  return (
-    <LegendList
-      data={users}
-      renderItem={({ item }) => (
-        // Good: pass the item directly
-        <UserRow user={item} />
-      )}
-    />
-  )
-}
-```
-
-**Correct (pass primitives, derive inside child):**
-
-```tsx
-renderItem={({ item }) => (
-  <UserRow
-    id={item.id}
-    name={item.name}
-    isActive={item.isActive}
-  />
-)}
-
-const UserRow = memo(function UserRow({ id, name, isActive }: Props) {
-  // Good: derive style inside memoized component
-  const backgroundColor = isActive ? 'green' : 'gray'
-  return <View style={[styles.row, { backgroundColor }]}>{/* ... */}</View>
+const { user, config, profile } = await all({
+  async user() { return fetchUser() },
+  async config() { return fetchConfig() },
+  async profile() {
+    return fetchProfile((await this.$.user).id)
+  }
 })
 ```
 
-**Correct (hoist static styles in module scope):**
-
-```tsx
-const activeStyle = { backgroundColor: 'green' }
-const inactiveStyle = { backgroundColor: 'gray' }
-
-renderItem={({ item }) => (
-  <UserRow
-    name={item.name}
-    // Good: stable references
-    style={item.isActive ? activeStyle : inactiveStyle}
-  />
-)}
-```
-
-Passing primitives or stable references allows `memo()` to skip re-renders when
-the actual values haven't changed.
-
-**Note:** If you have the React Compiler enabled, it handles memoization
-automatically and these manual optimizations become less critical.
+Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
 `````
 
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-item-expensive.md
+## File: .github/skills/vercel-react-best-practices/rules/bundle-conditional.md
 `````markdown
 ---
-title: Keep List Items Lightweight
+title: Conditional Module Loading
 impact: HIGH
-impactDescription: reduces render time for visible items during scroll
-tags: lists, performance, virtualization, hooks
+impactDescription: loads large data only when needed
+tags: bundle, conditional-loading, lazy-loading
 ---
 
-## Keep List Items Lightweight
+## Conditional Module Loading
 
-List items should be as inexpensive as possible to render. Minimize hooks, avoid
-queries, and limit React Context access. Virtualized lists render many items
-during scroll—expensive items cause jank.
+Load large data or modules only when a feature is activated.
 
-**Incorrect (heavy list item):**
+**Example (lazy-load animation frames):**
 
 ```tsx
-function ProductRow({ id }: { id: string }) {
-  // Bad: query inside list item
-  const { data: product } = useQuery(['product', id], () => fetchProduct(id))
-  // Bad: multiple context accesses
-  const theme = useContext(ThemeContext)
-  const user = useContext(UserContext)
-  const cart = useContext(CartContext)
-  // Bad: expensive computation
-  const recommendations = useMemo(
-    () => computeRecommendations(product),
-    [product]
-  )
+function AnimationPlayer({ enabled }: { enabled: boolean }) {
+  const [frames, setFrames] = useState<Frame[] | null>(null)
 
-  return <View>{/* ... */}</View>
+  useEffect(() => {
+    if (enabled && !frames && typeof window !== 'undefined') {
+      import('./animation-frames.js')
+        .then(mod => setFrames(mod.frames))
+        .catch(() => setEnabled(false))
+    }
+  }, [enabled, frames])
+
+  if (!frames) return <Skeleton />
+  return <Canvas frames={frames} />
 }
 ```
 
-**Correct (lightweight list item):**
-
-```tsx
-function ProductRow({ name, price, imageUrl }: Props) {
-  // Good: receives only primitives, minimal hooks
-  return (
-    <View>
-      <Image source={{ uri: imageUrl }} />
-      <Text>{name}</Text>
-      <Text>{price}</Text>
-    </View>
-  )
-}
-```
-
-**Move data fetching to parent:**
-
-```tsx
-// Parent fetches all data once
-function ProductList() {
-  const { data: products } = useQuery(['products'], fetchProducts)
-
-  return (
-    <LegendList
-      data={products}
-      renderItem={({ item }) => (
-        <ProductRow name={item.name} price={item.price} imageUrl={item.image} />
-      )}
-    />
-  )
-}
-```
-
-**For shared values, use Zustand selectors instead of Context:**
-
-```tsx
-// Incorrect: Context causes re-render when any cart value changes
-function ProductRow({ id, name }: Props) {
-  const { items } = useContext(CartContext)
-  const inCart = items.includes(id)
-  // ...
-}
-
-// Correct: Zustand selector only re-renders when this specific value changes
-function ProductRow({ id, name }: Props) {
-  // use Set.has (created once at the root) instead of Array.includes()
-  const inCart = useCartStore((s) => s.items.has(id))
-  // ...
-}
-```
-
-**Guidelines for list items:**
-
-- No queries or data fetching
-- No expensive computations (move to parent or memoize at parent level)
-- Prefer Zustand selectors over React Context
-- Minimize useState/useEffect hooks
-- Pass pre-computed values as props
-
-The goal: list items should be simple rendering functions that take props and
-return JSX.
+The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
 `````
 
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-item-memo.md
+## File: .github/skills/vercel-react-best-practices/rules/js-batch-dom-css.md
 `````markdown
 ---
-title: Pass Primitives to List Items for Memoization
-impact: HIGH
-impactDescription: enables effective memo() comparison
-tags: lists, performance, memo, primitives
+title: Batch DOM CSS Changes
+impact: MEDIUM
+impactDescription: reduces reflows/repaints
+tags: javascript, dom, css, performance, reflow
 ---
 
-## Pass Primitives to List Items for Memoization
+## Batch DOM CSS Changes
 
-When possible, pass only primitive values (strings, numbers, booleans) as props
-to list item components. Primitives enable shallow comparison in `memo()` to
-work correctly, skipping re-renders when values haven't changed.
+Avoid changing styles one property at a time. Group multiple CSS changes together via classes or `cssText` to minimize browser reflows.
 
-**Incorrect (object prop requires deep comparison):**
+**Incorrect (multiple reflows):**
 
-```tsx
-type User = { id: string; name: string; email: string; avatar: string }
-
-const UserRow = memo(function UserRow({ user }: { user: User }) {
-  // memo() compares user by reference, not value
-  // If parent creates new user object, this re-renders even if data is same
-  return <Text>{user.name}</Text>
-})
-
-renderItem={({ item }) => <UserRow user={item} />}
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  // Each line triggers a reflow
+  element.style.width = '100px'
+  element.style.height = '200px'
+  element.style.backgroundColor = 'blue'
+  element.style.border = '1px solid black'
+}
 ```
 
-This can still be optimized, but it is harder to memoize properly.
+**Correct (add class - single reflow):**
 
-**Correct (primitive props enable shallow comparison):**
+```typescript
+// CSS file
+.highlighted-box {
+  width: 100px;
+  height: 200px;
+  background-color: blue;
+  border: 1px solid black;
+}
+
+// JavaScript
+function updateElementStyles(element: HTMLElement) {
+  element.classList.add('highlighted-box')
+}
+```
+
+**Correct (change cssText - single reflow):**
+
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  element.style.cssText = `
+    width: 100px;
+    height: 200px;
+    background-color: blue;
+    border: 1px solid black;
+  `
+}
+```
+
+**React example:**
 
 ```tsx
-const UserRow = memo(function UserRow({
-  id,
-  name,
-  email,
-}: {
+// Incorrect: changing styles one by one
+function Box({ isHighlighted }: { isHighlighted: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    if (ref.current && isHighlighted) {
+      ref.current.style.width = '100px'
+      ref.current.style.height = '200px'
+      ref.current.style.backgroundColor = 'blue'
+    }
+  }, [isHighlighted])
+  
+  return <div ref={ref}>Content</div>
+}
+
+// Correct: toggle class
+function Box({ isHighlighted }: { isHighlighted: boolean }) {
+  return (
+    <div className={isHighlighted ? 'highlighted-box' : ''}>
+      Content
+    </div>
+  )
+}
+```
+
+Prefer CSS classes over inline styles when possible. Classes are cached by the browser and provide better separation of concerns.
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/js-length-check-first.md
+`````markdown
+---
+title: Early Length Check for Array Comparisons
+impact: MEDIUM-HIGH
+impactDescription: avoids expensive operations when lengths differ
+tags: javascript, arrays, performance, optimization, comparison
+---
+
+## Early Length Check for Array Comparisons
+
+When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
+
+In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
+
+**Incorrect (always runs expensive comparison):**
+
+```typescript
+function hasChanges(current: string[], original: string[]) {
+  // Always sorts and joins, even when lengths differ
+  return current.sort().join() !== original.sort().join()
+}
+```
+
+Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
+
+**Correct (O(1) length check first):**
+
+```typescript
+function hasChanges(current: string[], original: string[]) {
+  // Early return if lengths differ
+  if (current.length !== original.length) {
+    return true
+  }
+  // Only sort/join when lengths match
+  const currentSorted = current.toSorted()
+  const originalSorted = original.toSorted()
+  for (let i = 0; i < currentSorted.length; i++) {
+    if (currentSorted[i] !== originalSorted[i]) {
+      return true
+    }
+  }
+  return false
+}
+```
+
+This new approach is more efficient because:
+- It avoids the overhead of sorting and joining the arrays when lengths differ
+- It avoids consuming memory for the joined strings (especially important for large arrays)
+- It avoids mutating the original arrays
+- It returns early when a difference is found
+`````
+
+## File: .github/skills/vercel-react-best-practices/rules/js-min-max-loop.md
+`````markdown
+---
+title: Use Loop for Min/Max Instead of Sort
+impact: LOW
+impactDescription: O(n) instead of O(n log n)
+tags: javascript, arrays, performance, sorting, algorithms
+---
+
+## Use Loop for Min/Max Instead of Sort
+
+Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
+
+**Incorrect (O(n log n) - sort to find latest):**
+
+```typescript
+interface Project {
   id: string
   name: string
-  email: string
-}) {
-  // memo() compares each primitive directly
-  // Re-renders only if id, name, or email actually changed
-  return <Text>{name}</Text>
-})
-
-renderItem={({ item }) => (
-  <UserRow id={item.id} name={item.name} email={item.email} />
-)}
-```
-
-**Pass only what you need:**
-
-```tsx
-// Incorrect: passing entire item when you only need name
-<UserRow user={item} />
-
-// Correct: pass only the fields the component uses
-<UserRow name={item.name} avatarUrl={item.avatar} />
-```
-
-**For callbacks, hoist or use item ID:**
-
-```tsx
-// Incorrect: inline function creates new reference
-<UserRow name={item.name} onPress={() => handlePress(item.id)} />
-
-// Correct: pass ID, handle in child
-<UserRow id={item.id} name={item.name} />
-
-const UserRow = memo(function UserRow({ id, name }: Props) {
-  const handlePress = useCallback(() => {
-    // use id here
-  }, [id])
-  return <Pressable onPress={handlePress}><Text>{name}</Text></Pressable>
-})
-```
-
-Primitive props make memoization predictable and effective.
-
-**Note:** If you have the React Compiler enabled, you do not need to use
-`memo()` or `useCallback()`, but the object references still apply.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-item-types.md
-`````markdown
----
-title: Use Item Types for Heterogeneous Lists
-impact: HIGH
-impactDescription: efficient recycling, less layout thrashing
-tags: list, performance, recycling, heterogeneous, LegendList
----
-
-## Use Item Types for Heterogeneous Lists
-
-When a list has different item layouts (messages, images, headers, etc.), use a
-`type` field on each item and provide `getItemType` to the list. This puts items
-into separate recycling pools so a message component never gets recycled into an
-image component.
-
-**Incorrect (single component with conditionals):**
-
-```tsx
-type Item = { id: string; text?: string; imageUrl?: string; isHeader?: boolean }
-
-function ListItem({ item }: { item: Item }) {
-  if (item.isHeader) {
-    return <HeaderItem title={item.text} />
-  }
-  if (item.imageUrl) {
-    return <ImageItem url={item.imageUrl} />
-  }
-  return <MessageItem text={item.text} />
+  updatedAt: number
 }
 
-function Feed({ items }: { items: Item[] }) {
-  return (
-    <LegendList
-      data={items}
-      renderItem={({ item }) => <ListItem item={item} />}
-      recycleItems
-    />
-  )
+function getLatestProject(projects: Project[]) {
+  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
+  return sorted[0]
 }
 ```
 
-**Correct (typed items with separate components):**
+Sorts the entire array just to find the maximum value.
 
-```tsx
-type HeaderItem = { id: string; type: 'header'; title: string }
-type MessageItem = { id: string; type: 'message'; text: string }
-type ImageItem = { id: string; type: 'image'; url: string }
-type FeedItem = HeaderItem | MessageItem | ImageItem
+**Incorrect (O(n log n) - sort for oldest and newest):**
 
-function Feed({ items }: { items: FeedItem[] }) {
-  return (
-    <LegendList
-      data={items}
-      keyExtractor={(item) => item.id}
-      getItemType={(item) => item.type}
-      renderItem={({ item }) => {
-        switch (item.type) {
-          case 'header':
-            return <SectionHeader title={item.title} />
-          case 'message':
-            return <MessageRow text={item.text} />
-          case 'image':
-            return <ImageRow url={item.url} />
-        }
-      }}
-      recycleItems
-    />
-  )
+```typescript
+function getOldestAndNewest(projects: Project[]) {
+  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
+  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
 }
 ```
 
-**Why this matters:**
+Still sorts unnecessarily when only min/max are needed.
 
-- **Recycling efficiency**: Items with the same type share a recycling pool
-- **No layout thrashing**: A header never recycles into an image cell
-- **Type safety**: TypeScript can narrow the item type in each branch
-- **Better size estimation**: Use `getEstimatedItemSize` with `itemType` for
-  accurate estimates per type
+**Correct (O(n) - single loop):**
 
-```tsx
-<LegendList
-  data={items}
-  keyExtractor={(item) => item.id}
-  getItemType={(item) => item.type}
-  getEstimatedItemSize={(index, item, itemType) => {
-    switch (itemType) {
-      case 'header':
-        return 48
-      case 'message':
-        return 72
-      case 'image':
-        return 300
-      default:
-        return 72
-    }
-  }}
-  renderItem={({ item }) => {
-    /* ... */
-  }}
-  recycleItems
-/>
-```
-
-Reference:
-[LegendList getItemType](https://legendapp.com/open-source/list/api/props/#getitemtype-v2)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/list-performance-virtualize.md
-`````markdown
----
-title: Use a List Virtualizer for Any List
-impact: HIGH
-impactDescription: reduced memory, faster mounts
-tags: lists, performance, virtualization, scrollview
----
-
-## Use a List Virtualizer for Any List
-
-Use a list virtualizer like LegendList or FlashList instead of ScrollView with
-mapped children—even for short lists. Virtualizers only render visible items,
-reducing memory usage and mount time. ScrollView renders all children upfront,
-which gets expensive quickly.
-
-**Incorrect (ScrollView renders all items at once):**
-
-```tsx
-function Feed({ items }: { items: Item[] }) {
-  return (
-    <ScrollView>
-      {items.map((item) => (
-        <ItemCard key={item.id} item={item} />
-      ))}
-    </ScrollView>
-  )
-}
-// 50 items = 50 components mounted, even if only 10 visible
-```
-
-**Correct (virtualizer renders only visible items):**
-
-```tsx
-import { LegendList } from '@legendapp/list'
-
-function Feed({ items }: { items: Item[] }) {
-  return (
-    <LegendList
-      data={items}
-      // if you aren't using React Compiler, wrap these with useCallback
-      renderItem={({ item }) => <ItemCard item={item} />}
-      keyExtractor={(item) => item.id}
-      estimatedItemSize={80}
-    />
-  )
-}
-// Only ~10-15 visible items mounted at a time
-```
-
-**Alternative (FlashList):**
-
-```tsx
-import { FlashList } from '@shopify/flash-list'
-
-function Feed({ items }: { items: Item[] }) {
-  return (
-    <FlashList
-      data={items}
-      // if you aren't using React Compiler, wrap these with useCallback
-      renderItem={({ item }) => <ItemCard item={item} />}
-      keyExtractor={(item) => item.id}
-    />
-  )
-}
-```
-
-Benefits apply to any screen with scrollable content—profiles, settings, feeds,
-search results. Default to virtualization.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/monorepo-native-deps-in-app.md
-`````markdown
----
-title: Install Native Dependencies in App Directory
-impact: CRITICAL
-impactDescription: required for autolinking to work
-tags: monorepo, native, autolinking, installation
----
-
-## Install Native Dependencies in App Directory
-
-In a monorepo, packages with native code must be installed in the native app's
-directory directly. Autolinking only scans the app's `node_modules`—it won't
-find native dependencies installed in other packages.
-
-**Incorrect (native dep in shared package only):**
-
-```
-packages/
-  ui/
-    package.json  # has react-native-reanimated
-  app/
-    package.json  # missing react-native-reanimated
-```
-
-Autolinking fails—native code not linked.
-
-**Correct (native dep in app directory):**
-
-```
-packages/
-  ui/
-    package.json  # has react-native-reanimated
-  app/
-    package.json  # also has react-native-reanimated
-```
-
-```json
-// packages/app/package.json
-{
-  "dependencies": {
-    "react-native-reanimated": "3.16.1"
-  }
-}
-```
-
-Even if the shared package uses the native dependency, the app must also list it
-for autolinking to detect and link the native code.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/monorepo-single-dependency-versions.md
-`````markdown
----
-title: Use Single Dependency Versions Across Monorepo
-impact: MEDIUM
-impactDescription: avoids duplicate bundles, version conflicts
-tags: monorepo, dependencies, installation
----
-
-## Use Single Dependency Versions Across Monorepo
-
-Use a single version of each dependency across all packages in your monorepo.
-Prefer exact versions over ranges. Multiple versions cause duplicate code in
-bundles, runtime conflicts, and inconsistent behavior across packages.
-
-Use a tool like syncpack to enforce this. As a last resort, use yarn resolutions
-or npm overrides.
-
-**Incorrect (version ranges, multiple versions):**
-
-```json
-// packages/app/package.json
-{
-  "dependencies": {
-    "react-native-reanimated": "^3.0.0"
-  }
-}
-
-// packages/ui/package.json
-{
-  "dependencies": {
-    "react-native-reanimated": "^3.5.0"
-  }
-}
-```
-
-**Correct (exact versions, single source of truth):**
-
-```json
-// package.json (root)
-{
-  "pnpm": {
-    "overrides": {
-      "react-native-reanimated": "3.16.1"
+```typescript
+function getLatestProject(projects: Project[]) {
+  if (projects.length === 0) return null
+  
+  let latest = projects[0]
+  
+  for (let i = 1; i < projects.length; i++) {
+    if (projects[i].updatedAt > latest.updatedAt) {
+      latest = projects[i]
     }
   }
+  
+  return latest
 }
 
-// packages/app/package.json
-{
-  "dependencies": {
-    "react-native-reanimated": "3.16.1"
+function getOldestAndNewest(projects: Project[]) {
+  if (projects.length === 0) return { oldest: null, newest: null }
+  
+  let oldest = projects[0]
+  let newest = projects[0]
+  
+  for (let i = 1; i < projects.length; i++) {
+    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
+    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
   }
-}
-
-// packages/ui/package.json
-{
-  "dependencies": {
-    "react-native-reanimated": "3.16.1"
-  }
+  
+  return { oldest, newest }
 }
 ```
 
-Use your package manager's override/resolution feature to enforce versions at
-the root. When adding dependencies, specify exact versions without `^` or `~`.
+Single pass through the array, no copying, no sorting.
+
+**Alternative (Math.min/Math.max for small arrays):**
+
+```typescript
+const numbers = [5, 2, 8, 1, 9]
+const min = Math.min(...numbers)
+const max = Math.max(...numbers)
+```
+
+This works for small arrays but can be slower for very large arrays due to spread operator limitations. Use the loop approach for reliability.
 `````
 
-## File: .github/skills/vercel-react-native-skills/rules/navigation-native-navigators.md
+## File: .github/skills/vercel-react-best-practices/rules/rerender-derived-state.md
 `````markdown
 ---
-title: Use Native Navigators for Navigation
-impact: HIGH
-impactDescription: native performance, platform-appropriate UI
-tags: navigation, react-navigation, expo-router, native-stack, tabs
----
-
-## Use Native Navigators for Navigation
-
-Always use native navigators instead of JS-based ones. Native navigators use
-platform APIs (UINavigationController on iOS, Fragment on Android) for better
-performance and native behavior.
-
-**For stacks:** Use `@react-navigation/native-stack` or expo-router's default
-stack (which uses native-stack). Avoid `@react-navigation/stack`.
-
-**For tabs:** Use `react-native-bottom-tabs` (native) or expo-router's native
-tabs. Avoid `@react-navigation/bottom-tabs` when native feel matters.
-
-### Stack Navigation
-
-**Incorrect (JS stack navigator):**
-
-```tsx
-import { createStackNavigator } from '@react-navigation/stack'
-
-const Stack = createStackNavigator()
-
-function App() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen name='Home' component={HomeScreen} />
-      <Stack.Screen name='Details' component={DetailsScreen} />
-    </Stack.Navigator>
-  )
-}
-```
-
-**Correct (native stack with react-navigation):**
-
-```tsx
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
-
-const Stack = createNativeStackNavigator()
-
-function App() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen name='Home' component={HomeScreen} />
-      <Stack.Screen name='Details' component={DetailsScreen} />
-    </Stack.Navigator>
-  )
-}
-```
-
-**Correct (expo-router uses native stack by default):**
-
-```tsx
-// app/_layout.tsx
-import { Stack } from 'expo-router'
-
-export default function Layout() {
-  return <Stack />
-}
-```
-
-### Tab Navigation
-
-**Incorrect (JS bottom tabs):**
-
-```tsx
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-
-const Tab = createBottomTabNavigator()
-
-function App() {
-  return (
-    <Tab.Navigator>
-      <Tab.Screen name='Home' component={HomeScreen} />
-      <Tab.Screen name='Settings' component={SettingsScreen} />
-    </Tab.Navigator>
-  )
-}
-```
-
-**Correct (native bottom tabs with react-navigation):**
-
-```tsx
-import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation'
-
-const Tab = createNativeBottomTabNavigator()
-
-function App() {
-  return (
-    <Tab.Navigator>
-      <Tab.Screen
-        name='Home'
-        component={HomeScreen}
-        options={{
-          tabBarIcon: () => ({ sfSymbol: 'house' }),
-        }}
-      />
-      <Tab.Screen
-        name='Settings'
-        component={SettingsScreen}
-        options={{
-          tabBarIcon: () => ({ sfSymbol: 'gear' }),
-        }}
-      />
-    </Tab.Navigator>
-  )
-}
-```
-
-**Correct (expo-router native tabs):**
-
-```tsx
-// app/(tabs)/_layout.tsx
-import { NativeTabs } from 'expo-router/unstable-native-tabs'
-
-export default function TabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name='index'>
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf='house.fill' md='home' />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name='settings'>
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf='gear' md='settings' />
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  )
-}
-```
-
-On iOS, native tabs automatically enable `contentInsetAdjustmentBehavior` on the
-first `ScrollView` at the root of each tab screen, so content scrolls correctly
-behind the translucent tab bar. If you need to disable this, use
-`disableAutomaticContentInsets` on the trigger.
-
-### Prefer Native Header Options Over Custom Components
-
-**Incorrect (custom header component):**
-
-```tsx
-<Stack.Screen
-  name='Profile'
-  component={ProfileScreen}
-  options={{
-    header: () => <CustomHeader title='Profile' />,
-  }}
-/>
-```
-
-**Correct (native header options):**
-
-```tsx
-<Stack.Screen
-  name='Profile'
-  component={ProfileScreen}
-  options={{
-    title: 'Profile',
-    headerLargeTitleEnabled: true,
-    headerSearchBarOptions: {
-      placeholder: 'Search',
-    },
-  }}
-/>
-```
-
-Native headers support iOS large titles, search bars, blur effects, and proper
-safe area handling automatically.
-
-### Why Native Navigators
-
-- **Performance**: Native transitions and gestures run on the UI thread
-- **Platform behavior**: Automatic iOS large titles, Android material design
-- **System integration**: Scroll-to-top on tab tap, PiP avoidance, proper safe
-  areas
-- **Accessibility**: Platform accessibility features work automatically
-
-Reference:
-
-- [React Navigation Native Stack](https://reactnavigation.org/docs/native-stack-navigator)
-- [React Native Bottom Tabs with React Navigation](https://oss.callstack.com/react-native-bottom-tabs/docs/guides/usage-with-react-navigation)
-- [React Native Bottom Tabs with Expo Router](https://oss.callstack.com/react-native-bottom-tabs/docs/guides/usage-with-expo-router)
-- [Expo Router Native Tabs](https://docs.expo.dev/router/advanced/native-tabs)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/react-compiler-destructure-functions.md
-`````markdown
----
-title: Destructure Functions Early in Render (React Compiler)
-impact: HIGH
-impactDescription: stable references, fewer re-renders
-tags: rerender, hooks, performance, react-compiler
----
-
-## Destructure Functions Early in Render
-
-This rule is only applicable if you are using the React Compiler.
-
-Destructure functions from hooks at the top of render scope. Never dot into
-objects to call functions. Destructured functions are stable references; dotting
-creates new references and breaks memoization.
-
-**Incorrect (dotting into object):**
-
-```tsx
-import { useRouter } from 'expo-router'
-
-function SaveButton(props) {
-  const router = useRouter()
-
-  // bad: react-compiler will key the cache on "props" and "router", which are objects that change each render
-  const handlePress = () => {
-    props.onSave()
-    router.push('/success') // unstable reference
-  }
-
-  return <Button onPress={handlePress}>Save</Button>
-}
-```
-
-**Correct (destructure early):**
-
-```tsx
-import { useRouter } from 'expo-router'
-
-function SaveButton({ onSave }) {
-  const { push } = useRouter()
-
-  // good: react-compiler will key on push and onSave
-  const handlePress = () => {
-    onSave()
-    push('/success') // stable reference
-  }
-
-  return <Button onPress={handlePress}>Save</Button>
-}
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/react-compiler-reanimated-shared-values.md
-`````markdown
----
-title: Use .get() and .set() for Reanimated Shared Values (not .value)
-impact: LOW
-impactDescription: required for React Compiler compatibility
-tags: reanimated, react-compiler, shared-values
----
-
-## Use .get() and .set() for Shared Values with React Compiler
-
-With React Compiler enabled, use `.get()` and `.set()` instead of reading or
-writing `.value` directly on Reanimated shared values. The compiler can't track
-property access—explicit methods ensure correct behavior.
-
-**Incorrect (breaks with React Compiler):**
-
-```tsx
-import { useSharedValue } from 'react-native-reanimated'
-
-function Counter() {
-  const count = useSharedValue(0)
-
-  const increment = () => {
-    count.value = count.value + 1 // opts out of react compiler
-  }
-
-  return <Button onPress={increment} title={`Count: ${count.value}`} />
-}
-```
-
-**Correct (React Compiler compatible):**
-
-```tsx
-import { useSharedValue } from 'react-native-reanimated'
-
-function Counter() {
-  const count = useSharedValue(0)
-
-  const increment = () => {
-    count.set(count.get() + 1)
-  }
-
-  return <Button onPress={increment} title={`Count: ${count.get()}`} />
-}
-```
-
-See the
-[Reanimated docs](https://docs.swmansion.com/react-native-reanimated/docs/core/useSharedValue/#react-compiler-support)
-for more.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/react-state-dispatcher.md
-`````markdown
----
-title: useState Dispatch updaters for State That Depends on Current Value
+title: Subscribe to Derived State
 impact: MEDIUM
-impactDescription: avoids stale closures, prevents unnecessary re-renders
-tags: state, hooks, useState, callbacks
+impactDescription: reduces re-render frequency
+tags: rerender, derived-state, media-query, optimization
 ---
 
-## Use Dispatch Updaters for State That Depends on Current Value
+## Subscribe to Derived State
 
-When the next state depends on the current state, use a dispatch updater
-(`setState(prev => ...)`) instead of reading the state variable directly in a
-callback. This avoids stale closures and ensures you're comparing against the
-latest value.
+Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
 
-**Incorrect (reads state directly):**
+**Incorrect (re-renders on every pixel change):**
 
 ```tsx
-const [size, setSize] = useState<Size | undefined>(undefined)
-
-const onLayout = (e: LayoutChangeEvent) => {
-  const { width, height } = e.nativeEvent.layout
-  // size may be stale in this closure
-  if (size?.width !== width || size?.height !== height) {
-    setSize({ width, height })
-  }
+function Sidebar() {
+  const width = useWindowWidth()  // updates continuously
+  const isMobile = width < 768
+  return <nav className={isMobile ? 'mobile' : 'desktop'}>
 }
 ```
 
-**Correct (dispatch updater):**
+**Correct (re-renders only when boolean changes):**
 
 ```tsx
-const [size, setSize] = useState<Size | undefined>(undefined)
+function Sidebar() {
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  return <nav className={isMobile ? 'mobile' : 'desktop'}>
+}
+```
+`````
 
-const onLayout = (e: LayoutChangeEvent) => {
-  const { width, height } = e.nativeEvent.layout
-  setSize((prev) => {
-    if (prev?.width === width && prev?.height === height) return prev
-    return { width, height }
+## File: .github/skills/vercel-react-best-practices/rules/server-cache-react.md
+`````markdown
+---
+title: Per-Request Deduplication with React.cache()
+impact: MEDIUM
+impactDescription: deduplicates within request
+tags: server, cache, react-cache, deduplication
+---
+
+## Per-Request Deduplication with React.cache()
+
+Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
+
+**Usage:**
+
+```typescript
+import { cache } from 'react'
+
+export const getCurrentUser = cache(async () => {
+  const session = await auth()
+  if (!session?.user?.id) return null
+  return await db.user.findUnique({
+    where: { id: session.user.id }
   })
-}
+})
 ```
 
-Returning the previous value from the updater skips the re-render.
-
-For primitive states, you don't need to compare values before firing a
-re-render.
-
-**Incorrect (unnecessary comparison for primitive state):**
-
-```tsx
-const [size, setSize] = useState<Size | undefined>(undefined)
-
-const onLayout = (e: LayoutChangeEvent) => {
-  const { width, height } = e.nativeEvent.layout
-  setSize((prev) => (prev === width ? prev : width))
-}
-```
-
-**Correct (sets primitive state directly):**
-
-```tsx
-const [size, setSize] = useState<Size | undefined>(undefined)
-
-const onLayout = (e: LayoutChangeEvent) => {
-  const { width, height } = e.nativeEvent.layout
-  setSize(width)
-}
-```
-
-However, if the next state depends on the current state, you should still use a
-dispatch updater.
-
-**Incorrect (reads state directly from the callback):**
-
-```tsx
-const [count, setCount] = useState(0)
-
-const onTap = () => {
-  setCount(count + 1)
-}
-```
-
-**Correct (dispatch updater):**
-
-```tsx
-const [count, setCount] = useState(0)
-
-const onTap = () => {
-  setCount((prev) => prev + 1)
-}
-```
+Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
 `````
 
-## File: .github/skills/vercel-react-native-skills/rules/react-state-fallback.md
+## File: .github/skills/vercel-react-best-practices/rules/server-parallel-fetching.md
 `````markdown
 ---
-title: Use fallback state instead of initialState
-impact: MEDIUM
-impactDescription: reactive fallbacks without syncing
-tags: state, hooks, derived-state, props, initialState
----
-
-## Use fallback state instead of initialState
-
-Use `undefined` as initial state and nullish coalescing (`??`) to fall back to
-parent or server values. State represents user intent only—`undefined` means
-"user hasn't chosen yet." This enables reactive fallbacks that update when the
-source changes, not just on initial render.
-
-**Incorrect (syncs state, loses reactivity):**
-
-```tsx
-type Props = { fallbackEnabled: boolean }
-
-function Toggle({ fallbackEnabled }: Props) {
-  const [enabled, setEnabled] = useState(defaultEnabled)
-  // If fallbackEnabled changes, state is stale
-  // State mixes user intent with default value
-
-  return <Switch value={enabled} onValueChange={setEnabled} />
-}
-```
-
-**Correct (state is user intent, reactive fallback):**
-
-```tsx
-type Props = { fallbackEnabled: boolean }
-
-function Toggle({ fallbackEnabled }: Props) {
-  const [_enabled, setEnabled] = useState<boolean | undefined>(undefined)
-  const enabled = _enabled ?? defaultEnabled
-  // undefined = user hasn't touched it, falls back to prop
-  // If defaultEnabled changes, component reflects it
-  // Once user interacts, their choice persists
-
-  return <Switch value={enabled} onValueChange={setEnabled} />
-}
-```
-
-**With server data:**
-
-```tsx
-function ProfileForm({ data }: { data: User }) {
-  const [_theme, setTheme] = useState<string | undefined>(undefined)
-  const theme = _theme ?? data.theme
-  // Shows server value until user overrides
-  // Server refetch updates the fallback automatically
-
-  return <ThemePicker value={theme} onChange={setTheme} />
-}
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/react-state-minimize.md
-`````markdown
----
-title: Minimize State Variables and Derive Values
-impact: MEDIUM
-impactDescription: fewer re-renders, less state drift
-tags: state, derived-state, hooks, optimization
----
-
-## Minimize State Variables and Derive Values
-
-Use the fewest state variables possible. If a value can be computed from existing state or props, derive it during render instead of storing it in state. Redundant state causes unnecessary re-renders and can drift out of sync.
-
-**Incorrect (redundant state):**
-
-```tsx
-function Cart({ items }: { items: Item[] }) {
-  const [total, setTotal] = useState(0)
-  const [itemCount, setItemCount] = useState(0)
-
-  useEffect(() => {
-    setTotal(items.reduce((sum, item) => sum + item.price, 0))
-    setItemCount(items.length)
-  }, [items])
-
-  return (
-    <View>
-      <Text>{itemCount} items</Text>
-      <Text>Total: ${total}</Text>
-    </View>
-  )
-}
-```
-
-**Correct (derived values):**
-
-```tsx
-function Cart({ items }: { items: Item[] }) {
-  const total = items.reduce((sum, item) => sum + item.price, 0)
-  const itemCount = items.length
-
-  return (
-    <View>
-      <Text>{itemCount} items</Text>
-      <Text>Total: ${total}</Text>
-    </View>
-  )
-}
-```
-
-**Another example:**
-
-```tsx
-// Incorrect: storing both firstName, lastName, AND fullName
-const [firstName, setFirstName] = useState('')
-const [lastName, setLastName] = useState('')
-const [fullName, setFullName] = useState('')
-
-// Correct: derive fullName
-const [firstName, setFirstName] = useState('')
-const [lastName, setLastName] = useState('')
-const fullName = `${firstName} ${lastName}`
-```
-
-State should be the minimal source of truth. Everything else is derived.
-
-Reference: [Choosing the State Structure](https://react.dev/learn/choosing-the-state-structure)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/rendering-no-falsy-and.md
-`````markdown
----
-title: Never Use && with Potentially Falsy Values
+title: Parallel Data Fetching with Component Composition
 impact: CRITICAL
-impactDescription: prevents production crash
-tags: rendering, conditional, jsx, crash
+impactDescription: eliminates server-side waterfalls
+tags: server, rsc, parallel-fetching, composition
 ---
 
-## Never Use && with Potentially Falsy Values
+## Parallel Data Fetching with Component Composition
 
-Never use `{value && <Component />}` when `value` could be an empty string or
-`0`. These are falsy but JSX-renderable—React Native will try to render them as
-text outside a `<Text>` component, causing a hard crash in production.
+React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
 
-**Incorrect (crashes if count is 0 or name is ""):**
+**Incorrect (Sidebar waits for Page's fetch to complete):**
 
 ```tsx
-function Profile({ name, count }: { name: string; count: number }) {
+export default async function Page() {
+  const header = await fetchHeader()
   return (
-    <View>
-      {name && <Text>{name}</Text>}
-      {count && <Text>{count} items</Text>}
-    </View>
+    <div>
+      <div>{header}</div>
+      <Sidebar />
+    </div>
   )
 }
-// If name="" or count=0, renders the falsy value → crash
-```
 
-**Correct (ternary with null):**
-
-```tsx
-function Profile({ name, count }: { name: string; count: number }) {
-  return (
-    <View>
-      {name ? <Text>{name}</Text> : null}
-      {count ? <Text>{count} items</Text> : null}
-    </View>
-  )
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
 }
 ```
 
-**Correct (explicit boolean coercion):**
+**Correct (both fetch simultaneously):**
 
 ```tsx
-function Profile({ name, count }: { name: string; count: number }) {
-  return (
-    <View>
-      {!!name && <Text>{name}</Text>}
-      {!!count && <Text>{count} items</Text>}
-    </View>
-  )
+async function Header() {
+  const data = await fetchHeader()
+  return <div>{data}</div>
 }
-```
 
-**Best (early return):**
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
 
-```tsx
-function Profile({ name, count }: { name: string; count: number }) {
-  if (!name) return null
-
+export default function Page() {
   return (
-    <View>
-      <Text>{name}</Text>
-      {count > 0 ? <Text>{count} items</Text> : null}
-    </View>
+    <div>
+      <Header />
+      <Sidebar />
+    </div>
   )
 }
 ```
 
-Early returns are clearest. When using conditionals inline, prefer ternary or
-explicit boolean checks.
-
-**Lint rule:** Enable `react/jsx-no-leaked-render` from
-[eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-no-leaked-render.md)
-to catch this automatically.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/rendering-text-in-text-component.md
-`````markdown
----
-title: Wrap Strings in Text Components
-impact: CRITICAL
-impactDescription: prevents runtime crash
-tags: rendering, text, core
----
-
-## Wrap Strings in Text Components
-
-Strings must be rendered inside `<Text>`. React Native crashes if a string is a
-direct child of `<View>`.
-
-**Incorrect (crashes):**
+**Alternative with children prop:**
 
 ```tsx
-import { View } from 'react-native'
-
-function Greeting({ name }: { name: string }) {
-  return <View>Hello, {name}!</View>
-}
-// Error: Text strings must be rendered within a <Text> component.
-```
-
-**Correct:**
-
-```tsx
-import { View, Text } from 'react-native'
-
-function Greeting({ name }: { name: string }) {
+async function Layout({ children }: { children: ReactNode }) {
+  const header = await fetchHeader()
   return (
-    <View>
-      <Text>Hello, {name}!</Text>
-    </View>
-  )
-}
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/scroll-position-no-state.md
-`````markdown
----
-title: Never Track Scroll Position in useState
-impact: HIGH
-impactDescription: prevents render thrashing during scroll
-tags: scroll, performance, reanimated, useRef
----
-
-## Never Track Scroll Position in useState
-
-Never store scroll position in `useState`. Scroll events fire rapidly—state
-updates cause render thrashing and dropped frames. Use a Reanimated shared value
-for animations or a ref for non-reactive tracking.
-
-**Incorrect (useState causes jank):**
-
-```tsx
-import { useState } from 'react'
-import {
-  ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-} from 'react-native'
-
-function Feed() {
-  const [scrollY, setScrollY] = useState(0)
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setScrollY(e.nativeEvent.contentOffset.y) // re-renders on every frame
-  }
-
-  return <ScrollView onScroll={onScroll} scrollEventThrottle={16} />
-}
-```
-
-**Correct (Reanimated for animations):**
-
-```tsx
-import Animated, {
-  useSharedValue,
-  useAnimatedScrollHandler,
-} from 'react-native-reanimated'
-
-function Feed() {
-  const scrollY = useSharedValue(0)
-
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      scrollY.value = e.contentOffset.y // runs on UI thread, no re-render
-    },
-  })
-
-  return (
-    <Animated.ScrollView
-      onScroll={onScroll}
-      // higher number has better performance, but it fires less often.
-      // unset this if you need higher precision over performance.
-      scrollEventThrottle={16}
-    />
-  )
-}
-```
-
-**Correct (ref for non-reactive tracking):**
-
-```tsx
-import { useRef } from 'react'
-import {
-  ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-} from 'react-native'
-
-function Feed() {
-  const scrollY = useRef(0)
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollY.current = e.nativeEvent.contentOffset.y // no re-render
-  }
-
-  return <ScrollView onScroll={onScroll} scrollEventThrottle={16} />
-}
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/state-ground-truth.md
-`````markdown
----
-title: State Must Represent Ground Truth
-impact: HIGH
-impactDescription: cleaner logic, easier debugging, single source of truth
-tags: state, derived-state, reanimated, hooks
----
-
-## State Must Represent Ground Truth
-
-State variables—both React `useState` and Reanimated shared values—should
-represent the actual state of something (e.g., `pressed`, `progress`, `isOpen`),
-not derived visual values (e.g., `scale`, `opacity`, `translateY`). Derive
-visual values from state using computation or interpolation.
-
-**Incorrect (storing the visual output):**
-
-```tsx
-const scale = useSharedValue(1)
-
-const tap = Gesture.Tap()
-  .onBegin(() => {
-    scale.set(withTiming(0.95))
-  })
-  .onFinalize(() => {
-    scale.set(withTiming(1))
-  })
-
-const animatedStyle = useAnimatedStyle(() => ({
-  transform: [{ scale: scale.get() }],
-}))
-```
-
-**Correct (storing the state, deriving the visual):**
-
-```tsx
-const pressed = useSharedValue(0) // 0 = not pressed, 1 = pressed
-
-const tap = Gesture.Tap()
-  .onBegin(() => {
-    pressed.set(withTiming(1))
-  })
-  .onFinalize(() => {
-    pressed.set(withTiming(0))
-  })
-
-const animatedStyle = useAnimatedStyle(() => ({
-  transform: [{ scale: interpolate(pressed.get(), [0, 1], [1, 0.95]) }],
-}))
-```
-
-**Why this matters:**
-
-State variables should represent real "state", not necessarily a desired end
-result.
-
-1. **Single source of truth** — The state (`pressed`) describes what's
-   happening; visuals are derived
-2. **Easier to extend** — Adding opacity, rotation, or other effects just
-   requires more interpolations from the same state
-3. **Debugging** — Inspecting `pressed = 1` is clearer than `scale = 0.95`
-4. **Reusable logic** — The same `pressed` value can drive multiple visual
-   properties
-
-**Same principle for React state:**
-
-```tsx
-// Incorrect: storing derived values
-const [isExpanded, setIsExpanded] = useState(false)
-const [height, setHeight] = useState(0)
-
-useEffect(() => {
-  setHeight(isExpanded ? 200 : 0)
-}, [isExpanded])
-
-// Correct: derive from state
-const [isExpanded, setIsExpanded] = useState(false)
-const height = isExpanded ? 200 : 0
-```
-
-State is the minimal truth. Everything else is derived.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-expo-image.md
-`````markdown
----
-title: Use expo-image for Optimized Images
-impact: HIGH
-impactDescription: memory efficiency, caching, blurhash placeholders, progressive loading
-tags: images, performance, expo-image, ui
----
-
-## Use expo-image for Optimized Images
-
-Use `expo-image` instead of React Native's `Image`. It provides memory-efficient caching, blurhash placeholders, progressive loading, and better performance for lists.
-
-**Incorrect (React Native Image):**
-
-```tsx
-import { Image } from 'react-native'
-
-function Avatar({ url }: { url: string }) {
-  return <Image source={{ uri: url }} style={styles.avatar} />
-}
-```
-
-**Correct (expo-image):**
-
-```tsx
-import { Image } from 'expo-image'
-
-function Avatar({ url }: { url: string }) {
-  return <Image source={{ uri: url }} style={styles.avatar} />
-}
-```
-
-**With blurhash placeholder:**
-
-```tsx
-<Image
-  source={{ uri: url }}
-  placeholder={{ blurhash: 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.' }}
-  contentFit="cover"
-  transition={200}
-  style={styles.image}
-/>
-```
-
-**With priority and caching:**
-
-```tsx
-<Image
-  source={{ uri: url }}
-  priority="high"
-  cachePolicy="memory-disk"
-  style={styles.hero}
-/>
-```
-
-**Key props:**
-
-- `placeholder` — Blurhash or thumbnail while loading
-- `contentFit` — `cover`, `contain`, `fill`, `scale-down`
-- `transition` — Fade-in duration (ms)
-- `priority` — `low`, `normal`, `high`
-- `cachePolicy` — `memory`, `disk`, `memory-disk`, `none`
-- `recyclingKey` — Unique key for list recycling
-
-For cross-platform (web + native), use `SolitoImage` from `solito/image` which uses `expo-image` under the hood.
-
-Reference: [expo-image](https://docs.expo.dev/versions/latest/sdk/image/)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-image-gallery.md
-`````markdown
----
-title: Use Galeria for Image Galleries and Lightbox
-impact: MEDIUM
-impactDescription:
-  native shared element transitions, pinch-to-zoom, pan-to-close
-tags: images, gallery, lightbox, expo-image, ui
----
-
-## Use Galeria for Image Galleries and Lightbox
-
-For image galleries with lightbox (tap to fullscreen), use `@nandorojo/galeria`.
-It provides native shared element transitions with pinch-to-zoom, double-tap
-zoom, and pan-to-close. Works with any image component including `expo-image`.
-
-**Incorrect (custom modal implementation):**
-
-```tsx
-function ImageGallery({ urls }: { urls: string[] }) {
-  const [selected, setSelected] = useState<string | null>(null)
-
-  return (
-    <>
-      {urls.map((url) => (
-        <Pressable key={url} onPress={() => setSelected(url)}>
-          <Image source={{ uri: url }} style={styles.thumbnail} />
-        </Pressable>
-      ))}
-      <Modal visible={!!selected} onRequestClose={() => setSelected(null)}>
-        <Image source={{ uri: selected! }} style={styles.fullscreen} />
-      </Modal>
-    </>
-  )
-}
-```
-
-**Correct (Galeria with expo-image):**
-
-```tsx
-import { Galeria } from '@nandorojo/galeria'
-import { Image } from 'expo-image'
-
-function ImageGallery({ urls }: { urls: string[] }) {
-  return (
-    <Galeria urls={urls}>
-      {urls.map((url, index) => (
-        <Galeria.Image index={index} key={url}>
-          <Image source={{ uri: url }} style={styles.thumbnail} />
-        </Galeria.Image>
-      ))}
-    </Galeria>
-  )
-}
-```
-
-**Single image:**
-
-```tsx
-import { Galeria } from '@nandorojo/galeria'
-import { Image } from 'expo-image'
-
-function Avatar({ url }: { url: string }) {
-  return (
-    <Galeria urls={[url]}>
-      <Galeria.Image>
-        <Image source={{ uri: url }} style={styles.avatar} />
-      </Galeria.Image>
-    </Galeria>
-  )
-}
-```
-
-**With low-res thumbnails and high-res fullscreen:**
-
-```tsx
-<Galeria urls={highResUrls}>
-  {lowResUrls.map((url, index) => (
-    <Galeria.Image index={index} key={url}>
-      <Image source={{ uri: url }} style={styles.thumbnail} />
-    </Galeria.Image>
-  ))}
-</Galeria>
-```
-
-**With FlashList:**
-
-```tsx
-<Galeria urls={urls}>
-  <FlashList
-    data={urls}
-    renderItem={({ item, index }) => (
-      <Galeria.Image index={index}>
-        <Image source={{ uri: item }} style={styles.thumbnail} />
-      </Galeria.Image>
-    )}
-    numColumns={3}
-    estimatedItemSize={100}
-  />
-</Galeria>
-```
-
-Works with `expo-image`, `SolitoImage`, `react-native` Image, or any image
-component.
-
-Reference: [Galeria](https://github.com/nandorojo/galeria)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-measure-views.md
-`````markdown
----
-title: Measuring View Dimensions
-impact: MEDIUM
-impactDescription: synchronous measurement, avoid unnecessary re-renders
-tags: layout, measurement, onLayout, useLayoutEffect
----
-
-## Measuring View Dimensions
-
-Use both `useLayoutEffect` (synchronous) and `onLayout` (for updates). The sync
-measurement gives you the initial size immediately; `onLayout` keeps it current
-when the view changes. For non-primitive states, use a dispatch updater to
-compare values and avoid unnecessary re-renders.
-
-**Height only:**
-
-```tsx
-import { useLayoutEffect, useRef, useState } from 'react'
-import { View, LayoutChangeEvent } from 'react-native'
-
-function MeasuredBox({ children }: { children: React.ReactNode }) {
-  const ref = useRef<View>(null)
-  const [height, setHeight] = useState<number | undefined>(undefined)
-
-  useLayoutEffect(() => {
-    // Sync measurement on mount (RN 0.82+)
-    const rect = ref.current?.getBoundingClientRect()
-    if (rect) setHeight(rect.height)
-    // Pre-0.82: ref.current?.measure((x, y, w, h) => setHeight(h))
-  }, [])
-
-  const onLayout = (e: LayoutChangeEvent) => {
-    setHeight(e.nativeEvent.layout.height)
-  }
-
-  return (
-    <View ref={ref} onLayout={onLayout}>
+    <div>
+      <div>{header}</div>
       {children}
-    </View>
+    </div>
   )
 }
-```
 
-**Both dimensions:**
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
 
-```tsx
-import { useLayoutEffect, useRef, useState } from 'react'
-import { View, LayoutChangeEvent } from 'react-native'
-
-type Size = { width: number; height: number }
-
-function MeasuredBox({ children }: { children: React.ReactNode }) {
-  const ref = useRef<View>(null)
-  const [size, setSize] = useState<Size | undefined>(undefined)
-
-  useLayoutEffect(() => {
-    const rect = ref.current?.getBoundingClientRect()
-    if (rect) setSize({ width: rect.width, height: rect.height })
-  }, [])
-
-  const onLayout = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout
-    setSize((prev) => {
-      // for non-primitive states, compare values before firing a re-render
-      if (prev?.width === width && prev?.height === height) return prev
-      return { width, height }
-    })
-  }
-
+export default function Page() {
   return (
-    <View ref={ref} onLayout={onLayout}>
-      {children}
-    </View>
+    <Layout>
+      <Sidebar />
+    </Layout>
   )
 }
 ```
-
-Use functional setState to compare—don't read state directly in the callback.
 `````
 
-## File: .github/skills/vercel-react-native-skills/rules/ui-menus.md
+## File: .github/skills/vercel-react-native-skills/AGENTS.md
 `````markdown
----
-title: Use Native Menus for Dropdowns and Context Menus
-impact: HIGH
-impactDescription: native accessibility, platform-consistent UX
-tags: user-interface, menus, context-menus, zeego, accessibility
----
+# React Native Skills (Condensed)
 
-## Use Native Menus for Dropdowns and Context Menus
+This AGENTS file is intentionally compact to reduce repeated context load.
 
-Use native platform menus instead of custom JS implementations. Native menus
-provide built-in accessibility, consistent platform UX, and better performance.
-Use [zeego](https://zeego.dev) for cross-platform native menus.
+## Source of Truth
 
-**Incorrect (custom JS menu):**
+- Primary workflow: `./SKILL.md`
 
-```tsx
-import { useState } from 'react'
-import { View, Pressable, Text } from 'react-native'
+## When to Apply
 
-function MyMenu() {
-  const [open, setOpen] = useState(false)
+Use when writing, reviewing, or refactoring React Native UI, state, animation, list performance, and navigation code.
 
-  return (
-    <View>
-      <Pressable onPress={() => setOpen(!open)}>
-        <Text>Open Menu</Text>
-      </Pressable>
-      {open && (
-        <View style={{ position: 'absolute', top: 40 }}>
-          <Pressable onPress={() => console.log('edit')}>
-            <Text>Edit</Text>
-          </Pressable>
-          <Pressable onPress={() => console.log('delete')}>
-            <Text>Delete</Text>
-          </Pressable>
-        </View>
-      )}
-    </View>
-  )
-}
-```
+## Priority Order
 
-**Correct (native menu with zeego):**
+1. Prevent runtime crashes (rendering rules first).
+2. Fix list and scroll performance bottlenecks.
+3. Improve animation and interaction responsiveness.
+4. Apply state architecture and compiler-safe patterns.
 
-```tsx
-import * as DropdownMenu from 'zeego/dropdown-menu'
+## Minimal Execution Flow
 
-function MyMenu() {
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Pressable>
-          <Text>Open Menu</Text>
-        </Pressable>
-      </DropdownMenu.Trigger>
+1. Classify issue by category (rendering, list, animation, state, navigation).
+2. Apply high-impact rule changes before stylistic changes.
+3. Keep props stable and avoid unnecessary rerenders.
+4. Validate on representative scenarios.
 
-      <DropdownMenu.Content>
-        <DropdownMenu.Item key='edit' onSelect={() => console.log('edit')}>
-          <DropdownMenu.ItemTitle>Edit</DropdownMenu.ItemTitle>
-        </DropdownMenu.Item>
+## Guardrails
 
-        <DropdownMenu.Item
-          key='delete'
-          destructive
-          onSelect={() => console.log('delete')}
-        >
-          <DropdownMenu.ItemTitle>Delete</DropdownMenu.ItemTitle>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-  )
-}
-```
+- Do not duplicate long handbook content in this file.
+- Prefer explicit conditional rendering over brittle shorthand in RN.
+- Keep this file concise; deep examples belong in `SKILL.md`.
 
-**Context menu (long-press):**
+## Validation
 
-```tsx
-import * as ContextMenu from 'zeego/context-menu'
-
-function MyContextMenu() {
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger>
-        <View style={{ padding: 20 }}>
-          <Text>Long press me</Text>
-        </View>
-      </ContextMenu.Trigger>
-
-      <ContextMenu.Content>
-        <ContextMenu.Item key='copy' onSelect={() => console.log('copy')}>
-          <ContextMenu.ItemTitle>Copy</ContextMenu.ItemTitle>
-        </ContextMenu.Item>
-
-        <ContextMenu.Item key='paste' onSelect={() => console.log('paste')}>
-          <ContextMenu.ItemTitle>Paste</ContextMenu.ItemTitle>
-        </ContextMenu.Item>
-      </ContextMenu.Content>
-    </ContextMenu.Root>
-  )
-}
-```
-
-**Checkbox items:**
-
-```tsx
-import * as DropdownMenu from 'zeego/dropdown-menu'
-
-function SettingsMenu() {
-  const [notifications, setNotifications] = useState(true)
-
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Pressable>
-          <Text>Settings</Text>
-        </Pressable>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content>
-        <DropdownMenu.CheckboxItem
-          key='notifications'
-          value={notifications}
-          onValueChange={() => setNotifications((prev) => !prev)}
-        >
-          <DropdownMenu.ItemIndicator />
-          <DropdownMenu.ItemTitle>Notifications</DropdownMenu.ItemTitle>
-        </DropdownMenu.CheckboxItem>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-  )
-}
-```
-
-**Submenus:**
-
-```tsx
-import * as DropdownMenu from 'zeego/dropdown-menu'
-
-function MenuWithSubmenu() {
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Pressable>
-          <Text>Options</Text>
-        </Pressable>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content>
-        <DropdownMenu.Item key='home' onSelect={() => console.log('home')}>
-          <DropdownMenu.ItemTitle>Home</DropdownMenu.ItemTitle>
-        </DropdownMenu.Item>
-
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='more'>
-            <DropdownMenu.ItemTitle>More Options</DropdownMenu.ItemTitle>
-          </DropdownMenu.SubTrigger>
-
-          <DropdownMenu.SubContent>
-            <DropdownMenu.Item key='settings'>
-              <DropdownMenu.ItemTitle>Settings</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-
-            <DropdownMenu.Item key='help'>
-              <DropdownMenu.ItemTitle>Help</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-  )
-}
-```
-
-Reference: [Zeego Documentation](https://zeego.dev/components/dropdown-menu)
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-native-modals.md
-`````markdown
----
-title: Use Native Modals Over JS-Based Bottom Sheets
-impact: HIGH
-impactDescription: native performance, gestures, accessibility
-tags: modals, bottom-sheet, native, react-navigation
----
-
-## Use Native Modals Over JS-Based Bottom Sheets
-
-Use native `<Modal>` with `presentationStyle="formSheet"` or React Navigation
-v7's native form sheet instead of JS-based bottom sheet libraries. Native modals
-have built-in gestures, accessibility, and better performance. Rely on native UI
-for low-level primitives.
-
-**Incorrect (JS-based bottom sheet):**
-
-```tsx
-import BottomSheet from 'custom-js-bottom-sheet'
-
-function MyScreen() {
-  const sheetRef = useRef<BottomSheet>(null)
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Button onPress={() => sheetRef.current?.expand()} title='Open' />
-      <BottomSheet ref={sheetRef} snapPoints={['50%', '90%']}>
-        <View>
-          <Text>Sheet content</Text>
-        </View>
-      </BottomSheet>
-    </View>
-  )
-}
-```
-
-**Correct (native Modal with formSheet):**
-
-```tsx
-import { Modal, View, Text, Button } from 'react-native'
-
-function MyScreen() {
-  const [visible, setVisible] = useState(false)
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Button onPress={() => setVisible(true)} title='Open' />
-      <Modal
-        visible={visible}
-        presentationStyle='formSheet'
-        animationType='slide'
-        onRequestClose={() => setVisible(false)}
-      >
-        <View>
-          <Text>Sheet content</Text>
-        </View>
-      </Modal>
-    </View>
-  )
-}
-```
-
-**Correct (React Navigation v7 native form sheet):**
-
-```tsx
-// In your navigator
-<Stack.Screen
-  name='Details'
-  component={DetailsScreen}
-  options={{
-    presentation: 'formSheet',
-    sheetAllowedDetents: 'fitToContents',
-  }}
-/>
-```
-
-Native modals provide swipe-to-dismiss, proper keyboard avoidance, and
-accessibility out of the box.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-pressable.md
-`````markdown
----
-title: Use Pressable Instead of Touchable Components
-impact: LOW
-impactDescription: modern API, more flexible
-tags: ui, pressable, touchable, gestures
----
-
-## Use Pressable Instead of Touchable Components
-
-Never use `TouchableOpacity` or `TouchableHighlight`. Use `Pressable` from
-`react-native` or `react-native-gesture-handler` instead.
-
-**Incorrect (legacy Touchable components):**
-
-```tsx
-import { TouchableOpacity } from 'react-native'
-
-function MyButton({ onPress }: { onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Text>Press me</Text>
-    </TouchableOpacity>
-  )
-}
-```
-
-**Correct (Pressable):**
-
-```tsx
-import { Pressable } from 'react-native'
-
-function MyButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress}>
-      <Text>Press me</Text>
-    </Pressable>
-  )
-}
-```
-
-**Correct (Pressable from gesture handler for lists):**
-
-```tsx
-import { Pressable } from 'react-native-gesture-handler'
-
-function ListItem({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress}>
-      <Text>Item</Text>
-    </Pressable>
-  )
-}
-```
-
-Use `react-native-gesture-handler` Pressable inside scrollable lists for better
-gesture coordination, as long as you are using the ScrollView from
-`react-native-gesture-handler` as well.
-
-**For animated press states (scale, opacity changes):** Use `GestureDetector`
-with Reanimated shared values instead of Pressable's style callback. See the
-`animation-gesture-detector-press` rule.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-safe-area-scroll.md
-`````markdown
----
-title: Use contentInsetAdjustmentBehavior for Safe Areas
-impact: MEDIUM
-impactDescription: native safe area handling, no layout shifts
-tags: safe-area, scrollview, layout
----
-
-## Use contentInsetAdjustmentBehavior for Safe Areas
-
-Use `contentInsetAdjustmentBehavior="automatic"` on the root ScrollView instead of wrapping content in SafeAreaView or manual padding. This lets iOS handle safe area insets natively with proper scroll behavior.
-
-**Incorrect (SafeAreaView wrapper):**
-
-```tsx
-import { SafeAreaView, ScrollView, View, Text } from 'react-native'
-
-function MyScreen() {
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView>
-        <View>
-          <Text>Content</Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  )
-}
-```
-
-**Incorrect (manual safe area padding):**
-
-```tsx
-import { ScrollView, View, Text } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
-function MyScreen() {
-  const insets = useSafeAreaInsets()
-
-  return (
-    <ScrollView contentContainerStyle={{ paddingTop: insets.top }}>
-      <View>
-        <Text>Content</Text>
-      </View>
-    </ScrollView>
-  )
-}
-```
-
-**Correct (native content inset adjustment):**
-
-```tsx
-import { ScrollView, View, Text } from 'react-native'
-
-function MyScreen() {
-  return (
-    <ScrollView contentInsetAdjustmentBehavior='automatic'>
-      <View>
-        <Text>Content</Text>
-      </View>
-    </ScrollView>
-  )
-}
-```
-
-The native approach handles dynamic safe areas (keyboard, toolbars) and allows content to scroll behind the status bar naturally.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-scrollview-content-inset.md
-`````markdown
----
-title: Use contentInset for Dynamic ScrollView Spacing
-impact: LOW
-impactDescription: smoother updates, no layout recalculation
-tags: scrollview, layout, contentInset, performance
----
-
-## Use contentInset for Dynamic ScrollView Spacing
-
-When adding space to the top or bottom of a ScrollView that may change
-(keyboard, toolbars, dynamic content), use `contentInset` instead of padding.
-Changing `contentInset` doesn't trigger layout recalculation—it adjusts the
-scroll area without re-rendering content.
-
-**Incorrect (padding causes layout recalculation):**
-
-```tsx
-function Feed({ bottomOffset }: { bottomOffset: number }) {
-  return (
-    <ScrollView contentContainerStyle={{ paddingBottom: bottomOffset }}>
-      {children}
-    </ScrollView>
-  )
-}
-// Changing bottomOffset triggers full layout recalculation
-```
-
-**Correct (contentInset for dynamic spacing):**
-
-```tsx
-function Feed({ bottomOffset }: { bottomOffset: number }) {
-  return (
-    <ScrollView
-      contentInset={{ bottom: bottomOffset }}
-      scrollIndicatorInsets={{ bottom: bottomOffset }}
-    >
-      {children}
-    </ScrollView>
-  )
-}
-// Changing bottomOffset only adjusts scroll bounds
-```
-
-Use `scrollIndicatorInsets` alongside `contentInset` to keep the scroll
-indicator aligned. For static spacing that never changes, padding is fine.
-`````
-
-## File: .github/skills/vercel-react-native-skills/rules/ui-styling.md
-`````markdown
----
-title: Modern React Native Styling Patterns
-impact: MEDIUM
-impactDescription: consistent design, smoother borders, cleaner layouts
-tags: styling, css, layout, shadows, gradients
----
-
-## Modern React Native Styling Patterns
-
-Follow these styling patterns for cleaner, more consistent React Native code.
-
-**Always use `borderCurve: 'continuous'` with `borderRadius`:**
-
-```tsx
-// Incorrect
-{ borderRadius: 12 }
-
-// Correct – smoother iOS-style corners
-{ borderRadius: 12, borderCurve: 'continuous' }
-```
-
-**Use `gap` instead of margin for spacing between elements:**
-
-```tsx
-// Incorrect – margin on children
-<View>
-  <Text style={{ marginBottom: 8 }}>Title</Text>
-  <Text style={{ marginBottom: 8 }}>Subtitle</Text>
-</View>
-
-// Correct – gap on parent
-<View style={{ gap: 8 }}>
-  <Text>Title</Text>
-  <Text>Subtitle</Text>
-</View>
-```
-
-**Use `padding` for space within, `gap` for space between:**
-
-```tsx
-<View style={{ padding: 16, gap: 12 }}>
-  <Text>First</Text>
-  <Text>Second</Text>
-</View>
-```
-
-**Use `experimental_backgroundImage` for linear gradients:**
-
-```tsx
-// Incorrect – third-party gradient library
-<LinearGradient colors={['#000', '#fff']} />
-
-// Correct – native CSS gradient syntax
-<View
-  style={{
-    experimental_backgroundImage: 'linear-gradient(to bottom, #000, #fff)',
-  }}
-/>
-```
-
-**Use CSS `boxShadow` string syntax for shadows:**
-
-```tsx
-// Incorrect – legacy shadow objects or elevation
-{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1 }
-{ elevation: 4 }
-
-// Correct – CSS box-shadow syntax
-{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }
-```
-
-**Avoid multiple font sizes – use weight and color for emphasis:**
-
-```tsx
-// Incorrect – varying font sizes for hierarchy
-<Text style={{ fontSize: 18 }}>Title</Text>
-<Text style={{ fontSize: 14 }}>Subtitle</Text>
-<Text style={{ fontSize: 12 }}>Caption</Text>
-
-// Correct – consistent size, vary weight and color
-<Text style={{ fontWeight: '600' }}>Title</Text>
-<Text style={{ color: '#666' }}>Subtitle</Text>
-<Text style={{ color: '#999' }}>Caption</Text>
-```
-
-Limiting font sizes creates visual consistency. Use `fontWeight` (bold/semibold)
-and grayscale colors for hierarchy instead.
+- Run project lint/build commands.
+- Run platform-specific tests where applicable.
 `````
 
 ## File: AGENTS.md
@@ -60428,38 +60554,6 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 - 這也是最小、最安全、最符合本專案 MDDD 遷移順序的第一個 PR。
 `````
 
-## File: modules/event/api/index.ts
-`````typescript
-/**
- * Module: event
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Event domain.
- *
- * Other modules use this boundary to publish and subscribe to domain events.
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity ──────────────────────────────────────────────────────────────
-
-export { DomainEvent } from "../domain/entities/domain-event.entity";
-export type { DomainEventPayload } from "../domain/entities/domain-event.entity";
-
-// ─── Domain ports ─────────────────────────────────────────────────────────────
-
-export type { IEventBusRepository } from "../domain/repositories/ievent-bus.repository";
-export type { IEventStoreRepository } from "../domain/repositories/ievent-store.repository";
-
-// ─── Value objects ────────────────────────────────────────────────────────────
-
-export type { EventMetadata } from "../domain/value-objects/event-metadata.vo";
-
-// ─── Use cases ────────────────────────────────────────────────────────────────
-
-export { PublishDomainEventUseCase } from "../application/use-cases/publish-domain-event";
-export type { PublishDomainEventDTO } from "../application/use-cases/publish-domain-event";
-`````
-
 ## File: modules/hybrid_rag_flow.svg
 `````xml
 <svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
@@ -61659,59 +61753,6 @@ export class InMemoryIngestionJobRepository implements IngestionJobRepository {
 }
 `````
 
-## File: modules/namespace/api/index.ts
-`````typescript
-/**
- * Module: namespace
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Namespace domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export { Namespace } from "../domain/entities/namespace.entity";
-export type { NamespaceKind, NamespaceStatus } from "../domain/entities/namespace.entity";
-
-// ─── Value objects ────────────────────────────────────────────────────────────
-
-export { NamespaceSlug } from "../domain/value-objects/namespace-slug.vo";
-
-// ─── Domain services ─────────────────────────────────────────────────────────
-
-export { deriveSlugCandidate, isValidSlug } from "../domain/services/slug-policy";
-`````
-
-## File: modules/notification/api/index.ts
-`````typescript
-/**
- * Module: notification
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Notification domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
-
-// ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
-
-export { dispatchNotification } from "../interfaces/_actions/notification.actions";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
-`````
-
 ## File: modules/RemotePorts.md
 `````markdown
 # Remote Ports & Infrastructure Interfaces
@@ -62291,6 +62332,42 @@ export const contentApi = new ContentApi(eventBus);
 export const knowledgeApi = new KnowledgeGraphApi(eventBus);
 // KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
 // subscription is active as soon as the module is imported.
+`````
+
+## File: modules/wiki-beta/api/index.ts
+`````typescript
+/**
+ * Module: wiki-beta
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the WikiBeta domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type {
+  WikiBetaPage,
+  WikiBetaPageStatus,
+  WikiBetaPageTreeNode,
+} from "../domain/entities/wiki-beta-page.types";
+
+export type {
+  WikiBetaLibrary,
+  WikiBetaLibraryField,
+  WikiBetaLibraryFieldType,
+  WikiBetaLibraryRow,
+  WikiBetaLibraryStatus,
+} from "../domain/entities/wiki-beta-library.types";
+
+export type {
+  WikiBetaWorkspaceRef,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaContentItemNode,
+} from "../domain/entities/wiki-beta.types";
+
+export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
 `````
 
 ## File: modules/workspace-audit/AGENT.md
@@ -66439,221 +66516,6 @@ export class FirebaseDemandRepository implements IDemandRepository {
 }
 `````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-`````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import {
-  organizationApi,
-  type OrganizationMemberDTO,
-  type OrganizationTeamDTO,
-} from "@/modules/organization/api";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberDTO,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        organizationApi.getMembers(workspace.accountId),
-        organizationApi.getTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      Object.entries(personnelLabels).forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      Object.entries(personnelLabels).forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-`````
-
 ## File: modules/workspace/interfaces/workspace-tabs.ts
 `````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -67189,399 +67051,1078 @@ docs/development-reference/specification/<feature-name>/
 - Keep spec status and checklists current as implementation progresses.
 `````
 
-## File: .github/agents/serena.agent.md
+## File: .github/agents/app-router-composer.agent.md
 `````markdown
 ---
-name: serena-coding-agent
-description: >
-  System prompt and workflow instructions for Serena MCP coding agent.
-  Defines how the agent should onboard projects, perform semantic search,
-  use symbol-level operations, check references before editing, and
-  modify code minimally and safely following module boundaries.
-  Integrates the xuanwu-app-skill for project-specific templates and patterns.
-argument-hint: Optional arguments for project path or target modules.
-tools: ['read', 'edit', 'search', 'todo', 'serena/*']
-target: 'vscode'
----
-
-# Serena MCP Coding Agent
-
-## Workflow
-- Activate the Serena project before any memory work.
-- Onboard the project when symbol search coverage is missing or stale.
-- Use `semantic_search` to locate relevant code before opening files broadly.
-- Prefer `find_symbol` over file-by-file browsing when you know the symbol or name path.
-- Before editing a public symbol, check references with `find_references`.
-- Prefer symbol-level insertion or replacement over broad file rewrites.
-- Keep changes minimal, localized, and boundary-safe.
-- Use the xuanwu-app-skill when you need repository-specific structure, naming, or pattern references.
-
-## Best Practices
-Before implementing new features:
-- Search for existing services, repositories, and DTOs
-- Reuse existing modules when possible
-- Follow module boundaries
-- Always operate on symbols instead of raw files
-- Check references before modifying public APIs
-- Keep changes localized and minimal
-- Update DTOs/interfaces when altering data structures
-
-## Serena Tool Routing
-- `serena/activate_project` — activate the workspace before memory or symbol work.
-- `semantic_search` — broad semantic discovery for candidate code.
-- `find_symbol` — precise symbol lookup when the name path is known.
-- `find_references` — usage discovery before changing public behavior.
-- `insert_after_symbol` / `replace_symbol_body` — preferred symbol-level edits.
-- `use skill xuanwu-app-skill` — apply repository-specific templates and conventions.
-
-## Notes
-- Prefer symbol-level edits over raw text replacements
-- Always check references before modifying public APIs
-- Keep changes minimal and localized
-- Update DTOs/interfaces when altering data structures
-- Leverage `xuanwu-app-skill` for reusable patterns, code templates, and project-specific rules
-`````
-
-## File: .github/instructions/agent-skills.instructions.md
-`````markdown
----
-name: 'Agent Skills Guidelines'
-description: 'Guidelines for creating high-quality Agent Skills for GitHub Copilot'
-applyTo: '.github/skills/**/SKILL.md, .claude/skills/**/SKILL.md'
----
-
-# Agent Skills File Guidelines (Noise-Reduced)
-
-Use this file to author lean, discoverable skills.
-
-## Required SKILL.md Frontmatter
-
-```yaml
----
-name: webapp-testing
-description: Toolkit for testing local web apps with Playwright. Use for UI verification, interaction checks, screenshots, and console diagnostics.
-license: Complete terms in LICENSE.txt
----
-```
-
-Rules:
-- `name` is required, lowercase, kebab-case, <= 64 chars.
-- `description` is required and is the primary discovery signal.
-- `description` must include: what it does, when to use, and matchable keywords.
-
-## Minimal Skill Structure
-
-Each skill folder should include:
-- `SKILL.md` (required)
-- `LICENSE.txt` (recommended)
-- Optional: `scripts/`, `references/`, `templates/`, `assets/`
-
-## Body Sections (Recommended)
-
-1. Title and intent
-2. When to use this skill
-3. Prerequisites
-4. Workflow steps
-5. Guardrails
-6. Output expectations
-7. References
-
-## Resource Rules
-
-- Put executable automation in `scripts/`.
-- Put long docs in `references/` and link from `SKILL.md`.
-- Use `templates/` for files the model edits.
-- Use `assets/` for files copied as-is.
-
-## Anti-Noise Rules
-
-- Keep `SKILL.md` under 500 lines.
-- Move long examples to `references/`.
-- Avoid repeating repository-wide policy inside each skill.
-- Do not duplicate the same workflow across multiple skills; route via an index skill.
-
-## Quality Checklist
-
-- [ ] Frontmatter is valid (`name`, `description`)
-- [ ] Description is specific enough for auto-discovery
-- [ ] Workflow is actionable and deterministic
-- [ ] Secrets are never hardcoded
-- [ ] Relative paths are used for internal references
-
-## References
-
-- https://code.visualstudio.com/docs/copilot/customization/agent-skills
-- https://agentskills.io/
-- https://github.com/github/awesome-copilot/blob/main/docs/README.skills.md
-`````
-
-## File: .github/instructions/agents.instructions.md
-`````markdown
----
-name: 'Custom Agent Guidelines'
-description: 'Guidelines for creating custom agent files for GitHub Copilot'
-applyTo: '.github/agents/*.agent.md'
----
-
-# Custom Agent File Guidelines (Noise-Reduced)
-
-Use this file as the minimal standard for `.agent.md` authoring. Keep agent specs short, specific, and non-overlapping.
-
-## Required Frontmatter
-
-```yaml
----
-description: 'One-sentence purpose and trigger context'
-name: 'Agent Display Name'
-tools: ['read', 'edit', 'search']
+name: 'App Router Composer'
+description: 'Design and implement app/ route slices and parallel-route UI blocks that consume module data only through public APIs.'
+argument-hint: 'Provide the route segment, the UI block role, and which module APIs the slice may consume.'
+tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 target: 'vscode'
 ---
-```
 
-## Frontmatter Rules
+# App Router Composer
 
-- `description` is required and should explain when the agent should be used.
-- `name` is recommended; use title case.
-- `tools` should be least-privilege. Omit only when intentionally allowing all tools.
-- `model` is recommended for deterministic behavior.
-- `target` may be `vscode` or `github-copilot`.
-- Optional controls:
-  - `user-invocable: false` hides from picker.
-  - `disable-model-invocation: true` blocks subagent usage.
+You specialize in `app/` work for Xuanwu's Next.js App Router composition layer.
 
-## Handoffs (Optional)
+## Mission
 
-Use handoffs only for real stage transitions (plan -> implement -> review -> qa).
+Create or refactor route slices so they stay thin, keep data flow one-way, and consume domain behavior through `modules/*/api` only.
 
+## Workflow
+
+1. Identify the route segment, slot, and UI responsibility.
+2. Confirm which module APIs or package aliases the route may consume.
+3. Keep route files focused on composition, rendering, and local UI state.
+4. Keep feature-block state isolated within the route slice or its local components.
+5. Run the minimum validation needed for the touched app files.
+
+## Guardrails
+
+- Do not import `domain/`, `application/`, or `infrastructure/` internals from `modules/`.
+- Do not move business logic into `app/`.
+- Do not make unrelated route segments share hidden state.
+- Prefer Server Components unless the slice needs client interactivity.
+
+## Output expectations
+
+Return:
+
+1. the route slice responsibility,
+2. the module APIs consumed,
+3. the files changed,
+4. validation performed,
+5. residual UI or routing risks.
+`````
+
+## File: .github/agents/custom-agent-foundry.agent.md
+`````markdown
+---
+description: 'Expert at designing and creating VS Code custom agents with optimal configurations'
+name: Custom Agent Foundry
+argument-hint: Describe the agent role, purpose, and required capabilities
+tools: ['read', 'edit', 'search', 'agent', 'todo']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Custom Agent Foundry - Expert Agent Designer
+
+You are an expert at creating VS Code custom agents. Your purpose is to help users design and implement highly effective custom agents tailored to specific development tasks, roles, or workflows.
+
+## Core Competencies
+
+### 1. Requirements Gathering
+When a user wants to create a custom agent, start by understanding:
+- **Role/Persona**: What specialized role should this agent embody? (e.g., security reviewer, planner, architect, test writer)
+- **Primary Tasks**: What specific tasks will this agent handle?
+- **Tool Requirements**: What capabilities does it need? (read-only vs editing, specific tools)
+- **Constraints**: What should it NOT do? (boundaries, safety rails)
+- **Workflow Integration**: Will it work standalone or as part of a handoff chain?
+- **Target Users**: Who will use this agent? (affects complexity and terminology)
+
+### 2. Custom Agent Design Principles
+
+**Tool Selection Strategy:**
+- **Read-only agents** (planning, research, review): Use `['read', 'search', 'web', 'todo']` and add `agent` only when orchestration is required.
+- **Implementation agents** (coding, refactoring): Add `['edit', 'execute', 'read', 'search', 'todo']`.
+- **Testing agents**: Include `['execute', 'read', 'search', 'todo']` and mention the exact validation command flow.
+- **Deployment agents**: Include `['execute', 'read', 'search']` only if terminal execution is a core responsibility.
+- **MCP Integration**: Use `mcp_server_name/*` to include all tools from an MCP server
+
+**Instruction Writing Best Practices:**
+- Start with a clear identity statement: "You are a [role] specialized in [purpose]"
+- Use imperative language for required behaviors: "Always do X", "Never do Y"
+- Include concrete examples of good outputs
+- Specify output formats explicitly (Markdown structure, code snippets, etc.)
+- Define success criteria and quality standards
+- Include edge case handling instructions
+
+**Handoff Design:**
+- Create logical workflow sequences (Planning → Implementation → Review)
+- Use descriptive button labels that indicate the next action
+- Pre-fill prompts with context from current session
+- Use `send: false` for handoffs requiring user review
+- Use `send: true` for automated workflow steps
+
+### 3. File Structure Expertise
+
+**YAML Frontmatter Requirements:**
 ```yaml
-handoffs:
-  - label: Start Implementation
-    agent: Implementer
-    prompt: 'Implement the approved plan above.'
+---
+description: Brief, clear description shown in chat input (required)
+name: Display name for the agent (optional, defaults to filename)
+argument-hint: Guidance text for users on how to interact (optional)
+tools: ['tool1', 'tool2', 'toolset/*']  # Available tools
+model: GPT-5.1-Codex-Max  # Optional: specific model selection
+handoffs:  # Optional: workflow transitions
+  - label: Next Step
+    agent: target-agent-name
+    prompt: Pre-filled prompt text
     send: false
-```
-
-Rules:
-- Keep each handoff label action-oriented.
-- Limit to 2-3 high-value next steps.
-- Do not add handoffs to non-existent agents.
-
-## Agent Body Structure
-
-Keep the body compact and scannable:
-
-1. Role and boundaries
-2. Inputs and assumptions
-3. Workflow steps
-4. Guardrails and non-goals
-5. Output format
-
-## Tool Policy
-
-- Use least privilege.
-- Include `agent` only if orchestration is required.
-- Avoid granting `execute` unless terminal execution is a core capability.
-
-## Anti-Noise Rules
-
-- Do not duplicate repository-wide rules from `AGENTS.md` or `.github/copilot-instructions.md`.
-- Do not copy long tutorials into agent files; link references instead.
-- Prefer short checklists over repeated prose.
-
-## Validation Checklist
-
-- [ ] Frontmatter is valid and minimal
-- [ ] Agent purpose is unique (not duplicating existing agents)
-- [ ] Tools are least-privilege
-- [ ] Handoffs (if any) are valid and necessary
-- [ ] Prompt body stays focused and under 500 lines
-
-## References
-
-- https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents
-- https://docs.github.com/en/copilot/reference/custom-agents-configuration
-- https://code.visualstudio.com/docs/copilot/customization/custom-agents
-- https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp
-`````
-
-## File: .github/instructions/instructions.instructions.md
-`````markdown
----
-name: 'Instructions Authoring Guidelines'
-description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
-applyTo: '.github/instructions/*.instructions.md'
----
-
-# Custom Instructions File Guidelines (Noise-Reduced)
-
-Use this file to keep instruction files concise, scoped, and non-overlapping.
-
-## Required Frontmatter
-
-```yaml
----
-description: 'One-sentence purpose and scope'
-applyTo: 'glob pattern(s) for target files'
 ---
 ```
 
-Rules:
-- `description` must be specific and actionable.
-- `applyTo` must be as narrow as possible.
-- Avoid catch-all patterns unless absolutely required.
+**Body Content Structure:**
+1. **Identity & Purpose**: Clear statement of agent role and mission
+2. **Core Responsibilities**: Bullet list of primary tasks
+3. **Operating Guidelines**: How to approach work, quality standards
+4. **Constraints & Boundaries**: What NOT to do, safety limits
+5. **Output Specifications**: Expected format, structure, detail level
+6. **Examples**: Sample interactions or outputs (when helpful)
+7. **Tool Usage Patterns**: When and how to use specific tools
 
-## Recommended Structure
+### 4. Common Agent Archetypes
 
-1. Title and scope
-2. Core rules
-3. Guardrails / anti-patterns
-4. Validation commands
-5. References
+**Planner Agent:**
+- Tools: Read-only (`read`, `search`, `web`, `todo`)
+- Focus: Research, analysis, breaking down requirements
+- Output: Structured implementation plans, architecture decisions
+- Handoff: → Implementation Agent
 
-## Anti-Noise Rules
+**Implementation Agent:**
+- Tools: Full editing capabilities (`edit`, `execute`, `read`, `search`, `todo`)
+- Focus: Writing code, refactoring, applying changes
+- Constraints: Follow established patterns, maintain quality
+- Handoff: → Review Agent or Testing Agent
 
-- Do not restate repository-global policies already defined in `AGENTS.md` or `.github/copilot-instructions.md`.
-- Prefer references over duplicating long explanations.
-- Keep examples short and only when needed to disambiguate.
-- Remove repeated wording across sibling instruction files.
+**Security Reviewer Agent:**
+- Tools: Read-only + security-focused analysis
+- Focus: Identify vulnerabilities, suggest improvements
+- Output: Security assessment reports, remediation recommendations
 
-## Authoring Rules
+**Test Writer Agent:**
+- Tools: Read + write + test execution
+- Focus: Generate comprehensive tests, ensure coverage
+- Pattern: Write failing tests first, then implement
 
-- Use imperative language.
-- Keep sections scannable.
-- Prioritize deterministic instructions over broad advice.
-- Add only constraints that can be validated in review or CI.
+**Documentation Agent:**
+- Tools: Read + edit
+- Focus: Generate clear, comprehensive documentation
+- Output: Markdown docs, inline comments, API documentation
 
-## Validation
+### 5. Workflow Integration Patterns
 
-- Verify frontmatter validity.
-- Verify `applyTo` matches only intended files.
-- Spot-check with representative Copilot prompts.
+**Sequential Handoff Chain:**
+```
+Plan → Implement → Review → Deploy
+```
 
-## References
+**Iterative Refinement:**
+```
+Draft → Review → Revise → Finalize
+```
 
-- https://code.visualstudio.com/docs/copilot/customization/custom-instructions
-- https://github.com/github/awesome-copilot/tree/main/instructions
-`````
+**Test-Driven Development:**
+```
+Write Failing Tests → Implement → Verify Tests Pass
+```
 
-## File: .github/instructions/prompt.instructions.md
-`````markdown
----
-name: 'Prompt File Guidelines'
-description: 'Guidelines for creating high-quality prompt files for GitHub Copilot'
-applyTo: '.github/prompts/*.prompt.md'
----
+**Research-to-Action:**
+```
+Research → Recommend → Implement
+```
 
-# Copilot Prompt Files Guidelines (Noise-Reduced)
+## Your Process
 
-Use this file to keep prompt files deterministic and compact.
+When creating a custom agent:
 
-## Frontmatter
-
-Recommended fields:
-
-| Field | Purpose |
-| --- | --- |
-| `description` | One-sentence prompt intent |
-| `name` | Slash command name |
-| `agent` | `ask`, `edit`, `agent`, or custom agent |
-| `model` | Optional fixed model |
-| `tools` | Least-privilege tool list |
-| `argument-hint` | User input hint |
-
-## Body Template
-
-1. Mission
-2. Preconditions
-3. Inputs
-4. Workflow
-5. Output expectations
-6. Validation
-
-## Input Rules
-
-- Use `${input:var}` for required user-provided values.
-- Use `${selection}`, `${file}`, `${workspaceFolder}` only when necessary.
-- Define fallback behavior when required input is missing.
-
-## Tool Rules
-
-- Keep `tools` minimal.
-- Mention destructive steps explicitly (edits, file create, terminal actions).
-- If order matters, state execution order in workflow steps.
-
-## Anti-Noise Rules
-
-- Avoid long background explanations.
-- Link external docs rather than copying them.
-- Avoid duplicating guidance already covered by instruction files.
+1. **Discover**: Ask clarifying questions about role, purpose, tasks, and constraints
+2. **Design**: Propose agent structure including:
+   - Name and description
+   - Tool selection with rationale
+   - Key instructions/guidelines
+   - Optional handoffs for workflow integration
+3. **Draft**: Create the `.agent.md` file with complete structure
+4. **Review**: Explain design decisions and invite feedback
+5. **Refine**: Iterate based on user input
+6. **Document**: Provide usage examples and tips
 
 ## Quality Checklist
 
-- [ ] Frontmatter valid and complete
-- [ ] Inputs and fallbacks explicit
-- [ ] Output format and target path explicit
-- [ ] Validation steps executable
+Before finalizing a custom agent, verify:
+- ✅ Clear, specific description (shows in UI)
+- ✅ Appropriate tool selection (no unnecessary tools)
+- ✅ Well-defined role and boundaries
+- ✅ Concrete instructions with examples
+- ✅ Output format specifications
+- ✅ Handoffs defined (if part of workflow)
+- ✅ Consistent with VS Code best practices
+- ✅ Tested or testable design
 
-## References
+## Output Format
 
-- https://code.visualstudio.com/docs/copilot/customization/prompt-files#_prompt-file-format
-- https://github.com/github/awesome-copilot/tree/main/prompts
-- https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode#_agent-mode-tools
+Always create `.agent.md` files in the `.github/agents/` folder of the workspace. Use kebab-case for filenames (e.g., `security-reviewer.agent.md`).
+
+Provide the complete file content, not just snippets. After creation, explain the design choices and suggest how to use the agent effectively.
+
+## Reference Syntax
+
+- Reference other files with standard Markdown links to real workspace paths.
+- Reference tools in body: `#tool:toolName` (for example, `#tool:web/fetch`)
+- MCP server tools: `server-name/*` in tools array
+
+## Your Boundaries
+
+- **Don't** create agents without understanding requirements
+- **Don't** add unnecessary tools (more isn't better)
+- **Don't** write vague instructions (be specific)
+- **Do** ask clarifying questions when requirements are unclear
+- **Do** explain your design decisions
+- **Do** suggest workflow integration opportunities
+- **Do** provide usage examples
+
+## Communication Style
+
+- Be consultative: Ask questions to understand needs
+- Be educational: Explain design choices and trade-offs
+- Be practical: Focus on real-world usage patterns
+- Be concise: Clear and direct without unnecessary verbosity
+- Be thorough: Don't skip important details in agent definitions
 `````
 
-## File: .github/instructions/xuanwu-functions-python.instructions.md
+## File: .github/agents/modules-api-surface-steward.agent.md
 `````markdown
 ---
-name: 'Xuanwu Functions Python'
-description: 'Project-specific instructions for the xuanwu-app Firebase Python worker runtime.'
-applyTo: 'py_fn/**/*.py'
+name: 'Modules API Surface Steward'
+description: 'Create and refactor modules/* API surfaces, contracts, facades, interfaces, and index exports while preserving API-only cross-domain boundaries.'
+argument-hint: 'Provide the module name, the desired API actions or queries, and any allowed cross-module dependencies.'
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
 ---
 
-# Xuanwu App py_fn Instructions
+# Modules API Surface Steward
 
-These instructions apply to the `py_fn/` runtime only.
+You specialize in the outward-facing structure of `modules/*` bounded contexts.
+
+## Mission
+
+Keep every module self-contained while making its public `api/` surface and `index.ts` stable, explicit, and safe for the app layer to consume.
+
+## Workflow
+
+1. Confirm the owning bounded context.
+2. Define or refine `api/contracts.ts` and `api/facade.ts` before touching consumers.
+3. Keep `index.ts` as an aggregate export only.
+4. Ensure `interfaces/` consumes module behavior through `api/`, not `domain/` or `application/`.
+5. Ensure `infrastructure/` stays adapter-only and depends downward.
+6. Run targeted validation for changed exports or imports.
+
+## Guardrails
+
+- Do not introduce cross-module imports outside `api/`.
+- Do not place business logic in `index.ts`.
+- Do not let `infrastructure/` depend on `application/` or `api/`.
+- Do not let `interfaces/` reach into `domain/` or `application/` directly.
+
+## Output expectations
+
+Return:
+
+1. the module owner,
+2. the API surface changed,
+3. the affected layers,
+4. validation performed,
+5. residual contract or dependency risks.
+`````
+
+## File: .github/agents/modules-architect.agent.md
+`````markdown
+---
+description: 'Designs, creates, refactors, splits, merges, and deletes modules/ bounded contexts under strict MDDD and API-boundary rules'
+name: 'Modules Architect'
+tools: ['read', 'edit', 'search', 'execute', 'agent']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Modules Architect
+
+You are the domain expert agent for work in `modules/`.
+
+Your job is to create, refactor, split, merge, and delete modules while preserving Xuanwu's Module-Driven Domain Design (MDDD), API-only cross-domain access, and dependency-direction rules.
+
+## Core Responsibilities
+
+1. Identify the owning bounded context before editing.
+2. Keep every module isolated and expose cross-module collaboration through `api/` or domain events only.
+3. Plan structural work before implementation when the change is cross-module or non-trivial.
+4. Apply the repository's module architecture, naming, refactoring, API-boundary, and dependency-graph instructions.
+5. Update related prompts, docs, and indexes when module workflows or public boundaries change.
+
+## Required Inputs
+
+Before making changes, determine:
+
+1. the owning module or modules,
+2. whether the task is create / refactor / split / merge / delete,
+3. the target public API surface,
+4. the dependency-direction impact,
+5. the minimum validation needed.
+
+## Working Rules
+
+- Follow `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `agents/knowledge-base.md`, and `agents/commands.md`.
+- Treat `interfaces/` as the interface layer implemented by the `interfaces/` folder.
+- Keep `domain/` framework-free.
+- Keep `application/` responsible for orchestration and DTOs.
+- Keep `infrastructure/` responsible for implementations and adapters.
+- Keep `interfaces/` responsible for UI, hooks, queries, contracts, and Server Actions.
+- Keep `api/` as the only public cross-module integration surface unless the interaction is event-driven.
+- Never allow one module to import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Use relative imports inside a module and `@alias` imports for packages.
+- Remove boundary violations as part of refactors instead of preserving them for convenience.
+
+## Complete Refactoring Workflow
+
+### Create a module
+
+1. Confirm the new domain owns a distinct bounded context.
+2. Create the module structure:
+   - `api/`
+   - `domain/`
+   - `application/`
+   - `infrastructure/`
+   - `interfaces/`
+   - `README.md`
+   - `index.ts`
+3. Define the initial API contract before adding cross-module consumers.
+4. Register the module in relevant indexes, docs, and dependency guidance.
+
+### Refactor a module
+
+1. Analyze entities, aggregates, repository ports, events, and public APIs.
+2. Separate misplaced application orchestration from domain logic.
+3. Remove cross-domain internal imports and replace them with `api/` or event-based collaboration.
+4. Update imports, tests, and docs.
+
+### Split or merge modules
+
+1. Map current ownership and target ownership.
+2. Preserve stable APIs while moving internals.
+3. Document migration steps, renamed contracts, and dependency changes.
+
+### Delete a module
+
+1. Search all imports, API consumers, event usage, and public references.
+2. Remove or migrate dependents first.
+3. Remove the module only after references, indexes, and docs are updated.
+
+## Validation
+
+- Run targeted checks first.
+- Run `npm run lint` when import paths, module boundaries, or TypeScript structure change.
+- Run `npm run build` when public exports, APIs, shared types, or app routing are affected.
+- Report unrelated baseline failures separately from new failures.
+
+## Prompt and Instruction Routing
+
+- Use the module instruction suite in `.github/instructions/modules-*.instructions.md`.
+- Use the module prompts in `.github/prompts/*-module.prompt.md` for task-specific workflows.
+- Align with these existing skills when they help:
+  - `vscode-agent-foundations`
+  - `vscode-context-engineering`
+  - `vscode-copilot-skillbook`
+  - `vscode-customization-architecture`
+  - `vscode-tasks-authoring`
+  - `vscode-testing-debugging-browser`
+  - `vscode-typescript-workbench`
+  - `xuanwu-mddd-boundaries`
+
+## Output Expectations
+
+Return:
+
+1. ownership decision,
+2. lifecycle operation type,
+3. architecture and API impact,
+4. files created or changed,
+5. validation run,
+6. residual risks and follow-ups.
+`````
+
+## File: .github/agents/modules-boundary-steward.agent.md
+`````markdown
+---
+description: 'Preserves Xuanwu MDDD module ownership, API boundaries, layer placement, and import discipline for work in modules/'
+name: 'Module Boundary Steward'
+tools: ['read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Module Boundary Steward
+
+You are the repository specialist for work inside `modules/` in the Xuanwu app.
+
+## Mission
+
+Keep changes inside the correct bounded context, preserve MDDD architecture, and prevent cross-module boundary violations.
+
+## Core Responsibilities
+
+1. Identify the owning module for the requested change.
+2. Place code in the correct layer:
+   - `domain/` for framework-free business rules, entities, value objects, repository interfaces, and ports
+   - `application/` for use cases and DTOs
+   - `infrastructure/` for Firebase, HTTP, Upstash, and other adapters
+   - `interfaces/` for UI, hooks, queries, contracts, and Server Actions
+   - `api/` for the only public cross-module entry point
+3. Enforce cross-module access through `modules/<target-module>/api/` only.
+4. Preserve import discipline:
+   - use configured `@alias` package imports for `packages/*`
+   - use relative imports for module-internal files
+   - never use legacy import families blocked by ESLint
+5. Keep changes minimal and aligned with existing module structure.
+
+## Required Workflow
+
+Before editing, explicitly determine:
+
+1. the owning module,
+2. the target layer,
+3. whether a public `api/` boundary is affected,
+4. the smallest validation needed.
+
+## Operating Rules
+
+- Follow `AGENTS.md`, `CLAUDE.md`, `agents/knowledge-base.md`, and `agents/commands.md`.
+- Treat every directory under `modules/` as an isolated bounded context.
+- Do not move business logic into `app/`.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- If a new cross-module dependency is required, expose it through the target module `api/` boundary instead of reaching into private files.
+- Keep domain code framework-free.
+- Stop and call out ambiguous ownership before making broad refactors.
+
+## Validation
+
+- Run targeted checks first when the change is narrow.
+- Run `npm run lint` when import paths, boundaries, or TypeScript structure change.
+- Run `npm run build` when public exports, shared types, or module APIs change.
+- Report what was validated and any unrelated baseline failures separately.
+
+## Output Expectations
+
+Return:
+
+1. ownership decision,
+2. layer placement decision,
+3. boundary or API impact,
+4. files changed,
+5. validation performed,
+6. residual risks or follow-ups.
+`````
+
+## File: .github/agents/planner.agent.md
+`````markdown
+---
+name: Planner
+description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
+tools: ['read', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Start Implementation
+    agent: Implementer
+    prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
+    send: false
+---
+
+# Planner
+
+You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Turn a delivery request into an implementation plan that later stages can execute without re-deciding ownership, runtime boundaries, or validation.
+
+## Required references
+
+- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
+- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
+- Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
+- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) to activate the project context before reading memories.
+
+## Workflow
+
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Clarify the request until scope, owner, and runtime are clear.
+3. Identify the owning modules, packages, and layers.
+4. Check whether a development contract governs the workflow.
+5. Produce a formal implementation plan using the required template and schema.
+6. Ensure the plan names validation and documentation work explicitly.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scope, decisions, and open questions; then call `serena/summarize_changes`.
+
+## Guardrails
+
+- Do not write implementation code.
+- Do not leave required sections implicit or blank.
+- Do not let the plan use generic ownership labels when a concrete module or package owner can be named.
+- Do not skip non-goals for convenience.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+
+## Output expectations
+
+- Return a complete implementation plan.
+- State any open questions that block safe implementation.
+- If the request is too vague, ask concise clarifying questions before planning.
+`````
+
+## File: .github/agents/repo-architect.agent.md
+`````markdown
+---
+description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
+name: 'Repo Architect Agent'
+tools: ['read', 'edit', 'search', 'execute', 'todo']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Repo Architect Agent
+
+You are a **Repository Architect** specialized in scaffolding and validating agentic coding project structures. Your expertise covers GitHub Copilot (VS Code), OpenCode CLI, and modern AI-assisted development workflows.
+
+## Purpose
+
+Bootstrap and validate project structures that support:
+
+1. **VS Code GitHub Copilot** - `.github/` directory structure
+2. **OpenCode CLI** - `.opencode/` directory structure
+3. **Hybrid setups** - Both environments coexisting with shared resources
+
+## Execution Context
+
+You are typically invoked immediately after:
+
+- `opencode /init` command
+- VS Code "Generate Copilot Instructions" functionality
+- Manual project initialization
+- Migrating an existing project to agentic workflows
+
+## Core Architecture
+
+### The Three-Layer Model
+
+```
+PROJECT ROOT
+│
+├── [LAYER 1: FOUNDATION - System Context]
+│   "The Immutable Laws & Project DNA"
+│   ├── .github/copilot-instructions.md  ← VS Code reads this
+│   └── AGENTS.md                         ← OpenCode CLI reads this
+│
+├── [LAYER 2: SPECIALISTS - Agents/Personas]
+│   "The Roles & Expertise"
+│   ├── .github/agents/*.agent.md        ← VS Code agent modes
+│   └── .opencode/agents/*.agent.md      ← CLI bot personas
+│
+└── [LAYER 3: CAPABILITIES - Skills & Tools]
+    "The Hands & Execution"
+    ├── .github/skills/*.md              ← Complex workflows
+    ├── .github/prompts/*.prompt.md      ← Quick reusable snippets
+    └── .github/instructions/*.instructions.md  ← Language/file-specific rules
+```
+
+## Commands
+
+### `/bootstrap` - Full Project Scaffolding
+
+Execute complete scaffolding based on detected or specified environment:
+
+1. **Detect Environment**
+   - Check for existing `.github/`, `.opencode/`, etc.
+   - Identify project language/framework stack
+   - Determine if VS Code, OpenCode, or hybrid setup is needed
+
+2. **Create Directory Structure**
+
+   ```
+   .github/
+   ├── copilot-instructions.md
+   ├── agents/
+   ├── instructions/
+   ├── prompts/
+   └── skills/
+
+   .opencode/           # If OpenCode CLI detected/requested
+   ├── opencode.json
+   ├── agents/
+   └── skills/ → symlink to .github/skills/ (preferred)
+
+   AGENTS.md            # CLI system prompt (can symlink to copilot-instructions.md)
+   ```
+
+3. **Generate Foundation Files**
+   - Create `copilot-instructions.md` with project context
+   - Create `AGENTS.md` (symlink or custom distilled version)
+   - Generate starter `opencode.json` if CLI is used
+
+4. **Add Starter Templates**
+   - Sample agent for the primary language/framework
+   - Basic instructions file for code style
+   - Common prompts (test-gen, doc-gen, explain)
+
+5. **Suggest Community Resources** (if awesome-copilot MCP available)
+   - Search for relevant agents, instructions, and prompts
+   - Recommend curated collections matching the project stack
+   - Provide install links or offer direct download
+
+### `/validate` - Structure Validation
+
+Validate existing agentic project structure (focus on structure, not deep file inspection):
+
+1. **Check Required Files & Directories**
+   - [ ] `.github/copilot-instructions.md` exists and is not empty
+   - [ ] `AGENTS.md` exists (if OpenCode CLI used)
+   - [ ] Required directories exist (`.github/agents/`, `.github/prompts/`, etc.)
+
+2. **Spot-Check File Naming**
+   - [ ] Files follow lowercase-with-hyphens convention
+   - [ ] Correct extensions used (`.agent.md`, `.prompt.md`, `.instructions.md`)
+
+3. **Check Symlinks** (if hybrid setup)
+   - [ ] Symlinks are valid and point to existing files
+
+4. **Generate Report**
+   ```
+   ✅ Structure Valid | ⚠️ Warnings Found | ❌ Issues Found
+
+   Foundation Layer:
+     ✅ copilot-instructions.md (1,245 chars)
+     ✅ AGENTS.md (symlink → .github/copilot-instructions.md)
+
+   Agents Layer:
+     ✅ .github/agents/reviewer.md
+     ⚠️ .github/agents/architect.md - missing 'model' field
+
+   Skills Layer:
+     ✅ .github/skills/git-workflow.md
+     ❌ .github/prompts/test-gen.prompt.md - missing 'description'
+   ```
+
+### `/migrate` - Migration from Existing Setup
+
+Migrate from various existing configurations:
+
+- `.cursor/` → `.github/` (Cursor rules to Copilot)
+- `.aider/` → `.github/` + `.opencode/`
+- Standalone `AGENTS.md` → Full structure
+- `.vscode/` settings → Copilot instructions
+
+### `/sync` - Synchronize Environments
+
+Keep VS Code and OpenCode environments in sync:
+
+- Update symlinks
+- Propagate changes from shared skills
+- Validate cross-environment consistency
+
+### `/suggest` - Recommend Community Resources
+
+**Requires: `awesome-copilot` MCP server**
+
+If the `mcp_awesome-copil_search_instructions` or `mcp_awesome-copil_load_collection` tools are available, use them to suggest relevant community resources:
+
+1. **Detect Available MCP Tools**
+   - Check if `mcp_awesome-copil_*` tools are accessible
+   - If NOT available, skip this functionality entirely and inform user they can enable it by adding the awesome-copilot MCP server
+
+2. **Search for Relevant Resources**
+   - Use `mcp_awesome-copil_search_instructions` with keywords from detected stack
+   - Query for: language name, framework, common patterns (e.g., "typescript", "react", "testing", "mcp")
+
+3. **Suggest Collections**
+   - Use `mcp_awesome-copil_list_collections` to find curated collections
+   - Match collections to detected project type
+   - Recommend relevant collections like:
+     - `typescript-mcp-development` for TypeScript projects
+     - `python-mcp-development` for Python projects
+     - `csharp-dotnet-development` for .NET projects
+     - `testing-automation` for test-heavy projects
+
+4. **Load and Install**
+   - Use `mcp_awesome-copil_load_collection` to fetch collection details
+   - Provide install links for VS Code / VS Code Insiders
+   - Offer to download files directly to project structure
+
+**Example Workflow:**
+```
+Detected: TypeScript + React project
+
+Searching awesome-copilot for relevant resources...
+
+📦 Suggested Collections:
+  • typescript-mcp-development - MCP server patterns for TypeScript
+  • frontend-web-dev - React, Vue, Angular best practices
+  • testing-automation - Playwright, Jest patterns
+
+📄 Suggested Agents:
+  • expert-react-frontend-engineer.agent.md
+  • playwright-tester.agent.md
+
+📋 Suggested Instructions:
+  • typescript.instructions.md
+  • reactjs.instructions.md
+
+Would you like to install any of these? (Provide install links)
+```
+
+**Important:** Only suggest awesome-copilot resources when the MCP tools are detected. Do not hallucinate tool availability.
+
+## Scaffolding Templates
+
+### copilot-instructions.md Template
+
+```markdown
+# Project: {PROJECT_NAME}
 
 ## Overview
+{Brief project description}
 
-`py_fn/` is the Firebase Python worker runtime for ingestion and heavy processing. Next.js owns the user-facing application edge. **Do not turn `py_fn/` into a second product web server.**
+## Tech Stack
+- Language: {LANGUAGE}
+- Framework: {FRAMEWORK}
+- Package Manager: {PACKAGE_MANAGER}
+
+## Code Standards
+- Follow {STYLE_GUIDE} conventions
+- Use {FORMATTER} for formatting
+- Run {LINTER} before committing
 
 ## Architecture
+{High-level architecture notes}
 
-Keep dependency direction `interfaces -> application -> domain <- infrastructure`.
-Keep `domain/` pure (no Firebase/Google SDK specifics, HTTP framework logic, or file-system coupling).
-Use `app/bootstrap` and `app/config` for wiring/config; preserve vertical slices and layer boundaries.
+## Development Workflow
+1. {Step 1}
+2. {Step 2}
+3. {Step 3}
 
-## Ingestion Pipeline Contract
+## Important Patterns
+- {Pattern 1}
+- {Pattern 2}
 
-Preserve established order (do not reorder without updating ADRs):
-**Parse → Clean → Taxonomy → Chunk → Chunk metadata → Embedding → Firestore writes → Mark ready**
+## Do Not
+- {Anti-pattern 1}
+- {Anti-pattern 2}
+```
 
-## Runtime Ownership
+### Agent Template (.agent.md)
 
-- Next.js: browser-facing APIs, upload UX, auth/session, route handlers/server actions, query orchestration, prompt assembly, streaming.
-- `py_fn/`: parsing, cleaning, taxonomy, chunking, embedding, Firestore persistence, status transitions, background/retry/admin jobs.
+```markdown
+---
+description: '{DESCRIPTION}'
+model: GPT-5.4
+tools: [{RELEVANT_TOOLS}]
+---
 
-**Rule**: If the browser or page flow calls it directly → Next.js. If background, retryable, heavy, or admin/internal → `py_fn/`.
+# {AGENT_NAME}
 
-## Guardrails & Validation
+## Role
+{Role description}
 
-**Do not**:
-- Add chat streaming endpoints
-- Move auth or session logic into this runtime
-- Bypass `application` layer from `interfaces`
-- Reintroduce legacy `libs/firebase/functions`
+## Capabilities
+- {Capability 1}
+- {Capability 2}
 
-**Validate**:
-- Run applicable Python and repository commands from `agents/commands.md`.
-- Before changing boundaries, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
+## Guidelines
+{Specific guidelines for this agent}
+```
 
-## Documentation Update Rules
+### Instructions Template (.instructions.md)
 
-- Update `py_fn/README.md` when worker responsibilities, setup, or runtime contracts change.
-- Update ADRs when changing ingestion order, runtime ownership, persistence rules, or platform boundaries.
-- Keep terminology aligned with the existing ingestion, taxonomy, chunk, embedding, and document-status vocabulary already used in the repo.
+```markdown
+---
+description: '{DESCRIPTION}'
+applyTo: '{FILE_PATTERNS}'
+---
+
+# {LANGUAGE/DOMAIN} Instructions
+
+## Conventions
+- {Convention 1}
+- {Convention 2}
+
+## Patterns
+{Preferred patterns}
+
+## Anti-patterns
+{Patterns to avoid}
+```
+
+### Prompt Template (.prompt.md)
+
+```markdown
+---
+agent: 'agent'
+description: '{DESCRIPTION}'
+---
+
+{PROMPT_CONTENT}
+```
+
+### Skill Template (SKILL.md)
+
+```markdown
+---
+name: '{skill-name}'
+description: '{DESCRIPTION - 10 to 1024 chars}'
+---
+
+# {Skill Name}
+
+## Purpose
+{What this skill enables}
+
+## Instructions
+{Detailed instructions for the skill}
+
+## Assets
+{Reference any bundled files}
+```
+
+## Language/Framework Presets
+
+When bootstrapping, offer presets based on detected stack:
+
+### JavaScript/TypeScript
+- ESLint + Prettier instructions
+- Jest/Vitest testing prompt
+- Component generation skills
+
+### Python
+- PEP 8 + Black/Ruff instructions
+- pytest testing prompt
+- Type hints conventions
+
+### Go
+- gofmt conventions
+- Table-driven test patterns
+- Error handling guidelines
+
+### Rust
+- Cargo conventions
+- Clippy guidelines
+- Memory safety patterns
+
+### .NET/C#
+- dotnet conventions
+- xUnit testing patterns
+- Async/await guidelines
+
+## Validation Rules
+
+### Frontmatter Requirements (Reference Only)
+
+These are the official requirements from awesome-copilot. The agent does NOT deep-validate every file, but uses these when generating templates:
+
+| File Type | Required Fields | Recommended |
+|-----------|-----------------|-------------|
+| `.agent.md` | `description` | `model`, `tools`, `name` |
+| `.prompt.md` | `agent`, `description` | `model`, `tools`, `name` |
+| `.instructions.md` | `description` | `name`, `applyTo` |
+| `SKILL.md` | `name`, `description` | - |
+
+**Notes:**
+- `agent` field in prompts accepts built-in agents or existing custom agent names
+- `applyTo` should use a single glob or brace expansion like `'**/*.ts'` or `'**/*.{js,ts}'`
+- `name` in SKILL.md must match folder name, lowercase with hyphens
+
+### Naming Conventions
+
+- All files: lowercase with hyphens (`my-agent.agent.md`)
+- Skill folders: match `name` field in SKILL.md
+- No spaces in filenames
+
+### Size Guidelines
+
+- `copilot-instructions.md`: 500-3000 chars (keep focused)
+- `AGENTS.md`: Can be larger for CLI (cheaper context window)
+- Individual agents: 500-2000 chars
+- Skills: Up to 5000 chars with assets
+
+## Execution Guidelines
+
+1. **Always Detect First** - Survey the project before making changes
+2. **Prefer Non-Destructive** - Never overwrite without confirmation
+3. **Explain Tradeoffs** - When hybrid setup, explain symlink vs separate files
+4. **Validate After Changes** - Run `/validate` after `/bootstrap` or `/migrate`
+5. **Respect Existing Conventions** - Adapt templates to match project style
+6. **Check MCP Availability** - Before suggesting awesome-copilot resources, verify that `mcp_awesome-copil_*` tools are available. If not present, do NOT suggest or reference these tools. Simply skip the community resource suggestions.
+
+## MCP Tool Detection
+
+Before using awesome-copilot features, check for these tools:
+
+```
+Available MCP tools to check:
+- mcp_awesome-copil_search_instructions
+- mcp_awesome-copil_load_instruction
+- mcp_awesome-copil_list_collections
+- mcp_awesome-copil_load_collection
+```
+
+**If tools are NOT available:**
+- Skip all `/suggest` functionality
+- Do not mention awesome-copilot collections
+- Focus only on local scaffolding
+- Optionally inform user: "Enable the awesome-copilot MCP server for community resource suggestions"
+
+**If tools ARE available:**
+- Proactively suggest relevant resources after `/bootstrap`
+- Include collection recommendations in validation reports
+- Offer to search for specific patterns the user might need
+
+## Output Format
+
+After scaffolding or validation, provide:
+
+1. **Summary** - What was created/validated
+2. **Next Steps** - Recommended immediate actions
+3. **Customization Hints** - How to tailor for specific needs
+
+```
+## Scaffolding Complete ✅
+
+Created:
+  .github/
+  ├── copilot-instructions.md (new)
+  ├── agents/
+  │   └── code-reviewer.agent.md (new)
+  ├── instructions/
+  │   └── typescript.instructions.md (new)
+  └── prompts/
+      └── test-gen.prompt.md (new)
+
+  AGENTS.md → symlink to .github/copilot-instructions.md
+
+Next Steps:
+  1. Review and customize copilot-instructions.md
+  2. Add project-specific agents as needed
+  3. Create skills for complex workflows
+
+Customization:
+  - Add more agents in .github/agents/
+  - Create file-specific rules in .github/instructions/
+  - Build reusable prompts in .github/prompts/
+```
+`````
+
+## File: .github/instructions/dotnet-architecture-good-practices.instructions.md
+`````markdown
+---
+name: 'Dotnet Architecture Guidelines'
+description: "DDD and .NET architecture guidelines"
+applyTo: '**/*.{cs,csproj,razor}'
+---
+
+# DDD Systems and .NET Guidelines (Condensed)
+
+Use these rules for .NET code generation and review.
+
+## Mandatory Pre-Coding Analysis
+
+Before implementation, state briefly:
+1. Which DDD concepts apply (aggregate, value object, domain event, service).
+2. Which layer changes (Domain/Application/Infrastructure).
+3. Which business invariants must be preserved.
+4. Which tests will be added (`MethodName_Condition_ExpectedResult`).
+
+If this is unclear, request clarification.
+
+## Core Architecture Rules
+
+- Keep ubiquitous language consistent in names and docs.
+- Domain layer owns business rules and invariants.
+- Application layer orchestrates use-cases and validation.
+- Infrastructure implements ports/repositories and adapters.
+- Depend on abstractions (DIP), keep single responsibility (SRP).
+
+## .NET Engineering Rules
+
+- Prefer async/await for I/O-bound operations.
+- Use DI constructor injection.
+- Use clear exception handling and logging policy.
+- Use modern C# features when they improve clarity.
+
+## Security and Compliance
+
+- Enforce authorization at aggregate/application boundaries.
+- Preserve auditable domain events for critical state changes.
+- Handle sensitive/regulated data explicitly (PCI/SOX/LGPD context when relevant).
+
+## Financial Rules (When Applicable)
+
+- Use `decimal` for money.
+- Keep transaction boundaries explicit.
+- Keep audit trail for financial operations.
+- Encapsulate calculations in domain services/value objects.
+
+## Testing Standard
+
+Naming:
+- `MethodName_Condition_ExpectedResult()`
+
+Required categories:
+- Unit tests for domain logic.
+- Integration tests for persistence/boundaries.
+- Acceptance tests for end-to-end scenarios as needed.
+
+## Minimal Delivery Checklist
+
+- [ ] Domain boundaries and invariants are explicit.
+- [ ] SOLID adherence reviewed (at least SRP/DIP).
+- [ ] Validation and error paths are covered.
+- [ ] Test names follow required convention.
+- [ ] Security/compliance impact reviewed.
+- [ ] Performance implications considered.
+
+## Anti-Noise Rules
+
+- Avoid repeating long theory in PR output.
+- Keep analysis concise and decision-oriented.
+- Prefer short checklists over duplicated prose.
+- Link detailed references instead of copying handbooks.
+`````
+
+## File: .github/prompts/app/create-parallel-route-slice.prompt.md
+`````markdown
+---
+name: 'create-parallel-route-slice'
+description: 'Create or refactor an app/ route slice or parallel-route block that composes module APIs without importing module internals.'
+agent: 'App Router Composer'
+argument-hint: 'Provide the route path, UI block role, allowed module APIs, and whether the slice should be server or client.'
+---
+
+# Create Parallel Route Slice
+
+## Mission
+
+Create or refactor a route slice in `app/` that composes one feature block and keeps the module boundary API-only.
+
+## Inputs
+
+- Route path: `${input:routePath:app/(shell)/dashboard}`
+- Block role: `${input:blockRole:dashboard panel | sidebar tool | modal | chat console}`
+- Allowed module APIs: `${input:moduleApis:@/modules/workspace/api}`
+- Rendering mode: `${input:renderMode:server | client}`
+
+## Workflow
+
+1. Keep the slice focused on one UI responsibility.
+2. Consume module data through public APIs only.
+3. Keep local UI state isolated to this slice or its local components.
+4. Avoid embedding business logic in the route layer.
+5. Run the minimum validation needed for the touched files.
+
+## Output
+
+- Files created or changed
+- Module APIs consumed
+- Validation run
+- Any remaining route-state or boundary risks
 `````
 
 ## File: .github/prompts/md-optimize.prompt.md
@@ -67634,6 +68175,150 @@ docs/{decision-architecture,development-reference,diagrams-events-explanations,h
 | Throughput | faster AI scan |
 `````
 
+## File: .github/prompts/modules/create-module-api-surface.prompt.md
+`````markdown
+---
+name: 'create-module-api-surface'
+description: 'Create or refactor a module public API surface with contracts.ts, facade.ts, safe interfaces usage, and clean index exports.'
+agent: 'Modules API Surface Steward'
+argument-hint: 'Provide the module name, requested actions or queries, consumer type, and any allowed upstream dependencies.'
+---
+
+# Create Module API Surface
+
+## Mission
+
+Create or refactor the public surface of a module so the app layer and other modules can consume it through `api/` and `index.ts` only.
+
+## Inputs
+
+- Module name: `${input:moduleName:account}`
+- Public actions or queries: `${input:actions:list 2-5 public API actions or queries}`
+- Consumer type: `${input:consumerType:app route | module consumer | both}`
+- Allowed upstream dependencies: `${input:dependencies:list approved module API dependencies or events}`
+
+## Workflow
+
+1. Define or refine `api/contracts.ts`.
+2. Define or refine `api/facade.ts`.
+3. Keep `index.ts` as the aggregate export only.
+4. Ensure `interfaces/` and consumers use the API surface instead of internal layers.
+5. Run validation for changed exports and imports.
+
+## Output
+
+- Public contracts added or changed
+- Facade entry points added or changed
+- Validation run
+- Residual boundary or consumer migration risks
+`````
+
+## File: .github/prompts/README.md
+`````markdown
+# Slash-Command Prompts
+
+Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
+
+## Delivery Workflow
+
+| Prompt | File | Purpose |
+| --- | --- | --- |
+| `/plan-feature` | `plan-feature.prompt.md` | Create formal implementation plan for feature/enhancement |
+| `/plan-bugfix` | `plan-bugfix.prompt.md` | Create plan with reproduction, root cause, regression assessment |
+| `/implement-plan` | `implement-plan.prompt.md` | Execute a saved implementation plan |
+| `/review-changes` | `review-changes.prompt.md` | Review completed work against plan and boundaries |
+| `/run-qa` | `run-qa.prompt.md` | Execute QA verification with scenario coverage and evidence |
+| `/resume-delivery` | `resume-delivery.prompt.md` | Resume interrupted workflow from last checkpoint |
+
+## Module Management
+
+| Prompt | File | Purpose |
+| --- | --- | --- |
+| `/create-module` | `create-module.prompt.md` | Create new module under `modules/` with MDDD structure |
+| `/refactor-module` | `refactor-module.prompt.md` | Refactor internal module structure |
+| `/split-module` | `split-module.prompt.md` | Split one module into two bounded contexts |
+| `/merge-module` | `merge-module.prompt.md` | Merge two modules into one bounded context |
+| `/delete-module` | `delete-module.prompt.md` | Delete module with safe cross-module cleanup |
+| `/create-module-api-surface` | `modules/create-module-api-surface.prompt.md` | Build or refactor a module public API surface with contracts, facades, and clean exports |
+
+## App Composition
+
+| Prompt | File | Purpose |
+| --- | --- | --- |
+| `/create-parallel-route-slice` | `app/create-parallel-route-slice.prompt.md` | Build or refactor an `app/` route slice or parallel-route block around API-only module access |
+
+## Customization & Integration
+
+| Prompt | File | Purpose |
+| --- | --- | --- |
+| `/serena-agent` | `serena-agent.prompt.md` | Serena coding workflow with symbolic editing guardrails |
+| `/serena-maintenance` | `serena-maintenance.prompt.md` | Maintenance tasks for Serena MCP integration |
+| `/markitdown-md-optimization` | `markitdown-md-optimization.prompt.md` | Markitdown-driven end-to-end markdown optimization |
+| `/md-optimize` | `md-optimize.prompt.md` | Orchestrate markdown optimization pipeline |
+| `/md-lint` | `md-lint.prompt.md` | Lint and validate markdown files |
+| `/md-compress` | `md-compress.prompt.md` | Compress markdown while preserving information |
+| `/md-dedup` | `md-dedup.prompt.md` | Remove duplicated concepts across docs |
+| `/md-rules` | `md-rules.prompt.md` | Convert prose to rules and tables |
+| `/md-structure` | `md-structure.prompt.md` | Enforce markdown section hierarchy |
+| `/md-index` | `md-index.prompt.md` | Generate/update folder index files |
+
+## Tool-Specific Prompts
+
+| Prompt | File | Purpose |
+| --- | --- | --- |
+| `/playwright-mcp` | `playwright-mcp.prompt.md` | Browser automation for UI testing and verification |
+| `/context7-mcp` | `context7-mcp.prompt.md` | Upstash Context7 integration workflows |
+| `/shadcn-mcp` | `shadcn-mcp.prompt.md` | shadcn component management with MCP |
+| `/next-devtools-mcp` | `next‑devtools‑mcp.prompt.md` | Next.js development tools integration |
+
+## Total: 28 Prompts
+
+## Quick Reference
+
+Each prompt includes:
+- Clear description and use case
+- Required inputs and optional arguments
+- Example invocations
+- Validation or output format hints
+
+Nested prompt folders under `prompts/` are valid and now used for `app/` and `modules/`-specific workflows.
+
+## Related References
+
+- [.github/README.md](../README.md) — Root navigation
+- [../.github/agents/](../agents/) — Delivery workflow agents
+- [docs/development-reference/reference/ai/implementation-plan-template.md](../../docs/development-reference/reference/ai/implementation-plan-template.md) — Plan structure
+`````
+
+## File: .github/prompts/serena-agent.prompt.md
+`````markdown
+---
+name: serena-coding-agent
+description: >
+  System prompt and workflow instructions for Serena MCP coding agent.
+  Defines how the agent should onboard projects, search symbols, check references,
+  and modify code minimally and safely.
+agent: serena-coding-agent
+argument-hint: Optional arguments can be provided for project paths or modules.
+---
+
+# Workflow
+- First onboard the project
+- Use semantic search to locate relevant code
+- Use symbol search instead of file search
+- Before editing, check symbol references
+- Prefer insert_after_symbol instead of rewriting files
+- Keep changes minimal and localized
+- Update types and interfaces if needed
+- Use xuanwu-app-skill when repository-specific patterns or templates are needed
+
+# Best Practices
+Before implementing new features:
+- Search for existing services, repositories, and DTOs.
+- Reuse existing modules when possible.
+- Follow module boundaries.
+`````
+
 ## File: .github/skills/documentation-writer/SKILL.md
 `````markdown
 ---
@@ -67643,6 +68328,46 @@ disable-model-invocation: true
 ---
 
 # documentation-writer (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/liteparse/SKILL.md
+`````markdown
+---
+name: liteparse
+description: Use this skill when the user asks to parse, perform multi-format document conversion or spatially extract text from an unstructured file (PDF, DOCX, PPTX, XLSX, images, etc.) locally without cloud dependencies.
+compatibility: Requires Node 18+ and `@llamaindex/liteparse` installed globally via npm (`npm i -g @llamaindex/liteparse`)
+license: MIT
+metadata:
+  author: LlamaIndex
+  version: "0.1.0"
+disable-model-invocation: true
+---
+
+# liteparse (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -67731,642 +68456,418 @@ disable-model-invocation: true
 - Keep memory names consistent (`workflow/<phase>-<task-id>`).
 `````
 
-## File: .github/skills/vercel-composition-patterns/AGENTS.md
+## File: .github/skills/slavingia-skills-company-values/SKILL.md
 `````markdown
-# React Composition Patterns (Condensed)
+---
+name: company-values
+description: Help define company values and culture for a minimalist business. Use when someone is setting up their company culture, preparing to hire, or wanting to codify what their company stands for.
+disable-model-invocation: true
+---
+
+# slavingia-skills-company-values (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-find-community/SKILL.md
+`````markdown
+---
+name: find-community
+description: Help identify and evaluate communities to build a minimalist business around. Use when someone is looking for a business idea, trying to find their community, or wondering where to start as an entrepreneur.
+disable-model-invocation: true
+---
+
+# slavingia-skills-find-community (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-first-customers/SKILL.md
+`````markdown
+---
+name: first-customers
+description: Create a strategy for selling to your first 100 customers using the minimalist entrepreneur playbook. Use when someone has a product and needs to find customers, or is struggling with early sales.
+disable-model-invocation: true
+---
+
+# slavingia-skills-first-customers (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-grow-sustainably/SKILL.md
+`````markdown
+---
+name: grow-sustainably
+description: Evaluate business decisions through the lens of sustainable, profitable growth. Use when someone is making decisions about spending, hiring, fundraising, or scaling their business.
+disable-model-invocation: true
+---
+
+# slavingia-skills-grow-sustainably (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-minimalist-review/SKILL.md
+`````markdown
+---
+name: minimalist-review
+description: Review any business decision, plan, or strategy through the minimalist entrepreneur lens. Use when someone wants a gut-check on a business decision, wants to simplify their approach, or needs to decide between options.
+argument-hint: [describe your decision or situation]
+disable-model-invocation: true
+---
+
+# slavingia-skills-minimalist-review (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-mvp/SKILL.md
+`````markdown
+---
+name: mvp
+description: Guide building a minimum viable product the minimalist entrepreneur way — manual first, then processized, then productized. Use when someone is ready to build their first product or struggling with scope.
+disable-model-invocation: true
+---
+
+# slavingia-skills-mvp (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-pricing/SKILL.md
+`````markdown
+---
+name: pricing
+description: Help figure out pricing for a product or service using minimalist entrepreneur principles. Use when someone is setting prices, considering price changes, or struggling with what to charge.
+disable-model-invocation: true
+---
+
+# slavingia-skills-pricing (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/slavingia-skills-validate-idea/SKILL.md
+`````markdown
+---
+name: validate-idea
+description: Validate a business idea using the minimalist entrepreneur framework. Use when someone has a business idea and wants to test if it's worth pursuing before building anything.
+disable-model-invocation: true
+---
+
+# slavingia-skills-validate-idea (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vercel-composition-patterns/SKILL.md
+`````markdown
+---
+name: vercel-composition-patterns
+description:
+  React composition patterns that scale. Use when refactoring components with
+  boolean prop proliferation, building flexible component libraries, or
+  designing reusable APIs. Triggers on tasks involving compound components,
+  render props, context providers, or component architecture. Includes React 19
+  API changes.
+license: MIT
+metadata:
+  author: vercel
+  version: '1.0.0'
+disable-model-invocation: true
+---
+
+# vercel-composition-patterns (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/vercel-react-best-practices/AGENTS.md
+`````markdown
+# React Best Practices (Condensed)
 
 This AGENTS file is intentionally compact to reduce repeated context load.
 
 ## Source of Truth
 
 - Primary workflow: `./SKILL.md`
+- Detailed rules: `./rules/`
 
 ## When to Apply
 
-Use for component architecture and state-composition refactors in React codebases.
+Use this guidance when working on React or Next.js implementation, review, or refactor tasks.
 
-## Core Rules
+## Priority Order
 
-1. Avoid boolean-prop proliferation for variants.
-2. Prefer compound components for complex composition.
-3. Lift state into provider boundaries when shared behavior is required.
-4. Keep UI composition explicit and variant-specific.
+1. Eliminate async waterfalls (`async-*`)
+2. Reduce bundle size (`bundle-*`)
+3. Improve server-side performance (`server-*`)
+4. Optimize client fetching and rerenders (`client-*`, `rerender-*`)
+5. Apply rendering and JS micro-optimizations (`rendering-*`, `js-*`, `advanced-*`)
 
 ## Minimal Execution Flow
 
-1. Detect branching complexity and variant explosion.
-2. Refactor to explicit variants and composition.
-3. Move shared state and actions into context/provider only when needed.
-4. Validate behavior parity and readability.
+1. Identify the slow path and classify by rule prefix.
+2. Apply the highest-impact rule first.
+3. Keep changes scoped and measurable.
+4. Validate with project commands.
 
 ## Guardrails
 
-- Do not turn simple components into over-engineered abstractions.
-- Avoid copying large tutorial examples into this file.
-- Keep this file as a high-signal checklist; place deep examples in `SKILL.md`.
+- Prefer server-first data strategies in Next.js.
+- Avoid speculative micro-optimizations before waterfall and bundle fixes.
+- Do not duplicate long rule text here; keep details in `rules/*`.
 
 ## Validation
 
 - Run `npm run lint`
 - Run `npm run build`
+
+## Note
+
+If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
 `````
 
-## File: .github/skills/vercel-react-best-practices/rules/advanced-event-handler-refs.md
+## File: .github/skills/vercel-react-native-skills/SKILL.md
 `````markdown
 ---
-title: Store Event Handlers in Refs
-impact: LOW
-impactDescription: stable subscriptions
-tags: advanced, hooks, refs, event-handlers, optimization
+name: vercel-react-native-skills
+description:
+  React Native and Expo best practices for building performant mobile apps. Use
+  when building React Native components, optimizing list performance,
+  implementing animations, or working with native modules. Triggers on tasks
+  involving React Native, Expo, mobile performance, or native platform APIs.
+license: MIT
+metadata:
+  author: vercel
+  version: '1.0.0'
+disable-model-invocation: true
 ---
 
-## Store Event Handlers in Refs
-
-Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
-
-**Incorrect (re-subscribes on every render):**
-
-```tsx
-function useWindowEvent(event: string, handler: () => void) {
-  useEffect(() => {
-    window.addEventListener(event, handler)
-    return () => window.removeEventListener(event, handler)
-  }, [event, handler])
-}
-```
-
-**Correct (stable subscription):**
-
-```tsx
-function useWindowEvent(event: string, handler: () => void) {
-  const handlerRef = useRef(handler)
-  useEffect(() => {
-    handlerRef.current = handler
-  }, [handler])
-
-  useEffect(() => {
-    const listener = () => handlerRef.current()
-    window.addEventListener(event, listener)
-    return () => window.removeEventListener(event, listener)
-  }, [event])
-}
-```
-
-**Alternative: use `useEffectEvent` if you're on latest React:**
-
-```tsx
-import { useEffectEvent } from 'react'
-
-function useWindowEvent(event: string, handler: () => void) {
-  const onEvent = useEffectEvent(handler)
-
-  useEffect(() => {
-    window.addEventListener(event, onEvent)
-    return () => window.removeEventListener(event, onEvent)
-  }, [event])
-}
-```
-
-`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/advanced-use-latest.md
-`````markdown
----
-title: useLatest for Stable Callback Refs
-impact: LOW
-impactDescription: prevents effect re-runs
-tags: advanced, hooks, useLatest, refs, optimization
----
-
-## useLatest for Stable Callback Refs
-
-Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
-
-**Implementation:**
-
-```typescript
-function useLatest<T>(value: T) {
-  const ref = useRef(value)
-  useEffect(() => {
-    ref.current = value
-  }, [value])
-  return ref
-}
-```
-
-**Incorrect (effect re-runs on every callback change):**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearch(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query, onSearch])
-}
-```
-
-**Correct (stable effect, fresh callback):**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-  const onSearchRef = useLatest(onSearch)
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearchRef.current(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query])
-}
-```
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-dependencies.md
-`````markdown
----
-title: Dependency-Based Parallelization
-impact: CRITICAL
-impactDescription: 2-10× improvement
-tags: async, parallelization, dependencies, better-all
----
-
-## Dependency-Based Parallelization
-
-For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
-
-**Incorrect (profile waits for config unnecessarily):**
-
-```typescript
-const [user, config] = await Promise.all([
-  fetchUser(),
-  fetchConfig()
-])
-const profile = await fetchProfile(user.id)
-```
-
-**Correct (config and profile run in parallel):**
-
-```typescript
-import { all } from 'better-all'
-
-const { user, config, profile } = await all({
-  async user() { return fetchUser() },
-  async config() { return fetchConfig() },
-  async profile() {
-    return fetchProfile((await this.$.user).id)
-  }
-})
-```
-
-Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-conditional.md
-`````markdown
----
-title: Conditional Module Loading
-impact: HIGH
-impactDescription: loads large data only when needed
-tags: bundle, conditional-loading, lazy-loading
----
-
-## Conditional Module Loading
-
-Load large data or modules only when a feature is activated.
-
-**Example (lazy-load animation frames):**
-
-```tsx
-function AnimationPlayer({ enabled }: { enabled: boolean }) {
-  const [frames, setFrames] = useState<Frame[] | null>(null)
-
-  useEffect(() => {
-    if (enabled && !frames && typeof window !== 'undefined') {
-      import('./animation-frames.js')
-        .then(mod => setFrames(mod.frames))
-        .catch(() => setEnabled(false))
-    }
-  }, [enabled, frames])
-
-  if (!frames) return <Skeleton />
-  return <Canvas frames={frames} />
-}
-```
-
-The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-batch-dom-css.md
-`````markdown
----
-title: Batch DOM CSS Changes
-impact: MEDIUM
-impactDescription: reduces reflows/repaints
-tags: javascript, dom, css, performance, reflow
----
-
-## Batch DOM CSS Changes
-
-Avoid changing styles one property at a time. Group multiple CSS changes together via classes or `cssText` to minimize browser reflows.
-
-**Incorrect (multiple reflows):**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  // Each line triggers a reflow
-  element.style.width = '100px'
-  element.style.height = '200px'
-  element.style.backgroundColor = 'blue'
-  element.style.border = '1px solid black'
-}
-```
-
-**Correct (add class - single reflow):**
-
-```typescript
-// CSS file
-.highlighted-box {
-  width: 100px;
-  height: 200px;
-  background-color: blue;
-  border: 1px solid black;
-}
-
-// JavaScript
-function updateElementStyles(element: HTMLElement) {
-  element.classList.add('highlighted-box')
-}
-```
-
-**Correct (change cssText - single reflow):**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  element.style.cssText = `
-    width: 100px;
-    height: 200px;
-    background-color: blue;
-    border: 1px solid black;
-  `
-}
-```
-
-**React example:**
-
-```tsx
-// Incorrect: changing styles one by one
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  
-  useEffect(() => {
-    if (ref.current && isHighlighted) {
-      ref.current.style.width = '100px'
-      ref.current.style.height = '200px'
-      ref.current.style.backgroundColor = 'blue'
-    }
-  }, [isHighlighted])
-  
-  return <div ref={ref}>Content</div>
-}
-
-// Correct: toggle class
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  return (
-    <div className={isHighlighted ? 'highlighted-box' : ''}>
-      Content
-    </div>
-  )
-}
-```
-
-Prefer CSS classes over inline styles when possible. Classes are cached by the browser and provide better separation of concerns.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-length-check-first.md
-`````markdown
----
-title: Early Length Check for Array Comparisons
-impact: MEDIUM-HIGH
-impactDescription: avoids expensive operations when lengths differ
-tags: javascript, arrays, performance, optimization, comparison
----
-
-## Early Length Check for Array Comparisons
-
-When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
-
-In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
-
-**Incorrect (always runs expensive comparison):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Always sorts and joins, even when lengths differ
-  return current.sort().join() !== original.sort().join()
-}
-```
-
-Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
-
-**Correct (O(1) length check first):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Early return if lengths differ
-  if (current.length !== original.length) {
-    return true
-  }
-  // Only sort/join when lengths match
-  const currentSorted = current.toSorted()
-  const originalSorted = original.toSorted()
-  for (let i = 0; i < currentSorted.length; i++) {
-    if (currentSorted[i] !== originalSorted[i]) {
-      return true
-    }
-  }
-  return false
-}
-```
-
-This new approach is more efficient because:
-- It avoids the overhead of sorting and joining the arrays when lengths differ
-- It avoids consuming memory for the joined strings (especially important for large arrays)
-- It avoids mutating the original arrays
-- It returns early when a difference is found
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-min-max-loop.md
-`````markdown
----
-title: Use Loop for Min/Max Instead of Sort
-impact: LOW
-impactDescription: O(n) instead of O(n log n)
-tags: javascript, arrays, performance, sorting, algorithms
----
-
-## Use Loop for Min/Max Instead of Sort
-
-Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
-
-**Incorrect (O(n log n) - sort to find latest):**
-
-```typescript
-interface Project {
-  id: string
-  name: string
-  updatedAt: number
-}
-
-function getLatestProject(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
-  return sorted[0]
-}
-```
-
-Sorts the entire array just to find the maximum value.
-
-**Incorrect (O(n log n) - sort for oldest and newest):**
-
-```typescript
-function getOldestAndNewest(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
-  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
-}
-```
-
-Still sorts unnecessarily when only min/max are needed.
-
-**Correct (O(n) - single loop):**
-
-```typescript
-function getLatestProject(projects: Project[]) {
-  if (projects.length === 0) return null
-  
-  let latest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt > latest.updatedAt) {
-      latest = projects[i]
-    }
-  }
-  
-  return latest
-}
-
-function getOldestAndNewest(projects: Project[]) {
-  if (projects.length === 0) return { oldest: null, newest: null }
-  
-  let oldest = projects[0]
-  let newest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
-    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
-  }
-  
-  return { oldest, newest }
-}
-```
-
-Single pass through the array, no copying, no sorting.
-
-**Alternative (Math.min/Math.max for small arrays):**
-
-```typescript
-const numbers = [5, 2, 8, 1, 9]
-const min = Math.min(...numbers)
-const max = Math.max(...numbers)
-```
-
-This works for small arrays but can be slower for very large arrays due to spread operator limitations. Use the loop approach for reliability.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-derived-state.md
-`````markdown
----
-title: Subscribe to Derived State
-impact: MEDIUM
-impactDescription: reduces re-render frequency
-tags: rerender, derived-state, media-query, optimization
----
-
-## Subscribe to Derived State
-
-Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
-
-**Incorrect (re-renders on every pixel change):**
-
-```tsx
-function Sidebar() {
-  const width = useWindowWidth()  // updates continuously
-  const isMobile = width < 768
-  return <nav className={isMobile ? 'mobile' : 'desktop'}>
-}
-```
-
-**Correct (re-renders only when boolean changes):**
-
-```tsx
-function Sidebar() {
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  return <nav className={isMobile ? 'mobile' : 'desktop'}>
-}
-```
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-cache-react.md
-`````markdown
----
-title: Per-Request Deduplication with React.cache()
-impact: MEDIUM
-impactDescription: deduplicates within request
-tags: server, cache, react-cache, deduplication
----
-
-## Per-Request Deduplication with React.cache()
-
-Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
-
-**Usage:**
-
-```typescript
-import { cache } from 'react'
-
-export const getCurrentUser = cache(async () => {
-  const session = await auth()
-  if (!session?.user?.id) return null
-  return await db.user.findUnique({
-    where: { id: session.user.id }
-  })
-})
-```
-
-Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
-`````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-parallel-fetching.md
-`````markdown
----
-title: Parallel Data Fetching with Component Composition
-impact: CRITICAL
-impactDescription: eliminates server-side waterfalls
-tags: server, rsc, parallel-fetching, composition
----
-
-## Parallel Data Fetching with Component Composition
-
-React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
-
-**Incorrect (Sidebar waits for Page's fetch to complete):**
-
-```tsx
-export default async function Page() {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      <Sidebar />
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-```
-
-**Correct (both fetch simultaneously):**
-
-```tsx
-async function Header() {
-  const data = await fetchHeader()
-  return <div>{data}</div>
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <div>
-      <Header />
-      <Sidebar />
-    </div>
-  )
-}
-```
-
-**Alternative with children prop:**
-
-```tsx
-async function Layout({ children }: { children: ReactNode }) {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      {children}
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <Layout>
-      <Sidebar />
-    </Layout>
-  )
-}
-```
-`````
-
-## File: .github/skills/vercel-react-native-skills/AGENTS.md
-`````markdown
-# React Native Skills (Condensed)
-
-This AGENTS file is intentionally compact to reduce repeated context load.
-
-## Source of Truth
-
-- Primary workflow: `./SKILL.md`
-
-## When to Apply
-
-Use when writing, reviewing, or refactoring React Native UI, state, animation, list performance, and navigation code.
-
-## Priority Order
-
-1. Prevent runtime crashes (rendering rules first).
-2. Fix list and scroll performance bottlenecks.
-3. Improve animation and interaction responsiveness.
-4. Apply state architecture and compiler-safe patterns.
-
-## Minimal Execution Flow
-
-1. Classify issue by category (rendering, list, animation, state, navigation).
-2. Apply high-impact rule changes before stylistic changes.
-3. Keep props stable and avoid unnecessary rerenders.
-4. Validate on representative scenarios.
+# vercel-react-native-skills (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
 ## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-- Do not duplicate long handbook content in this file.
-- Prefer explicit conditional rendering over brittle shorthand in RN.
-- Keep this file concise; deep examples belong in `SKILL.md`.
-
-## Validation
-
-- Run project lint/build commands.
-- Run platform-specific tests where applicable.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
 `````
 
 ## File: .github/skills/vscode-agent-foundations/SKILL.md
@@ -68613,6 +69114,49 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Prefer checklist-style guidance over long prose.
 - Keep this file focused on skill-specific execution intent.
 - Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/web-design-guidelines/SKILL.md
+`````markdown
+---
+name: web-design-guidelines
+description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
+argument-hint: <file-or-pattern>
+metadata:
+  author: vercel
+  version: "1.0.0"
+---
+
+# Web Interface Guidelines
+
+Review files for compliance with Web Interface Guidelines.
+
+## How It Works
+
+1. Fetch the latest guidelines from the source URL below
+2. Read the specified files (or prompt user for files/pattern)
+3. Check against all rules in the fetched guidelines
+4. Output findings in the terse `file:line` format
+
+## Guidelines Source
+
+Fetch fresh guidelines before each review:
+
+```
+https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
+```
+
+Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
+
+## Usage
+
+When a user provides a file or pattern argument:
+1. Fetch guidelines from the source URL above
+2. Read the specified files
+3. Apply all rules from the fetched guidelines
+4. Output findings using the format specified in the guidelines
+
+If no files specified, ask the user which files to review.
 `````
 
 ## File: .github/skills/xuanwu-development-contracts/SKILL.md
@@ -73935,42 +74479,6 @@ export class GenkitRagGenerationRepository implements RagGenerationRepository {
 7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
 `````
 
-## File: modules/wiki-beta/api/index.ts
-`````typescript
-/**
- * Module: wiki-beta
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the WikiBeta domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type {
-  WikiBetaPage,
-  WikiBetaPageStatus,
-  WikiBetaPageTreeNode,
-} from "../domain/entities/wiki-beta-page.types";
-
-export type {
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryFieldType,
-  WikiBetaLibraryRow,
-  WikiBetaLibraryStatus,
-} from "../domain/entities/wiki-beta-library.types";
-
-export type {
-  WikiBetaWorkspaceRef,
-  WikiBetaWorkspaceContentNode,
-  WikiBetaContentItemNode,
-} from "../domain/entities/wiki-beta.types";
-
-export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
-`````
-
 ## File: modules/workspace-audit/README.md
 `````markdown
 # Workspace Audit Module
@@ -76681,231 +77189,324 @@ export function WorkspaceSchedulingTab({
 }
 `````
 
-## File: .github/instructions/modules-api-boundary.instructions.md
+## File: .github/agents/implementer.agent.md
 `````markdown
 ---
-name: 'Modules API Boundary'
-description: 'API-boundary rules for cross-module interaction in modules/ with explicit allowed and forbidden patterns'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
+name: Implementer
+description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
+tools: ['execute', 'read', 'edit', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Review Implementation
+    agent: Reviewer
+    prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
+    send: false
 ---
 
-# Modules API Boundary
+# Implementer
 
-Cross-module interaction must remain explicit and minimal.
+You are the formal implementation stage of the Xuanwu Copilot Delivery Suite.
 
-## Allowed vs. Forbidden
+## Mission
 
-| Pattern | Status | Example |
-| --- | --- | --- |
-| Import via target module public boundary (`@/modules/<target>` or `@/modules/<target>/api`) | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
-| Import `<target>/domain/*`, `<target>/application/*`, `<target>/infrastructure/*`, `<target>/interfaces/*` | ❌ **Forbidden** | `import { ContentPage } from "@/modules/content/domain/entities/..."` |
-| Import private repositories or entities | ❌ **Forbidden** | `import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/..."` |
+Execute the approved implementation plan without expanding scope. Write code, update documentation, and run the validation required by the plan.
 
-## Rules
+## Required references
 
-- Keep module internals private
-- Export only minimum needed from `api/`
-- Prefer façades, contracts, or events over exposing raw types
-- Narrow wide boundaries during refactor, not incrementally
+- Use the approved implementation plan as the execution contract.
+- Follow [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [.github/copilot-instructions.md](../copilot-instructions.md).
+- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement matters.
+- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) when a workflow is contract-governed.
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
 
-## Validation
+## Workflow
 
-- Re-check all changed imports
-- Run validation commands from `agents/commands.md` based on change scope
-- Rely on `eslint.config.mjs` as the enforcement source for restricted-import patterns
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the plan completely before editing.
+3. Execute the implementation tasks in a deliberate order.
+4. Keep changes inside the documented scope and non-goals.
+5. Run the validation named in the plan.
+6. Update the documentation listed in the plan.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
+8. Prepare a concise completion summary for review.
+
+## Guardrails
+
+- Do not invent new scope because it seems adjacent or useful.
+- Do not bypass required validation.
+- Do not ignore required documentation updates.
+- Stop and request a plan revision if owner, runtime, or validation is unclear.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+
+## Output expectations
+
+- Report completed tasks against the plan checklist.
+- Report validation actually run.
+- Report documentation updated.
+- Note any deviations from the plan and why they were unavoidable.
 `````
 
-## File: .github/instructions/modules-architecture.instructions.md
+## File: .github/agents/qa.agent.md
 `````markdown
 ---
-name: 'Modules Architecture'
-description: 'Architecture rules for creating and refactoring modules/ bounded contexts under Xuanwu MDDD'
-applyTo: 'modules/**/*.md'
+name: QA
+description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
+tools: ['execute', 'read', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Fix QA Findings
+    agent: Implementer
+    prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
+    send: false
 ---
 
-# Modules Architecture
+# QA
 
-Use this instruction when designing or restructuring module architecture documents under `modules/`.
+You are the formal QA stage of the Xuanwu Copilot Delivery Suite.
 
-## MDDD Layers
+## Mission
 
-Each business module keeps: `domain/`, `application/`, `infrastructure/`, `interfaces/`, `api/`, plus `README.md` and `index.ts`.
-If any canonical layer is intentionally omitted, document the exception explicitly.
+Verify what was delivered, prove what works, document what does not, and state the residual risk before release.
 
-## Layer Responsibilities
+## Core principles
 
-- `domain/`: pure business rules, entities, value objects, events, repository interfaces; no framework imports.
-- `application/`: use-case orchestration and DTOs; depends on domain abstractions.
-- `infrastructure/`: adapter and repository implementations for external systems.
-- `interfaces/`: UI/transport/server-action concerns only.
-- `api/`: the only cross-module consumption boundary.
+1. Assume behavior is unproven until scenarios are executed.
+2. Reproduce before reporting.
+3. Trace tests back to requirements, scope, or expected behavior.
+4. Prefer deterministic evidence over narrative confidence.
+5. Separate confirmed failures from residual risks and nice-to-have improvements.
 
-## Required Module Shape
+## Workflow
 
-```text
-modules/{module-name}/
-├── api/
-├── domain/
-│   ├── entities/
-│   ├── repositories/
-│   ├── value-objects/
-│   └── events/
-├── application/
-│   ├── use-cases/
-│   └── dto/
-├── infrastructure/
-├── interfaces/
-├── README.md
-└── index.ts
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the approved plan and the reviewer output.
+3. Build a verification list from scope, risks, and validation requirements.
+4. Execute scenarios across happy path, boundary, negative, error handling, and regression-sensitive paths.
+5. Capture evidence for failures and noteworthy residual risks.
+6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
+7. Conclude with a release recommendation.
+
+## Output format
+
+### Scope checked
+- <scope item>
+
+### Scenarios executed
+1. <scenario>
+
+### Evidence collected
+- <evidence>
+
+### Failures found
+- <failure or none>
+
+### Residual risks
+- <risk or none>
+
+### Release recommendation
+- `ready | ready-with-risk | blocked`
+
+## Guardrails
+
+- Do not edit source files.
+- Do not mark a change ready if required validation was not actually executed.
+- Do not collapse missing evidence into general confidence language.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+`````
+
+## File: .github/agents/reviewer.agent.md
+`````markdown
+---
+name: Reviewer
+description: 'Review Xuanwu implementations for correctness, architecture alignment, regression risk, and missing validation or documentation.'
+tools: ['read', 'search', 'todo', 'serena/*']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+handoffs:
+  - label: Fix Review Findings
+    agent: Implementer
+    prompt: Apply fixes for the review findings above. Keep the scope bounded to those findings and rerun the required validation.
+    send: false
+  - label: Run QA
+    agent: QA
+    prompt: Execute QA against the approved plan and reviewed implementation. Verify scenarios, evidence, residual risk, and release readiness.
+    send: false
+---
+
+# Reviewer
+
+You are the formal review stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Evaluate whether the implementation is acceptable before QA starts. Focus on bugs, regressions, boundary violations, missing validation, and missing documentation.
+
+## Review lenses
+
+1. Correctness and behavioral regressions
+2. MDDD ownership and dependency direction
+3. Contract alignment and invariant preservation
+4. Validation completeness
+5. Documentation completeness
+
+## Required references
+
+- Review against the approved implementation plan.
+- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) for ownership and boundary checks.
+- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) for contract-governed workflows.
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
+
+## Workflow
+
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the approved plan and the implementation output.
+3. Evaluate across the five review lenses.
+4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with findings, severity, and recommendation; then call `serena/summarize_changes`.
+
+## Guardrails
+
+- Do not edit files.
+- Do not restate the implementation summary as the review.
+- Do not focus on style trivia before reporting bugs, risk, or missing validation.
+- If no serious findings exist, say so explicitly and note residual risks or test gaps.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+
+## Output expectations
+
+Present findings first, ordered by severity. Include:
+
+- summary,
+- affected area,
+- why it matters,
+- and whether the issue blocks QA or release.
+`````
+
+## File: .github/instructions/agent-skills.instructions.md
+`````markdown
+---
+name: 'Agent Skills Guidelines'
+description: 'Guidelines for creating high-quality Agent Skills for GitHub Copilot'
+applyTo: '.github/skills/**/SKILL.md, .claude/skills/**/SKILL.md'
+---
+
+# Agent Skills File Guidelines (Noise-Reduced)
+
+Use this file to author lean, discoverable skills.
+
+## Required SKILL.md Frontmatter
+
+```yaml
+---
+name: webapp-testing
+description: Toolkit for testing local web apps with Playwright. Use for UI verification, interaction checks, screenshots, and console diagnostics.
+license: Complete terms in LICENSE.txt
+---
 ```
 
-Additional folders are allowed when needed, but do not rename the canonical layers.
+Rules:
+- `name` is required, lowercase, kebab-case, <= 64 chars.
+- `description` is required and is the primary discovery signal.
+- `description` must include: what it does, when to use, and matchable keywords.
 
-## Rules & Guardrails
+## Minimal Skill Structure
 
-- Keep business rules out of `interfaces/`; never import infrastructure into `domain/`.
-- `app/` is composition and routing, not business-rule ownership.
-- Use `modules-api-boundary.instructions.md` and `modules-dependency-graph.instructions.md` for code-level boundary enforcement.
-- Place events/interfaces/entities/value objects/repository implementations in their canonical folders.
+Each skill folder should include:
+- `SKILL.md` (required)
+- `LICENSE.txt` (recommended)
+- Optional: `scripts/`, `references/`, `templates/`, `assets/`
 
-## Validation
+## Body Sections (Recommended)
 
-- Use validation commands from `agents/commands.md` to keep one canonical command source.
+1. Title and intent
+2. When to use this skill
+3. Prerequisites
+4. Workflow steps
+5. Guardrails
+6. Output expectations
+7. References
+
+## Resource Rules
+
+- Put executable automation in `scripts/`.
+- Put long docs in `references/` and link from `SKILL.md`.
+- Use `templates/` for files the model edits.
+- Use `assets/` for files copied as-is.
+
+## Anti-Noise Rules
+
+- Keep `SKILL.md` under 500 lines.
+- Move long examples to `references/`.
+- Avoid repeating repository-wide policy inside each skill.
+- Do not duplicate the same workflow across multiple skills; route via an index skill.
+
+## Quality Checklist
+
+- [ ] Frontmatter is valid (`name`, `description`)
+- [ ] Description is specific enough for auto-discovery
+- [ ] Workflow is actionable and deterministic
+- [ ] Secrets are never hardcoded
+- [ ] Relative paths are used for internal references
+
+## References
+
+- https://code.visualstudio.com/docs/copilot/customization/agent-skills
+- https://agentskills.io/
+- https://github.com/github/awesome-copilot/blob/main/docs/README.skills.md
 `````
 
-## File: .github/instructions/modules-refactoring.instructions.md
+## File: .github/instructions/xuanwu-functions-python.instructions.md
 `````markdown
 ---
-name: 'Modules Refactoring'
-description: 'Refactoring workflows for adding, restructuring, splitting, merging, and deleting modules while preserving MDDD boundaries'
-applyTo: 'modules/**/*.md'
+name: 'Xuanwu Functions Python'
+description: 'Project-specific instructions for the xuanwu-app Firebase Python worker runtime.'
+applyTo: 'py_fn/**/*.py'
 ---
 
-# Modules Refactoring
+# Xuanwu App py_fn Instructions
 
-Use this instruction when planning or documenting add/refactor/split/merge/delete operations for modules.
+These instructions apply to the `py_fn/` runtime only.
 
-## Workflow Checklist
+## Overview
 
-### Before any refactor
-- [ ] Identify owning bounded context
-- [ ] Determine change type: create / refactor / split / merge / delete
-- [ ] Map public API consumers and event consumers
-- [ ] Preserve MDDD layers and boundaries
+`py_fn/` is the Firebase Python worker runtime for ingestion and heavy processing. Next.js owns the user-facing application edge. **Do not turn `py_fn/` into a second product web server.**
 
-### Create module
-- [ ] Confirm distinct bounded context
-- [ ] Create: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`
-- [ ] Establish first API contract
-- [ ] Register in docs and module inventory
+## Architecture
 
-### Refactor existing module
-- [ ] Move leaked business logic to `application/`
-- [ ] Remove internal cross-domain imports
-- [ ] Tighten `api/` exports
-- [ ] Update imports, tests, docs
+Keep dependency direction `interfaces -> application -> domain <- infrastructure`.
+Keep `domain/` pure (no Firebase/Google SDK specifics, HTTP framework logic, or file-system coupling).
+Use `app/bootstrap` and `app/config` for wiring/config; preserve vertical slices and layer boundaries.
 
-### Split / merge modules
-- [ ] Map source → target ownership
-- [ ] Identify internal vs. public
-- [ ] Migrate API and event contracts
-- [ ] Update routing, tests, docs
+## Ingestion Pipeline Contract
 
-### Delete module
-- [ ] Search all imports, event discriminants, and docs referencing the module boundary
-- [ ] Remove consumers first, then module
-- [ ] Update indexes and dependency guidance
+Preserve established order (do not reorder without updating ADRs):
+**Parse → Clean → Taxonomy → Chunk → Chunk metadata → Embedding → Firestore writes → Mark ready**
 
-### Validation
-- [ ] Use validation commands from `agents/commands.md` and record which ones were run.
-`````
+## Runtime Ownership
 
-## File: .github/instructions/README.md
-`````markdown
-# Custom Instructions
+- Next.js: browser-facing APIs, upload UX, auth/session, route handlers/server actions, query orchestration, prompt assembly, streaming.
+- `py_fn/`: parsing, cleaning, taxonomy, chunking, embedding, Firestore persistence, status transitions, background/retry/admin jobs.
 
-Repository instruction index for `applyTo`-scoped rules used by Copilot.
+**Rule**: If the browser or page flow calls it directly → Next.js. If background, retryable, heavy, or admin/internal → `py_fn/`.
 
-## Foundation
+## Guardrails & Validation
 
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [instructions.instructions.md](./instructions.instructions.md) | `.github/instructions/*.instructions.md` | How to create high-quality custom instruction files |
-| [agents.instructions.md](./agents.instructions.md) | `.github/agents/*.agent.md` | How to create custom delivery agents |
-| [agent-skills.instructions.md](./agent-skills.instructions.md) | `.github/skills/**/SKILL.md` | How to create agent skills |
-| [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/*.prompt.md` | How to create slash-command prompts |
+**Do not**:
+- Add chat streaming endpoints
+- Move auth or session logic into this runtime
+- Bypass `application` layer from `interfaces`
+- Reintroduce legacy `libs/firebase/functions`
 
-## Project-Specific
+**Validate**:
+- Run applicable Python and repository commands from `agents/commands.md`.
+- Before changing boundaries, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
 
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [xuanwu-app-nextjs-mddd.instructions.md](./xuanwu-app-nextjs-mddd.instructions.md) | `app/**/*.{ts,tsx}`, `packages/**/*.{ts,tsx}`, `providers/**/*.{ts,tsx}`, `debug/**/*.{ts,tsx}` | Next.js 16, React 19, MDDD development standards |
-| [xuanwu-functions-python.instructions.md](./xuanwu-functions-python.instructions.md) | `py_fn/**/*.py` | Python Firebase Functions development standards |
+## Documentation Update Rules
 
-## Architecture & Modules
-
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [modules-architecture.instructions.md](./modules-architecture.instructions.md) | `modules/**/*.md` | MDDD layer design and module structure docs |
-| [modules-api-boundary.instructions.md](./modules-api-boundary.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Cross-module API boundaries and imports |
-| [modules-dependency-graph.instructions.md](./modules-dependency-graph.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Dependency direction and layer enforcement |
-| [modules-naming.instructions.md](./modules-naming.instructions.md) | `modules/**/*.md` | Module naming conventions in specs/docs |
-| [modules-refactoring.instructions.md](./modules-refactoring.instructions.md) | `modules/**/*.md` | Refactoring workflows for module planning/docs |
-
-## Other
-
-| File | Scope | Purpose |
-| --- | --- | --- |
-| [dotnet-architecture-good-practices.instructions.md](./dotnet-architecture-good-practices.instructions.md) | `**/*.cs`, `**/*.csproj`, `**/Program.cs`, `**/*.razor` | DDD and .NET architecture guidance |
-
-## Total: 12 Instruction Files
-
-Each instruction file includes clear examples, best practices, and anti-patterns to guide Copilot behavior and enforce project standards.
-
-## Scope Partition (Noise Control)
-
-Use this partition to avoid overlapping instruction contexts:
-
-- App and package implementation: `xuanwu-app-nextjs-mddd.instructions.md`
-- Module code boundaries: `modules-api-boundary.instructions.md` + `modules-dependency-graph.instructions.md`
-- Module architecture and naming docs: `modules-architecture.instructions.md` + `modules-naming.instructions.md` + `modules-refactoring.instructions.md`
-- Prompt authoring: `prompt.instructions.md`
-- Agent authoring: `agents.instructions.md`
-- Skill authoring: `agent-skills.instructions.md`
-
-## Context Noise Budget
-
-To reduce repeated context consumption:
-
-- Keep each instruction file focused on one concern.
-- Prefer narrow `applyTo` globs.
-- Avoid duplicating repository-wide policy from `AGENTS.md` and `.github/copilot-instructions.md`.
-- Link to canonical docs instead of repeating long explanations.
-- Move long examples into dedicated docs and keep instruction files compact.
-
-Recommended size targets:
-
-- High-frequency instruction files: <= 300 lines
-- Specialized instruction files: <= 500 lines
-
-## Conflict Resolution Order
-
-When rules overlap, resolve by this order:
-
-1. The instruction with the most specific `applyTo`
-2. Code-boundary instructions over descriptive docs (`modules-api-boundary` and `modules-dependency-graph`)
-3. `.github/copilot-instructions.md` for execution workflow and delivery rules
-
-## Diagnostics
-
-- If an instruction does not load automatically, verify its `applyTo` pattern against the target file and inspect Chat customization diagnostics.
-- Prefer brace-expansion globs such as `modules/**/*.{ts,tsx,js,jsx}` over comma-separated path lists in a single pattern.
-
-## Related
-
-- [../README.md](../README.md) — Root `.github/` navigation
-- [../agents/README.md](../agents/README.md) — Delivery workflow agents
-- [../skills/README.md](../skills/README.md) — Specialized agent skills
+- Update `py_fn/README.md` when worker responsibilities, setup, or runtime contracts change.
+- Update ADRs when changing ingestion order, runtime ownership, persistence rules, or platform boundaries.
+- Keep terminology aligned with the existing ingestion, taxonomy, chunk, embedding, and document-status vocabulary already used in the repo.
 `````
 
 ## File: .github/skills/.serena-mcp/SKILL.md
@@ -76987,20 +77588,58 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/liteparse/SKILL.md
+## File: .github/skills/deploy-to-vercel/SKILL.md
 `````markdown
 ---
-name: liteparse
-description: Use this skill when the user asks to parse, perform multi-format document conversion or spatially extract text from an unstructured file (PDF, DOCX, PPTX, XLSX, images, etc.) locally without cloud dependencies.
-compatibility: Requires Node 18+ and `@llamaindex/liteparse` installed globally via npm (`npm i -g @llamaindex/liteparse`)
-license: MIT
+name: deploy-to-vercel
+description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
 metadata:
-  author: LlamaIndex
-  version: "0.1.0"
+  author: vercel
+  version: "3.0.0"
 disable-model-invocation: true
 ---
 
-# liteparse (Condensed)
+# deploy-to-vercel (Condensed)
+
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
+
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
+
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
+
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
+
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
+`````
+
+## File: .github/skills/llamaparse/SKILL.md
+`````markdown
+---
+name: llamaparse
+description: Parse unstructured files (PDF, PPTX, DOCX, XLSX, etc.) via LlamaParse and return requested output formats.
+compatibility: Needs LLAMA_CLOUD_API_KEY in environment and @llamaindex/llama-cloud installed.
+license: MIT
+metadata:
+  author: LlamaIndex
+  version: "1.0.0"
+disable-model-invocation: true
+---
+
+# llamaparse (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -77065,305 +77704,18 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/slavingia-skills-company-values/SKILL.md
+## File: .github/skills/vercel-cli-with-tokens/SKILL.md
 `````markdown
 ---
-name: company-values
-description: Help define company values and culture for a minimalist business. Use when someone is setting up their company culture, preparing to hire, or wanting to codify what their company stands for.
-disable-model-invocation: true
----
-
-# slavingia-skills-company-values (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-find-community/SKILL.md
-`````markdown
----
-name: find-community
-description: Help identify and evaluate communities to build a minimalist business around. Use when someone is looking for a business idea, trying to find their community, or wondering where to start as an entrepreneur.
-disable-model-invocation: true
----
-
-# slavingia-skills-find-community (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-first-customers/SKILL.md
-`````markdown
----
-name: first-customers
-description: Create a strategy for selling to your first 100 customers using the minimalist entrepreneur playbook. Use when someone has a product and needs to find customers, or is struggling with early sales.
-disable-model-invocation: true
----
-
-# slavingia-skills-first-customers (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-grow-sustainably/SKILL.md
-`````markdown
----
-name: grow-sustainably
-description: Evaluate business decisions through the lens of sustainable, profitable growth. Use when someone is making decisions about spending, hiring, fundraising, or scaling their business.
-disable-model-invocation: true
----
-
-# slavingia-skills-grow-sustainably (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-minimalist-review/SKILL.md
-`````markdown
----
-name: minimalist-review
-description: Review any business decision, plan, or strategy through the minimalist entrepreneur lens. Use when someone wants a gut-check on a business decision, wants to simplify their approach, or needs to decide between options.
-argument-hint: [describe your decision or situation]
-disable-model-invocation: true
----
-
-# slavingia-skills-minimalist-review (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-mvp/SKILL.md
-`````markdown
----
-name: mvp
-description: Guide building a minimum viable product the minimalist entrepreneur way — manual first, then processized, then productized. Use when someone is ready to build their first product or struggling with scope.
-disable-model-invocation: true
----
-
-# slavingia-skills-mvp (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-pricing/SKILL.md
-`````markdown
----
-name: pricing
-description: Help figure out pricing for a product or service using minimalist entrepreneur principles. Use when someone is setting prices, considering price changes, or struggling with what to charge.
-disable-model-invocation: true
----
-
-# slavingia-skills-pricing (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/slavingia-skills-validate-idea/SKILL.md
-`````markdown
----
-name: validate-idea
-description: Validate a business idea using the minimalist entrepreneur framework. Use when someone has a business idea and wants to test if it's worth pursuing before building anything.
-disable-model-invocation: true
----
-
-# slavingia-skills-validate-idea (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-composition-patterns/SKILL.md
-`````markdown
----
-name: vercel-composition-patterns
-description:
-  React composition patterns that scale. Use when refactoring components with
-  boolean prop proliferation, building flexible component libraries, or
-  designing reusable APIs. Triggers on tasks involving compound components,
-  render props, context providers, or component architecture. Includes React 19
-  API changes.
-license: MIT
+name: vercel-cli-with-tokens
+description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
 metadata:
   author: vercel
-  version: '1.0.0'
+  version: "1.0.0"
 disable-model-invocation: true
 ---
 
-# vercel-composition-patterns (Condensed)
+# vercel-cli-with-tokens (Condensed)
 
 ## Scope
 Use this skill only when the request clearly matches its description/frontmatter.
@@ -77390,136 +77742,42 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/skills/vercel-react-best-practices/AGENTS.md
-`````markdown
-# React Best Practices (Condensed)
-
-This AGENTS file is intentionally compact to reduce repeated context load.
-
-## Source of Truth
-
-- Primary workflow: `./SKILL.md`
-- Detailed rules: `./rules/`
-
-## When to Apply
-
-Use this guidance when working on React or Next.js implementation, review, or refactor tasks.
-
-## Priority Order
-
-1. Eliminate async waterfalls (`async-*`)
-2. Reduce bundle size (`bundle-*`)
-3. Improve server-side performance (`server-*`)
-4. Optimize client fetching and rerenders (`client-*`, `rerender-*`)
-5. Apply rendering and JS micro-optimizations (`rendering-*`, `js-*`, `advanced-*`)
-
-## Minimal Execution Flow
-
-1. Identify the slow path and classify by rule prefix.
-2. Apply the highest-impact rule first.
-3. Keep changes scoped and measurable.
-4. Validate with project commands.
-
-## Guardrails
-
-- Prefer server-first data strategies in Next.js.
-- Avoid speculative micro-optimizations before waterfall and bundle fixes.
-- Do not duplicate long rule text here; keep details in `rules/*`.
-
-## Validation
-
-- Run `npm run lint`
-- Run `npm run build`
-
-## Note
-
-If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
-`````
-
-## File: .github/skills/vercel-react-native-skills/SKILL.md
+## File: .github/skills/vercel-react-best-practices/SKILL.md
 `````markdown
 ---
-name: vercel-react-native-skills
-description:
-  React Native and Expo best practices for building performant mobile apps. Use
-  when building React Native components, optimizing list performance,
-  implementing animations, or working with native modules. Triggers on tasks
-  involving React Native, Expo, mobile performance, or native platform APIs.
+name: vercel-react-best-practices
+description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
 license: MIT
-metadata:
-  author: vercel
-  version: '1.0.0'
-disable-model-invocation: true
----
-
-# vercel-react-native-skills (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/web-design-guidelines/SKILL.md
-`````markdown
----
-name: web-design-guidelines
-description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
-argument-hint: <file-or-pattern>
 metadata:
   author: vercel
   version: "1.0.0"
 ---
 
-# Web Interface Guidelines
+# vercel-react-best-practices (Condensed)
 
-Review files for compliance with Web Interface Guidelines.
+## Scope
+Use this skill only when the request clearly matches its description/frontmatter.
 
-## How It Works
+## Workflow
+1. Define the concrete outcome and success criteria in one short block.
+2. Collect only the minimum files/docs needed for that outcome.
+3. Implement the smallest safe change that satisfies the request.
+4. Validate with project-required commands and report evidence.
 
-1. Fetch the latest guidelines from the source URL below
-2. Read the specified files (or prompt user for files/pattern)
-3. Check against all rules in the fetched guidelines
-4. Output findings in the terse `file:line` format
+## Output Contract
+- State owner/boundary impact (module, runtime, or integration).
+- List changed files and why each changed.
+- Report validation results and residual risk.
 
-## Guidelines Source
+## Guardrails
+- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
+- Do not copy long handbooks into responses; reference canonical docs instead.
+- Keep examples short and directly executable.
 
-Fetch fresh guidelines before each review:
-
-```
-https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
-```
-
-Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
-
-## Usage
-
-When a user provides a file or pattern argument:
-1. Fetch guidelines from the source URL above
-2. Read the specified files
-3. Apply all rules from the fetched guidelines
-4. Output findings using the format specified in the guidelines
-
-If no files specified, ask the user which files to review.
+## Anti-Noise
+- Prefer checklist-style guidance over long prose.
+- Keep this file focused on skill-specific execution intent.
+- Remove repeated conceptual background that exists elsewhere.
 `````
 
 ## File: .tmp-eslint.json
@@ -78698,6 +78956,413 @@ graph TD
   class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
 `````
 
+## File: .github/instructions/agents.instructions.md
+`````markdown
+---
+name: 'Custom Agent Guidelines'
+description: 'Guidelines for creating custom agent files for GitHub Copilot'
+applyTo: '.github/agents/**/*.agent.md'
+---
+
+# Custom Agent File Guidelines (Noise-Reduced)
+
+Use this file as the minimal standard for `.agent.md` authoring. Keep agent specs short, specific, and non-overlapping.
+
+## Required Frontmatter
+
+```yaml
+---
+description: 'One-sentence purpose and trigger context'
+name: 'Agent Display Name'
+tools: ['read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+```
+
+## Frontmatter Rules
+
+- `description` is required and should explain when the agent should be used.
+- `name` is recommended; use title case.
+- `tools` should be least-privilege. Omit only when intentionally allowing all tools.
+- `model` is recommended for deterministic behavior.
+- `target` may be `vscode` or `github-copilot`.
+- Optional controls:
+  - `user-invocable: false` hides from picker.
+  - `disable-model-invocation: true` blocks subagent usage.
+
+## Handoffs (Optional)
+
+Use handoffs only for real stage transitions (plan -> implement -> review -> qa).
+
+```yaml
+handoffs:
+  - label: Start Implementation
+    agent: Implementer
+    prompt: 'Implement the approved plan above.'
+    send: false
+```
+
+Rules:
+- Keep each handoff label action-oriented.
+- Limit to 2-3 high-value next steps.
+- Do not add handoffs to non-existent agents.
+
+## Agent Body Structure
+
+Keep the body compact and scannable:
+
+1. Role and boundaries
+2. Inputs and assumptions
+3. Workflow steps
+4. Guardrails and non-goals
+5. Output format
+
+## Tool Policy
+
+- Use least privilege.
+- Include `agent` only if orchestration is required.
+- Avoid granting `execute` unless terminal execution is a core capability.
+
+## Anti-Noise Rules
+
+- Do not duplicate repository-wide rules from `AGENTS.md` or `.github/copilot-instructions.md`.
+- Do not copy long tutorials into agent files; link references instead.
+- Prefer short checklists over repeated prose.
+
+## Validation Checklist
+
+- [ ] Frontmatter is valid and minimal
+- [ ] Agent purpose is unique (not duplicating existing agents)
+- [ ] Tools are least-privilege
+- [ ] Handoffs (if any) are valid and necessary
+- [ ] Prompt body stays focused and under 500 lines
+
+## References
+
+- https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents
+- https://docs.github.com/en/copilot/reference/custom-agents-configuration
+- https://code.visualstudio.com/docs/copilot/customization/custom-agents
+- https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp
+`````
+
+## File: .github/instructions/instructions.instructions.md
+`````markdown
+---
+name: 'Instructions Authoring Guidelines'
+description: 'Guidelines for creating high-quality custom instruction files for GitHub Copilot'
+applyTo: '.github/instructions/**/*.instructions.md'
+---
+
+# Custom Instructions File Guidelines (Noise-Reduced)
+
+Use this file to keep instruction files concise, scoped, and non-overlapping.
+
+## Required Frontmatter
+
+```yaml
+---
+description: 'One-sentence purpose and scope'
+applyTo: 'glob pattern(s) for target files'
+---
+```
+
+Rules:
+- `description` must be specific and actionable.
+- `applyTo` must be as narrow as possible.
+- Avoid catch-all patterns unless absolutely required.
+
+## Recommended Structure
+
+1. Title and scope
+2. Core rules
+3. Guardrails / anti-patterns
+4. Validation commands
+5. References
+
+## Anti-Noise Rules
+
+- Do not restate repository-global policies already defined in `AGENTS.md` or `.github/copilot-instructions.md`.
+- Prefer references over duplicating long explanations.
+- Keep examples short and only when needed to disambiguate.
+- Remove repeated wording across sibling instruction files.
+
+## Authoring Rules
+
+- Use imperative language.
+- Keep sections scannable.
+- Prioritize deterministic instructions over broad advice.
+- Add only constraints that can be validated in review or CI.
+
+## Validation
+
+- Verify frontmatter validity.
+- Verify `applyTo` matches only intended files.
+- Spot-check with representative Copilot prompts.
+
+## References
+
+- https://code.visualstudio.com/docs/copilot/customization/custom-instructions
+- https://github.com/github/awesome-copilot/tree/main/instructions
+`````
+
+## File: .github/instructions/modules-api-boundary.instructions.md
+`````markdown
+---
+name: 'Modules API Boundary'
+description: 'API-boundary rules for cross-module interaction in modules/ with explicit allowed and forbidden patterns'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
+---
+
+# Modules API Boundary
+
+Cross-module interaction must remain explicit and minimal.
+
+## Allowed vs. Forbidden
+
+| Pattern | Status | Example |
+| --- | --- | --- |
+| Import via target module public boundary (`@/modules/<target>` or `@/modules/<target>/api`) | ✅ **Allowed** | `import { contentFacade } from "@/modules/content/api"` |
+| Import `<target>/domain/*`, `<target>/application/*`, `<target>/infrastructure/*`, `<target>/interfaces/*` | ❌ **Forbidden** | `import { ContentPage } from "@/modules/content/domain/entities/..."` |
+| Import private repositories or entities | ❌ **Forbidden** | `import { FirebaseContentPageRepository } from "@/modules/content/infrastructure/..."` |
+
+## Rules
+
+- Keep module internals private
+- Export only minimum needed from `api/`
+- Prefer façades, contracts, or events over exposing raw types
+- Narrow wide boundaries during refactor, not incrementally
+
+## Validation
+
+- Re-check all changed imports
+- Run validation commands from `agents/commands.md` based on change scope
+- Rely on `eslint.config.mjs` as the enforcement source for restricted-import patterns
+`````
+
+## File: .github/instructions/modules-architecture.instructions.md
+`````markdown
+---
+name: 'Modules Architecture'
+description: 'Architecture rules for creating and refactoring modules/ bounded contexts under Xuanwu MDDD'
+applyTo: 'modules/**/*.md'
+---
+
+# Modules Architecture
+
+Use this instruction when designing or restructuring module architecture documents under `modules/`.
+
+## MDDD Layers
+
+Each business module keeps: `domain/`, `application/`, `infrastructure/`, `interfaces/`, `api/`, plus `README.md` and `index.ts`.
+If any canonical layer is intentionally omitted, document the exception explicitly.
+
+## Layer Responsibilities
+
+- `domain/`: pure business rules, entities, value objects, events, repository interfaces; no framework imports.
+- `application/`: use-case orchestration and DTOs; depends on domain abstractions.
+- `infrastructure/`: adapter and repository implementations for external systems.
+- `interfaces/`: UI/transport/server-action concerns only.
+- `api/`: the only cross-module consumption boundary.
+
+## Required Module Shape
+
+```text
+modules/{module-name}/
+├── api/
+├── domain/
+│   ├── entities/
+│   ├── repositories/
+│   ├── value-objects/
+│   └── events/
+├── application/
+│   ├── use-cases/
+│   └── dto/
+├── infrastructure/
+├── interfaces/
+├── README.md
+└── index.ts
+```
+
+Additional folders are allowed when needed, but do not rename the canonical layers.
+
+## Rules & Guardrails
+
+- Keep business rules out of `interfaces/`; never import infrastructure into `domain/`.
+- `app/` is composition and routing, not business-rule ownership.
+- Use `modules-api-boundary.instructions.md` and `modules-dependency-graph.instructions.md` for code-level boundary enforcement.
+- Place events/interfaces/entities/value objects/repository implementations in their canonical folders.
+
+## Validation
+
+- Use validation commands from `agents/commands.md` to keep one canonical command source.
+`````
+
+## File: .github/instructions/modules-refactoring.instructions.md
+`````markdown
+---
+name: 'Modules Refactoring'
+description: 'Refactoring workflows for adding, restructuring, splitting, merging, and deleting modules while preserving MDDD boundaries'
+applyTo: 'modules/**/*.md'
+---
+
+# Modules Refactoring
+
+Use this instruction when planning or documenting add/refactor/split/merge/delete operations for modules.
+
+## Workflow Checklist
+
+### Before any refactor
+- [ ] Identify owning bounded context
+- [ ] Determine change type: create / refactor / split / merge / delete
+- [ ] Map public API consumers and event consumers
+- [ ] Preserve MDDD layers and boundaries
+
+### Create module
+- [ ] Confirm distinct bounded context
+- [ ] Create: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`
+- [ ] Establish first API contract
+- [ ] Register in docs and module inventory
+
+### Refactor existing module
+- [ ] Move leaked business logic to `application/`
+- [ ] Remove internal cross-domain imports
+- [ ] Tighten `api/` exports
+- [ ] Update imports, tests, docs
+
+### Split / merge modules
+- [ ] Map source → target ownership
+- [ ] Identify internal vs. public
+- [ ] Migrate API and event contracts
+- [ ] Update routing, tests, docs
+
+### Delete module
+- [ ] Search all imports, event discriminants, and docs referencing the module boundary
+- [ ] Remove consumers first, then module
+- [ ] Update indexes and dependency guidance
+
+### Validation
+- [ ] Use validation commands from `agents/commands.md` and record which ones were run.
+`````
+
+## File: .github/instructions/prompt.instructions.md
+`````markdown
+---
+name: 'Prompt File Guidelines'
+description: 'Guidelines for creating high-quality prompt files for GitHub Copilot'
+applyTo: '.github/prompts/**/*.prompt.md'
+---
+
+# Copilot Prompt Files Guidelines (Noise-Reduced)
+
+Use this file to keep prompt files deterministic and compact.
+
+## Frontmatter
+
+Recommended fields:
+
+| Field | Purpose |
+| --- | --- |
+| `description` | One-sentence prompt intent |
+| `name` | Slash command name |
+| `agent` | `ask`, `edit`, `agent`, or custom agent |
+| `model` | Optional fixed model |
+| `tools` | Least-privilege tool list |
+| `argument-hint` | User input hint |
+
+## Body Template
+
+1. Mission
+2. Preconditions
+3. Inputs
+4. Workflow
+5. Output expectations
+6. Validation
+
+## Input Rules
+
+- Use `${input:var}` for required user-provided values.
+- Use `${selection}`, `${file}`, `${workspaceFolder}` only when necessary.
+- Define fallback behavior when required input is missing.
+
+## Tool Rules
+
+- Keep `tools` minimal.
+- Mention destructive steps explicitly (edits, file create, terminal actions).
+- If order matters, state execution order in workflow steps.
+
+## Anti-Noise Rules
+
+- Avoid long background explanations.
+- Link external docs rather than copying them.
+- Avoid duplicating guidance already covered by instruction files.
+
+## Quality Checklist
+
+- [ ] Frontmatter valid and complete
+- [ ] Inputs and fallbacks explicit
+- [ ] Output format and target path explicit
+- [ ] Validation steps executable
+
+## References
+
+- https://code.visualstudio.com/docs/copilot/customization/prompt-files#_prompt-file-format
+- https://github.com/github/awesome-copilot/tree/main/prompts
+- https://code.visualstudio.com/docs/copilot/chat/chat-agent-mode#_agent-mode-tools
+`````
+
+## File: .github/agents/README.md
+`````markdown
+# Delivery Workflow Agents
+
+Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
+
+## Delivery Chain
+
+| Stage | Agent | File | Purpose |
+| --- | --- | --- | --- |
+| Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
+| Planning (Docs Variant) | Planner Docs Flow | `planner-docs.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
+| Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
+| Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
+| QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
+
+## Specialized Agents
+
+| Agent | File | Focus | Purpose |
+| --- | --- | --- | --- |
+| Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
+| Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
+| App Router Composer | `app-router-composer.agent.md` | App composition | Build `app/` route slices and parallel-route blocks that consume module APIs only |
+| Modules API Surface Steward | `modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
+| Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
+| Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
+| QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
+
+## Quick Start
+
+1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
+2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
+3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
+4. **After implementation**: Use `Review Implementation` handoff to Reviewer
+5. **After review**: Use `Run QA` handoff to QA
+6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
+
+## Related References
+
+- [.github/README.md](../README.md) — Root entry for `.github/` navigation
+- [../.github/skills/](../skills/) — Specialized capabilities and workflows
+- [../.github/prompts/](../prompts/) — Slash-command entry points
+- [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
+
+## Maintenance Notes
+
+- Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
+- Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
+- Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
+- Keep app/modules-specialized agents at the top level when diagnostics show nested agent discovery is unavailable in the current workspace behavior.
+`````
+
 ## File: .github/instructions/modules-naming.instructions.md
 `````markdown
 ---
@@ -78737,6 +79402,101 @@ Use consistent naming in module specifications and architecture docs so ownershi
 - Prefer singular bounded-context names unless established convention is plural.
 - Keep module renames aligned with API surface, event discriminants, and persistence naming.
 - Keep naming aligned with `modules-api-boundary.instructions.md`.
+`````
+
+## File: .github/instructions/README.md
+`````markdown
+# Custom Instructions
+
+Repository instruction index for `applyTo`-scoped rules used by Copilot.
+
+## Foundation
+
+| File | Scope | Purpose |
+| --- | --- | --- |
+| [instructions.instructions.md](./instructions.instructions.md) | `.github/instructions/**/*.instructions.md` | How to create high-quality custom instruction files |
+| [agents.instructions.md](./agents.instructions.md) | `.github/agents/**/*.agent.md` | How to create custom delivery agents |
+| [agent-skills.instructions.md](./agent-skills.instructions.md) | `.github/skills/**/SKILL.md` | How to create agent skills |
+| [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/**/*.prompt.md` | How to create slash-command prompts |
+
+## Project-Specific
+
+| File | Scope | Purpose |
+| --- | --- | --- |
+| [xuanwu-app-nextjs-mddd.instructions.md](./xuanwu-app-nextjs-mddd.instructions.md) | `app/**/*.{ts,tsx}`, `packages/**/*.{ts,tsx}`, `providers/**/*.{ts,tsx}`, `debug/**/*.{ts,tsx}` | Next.js 16, React 19, MDDD development standards |
+| [xuanwu-functions-python.instructions.md](./xuanwu-functions-python.instructions.md) | `py_fn/**/*.py` | Python Firebase Functions development standards |
+| [app/app-router-parallel-routes.instructions.md](./app/app-router-parallel-routes.instructions.md) | `app/**/*.{ts,tsx}` | App Router composition rules for route slices and parallel-route UI blocks |
+
+## Architecture & Modules
+
+| File | Scope | Purpose |
+| --- | --- | --- |
+| [modules-architecture.instructions.md](./modules-architecture.instructions.md) | `modules/**/*.md` | MDDD layer design and module structure docs |
+| [modules-api-boundary.instructions.md](./modules-api-boundary.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Cross-module API boundaries and imports |
+| [modules-dependency-graph.instructions.md](./modules-dependency-graph.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Dependency direction and layer enforcement |
+| [modules-naming.instructions.md](./modules-naming.instructions.md) | `modules/**/*.md` | Module naming conventions in specs/docs |
+| [modules-refactoring.instructions.md](./modules-refactoring.instructions.md) | `modules/**/*.md` | Refactoring workflows for module planning/docs |
+| [modules/modules-api-surface.instructions.md](./modules/modules-api-surface.instructions.md) | `modules/**/api/**/*.ts` | Public `api/` contracts and facades for API-only module access |
+| [modules/modules-index-entry.instructions.md](./modules/modules-index-entry.instructions.md) | `modules/**/index.ts` | Aggregate-export rules for module root entry points |
+| [modules/modules-interfaces-api-consumption.instructions.md](./modules/modules-interfaces-api-consumption.instructions.md) | `modules/**/interfaces/**/*.{ts,tsx,js,jsx}` | Interface-layer access through module `api/` only |
+| [modules/modules-infrastructure-adapters.instructions.md](./modules/modules-infrastructure-adapters.instructions.md) | `modules/**/infrastructure/**/*.{ts,tsx,js,jsx}` | Adapter-only infrastructure with downward-only dependencies |
+
+## Other
+
+| File | Scope | Purpose |
+| --- | --- | --- |
+| [dotnet-architecture-good-practices.instructions.md](./dotnet-architecture-good-practices.instructions.md) | `**/*.cs`, `**/*.csproj`, `**/Program.cs`, `**/*.razor` | DDD and .NET architecture guidance |
+
+## Total: 17 Instruction Files
+
+Each instruction file includes clear examples, best practices, and anti-patterns to guide Copilot behavior and enforce project standards.
+
+## Scope Partition (Noise Control)
+
+Use this partition to avoid overlapping instruction contexts:
+
+- App and package implementation: `xuanwu-app-nextjs-mddd.instructions.md`
+- App route composition and parallel routes: `app/app-router-parallel-routes.instructions.md`
+- Module code boundaries: `modules-api-boundary.instructions.md` + `modules-dependency-graph.instructions.md`
+- Module API and layer surfaces: `modules/modules-api-surface.instructions.md` + `modules/modules-index-entry.instructions.md` + `modules/modules-interfaces-api-consumption.instructions.md` + `modules/modules-infrastructure-adapters.instructions.md`
+- Module architecture and naming docs: `modules-architecture.instructions.md` + `modules-naming.instructions.md` + `modules-refactoring.instructions.md`
+- Prompt authoring: `prompt.instructions.md`
+- Agent authoring: `agents.instructions.md`
+- Skill authoring: `agent-skills.instructions.md`
+
+## Context Noise Budget
+
+To reduce repeated context consumption:
+
+- Keep each instruction file focused on one concern.
+- Prefer narrow `applyTo` globs.
+- Avoid duplicating repository-wide policy from `AGENTS.md` and `.github/copilot-instructions.md`.
+- Link to canonical docs instead of repeating long explanations.
+- Move long examples into dedicated docs and keep instruction files compact.
+
+Recommended size targets:
+
+- High-frequency instruction files: <= 300 lines
+- Specialized instruction files: <= 500 lines
+
+## Conflict Resolution Order
+
+When rules overlap, resolve by this order:
+
+1. The instruction with the most specific `applyTo`
+2. Code-boundary instructions over descriptive docs (`modules-api-boundary` and `modules-dependency-graph`)
+3. `.github/copilot-instructions.md` for execution workflow and delivery rules
+
+## Diagnostics
+
+- If an instruction does not load automatically, verify its `applyTo` pattern against the target file and inspect Chat customization diagnostics.
+- Prefer brace-expansion globs such as `modules/**/*.{ts,tsx,js,jsx}` over comma-separated path lists in a single pattern.
+
+## Related
+
+- [../README.md](../README.md) — Root `.github/` navigation
+- [../agents/README.md](../agents/README.md) — Delivery workflow agents
+- [../skills/README.md](../skills/README.md) — Specialized agent skills
 `````
 
 ## File: .github/instructions/xuanwu-app-nextjs-mddd.instructions.md
@@ -78781,209 +79541,6 @@ Use for app-level work outside module-internal rule files.
 - Run required commands from `agents/commands.md`.
 - If architecture or public boundaries changed, update corresponding docs in the same change.
 - Keep scope focused; avoid unrelated fixes.
-`````
-
-## File: .github/skills/deploy-to-vercel/SKILL.md
-`````markdown
----
-name: deploy-to-vercel
-description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
-metadata:
-  author: vercel
-  version: "3.0.0"
-disable-model-invocation: true
----
-
-# deploy-to-vercel (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/llamaparse/SKILL.md
-`````markdown
----
-name: llamaparse
-description: Parse unstructured files (PDF, PPTX, DOCX, XLSX, etc.) via LlamaParse and return requested output formats.
-compatibility: Needs LLAMA_CLOUD_API_KEY in environment and @llamaindex/llama-cloud installed.
-license: MIT
-metadata:
-  author: LlamaIndex
-  version: "1.0.0"
-disable-model-invocation: true
----
-
-# llamaparse (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-cli-with-tokens/SKILL.md
-`````markdown
----
-name: vercel-cli-with-tokens
-description: Use Vercel CLI with token-based auth for deploy, link, and project management without interactive login.
-metadata:
-  author: vercel
-  version: "1.0.0"
-disable-model-invocation: true
----
-
-# vercel-cli-with-tokens (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/vercel-react-best-practices/SKILL.md
-`````markdown
----
-name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
-license: MIT
-metadata:
-  author: vercel
-  version: "1.0.0"
----
-
-# vercel-react-best-practices (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/instructions/modules-dependency-graph.instructions.md
-`````markdown
----
-name: 'Modules Dependency Graph'
-description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules Dependency Graph
-
-Use this instruction when a change adds, removes, or redirects dependencies between modules.
-
-## Core Rule
-
-- Do not break dependency direction.
-- Do not introduce reverse edges for convenience.
-- Keep the graph acyclic unless an event-driven contract explicitly documents the exception.
-
-## Canonical Dependency Source
-
-Do not treat this file as a full edge registry. For concrete decisions, use these sources in order:
-
-1. `modules/<target>/api` as the only cross-module import boundary
-2. `agents/knowledge-base.md` for MDDD boundary policy
-3. `eslint.config.mjs` boundary and restricted-import enforcement
-
-If a change needs a new edge or direction change, document and justify it in the same change.
-
-## Dependency Rules
-
-- Prefer `module -> target/api`
-- Prefer event flows over internal reach-through
-- Do not make lower-level foundational modules depend on higher-level feature modules
-- Do not hide dependency inversions inside barrels
-
-## Refactor Checklist
-
-1. Identify current incoming and outgoing module dependencies.
-2. Confirm the new direction preserves existing architectural intent.
-3. Replace forbidden edges with API or event contracts.
-4. Update docs when an approved dependency edge changes.
-
-## Validation
-
-- Search changed imports for `@/modules/`
-- Verify no new cross-module internal import paths were introduced
-- Run validation commands from `agents/commands.md` based on change scope
 `````
 
 ## File: modules/workspace-flow/AGENT.md
@@ -80357,6 +80914,149 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
+`````
+
+## File: .github/agents/serena.agent.md
+`````markdown
+---
+name: serena-coding-agent
+description: >
+  System prompt and workflow instructions for Serena MCP coding agent.
+  Defines how the agent should onboard projects, perform semantic search,
+  use symbol-level operations, check references before editing, and
+  modify code minimally and safely following module boundaries.
+  Integrates the xuanwu-app-skill for project-specific templates and patterns,
+  and can autonomously use Context7, shadcn, Next DevTools, MarkItDown, and
+  Playwright MCP tools when they are relevant to the task.
+argument-hint: Optional arguments for project path or target modules.
+tools: ['agent', 'read', 'edit', 'search', 'todo', 'serena/*', 'context7/*', 'shadcn/*', 'io.github.vercel/next-devtools-mcp/*', 'microsoft/markitdown/*', 'microsoft/playwright-mcp/*']
+agents: ['Explore', 'Planner', 'App Router Composer', 'Modules Architect', 'Module Boundary Steward', 'Modules API Surface Steward']
+model: 'GPT-5.3-Codex'
+target: 'vscode'
+---
+
+# Serena MCP Coding Agent
+
+## Workflow
+- Activate the Serena project before any memory work.
+- Onboard the project when symbol search coverage is missing or stale.
+- Use `semantic_search` to locate relevant code before opening files broadly.
+- Prefer `find_symbol` over file-by-file browsing when you know the symbol or name path.
+- Before editing a public symbol, check references with `find_references`.
+- Prefer symbol-level insertion or replacement over broad file rewrites.
+- Keep changes minimal, localized, and boundary-safe.
+- Use the xuanwu-app-skill when you need repository-specific structure, naming, or pattern references.
+- Use Context7 when you need current external documentation or API behavior that should not be guessed from memory.
+- Use shadcn MCP when the task involves shadcn component discovery, installation, or canonical usage patterns.
+- Use Next DevTools MCP when diagnosing app-router, rendering, route, or Next.js runtime issues.
+- Use MarkItDown MCP when transforming or analyzing document-like inputs is part of the task.
+- Use Playwright MCP to verify browser behavior and UI flows directly when frontend execution evidence is needed.
+- Use subagents when scoped decomposition will improve speed or context isolation.
+- Use the Planner subagent when the request is complex enough to benefit from an explicit implementation plan before edits.
+
+## Best Practices
+Before implementing new features:
+- Search for existing services, repositories, and DTOs
+- Reuse existing modules when possible
+- Follow module boundaries
+- Always operate on symbols instead of raw files
+- Check references before modifying public APIs
+- Keep changes localized and minimal
+- Update DTOs/interfaces when altering data structures
+- Prefer MCP tools over guesses when the task depends on external docs, browser state, or framework runtime evidence.
+
+## Serena Tool Routing
+- `serena/activate_project` — activate the workspace before memory or symbol work.
+- `semantic_search` — broad semantic discovery for candidate code.
+- `find_symbol` — precise symbol lookup when the name path is known.
+- `find_references` — usage discovery before changing public behavior.
+- `insert_after_symbol` / `replace_symbol_body` — preferred symbol-level edits.
+- `use skill xuanwu-app-skill` — apply repository-specific templates and conventions.
+
+## MCP Tool Routing
+- `context7/*` — fetch current library or platform documentation when the repository alone is not authoritative.
+- `shadcn/*` — inspect or scaffold shadcn component usage and registry-backed component workflows.
+- `io.github.vercel/next-devtools-mcp/*` — inspect Next.js route, runtime, and devtools signals when app behavior needs runtime confirmation.
+- `microsoft/markitdown/*` — convert or analyze Markdown and adjacent document formats when documentation transformation is required.
+- `microsoft/playwright-mcp/*` — drive the browser for UI verification, interaction checks, screenshots, and runtime evidence.
+
+## MCP Guardrails
+- Use MCP tools only when they materially improve evidence quality or reduce guessing.
+- Prefer repository source-of-truth first; use external docs only to confirm framework or library behavior.
+- Do not skip Serena symbolic workflow just because an MCP tool is available.
+- Treat Playwright and Next DevTools as execution-evidence tools, not as substitutes for reading relevant code.
+- Respect configured credentials and prompts in `.vscode/mcp.json`; if a required key is unavailable, proceed without fabricating results.
+
+## Subagent Routing
+- `Explore` — fast read-only discovery for broad codebase or docs questions before narrowing scope.
+- `Planner` — generate structured implementation plans for non-trivial changes.
+- `App Router Composer` — app route/parallel-route composition tasks.
+- `Modules Architect` — module lifecycle work (create/refactor/split/merge/delete).
+- `Module Boundary Steward` — enforce MDDD ownership and dependency direction in `modules/`.
+- `Modules API Surface Steward` — refine `modules/*/api` contracts/facades and public export surfaces.
+
+## Subagent Guardrails
+- Keep subagent invocations narrow and task-specific; avoid delegating the entire request blindly.
+- Prefer one decisive subagent call over many overlapping calls.
+- Reconcile subagent outputs against repository boundaries and current diagnostics before editing.
+- Use Planner before coding when requirements are ambiguous, cross-cutting, or high-risk.
+
+## Notes
+- Prefer symbol-level edits over raw text replacements
+- Always check references before modifying public APIs
+- Keep changes minimal and localized
+- Update DTOs/interfaces when altering data structures
+- Leverage `xuanwu-app-skill` for reusable patterns, code templates, and project-specific rules
+- Prefer direct evidence from Context7, Next DevTools, MarkItDown, or Playwright when the task explicitly depends on those systems
+`````
+
+## File: .github/instructions/modules-dependency-graph.instructions.md
+`````markdown
+---
+name: 'Modules Dependency Graph'
+description: 'Dependency-direction guardrails for modules/ refactors under Xuanwu MDDD'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
+---
+
+# Modules Dependency Graph
+
+Use this instruction when a change adds, removes, or redirects dependencies between modules.
+
+## Core Rule
+
+- Do not break dependency direction.
+- Do not introduce reverse edges for convenience.
+- Keep the graph acyclic unless an event-driven contract explicitly documents the exception.
+
+## Canonical Dependency Source
+
+Do not treat this file as a full edge registry. For concrete decisions, use these sources in order:
+
+1. `modules/<target>/api` as the only cross-module import boundary
+2. `agents/knowledge-base.md` for MDDD boundary policy
+3. `eslint.config.mjs` boundary and restricted-import enforcement
+
+If a change needs a new edge or direction change, document and justify it in the same change.
+
+## Dependency Rules
+
+- Prefer `module -> target/api`
+- Prefer event flows over internal reach-through
+- Do not make lower-level foundational modules depend on higher-level feature modules
+- Do not hide dependency inversions inside barrels
+
+## Refactor Checklist
+
+1. Identify current incoming and outgoing module dependencies.
+2. Confirm the new direction preserves existing architectural intent.
+3. Replace forbidden edges with API or event contracts.
+4. Update docs when an approved dependency edge changes.
+
+## Validation
+
+- Search changed imports for `@/modules/`
+- Verify no new cross-module internal import paths were introduced
+- Run validation commands from `agents/commands.md` based on change scope
 `````
 
 ## File: modules/workspace-flow/README.md
