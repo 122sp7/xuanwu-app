@@ -38,30 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1059 files | 76,386 lines
+922 files | 64,312 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 400 | 27,051 |
 | TypeScript | 380 | 20,427 |
+| Markdown | 281 | 16,380 |
 | TypeScript (TSX) | 120 | 18,678 |
 | No Extension | 54 | 108 |
 | Python | 49 | 3,532 |
-| MERMAID | 33 | 2,488 |
+| MERMAID | 16 | 1,203 |
 | JSON | 10 | 2,549 |
-| SVG | 3 | 298 |
 | Shell | 2 | 602 |
 | RULES | 2 | 18 |
-| Other | 6 | 635 |
+| Text | 2 | 105 |
+| Other | 6 | 710 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (972 lines)
-- `docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` (942 lines)
-- `modules/Architecture.md` (942 lines)
+- `docs/Architecture.md` (942 lines)
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (918 lines)
 - `modules/asset/README.md` (902 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/app-rail.tsx` (669 lines)
 - `modules/wiki-beta/interfaces/components/WikiBetaRagView.tsx` (660 lines)
+- `app/(shell)/_components/customize-navigation-dialog.tsx` (610 lines)

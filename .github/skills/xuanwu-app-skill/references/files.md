@@ -14463,10116 +14463,6 @@ For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 - Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 `````
 
-## File: docs/decision-architecture/adr/ADR-001-rag-upload-storage-and-document-lifecycle.md
-`````markdown
-# ADR 001: Enterprise RAG Foundation Baseline
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-原始版本把 RAG foundation、upload/storage、Firestore schema、document lifecycle、query pipeline、enterprise enhancements 全部寫在同一份文件中。這會造成兩個問題：
-
-1. 一份 ADR 同時承擔太多決策，後續難以維護。
-2. 針對單一議題補規格時，容易反覆改動與複製其他段落。
-
-因此，基礎架構仍保留一份總覽 ADR，但細節拆分到後續文件，讓每份 ADR 只處理一個穩定責任。
-
-## 決策 (Decision)
-
-企業級 RAG 的基礎架構採用以下固定基線：
-
-1. Next.js 是唯一的 user-facing orchestration runtime。
-2. Cloud Functions (Python) 是唯一的 ingestion / background worker runtime。
-3. Firebase Storage 是 raw file 與衍生檔的 canonical binary store。
-4. Firestore 是 canonical metadata store，也是第一優先的 vector-search backing store。
-5. `documents` 是 document lifecycle 的 canonical collection。
-6. `chunks` 是 retrieval 與 embedding 的 canonical collection。
-7. 所有 upload、storage、documents、chunks、cache、feedback、background jobs 都必須 organization-scoped，必要時再加上 workspace 子範圍。
-8. Genkit 用於 query preprocess、prompt assembly、LLM generation、tool calling，不承擔 canonical persistence。
-
-## 設計細節 (Design)
-
-### 1. 架構總覽
-
-```text
-Browser / UI
-    ↓
-Next.js (upload, query, streaming, feedback)
-    ↓
-Firebase Storage + Firestore
-    ↓
-Cloud Functions (Python) worker
-    ↓
-Firestore chunks + vector index
-    ↓
-Next.js query orchestration + Genkit answer generation
-```
-
-### 2. Pipeline baseline
-
-#### Ingestion Pipeline
-
-```text
-[Next.js 上傳檔案]
-        ↓
-[Firebase Storage（raw file）]
-        ↓
-[Firestore 建立文件 metadata（status: uploaded）]
-        ↓
-[Cloud Functions (Python) 觸發]
-        ↓
-[下載檔案 / 讀取]
-        ↓
-[Parsing（PDF / DOCX / HTML → text）]
-        ↓
-[Cleaning（normalize / 去雜訊）]
-        ↓
-[Document-level Taxonomy（整份文件分類）]
-        ↓
-[Structuring（chunk 切分）]
-        ↓
-[Chunk-level Metadata（docId / chunkId / taxonomy / page / tags）]
-        ↓
-[Embedding（每個 chunk 向量化）]
-        ↓
-[Firestore（chunks collection + embedding）]
-        ↓
-[建立 Vector Index（Firestore vector index）]
-        ↓
-[更新文件狀態：ready]
-```
-
-#### Query Pipeline
-
-```text
-[Next.js（User Query）]
-        ↓
-[Route Handler / Server Action]
-        ↓
-[Genkit Flow（Query Preprocess）]
-        ↓
-[Query Embedding]
-        ↓
-[Firestore Vector Search（Top-K + filter taxonomy）]
-        ↓
-[取得 Top-K chunks]
-        ↓
-[Context 組裝（prompt building）]
-        ↓
-[Genkit LLM（回答生成）]
-        ↓
-[Streaming 回傳（Next.js UI）]
-```
-
-### 3. 拆分後的 ADR 責任
-
-- [ADR-002](./ADR-002-rag-upload-storage-and-naming.md): upload、canonical naming、Storage path、organization/workspace-scoped binary layout
-- [ADR-003](./ADR-003-rag-firestore-data-model-and-lifecycle.md): `documents` / `chunks` schema、status lifecycle、trigger、idempotency
-- [ADR-004](./ADR-004-rag-query-retrieval-and-enterprise-enhancements.md): query pipeline、vector search、hybrid search、rerank、cache、feedback
-- [ADR-005](./ADR-005-rag-ingestion-execution-contract.md): ingestion pipeline 執行契約、欄位流轉、失敗分類、重試邏輯
-- [ADR-006](./ADR-006-rag-query-execution-contract.md): query pipeline 執行契約、retrieval gates、prompt 組裝與 streaming 契約
-- [ADR-007](./ADR-007-rag-optional-enhancements-rollout.md): hybrid search、rerank、cache、feedback 的分階段 rollout 規則
-- [ADR-008](./ADR-008-rag-observability-slo-and-acceptance.md): 觀測指標、SLO、驗收門檻與發布檢核
-- [ADR-009](./ADR-009-rag-firestore-index-matrix.md): Firestore index matrix、query pattern 對應與部署檢核
-- [ADR-010](./ADR-010-rag-upload-and-worker-event-contract.md): Next.js upload 與 worker event contract（request / metadata / event payload）
-- [ADR-011](./ADR-011-rag-genkit-flow-contract.md): Genkit flow contract（preprocess / prompt schema / citation / streaming events）
-
-### 4. Deployment 與 observability 基線
-
-部署與維運必須至少滿足：
-
-1. Firebase Storage bucket 可供 Next.js upload 與 worker read access。
-2. Firestore 建立 `chunks.embedding` vector index，並規劃 filter 所需索引。
-3. Cloud Functions (Python) 具備 parser、embedding、Firestore、Storage 所需 IAM 與 runtime config。
-4. upload、processing、ready、failed、query latency、cache hit rate、feedback volume 必須可觀測。
-
-### 5. Required technology stack baseline
-
-本 ADR 系列預設技術棧：
-
-1. App/UI runtime: Next.js 16 + React 19 + TypeScript 5
-2. LLM orchestration: Genkit（Google AI provider 可替換）
-3. Metadata/vector store: Firestore（含 vector index）
-4. Binary storage: Firebase Storage
-5. Worker runtime: Cloud Functions for Firebase (Python)
-6. Optional cache: Firestore cache 或 Redis/Upstash
-
-### 6. 與 py_fn ADR 協作原則
-
-與 `py_fn/docs/decision-architecture/adr` 的協作邊界如下：
-
-1. 本目錄 `docs/decision-architecture/adr` 是產品層與跨 runtime 的 canonical orchestration 規範。
-2. `py_fn/docs/decision-architecture/adr` 是 worker runtime 內部實作與依賴策略的 canonical 規範。
-3. 若規則衝突，以「Next.js user-facing 在 app 側、ingestion worker 在 Python 側」作為最高優先邊界，不可互相越界。
-4. 本目錄新增 ADR 必須引用並遵守 py_fn 的 runtime 定位，不可將 Python worker 描述為瀏覽器主入口。
-
-## Alternatives Considered
-
-### 方案 A：維持單一超長 ADR
-
-不採用。
-
-原因：
-
-- 細節多且耦合高，後續維護成本大
-- 一次修改容易誤傷不相干決策
-- 難以明確判斷哪一段是 canonical source
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. 每份 ADR 的責任更單一，後續補規格更容易。
-2. RAG foundation 仍有清楚總覽，不會失去全局視角。
-3. query、storage、data model、lifecycle 可以獨立演進，但仍維持同一基線。
-
-### 負面影響
-
-1. 需要同時維護多份文件之間的一致性。
-2. 若拆分後互相引用不足，可能造成讀者跳轉成本上升。
-
-## Operational Notes
-
-- 新增或修改 RAG 規則時，優先改動責任最小的 ADR，不應把細節重新塞回本文件。
-- 若某個子領域出現新的重大決策，應新增後續 ADR，而不是膨脹主文件。
-`````
-
-## File: docs/decision-architecture/adr/ADR-002-rag-upload-storage-and-naming.md
-`````markdown
-# ADR 002: RAG Upload Storage and Canonical Naming
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-企業級 RAG 若直接使用使用者原始檔名作為 Storage key 或 document primary identifier，通常會導致：
-
-1. 重名覆蓋與碰撞。
-2. rename 後 canonical reference 失效。
-3. 特殊字元、語系與副檔名處理變得不穩定。
-4. dedupe、retry、reprocess、archive 難以設計。
-
-因此，上傳流程需要獨立定義 canonical naming 與 Storage path，而不是把它混在 schema 或 query 文件裡。
-
-## 決策 (Decision)
-
-採用以下固定規則：
-
-1. `documentId` 由系統生成，是文件唯一 canonical identity。
-2. `sourceFileName` 僅作 display 與 audit，不作 primary key。
-3. Firebase Storage path 必須 organization/workspace-scoped。
-4. raw file 固定採 `source{ext}` 命名，而非原始檔名。
-5. derived outputs 使用固定子目錄，避免 ad hoc naming。
-
-## 設計細節 (Design)
-
-### 1. Canonical identifiers
-
-#### `documentId`
-
-`documentId` 必須是穩定、不可預測、系統生成的 ID，例如 UUID / ULID / ksuid 類型。
-
-規則：
-
-- 不得使用原始檔名作為 `documentId`
-- 不得把 title、日期、slug 混入 canonical id
-- 所有 chunks、feedback、cache、retry、reprocess 都必須關聯到 `documentId`
-
-#### `sourceFileName`
-
-`sourceFileName` 只用於：
-
-- UI 顯示
-- audit
-- debug
-- 下載時的 display name
-
-不得用於：
-
-- Storage primary key
-- Firestore document id
-- chunk identity
-
-#### `title`
-
-`title` 與 `sourceFileName` 分離：
-
-- `sourceFileName`: 使用者上傳時的檔名
-- `title`: product-facing 顯示名稱，可後續編輯
-
-### 2. Storage path
-
-建議 canonical path：
-
-```text
-organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/raw/source{ext}
-```
-
-例如：
-
-```text
-organizations/org_123/workspaces/ws_456/documents/doc_789/raw/source.pdf
-```
-
-設計原則：
-
-1. `organizationId` 與 `workspaceId` 必須進入 path。
-2. `documentId` 是該文件的 Storage root。
-3. raw file 固定採 `source{ext}`。
-4. bucket 內不得平鋪所有 document。
-
-### 3. Derived outputs
-
-衍生檔建議路徑：
-
-```text
-organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/normalized.md
-organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/layout.json
-organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/derived/preview.txt
-```
-
-若需版本化：
-
-```text
-organizations/{organizationId}/workspaces/{workspaceId}/documents/{documentId}/versions/{version}/raw/source{ext}
-```
-
-### 4. Upload ownership
-
-Next.js 負責：
-
-- 驗證 auth / session / workspace context
-- 產生 `documentId`
-- 上傳 raw file 到 Storage
-- 建立初始 `documents` metadata
-
-worker 不負責 browser-facing upload orchestration。
-
-### 5. Naming summary
-
-建議名稱：
-
-- field: `documentId`
-- field: `sourceFileName`
-- field: `title`
-- field: `storageBucket`
-- field: `storagePath`
-
-避免名稱：
-
-- `fileName` 這種無法區分 display name 與 `sourceFileName` 的模糊名稱
-- `path` 這種模糊欄位名
-- 以原始檔名作為 storage key
-
-## Alternatives Considered
-
-### 方案 A：直接用原始檔名當 Storage key
-
-不採用。
-
-原因：
-
-- 易衝突、易覆蓋
-- rename 會破壞 reference
-- 不利於 retry 與 reprocess
-
-### 方案 B：organization / workspace 僅存在 Firestore，不進 Storage path
-
-不採用。
-
-原因：
-
-- Storage 層失去隔離與巡檢能力
-- 難以做清理、分桶、搬移與稽核
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. Upload naming 穩定可重試。
-2. organization/workspace 隔離從 binary storage 開始就成立。
-3. 原始檔名與系統識別分離，後續資料治理更容易。
-
-### 負面影響
-
-1. 需要額外保存 `sourceFileName` 與 `title`。
-2. 使用者看到的檔名不再直接等於 storage key。
-
-## Operational Notes
-
-- Storage bucket 權限與路徑規則必須與 organization / workspace 邊界一致。
-- 若未來引入多 bucket 策略，仍不得改變 `documentId` 作為 canonical identity 的規則。
-`````
-
-## File: docs/decision-architecture/adr/ADR-003-rag-firestore-data-model-and-lifecycle.md
-`````markdown
-# ADR 003: RAG Firestore Data Model and Document Lifecycle
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-若 `documents` 與 `chunks` 沒有穩定 schema，或 document lifecycle 沒有固定狀態流轉，後續通常會出現：
-
-1. query、worker、reprocess 使用不同欄位名。
-2. chunk schema 漂移，造成 filter 與 vector retrieval 不穩定。
-3. worker 無法清楚處理 retry、idempotency、failed state。
-4. Firestore 無法作為 canonical metadata source。
-
-因此，data model 與 lifecycle 必須獨立成 ADR。
-
-## 決策 (Decision)
-
-採用以下固定資料模型：
-
-1. Firestore 是 canonical metadata store。
-2. `documents` 是 document lifecycle 的 canonical collection。
-3. `chunks` 是 retrieval unit 與 embedding 的 canonical collection。
-4. document lifecycle 最少包含 `uploaded | processing | ready | failed | archived`。
-5. Firestore `documents.status=uploaded` 作為 primary ingestion trigger。
-
-## 設計細節 (Design)
-
-### 1. `documents`
-
-```text
-collection: documents
-- id
-- organizationId
-- workspaceId
-- title
-- sourceFileName
-- mimeType
-- extension
-- sizeBytes
-- storageBucket
-- storagePath
-- status
-- taxonomy
-- uploadSource
-- parser
-- checksum
-- createdBy
-- createdAt
-- updatedAt
-- processingStartedAt
-- readyAt
-- failedAt
-- archivedAt
-- errorCode
-- errorMessage
-```
-
-欄位規則：
-
-- `status`: `uploaded | processing | ready | failed | archived`
-- `taxonomy`: document-level classification
-- `checksum`: dedupe / idempotency / re-upload policy 依據
-- `parser`: 例如 `document-ai-layout-parser`
-
-### 2. `chunks`
-
-```text
-collection: chunks
-- id
-- organizationId
-- workspaceId
-- docId
-- chunkIndex
-- text
-- embedding
-- taxonomy
-- page
-- tags
-- tokenCount
-- charCount
-- sourceHeading
-- createdAt
-- updatedAt
-```
-
-欄位規則：
-
-- `docId` 必須指向 `documents.id`
-- `organizationId` / `workspaceId` 必須複寫到 chunk 層
-- `taxonomy` 必須可直接用於 retrieval filter
-- `embedding` 與 chunk 同步存放
-
-### 3. Optional collections
-
-```text
-collection: queryCache
-- id
-- organizationId
-- workspaceId
-- queryHash
-- response
-- retrievedChunkIds
-- createdAt
-- expiresAt
-
-collection: queryFeedback
-- id
-- organizationId
-- workspaceId
-- queryHash
-- responseId
-- rating
-- reason
-- createdAt
-```
-
-### 4. Lifecycle baseline
-
-```text
-uploaded -> processing -> ready
-         \-> failed
-ready    -> processing   (reprocess)
-ready    -> archived
-failed   -> processing   (retry)
-```
-
-狀態定義：
-
-- `uploaded`: raw file 與 metadata 已建立，尚未處理
-- `processing`: worker 正在 parsing / chunking / embedding
-- `ready`: chunks 已可供 retrieval
-- `failed`: ingestion 失敗
-- `archived`: 文件保留但不再參與 query
-
-轉換規則：
-
-1. Next.js 建立 `uploaded`
-2. worker 將 `uploaded` / `failed` / `ready` 轉為 `processing`
-3. worker 將 `processing` 轉為 `ready` 或 `failed`
-4. archive 需由明確 maintenance 或 product flow 觸發
-
-### 5. Trigger and idempotency
-
-Primary ingestion trigger：
-
-- Next.js 建立 `documents/{documentId}` with `status=uploaded`
-- worker 監聽 `uploaded` document 並執行 ingestion
-
-Idempotency 規則：
-
-- worker 啟動前檢查 `documentId + checksum + status`
-- 若相同 checksum 已 `ready`，避免重複 embedding
-- chunk upsert key 採 deterministic naming：
-
-```text
-{documentId}_{chunkIndex}
-```
-
-Failure handling：
-
-- `errorCode` / `errorMessage` 僅由 worker 更新
-- 需保留 `failedAt`
-- retry、timeout、dead-letter 策略在實作時必須明確定義
-
-## Alternatives Considered
-
-### 方案 A：不拆 `documents` / `chunks`，直接把 chunk 內嵌回 documents
-
-不採用。
-
-原因：
-
-- 向量檢索與 filter 不友善
-- document 尺寸與更新模式不穩定
-
-### 方案 B：只保留簡化 status，不定義 failed / archived
-
-不採用。
-
-原因：
-
-- 無法支援 retry、治理與 archive policy
-- 失敗情境無 canonical 表示
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. Firestore schema 與 lifecycle 穩定。
-2. worker、query、maintenance flow 對同一份 canonical state 對齊。
-3. reprocess 與 failure handling 有清楚落點。
-
-### 負面影響
-
-1. 初期 schema 較重。
-2. 需要維護 lifecycle 與索引一致性。
-
-## Operational Notes
-
-- 在 Xuanwu，organization 是 tenant 邊界，workspace 是子範圍；Firestore 索引與 rules 變更必須與此層級一致。
-- `documents` / `chunks` 欄位命名一旦落地，不應隨意漂移。
-`````
-
-## File: docs/decision-architecture/adr/ADR-004-rag-query-retrieval-and-enterprise-enhancements.md
-`````markdown
-# ADR 004: RAG Query Retrieval and Enterprise Enhancements
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-RAG 系統的 upload 與 ingestion 決定資料怎麼進來，但真正的 product behavior 取決於 query-time retrieval。若沒有將 query pipeline 與 enterprise enhancements 獨立定義，常見問題是：
-
-1. query orchestration 漂到 worker runtime。
-2. vector search、rerank、cache、feedback 混在一起實作，無法演進。
-3. retrieval filter 忽略 organization / workspace 邊界。
-4. optional enhancements 反向污染 canonical chunk schema。
-
-## 決策 (Decision)
-
-採用以下固定 query baseline：
-
-1. Query entrypoint 在 Next.js。
-2. Genkit 負責 query preprocess、prompt assembly、LLM generation、tool calling。
-3. Vector search 對 `chunks.embedding` 執行。
-4. retrieval filter 必須至少包含 `organizationId`，必要時再加 `workspaceId` 與 `taxonomy`。
-5. Hybrid search、rerank、cache、feedback 作為 query-time enhancement，不能改變 canonical ownership。
-
-## 設計細節 (Design)
-
-### 1. Query pipeline
-
-```text
-[Next.js（User Query）]
-        ↓
-[Route Handler / Server Action]
-        ↓
-[Genkit Flow（Query Preprocess）]
-        ↓
-[Query Embedding]
-        ↓
-[Firestore Vector Search（Top-K + filter taxonomy）]
-        ↓
-[取得 Top-K chunks]
-        ↓
-[Context 組裝（prompt building）]
-        ↓
-[Genkit LLM（回答生成）]
-        ↓
-[Streaming 回傳（Next.js UI）]
-```
-
-固定步驟：
-
-1. 接收 user query
-2. 建立 query embedding
-3. 對 `chunks.embedding` 執行 vector search
-4. 套用 `organizationId` / `workspaceId` / `taxonomy` filter
-5. 取得 top-k chunks
-6. 組 context、citation、tool inputs
-7. 交給 Genkit / LLM 生成答案
-8. Streaming 回傳 UI
-
-### 2. Query-time principles
-
-- vector search 在 query-time 發生
-- embedding 在 ingestion-time 發生
-- query-time 不直接讀 raw file
-- `chunks` 是 canonical retrieval unit
-
-### 3. Hybrid search
-
-```text
-[Vector Search] + [Keyword Search / BM25]
-        ↓
-[Hybrid Merge / Re-rank]
-```
-
-規則：
-
-- hybrid orchestration 留在 Next.js / Genkit
-- ingestion 可預先準備 keyword-friendly fields
-- 不建立第二套與 canonical chunks 脫鉤的 retrieval source
-
-### 4. Re-ranking
-
-```text
-[Top-K chunks]
-        ↓
-[Cross-Encoder / LLM rerank]
-        ↓
-[Top-N chunks]
-```
-
-規則：
-
-- rerank 是 precision layer，不是新的 canonical persistence layer
-- rerank 不應反向污染 chunk schema
-
-### 5. Cache
-
-```text
-[Query Hash]
-        ↓
-[Firestore / Redis Cache]
-        ↓
-[Hit → Direct response]
-```
-
-規則：
-
-- query cache 與 UX 耦合，優先由 Next.js 管理
-- cache key 至少包含 `organizationId`, `workspaceId`, `queryHash`
-- 不得使用全域 query hash 空間
-
-### 6. Feedback loop
-
-```text
-[User Feedback 👍👎]
-        ↓
-[Firestore feedback persistence]
-        ↓
-[Ranking / prompt improvement]
-```
-
-規則：
-
-- feedback entrypoint 留在 Next.js
-- worker 可參與離線分析與批次調整
-- feedback 不應直接修改 canonical chunk records
-
-### 7. Tenancy and security
-
-所有 retrieval、cache、feedback 都必須 organization-scoped。
-
-最小隔離鍵：
-
-- `organizationId`
-- `workspaceId`
-
-禁止事項：
-
-- query-time 省略 organization / workspace filter
-- 將 cache 做成跨 organization 全域空間
-- worker 直接承接 product-facing query request
-
-## Alternatives Considered
-
-### 方案 A：把 query 與 streaming 移到 Python worker
-
-不採用。
-
-原因：
-
-- 與 auth、session、request context、UX 耦合太高
-- product-facing API 應維持在 Next.js
-
-### 方案 B：把 rerank、cache、feedback 直接混進 canonical schema
-
-不採用。
-
-原因：
-
-- canonical schema 容易被 query-time concerns 汙染
-- 後續難以獨立演進各 enhancement
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. Query pipeline 與 upload/ingestion 分離清楚。
-2. enterprise enhancements 有固定掛載點。
-3. multi-tenant retrieval 邊界可一致落地。
-
-### 負面影響
-
-1. query orchestration 需要較完整的指標與快取策略。
-2. 若 enhancements 過多，仍需後續 ADR 再細分。
-
-## Operational Notes
-
-- `chunks.embedding` vector index 與 filter 索引必須支撐 query pattern。
-- query latency、rerank latency、cache hit rate、feedback volume 必須可觀測。
-- 若未來導入外部搜尋或 rerank provider，仍不得改變 Next.js 作為 query entrypoint 的規則。
-`````
-
-## File: docs/decision-architecture/adr/ADR-005-rag-ingestion-execution-contract.md
-`````markdown
-# ADR 005: RAG Ingestion Execution Contract
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-雖然 ingestion pipeline 已在總覽定義完成，但若沒有執行契約，落地時仍可能出現：
-
-1. worker 依據不同欄位啟動，造成重複處理。
-2. parsing、cleaning、taxonomy、chunking、embedding 的失敗沒有一致分類。
-3. `documents.status` 更新時機不一致，影響 query 可用性判斷。
-
-## 決策 (Decision)
-
-固定 ingestion 的執行契約如下：
-
-1. canonical trigger: `documents.status=uploaded`。
-2. worker 僅處理 organization-scoped、workspace-scoped 文件。
-3. 固定步驟順序為 parsing -> cleaning -> taxonomy -> chunking -> embedding -> chunks write -> ready。
-4. 任一步驟失敗都必須寫入 `failed` 狀態與錯誤分類。
-5. idempotency 由 `documentId + checksum + chunkIndex` 保證。
-
-## 設計細節 (Design)
-
-### 1. Ingestion state transitions
-
-```text
-uploaded -> processing -> ready
-         \-> failed
-failed   -> processing (retry)
-ready    -> processing (reprocess)
-ready    -> archived   (maintenance / product archive)
-```
-
-狀態更新規則：
-
-1. Next.js 建立 `uploaded`。
-2. worker 起始時將狀態更新為 `processing` 並寫入 `processingStartedAt`。
-3. worker 完成 chunk 寫入後更新 `ready` 與 `readyAt`。
-4. worker 失敗時更新 `failed`、`failedAt`、`errorCode`、`errorMessage`。
-5. `archived` 由明確 maintenance 或 product flow 觸發，並寫入 `archivedAt`；worker 不得把 archive 當作 ingestion 副作用。
-
-角色與觸發責任：
-
-- `uploaded`: Next.js upload registration
-- `processing`: ingestion worker on start, or explicit retry / reprocess flow
-- `ready`: ingestion worker after successful chunk persistence
-- `failed`: ingestion worker on classified failure
-- `archived`: maintenance or product archive flow after document governance decision
-
-### 2. Step contract
-
-#### Step A: Parsing
-
-- 輸入: storagePath 指向 raw file
-- 輸出: 解析後 text 與可選 layout artifact
-- 失敗分類: `PARSER_UNSUPPORTED_FORMAT`, `PARSER_TIMEOUT`, `PARSER_RUNTIME_ERROR`
-
-#### Step B: Cleaning
-
-- 輸入: parsed text
-- 輸出: normalized text
-- 規則: 不可破壞來源段落順序與 page 對應資訊
-
-#### Step C: Document-level taxonomy
-
-- 輸入: normalized text
-- 輸出: document taxonomy
-- 規則: taxonomy 必須在 chunking 前完成
-
-#### Step D: Chunking
-
-- 輸入: normalized text + taxonomy
-- 輸出: chunks
-- 規則: 產出 deterministic `chunkIndex`
-
-#### Step E: Embedding
-
-- 輸入: chunk text
-- 輸出: embedding vector
-- 規則: 不得跳過 organization / workspace metadata 綁定
-
-#### Step F: Persistence
-
-- 寫入 `chunks` records
-- upsert key: `{documentId}_{chunkIndex}`
-- 完成後更新 `documents.status=ready`
-
-### 3. Metadata write contract
-
-worker 在每個步驟至少要維持下列欄位一致：
-
-- `documents.id`
-- `documents.organizationId`
-- `documents.workspaceId`
-- `documents.status`
-- `documents.checksum`
-- `documents.processingStartedAt`
-- `documents.readyAt`
-- `documents.failedAt`
-- `documents.archivedAt`
-- `documents.errorCode`
-- `documents.errorMessage`
-- `chunks.docId`
-- `chunks.organizationId`
-- `chunks.workspaceId`
-- `chunks.chunkIndex`
-
-### 4. Retry and idempotency
-
-規則：
-
-1. 若同一 `documentId + checksum` 已 `ready`，默認不重跑。
-2. `failed` 文件可依策略自動或手動 retry。
-3. retry 必須覆蓋舊 chunk records，避免雙份資料並存。
-4. reprocess 需有明確原因，例如 parser 升級或 taxonomy 策略更新。
-5. 已 `archived` 文件若重新進入 `processing`，必須先由明確治理流程解除 archive，再視為 reprocess，而不是由 worker 自行恢復。
-
-### 5. Error model
-
-`errorCode` 建議分類：
-
-- `UPLOAD_ARTIFACT_MISSING`
-- `PARSER_UNSUPPORTED_FORMAT`
-- `PARSER_TIMEOUT`
-- `PARSER_RUNTIME_ERROR`
-- `CLEANING_RUNTIME_ERROR`
-- `TAXONOMY_RUNTIME_ERROR`
-- `CHUNKING_RUNTIME_ERROR`
-- `EMBEDDING_PROVIDER_ERROR`
-- `CHUNK_PERSISTENCE_ERROR`
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. ingestion 的每一步都有固定輸入輸出與失敗語意。
-2. ready 與 failed 的判斷一致，降低 query 汙染風險。
-3. retry / reprocess 有穩定路徑。
-
-### 負面影響
-
-1. worker 實作需要更多狀態管理與錯誤碼維護。
-2. parser 或 embedding provider 更換時需同步維護錯誤分類。
-
-## Operational Notes
-
-- worker entrypoint 應保持薄層，僅負責 trigger handling 與 orchestrate use case。
-- parser、embedding secrets 與 runtime config 不得硬編碼。
-- 若新增 ingestion 步驟，需先更新本 ADR 再落地。
-`````
-
-## File: docs/decision-architecture/adr/ADR-006-rag-query-execution-contract.md
-`````markdown
-# ADR 006: RAG Query Execution Contract
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-Query pipeline 若僅有高層描述，實作時容易出現：
-
-1. 檢索過濾與 organization 邊界被忽略。
-2. prompt 組裝缺乏一致規則，造成答案品質飄移。
-3. streaming 回傳格式不穩定，前端難以維護。
-
-## 決策 (Decision)
-
-固定 query 執行契約如下：
-
-1. Query entrypoint 在 Next.js Route Handler 或 Server Action。
-2. Query embedding 後，必須先過 organization/workspace filter gate。
-3. retrieval 結果經 context 組裝後才可交由 Genkit 生成。
-4. 回應採 streaming-first，並回傳可追蹤 metadata。
-
-## 設計細節 (Design)
-
-### 1. Query execution sequence
-
-```text
-receive query
- -> preprocess
- -> query embedding
- -> vector search with filters
- -> top-k chunks
- -> context assembly
- -> LLM generation
- -> stream response
-```
-
-### 2. Retrieval gates
-
-每次查詢都必須通過：
-
-1. Organization gate: `organizationId` 必填
-2. Workspace gate: 若查詢只針對單一 workspace，`workspaceId` 必填；若做 organization-wide retrieval，可省略
-3. Taxonomy gate: 有指定分類時必須精確套用
-4. Freshness gate: 僅查詢 `documents.status=ready` 對應 chunks
-
-若任一 gate 不通過，必須立即回傳可解釋錯誤，不進 LLM。
-
-### 3. Context assembly contract
-
-組裝 context 時必須保留：
-
-- `docId`
-- `chunkIndex`
-- `page`
-- `taxonomy`
-
-規則：
-
-1. context 需保留可引用來源資訊
-2. 不得混入不同 organization 的 chunks
-3. 若 top-k 為空，需回傳明確 no-context response
-
-### 4. Generation contract
-
-Genkit flow 輸入至少包含：
-
-- normalized query
-- retrieved chunks
-- citation payload
-- model selection metadata
-
-Genkit flow 輸出至少包含：
-
-- answer stream
-- citations
-- retrieval summary
-- traceId
-
-### 5. Streaming contract
-
-Next.js streaming response 必須支援：
-
-1. partial tokens
-2. completion event
-3. error event
-4. request trace metadata
-
-### 6. Query failure model
-
-建議錯誤碼：
-
-- `QUERY_INVALID_INPUT`
-- `QUERY_FILTER_SCOPE_MISSING`
-- `VECTOR_SEARCH_TIMEOUT`
-- `VECTOR_SEARCH_PROVIDER_ERROR`
-- `NO_RELEVANT_CHUNKS`
-- `GENERATION_PROVIDER_ERROR`
-- `STREAM_ABORTED`
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. Query path 的輸入輸出與失敗語意一致。
-2. retrieval 與 generation 的責任清楚分離。
-3. UI 可依固定 streaming 事件協定維護。
-
-### 負面影響
-
-1. 需要維護更多 query-time 指標與 trace。
-2. Gate 規則若過嚴，可能提高 no-context 回應比例。
-
-## Operational Notes
-
-- query latency、retrieval latency、generation latency 應分開量測。
-- traceId 應串接 query、retrieval、generation 三段。
-- 若新增 rerank provider，必須保持本契約的 gate 順序不變。
-`````
-
-## File: docs/decision-architecture/adr/ADR-007-rag-optional-enhancements-rollout.md
-`````markdown
-# ADR 007: RAG Optional Enhancements Rollout
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-Hybrid search、rerank、cache、feedback 都是企業級常見需求，但若同時上線，通常會導致：
-
-1. 效果歸因困難。
-2. 成本與延遲暴增。
-3. 問題定位無法判斷是 retrieval、rerank 還是 cache 造成。
-
-因此需要定義分階段 rollout，而非一次全部打開。
-
-## 決策 (Decision)
-
-optional enhancements 採四階段 rollout：
-
-1. Phase 1: Vector baseline only
-2. Phase 2: Hybrid retrieval
-3. Phase 3: Re-ranking
-4. Phase 4: Cache and feedback loop
-
-每一階段都必須在前一階段達標後再啟用。
-
-## 設計細節 (Design)
-
-### 1. Phase 1: Vector baseline
-
-能力：
-
-- query embedding
-- vector search
-- top-k context
-- generation + streaming
-
-驗收：
-
-- baseline latency 可接受
-- citation 完整
-- organization/workspace isolation 無誤
-
-### 2. Phase 2: Hybrid retrieval
-
-能力：
-
-- vector results
-- keyword/BM25 results
-- merge policy
-
-驗收：
-
-- recall 提升
-- latency 增幅在可控範圍
-- 不影響 organization/workspace filter gate
-
-### 3. Phase 3: Re-ranking
-
-能力：
-
-- top-k rerank
-- top-n selection
-
-驗收：
-
-- 精準度提升
-- rerank latency 可控
-- 回答引用不失真
-
-### 4. Phase 4: Cache and feedback
-
-能力：
-
-- query cache
-- feedback write
-- 離線調整 ranking/prompt
-
-驗收：
-
-- cache hit rate 達標
-- 回應品質不因快取退化
-- feedback schema 可用於後續調整
-
-### 5. Rollback rules
-
-任一 phase 若出現以下情況可回退：
-
-1. P95 latency 超過既定門檻
-2. answer quality 顯著下降
-3. organization 隔離風險
-4. 成本異常飆升
-
-回退時僅關閉該 phase 新增能力，保留 Phase 1 baseline。
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. 功能與品質可逐段驗證。
-2. 問題定位與成本控管更容易。
-3. enhancement 不會直接污染核心流程。
-
-### 負面影響
-
-1. 上線節奏較慢。
-2. 需要更多實驗設計與觀測儀表。
-
-## Operational Notes
-
-- 每個 phase 啟用前需定義 target metrics。
-- phase 間切換建議使用 feature flag。
-- 回退流程需事先演練。
-`````
-
-## File: docs/decision-architecture/adr/ADR-008-rag-observability-slo-and-acceptance.md
-`````markdown
-# ADR 008: RAG Observability SLO and Acceptance Gates
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-企業級 RAG 若沒有一致的觀測指標與驗收門檻，會造成：
-
-1. 新功能是否上線無明確判準。
-2. 問題發生時無法快速定位在 ingestion 或 query。
-3. 團隊對品質的共識只停留在主觀描述。
-
-## 決策 (Decision)
-
-建立 RAG 的共用觀測模型、SLO 與驗收閘門，作為所有後續 ADR 的落地基線。
-
-## 設計細節 (Design)
-
-### 1. Metrics taxonomy
-
-#### Ingestion metrics
-
-- upload success rate
-- processing success rate
-- processing latency
-- parse failure rate
-- embedding latency
-- ready transition latency
-
-#### Query metrics
-
-- query request rate
-- retrieval latency
-- generation latency
-- end-to-end latency
-- no-context rate
-- citation completeness rate
-
-#### Enhancement metrics
-
-- hybrid merge latency
-- rerank latency
-- cache hit rate
-- feedback write success rate
-
-#### Reliability metrics
-
-- error rate by errorCode
-- retry success rate
-- dead-letter count
-
-### 2. SLO baseline
-
-本 ADR 不固定數值，但固定 SLO 類別：
-
-1. Availability SLO
-2. Latency SLO
-3. Quality SLO
-4. Isolation SLO
-
-說明：
-
-- Availability: ingestion 與 query 可用性
-- Latency: P50/P95/P99
-- Quality: citation completeness、feedback 正向率
-- Isolation: cross-organization leakage = 0 容忍
-
-### 3. Acceptance gates
-
-功能進入正式上線前，至少需通過：
-
-1. Ingestion gate: uploaded -> ready 成功率達標
-2. Query gate: e2e latency 與 no-context rate 在門檻內
-3. Isolation gate: organization / workspace filter 驗證通過
-4. Observability gate: trace 與 metrics 可完整追蹤
-
-### 4. Trace model
-
-每次 query 與 ingestion 任務需至少可串接：
-
-- requestId
-- traceId
-- documentId
-- organizationId
-- workspaceId
-
-traceId 應貫穿 upload、processing、query、generation。
-
-### 5. Incident response hints
-
-當 query 品質下降時，優先檢查：
-
-1. ingestion success 與 parse error trend
-2. vector retrieval latency 與空結果比例
-3. rerank 或 cache 新版本是否啟用
-4. taxonomy 分佈是否異常
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. 所有 RAG 變更都能用同一套門檻評估。
-2. 問題定位更快，跨團隊溝通成本下降。
-3. 上線與回退決策更可審計。
-
-### 負面影響
-
-1. 初期需投入可觀測系統與儀表建立成本。
-2. 指標過多時需要治理與維護策略。
-
-## Operational Notes
-
-- SLO 數值應由產品階段與實際流量另行設定，並記錄在 runbook。
-- 每次重大版本變更前需重跑 acceptance gates。
-- 若未通過 isolation gate，不可發布。
-`````
-
-## File: docs/decision-architecture/adr/ADR-009-rag-firestore-index-matrix.md
-`````markdown
-# ADR 009: RAG Firestore Index Matrix
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-RAG 查詢若沒有明確 index matrix，常見問題是：
-
-1. 查詢模式持續增加，但索引規劃落後。
-2. vector search 可執行，但 filter 條件在高併發下失效或延遲。
-3. 部署時才發現缺索引，導致功能不可用。
-
-## 決策 (Decision)
-
-建立 Firestore index matrix 作為 RAG 查詢與狀態轉移的部署前置檢核標準。
-
-## Required Technology Stack
-
-1. Firebase Firestore（含 vector search 能力）
-2. Firebase CLI / Firebase Console（索引部署）
-3. Cloud Functions for Firebase (Python)（ingestion write path）
-4. Next.js 16 + TypeScript 5（query read path）
-
-## 設計細節 (Design)
-
-### 1. Query patterns and index targets
-
-#### Pattern A: Query-time vector retrieval
-
-- Collection: `chunks`
-- Required fields: `embedding`, `organizationId`, `workspaceId`, `taxonomy`
-- Purpose: Top-K + organization/workspace/taxonomy filter
-
-#### Pattern B: Document readiness lookup
-
-- Collection: `documents`
-- Required fields: `organizationId`, `workspaceId`, `status`, `updatedAt`
-- Purpose: 只查可用於 query 的 `ready` 文件
-
-#### Pattern C: Retry/backfill queue scan
-
-- Collection: `documents`
-- Required fields: `status`, `failedAt`, `processingStartedAt`
-- Purpose: worker retry / maintenance scan
-
-#### Pattern D: Cache lookup
-
-- Collection: `queryCache`
-- Required fields: `organizationId`, `workspaceId`, `queryHash`, `expiresAt`
-
-### 2. Index matrix
-
-```text
-Collection: chunks
-- Vector index: embedding
-- Filter fields: organizationId, workspaceId, taxonomy
-- Optional order field: updatedAt
-
-Collection: documents
-- Composite candidates:
-  (organizationId, workspaceId, status)
-  (status, failedAt)
-  (organizationId, workspaceId, updatedAt)
-
-Collection: queryCache
-- Composite candidates:
-  (organizationId, workspaceId, queryHash)
-  (expiresAt)
-```
-
-### 3. Deployment checks
-
-每次部署前必須確認：
-
-1. `chunks.embedding` vector index 已建立。
-2. 主要 filter 所需 composite indexes 已完成部署。
-3. 新增查詢模式有對應索引規格與回退計畫。
-
-### 4. Failure prevention rules
-
-1. 不允許在未建索引前上線新 query pattern。
-2. 不允許在 production 以臨時查詢繞過 organization/workspace filter。
-3. index 變更必須附部署步驟與驗證結果。
-
-## 與 py_fn ADR 協作與不衝突規則
-
-1. 本 ADR 定義跨 runtime 的索引需求。
-2. `py_fn/docs/decision-architecture/adr/ADR-007-firestore-rag-data-model-and-indexing.md` 定義 worker 側資料模型與索引語意。
-3. 若命名或欄位有差異，以雙方共同交集為優先：`documents` / `chunks` / `embedding` / `organizationId` / `workspaceId`。
-4. 不得在本 ADR 引入與 py_fn ADR 相衝突的 collection 角色。
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. 查詢模式與索引配置可一一對應。
-2. 部署前可檢查是否缺索引。
-3. query latency 與失敗率更可控。
-
-### 負面影響
-
-1. 每次新增查詢都需同步維護 matrix。
-2. 索引數量增加時需要治理成本。
-
-## Operational Notes
-
-- index matrix 應與部署腳本或 runbook 一併維護。
-- 若改用外部向量資料庫，需新增 superseding ADR。
-`````
-
-## File: docs/decision-architecture/adr/ADR-010-rag-upload-and-worker-event-contract.md
-`````markdown
-# ADR 010: RAG Upload and Worker Event Contract
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-Upload 與 ingestion 若只靠文字描述，容易在 Next.js 與 worker 之間出現 payload 漂移：
-
-1. upload metadata 欄位命名不一致。
-2. worker trigger 事件缺少必要欄位，導致不可重試。
-3. 同一文件不同流程使用不同識別鍵。
-
-## 決策 (Decision)
-
-建立 Upload Request、Document Metadata、Worker Event 三種契約，作為 Next.js 與 worker 的交接標準。
-
-## Required Technology Stack
-
-1. Next.js 16 Route Handlers / Server Actions
-2. Firebase Storage（upload binary）
-3. Firestore（document metadata 與 status）
-4. Cloud Functions for Firebase (Python)（event-driven worker）
-5. TypeScript 5（request/response schema）
-6. Python 3.x + pydantic/dataclass（worker payload validation）
-
-## 設計細節 (Design)
-
-### 1. Upload request contract (Next.js)
-
-```text
-UploadRequest
-- organizationId: string
-- workspaceId: string
-- uploaderId: string
-- sourceFileName: string
-- mimeType: string
-- sizeBytes: number
-- checksum: string
-```
-
-規則：
-
-1. `organizationId` 與 `workspaceId` 必填。
-2. checksum 必須在 metadata 建立前可用。
-3. `documentId` 由伺服器端生成，不接受前端指定。
-
-### 2. Document metadata contract (Firestore)
-
-```text
-DocumentMetadata
-- id: documentId
-- organizationId
-- workspaceId
-- sourceFileName
-- title
-- storagePath
-- checksum
-- status=uploaded
-- createdBy
-- createdAt
-```
-
-規則：
-
-1. 建立 metadata 時 `status` 必須是 `uploaded`。
-2. `storagePath` 必須指向 organization/workspace-scoped path。
-3. metadata 欄位命名需與 ADR-003 一致。
-
-### 3. Worker trigger event contract
-
-Primary event source: Firestore document create/update to `status=uploaded`
-
-```text
-WorkerTriggerEvent
-- documentId
-- organizationId
-- workspaceId
-- storagePath
-- checksum
-- status
-- traceId
-```
-
-規則：
-
-1. event payload 缺少 organization/workspace 時必須拒絕處理。
-2. worker 先驗證 `status=uploaded` 才進入 processing。
-3. 同 checksum + same document 不得重複執行完整 ingestion。
-
-### 4. Worker result contract
-
-```text
-WorkerResult
-- documentId
-- finalStatus: ready | failed
-- chunkCount
-- errorCode?
-- errorMessage?
-- processingStartedAt
-- completedAt
-```
-
-### 5. Event versioning
-
-新增契約欄位時需遵守：
-
-1. 新增向後相容欄位優先。
-2. breaking changes 需升版本標記，例如 `eventVersion`。
-3. 版本升級要有雙寫或兼容讀取期間。
-
-## 與 py_fn ADR 協作與不衝突規則
-
-1. 本 ADR 定義 Next.js 與 worker 交接契約。
-2. `py_fn/docs/decision-architecture/adr/ADR-004-structure-and-interaction-design.md` 與 `ADR-006-enterprise-rag-end-to-end-pipeline.md` 定義 worker 內部流程與觸發方向。
-3. 不得將 worker 事件契約改寫成 browser-facing API。
-4. 本 ADR 若更新欄位，需同步檢查 py_fn ADR 是否需要補充但不能改變其 worker runtime 定位。
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. Upload 到 worker 的交接一致。
-2. 事件可重試、可追蹤、可版本化。
-3. Next.js 與 worker 分工更穩定。
-
-### 負面影響
-
-1. 契約治理成本增加。
-2. 事件版本升級需要協調窗口。
-
-## Operational Notes
-
-- 建議維護單一 schema registry（可用 markdown + type 定義雙軌）。
-- 每次新增欄位需補 migration 與 rollback 說明。
-`````
-
-## File: docs/decision-architecture/adr/ADR-011-rag-genkit-flow-contract.md
-`````markdown
-# ADR 011: RAG Genkit Flow Contract
-
-## 狀態 (Status)
-Accepted
-
-## 背景 (Context)
-
-Genkit 若沒有明確 flow contract，常見問題是：
-
-1. preprocess、retrieval、generation 的輸入輸出不一致。
-2. citation 結構與 UI 需求對不上。
-3. streaming 事件格式漂移，前端無法穩定渲染。
-
-## 決策 (Decision)
-
-定義 Genkit flow 的輸入、輸出、citation schema 與 streaming event 契約，作為 query orchestration 的標準。
-
-## Required Technology Stack
-
-1. Genkit（flow orchestration）
-2. Google AI provider 或相容 LLM provider
-3. Next.js 16（streaming response 終端）
-4. TypeScript 5（flow schema typing）
-5. Firestore（retrieval context source）
-
-## 設計細節 (Design)
-
-### 1. Flow stages
-
-```text
-query input
- -> preprocess
- -> retrieval input build
- -> context assembly
- -> generation
- -> stream output
-```
-
-### 2. Flow input contract
-
-```text
-GenkitQueryInput
-- traceId
-- organizationId
-- workspaceId
-- userQuery
-- queryEmbeddingRef
-- retrievalOptions
-- modelOptions
-```
-
-規則：
-
-1. organizationId 必填；workspaceId 依查詢範圍決定是否帶入。
-2. retrievalOptions 必須明確 topK 與 taxonomy filter。
-3. modelOptions 必須可追蹤模型版本。
-
-### 3. Context contract
-
-```text
-RetrievedChunk
-- docId
-- chunkIndex
-- page
-- taxonomy
-- text
-- score
-```
-
-```text
-PromptContext
-- query
-- chunks[]
-- systemConstraints
-- citationMode
-```
-
-### 4. Generation output contract
-
-```text
-GenkitQueryOutput
-- answer
-- citations[]
-- retrievalSummary
-- modelMetadata
-- traceId
-```
-
-`citations[]` 最小欄位：
-
-- `docId`
-- `chunkIndex`
-- `page`
-- `reason`
-
-### 5. Streaming event contract
-
-```text
-StreamEvent
-- type: token | citation | done | error
-- traceId
-- payload
-```
-
-規則：
-
-1. token 事件可重複輸出。
-2. citation 事件可在 done 前逐步補齊。
-3. done 事件必須只出現一次。
-4. error 事件需帶錯誤碼與可追蹤訊息。
-
-### 6. Error model
-
-建議錯誤碼：
-
-- `FLOW_PREPROCESS_ERROR`
-- `FLOW_CONTEXT_BUILD_ERROR`
-- `FLOW_MODEL_PROVIDER_ERROR`
-- `FLOW_STREAM_SERIALIZATION_ERROR`
-
-## 與 py_fn ADR 協作與不衝突規則
-
-1. 本 ADR 只定義 query-time Genkit 契約。
-2. py_fn ADR 系列負責 ingestion worker，不負責 Genkit product-facing orchestration。
-3. 本 ADR 不得將 Genkit flow 放入 worker runtime 作為 browser 入口。
-4. 若需要 worker 提供離線特徵，應透過 Firestore/事件交接，不直接改寫 worker 角色。
-
-## 後果 (Consequences)
-
-### 正面影響
-
-1. Genkit flow 可測試、可追蹤、可替換 provider。
-2. citation 與 streaming 規格穩定。
-3. 前後端協作成本降低。
-
-### 負面影響
-
-1. flow schema 變更需要版本治理。
-2. 多模型策略會增加契約管理複雜度。
-
-## Operational Notes
-
-- flow schema 版本建議與 API 版本同步。
-- 每次模型切換需回歸 citation 與 streaming 相容性。
-`````
-
-## File: docs/decision-architecture/adr/ADR-012-functions-python-directory-placement.md
-`````markdown
-# ADR 012: `py_fn` 目錄位置決策
-
-## 狀態 (Status)
-
-**Accepted**
-
-## 背景 (Context)
-
-在 MDDD 架構遷移（Phase 1–8）完成後，所有 TypeScript 工具函式庫已從 `libs/` 移至 `packages/`
-下的對應套件。完成後 `libs/` 目錄僅剩 `libs/firebase/py_fn/` 這一個子目錄，
-使得 `libs/` 的存在語意不再成立——它原本是存放 TypeScript 工具整合層的目錄。
-
-此時有必要決定 `py_fn` 的最終放置位置。
-
-## 問題
-
-- `libs/` 目錄原本代表「TypeScript 工具整合層」，遷移後已語意失效
-- `py_fn` 不是 TypeScript 套件，無法放入 `packages/`
-- 三層路徑 `libs/firebase/py_fn/` 對 Python 工作目錄而言過深且不直觀
-- 需要找一個能清楚傳達「這是獨立部署單元」的位置
-
-## 決策 (Decision)
-
-將 `libs/firebase/py_fn/` 移至專案根目錄的 `py_fn/`。
-
-**理由：**
-
-1. **Firebase 慣例**：Firebase CLI 預設 functions codebase 位於專案根目錄（如 `functions/`）；
-   `py_fn/` 直接對應 `firebase.json` 中的 codebase 名稱 `py_fn`。
-
-2. **清除語意混淆**：`libs/` 是 TypeScript 工具層，Python worker runtime 不屬於此分類。
-
-3. **第一等部署單元**：放在根目錄明確傳達此目錄是獨立部署單元，而非輔助工具庫。
-
-4. **簡化路徑**：`py_fn/` 比 `libs/firebase/py_fn/` 更短、更易引用。
-
-5. **清理空目錄**：移除後 `libs/firebase/` 和 `libs/` 均為空，可直接刪除。
-
-## 範圍
-
-**不屬於此 ADR 的決策：**
-
-- `py_fn` 內部結構（由各 Python ADR 規範）
-- 部署流程（`firebase.json` `source` 欄位已同步更新）
-- 與 TypeScript 的互動合約（由各 RAG ADR 規範）
-
-## 後果 (Consequences)
-
-### 正面
-
-- `libs/` 目錄正式清空並刪除，移除遷移後的殘餘路徑
-- `py_fn/` 在根目錄一目了然，與其他 Firebase 設定檔同層
-- `firebase.json` source 路徑更短：`"source": "py_fn"`
-
-### 負面 / 注意事項
-
-- 所有引用舊路徑的文件、記憶體、合約均已同步更新
-- 歷史 ADR 中對已退休之 `libs/firebase/functions`（TypeScript）的引用保持不變（歷史記錄）
-
-## 更新清單
-
-以下檔案已同步更新，將 `libs/firebase/py_fn` 替換為 `py_fn`：
-
-- `firebase.json` — `source` 欄位
-- `packages/README.md` — Migration History 新增條目與說明
-- `docs/decision-architecture/adr/ADR-001, ADR-009, ADR-010` — 跨 runtime 邊界引用
-- `docs/development-reference/reference/development-contracts/overview.md, rag-ingestion-contract.md`
-- `py_fn/README.md, AGENT.md, docs/decision-architecture/adr/*` — 內部自我引用
-`````
-
-## File: docs/decision-architecture/architecture/daily.md
-`````markdown
----
-title: Daily architecture
-description: Target architecture for Organization Daily and Workspace Daily, including the current digest baseline and Instagram-inspired value extraction.
-status: "🏗️ Midway"
----
-
-# Daily 模組架構規範
-
-> **文件編號**：XUANWU-DAILY-SPEC-001
-> **適用系統**：xuanwu-app — Workspace Daily / Organization Daily
-> **版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Daily Module Owner / 平台架構委員會
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
----
-
-## 0. 目前已上線範圍
-
-目前 Daily 的**標準化基線**已經收斂為 **canonical authored-entry feed**，而不是只有 notification-driven digest：
-
-- **Canonical command / query surface（目前標準）**
-  - `publishDailyEntry(input)`：發布 `dailyEntries` canonical authored entry
-  - `getWorkspaceDailyFeed(workspaceId)`：讀取單一 workspace 的 canonical feed
-  - `getOrganizationDailyFeed(organizationId, workspaceIds)`：讀取組織層跨 workspace canonical feed
-- **Workspace Daily UI**：`modules/workspace/interfaces/components/WorkspaceDailyTab.tsx`
-  - 以 authored entries 為主畫面
-  - 保留 `getWorkspaceDailyDigest(workspaceId, accountId)` 作為遷移對照
-- **Organization Daily UI**：`app/(shell)/organization/daily/page.tsx`
-  - 以 organization feed 為主畫面
-  - 保留 `getOrganizationDailyDigest(organizationId, workspaceIds)` 作為遷移對照
-- **目前資料邊界**：`modules/daily` 已有 canonical `dailyEntries` write-side、workspace / organization feed query，以及既有 notification-driven digest compatibility layer
-
-### 0.1 目前收斂判斷
-
-本輪對 Daily 的標準化判斷如下：
-
-1. **Feed 是主體**：Workspace / Organization Daily 目前都以 canonical authored feed 為標準
-2. **Digest 不是主體**：digest 僅保留為 compatibility layer，不再描述成目前 Daily 的核心產品形態
-3. **未完成能力要明講**：ranking / interaction / promotion / projection materialization 未完成時，不用文件假裝已交付
-
-### 0.2 本輪文件要解決的問題
-
-本輪先建立 Daily 的設計、契約、開發指南與使用手冊，目的是在正式擴寫 Daily write-side 之前，先回答四件事：
-
-1. **Workspace Daily 是什麼**：它不是單純通知盒，而是每個工作區的「今日敘事面」
-2. **Organization Daily 是什麼**：它是組織層的「跨 Workspace feed」，用於掌握整體動能與風險
-3. **Instagram 能抽取哪些價值**：保留 feed / story / profile / interaction 的產品機制，替換成工作協作語境
-4. **如何在 MDDD 下落地**：保持 `UI -> Application -> Domain <- Infrastructure`，避免 Daily 再次退化成散落在 UI 的卡片集合
-
-### 0.3 本輪不假裝已完成
-
-以下能力目前**尚未完整實作**，本文件只定義方向與契約：
-
-- 圖片 / 附件 / carousel 類型 Daily 卡片
-- Reaction、bookmark、acknowledgement、comment thread
-- 多因子 Ranking 與「你今天應該先看什麼」排序器（目前僅 freshness-only）
-- Story / Highlight / Pin 等完整內容生命週期
-- `selected_workspaces` 精準可見性投影
-- Cross-workspace follow / subscribe / digest policy
-- Daily 與 task / knowledge / schedule / billing / audit 的事件整合
-
----
-
-## 1. 產品定位
-
-### 1.1 Workspace Daily = Instagram 個人帳號的工作區版本
-
-Workspace Daily 的角色，類似 Instagram 上單一創作者或品牌帳號的首頁 feed：
-
-- 它代表某個工作區「今天發生了什麼」
-- 它不是完整資料庫，而是今天值得被看見的內容排序結果
-- 它需要同時容納 **人寫的內容** 與 **系統生成的訊號**
-- 它的目標不是長文沉澱，而是讓其他人快速理解這個工作區現在的狀態、節奏與需求
-
-因此，Workspace Daily 不應只顯示通知；它應逐步演化為一個由下列內容組成的工作區動態流：
-
-- 進度更新（progress update）
-- 風險與阻塞（blocker / risk）
-- 需求與協作請求（ask / help wanted）
-- 里程碑與成果（milestone / win）
-- 系統事件（schedule changed / document approved / invoice overdue）
-
-### 1.2 Organization Daily = 所有 Workspace Daily 的聚合視圖
-
-Organization Daily 類似 Instagram 的多帳號觀察面板，但場景不是社群娛樂，而是組織經營：
-
-- 顯示組織名下所有 Workspace Daily
-- 幫助組織看見「哪個工作區有進展、哪個工作區有風險、哪個工作區需要支援」
-- 不是把所有內容平鋪，而是要有 **跨 workspace 的排序與摘要能力**
-- 是組織端協調 schedule、knowledge、audit、billing、notification 的前置入口之一
-
-一句話定義：
-
-> **Workspace Daily 是單一工作區的今日敘事面；Organization Daily 是所有工作區今日敘事的管理者 feed。**
-
----
-
-## 2. 從 Instagram 抽取的產品價值
-
-Daily 不需要複製 Instagram 的娛樂表面，但值得抽取其高價值機制。
-
-| Instagram 機制 | Xuanwu Daily 對應 | 抽取的價值 |
-| --- | --- | --- |
-| Profile | Workspace identity + profile header | 讓每個 Workspace 有清楚的角色、領域、當前狀態與輸出風格 |
-| Feed | Workspace Daily / Organization Daily | 以時間流 + 權重排序承載今天值得被看見的內容 |
-| Story | 24 小時短訊號 / ephemeral updates | 承載短期提醒、緊急變更、臨時協作需求 |
-| Highlight | Pinned Daily / recurring highlights | 將常態重要資訊從即時流提升為可回看入口 |
-| Engagement | reaction / acknowledgement / bookmark | 讓組織知道哪些訊號已被看到、哪些需要回應 |
-| Discovery | cross-workspace suggestions / related work | 讓其他工作區發現可協作對象、相似案例與可複用資源 |
-| Ranking | organization priority feed | 將高風險、高影響、高緊急性的內容排到前面 |
-| Social proof | visible momentum and consistency | 讓組織看見工作區是否持續輸出、是否健康運作 |
-
-### 2.1 本次重點：不是模仿 UI，而是抽取經營機制
-
-本次 Daily 的重點不在於做出 Instagram 風格卡片，而在於抽取其背後的產品機制：
-
-1. **身份可辨識**：每個工作區必須像一個可被理解的主體
-2. **內容有節奏**：Daily 是持續更新的流，不是一次性公告板
-3. **系統會排序**：組織不可能讀完全部內容，必須幫他排出最值得先看的項目
-4. **互動有回饋**：看到、回應、收藏、轉派都要成為顯性訊號
-5. **短期 / 長期分層**：今天要看的訊號與值得長期保存的知識要分開
-
----
-
-## 3. 核心設計原則
-
-| 原則 | 說明 |
-| --- | --- |
-| **Workspace-first** | 任何 Daily 內容都必須能回到單一 Workspace 的敘事脈絡 |
-| **Organization aggregation** | Organization Daily 只顯示組織名下 Workspace Daily，不直接越界聚合外部內容 |
-| **Human + system co-authoring** | Daily 同時容納人工發布與系統生成訊號，但兩者需可辨識 |
-| **Ephemeral by default** | Daily 先服務「今天應該看什麼」，不是取代 wiki 或 knowledge base |
-| **Promotion path** | 值得長期保存的 Daily 內容需能升格為 Highlight、Knowledge 或 Task |
-| **Explainable ranking** | 組織 feed 的排序需能解釋為何某條內容優先 |
-| **Audience-aware visibility** | 內容必須有清楚受眾：workspace-only / organization / cross-workspace |
-| **MDDD boundaries** | ranking、promotion、visibility 屬於 application / domain，不屬於 UI 硬編碼 |
-
----
-
-## 4. 領域模型
-
-### 4.1 核心聚合
-
-| 聚合 | 根實體 | 責任 | 主要欄位 |
-| --- | --- | --- | --- |
-| `DailyEntryAggregate` | `DailyEntry` | 單筆 Daily 內容生命週期（草稿、發布、封存、升格） | `entryId`, `organizationId`, `workspaceId`, `authorId`, `entryType`, `status`, `visibility`, `publishedAtISO`, `expiresAtISO` |
-| `DailyInteractionAggregate` | `DailyInteraction` | reaction / acknowledgement / bookmark / assignment 等互動軌跡 | `interactionId`, `entryId`, `actorId`, `interactionType`, `createdAtISO` |
-| `DailyFeedProjection` | `DailyFeedItem` | 將 DailyEntry + system signal 摺疊成給 UI 讀取的 feed 項目 | `audienceKey`, `entryId`, `rankScore`, `rankReason`, `workspaceId`, `expiresAtISO` |
-| `DailyPromotionAggregate` | `DailyPromotion` | 將 Daily 內容升格到 Knowledge / Task / Schedule / Audit 的關聯關係 | `promotionId`, `entryId`, `targetType`, `targetId`, `promotedBy`, `promotedAtISO` |
-
-### 4.2 DailyEntry 類型
-
-| 類型 | 說明 | 來源 |
-| --- | --- | --- |
-| `update` | 一般進度更新 | 人工 |
-| `blocker` | 阻塞、風險、需要支援 | 人工 / 系統 |
-| `ask` | 對組織或其他工作區提出協助需求 | 人工 |
-| `milestone` | 里程碑、成果、完成事件 | 人工 / 系統 |
-| `signal` | 由其他模組投影進來的事件摘要 | 系統 |
-| `story` | 24 小時短訊號 | 人工 / 系統 |
-| `highlight` | 被釘選或升格的長效內容 | 人工 / 系統 |
-
-### 4.3 重要值物件
-
-- `DailyVisibility`：`workspace_only | organization | selected_workspaces | public_demo`
-- `DailyAudienceKey`：如 `workspace:{workspaceId}`、`organization:{organizationId}`
-- `DailyRankReason`：風險、逾期、多人互動、組織關注、最新發布
-- `DailyPromotionTarget`：`knowledge | task | schedule | audit | notification`
-
----
-
-## 5. 讀寫模型
-
-### 5.1 Canonical write-side
-
-建議 Daily 寫入模型以 `DailyEntry` 為核心，而不是讓 UI 直接從 notification 清單拼出產品。
-
-#### `dailyEntries`
-
-**Collection Path**：`/dailyEntries/{entryId}`
-
-| 欄位 | 類型 | 說明 |
-| --- | --- | --- |
-| `organizationId` | `string` | 所屬組織 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `authorId` | `string` | 發布者帳號 |
-| `entryType` | `DailyEntryType` | 內容類型 |
-| `status` | `draft / published / archived / promoted` | 生命週期 |
-| `visibility` | `DailyVisibility` | 受眾範圍 |
-| `title` | `string` | 標題 |
-| `summary` | `string` | 摘要 |
-| `body` | `string` | 內文 |
-| `media` | `DailyMedia[]` | 圖片 / 附件 / 連結 |
-| `tags` | `string[]` | 主題標籤 |
-| `publishedAtISO` | nullable `string` | 發布時間 |
-| `expiresAtISO` | nullable `string` | Story / 短期訊號過期時間 |
-| `sourceModule` | nullable `string` | 若為系統生成，標記來源模組 |
-| `sourceEventId` | nullable `string` | 對應事件 |
-| `createdAtISO` | `string` | 建立時間 |
-| `updatedAtISO` | `string` | 更新時間 |
-
-#### `dailyInteractions`
-
-**Collection Path**：`/dailyInteractions/{interactionId}`
-
-承載 seen / ack / bookmark / react / promote / reassign 等互動軌跡。
-
-### 5.2 Read-side projections
-
-#### `dailyFeedProjections`
-
-**Collection Path**：`/dailyFeedProjections/{audienceKey}/items/{entryId}`
-
-| 欄位 | 類型 | 說明 |
-| --- | --- | --- |
-| `audienceKey` | `string` | `workspace:{id}` 或 `organization:{id}` |
-| `organizationId` | `string` | 所屬組織 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `entryId` | `string` | DailyEntry ID |
-| `entryType` | `string` | 類型 |
-| `title` | `string` | 標題 |
-| `summary` | `string` | 摘要 |
-| `rankScore` | `number` | 排序分數 |
-| `rankReason` | `string[]` | 排序原因 |
-| `interactionSummary` | `object` | 已讀 / 收藏 / 回應統計 |
-| `publishedAtISO` | `string` | 發布時間 |
-| `expiresAtISO` | nullable `string` | 過期時間 |
-
-### 5.3 目前 shipped read-side（基線）
-
-目前 `modules/daily` 已存在的讀取介面如下：
-
-- `WorkspaceDailyDigestEntity`
-  - `workspaceId`
-  - `accountId`
-  - `summary: { total, unread }`
-  - `items: DailyDigestItem[]`
-- `OrganizationDailyDigestEntity`
-  - `organizationId`
-  - `summary: { total, unread }`
-  - `items: DailyDigestItem[]`
-
-這是可沿用的讀模型基線，但未來應逐步由 `dailyFeedProjections` 提供，而不是直接依賴 notification repository。
-
----
-
-## 6. 排序與價值抽取策略
-
-Organization Daily 的核心不是「列出全部」，而是「排出最值得先看的」。
-
-### 6.1 Organization 排序因子
-
-| 排序因子 | 說明 |
-| --- | --- |
-| `urgency` | blocker / overdue / pending decision 優先 |
-| `impact` | 影響多個工作區或高價值目標的內容優先 |
-| `freshness` | 當日新內容優先 |
-| `engagement` | 多人已互動或被標記關注的內容優先 |
-| `promotionPotential` | 可能升格為 task / knowledge 的內容優先 |
-| `silenceRisk` | 長時間沒有更新但本應活躍的工作區提高權重 |
-
-### 6.2 Workspace Daily 的經營信號
-
-Workspace Daily 不只回答「今天有幾則通知」，還要回答：
-
-- 這個 Workspace 最近是否持續更新？
-- 這個 Workspace 目前是健康、停滯，還是有風險？
-- 這個 Workspace 今天最值得被關注的 1-3 件事是什麼？
-- 是否有內容值得升格到 Knowledge、Task 或 Schedule？
-
----
-
-## 7. 模組架構對映
-
-```text
-modules/daily/
-├── domain/
-│   ├── entities/              # DailyEntry, DailyInteraction, DailyFeedItem
-│   ├── value-objects/         # DailyVisibility, DailyAudienceKey, DailyRankReason
-│   ├── services/              # ranking-policy, promotion-policy
-│   └── repositories/          # DailyEntryRepository, DailyFeedRepository, DailyInteractionRepository
-├── application/
-│   └── use-cases/
-│       ├── publish-daily-entry.use-case.ts
-│       ├── list-workspace-daily-feed.use-case.ts
-│       ├── list-organization-daily-feed.use-case.ts
-│       ├── acknowledge-daily-entry.use-case.ts
-│       └── promote-daily-entry.use-case.ts
-├── infrastructure/
-│   └── firebase/
-│       ├── FirebaseDailyEntryRepository.ts
-│       ├── FirebaseDailyFeedProjectionRepository.ts
-│       └── FirebaseDailyInteractionRepository.ts
-└── interfaces/
-    ├── _actions/              # publish / archive / promote / acknowledge
-    ├── queries/               # workspace / organization feed query
-    └── components/            # WorkspaceDailyTab, OrganizationDailyPage, future composer/feed cards
-```
-
-### 7.1 與其他模組的關係
-
-| 模組 | Daily 如何取值 | Daily 如何回饋 |
-| --- | --- | --- |
-| `notification` | 目前最小基線來源 | 未來可用於 mention / alert / digest push |
-| `schedule` | 排程變更、資源請求狀態可投影為 `signal` | Daily 中的 ask / blocker 可升格為 schedule demand |
-| `knowledge` / `wiki` | Daily 條目可升格為長期知識 | wiki 可作為 highlight 的長效承接 |
-| `task` | Daily 可承接 task 完成 / 阻塞事件 | Daily 內容可升格為待辦或 follow-up |
-| `audit` | 關鍵 Daily 行為可留下 audit trail | audit 不等於 feed，但可提供可信追溯 |
-
----
-
-## 8. 演進路線
-
-### Phase 1：Digest baseline（已存在）
-
-- 以通知資料生成 workspace / organization Daily digest
-- UI 只做今日摘要顯示
-
-### Phase 2：DailyEntry write-side（目前已落地最小切片）
-
-- 支援 Workspace 主動發布 Daily 內容
-- 建立 canonical `dailyEntries` 集合
-- 組織端顯示跨 workspace feed
-- 目前 Organization feed 以 freshness-only 排序，並保留 digest compatibility layer
-
-### Phase 3：Ranking + interaction
-
-- 加入 organization ranking policy
-- 支援 ack / bookmark / reaction
-- 引入 story / highlight / pin 機制
-
-### Phase 4：Promotion + orchestration
-
-- Daily 與 task / schedule / knowledge / audit 串聯
-- 支援「從 Daily 升格為可執行事項」
-- 建立組織營運儀表板級的 Daily intelligence
-
----
-
-## 9. 成功標準
-
-Daily 設計成功，不是因為它像 Instagram，而是因為它讓組織與工作區都更容易經營：
-
-- 工作區能用更低成本持續表達今日狀態
-- 組織能快速看見跨 workspace 的風險與機會
-- 短期訊號不會淹沒長期知識
-- 重要內容可從 feed 平滑升格到 knowledge / task / schedule
-- Daily 成為組織營運節奏的一級入口，而非另一個孤立分頁
-`````
-
-## File: docs/decision-architecture/architecture/event.md
-`````markdown
----
-title: Event Core architecture
-description: Target architecture for the event-core domain — canonical domain event capture, persistence, dispatch, and aggregate correlation in Xuanwu MDDD.
-status: "🚧 Developing"
----
-
-# Event Core 領域事件架構規範
-
-> **文件編號**：XUANWU-EVENT-SPEC-001
-> **適用系統**：xuanwu-app — 領域事件捕捉、持久化與派送核心
-> **版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Event Core Owner / 平台架構委員會
-> **開發狀態**：🚧 Developing — 積極開發中
-
----
-
-## 0. 目前已上線範圍
-
-目前 Event Core 已具備最小可運作的領域事件基礎骨架，作為後續全系統事件驅動設計的入口：
-
-- **DomainEvent 實體**：`modules/event/domain/entities/domain-event.entity.ts`
-  - 功能：事件 id、名稱、聚合類型、聚合 id、occurredAt、payload、metadata、派送狀態
-- **EventMetadata 值物件**：關聯 id、causation id、actor id、組織 / 工作區追蹤欄位
-- **Repository ports**：`IEventStoreRepository`（持久化）+ `IEventBusRepository`（派送）
-- **Domain service**：`dispatchPolicy`（純函式 — 重試判斷與 back-off 計算）
-- **Use Cases**：`PublishDomainEventUseCase`、`ListEventsByAggregateUseCase`
-- **In-memory adapters**：本地開發與測試用
-- **Noop event bus**：scaffold / 測試用
-
-### 0.1 本輪交付目標
-
-本輪先建立 Event Core 的完整設計文件：
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計（本文件） | `docs/decision-architecture/architecture/event.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
-| 開發指南 | `docs/development-reference/event/development-guide.md` |
-| 使用手冊 | `docs/development-reference/event/user-manual.md` |
-
-### 0.2 本輪不在交付範圍
-
-- Firestore / Redis 實作的 event store adapter
-- 真正的 message bus（Pub/Sub / Kafka / Cloud Tasks）adapter
-- Event sourcing 完整 aggregate rebuild
-- Dead-letter queue / 補償事務
-- Event replay 與時間旅行 debug
-- Cross-module event subscription / projection 自動觸發
-
----
-
-## 1. 核心設計原則
-
-| 原則 | 說明 |
-|------|------|
-| **事件即真相** | `DomainEvent` 是系統狀態變更的唯一記錄，不依賴 UI 呼叫順序 |
-| **捕捉 → 持久化 → 派送** | 事件先寫入 store，再送出匯流排，保證 at-least-once 語意 |
-| **聚合根關聯** | 所有事件透過 `aggregateType` + `aggregateId` 組成可查詢的事件時間線 |
-| **純粹 domain** | Domain layer 不含任何 SDK/HTTP/DB 依賴，dispatch policy 以純函式表達 |
-| **可替換 adapter** | Infrastructure 可從 in-memory 替換為 Firestore、Pub/Sub，不影響 domain |
-
----
-
-## 2. Event Core 整體架構
-
-### 2.1 模組邊界
-
-```
-app/(shell)/ 或 modules/*
-    ↓ (invoke server actions / use-cases)
-modules/event/interfaces/api/
-    ↓
-modules/event/application/use-cases/
-    ↓
-modules/event/domain/
-    ↑
-modules/event/infrastructure/
-```
-
-### 2.2 事件生命週期
-
-```
-捕捉（Capture）
-    → 建立 DomainEvent（entity + metadata）
-    → 驗證 eventName / aggregateType / aggregateId
-持久化（Persist）
-    → IEventStoreRepository.save(event)
-    → 狀態：undispatched
-派送（Dispatch）
-    → IEventBusRepository.publish(event)
-    → dispatchPolicy：retry eligibility + backoff
-    → 標記：IEventStoreRepository.markDispatched(id, dispatchedAt)
-觀察（Observe）
-    → 查詢 findUndispatched → 補償重試
-關聯（Correlate）
-    → findByAggregate(aggregateType, aggregateId)
-    → 重建事件時間線
-```
-
----
-
-## 3. DomainEvent 資料模型
-
-### 3.1 DomainEvent 欄位
-
-| 欄位 | 型別 | 必填 | 說明 |
-|------|------|------|------|
-| `id` | `string` | ✅ | UUID v4，全域唯一 |
-| `eventName` | `string` | ✅ | 事件名稱，格式建議 `{Module}.{AggregateType}.{Action}` |
-| `aggregateType` | `string` | ✅ | 聚合根類型，例如 `WikiDocument`、`Task` |
-| `aggregateId` | `string` | ✅ | 聚合根 ID |
-| `occurredAt` | `Date` | ✅ | 事件實際發生時間 |
-| `payload` | `DomainEventPayload` | ✅ | 事件業務資料（`Record<string, unknown>`） |
-| `metadata` | `EventMetadata` | ❌ | 追蹤與關聯欄位（correlationId、actorId 等） |
-| `dispatchedAt` | `Date \| null` | ❌ | 成功派送時間；null 代表尚未派送 |
-
-### 3.2 EventMetadata 欄位
-
-| 欄位 | 說明 |
-|------|------|
-| `correlationId` | 跨服務追蹤用 correlation id |
-| `causationId` | 觸發此事件的上游事件 id |
-| `actorId` | 發起事件的 accountId |
-| `organizationId` | 所屬組織（多租戶隔離） |
-| `workspaceId` | 所屬工作區（null = 組織層） |
-| `traceId` | 分散式追蹤 id（OpenTelemetry） |
-
-### 3.3 eventName 命名規範
-
-```
-{ModulePrefix}.{AggregateType}.{PastTenseAction}
-
-範例：
-  Wiki.WikiDocument.Created
-  Task.Task.Assigned
-  Schedule.ScheduleRequest.Submitted
-  Billing.Invoice.Issued
-```
-
----
-
-## 4. 關鍵技術觀念
-
-### 4.1 Outbox Pattern（目標）
-
-為確保 at-least-once 派送語意，目標實作採用 outbox 模式：
-
-```
-write-side use-case:
-  1. 寫入業務 aggregate（例如 Firestore document）
-  2. 在同一 transaction 中寫入 domain_events（status: undispatched）
-
-背景任務（outbox worker）:
-  1. findUndispatched(limit)
-  2. IEventBusRepository.publish(event)
-  3. markDispatched(id, dispatchedAt)
-```
-
-> ❗ 目前骨架直接在 use-case 中呼叫 publish，尚未實作 outbox transaction。
-
-### 4.2 Dispatch Policy（純函式）
-
-`dispatchPolicy` 住在 domain/services，保持純函式：
-
-```typescript
-// 判斷是否應重試
-shouldRetry({ attemptCount: 2, lastAttemptAt: new Date() }, { maxRetries: 3, baseDelayMs: 500 })
-// → true
-
-// 計算下次延遲（exponential back-off）
-nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: new Date() }, { maxRetries: 3, baseDelayMs: 500 })
-// → 1000ms
-```
-
-### 4.3 Infrastructure 配置
-
-```typescript
-// modules/event/infrastructure/persistence/config.ts
-EVENT_CORE_CONFIG = {
-  DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 },
-  STORE:    { TABLE: 'domain_events' },
-}
-```
-
----
-
-## 5. 模組結構（目標）
-
-```
-modules/event/
-├── domain/
-│   ├── entities/
-│   │   └── domain-event.entity.ts     # DomainEvent class + DomainEventPayload
-│   ├── repositories/
-│   │   ├── ievent-bus.repository.ts   # IEventBusRepository port
-│   │   └── ievent-store.repository.ts # IEventStoreRepository port
-│   ├── services/
-│   │   └── dispatch-policy.ts        # shouldRetry, nextRetryDelayMs (pure)
-│   └── value-objects/
-│       └── event-metadata.vo.ts      # EventMetadata
-├── application/
-│   └── use-cases/
-│       ├── publish-domain-event.ts   # PublishDomainEventUseCase
-│       └── list-events-by-aggregate.ts # ListEventsByAggregateUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                 # EVENT_CORE_CONFIG
-│   └── repositories/
-│       ├── in-memory-event-store.repository.ts
-│       └── noop-event-bus.repository.ts
-├── interfaces/
-│   └── api/
-│       └── event.controller.ts       # EventController
-├── index.ts                          # 模組公開 API
-├── README.md
-└── AGENT.md
-```
-
----
-
-## 6. 一句話總結
-
-```
-事件進來：Capture → Persist（undispatched） → Dispatch → markDispatched
-
-事件查詢：findByAggregate → 重建事件時間線
-
-事件重試：findUndispatched → dispatchPolicy → publish → markDispatched
-```
-
----
-
-## 7. 變更記錄
-
-| 版本 | 日期 | 變更說明 | 作者 |
-|------|------|----------|------|
-| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 Event Core 目標架構、DomainEvent 資料模型、Outbox Pattern、dispatch policy | xuanwu-app 架構委員會 |
-`````
-
-## File: docs/decision-architecture/architecture/namespace.md
-`````markdown
----
-title: Namespace Core architecture
-description: Target architecture for the namespace-core domain — canonical named-scope registration, slug validation, and resolution for multi-tenant resource addressing in Xuanwu.
-status: "🚧 Developing"
----
-
-# Namespace Core 命名空間架構規範
-
-> **文件編號**：XUANWU-NS-SPEC-001
-> **適用系統**：xuanwu-app — 多租戶命名空間管理核心
-> **版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Namespace Core Owner / 平台架構委員會
-> **開發狀態**：🚧 Developing — 積極開發中
-
----
-
-## 0. 目前已上線範圍
-
-目前 Namespace Core 已具備最小可運作的命名空間骨架，作為後續 URL 路由與多租戶資源定址的基礎：
-
-- **Namespace 實體**：`modules/namespace/domain/entities/namespace.entity.ts`
-  - 功能：id、slug、kind（organization / workspace）、ownerAccountId、organizationId、status
-- **NamespaceSlug 值物件**：slug 格式驗證（3-63 字元，小寫英數字加連字號）
-- **slug-policy domain service**：純函式 — `deriveSlugCandidate`、`isValidSlug`
-- **INamespaceRepository port**：save / findById / findBySlug / findByOrganization / existsBySlug
-- **Use Cases**：`RegisterNamespaceUseCase`（寫入 + 衝突檢查）、`ResolveNamespaceUseCase`（讀取）
-- **In-memory adapter**：本地開發與測試用
-
-### 0.1 本輪交付目標
-
-本輪先建立 Namespace Core 的完整設計文件：
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計（本文件） | `docs/decision-architecture/architecture/namespace.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
-| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
-| 使用手冊 | `docs/development-reference/namespace/user-manual.md` |
-
-### 0.2 本輪不在交付範圍
-
-- Firestore adapter 實作（`FirebaseNamespaceRepository`）
-- Namespace slug 變更（rename）流程與舊連結重定向
-- 跨租戶 slug 衝突的全域唯一性保證（目前僅 kind 層級）
-- Namespace 事件（NamespaceRegistered / NamespaceSuspended）與 event-core 整合
-- 組織管理 UI 中的 slug 設定介面
-
----
-
-## 1. 核心設計原則
-
-| 原則 | 說明 |
-|------|------|
-| **Slug 即地址** | 每個組織與工作區都有唯一、可閱讀的 slug，作為 URL 路由與 API 定址的基礎 |
-| **Kind 隔離** | `organization` slug 與 `workspace` slug 各自獨立，同 slug 在不同 kind 下不衝突 |
-| **不可變 ID** | Namespace `id` 一旦建立不得變更；slug 可透過受控流程更新（目前尚未實作） |
-| **純粹 domain** | Slug 驗證與推導邏輯均為純函式，不含任何 SDK/HTTP/DB 依賴 |
-| **可替換 adapter** | 從 in-memory 切換至 Firestore 不影響 domain 或 application 層 |
-
----
-
-## 2. Namespace Core 整體架構
-
-### 2.1 模組邊界
-
-```
-modules/organization/ 或 modules/workspace/
-    ↓ (呼叫 RegisterNamespaceUseCase on create)
-modules/namespace/interfaces/api/
-    ↓
-modules/namespace/application/use-cases/
-    ↓
-modules/namespace/domain/
-    ↑
-modules/namespace/infrastructure/
-```
-
-### 2.2 Namespace 生命週期
-
-```
-建立（Register）
-    → deriveSlugCandidate（從 displayName 推導 slug 候選值）
-    → NamespaceSlug.create（驗證格式）
-    → existsBySlug（衝突檢查）
-    → save（持久化 Namespace，status: active）
-解析（Resolve）
-    → findBySlug(slug, kind) → Namespace 實體
-暫停（Suspend）
-    → namespace.suspend() → status: suspended
-恢復（Restore）
-    → namespace.restore() → status: active
-封存（Archive）
-    → namespace.archive() → status: archived
-```
-
----
-
-## 3. Namespace 資料模型
-
-### 3.1 Namespace 欄位
-
-| 欄位 | 型別 | 必填 | 說明 |
-|------|------|------|------|
-| `id` | `string` | ✅ | UUID v4，全域唯一 |
-| `slug` | `NamespaceSlug` | ✅ | URL-safe slug（3-63 字元，小寫英數字 + 連字號） |
-| `kind` | `'organization' \| 'workspace'` | ✅ | 命名空間種類 |
-| `ownerAccountId` | `string` | ✅ | 建立者帳號 ID |
-| `organizationId` | `string` | ✅ | 所屬組織 ID（多租戶邊界） |
-| `status` | `'active' \| 'suspended' \| 'archived'` | ✅ | 命名空間狀態 |
-| `createdAt` | `Date` | ✅ | 建立時間 |
-| `updatedAt` | `Date` | ✅ | 最後更新時間 |
-
-### 3.2 NamespaceSlug 格式規範
-
-```
-規則：
-  - 長度：3–63 字元
-  - 允許字元：小寫英文字母 (a-z)、數字 (0-9)、連字號 (-)
-  - 不得以連字號開頭或結尾
-  - 不允許連續連字號（目前未強制，但推薦避免）
-
-合法範例：
-  my-organization
-  workspace-2024
-  acme-corp
-
-非法範例：
-  -org        （以連字號開頭）
-  org-        （以連字號結尾）
-  ab          （長度不足）
-  ORG_NAME    （含大寫與底線）
-```
-
----
-
-## 4. Slug Policy（純函式）
-
-`slug-policy` 住在 domain/services，保持純函式：
-
-```typescript
-// 從顯示名稱推導 slug 候選值
-deriveSlugCandidate('My Organization 2024!')
-// → 'my-organization-2024'
-
-// 驗證 slug 格式
-isValidSlug('my-org')   // → true
-isValidSlug('-bad-')    // → false
-```
-
----
-
-## 5. 模組結構（目標）
-
-```
-modules/namespace/
-├── domain/
-│   ├── entities/
-│   │   └── namespace.entity.ts           # Namespace class
-│   ├── repositories/
-│   │   └── inamespace.repository.ts      # INamespaceRepository port
-│   ├── services/
-│   │   └── slug-policy.ts               # deriveSlugCandidate, isValidSlug (純函式)
-│   └── value-objects/
-│       └── namespace-slug.vo.ts         # NamespaceSlug
-├── application/
-│   └── use-cases/
-│       ├── register-namespace.use-case.ts  # RegisterNamespaceUseCase
-│       └── resolve-namespace.use-case.ts   # ResolveNamespaceUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                    # NAMESPACE_CORE_CONFIG
-│   └── repositories/
-│       └── in-memory-namespace.repository.ts
-├── interfaces/
-│   └── api/
-│       └── namespace.controller.ts      # NamespaceController
-├── index.ts
-├── README.md
-└── AGENT.md
-```
-
----
-
-## 6. 一句話總結
-
-```
-Slug 進來：deriveSlugCandidate → NamespaceSlug.create → existsBySlug → save
-
-Slug 解析：findBySlug(slug, kind) → Namespace → route
-
-Slug 變更：（未實作）更新 slug → 建立舊 slug 重定向紀錄
-```
-
----
-
-## 7. 變更記錄
-
-| 版本 | 日期 | 變更說明 | 作者 |
-|------|------|----------|------|
-| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 Namespace Core 目標架構、Namespace 資料模型、slug policy | xuanwu-app 架構委員會 |
-`````
-
-## File: docs/decision-architecture/architecture/schedule.md
-`````markdown
----
-title: Schedule architecture
-description: Target MDDD architecture for the bidirectional resource-request scheduling system, including the currently shipped scope, domain model, Firestore data model, state machines, and event-driven design.
-status: "🏗️ Midway"
----
-
-# 排程模組架構規範
-
-> **文件編號**：XUANWU-SCHED-SPEC-001
-> **適用系統**：xuanwu-app — 雙向資源請求排程系統
-> **版本**：v1.2.0
-> **最後更新**：2026-03-20
-> **維護責任方**：Schedule Module Owner / 平台架構委員會
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
----
-
-## 0. 目前已上線範圍
-
-目前已上線的是最小可運作切片（MVP write-side + projection），作為後續完整 MDDD 排程域的入口：
-
-- **工作區 UI**：`modules/schedule/interfaces/components/WorkspaceScheduleTab.tsx`
-  - 掛載位置：`modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx`
-  - 功能：新增資源請求（`scheduleRequests` 寫入 + `scheduleMdddFlowProjections` 初始 projection）
-- **組織 UI**：`app/(shell)/organization/schedule/page.tsx`
-  - 待分派（`submitted` 狀態的 projection 清單）+ 月曆週視圖
-- **開發契約**：`docs/development-reference/reference/development-contracts/schedule-contract.md`
-
-### 0.1 目前已交付（本輪完成）
-
-| 切片 | 說明 | 路徑 |
-|------|------|------|
-| 資源請求提交 | 工作區提交請求，寫入 `scheduleRequests` | `FirebaseScheduleRequestRepository.submit()` |
-| 資源請求取消 | 工作區取消自己提交的請求，更新 `scheduleRequests` 與 projection | `CancelScheduleRequestUseCase` + `cancelScheduleRequest()` |
-| 初始 projection 建立 | 提交成功後立即建立 `RequestCreated` projection | `schedule-request.actions.ts` → `FirebaseMdddProjectionRepository.project()` |
-| Projection 列表查詢 | 工作區查詢自身所有請求的 projection | `listWorkspaceScheduleMdddFlowProjections(workspaceId)` |
-| 組織待分派視圖 | 跨工作區聚合 `submitted` 狀態請求 | `OrganizationSchedulePage` |
-| 月曆週視圖 | 顯示已排程項目（`WorkspaceScheduleItem`） | `OrganizationSchedulePage` 月曆分頁 |
-
-### 0.2 本輪不在交付範圍
-
-以下仍屬後續階段，**本輪不假裝已完成**：
-
-- 組織端的請求審核 / 拒絕 / 關閉流程（完整 MDDD `Request` 生命週期）
-- 任務分解（`Task`）與候選人比對（`Match`）的完整引擎
-- 人工分派（`Assignment` offer/accept/reject）的 UI
-- 排程衝突偵測與時段重新分配
-- 跨工作區 Notification 路由（`organization:schedule:assigned`）
-- Temporal workflow 或 Cloud Functions 非同步觸發器
-
-### 0.3 正式缺口登記（current vs target）
-
-下表不是願景口號，而是**目前文件化的正式缺口清單**。後續所有 Schedule 變更都應明確對應到其中一項缺口，避免 UI 與 domain 邊界再次混雜。
-
-| 類別 | 目前已有 | 主要缺口 | 影響 |
-|------|----------|----------|------|
-| Request Intake | 工作區可提交/取消資源請求，並建立初始 projection | 缺少組織端 `under-review` / `accepted` / `rejected` / `closed` 完整生命週期 | 組織目前只能看到待分派，不能正式審核與結案 |
-| Task | `scheduleRequests` 可作為需求入口 | 尚未由 Request 分解出正式 `TaskAggregate` 與任務狀態流 | 無法進入可執行工作單元與後續配對 |
-| Match | 契約中已定義 matching engine 目標 | 尚未落地候選人資格篩選、評分、排序、cut-off | 組織端無法從需求走到候選人 shortlist |
-| Assignment | Projection 預留 `assignmentId` / `assignmentStatus` 欄位 | 尚未建立 offer / accept / reject / cancel 決策流與 UI | 尚無真正的人員指派流程 |
-| Schedule | 組織頁已有 booking list + calendar 顯示 | 尚未把 accepted assignment 轉成正式 `ScheduleAggregate` 與衝突偵測 | 月曆目前是既有 item read model，不是完整 fulfill flow 終點 |
-| Projection | 已有 `RequestCreated` / `RequestCancelled` 驅動的基本投影 | 尚缺 Task / Match / Assignment / Schedule 後續事件折疊與冪等保證 | UI 無法看到完整 Request → Fulfillment 進度 |
-| Integration | 當前由 action 同步補寫初始 projection | 尚缺 outbox / trigger / workflow orchestration / notification routing | 主寫入與投影仍存在 best-effort 風險 |
-
-### 0.4 目標狀態摘要
-
-Schedule 模組的目標不是「做一個更多按鈕的列表」，而是把下列流程落地成可審計的 MDDD flow：
-
-`Request -> Task -> Match -> Assignment -> Schedule`
-
-達成目標狀態前，任何新增 UI 都必須先回答：
-
-1. 它對應哪一個 aggregate 或 projection 階段？
-2. 狀態轉換是否已有 domain/application 契約？
-3. 讀模型是從 event-driven projection 來，還是只是暫時拼接？
-
----
-
-## 1. 核心設計原則
-
-| 原則 | 說明 |
-|------|------|
-| **雙向分離** | 工作區負責 demand 側（提交需求），組織負責 supply 側（審核履行），兩側透過 projection 解耦 |
-| **Event-Sourced Projection** | `scheduleMdddFlowProjections` 僅由 domain event 驅動更新，UI 只讀 projection，不直接讀 aggregate |
-| **Aggregate 不可越界** | Request / Task / Assignment / Schedule 各自擁有獨立生命週期，不共享可變狀態 |
-| **Skills 可選（workspace 端）** | 簡單資源請求不強制技能需求；完整 MDDD flow 使用時才強制驗證 |
-| **Postiz 月曆類比** | 組織月曆視圖參照 Postiz calendar.tsx 的週視圖設計：24 小時橫列、每日欄位、今日高亮 |
-
----
-
-## 2. 領域模型
-
-### 2.1 核心聚合（Aggregates）
-
-| 聚合 | 根實體 | 責任 | 主要欄位 |
-|------|--------|------|----------|
-| `RequestAggregate` | `Request` | 工作區需求的生命週期管理 | `requestId`, `workspaceId`, `organizationId`, `requiredSkills`, `status`, `notes` |
-| `TaskAggregate` | `Task` | 可執行工作單元，由 Request 分解而來 | `taskId`, `requestId`, `requiredSkills`, `requiredHeadcount`, `status` |
-| `MatchAggregate` | `Match` | 候選人評分與排名結果 | `matchId`, `taskId`, `candidateAccountUserId`, `score`, `rank` |
-| `AssignmentAggregate` | `Assignment` | 任務與被分派人的決策生命週期 | `assignmentId`, `taskId`, `assigneeAccountUserId`, `status` |
-| `ScheduleAggregate` | `Schedule` | 時段預留與執行計畫 | `scheduleId`, `assignmentId`, `calendarSlot`, `loadUnits`, `status` |
-
-### 2.2 投影讀模型（Projection）
-
-`ScheduleMdddFlowProjection` 是聚合跨狀態的跨段快照，供 UI 直接讀取：
-
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| `requestId` | `string` | 請求唯一識別碼 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `organizationId` | `string` | 所屬組織 |
-| `requestStatus` | `RequestStatus` | 請求當前狀態 |
-| `taskId` | `string \| null` | 對應任務 ID（Task 建立後填入） |
-| `taskStatus` | `TaskStatus \| null` | 任務當前狀態 |
-| `assignmentId` | `string \| null` | 對應分派 ID |
-| `assignmentStatus` | `AssignmentStatus \| null` | 分派當前狀態 |
-| `scheduleId` | `string \| null` | 對應排程 ID |
-| `scheduleStatus` | `ScheduleStatus \| null` | 排程當前狀態 |
-| `assigneeAccountUserId` | `string \| null` | 被分派人帳號 ID |
-| `lastReason` | `string \| null` | 最近一次拒絕或取消原因 |
-| `eventTypes` | `string[]` | 已發生的 domain event 類型列表 |
-| `updatedAtISO` | `string` | 最近更新時間（ISO 8601） |
-
----
-
-## 3. Firestore 資料模型
-
-### 3.1 資源請求集合（`scheduleRequests`）
-
-**Collection Path**：`/scheduleRequests/{requestId}`
-
-| 欄位名 | 類型 | 必填 | 說明 |
-|--------|------|------|------|
-| `workspaceId` | `string` | ✅ | 提交請求的工作區 ID |
-| `organizationId` | `string` | ✅ | 所屬組織 ID |
-| `status` | `ScheduleRequestStatus` | ✅ | 請求狀態（`submitted` \| `cancelled` \| `closed`） |
-| `requiredSkills` | `SkillRequirement[]` | ✅ | 所需技能清單（可為空陣列） |
-| `proposedStartAtISO` | `string \| null` | ❌ | 期望開始時間 |
-| `notes` | `string` | ✅ | 需求說明 |
-| `submittedByAccountId` | `string` | ✅ | 提交者帳號 ID |
-| `submittedAtISO` | `string` | ✅ | 提交時間（ISO 8601） |
-| `createdAtISO` | `string` | ✅ | 建立時間 |
-| `updatedAtISO` | `string` | ✅ | 最後更新時間 |
-
-### 3.2 Projection 集合（`scheduleMdddFlowProjections`）
-
-**Collection Path**：`/scheduleMdddFlowProjections/{requestId}`
-
-欄位同 `ScheduleMdddFlowProjection` 介面定義。每次 domain event 透過 `FirebaseMdddProjectionRepository.project()` 以 `merge: true` 方式更新。
-
-**重要**：Projection 由 domain event 驅動，不由 UI 直接寫入（唯一例外：`schedule-request.actions.ts` 在成功提交後立即寫入初始 `RequestCreated` projection 以確保可見性）。
-
-### 3.3 MDDD Flow 集合（完整 flow 使用）
-
-| 集合 | 說明 |
-|------|------|
-| `scheduleMdddRequests` | MDDD Request 聚合文件 |
-| `scheduleMdddTasks` | MDDD Task 聚合文件 |
-| `scheduleMdddMatches` | Match 評分結果 |
-| `scheduleMdddAssignments` | Assignment 決策文件 |
-| `scheduleMdddSchedules` | Schedule 時段文件 |
-
----
-
-## 4. 狀態機
-
-### 4.1 RequestStatus
-
-```
-draft ──→ submitted ──→ under-review ──→ accepted ──→ closed
-                   ↘                 ↘
-                    cancelled        rejected ──→ closed
-```
-
-| 狀態 | 觸發者 | 說明 |
-|------|--------|------|
-| `draft` | 工作區 | 草稿，尚未提交 |
-| `submitted` | 工作區 | 已提交，等待組織審核 |
-| `under-review` | 組織 | 審核中 |
-| `accepted` | 組織 | 審核通過，進入任務分解 |
-| `rejected` | 組織 | 審核拒絕 |
-| `cancelled` | 工作區 | 提交前取消 |
-| `closed` | 系統 | 已結束（完成或拒絕後關閉） |
-
-### 4.2 TaskStatus
-
-```
-open ──→ matching ──→ assignable ──→ assigned ──→ scheduled ──→ completed
-                                  ↘
-                                   cancelled
-```
-
-### 4.3 AssignmentStatus
-
-```
-pending-review ──→ proposed ──→ accepted ──→ completed
-                           ↘
-                            rejected / cancelled
-```
-
-### 4.4 ScheduleStatus
-
-```
-planned ──→ reserved ──→ active ──→ completed
-                    ↘
-                     cancelled / conflicted
-```
-
----
-
-## 5. 事件驅動設計
-
-### 5.1 已實作 Domain Events
-
-| Event | 觸發時機 | 擁有聚合 |
-|-------|----------|----------|
-| `RequestCreated` | 請求提交成功後立即寫入 | `RequestAggregate` |
-| `RequestCancelled` | 工作區取消自己提交的請求後立即寫入 | `RequestAggregate` |
-| `RequestAccepted` | 組織審核通過 | `RequestAggregate` |
-| `RequestRejected` | 組織審核拒絕 | `RequestAggregate` |
-| `TaskMatched` | 候選人比對完成 | `TaskAggregate` |
-| `AssignmentAccepted` | 被分派人接受 | `AssignmentAggregate` |
-| `AssignmentRejected` | 被分派人拒絕 | `AssignmentAggregate` |
-| `ScheduleReserved` | 時段預留成功 | `ScheduleAggregate` |
-| `ScheduleCancelled` | 時段取消 | `ScheduleAggregate` |
-| `TaskCompleted` | 任務完成 | `TaskAggregate` |
-
-### 5.2 Event 消費路徑
-
-```
-Domain Event
-    │
-    ↓
-FirebaseMdddProjectionRepository.project(events)
-    │
-    ↓
-scheduleMdddFlowProjections/{requestId}  ← UI 讀取此集合
-```
-
----
-
-## 6. 模組架構對映
-
-```
-modules/schedule/
-├── domain/
-│   ├── entities/          # ScheduleRequest, ScheduleItem, ScheduleEventType
-│   ├── repositories/      # ScheduleRequestRepository (port interface)
-│   ├── mddd/
-│   │   ├── entities/      # Request, Task, Match, Assignment, Schedule
-│   │   ├── value-objects/ # Projection, WorkflowStatuses, Requirements, Scheduling
-│   │   ├── services/      # matching-engine, scheduling-engine
-│   │   ├── events/        # ScheduleDomainEvents
-│   │   └── repositories/  # MDDD port interfaces
-├── application/
-│   └── use-cases/
-│       ├── submit-schedule-request.use-case.ts  # 目前已上線
-│       └── mddd/
-│           └── run-schedule-mddd-flow.use-case.ts  # 完整 MDDD flow
-├── infrastructure/
-│   └── firebase/
-│       ├── FirebaseScheduleRequestRepository.ts   # scheduleRequests 集合
-│       ├── FirebaseMdddProjectionRepository.ts    # scheduleMdddFlowProjections 集合
-│       └── Firebase*Repository.ts (其餘 MDDD 集合)
-└── interfaces/
-    ├── _actions/
-    │   ├── schedule-request.actions.ts  # 提交 + projection 初始化
-    │   └── schedule-mddd.actions.ts
-    ├── queries/
-    │   ├── schedule-mddd.queries.ts     # listWorkspaceScheduleMdddFlowProjections
-    │   └── schedule.queries.ts
-    └── components/
-        └── WorkspaceScheduleTab.tsx     # 工作區資源請求 UI
-```
-
----
-
-## 7. 比對：Postiz 月曆模型 vs Xuanwu 排程模型
-
-Postiz 是社群媒體發文排程平台，其 `calendar.tsx`（1232 行）提供了成熟的週視圖月曆實作。以下是兩者設計的對映與借鑒點：
-
-| Postiz 概念 | Xuanwu 對映 | 借鑒點 |
-|-------------|-------------|--------|
-| Post（待排程發文）| ScheduleRequest（資源請求）| 佔位符可點擊，顯示詳細資訊 |
-| Calendar week grid | OrganizationSchedulePage 週月曆 | 24 小時橫列 + 每日欄位 |
-| Post status badge | RequestStatus badge | 顏色映射狀態語意 |
-| Temporal workflow | RunScheduleMdddFlowUseCase | 多步驟非同步 flow |
-| Integration（平台）| Workspace（工作區）| 多來源聚合顯示 |
-| Draft / Scheduled / Published | draft / submitted / accepted / closed | 類似單向狀態推進 |
-
----
-
-## 8. 安全規則建議
-
-```javascript
-// firestore.rules — 排程集合存取控制（建議）
-match /scheduleRequests/{requestId} {
-  // 工作區成員可建立（組織成員驗證由應用層處理）
-  allow create: if isAuthenticated();
-  // 僅提交者和組織管理員可讀取
-  allow read: if isAuthenticated() && (
-    resource.data.submittedByAccountId == request.auth.uid ||
-    isOrgAdmin(resource.data.organizationId)
-  );
-  // 不允許直接更新（由 Server Action 處理）
-  allow update, delete: if false;
-}
-
-match /scheduleMdddFlowProjections/{requestId} {
-  // 讀取：工作區成員（投影查詢由 server-side 過濾）
-  allow read: if isAuthenticated();
-  // 寫入：僅後端（Server Actions / Admin SDK）
-  allow write: if false;
-}
-```
-
----
-
-## 9. 索引設計
-
-### 9.1 Firestore 複合索引（必要）
-
-| Collection | 欄位組合 | 用途 |
-|------------|----------|------|
-| `scheduleMdddFlowProjections` | `workspaceId ASC` + `updatedAtISO DESC` | 工作區請求列表 |
-| `scheduleMdddFlowProjections` | `organizationId ASC` + `requestStatus ASC` + `updatedAtISO DESC` | 組織待分派視圖 |
-| `scheduleRequests` | `workspaceId ASC` + `submittedAtISO DESC` | 工作區歷史請求 |
-| `scheduleRequests` | `organizationId ASC` + `status ASC` | 組織審核佇列 |
-
----
-
-## 10. 變更記錄
-
-| 版本 | 日期 | 變更說明 | 作者 |
-|------|------|----------|------|
-| v1.0.0 | 2026-03-20 | 初版建立，涵蓋 MVP write-side + projection 設計 | xuanwu-app 架構委員會 |
-| v1.1.0 | 2026-03-20 | 補充 Postiz 月曆對映、Firestore 索引、安全規則、`requiredSkills` 可選說明 | Copilot |
-| v1.2.0 | 2026-03-20 | 正式補入 current vs target 缺口登記、目標狀態摘要與分階段 roadmap | Copilot |
-
----
-
-## 11. 分階段 Roadmap（建議）
-
-### Phase 1 — Request Review
-
-- 補齊組織端 `under-review` / `accepted` / `rejected` / `closed`
-- 補齊對應 server actions、application use cases、projection events
-- 讓組織頁「待分派」不再只是 submitted 清單，而是有正式審核語意
-
-### Phase 2 — Task Decomposition
-
-- 將 `RequestAggregate` 轉成一個或多個 `TaskAggregate`
-- 定義 task readiness 與 task status state machine
-- 補齊 `taskId` / `taskStatus` projection folding
-
-### Phase 3 — Match Generation
-
-- 落地候選人 eligibility filter、availability pre-check、score breakdown
-- 產出可審核的 `Match` 排序結果
-- 補齊 UI 需要的 shortlist / disqualification read model
-
-### Phase 4 — Assignment Decision
-
-- 組織端 offer 指派、成員 accept / reject、系統 cancel / expire
-- 確立唯一 active assignment invariant
-- projection 可顯示 assignee、decision reason、deadline
-
-### Phase 5 — Schedule Allocation
-
-- 將 accepted assignment 轉成正式 `ScheduleAggregate`
-- 加入時段保留、衝突檢測、超載檢測、reschedule trail
-- 組織月曆顯示正式 fulfill flow 結果，而非僅顯示既有靜態 items
-
-### Phase 6 — Integration & Reliability
-
-- 將初始 projection bootstrap 改為可重播/冪等的事件整合
-- 補齊 notification routing、trigger/workflow orchestration、審計紀錄
-- 將 best-effort 寫入路徑升級為可恢復的生產級流程
-`````
-
-## File: docs/decision-architecture/README.md
-`````markdown
-# Decision Architecture
-
-Architectural decisions (ADRs), system designs, and domain models.
-
-## Core Content
-
-| Type | Count | Entry |
-| --- | --- | --- |
-| ADRs | 12 | [adr/](./adr/) — RAG (ADR-001-011), Python functions (ADR-012) |
-| Architectures | 5 | [architecture/](./architecture/) — AI Knowledge Platform, Daily, Event, Namespace, Schedule |
-
-## Quick Start
-
-- **System overview** → [architecture/ai-knowledge-platform-architecture.md](./architecture/ai-knowledge-platform-architecture.md)
-- **RAG details** → [adr/ADR-001...011](./adr/) (upload → ingestion → query → observability)
-- **Domain models** → [core-logic.mermaid](../diagrams-events-explanations/diagrams/core-logic.mermaid), [erd-model.mermaid](../diagrams-events-explanations/diagrams/erd-model.mermaid)
-- **Feature architecture** → [architecture/](./architecture/)
-
-## Related
-
-- [../development-reference/README.md](../development-reference/README.md) — Development guides & contracts
-- [../diagrams-events-explanations/diagrams/README.md](../diagrams-events-explanations/diagrams/README.md) — System diagrams
-
-- [docs/README.md](../README.md) — Documentation root
-- [docs/development-reference/reference/development-contracts/](../development-reference/reference/development-contracts/) — Implementation contracts derived from ADRs
-- [agents/knowledge-base.md](../../agents/knowledge-base.md) — Module inventory and MDDD structure
-`````
-
-## File: docs/development-reference/development/branch-strategy.md
-`````markdown
-# 分支策略（Branch Strategy）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的 Git 分支模型、命名規則、生命週期與分支保護策略。
-
----
-
-## 1. 分支模型概覽
-
-Xuanwu App 採用 **Trunk-Based Development（主幹開發）** 為基礎，搭配功能分支（Feature Branch）工作流。
-
-```
-main ←──────────────────────────────────────────────
-         ↑          ↑            ↑           ↑
-         PR          PR           PR          PR
-      feature/  bugfix/     docs/      copilot/
-      add-xyz   fix-abc     update-api  create-xyz
-```
-
-| 分支 | 說明 | 保護規則 |
-|---|---|---|
-| `main` | 主幹；永遠可部署 | ✅ 需 PR、需通過 CI |
-| `feature/*` | 功能開發 | ❌ 無額外保護 |
-| `bugfix/*` | 錯誤修復 | ❌ 無額外保護 |
-| `docs/*` | 文件更新 | ❌ 無額外保護 |
-| `refactor/*` | 重構（不改行為） | ❌ 無額外保護 |
-| `hotfix/*` | 緊急修復（從 main 分出） | ❌ 無額外保護 |
-| `copilot/*` | AI Agent 自動建立的分支 | ❌ 無額外保護 |
-
----
-
-## 2. 分支命名規範
-
-### 格式
-
-```
-{類型}/{簡短描述}
-```
-
-**類型**：
-
-| 類型 | 說明 | 範例 |
-|---|---|---|
-| `feature` | 新功能 | `feature/wiki-beta-pages-crud` |
-| `bugfix` | 錯誤修復 | `bugfix/upload-mime-validation` |
-| `docs` | 文件更新 | `docs/how-to-user/ui-ux-wireframes` |
-| `refactor` | 重構 | `refactor/extract-document-use-case` |
-| `hotfix` | 緊急修復 | `hotfix/auth-token-refresh` |
-| `chore` | 工具、設定、依賴更新 | `chore/update-tailwind-v4` |
-| `copilot` | AI Agent 建立 | `copilot/create-ui-ux-documentation` |
-
-### 命名規則
-
-- 使用 **kebab-case**（全小寫，以 `-` 分隔）。
-- 描述部分 ≤ 50 個字元。
-- 包含 Issue 編號（如有）：`feature/issue-123-wiki-pages`。
-- 禁止在描述中使用特殊符號（`/`、`#`、`@` 除外）。
-
----
-
-## 3. 開發流程
-
-### 3.1 功能開發流程
-
-```
-1. 從 main 建立功能分支
-   git checkout -b feature/my-feature main
-
-2. 開發、頻繁提交（Atomic Commits）
-   git commit -m "feat: add document upload use case"
-
-3. 保持與 main 同步
-   git fetch origin && git rebase origin/main
-
-4. 推送並開 PR
-   git push origin feature/my-feature
-   → 開 Pull Request to main
-
-5. PR Review → CI 通過 → 合併
-   → 使用 Squash and Merge 或 Rebase and Merge
-
-6. 分支自動刪除（或手動刪除）
-```
-
-### 3.2 緊急修復流程（Hotfix）
-
-```
-1. 從 main 建立 hotfix 分支
-   git checkout -b hotfix/auth-fix main
-
-2. 修復、測試
-   git commit -m "fix: resolve auth token refresh race condition"
-
-3. 快速 PR → Review → 合併
-   → 目標：當天完成
-
-4. 確認 main 部署成功後刪除分支
-```
-
----
-
-## 4. Commit 訊息規範
-
-遵循 **Conventional Commits** 規範：
-
-```
-{類型}({範圍}): {描述}
-
-[選填] 本文說明（為什麼，而非是什麼）
-
-[選填] Footer（Breaking Changes、Closes #N）
-```
-
-### 類型
-
-| 類型 | 說明 | 範例 |
-|---|---|---|
-| `feat` | 新功能 | `feat(wiki-beta): add document upload` |
-| `fix` | 錯誤修復 | `fix(auth): resolve token refresh race` |
-| `docs` | 文件 | `docs(ui-ux): add wireframes document` |
-| `refactor` | 重構（無行為變更） | `refactor(wiki-beta): extract use case` |
-| `chore` | 工具、設定更新 | `chore: update next.js to 16.2` |
-| `test` | 測試 | `test(documents): add upload validation` |
-| `style` | 格式化（無邏輯變更） | `style: format imports` |
-| `perf` | 效能優化 | `perf(documents): add pagination` |
-
-### 範例
-
-```
-feat(wiki-beta): add quick-create button to Documents nav item
-
-Users can now click '+' next to Documents in the sidebar to quickly
-create a new page or library without navigating away.
-
-Closes #123
-```
-
-### 禁止事項
-
-- 禁止 `misc`、`update`、`changes` 等無意義描述。
-- 禁止描述超過 72 個字元。
-- 禁止在 main 直接 commit（必須透過 PR）。
-
----
-
-## 5. Pull Request 規範
-
-### 5.1 PR 標題
-
-PR 標題遵循與 Commit 相同的 Conventional Commits 格式。
-
-### 5.2 PR 描述範本
-
-```markdown
-## 目的
-
-本 PR 的變更目標（一句話說明）。
-
-Closes #N 或 Refs #N
-
-## 變更內容
-
-- 新增 XxxUseCase 支援 yyy 操作
-- 更新 ZzzView 加入 loading skeleton
-- ...
-
-## 測試方式
-
-- [ ] `npm run lint` — 0 errors
-- [ ] `npm run build` — 成功
-- [ ] 手動測試：{描述測試路徑}
-```
-
-### 5.3 PR 大小原則
-
-- **一個 PR = 一個關注點**（One Concern per PR）。
-- 行數指引：`≤ 400 行`（不含測試與文件）為佳。
-- 大型功能拆分為一系列「可獨立 review 且可合併」的小 PR。
-
----
-
-## 6. 分支保護規則
-
-### `main` 分支保護
-
-| 規則 | 設定 |
-|---|---|
-| 禁止直接 push | ✅ 啟用 |
-| 需要 PR | ✅ 啟用 |
-| 需要通過所有 CI Status Checks | ✅ 啟用 |
-| 禁止 force push | ✅ 啟用 |
-| 合併前需要最新（up to date） | ✅ 建議啟用 |
-
----
-
-## 7. 版本發布策略
-
-Xuanwu App 目前採用 **Firebase App Hosting** 自動部署，不維護獨立版本標籤。
-
-- 每次合併至 `main` 後，CI/CD Pipeline 自動部署至暫存或生產環境。
-- 若需要回滾，使用 Firebase App Hosting 的版本歷史還原功能。
-- 若未來需要語義版本（Semantic Versioning），以 `vX.Y.Z` Git tag 為準。
-`````
-
-## File: docs/development-reference/development/code-style.md
-`````markdown
-# 程式碼風格指南（Code Style Guide）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
-> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
-
----
-
-## 1. TypeScript
-
-### 1.1 型別宣告原則
-
-```typescript
-// ✅ 優先使用 interface 定義物件形狀
-interface UserProfile {
-  readonly id: string;
-  name: string;
-  email: string;
-}
-
-// ✅ 使用 type 定義聯合型別、交叉型別、別名
-type DocumentStatus = "processing" | "ready" | "error";
-type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
-
-// ✅ 從 @shared-types 匯入跨模組共用型別
-import type { CommandResult, DomainError } from "@shared-types";
-
-// ❌ 避免 any
-const data: any = fetchData(); // 禁止
-
-// ✅ 使用 unknown 代替 any
-const data: unknown = fetchData();
-```
-
-### 1.2 命名規範
-
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
-| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
-| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
-| 函式 | `camelCase` | `uploadDocument` |
-| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
-| React 元件 | `PascalCase` | `WikiBetaDocumentsView` |
-| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
-| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
-| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
-| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
-| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
-| 檔案：React 元件 | `PascalCase.tsx` | `WikiBetaDocumentsView.tsx` |
-
-### 1.3 函式宣告風格
-
-```typescript
-// ✅ 匯出函式使用 function 宣告（可讀性較佳）
-export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
-  // ...
-}
-
-// ✅ 回呼、lambda 使用 arrow function
-const items = list.map((item) => item.id);
-
-// ✅ 元件使用 function 宣告
-export function WikiBetaDocumentsView() {
-  // ...
-}
-
-// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
-export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
-```
-
-### 1.4 非同步處理
-
-```typescript
-// ✅ 使用 async/await，避免 Promise chain
-async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
-  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
-  return snapshot.docs.map(docToEntity);
-}
-
-// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
-export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
-  try {
-    await triggerReindex(input);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: toDomainError(error) };
-  }
-}
-
-// ❌ 不在元件內 catch 後靜默吞錯誤
-try {
-  await doSomething();
-} catch {
-  // 靜默失敗 — 禁止
-}
-```
-
----
-
-## 2. React 元件規範
-
-### 2.1 元件結構順序
-
-```tsx
-"use client"; // 若需要（置頂）
-
-import React, { useState, useEffect, useCallback } from "react";
-// 外部函式庫
-import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
-
-// 內部 alias imports
-import { Button } from "@ui-shadcn/ui/button";
-import { cn } from "@shared-utils";
-
-// 同模組 relative imports
-import type { WikiBetaDocument } from "../../domain/entities/wiki-beta-document.entity";
-
-// 型別定義
-interface DocumentCardProps {
-  readonly document: WikiBetaDocument;
-  readonly onReindex: (docId: string) => Promise<void>;
-}
-
-// 元件主體
-export function DocumentCard({ document, onReindex }: DocumentCardProps) {
-  // 1. Hooks（useState、useEffect、custom hooks）
-  const [isLoading, setIsLoading] = useState(false);
-
-  // 2. Derived state / memoized values
-  const canReindex = document.status === "ready";
-
-  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
-  const handleReindex = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await onReindex(document.id);
-      toast.success("已觸發重整");
-    } catch (err) {
-      toast.error(`重整失敗：${String(err)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [document.id, onReindex]);
-
-  // 4. Render
-  return (
-    <div className="flex items-center gap-4 rounded-lg border p-4">
-      <span className="flex-1">{document.filename}</span>
-      <Button
-        size="sm"
-        disabled={!canReindex || isLoading}
-        onClick={handleReindex}
-        aria-disabled={!canReindex || isLoading}
-      >
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
-      </Button>
-    </div>
-  );
-}
-```
-
-### 2.2 Props 設計規則
-
-```typescript
-// ✅ 使用 readonly 標記不可變 props
-interface MyProps {
-  readonly id: string;
-  readonly onAction: () => void;
-  className?: string; // 可選 className 用於樣式擴展
-}
-
-// ✅ 事件 handler 命名使用 on 前綴
-onSubmit, onChange, onDelete, onSelect
-
-// ✅ Boolean props 命名使用 is/has/can 前綴
-isLoading, hasError, canEdit, isCollapsed
-
-// ❌ 避免過於泛用的 props
-data: any;          // 禁止
-config: Record<string, unknown>; // 避免
-```
-
-### 2.3 Server Component vs Client Component
-
-```typescript
-// ✅ 頁面預設為 Server Component（無 "use client"）
-export default async function DocumentsPage() {
-  return <WikiBetaDocumentsView />;
-}
-
-// ✅ 只在需要時才加 "use client"
-// 需要: useState, useEffect, onClick, onChange, browser APIs
-"use client";
-export function InteractiveUploader() {
-  const [isDragOver, setIsDragOver] = useState(false);
-  // ...
-}
-
-// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
-```
-
----
-
-## 3. 匯入規範
-
-### 3.1 匯入順序
-
-```typescript
-// 1. React（若使用 JSX 元素需明確匯入）
-import React from "react";
-
-// 2. Next.js 核心
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-// 3. 第三方函式庫
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-
-// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-
-// 5. @/ 模組匯入（app/ 和 modules/）
-import type { WorkspaceEntity } from "@/modules/workspace";
-import { createWorkspace } from "@/modules/workspace";
-
-// 6. 相對路徑（同模組內部）
-import type { DocumentEntity } from "../../domain/entities/document.entity";
-import { useDocuments } from "../hooks/use-documents";
-```
-
-### 3.2 禁止使用的 Legacy 路徑
-
-| 禁止 | 替代方案 |
-|---|---|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` 對應套件 |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
----
-
-## 4. CSS 與 Tailwind 規範
-
-### 4.1 Class 排列順序
-
-遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
-
-```tsx
-// Layout → Position → Spacing → Sizing → Typography → Visual
-<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
-```
-
-建議安裝 `prettier-plugin-tailwindcss` 自動排列。
-
-### 4.2 條件 Class 使用 cn()
-
-```tsx
-import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
-
-<div
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8",
-    isDragOver && "border-primary bg-primary/5",
-    isError && "border-destructive",
-    className // 允許外部覆蓋
-  )}
-/>
-```
-
-### 4.3 避免 CSS 反模式
-
-```tsx
-// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
-<div style={{ backgroundColor: "#f00" }} />
-
-// ✅ 使用 Tailwind 語義色
-<div className="bg-destructive" />
-
-// ❌ 避免 @apply（Tailwind 不推薦用於元件）
-// @apply flex items-center;
-
-// ✅ 使用元件封裝重用樣式
-```
-
----
-
-## 5. JSDoc 規範
-
-函式與類別加 JSDoc 的時機：
-
-```typescript
-// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
-/**
- * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
- * @param input - 包含 file、accountId 與選填的 workspaceId。
- * @returns CommandResult，成功時包含 documentId。
- */
-export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
-  // ...
-}
-
-// ✅ 複雜業務邏輯加說明
-// ❌ 簡單 getter / setter 無需 JSDoc
-```
-
----
-
-## 6. 測試風格
-
-### 6.1 測試檔案命名
-
-| 類型 | 格式 |
-|---|---|
-| Unit test | `*.test.ts` / `*.test.tsx` |
-| Integration test | `*.integration.test.ts` |
-| E2E test | `*.e2e.ts`（Playwright） |
-
-### 6.2 測試命名
-
-```typescript
-describe("uploadDocument use case", () => {
-  it("should return success with documentId when file is valid", async () => {
-    // ...
-  });
-
-  it("should return error when accountId is missing", async () => {
-    // ...
-  });
-});
-```
-
----
-
-## 7. ESLint 執行
-
-```bash
-# 執行 lint（必須 0 errors）
-npm run lint
-
-# 自動修復可修正的問題
-npm run lint -- --fix
-```
-
-**常見 ESLint 規則**（`eslint.config.mjs`）：
-
-- `no-unused-vars` — 未使用的變數
-- `@typescript-eslint/no-explicit-any` — 禁止 any
-- `jsdoc/*` — JSDoc 格式檢查
-- `@typescript-eslint/naming-convention` — 命名規範
-- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
-- 匯入路徑邊界（legacy path 封鎖）
-
-### 7.1 什麼時候要調整 `eslint.config.mjs`
-
-- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
-- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
-- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
-- **同步文件**：調整規則時一併更新
-  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
-  - 本節清單（如新增/刪除常見規則）
-- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
-`````
-
-## File: docs/development-reference/development/development-process.md
-`````markdown
-# 開發流程（Development Process）
-
-> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
-
----
-
-## 1. 流程總覽
-
-```
-需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
-```
-
----
-
-## 2. 開發前準備
-
-### 2.1 環境設置
-
-```bash
-# 1. 安裝相依套件
-npm install
-
-# 2. 啟動開發伺服器
-npm run dev      # http://localhost:3000
-```
-
-> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
-
-### 2.2 必讀文件
-
-在開始任何功能開發前，請先確認：
-
-- [ ] [`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
-- [ ] [`agents/README.md`](../../../agents/README.md) — 架構規則索引
-- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀 [`docs/development-reference/reference/development-contracts/overview.md`](../reference/development-contracts/overview.md)
-
-### 2.3 建立分支
-
-```bash
-# 從 main 建立功能分支
-git checkout main
-git pull origin main
-git checkout -b feature/your-feature-name
-```
-
-分支命名規則見 [branch-strategy.md](./branch-strategy.md)。
-
----
-
-## 3. MDDD 開發七步驟
-
-針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
-
-### Step 1：確認模組歸屬
-
-找出你的功能屬於哪個模組（`modules/*/`）：
-
-```
-modules/
-├── wiki-beta/    ← 知識庫、文件上傳、RAG
-├── workspace/    ← 工作區管理
-├── account/      ← 帳號管理
-├── organization/ ← 組織管理
-├── file/         ← 檔案生命週期
-...（20 個模組）
-```
-
-若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
-
-### Step 2：設計 Domain 層（entity / value object / repository interface）
-
-```typescript
-// modules/wiki-beta/domain/entities/wiki-beta-page.entity.ts
-export interface WikiBetaPageEntity {
-  readonly id: string;
-  readonly title: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-```
-
-> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
-
-### Step 3：實作 Application Use Case
-
-```typescript
-// modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
-export async function createWikiBetaPage(
-  input: CreateWikiBetaPageInput,
-  repo: IWikiBetaPageRepository
-): Promise<CommandResult<string>> {
-  // 業務邏輯在此
-  const page = buildPageEntity(input);
-  return repo.save(page);
-}
-```
-
-### Step 4：實作 Infrastructure Adapter
-
-```typescript
-// modules/wiki-beta/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
-export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
-  async save(page: WikiBetaPageEntity): Promise<CommandResult<string>> {
-    const ref = await addDoc(
-      collection(db, `accounts/${page.accountId}/pages`),
-      pageToFirestore(page)
-    );
-    return { success: true, data: ref.id };
-  }
-}
-```
-
-### Step 5：建立 Server Action（接口層）
-
-```typescript
-// modules/wiki-beta/interfaces/_actions/wiki-beta-page.actions.ts
-"use server";
-
-export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
-  return createWikiBetaPage(input, new FirebaseWikiBetaPageRepository());
-}
-```
-
-### Step 6：實作 React 元件
-
-```tsx
-// modules/wiki-beta/interfaces/components/WikiBetaPagesView.tsx
-"use client";
-
-export function WikiBetaPagesView() {
-  const [isCreating, setIsCreating] = useState(false);
-
-  async function handleCreate() {
-    setIsCreating(true);
-    const result = await createPageAction({ title: "新頁面", accountId });
-    if (result.success) {
-      toast.success("已建立頁面");
-      router.push(`/wiki-beta/pages/${result.data}`);
-    } else {
-      toast.error(`建立失敗：${result.error.message}`);
-    }
-    setIsCreating(false);
-  }
-
-  return (/* ... */);
-}
-```
-
-### Step 7：更新 index.ts 公開 API
-
-```typescript
-// modules/wiki-beta/index.ts
-export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
-export type { WikiBetaPageEntity } from "./domain/entities/wiki-beta-page.entity";
-```
-
----
-
-## 4. 本地驗證清單
-
-每次提交前，確保通過以下驗證：
-
-```bash
-# 1. ESLint — 必須 0 errors
-npm run lint
-
-# 2. TypeScript + 生產建置
-npm run build
-
-# 3. Python Worker（若有變更）
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-**手動驗證**（依功能範圍）：
-
-- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
-- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
-- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
-- [ ] 確認 Loading 狀態正常（spinner + 禁用）
-- [ ] 空狀態 / 載入狀態正確顯示
-
----
-
-## 5. PR 建立與 Review
-
-### 5.1 建立 PR
-
-```bash
-git push origin feature/your-feature-name
-# 在 GitHub 建立 PR → main
-```
-
-PR 描述需包含：
-- 目的（一句話說明）
-- `Closes #N`（若有 issue）
-- 變更內容清單
-- 測試方式說明
-
-### 5.2 Review 標準
-
-Review 者確認：
-
-| 項目 | 標準 |
-|---|---|
-| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
-| 型別安全 | 無 `any`；使用正確型別 |
-| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
-| 可近用性 | `aria-label`、鍵盤可操作 |
-| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
-| 測試 | lint + build 通過 |
-
----
-
-## 6. 特殊情境流程
-
-### 6.1 跨 runtime 變更（Next.js + py_fn）
-
-若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
-
-1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
-2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
-3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
-
-### 6.2 資料模型變更
-
-修改 Firestore schema 時：
-
-1. 評估**向後相容性**：舊資料是否需要 migration？
-2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
-3. 更新 **Security Rules**（`firestore.rules`）。
-4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
-
-### 6.3 文件變更
-
-文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
-
-```bash
-git checkout -b docs/update-ui-ux-wireframes
-git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
-```
-
----
-
-## 7. AI 輔助開發流程
-
-本專案整合 GitHub Copilot Agent 輔助開發：
-
-### 7.1 使用 Planner Agent（規劃階段）
-
-對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
-
-```
-在 Copilot Chat 輸入：
-「使用 @planner 規劃 wiki-beta pages CRUD 功能」
-```
-
-計畫格式見 [`docs/development-reference/reference/ai/implementation-plan-template.md`](../reference/ai/implementation-plan-template.md)。
-
-### 7.2 使用 Implementer Agent（實作階段）
-
-計畫審核後，交由 Implementer Agent 執行：
-
-```
-在 Copilot Chat 輸入：
-「使用 @implementer 按照計畫實作步驟 1-3」
-```
-
-### 7.3 Delivery Chain
-
-完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
-
-詳細說明見 [`docs/development-reference/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
-`````
-
-## File: docs/development-reference/development/README.md
-`````markdown
-# 開發指南索引
-
-開發流程、分支策略、程式碼風格入口。
-
-## 文件
-
-| 文件 | 說明 |
-| --- | --- |
-| [development-process.md](./development-process.md) | 需求 → 合併的開發流程 |
-| [modules-implementation-guide.md](./modules-implementation-guide.md) | `modules/`、`packages/`、`app/` 邊界 |
-| [branch-strategy.md](./branch-strategy.md) | 分支命名與保護策略 |
-| [code-style.md](./code-style.md) | TypeScript、React、CSS 風格 |
-
-## 驗證
-
-```bash
-npm install && npm run lint && npm run build
-cd py_fn && python -m compileall -q . && python -m pytest tests/ -v
-```
-
-## 初讀
-
-- [agents/knowledge-base.md](../../../agents/knowledge-base.md) — MDDD 與模塊清冊
-- [CONTRIBUTING.md](../../../CONTRIBUTING.md) — 貢獻指南
-
-## 相關
-
-- [../specification/README.md](../specification/README.md) — 規格與契約
-- [../../decision-architecture/adr/](../../decision-architecture/adr/) — 架構決策
-`````
-
-## File: docs/development-reference/event/development-guide.md
-`````markdown
----
-title: Event Core development guide
-description: Developer guide for contributing to event-core — publishing domain events, implementing adapters, dispatch policy, and testing patterns.
----
-
-# Event Core 開發指南
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：參與 `modules/event` 實作或在各模組中發布領域事件的工程師
-
----
-
-## 前置閱讀
-
-開始任何 Event Core 相關實作前，請先閱讀：
-
-1. **架構規範**：`docs/decision-architecture/architecture/event.md`
-2. **開發契約**：`docs/development-reference/reference/development-contracts/event-contract.md`
-3. **整體架構指南**：`agents/knowledge-base.md`
-
----
-
-## 1. 模組結構
-
-```
-modules/event/
-├── domain/
-│   ├── entities/
-│   │   └── domain-event.entity.ts       # DomainEvent class
-│   ├── repositories/
-│   │   ├── ievent-bus.repository.ts     # IEventBusRepository port
-│   │   └── ievent-store.repository.ts   # IEventStoreRepository port
-│   ├── services/
-│   │   └── dispatch-policy.ts           # shouldRetry, nextRetryDelayMs (純函式)
-│   └── value-objects/
-│       └── event-metadata.vo.ts         # EventMetadata
-├── application/
-│   └── use-cases/
-│       ├── publish-domain-event.ts      # PublishDomainEventUseCase
-│       └── list-events-by-aggregate.ts  # ListEventsByAggregateUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                   # EVENT_CORE_CONFIG
-│   └── repositories/
-│       ├── in-memory-event-store.repository.ts
-│       └── noop-event-bus.repository.ts
-├── interfaces/
-│   └── api/
-│       └── event.controller.ts         # EventController
-└── index.ts
-```
-
-### 依賴方向（嚴格）
-
-```
-interfaces (api / controller)
-    ↓
-application (use-cases)
-    ↓
-domain (entities / repositories / services / value-objects)
-    ↑
-infrastructure (adapters)
-```
-
-> ❗ 禁止 domain 直接 import infrastructure；禁止 application 直接 import UI 元件；禁止任何層直接 import `@/modules/*`。
-
----
-
-## 2. 從模組發布領域事件
-
-### 2.1 標準發布流程
-
-在任何模組的 write-side use-case 中注入 `PublishDomainEventUseCase`，在業務操作完成後發布事件：
-
-```typescript
-// modules/task/application/use-cases/assign-task.use-case.ts
-import { PublishDomainEventUseCase } from '@/modules/event'
-import type { ITaskRepository } from '../domain/repositories/itask.repository'
-
-export class AssignTaskUseCase {
-  constructor(
-    private readonly taskRepo: ITaskRepository,
-    private readonly publishEvent: PublishDomainEventUseCase,
-  ) {}
-
-  async execute(dto: { taskId: string; assigneeId: string; actorId: string }) {
-    const task = await this.taskRepo.findById(dto.taskId)
-    task.assign(dto.assigneeId)
-    await this.taskRepo.save(task)
-
-    await this.publishEvent.execute({
-      id:            crypto.randomUUID(),
-      eventName:     'Task.Task.Assigned',
-      aggregateType: 'Task',
-      aggregateId:   dto.taskId,
-      payload:       { assigneeId: dto.assigneeId },
-      metadata:      { actorId: dto.actorId },
-      occurredAt:    new Date(),
-    })
-  }
-}
-```
-
-### 2.2 eventName 命名規則
-
-```
-{ModulePrefix}.{AggregateType}.{PastTenseAction}
-
-合法範例：
-  Wiki.WikiDocument.Created
-  Task.Task.Assigned
-  Schedule.ScheduleRequest.Submitted
-  Billing.Invoice.Issued
-  Daily.DailyEntry.Published
-```
-
----
-
-## 3. 實作新的 EventStore Adapter
-
-當需要從 in-memory 切換到真實持久層（Firestore、Postgres 等）時：
-
-### 3.1 建立 adapter
-
-```typescript
-// modules/{module}/infrastructure/firebase/FirebaseEventStoreRepository.ts
-import type { IEventStoreRepository } from '@/modules/event'
-import { DomainEvent } from '@/modules/event'
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore'
-
-export class FirebaseEventStoreRepository implements IEventStoreRepository {
-  private readonly db = getFirestore()
-
-  async save(event: DomainEvent): Promise<void> {
-    const ref = doc(collection(this.db, 'domain_events'), event.id)
-    await setDoc(ref, {
-      id:            event.id,
-      eventName:     event.eventName,
-      aggregateType: event.aggregateType,
-      aggregateId:   event.aggregateId,
-      occurredAt:    Timestamp.fromDate(event.occurredAt),
-      payload:       event.payload,
-      metadata:      event.metadata,
-      dispatchedAt:  event.dispatchedAt ? Timestamp.fromDate(event.dispatchedAt) : null,
-    })
-  }
-
-  async findById(id: string): Promise<DomainEvent | null> {
-    const snap = await getDoc(doc(collection(this.db, 'domain_events'), id))
-    if (!snap.exists()) return null
-    return this.toDomain(snap.data())
-  }
-
-  async findByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]> {
-    const q = query(
-      collection(this.db, 'domain_events'),
-      where('aggregateType', '==', aggregateType),
-      where('aggregateId', '==', aggregateId),
-      orderBy('occurredAt', 'asc'),
-    )
-    const snaps = await getDocs(q)
-    return snaps.docs.map((d) => this.toDomain(d.data()))
-  }
-
-  async findUndispatched(limitCount: number): Promise<DomainEvent[]> {
-    const q = query(
-      collection(this.db, 'domain_events'),
-      where('dispatchedAt', '==', null),
-      orderBy('occurredAt', 'asc'),
-      limit(limitCount),
-    )
-    const snaps = await getDocs(q)
-    return snaps.docs.map((d) => this.toDomain(d.data()))
-  }
-
-  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
-    const ref = doc(collection(this.db, 'domain_events'), id)
-    await updateDoc(ref, { dispatchedAt: Timestamp.fromDate(dispatchedAt) })
-  }
-
-  private toDomain(data: Record<string, unknown>): DomainEvent {
-    return new DomainEvent(
-      data.id as string,
-      data.eventName as string,
-      data.aggregateType as string,
-      data.aggregateId as string,
-      (data.occurredAt as Timestamp).toDate(),
-      data.payload as Record<string, unknown>,
-      data.metadata as Record<string, unknown>,
-      data.dispatchedAt ? (data.dispatchedAt as Timestamp).toDate() : null,
-    )
-  }
-}
-```
-
-### 3.2 注意事項
-
-- `findByAggregate` 需要 Firestore composite index：`aggregateType ASC` + `aggregateId ASC` + `occurredAt ASC`。
-- `findUndispatched` 需要 index：`dispatchedAt ASC` + `occurredAt ASC`。
-
----
-
-## 4. 使用 Dispatch Policy
-
-dispatch policy 是 domain/services 的純函式，可在任何地方直接 import 使用：
-
-```typescript
-import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
-import { EVENT_CORE_CONFIG } from '@/modules/event/infrastructure/persistence/config'
-
-const policy = { maxRetries: EVENT_CORE_CONFIG.DISPATCH.RETRY_LIMIT, baseDelayMs: 500 }
-
-if (shouldRetry({ attemptCount: attempt, lastAttemptAt: new Date() }, policy)) {
-  const delay = nextRetryDelayMs({ attemptCount: attempt, lastAttemptAt: new Date() }, policy)
-  await sleep(delay)
-  // 重試派送
-}
-```
-
----
-
-## 5. 測試模式
-
-### 5.1 使用 InMemoryEventStoreRepository
-
-```typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from '@/modules/event'
-
-describe('AssignTaskUseCase', () => {
-  it('publishes Task.Task.Assigned event', async () => {
-    const store = new InMemoryEventStoreRepository()
-    const bus = new NoopEventBusRepository()
-    const publishEvent = new PublishDomainEventUseCase(store, bus)
-
-    // ... use-case execution
-
-    const events = await store.findByAggregate('Task', taskId)
-    expect(events).toHaveLength(1)
-    expect(events[0].eventName).toBe('Task.Task.Assigned')
-  })
-})
-```
-
-### 5.2 驗證 domain service 純函式
-
-```typescript
-import { shouldRetry, nextRetryDelayMs } from '@/modules/event'
-
-describe('dispatchPolicy', () => {
-  const policy = { maxRetries: 3, baseDelayMs: 500 }
-
-  it('allows retry when attemptCount < maxRetries', () => {
-    expect(shouldRetry({ attemptCount: 2, lastAttemptAt: null }, policy)).toBe(true)
-  })
-
-  it('disallows retry when attemptCount >= maxRetries', () => {
-    expect(shouldRetry({ attemptCount: 3, lastAttemptAt: null }, policy)).toBe(false)
-  })
-
-  it('computes exponential delay', () => {
-    expect(nextRetryDelayMs({ attemptCount: 1, lastAttemptAt: null }, policy)).toBe(1000)
-  })
-})
-```
-
----
-
-## 6. 常見錯誤
-
-| 錯誤 | 原因 | 修正 |
-|------|------|------|
-| `eventName is required` | `eventName` 傳入空字串 | 確認 eventName 非空且有意義 |
-| `aggregateType is required` | 未傳入聚合類型 | 傳入 `'Task'`、`'WikiDocument'` 等具體類型 |
-| `aggregateId is required` | 未傳入聚合 ID | 傳入對應業務 ID |
-| dispatch 後仍顯示 undispatched | `markDispatched` 未執行 | 確認 `PublishDomainEventUseCase` 正確呼叫後確認 |
-
----
-
-## 7. 驗證指令
-
-```bash
-# Lint
-npm run lint
-
-# Build
-npm run build
-```
-`````
-
-## File: docs/development-reference/event/user-manual.md
-`````markdown
----
-title: Event Core user manual
-description: User manual for the Event Core domain — how domain events are captured, stored, and dispatched across Xuanwu modules.
----
-
-# Event Core 使用手冊
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：工程師、平台架構師、模組 Owner
-
----
-
-## 概覽
-
-Event Core 是 xuanwu-app 的**領域事件基礎**。它讓每個模組能以統一方式：
-
-- 📌 **捕捉**業務狀態變更（例如：任務指派、發票發出、文件建立）
-- 💾 **持久化**事件紀錄（事件即真相）
-- 📡 **派送**事件至其他模組（解耦模組間的直接依賴）
-- 🔍 **查詢**聚合根的完整事件時間線
-
----
-
-## 事件是什麼？
-
-在 xuanwu-app 中，**Domain Event（領域事件）**代表一個業務事實——某件事**確實已發生**。
-
-範例：
-
-| 事件名稱 | 意義 |
-|---------|------|
-| `Task.Task.Assigned` | 某個任務被指派給成員 |
-| `Wiki.WikiDocument.Created` | 知識文件被建立 |
-| `Schedule.ScheduleRequest.Submitted` | 資源請求已提交 |
-| `Billing.Invoice.Issued` | 發票已開立 |
-
----
-
-## 事件生命週期
-
-```
-1. 模組 write-side 完成業務操作
-        ↓
-2. 呼叫 PublishDomainEventUseCase
-        ↓
-3. 事件寫入 EventStore（狀態：undispatched）
-        ↓
-4. 事件發布至 EventBus
-        ↓
-5. 事件標記為 dispatched
-        ↓
-6. 訂閱方接收事件 → 更新 projection / 觸發 side-effect
-```
-
----
-
-## 如何查詢某個聚合根的事件歷史？
-
-使用 `ListEventsByAggregateUseCase`（透過 `EventController`）：
-
-```typescript
-const events = await eventController.listByAggregate({
-  aggregateType: 'Task',
-  aggregateId:   'task_abc123',
-})
-// 回傳：按 occurredAt 升序排列的 DomainEvent[]
-```
-
----
-
-## 事件追蹤欄位（EventMetadata）
-
-每個事件可攜帶追蹤用的 metadata：
-
-| 欄位 | 用途 |
-|------|------|
-| `correlationId` | 跨服務追蹤同一筆業務流程 |
-| `causationId` | 指出哪個事件觸發了這個事件 |
-| `actorId` | 誰執行了這個操作 |
-| `organizationId` | 多租戶隔離 |
-| `workspaceId` | 工作區範圍 |
-| `traceId` | 分散式追蹤 |
-
----
-
-## 重試機制
-
-若事件派送失敗，系統依據 **dispatch policy** 決定是否重試：
-
-| 設定 | 預設值 |
-|------|--------|
-| 最大重試次數（`RETRY_LIMIT`） | 3 次 |
-| 批次查詢大小（`BATCH_SIZE`） | 100 |
-| 延遲策略 | Exponential back-off（指數退避） |
-
----
-
-## 常見問題
-
-### Q: 事件會重複嗎？
-A: 系統保證 **at-least-once** 派送語意，代表事件可能重複派送。訂閱方應以 `event.id` 作為冪等鍵，避免重複處理同一事件。
-
-### Q: 能不能直接查 EventStore 而不用 use-case？
-A: 不建議。應透過 `EventController` → `ListEventsByAggregateUseCase` → `IEventStoreRepository` 的標準路徑，保持層次清晰。
-
-### Q: in-memory adapter 可以上線嗎？
-A: 不行。`InMemoryEventStoreRepository` 和 `NoopEventBusRepository` 僅用於本地開發和測試。生產環境需替換為 Firestore / Pub/Sub adapter。
-
-### Q: 我的模組需要訂閱事件怎麼做？
-A: 目前 event bus adapter 為 noop scaffold。完整訂閱實作（例如 Firestore trigger / Pub/Sub push）待後續 infrastructure adapter 完成後對接。
-
----
-
-## 參考文件
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計 | `docs/decision-architecture/architecture/event.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/event-contract.md` |
-| 開發指南 | `docs/development-reference/event/development-guide.md` |
-| 整體架構指南 | `agents/knowledge-base.md` |
-`````
-
-## File: docs/development-reference/namespace/development-guide.md
-`````markdown
----
-title: Namespace Core development guide
-description: Developer guide for contributing to namespace-core — registering namespaces, implementing adapters, slug policy, and testing patterns.
----
-
-# Namespace Core 開發指南
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：參與 `modules/namespace` 實作或在模組中使用命名空間功能的工程師
-
----
-
-## 前置閱讀
-
-開始任何 Namespace Core 相關實作前，請先閱讀：
-
-1. **架構規範**：`docs/decision-architecture/architecture/namespace.md`
-2. **開發契約**：`docs/development-reference/reference/development-contracts/namespace-contract.md`
-3. **整體架構指南**：`agents/knowledge-base.md`
-
----
-
-## 1. 模組結構
-
-```
-modules/namespace/
-├── domain/
-│   ├── entities/
-│   │   └── namespace.entity.ts              # Namespace class
-│   ├── repositories/
-│   │   └── inamespace.repository.ts         # INamespaceRepository port
-│   ├── services/
-│   │   └── slug-policy.ts                   # deriveSlugCandidate, isValidSlug（純函式）
-│   └── value-objects/
-│       └── namespace-slug.vo.ts             # NamespaceSlug
-├── application/
-│   └── use-cases/
-│       ├── register-namespace.use-case.ts   # RegisterNamespaceUseCase
-│       └── resolve-namespace.use-case.ts    # ResolveNamespaceUseCase
-├── infrastructure/
-│   ├── persistence/
-│   │   └── config.ts                       # NAMESPACE_CORE_CONFIG
-│   └── repositories/
-│       └── in-memory-namespace.repository.ts
-├── interfaces/
-│   └── api/
-│       └── namespace.controller.ts         # NamespaceController
-└── index.ts
-```
-
-### 依賴方向（嚴格）
-
-```
-interfaces (api / controller)
-    ↓
-application (use-cases)
-    ↓
-domain (entities / repositories / services / value-objects)
-    ↑
-infrastructure (adapters)
-```
-
----
-
-## 2. 從模組建立命名空間
-
-當 organization 或 workspace 被建立時，應同步呼叫 `RegisterNamespaceUseCase`：
-
-```typescript
-// modules/organization/application/use-cases/create-organization.use-case.ts
-import { RegisterNamespaceUseCase, deriveSlugCandidate } from '@/modules/namespace'
-import type { IOrganizationRepository } from '../domain/repositories/iorganization.repository'
-import type { INamespaceRepository } from '@/modules/namespace'
-
-export class CreateOrganizationUseCase {
-  constructor(
-    private readonly orgRepo: IOrganizationRepository,
-    private readonly namespaceRepo: INamespaceRepository,
-  ) {}
-
-  async execute(dto: { id: string; displayName: string; ownerAccountId: string }) {
-    // 1. 建立組織實體
-    const org = new Organization(dto.id, dto.displayName, dto.ownerAccountId, new Date())
-    await this.orgRepo.save(org)
-
-    // 2. 推導並註冊命名空間 slug
-    const slugCandidate = deriveSlugCandidate(dto.displayName)
-    const registerNamespace = new RegisterNamespaceUseCase(this.namespaceRepo)
-    await registerNamespace.execute({
-      id:             crypto.randomUUID(),
-      slug:           slugCandidate,
-      kind:           'organization',
-      ownerAccountId: dto.ownerAccountId,
-      organizationId: dto.id,
-    })
-  }
-}
-```
-
----
-
-## 3. Slug 推導與驗證
-
-使用 slug-policy 純函式處理 slug 邏輯：
-
-```typescript
-import { deriveSlugCandidate, isValidSlug, NamespaceSlug } from '@/modules/namespace'
-
-// 推導候選值
-const candidate = deriveSlugCandidate('My Organization 2024!')
-// → 'my-organization-2024'
-
-// 快速驗證格式
-if (!isValidSlug(candidate)) {
-  throw new Error('Derived slug is invalid')
-}
-
-// 建立 VO（更嚴格的驗證，含 length 檢查）
-const slug = NamespaceSlug.create(candidate)
-console.log(slug.value) // → 'my-organization-2024'
-```
-
----
-
-## 4. 解析 Slug → Namespace
-
-```typescript
-import { ResolveNamespaceUseCase } from '@/modules/namespace'
-
-const resolveNamespace = new ResolveNamespaceUseCase(namespaceRepo)
-
-const namespace = await resolveNamespace.execute({
-  slug: 'my-organization-2024',
-  kind: 'organization',
-})
-
-if (!namespace) {
-  // 404 — slug 不存在
-}
-```
-
----
-
-## 5. 實作 Firestore Adapter
-
-```typescript
-// modules/organization/infrastructure/firebase/FirebaseNamespaceRepository.ts
-import type { INamespaceRepository } from '@/modules/namespace'
-import { Namespace, NamespaceSlug } from '@/modules/namespace'
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore'
-import { NAMESPACE_CORE_CONFIG } from '@/modules/namespace/infrastructure/persistence/config'
-
-export class FirebaseNamespaceRepository implements INamespaceRepository {
-  private readonly db = getFirestore()
-  private readonly col = collection(this.db, NAMESPACE_CORE_CONFIG.STORE.COLLECTION)
-
-  async save(namespace: Namespace): Promise<void> {
-    await setDoc(doc(this.col, namespace.id), {
-      id:             namespace.id,
-      slug:           namespace.slug.value,
-      kind:           namespace.kind,
-      ownerAccountId: namespace.ownerAccountId,
-      organizationId: namespace.organizationId,
-      status:         namespace.status,
-      createdAt:      namespace.createdAt.toISOString(),
-      updatedAt:      namespace.updatedAt.toISOString(),
-    })
-  }
-
-  async findBySlug(slug: string, kind: string): Promise<Namespace | null> {
-    const q = query(this.col, where('slug', '==', slug), where('kind', '==', kind))
-    const snaps = await getDocs(q)
-    if (snaps.empty) return null
-    return this.toDomain(snaps.docs[0].data())
-  }
-
-  async existsBySlug(slug: string, kind: string): Promise<boolean> {
-    const q = query(this.col, where('slug', '==', slug), where('kind', '==', kind))
-    const snaps = await getDocs(q)
-    return !snaps.empty
-  }
-
-  // ... implement remaining methods
-
-  private toDomain(data: Record<string, unknown>): Namespace {
-    return new Namespace(
-      data.id as string,
-      NamespaceSlug.create(data.slug as string),
-      data.kind as 'organization' | 'workspace',
-      data.ownerAccountId as string,
-      data.organizationId as string,
-      data.status as 'active' | 'suspended' | 'archived',
-      new Date(data.createdAt as string),
-      new Date(data.updatedAt as string),
-    )
-  }
-}
-```
-
----
-
-## 6. 測試模式
-
-```typescript
-import {
-  InMemoryNamespaceRepository,
-  RegisterNamespaceUseCase,
-  ResolveNamespaceUseCase,
-  deriveSlugCandidate,
-} from '@/modules/namespace'
-
-describe('RegisterNamespaceUseCase', () => {
-  it('registers a new namespace', async () => {
-    const repo = new InMemoryNamespaceRepository()
-    const useCase = new RegisterNamespaceUseCase(repo)
-
-    const ns = await useCase.execute({
-      id:             'ns_001',
-      slug:           deriveSlugCandidate('My Org'),
-      kind:           'organization',
-      ownerAccountId: 'acc_001',
-      organizationId: 'org_001',
-    })
-
-    expect(ns.slug.value).toBe('my-org')
-    expect(ns.status).toBe('active')
-  })
-
-  it('throws on slug collision', async () => {
-    const repo = new InMemoryNamespaceRepository()
-    const useCase = new RegisterNamespaceUseCase(repo)
-
-    await useCase.execute({ id: 'ns_001', slug: 'my-org', kind: 'organization', ownerAccountId: 'acc_001', organizationId: 'org_001' })
-
-    await expect(
-      useCase.execute({ id: 'ns_002', slug: 'my-org', kind: 'organization', ownerAccountId: 'acc_002', organizationId: 'org_002' }),
-    ).rejects.toThrow('already taken')
-  })
-})
-```
-
----
-
-## 7. 驗證指令
-
-```bash
-npm run lint
-npm run build
-```
-`````
-
-## File: docs/development-reference/namespace/user-manual.md
-`````markdown
----
-title: Namespace Core user manual
-description: User manual for the Namespace Core domain — how organization and workspace slugs work, how they are resolved, and what the lifecycle states mean.
----
-
-# Namespace Core 使用手冊
-
-> **文件版本**：v1.0.0
-> **最後更新**：2026-03-20
-> **目標讀者**：工程師、平台架構師、模組 Owner
-
----
-
-## 概覽
-
-Namespace Core 是 xuanwu-app 的**命名空間基礎**。它讓每個組織與工作區都有：
-
-- 🔤 **唯一可閱讀的 slug**（例如 `acme-corp`、`product-team`）
-- 🔗 **穩定的 URL 路由定址**（例如 `/acme-corp/product-team`）
-- 🏷️ **多租戶資源隔離**（透過 `organizationId` 邊界）
-
----
-
-## 什麼是 Namespace？
-
-在 xuanwu-app 中，**Namespace（命名空間）**是一個為組織或工作區保留的具名範圍：
-
-| Kind | 說明 | 範例 slug |
-|------|------|-----------|
-| `organization` | 組織層命名空間 | `acme-corp` |
-| `workspace` | 工作區層命名空間 | `product-team` |
-
----
-
-## Slug 規則
-
-| 規則 | 說明 |
-|------|------|
-| 長度 | 3–63 字元 |
-| 允許字元 | 小寫英文 `a-z`、數字 `0-9`、連字號 `-` |
-| 不允許 | 大寫字母、底線、連字號開頭/結尾 |
-| 唯一性 | 在相同 kind 下唯一 |
-
----
-
-## Namespace 生命週期
-
-| 狀態 | 說明 |
-|------|------|
-| `active` | 正常使用中，slug 可被解析 |
-| `suspended` | 暫停，slug 暫時無法路由（仍保留） |
-| `archived` | 封存，slug 永久保留但不可再啟用 |
-
----
-
-## 常見問題
-
-### Q: Slug 可以修改嗎？
-A: 目前尚未實作 slug 變更流程。Slug 一旦建立後暫時固定，未來實作時會同步建立舊 slug 重定向紀錄。
-
-### Q: 不同組織可以使用相同 slug 嗎？
-A: 在相同 kind（`organization` 或 `workspace`）下，slug 是全域唯一的，不允許重複使用。
-
-### Q: 封存的 namespace 的 slug 還能被新組織使用嗎？
-A: 不行。封存的 namespace 仍保留其 slug，新建立的命名空間無法使用已存在的 slug（包含封存狀態）。
-
----
-
-## 參考文件
-
-| 文件 | 路徑 |
-|------|------|
-| 架構設計 | `docs/decision-architecture/architecture/namespace.md` |
-| 開發契約 | `docs/development-reference/reference/development-contracts/namespace-contract.md` |
-| 開發指南 | `docs/development-reference/namespace/development-guide.md` |
-| 整體架構指南 | `agents/knowledge-base.md` |
-`````
-
-## File: docs/development-reference/README.md
-`````markdown
-# Development Reference
-
-Development guides, specifications, contracts, and planning for the Xuanwu App platform.
-
-## Organization
-
-- [development/](./development/) — Process, branching, code style → [development/README.md](./development/README.md)
-- [reference/](./reference/) — AI customization, plans, contracts → [reference/README.md](./reference/README.md)
-- [specification/](./specification/) — System specs, development contracts → [specification/README.md](./specification/README.md)
-- [event/](./event/) — Event Core developer guide and user manual
-- [namespace/](./namespace/) — Namespace Core developer guide and user manual
-
-## Quick Navigation
-
-- **Develop**: [development/development-process.md](./development/development-process.md)
-- **Plan**: [reference/ai/implementation-plan-template.md](./reference/ai/implementation-plan-template.md)
-- **Review contracts**: [specification/README.md](./specification/README.md)
-
-## Related
-
-- [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture & ADRs
-- [../diagrams-events-explanations/README.md](../diagrams-events-explanations/README.md) — Diagrams & explanations
-`````
-
-## File: docs/development-reference/reference/ai/handoff-matrix.md
-`````markdown
----
-title: Handoff matrix
-description: Formal stage transitions, required inputs, and return paths for the Xuanwu Copilot Delivery Suite.
----
-
-# Handoff matrix
-
-This matrix defines the valid stage transitions for the formal delivery workflow.
-
-## Primary delivery chain
-
-| From | To | Trigger | Required input | Expected output | Can next stage edit? | Can work return? |
-| --- | --- | --- | --- | --- | --- | --- |
-| Planner | Implementer | Plan is complete and safe to execute | Approved implementation plan | Code changes, docs updates, validation results | Yes | No direct return in v1 |
-| Implementer | Reviewer | Implementation and plan-defined validation are complete | Implementation plan, change summary, validation run | Findings or approval to proceed to QA | No | Yes, to Implementer |
-| Reviewer | QA | No blocking review findings remain | Implementation plan, reviewed change summary, review findings | QA evidence and release recommendation | No | Yes, to Implementer |
-
-## Return paths
-
-| From | To | When to use | Required input |
-| --- | --- | --- | --- |
-| Reviewer | Implementer | Bugs, regressions, boundary violations, missing validation, or missing docs must be fixed | Review findings and affected scope |
-| QA | Implementer | QA failures or release-blocking residual risk require changes | QA findings, failed scenarios, and evidence |
-
-## Re-entry paths
-
-| Situation | Recommended entry |
-| --- | --- |
-| New feature request | `/plan-feature` |
-| New bug fix | `/plan-bugfix` |
-| Plan already exists and implementation should start or resume | `/implement-plan` |
-| Changes exist and a formal review should run | `/review-changes` |
-| Review is complete and QA should run or rerun | `/run-qa` |
-| Session was interrupted and stage must be reconstructed | `/resume-delivery` |
-
-## Transition rules
-
-- Only the Implementer stage edits repository files in the formal chain.
-- Reviewer and QA are gates, not fallback implementation stages.
-- The Planner stage should be rerun only when scope, owner, runtime, or validation has materially changed.
-- If a later stage discovers a plan defect instead of an implementation defect, document that defect explicitly before restarting planning.
-`````
-
-## File: docs/development-reference/reference/ai/implementation-plan-template.md
-`````markdown
----
-title: Implementation plan template
-description: Canonical template for formal implementation plans used by the Xuanwu Copilot Delivery Suite.
----
-
-# Implementation plan template
-
-Use this template for any non-trivial delivery task that should move through the formal Planner → Implementer → Reviewer → QA chain.
-
----
-
-# Implementation Plan: <short title>
-
-## 1. Request summary
-
-- Request:
-- Request type: `feature | bugfix | refactor | migration`
-- Business or delivery goal:
-
-## 2. Scope
-
-- In scope:
-- Explicitly out of scope:
-
-## 3. Current state
-
-- Relevant existing behavior:
-- Current constraints:
-- Existing docs or contracts already consulted:
-
-## 4. Target state
-
-- Intended end state:
-- User-visible or system-visible outcome:
-
-## 5. Owning modules and layers
-
-| Area | Owner | Layer(s) touched | Notes |
-| --- | --- | --- | --- |
-| `<area>` | `<module or package>` | `<interfaces/application/domain/infrastructure>` | `<reason>` |
-
-## 6. Runtime ownership
-
-| Concern | Runtime owner | Notes |
-| --- | --- | --- |
-| `<concern>` | `<Next.js | py_fn | Firebase | other>` | `<reason>` |
-
-## 7. Contracts and invariants
-
-- Governing contracts:
-- Invariants that must remain true:
-- Acceptance gates that matter for this task:
-
-## 8. Affected areas
-
-- Files or folders likely to change:
-- Public APIs, DTOs, or routes affected:
-- Data model or persistence implications:
-
-## 9. Implementation tasks
-
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
-
-## 10. Validation plan
-
-- Required checks:
-- Required tests:
-- Manual verification:
-
-## 11. Documentation updates
-
-- Docs that must be updated:
-- Docs that were checked and do not need changes:
-
-## 12. Compatibility or rollback notes
-
-- Compatibility period, if any:
-- Rollback or fallback notes:
-
-## 13. Risks
-
-- Risk 1:
-- Risk 2:
-
-## 14. Open questions
-
-- Question 1:
-- Question 2:
-
-## 15. Handoff notes for Implementer
-
-- Execution order to preserve:
-- Edge cases to keep in view:
-- Required validation before handoff to Reviewer:
-`````
-
-## File: docs/development-reference/reference/ai/legacy-customizations-migration.md
-`````markdown
----
-title: Legacy customizations migration
-description: Migration record for replacing older AI customizations with the Xuanwu Copilot Delivery Suite.
----
-
-# Legacy customizations migration
-
-This page tracks older customization assets that are being replaced by the formal delivery suite.
-
-## Active migration items
-
-| Legacy asset | Replacement | Migration status | Notes |
-| --- | --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md].../../../.github/agents/qa-subagent.agent.md) | [.github/agents/qa.agent.md].../../../.github/agents/qa.agent.md) | In progress | The legacy agent is now hidden from picker and model invocation to avoid QA name collisions while contributor-facing references are cleaned up |
-
-## Migration rules
-
-- Do not silently delete a legacy asset before its replacement is documented.
-- Update [customizations-index.md]../customizations-index.md) when status changes.
-- Remove legacy references from contributor-facing docs before deleting the file.
-
-## Retirement criteria
-
-A legacy customization can be removed when all of the following are true:
-
-- the replacement asset exists,
-- contributor-facing docs point to the replacement,
-- internal references have been updated,
-- and the workflow no longer depends on the legacy name.
-`````
-
-## File: docs/development-reference/reference/ai/plan-schema.md
-`````markdown
----
-title: Implementation plan schema
-description: Required fields and field semantics for implementation plans in the Xuanwu Copilot Delivery Suite.
----
-
-# Implementation plan schema
-
-This schema defines the minimum structure that later stages in the delivery chain rely on. If a required field is missing, the Implementer should not begin formal execution until the gap is fixed.
-
-## Required fields for all plans
-
-| Section | Required | Why it is required |
-| --- | --- | --- |
-| Request summary | Yes | Gives every later stage a stable task identity |
-| Scope | Yes | Defines what is allowed to change |
-| Current state | Yes | Prevents implementation from assuming a blank slate |
-| Target state | Yes | Defines the intended end condition |
-| Owning modules and layers | Yes | Keeps work inside MDDD ownership rules |
-| Runtime ownership | Yes | Prevents cross-runtime leakage |
-| Contracts and invariants | Yes | Protects workflow boundaries and acceptance gates |
-| Affected areas | Yes | Sets expectations for blast radius |
-| Implementation tasks | Yes | Gives the Implementer an execution checklist |
-| Validation plan | Yes | Gives Reviewer and QA concrete gates |
-| Documentation updates | Yes | Prevents docs drift |
-| Risks | Yes | Makes tradeoffs and release concerns explicit |
-| Handoff notes for Implementer | Yes | Carries stage-specific execution constraints |
-
-## Optional fields
-
-| Section | When it can be omitted |
-| --- | --- |
-| Compatibility or rollback notes | Can be brief when no compatibility window exists |
-| Open questions | Can be empty only if the Planner explicitly states there are no unresolved questions |
-
-## Additional requirements for bugfix plans
-
-Bugfix plans must add the following details inside the existing sections:
-
-| Requirement | Where it belongs |
-| --- | --- |
-| Reproduction summary | Request summary or current state |
-| Suspected root cause | Current state |
-| Regression risk | Risks |
-| Verification of the failing scenario | Validation plan |
-
-## Section semantics
-
-### Scope
-
-The scope must clearly separate:
-
-- what is being changed,
-- what is intentionally deferred,
-- and what adjacent work is explicitly not part of the task.
-
-### Owning modules and layers
-
-This section must map the change to concrete owners in `modules/`, `packages/`, or `app/`. Do not use generic labels such as "frontend" or "backend" without naming the actual owner.
-
-### Runtime ownership
-
-This section is required for anything that might touch:
-
-- Next.js request handling,
-- `py_fn`,
-- Firebase write paths,
-- background jobs,
-- or external worker orchestration.
-
-### Contracts and invariants
-
-This section must name the governing contract when a contract-governed workflow is involved. If there is no formal contract, the Planner should state that explicitly instead of leaving the section vague.
-
-### Validation plan
-
-The validation plan must define both automated and manual checks when relevant. Avoid generic text such as "run tests" without naming which validation matters.
-
-### Documentation updates
-
-This section must list the files that should change if the implementation lands successfully. If no documentation updates are required, the plan should say why.
-
-## Rejection rules for later stages
-
-The Implementer should stop and request a plan revision when any of the following is true:
-
-- the owner or runtime is unclear,
-- the task checklist is missing,
-- validation is too vague to execute,
-- documentation impact is omitted,
-- or the plan conflicts with a known contract or repository boundary.
-
-The Reviewer should mark the implementation incomplete when code changes materially exceed the approved scope or when required validation and docs work were skipped.
-
-The QA stage should mark release readiness as partial or blocked when the validation plan cannot be mapped to executed scenarios and evidence.
-`````
-
-## File: docs/development-reference/reference/ai/README.md
-`````markdown
-# AI Customization Reference
-
-Copilot customization assets, delivery planning templates, schemas, and governance indices.
-
-## Primary Purpose
-
-This folder is the **docs-side reference** for the Xuanwu Copilot Delivery Suite. The operative assets live in [.github/](../../../../.github/), and this folder provides routing, ownership, and maintenance policy.
-
-## Core Files
-
-| File | Purpose | Audience |
-| --- | --- | --- |
-| [customizations-index.md](./customizations-index.md) | Primary index for all Copilot assets | Developers, maintainers |
-| [implementation-plan-template.md](./implementation-plan-template.md) | Standard markdown skeleton for plans | Planners, implementers |
-| [plan-schema.md](./plan-schema.md) | Field-level semantics and rules | Plan reviewers |
-| [handoff-matrix.md](./handoff-matrix.md) | Stage transitions and re-entry paths | All delivery stages |
-| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Deprecation and migration tracking | Maintainers |
-
-## Quick Navigation
-
-1. **To understand Copilot customizations**: Start with [customizations-index.md](./customizations-index.md)
-2. **To create a formal plan**: Use [implementation-plan-template.md](./implementation-plan-template.md)
-3. **To validate your plan**: Check against [plan-schema.md](./plan-schema.md)
-4. **To understand stage transitions**: Read [handoff-matrix.md](./handoff-matrix.md)
-5. **To track legacy migrations**: See [legacy-customizations-migration.md](./legacy-customizations-migration.md)
-
-## Scope
-
-- This folder is **reference only** — do not edit files here without updating `.github/` in the same change
-- If this folder conflicts with `.github/`, treat `.github/` as authoritative
-- Keep explanation and routing here; keep operative assets in `.github/`
-
-## Related
-
-- [../../README.md](../../README.md) — Development reference root
-- [../../../../../.github/copilot-instructions.md](../../../../../.github/copilot-instructions.md) — Copilot baseline
-- [../../../../../.github/README.md](../../../../../.github/README.md) — Operative root
-- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow
-`````
-
-## File: docs/development-reference/reference/development-contracts/acceptance-contract.md
-`````markdown
----
-title: Acceptance development contract
-description: Implementation contract for derived workspace acceptance gates and the rules that future approval flows must preserve.
-status: "🏗️ Midway"
----
-
-# Acceptance development contract
-
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
-## Scope
-
-Acceptance module boundary: derived workspace readiness projection and constraints for future approval or override flows.
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Acceptance gate derivation | `modules/acceptance` |
-| Workspace lifecycle, address, personnel, capability, and location context | `modules/workspace` |
-
-## Current query contract
-
-### Entry point
-
-`getWorkspaceAcceptanceSummary(workspace)` returns a `WorkspaceAcceptanceSummary`.
-
-### Output shape
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `gates` | `AcceptanceGate[]` | Derived gate list |
-| `readyCount` | `number` | Count of ready gates |
-| `overallReady` | `boolean` | Aggregate readiness indicator |
-
-### Gate shape
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `id` | `string` | Stable derived gate identifier |
-| `label` | `string` | Gate label |
-| `status` | `ready \| attention` | Derived readiness result |
-| `detail` | `string` | Supporting message |
-
-## State machine
-
-| State | Trigger actor | Allowed next states | Notes |
-| --- | --- | --- | --- |
-| `attention` | derived summary | `ready` | Computed from workspace snapshot |
-| `ready` | derived summary | `attention` | Computed from workspace snapshot |
-| `approved` | future explicit workflow | terminal (until revoke exists) | Cannot overwrite derived status |
-
-Current module owns `attention` and `ready`. `approved` is future business state, modeled separately.
-
-## Invariants
-
-1. Gates remain derived from workspace state until explicit approval events are introduced.
-2. Future manual overrides must not rewrite workspace fields to simulate readiness.
-3. Approval, waiver, or sign-off must become acceptance-owned write records.
-4. Summary stays safe to recompute from workspace input + any future overrides.
-
-## Open blockers
-
-Before write-side work begins, decide:
-- Approval scope (per gate or whole summary)?
-- Who can approve / waive / reopen?
-- Does approval affect user-visible readiness?
-- Where are approval records stored?
-`````
-
-## File: docs/development-reference/reference/development-contracts/billing-contract.md
-`````markdown
----
-title: Billing development contract
-description: Implementation contract for billing record queries and the future invoice, settlement, and refund boundaries required for enterprise billing work.
-status: "📅 Planned"
----
-
-# Billing development contract
-
-> **開發狀態**：📅 Planned — 已規劃，尚未開始實作
-
-## Scope
-
-Current billing module: read-side queries over in-memory data. Target: future invoice, settlement, and refund slices.
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Billing record list use case | `modules/billing` |
-| Organization and optional workspace scope | `modules/billing` input boundary |
-| Persistence | currently in-memory compatibility adapter |
-
-## Current query contract
-
-### Entry point
-
-`getOrganizationBillingRecords(organizationId, workspaceId?)` returns a list of `BillingRecord` values.
-
-### Record shape
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `id` | `string` | Record identifier |
-| `organizationId` | `string` | Tenant |
-| `workspaceId` | `string?` | Workspace scope |
-| `description` | `string` | Line description |
-| `amountCents` | `number` | Minor units |
-| `currency` | `USD\|TWD` | Code |
-| `status` | `pending\|paid\|failed\|refunded` | State |
-| `invoiceNumber` | `string?` | Invoice ref |
-| `dueAtISO` | `string?` | Due time |
-| `paidAtISO` | `string?` | Payment time |
-| `createdAtISO` | `string` | Created |
-| `updatedAtISO` | `string` | Updated |
-
-## Target write-side slices
-
-- Invoice issuance  
-- Payment settlement
-- Refund workflow
-- Credit/adjustment ledger
-- Failure + retry policy
-
-## State machine
-
-| State | Trigger actor | Allowed next states | Notes |
-| --- | --- | --- | --- |
-| `pending` | Issue | `paid`, `failed`, `refunded` | |
-| `paid` | Settle | `refunded` | Terminal until refund |
-| `failed` | Failure | `pending` only via retry | No silent reuse |
-| `refunded` | Refund | terminal | Preserve src ref |
-
-## Invariants
-
-1. Money in minor units only
-2. Organization required; workspace optional
-3. Provider webhooks ≠ domain model
-4. Every state change: timestamp + reason
-
-## Acceptance gates
-
-Before write-side, complete:
-- Durable persistence (replace in-memory)
-- Invoice/payment/refund split
-- Auditability requirements
-- Settlement state review (high-risk)
-`````
-
-## File: docs/development-reference/reference/development-contracts/daily-contract.md
-`````markdown
----
-title: Daily development contract
-description: Development contract for Workspace Daily and Organization Daily, covering the current digest boundary, target write-side model, and Instagram-inspired feed rules.
-status: "🏗️ Midway"
----
-
-# Daily development contract
-
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
-## Purpose
-
-This contract defines the target development boundary for Daily in xuanwu-app:
-
-- **Workspace Daily** is the daily feed for a single workspace
-- **Organization Daily** aggregates all workspace Daily feeds under one organization
-- the current standardized baseline is canonical authored entries over `dailyEntries`
-- notification-driven digest remains a compatibility layer during migration
-- the target implementation evolves Daily into an explainable feed system with authored entries, system signals, ranking, and promotion paths
-
-This contract exists to remove ambiguity before expanding Daily beyond its current authored-entry standard.
-
-## Current runtime boundary
-
-### Implemented read-side
-
-The repository currently ships these Daily queries:
-
-| Query | Purpose | Current source |
-| --- | --- | --- |
-| `getWorkspaceDailyDigest(workspaceId, accountId)` | Load the daily digest for a single workspace | `DefaultDailyDigestRepository` over notification data |
-| `getOrganizationDailyDigest(organizationId, workspaceIds)` | Load the organization-level digest across owned workspaces | `DefaultDailyDigestRepository` over notification data |
-| `getWorkspaceDailyFeed(workspaceId)` | Load canonical authored Daily entries for one workspace | `FirebaseDailyFeedRepository` over `dailyEntries` |
-| `getOrganizationDailyFeed(organizationId, workspaceIds)` | Load canonical authored Daily entries across an organization | `FirebaseDailyFeedRepository` over `dailyEntries` |
-
-### Implemented command-side
-
-| Command | Purpose | Current source |
-| --- | --- | --- |
-| `publishDailyEntry(input)` | Publish a canonical authored Daily entry | `PublishDailyEntryUseCase` + `FirebaseDailyEntryRepository` |
-
-### Implemented entity contract
-
-```ts
-interface DailyDigestItem {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  read: boolean;
-  timestamp: number;
-  workspaceId: string | null;
-}
-
-interface WorkspaceDailyDigestEntity {
-  workspaceId: string;
-  accountId: string;
-  summary: { total: number; unread: number };
-  items: DailyDigestItem[];
-}
-
-interface OrganizationDailyDigestEntity {
-  organizationId: string;
-  summary: { total: number; unread: number };
-  items: DailyDigestItem[];
-}
-```
-
-### Current limitations
-
-1. Organization Daily ranking is still freshness-only (`rankReason = ["freshness"]`)
-2. authored entries and notification digest still coexist as dual read paths
-3. no interaction contract implementation yet (ack / bookmark / reaction / comment)
-4. no explicit promotion path to knowledge, task, schedule, or audit
-5. `selected_workspaces` visibility is reserved in the contract but not yet fully implemented in read-side targeting
-
-## Product contract
-
-### Core product rules
-
-1. `Workspace Daily` behaves like the workspace's daily profile feed
-2. `Organization Daily` only aggregates workspace Daily entries belonging to the same organization
-3. Daily is primarily for **today's visible operating narrative**, not long-term document storage
-4. content with long-term value must be promotable out of Daily
-5. Organization Daily must support explainable prioritization instead of raw chronological dumping
-
-### Instagram value extraction rules
-
-| Extracted mechanism | Daily rule |
-| --- | --- |
-| Profile | each workspace feed must remain attributable to one workspace identity |
-| Feed | each audience sees a ranked stream of today's relevant entries |
-| Story | ephemeral entries may expire automatically after 24 hours |
-| Highlight | promoted entries may stay pinned beyond the default feed window |
-| Engagement | the system must record whether a signal was seen, acknowledged, or bookmarked |
-| Discovery | organization view may recommend related workspaces or related entries, but cannot cross organization boundaries |
-
-## Bounded contexts
-
-| Context | Responsibility |
-| --- | --- |
-| Daily Authoring Context | draft, publish, archive, and promote human-authored entries |
-| Daily Signal Context | map domain events from other modules into Daily-compatible signals |
-| Daily Feed Context | assemble ranked feeds for workspace and organization audiences |
-| Daily Interaction Context | record acknowledgement, bookmark, reaction, and follow-up actions |
-| Daily Promotion Context | escalate Daily content into task, knowledge, schedule, audit, or notification workflows |
-
-## Target domain model
-
-### Core entities
-
-| Entity | Role | Key fields |
-| --- | --- | --- |
-| `DailyEntry` | canonical authored or system-generated Daily item | `entryId`, `organizationId`, `workspaceId`, `authorId`, `entryType`, `status`, `visibility`, `title`, `summary`, `body`, `publishedAtISO`, `expiresAtISO` |
-| `DailyInteraction` | visible user interaction with a Daily entry | `interactionId`, `entryId`, `actorId`, `interactionType`, `createdAtISO` |
-| `DailyFeedItem` | read-side representation prepared for a target audience | `audienceKey`, `entryId`, `rankScore`, `rankReason`, `workspaceId`, `publishedAtISO`, `expiresAtISO` |
-| `DailyPromotion` | record of escalation from Daily into another module | `promotionId`, `entryId`, `targetType`, `targetId`, `promotedBy`, `promotedAtISO` |
-
-### Enumerations
-
-#### `DailyEntryType`
-
-- `update`
-- `blocker`
-- `ask`
-- `milestone`
-- `signal`
-- `story`
-- `highlight`
-
-#### `DailyEntryStatus`
-
-- `draft`
-- `published`
-- `archived`
-- `promoted`
-
-#### `DailyVisibility`
-
-- `workspace_only`
-- `organization`
-- `selected_workspaces`
-- `public_demo`
-
-#### `DailyInteractionType`
-
-- `seen`
-- `acknowledged`
-- `bookmarked`
-- `reacted`
-- `commented`
-- `promoted`
-
-## Aggregate rules
-
-### `DailyEntryAggregate`
-
-Boundary:
-
-- owns draft → publish → archive → promote lifecycle
-- owns authored content and system-signal normalization
-
-Invariants:
-
-1. a published entry must belong to exactly one workspace and one organization
-2. `workspaceId` and `organizationId` become immutable after publish
-3. `story` entries must define `expiresAtISO`
-4. archived entries cannot receive new promotion events
-
-### `DailyInteractionAggregate`
-
-Boundary:
-
-- owns user-visible acknowledgement trail
-- must not mutate the original entry body
-
-Invariants:
-
-1. interaction must target one existing `DailyEntry`
-2. duplicate `acknowledged` interaction by the same actor for the same entry must be idempotent
-3. interaction timestamps must be append-only
-
-### `DailyFeedProjection`
-
-Boundary:
-
-- consumes Daily entry and signal events
-- materializes audience-specific ranked feed items
-
-Invariants:
-
-1. Organization audience may only contain entries whose `organizationId` matches the audience organization
-2. workspace audience may only contain entries whose `workspaceId` matches the audience workspace or are intentionally shared into that audience
-3. expired entries must disappear from default feed queries unless explicitly highlighted
-4. rank metadata must be recomputable from deterministic inputs
-
-## Repository contracts
-
-### `DailyEntryRepository`
-
-Required responsibilities:
-
-- create draft entry
-- publish entry
-- archive entry
-- find entry by id
-- list entries by workspace and day window
-
-### `DailyFeedRepository`
-
-Required responsibilities:
-
-- list workspace feed
-- list organization feed
-- rebuild feed projections for one audience
-
-### `DailyInteractionRepository`
-
-Required responsibilities:
-
-- record interaction idempotently
-- list interaction summary for an entry
-
-### `DailyPromotionRepository`
-
-Required responsibilities:
-
-- create promotion record
-- look up promotion target by entry
-
-## Data contracts
-
-### `dailyEntries`
-
-**Collection Path**: `/dailyEntries/{entryId}`
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `organizationId` | `string` | yes | owning organization |
-| `workspaceId` | `string` | yes | owning workspace |
-| `authorId` | `string` | yes | actor who created the entry |
-| `entryType` | `DailyEntryType` | yes | feed semantics |
-| `status` | `DailyEntryStatus` | yes | lifecycle state |
-| `visibility` | `DailyVisibility` | yes | audience rule |
-| `title` | `string` | yes | short headline |
-| `summary` | `string` | yes | digest-safe summary |
-| `body` | `string` | no | extended body |
-| `media` | `DailyMedia[]` | no | optional attachments |
-| `tags` | `string[]` | no | indexing and filtering |
-| `publishedAtISO` | nullable `string` | no | null while draft |
-| `expiresAtISO` | nullable `string` | no | required for `story` |
-| `sourceModule` | nullable `string` | no | set for system signals |
-| `sourceEventId` | nullable `string` | no | set for event-driven projections |
-| `createdAtISO` | `string` | yes | creation time |
-| `updatedAtISO` | `string` | yes | last mutation time |
-
-### `dailyInteractions`
-
-**Collection Path**: `/dailyInteractions/{interactionId}`
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `entryId` | `string` | yes | target Daily entry |
-| `organizationId` | `string` | yes | audience boundary |
-| `workspaceId` | nullable `string` | no | optional scope |
-| `actorId` | `string` | yes | acting account |
-| `interactionType` | `DailyInteractionType` | yes | interaction kind |
-| `payload` | nullable `object` | no | reaction emoji, comment reference, etc. |
-| `createdAtISO` | `string` | yes | append-only timestamp |
-
-### `dailyFeedProjections`
-
-**Collection Path**: `/dailyFeedProjections/{audienceKey}/items/{entryId}`
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `audienceKey` | `string` | yes | `workspace:{id}` or `organization:{id}` |
-| `organizationId` | `string` | yes | audience organization |
-| `workspaceId` | `string` | yes | origin workspace |
-| `entryId` | `string` | yes | projected source |
-| `entryType` | `DailyEntryType` | yes | projected semantics |
-| `title` | `string` | yes | display headline |
-| `summary` | `string` | yes | display summary |
-| `rankScore` | `number` | yes | deterministic ranking score |
-| `rankReason` | `string[]` | yes | explainable reason list |
-| `interactionSummary` | `object` | yes | unread / acknowledged / bookmarked stats |
-| `publishedAtISO` | `string` | yes | publish timestamp |
-| `expiresAtISO` | nullable `string` | no | hidden after expiry |
-
-## Query contracts
-
-### Workspace Daily query
-
-Input:
-
-- `workspaceId: string`
-- optional future filters: `entryTypes`, `includeArchived`, `cursor`
-
-Output rules:
-
-1. current implementation reads canonical feed rows from `FirebaseDailyFeedRepository`
-2. workspace audience currently shows the workspace's own authored entries and filters expired entries
-3. interaction summary is not implemented yet and remains future scope
-
-### Organization Daily query
-
-Input:
-
-- `organizationId: string`
-- `workspaceIds: string[]`
-- optional future filters: `workspaceId`, `entryTypes`, `priority`, `cursor`
-
-Output rules:
-
-1. current implementation reads canonical feed rows from `FirebaseDailyFeedRepository`
-2. it only returns entries whose `organizationId` matches and whose `workspaceId` belongs to the provided workspace list
-3. current visibility enforcement includes `organization` and `public_demo` entries only
-4. current ranking is freshness-only; explainable multi-factor ranking remains future scope
-5. every row preserves the origin `workspaceId`
-
-## Command contracts
-
-### `publishDailyEntry`
-
-Required input:
-
-- `organizationId`
-- `workspaceId`
-- `authorId`
-- `entryType`
-- `visibility`
-- `title`
-- `summary`
-
-Expected outcomes:
-
-- validate required fields and supported enum values
-- create and publish a canonical `DailyEntry`
-- make the entry available through `getWorkspaceDailyFeed()` / `getOrganizationDailyFeed()`
-- audit trail / projection rebuild remain future scope
-
-### `acknowledgeDailyEntry`
-
-Required input:
-
-- `entryId`
-- `actorId`
-
-Expected outcomes:
-
-- idempotently record acknowledgement
-- update feed interaction summary
-- never mutate entry content
-
-### `promoteDailyEntry`
-
-Required input:
-
-- `entryId`
-- `targetType`
-- `actorId`
-
-Expected outcomes:
-
-- create promotion record
-- hand off to the target module boundary
-- keep source entry traceable
-
-## Ranking contract
-
-Organization Daily ranking must be explainable using deterministic factors. The first version should score on:
-
-1. `urgency` — blocker, overdue, unresolved ask
-2. `impact` — affects multiple workspaces or high-priority goals
-3. `freshness` — newly published today
-4. `engagement` — acknowledged, bookmarked, or escalated by multiple actors
-5. `silenceRisk` — workspace expected to update but currently quiet
-
-Every projected organization item must carry `rankReason[]` so the UI can explain why it appears near the top.
-
-## Event contract
-
-### Minimum required events
-
-- `DailyEntryDrafted`
-- `DailyEntryPublished`
-- `DailyEntryArchived`
-- `DailyEntryPromoted`
-- `DailyInteractionRecorded`
-- `DailyFeedProjected`
-
-### Integration events from other modules
-
-The Daily signal context may consume normalized events such as:
-
-- `ScheduleRequestSubmitted`
-- `TaskBlocked`
-- `KnowledgeDocumentPublished`
-- `InvoiceOverdue`
-- `AuditFlagRaised`
-
-These must be normalized into `DailyEntryType = signal` instead of leaking raw module payloads directly into the UI.
-
-## Acceptance gates
-
-Before Daily expands beyond the current authored-entry standard, these gates must be satisfied:
-
-1. canonical write model for `DailyEntry` remains the only standard write surface
-2. workspace and organization feeds stay behind an explicit `DailyFeedRepository` boundary, so projection materialization can replace direct scans without UI breakage
-3. visibility and organization-boundary rules are enforced
-4. ranking reasons are explainable and testable
-5. promotion paths to at least one target module are defined
-6. current digest compatibility is preserved during migration without reclaiming primary ownership of the surface
-`````
-
-## File: docs/development-reference/reference/development-contracts/event-contract.md
-`````markdown
----
-title: Event Core development contract
-description: Implementation contract for the Event Core domain — canonical domain event capture, persistence, dispatch, aggregate correlation, and outbox pattern.
-status: "🚧 Developing"
----
-
-# Event Core development contract
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-## Purpose
-
-`modules/event` defines:
-- Unified domain event capture + persistence
-- Dispatch boundary → event bus / projections
-- Correlation → aggregate timelines
-- Retry/outbox → at-least-once delivery
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| DomainEvent entity | `modules/event/domain/entities` |
-| EventMetadata value object | `modules/event/domain/value-objects` |
-| Dispatch policy (pure) | `modules/event/domain/services` |
-| Event store port | `modules/event/domain/repositories/IEventStoreRepository` |
-| Event bus port | `modules/event/domain/repositories/IEventBusRepository` |
-| Publish use-case | `modules/event/application/use-cases/PublishDomainEventUseCase` |
-| List use-case | `modules/event/application/use-cases/ListEventsByAggregateUseCase` |
-| In-memory adapter | `modules/event/infrastructure/repositories/InMemoryEventStoreRepository` |
-| Noop bus adapter | `modules/event/infrastructure/repositories/NoopEventBusRepository` |
-
-## Bounded contexts
-
-| Context | Responsibility |
-| --- | --- |
-| Capture Context | create and validate a DomainEvent from module write-side |
-| Persistence Context | save events to the event store in undispatched state |
-| Dispatch Context | publish events to the event bus; mark dispatched |
-| Correlation Context | query events by aggregateType + aggregateId for timeline reconstruction |
-| Retry Context | apply dispatchPolicy to determine retry eligibility and back-off delay |
-
-## DomainEvent entity contract
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | `string` | yes | UUID v4 |
-| `eventName` | `string` | yes | `Module.AggregateType.Action` |
-| `aggregateType` | `string` | yes | e.g. WikiDocument |
-| `aggregateId` | `string` | yes | Root ID |
-| `occurredAt` | `Date` | yes | When event occurred |
-| `payload` | `Record<string, unknown>` | yes | Business data |
-| `metadata` | `EventMetadata?` | no | Tracing fields |
-| `dispatchedAt` | `Date\|null` | no | Dispatch time or null |
-
-## EventMetadata contract
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `correlationId` | `string?` | Cross-service correlation |
-| `causationId` | `string?` | Upstream event ID |
-| `actorId` | `string?` | Actor ID |
-| `organizationId` | `string?` | Org boundary |
-| `workspaceId` | `string?` | Workspace or org-level |
-| `traceId` | `string?` | OpenTelemetry ID |
-
-## eventName naming convention
-
-```
-Module.AggregateType.Action
-```
-Examples: `Wiki.Document.Created`, `Task.Task.Assigned`, `Schedule.Request.Submitted`
-
-Rules: non-empty, validated in constructor
-
-## IEventStoreRepository contract
-
-```typescript
-interface IEventStoreRepository {
-  save(event: DomainEvent): Promise<void>
-  findById(id: string): Promise<DomainEvent | null>
-  findByAggregate(aggregateType: string, aggregateId: string): Promise<DomainEvent[]>
-  findUndispatched(limit: number): Promise<DomainEvent[]>
-  markDispatched(id: string, dispatchedAt: Date): Promise<void>
-}
-```
-
-- `findByAggregate` must return events in ascending `occurredAt` order.
-- `findUndispatched` must return events in ascending `occurredAt` order, up to `limit`.
-- `markDispatched` is idempotent — calling it twice on the same id must not throw.
-
-## IEventBusRepository contract
-
-```typescript
-interface IEventBusRepository {
-  publish(event: DomainEvent): Promise<void>
-}
-```
-
-- Implementers must guarantee at-least-once delivery semantics.
-- The `NoopEventBusRepository` is a scaffold-only adapter; it must not be used in production.
-
-## Dispatch policy contract
-
-```typescript
-// domain/services/dispatch-policy.ts
-
-shouldRetry(attempt: DispatchAttempt, policy: DispatchPolicy): boolean
-nextRetryDelayMs(attempt: DispatchAttempt, policy: DispatchPolicy): number
-```
-
-- Both functions are pure — no side effects, no external dependencies.
-- Default policy values are defined in `infrastructure/persistence/config.ts`:
-  - `DISPATCH.RETRY_LIMIT = 3`
-  - `DISPATCH.BATCH_SIZE = 100`
-
-## Outbox pattern contract (target)
-
-The target implementation uses the outbox pattern:
-
-1. The write-side use-case saves the business aggregate **and** the domain event in the same atomic transaction.
-2. A background worker queries `findUndispatched(limit)`.
-3. For each undispatched event, it calls `IEventBusRepository.publish(event)`.
-4. On success, it calls `markDispatched(id, dispatchedAt)`.
-5. On failure, it applies `dispatchPolicy.shouldRetry` to decide whether to retry or dead-letter.
-
-> **Note**: Current `PublishDomainEventUseCase` is synchronous (no outbox). Must replace before production.
-
-## Infrastructure configuration contract
-
-```typescript
-EVENT_CORE_CONFIG = { DISPATCH: { BATCH_SIZE: 100, RETRY_LIMIT: 3 } }
-```
-Adapters must read config, not hardcode.
-
-## Layer ownership
-
-| Layer | Owns | Must not |
-| --- | --- | --- |
-| Domain | entities, value objects, repository ports, dispatch-policy service | import SDK, HTTP, DB |
-| Application | use-cases, DTO composition | directly import infrastructure or UI |
-| Infrastructure | store and bus adapters | leak provider details into domain |
-| Interfaces | controller facade | bypass application layer |
-`````
-
-## File: docs/development-reference/reference/development-contracts/namespace-contract.md
-`````markdown
----
-title: Namespace Core development contract
-description: Implementation contract for the Namespace Core domain — canonical named-scope registration, slug validation, collision detection, and resolution for multi-tenant resource addressing.
-status: "🚧 Developing"
----
-
-# Namespace Core development contract
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-## Purpose
-
-`modules/namespace` defines:
-- Uniform slug registration and validation (org/workspace level)
-- Slug → namespace resolution
-- Multi-tenant addressing layer
-- Human-readable URL routing foundation (`/{org-slug}/{workspace-slug}`)
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Namespace entity | `modules/namespace/domain/entities` |
-| NamespaceSlug value object | `modules/namespace/domain/value-objects` |
-| Slug policy (pure) | `modules/namespace/domain/services` |
-| Namespace repository port | `modules/namespace/domain/repositories/INamespaceRepository` |
-| Register use-case | `modules/namespace/application/use-cases/RegisterNamespaceUseCase` |
-| Resolve use-case | `modules/namespace/application/use-cases/ResolveNamespaceUseCase` |
-| In-memory adapter | `modules/namespace/infrastructure/repositories/InMemoryNamespaceRepository` |
-
-## Bounded contexts
-
-| Context | Responsibility |
-| --- | --- |
-| Registration | Validate slug, check collision, persist |
-| Resolution | Translate slug + kind → namespace or null |
-| Lifecycle | Suspend, restore, archive records |
-| Derivation | Display name → slug candidate (pure)
-
-## Namespace entity contract
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | `string` | UUID v4 |
-| `slug` | `NamespaceSlug` | Validated VO |
-| `kind` | `org\|workspace` | Scope |
-| `ownerAccountId` | `string` | Registering user |
-| `organizationId` | `string` | Org boundary |
-| `status` | `active\|suspended\|archived` | State |
-| `createdAt` | `Date` | Registered |
-| `updatedAt` | `Date` | Updated |
-
-## NamespaceSlug value object contract
-
-**3–63 chars**: a-z, 0-9, hyphen. Cannot start/end with hyphen.
-
-```ts
-NamespaceSlug.create('my-org')  // ✓
-NamespaceSlug.create('-bad-')   // ✗
-NamespaceSlug.create('AB_CD')   // ✗
-```
-
-## Slug policy contract (pure functions)
-
-```typescript
-// domain/services/slug-policy.ts
-
-deriveSlugCandidate(displayName: string): string
-isValidSlug(slug: string): boolean
-```
-
-- Both functions are pure — no side effects, no external dependencies.
-- `deriveSlugCandidate` normalises a display name into a slug candidate (does not guarantee uniqueness).
-- `isValidSlug` validates the slug format without instantiating the VO.
-
-## INamespaceRepository contract
-
-```typescript
-interface INamespaceRepository {
-  save(namespace: Namespace): Promise<void>
-  findById(id: string): Promise<Namespace | null>
-  findBySlug(slug: string, kind: NamespaceKind): Promise<Namespace | null>
-  findByOrganization(organizationId: string): Promise<Namespace[]>
-  existsBySlug(slug: string, kind: NamespaceKind): Promise<boolean>
-}
-```
-
-- `findBySlug` must return the **active** namespace matching slug + kind; it must not return suspended or archived records as valid routing targets.
-- `existsBySlug` must check across all statuses (not just active) to prevent slug reuse after archive.
-- `findByOrganization` returns all namespaces for the org, unfiltered by status.
-
-## Collision detection contract
-
-```
-RegisterNamespaceUseCase.execute(dto):
-  1. NamespaceSlug.create(dto.slug)          ← format validation
-  2. existsBySlug(slug, kind)                ← collision check
-  3. if exists → throw "slug already taken"
-  4. new Namespace(..., status: 'active')    ← create entity
-  5. save(namespace)                         ← persist
-```
-
-- Collision check is scoped per `kind` — the same slug string is allowed once for `organization` and once for `workspace`.
-- Slug uniqueness is enforced at the application layer via the repository port, not in the domain entity.
-
-## Namespace lifecycle contract
-
-| `suspend()` | `active` → `suspended` | must be active |
-| `restore()` | `suspended` → `active` | must be suspended |
-| `archive()` | `active\|suspended` → `archived` | final
-
-## Infrastructure configuration contract
-
-```typescript
-NAMESPACE_CORE_CONFIG = {
-  STORE: { COLLECTION: 'namespaces' },
-  SLUG:  { MIN_LENGTH: 3, MAX_LENGTH: 63 },
-}
-```
-
-## Layer ownership
-
-| Layer | Owns | Must not |
-| --- | --- | --- |
-| Domain | entities, value objects, repository ports, slug-policy service | import SDK, HTTP, DB |
-| Application | use-cases, DTO composition, collision-check orchestration | directly import infrastructure or UI |
-| Infrastructure | namespace store adapter | leak provider details into domain |
-| Interfaces | controller facade | bypass application layer |
-`````
-
-## File: docs/development-reference/reference/development-contracts/schedule-contract.md
-`````markdown
----
-title: Schedule development contract
-description: Full MDDD contract for bidirectional request-fulfillment scheduling with intelligent task-skill matching.
-status: "🏗️ Midway"
----
-
-# Schedule development contract
-
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
-## Purpose
-
-This contract defines the target full MDDD architecture for a bidirectional scheduling system:
-
-- demand side: workspace submits requests
-- supply side: organization fulfills requests
-
-Canonical domain flow:
-
-`Request -> Task -> Match -> Assignment -> Schedule`
-
-This contract is the source of truth for domain boundaries, aggregates, invariants, workflow state transitions, matching, scheduling, events, and module structure.
-
-## Bounded contexts
-
-| Context | Responsibility |
-| --- | --- |
-| Request Intake Context | capture and govern workspace demand (`Request`) |
-| Fulfillment Context | decompose request to executable `Task` units and drive assignment decisions |
-| Matching Context | evaluate qualified candidates and produce `Match` outcomes |
-| Scheduling Context | allocate time slots, prevent conflicts/overload, and maintain `Schedule` |
-| Projection & Notification Context | publish read models and integration events |
-
-## Domain model (structured)
-
-### Core entities
-
-| Entity | Role | Key fields |
-| --- | --- | --- |
-| `Request` | Workspace demand aggregate root | `requestId`, `workspaceId`, `organizationId`, `requestedWindow`, `priority`, `requiredSkills`, `constraints`, `preferences`, `status`, `createdBy`, `createdAt` |
-| `Task` | Executable work unit derived from request | `taskId`, `requestId`, `title`, `requiredCapabilities`, `estimatedMinutes`, `effortWeight`, `locationType`, `timeWindow`, `status` |
-| `Match` | Candidate evaluation result for a task | `matchId`, `taskId`, `candidateId`, `score`, `scoreBreakdown`, `disqualificationReasons`, `constraintViolations`, `rank`, `generatedAt` |
-| `Assignment` | Offer/acceptance/rejection lifecycle between task and assignee | `assignmentId`, `taskId`, `assigneeId`, `organizationId`, `offeredAt`, `respondBy`, `status`, `decisionReason` |
-| `Schedule` | Time allocation and execution plan for accepted assignments | `scheduleId`, `assignmentId`, `calendarSlot`, `timezone`, `status`, `version`, `createdAt`, `updatedAt` |
-
-### Supporting entities
-
-| Entity | Role | Key fields |
-| --- | --- | --- |
-| `AccountUser` | Person identity and eligibility source | `accountUserId`, `organizationMemberships`, `teamMemberships`, `capabilities`, `active` |
-| `Organization` | Fulfillment owner and policy boundary | `organizationId`, `policySet`, `workRules`, `timezone`, `businessHours` |
-| `Team` | Execution sub-boundary in organization | `teamId`, `organizationId`, `capacityProfile`, `supportedCapabilities` |
-| `Capability` | Stable capability taxonomy entry | `capabilityId`, `name`, `category` |
-| `Skill` | Proficiency-bearing concrete skill signal | `skillId`, `capabilityId`, `level`, `lastValidatedAt` |
-| `Availability` | Assignee availability ledger | `accountUserId`, `calendarSlots`, `exceptions`, `maxConcurrentAssignments` |
-| `CalendarSlot` | Time-slot value object for planning | `startAt`, `endAt`, `timezone` |
-| `Constraint` | Hard requirement for matching/scheduling | `constraintType`, `parameters`, `scope` |
-| `Preference` | Soft requirement affecting ranking | `preferenceType`, `weight`, `parameters` |
-
-### Value objects
-
-- `RequestPriority`
-- `TimeWindow`
-- `LocationRequirement`
-- `SkillRequirement`
-- `CapabilityRequirement`
-- `ScoreBreakdown`
-- `ConflictSet`
-- `LoadProfile`
-
-## Aggregates definition
-
-### `RequestAggregate` (root: `Request`)
-
-Boundary:
-
-- owns request creation/submission/cancellation/closure lifecycle
-- owns immutable demand snapshot after submit
-
-Invariants:
-
-1. submitted request must contain at least one required capability or skill
-2. `workspaceId` and `organizationId` become immutable after `submitted`
-3. cancelled/closed request cannot emit new executable tasks
-
-### `TaskAggregate` (root: `Task`)
-
-Boundary:
-
-- owns task decomposition, readiness, execution status
-- links back to one `Request`
-
-Invariants:
-
-1. task must reference exactly one request
-2. task cannot transition to `assigned` without accepted assignment
-3. completed/cancelled task is terminal
-
-### `AssignmentAggregate` (root: `Assignment`)
-
-Boundary:
-
-- owns offer, accept, reject, cancel, complete lifecycle
-- ties one task to one assignee decision stream
-
-Invariants:
-
-1. only match-qualified candidates can be offered
-2. accepted assignment must be unique active assignment for the task
-3. rejected/cancelled assignment cannot move to accepted
-
-### `ScheduleAggregate` (root: `Schedule`)
-
-Boundary:
-
-- owns slot reservation, reschedule, cancellation, completion
-- references accepted assignment
-
-Invariants:
-
-1. no overlapping active slot for same assignee in same time window
-2. load must not exceed assignee overload policy
-3. schedule cannot exist without accepted assignment
-
-### `ProjectionAggregate` (root: projection stream)
-
-Boundary:
-
-- consumes domain events and materializes read models
-- does not own business decisions
-
-Invariants:
-
-1. projection is idempotent by event id/version
-2. stale event versions must be ignored
-
-## Matching engine contract
-
-### Objective
-
-Given a `Task` and organizational candidate pool, produce ranked `Match` results with deterministic filtering and scoring.
-
-### Inputs
-
-- task requirements (`CapabilityRequirement`, `SkillRequirement`, constraints)
-- candidate profiles (`AccountUser`, `Skill`, `Capability`, team membership)
-- candidate availability snapshots
-- organization policy and compliance constraints
-- request preferences
-
-### Pipeline
-
-1. **Eligibility filter (hard constraints)**
-   - organization/team scope
-   - mandatory capability/skill threshold
-   - legal/compliance constraints
-2. **Availability pre-check**
-   - candidate has feasible slot(s) in requested window
-3. **Scoring**
-   - skill fit score
-   - capability depth score
-   - historical reliability score
-   - preference alignment score
-   - continuity/affinity score
-4. **Penalty and disqualification**
-   - conflict penalties
-   - overload risk penalties
-   - explicit disqualification reasons
-5. **Ranking and cut-off**
-   - deterministic tie-breakers
-   - top-N shortlist output
-
-### Output
-
-`MatchResult[]` where each item includes:
-
-- `candidateId`
-- `score`
-- `scoreBreakdown`
-- `constraintViolations`
-- `disqualificationReasons`
-- `rank`
-
-## Scheduling logic contract
-
-### Objective
-
-Allocate accepted assignments to conflict-free calendar slots while enforcing workload and policy limits.
-
-### Responsibilities
-
-- reserve or update `CalendarSlot`
-- detect and prevent overlap conflicts
-- enforce max concurrent assignments and workload limits
-- support reschedule and cancellation with auditability
-
-### Rules
-
-1. same assignee cannot have overlapping active schedules
-2. schedule duration must satisfy task estimated effort window
-3. organization/team blackout windows block allocation
-4. overload threshold violation blocks confirmation
-5. reschedule creates explicit event trail; no silent overwrite
-
-### Decision outcomes
-
-- `Scheduled`
-- `RejectedByConflict`
-- `RejectedByOverload`
-- `RejectedByPolicy`
-- `RescheduleRequired`
-
-## Workflow states
-
-### `RequestStatus`
-
-`draft -> submitted -> under_review -> accepted | rejected -> cancelled | closed`
-
-State rules:
-
-- only `draft` can transition to `submitted`
-- `cancelled` and `closed` are terminal
-
-### `TaskStatus`
-
-`pending -> ready_for_matching -> matched -> assigned -> in_progress -> completed | cancelled`
-
-State rules:
-
-- `assigned` requires accepted assignment
-- `completed` is terminal
-
-### `AssignmentStatus`
-
-`proposed -> offered -> accepted | rejected -> cancelled -> completed`
-
-State rules:
-
-- `accepted` is required before scheduling
-- `rejected` and `cancelled` cannot return to `offered`
-
-### `ScheduleStatus`
-
-`draft -> confirmed -> in_execution -> completed | cancelled | conflicted`
-
-State rules:
-
-- `confirmed` requires conflict and overload checks pass
-- `conflicted` requires explicit reschedule or cancellation
-
-## Event-driven design
-
-### Required events
-
-- `RequestCreated`
-- `TaskMatched`
-- `AssignmentAccepted`
-- `TaskCompleted`
-
-### Recommended domain event stream
-
-- `RequestSubmitted`
-- `TaskDecomposed`
-- `MatchGenerated`
-- `AssignmentOffered`
-- `AssignmentRejected`
-- `ScheduleConfirmed`
-- `ScheduleRescheduled`
-- `ScheduleCancelled`
-- `TaskStarted`
-- `TaskCompleted`
-
-### Event ownership
-
-| Event | Emitted by aggregate | Purpose |
-| --- | --- | --- |
-| `RequestCreated` / `RequestSubmitted` | `RequestAggregate` | start fulfillment workflow |
-| `TaskMatched` / `MatchGenerated` | matching domain service + `TaskAggregate` | publish candidate ranking outcome |
-| `AssignmentAccepted` | `AssignmentAggregate` | lock assignee decision and unlock scheduling |
-| `TaskCompleted` | `TaskAggregate` or `ScheduleAggregate` | close execution lifecycle and downstream settlement/notification |
-
-## Flow description
-
-1. Workspace creates and submits `Request`
-2. Request is decomposed into one or more `Task`
-3. Matching engine evaluates candidates and produces ranked `Match`
-4. Organization offers assignment to selected candidate
-5. Candidate accepts -> `AssignmentAccepted`
-6. Scheduling service allocates conflict-free slot and confirms `Schedule`
-7. Execution lifecycle updates task progress
-8. Task completion emits `TaskCompleted` and updates projections
-
-## Suggested folder structure (modules/schedule)
-
-```text
-modules/schedule/
-  domain/
-    mddd/
-      entities/
-        Request.ts
-        Task.ts
-        Match.ts
-        Assignment.ts
-        Schedule.ts
-      value-objects/
-        SkillRequirement.ts
-        CapabilityRequirement.ts
-        CalendarSlot.ts
-        TimeWindow.ts
-        ScoreBreakdown.ts
-        Constraint.ts
-        Preference.ts
-      services/
-        matching-engine.ts
-        scheduling-engine.ts
-      events/
-        RequestCreated.ts
-        TaskMatched.ts
-        AssignmentAccepted.ts
-        TaskCompleted.ts
-      repositories/
-        RequestRepository.ts
-        TaskRepository.ts
-        MatchRepository.ts
-        AssignmentRepository.ts
-        ScheduleRepository.ts
-        OrganizationStructureRepository.ts
-        MemberAvailabilityRepository.ts
-        ProjectionRepository.ts
-      policies/
-        matching-policy.ts
-        scheduling-policy.ts
-      index.ts
-  application/
-    use-cases/
-      mddd/
-        submit-request.use-case.ts
-        decompose-request-to-tasks.use-case.ts
-        generate-task-matches.use-case.ts
-        offer-assignment.use-case.ts
-        accept-assignment.use-case.ts
-        build-schedule.use-case.ts
-        complete-task.use-case.ts
-    services/
-      orchestrators/
-        request-to-fulfillment.orchestrator.ts
-    index.ts
-  interfaces/
-    _actions/
-      schedule-request.actions.ts
-      task-matching.actions.ts
-      assignment.actions.ts
-      schedule.actions.ts
-    queries/
-      schedule-projection.queries.ts
-    index.ts
-  infrastructure/
-    firebase/
-      FirebaseRequestRepository.ts
-      FirebaseTaskRepository.ts
-      FirebaseMatchRepository.ts
-      FirebaseAssignmentRepository.ts
-      FirebaseScheduleRepository.ts
-      FirebaseProjectionRepository.ts
-      FirebaseOrganizationStructureRepository.ts
-      FirebaseMemberAvailabilityRepository.ts
-    events/
-      OutboxSchedulingEventBus.ts
-    mappers/
-      request.mapper.ts
-      task.mapper.ts
-      match.mapper.ts
-      assignment.mapper.ts
-      schedule.mapper.ts
-```
-
-## Migration notes (current vs target)
-
-- Current implementation remains a limited slice (derived workspace schedule read model + request submission + acknowledgement).
-- This contract defines the **target full MDDD** architecture and must be implemented incrementally by explicit slices.
-- New behavior must follow aggregate boundaries and event ownership above; avoid introducing ad hoc mutable flags into derived read models.
-
-## Current implementation alignment (2026-03-20)
-
-The following clarifications apply to the currently shipped slice:
-
-### `requiredSkills` is optional for simple requests
-
-The `SubmitScheduleRequestUseCase` **allows an empty `requiredSkills` array** for workspace-originated resource requests. The UI form does not collect skills at submission time. The full MDDD flow (`RunScheduleMdddFlowUseCase`) still enforces non-empty skills independently when running the complete matching pipeline.
-
-> Invariant 1 of `RequestAggregate` ("submitted request must contain at least one required capability or skill") applies only when a full MDDD flow is executed, not when a simple resource request is submitted from the workspace UI.
-
-### Initial projection on submit
-
-When `schedule-request.actions.ts` successfully writes a request to `scheduleRequests`, it **immediately projects a `RequestCreated` event** to `scheduleMdddFlowProjections`. This ensures the request is visible in the workspace tab and the organization `待分派` section without waiting for the MDDD flow to execute.
-
-This projection write is best-effort: if it fails after the primary write succeeds, the request document exists but the projection is absent. A future improvement should make this idempotent or use a Firestore trigger.
-
-### Workspace-side cancellation is now live
-
-`WorkspaceScheduleTab` now wires the existing cancel button to `cancelScheduleRequest()`. The current shipped rule is:
-
-- only the original submitter can cancel the request
-- only `draft` and `submitted` requests can be cancelled
-- successful cancellation updates both `scheduleRequests` and the projection stream via `RequestCancelled`
-
-This is still a **workspace-side** cancellation slice, not the full organization-side review/closure workflow described by the target MDDD contract.
-
-### Firestore collections in use
-
-| Collection | Owner | Read by |
-| --- | --- | --- |
-| `scheduleRequests` | `FirebaseScheduleRequestRepository` | Server-side only (not read by UI directly) |
-| `scheduleMdddFlowProjections` | `FirebaseMdddProjectionRepository` | UI (`listWorkspaceScheduleMdddFlowProjections`) |
-| `scheduleMdddRequests` | MDDD repositories | MDDD flow only |
-| `scheduleMdddTasks` | MDDD repositories | MDDD flow only |
-| `scheduleMdddMatches` | MDDD repositories | MDDD flow only |
-| `scheduleMdddAssignments` | MDDD repositories | MDDD flow only |
-| `scheduleMdddSchedules` | MDDD repositories | MDDD flow only |
-
-### Architecture reference
-
-- Design specification: `docs/decision-architecture/architecture/schedule.md`
-- Development guide: `docs/schedule/development-guide.md`
-- User manual: `docs/schedule/user-manual.md`
-
-## Explicit contract gaps (must be implemented before claiming full MDDD)
-
-This section records the **current missing contracts**, not optional ideas. The repository should continue to treat the shipped slice as:
-
-- workspace-side request submit/cancel
-- projection-driven workspace request list
-- organization-side pending-request aggregation
-
-Everything below remains required to reach the target contract.
-
-### 1. Missing domain contracts
-
-| Contract area | Current status | Missing contract |
-| --- | --- | --- |
-| `RequestAggregate` review lifecycle | Partial (`draft`/`submitted`/`cancelled`) | explicit review/accept/reject/close commands, policies, and event ownership |
-| `TaskAggregate` | Defined in target structure only | decomposition rules, state transitions, repository contract, task identity/versioning |
-| `Match` | Only conceptual | deterministic `MatchResult` contract, shortlist shape, ranking tie-breakers, persistence boundary |
-| `AssignmentAggregate` | Only conceptual | offer/accept/reject/expire/cancel commands, uniqueness invariant, audit fields |
-| `ScheduleAggregate` | Only conceptual | reserve/reschedule/cancel/complete commands, conflict-set representation, load-policy contract |
-
-### 2. Missing projection contracts
-
-| Projection concern | Current status | Missing contract |
-| --- | --- | --- |
-| request bootstrap | `RequestCreated` / `RequestCancelled` only | versioned idempotency rule for all downstream events |
-| task visibility | `taskId` / `taskStatus` fields exist in projection shape | event folding rules for `TaskDecomposed`, `TaskMatched`, `TaskCompleted` |
-| assignment visibility | placeholder fields only | projection schema for offer status, assignee details, response deadline, decision reason |
-| schedule visibility | placeholder fields only | projection schema for reserved slot, conflict reason, reschedule lineage, completion signal |
-| organization queue views | current UI filters `submitted` requests | dedicated read-model contract for review queue, shortlist queue, assignment queue, schedule queue |
-
-### 3. Missing organization workflow contracts
-
-| Workflow step | Missing command/query contract | Why it matters |
-| --- | --- | --- |
-| review request | `reviewScheduleRequest`, `acceptScheduleRequest`, `rejectScheduleRequest` | organization cannot formally govern intake lifecycle |
-| decompose request to tasks | `decomposeScheduleRequestToTasks` | no boundary between raw demand and executable work |
-| generate shortlist | `generateTaskMatches` / shortlist query | matching remains implicit and non-repeatable |
-| offer assignment | `offerScheduleAssignment` / assignment queue query | no enforceable handoff from organization to assignee |
-| confirm schedule | `confirmScheduleAllocation` / schedule board query | calendar allocation is not tied to accepted assignment |
-
-### 4. UI prerequisites for the ideal state
-
-The current UI should not be expanded into “full scheduling” until these contracts exist:
-
-1. **Workspace tab**
-   - review/result visibility beyond `submitted`
-   - task/assignment/schedule progress timeline
-   - cancellation reason and close reason surfaced from projection
-2. **Organization page**
-   - separate queues for review / matching / assignment / scheduling
-   - shortlist inspection and assignment decision surface
-   - conflict-aware schedule board instead of only showing pre-derived booking items
-3. **Notifications**
-   - contract for requester-facing updates when review/assignment/schedule state changes
-
-### 5. Reliability gaps
-
-| Area | Current behavior | Required contract improvement |
-| --- | --- | --- |
-| primary write + projection | primary write succeeds first, projection bootstrap is best-effort | idempotent retryable event publication contract |
-| event replay | not documented for full flow | replay/version contract per projection event |
-| async orchestration | not wired | outbox / trigger / workflow ownership and failure-handling contract |
-| audit trail | implicit in some timestamps only | explicit actor/source/reason fields across review, assignment, schedule decisions |
-
-## Acceptance gates
-
-A new scheduling/task slice is accepted only if:
-
-1. aggregate root and invariants are explicit
-2. state transition rules are validated in domain/application layer
-3. matching and scheduling decisions are separated into dedicated domain services
-4. emitted events are idempotent and owned by the correct aggregate
-5. repository/adapters stay in infrastructure and do not leak into domain entities
-6. projection writes follow the event-ownership rules above; direct UI writes to projection collections are prohibited except via the initial `RequestCreated` bootstrap
-`````
-
-## File: docs/development-reference/reference/README.md
-`````markdown
-# Reference Index
-
-Technical reference, specifications, and planning templates.
-
-## Core Content
-
-| Area | Primary Files |
-| --- | --- |
-| [ai/](./ai/) | [customizations-index.md](./ai/customizations-index.md) — Copilot assets; [implementation-plan-template.md](./ai/implementation-plan-template.md) — Plan template |
-| [development-contracts/](./development-contracts/) | [overview.md](./development-contracts/overview.md) — RAG, parser, schedule, acceptance, billing, audit, event, namespace contracts |
-
-## Quick Start
-
-- **Build a plan**: [ai/implementation-plan-template.md](./ai/implementation-plan-template.md) + [ai/plan-schema.md](./ai/plan-schema.md)
-- **Understand stage flow**: [ai/handoff-matrix.md](./ai/handoff-matrix.md)
-- **Migrate legacy assets**: [ai/legacy-customizations-migration.md](./ai/legacy-customizations-migration.md)
-- **Review contracts**: [development-contracts/](./development-contracts/)
-
-## Related
-
-- [../../README.md](../../README.md) — Development reference root
-- [../../../how-to-user/how-to/start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) — How-to workflow
-`````
-
-## File: docs/development-reference/specification/README.md
-`````markdown
-# 規格與契約索引
-
-本目錄包含系統規格與開發契約。主要文件：
-- [system-overview.md](./system-overview.md) — 平台定位、技術架構、運行時邊界
-- [../reference/development-contracts/overview.md](../reference/development-contracts/overview.md) — 契約總覽與狀態
-
-## 開發契約
-
-| 契約 | 狀態 | 契約 | 狀態 |
-| --- | --- | --- | --- |
-| [Acceptance](../reference/development-contracts/acceptance-contract.md) | 🏗️ | [Parser](../reference/development-contracts/parser-contract.md) | 🏗️ |
-| [Audit](../reference/development-contracts/audit-contract.md) | 🏗️ | [RAG](../reference/development-contracts/rag-ingestion-contract.md) | 🚧 |
-| [Billing](../reference/development-contracts/billing-contract.md) | 📅 | [Schedule](../reference/development-contracts/schedule-contract.md) | 🏗️ |
-| [Daily](../reference/development-contracts/daily-contract.md) | 🏗️ | [Namespace](../reference/development-contracts/namespace-contract.md) | 🚧 |
-| [Event](../reference/development-contracts/event-contract.md) | 🚧 | | |
-
-## 相關
-
-- [system-overview.md](./system-overview.md) — 系統規格
-- [../../decision-architecture/adr/](../../decision-architecture/adr/) — 架構決策記錄
-- [../reference/development-contracts/overview.md](../reference/development-contracts/overview.md) — 契約管理指南
-`````
-
-## File: docs/development-reference/specification/system-overview.md
-`````markdown
-# 系統全局規格（System Overview Specification）
-
-> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
-
----
-
-## 1. 系統定位
-
-**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
-
-- 內容頁面與結構化資料庫體驗（Content / UI Layer）
-- 知識關聯與導航視角（Knowledge Graph Layer）
-- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
-- 多工作區協作與組織管理
-- 文件解析、向量化與智慧問答
-
-### 1.1 核心價值主張
-
-| 面向 | 價值 |
-|---|---|
-| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
-| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
-| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
-| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
-
----
-
-## 2. 目標用戶
-
-| 用戶類型 | 說明 | 核心需求 |
-|---|---|---|
-| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
-| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
-| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
-| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
-
----
-
-## 3. 核心功能規格
-
-### 3.1 Account 與 Workspace 管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 個人帳號 | 用戶可建立個人帳號 | `account` |
-| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
-| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
-| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
-| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
-
-### 3.2 知識庫（Wiki-Beta）
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `wiki-beta` |
-| 文件列表 | Account 全覽；workspace 篩選 | `wiki-beta` |
-| 文件解析 | Google Document AI 自動解析 | `py_fn` |
-| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
-| RAG 問答 | 自然語言問答，含引用來源 | `wiki-beta`, `ai` |
-| RAG 重整 | 手動觸發 RAG 重新索引 | `wiki-beta` |
-| Pages | 區塊式頁面建立與管理 | `wiki-beta` |
-| Libraries | 結構化資料庫管理 | `wiki-beta` |
-
-### 3.3 AI 功能
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| AI Chat | 通用 AI 對話介面 | `ai` |
-| RAG 查詢 | 基於文件的智慧問答 | `ai`, `wiki-beta` |
-| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
-
-### 3.4 組織管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
-| 團隊管理 | 成員分組 | `organization` |
-| 排程管理 | 雙向資源排程 | `schedule` |
-| 每日摘要 | 每日工作流程記錄 | `daily` |
-| 稽核記錄 | 操作稽核追蹤 | `audit` |
-
----
-
-## 4. 技術架構規格
-
-### 4.1 運行時邊界
-
-系統分為兩個主要運行時：
-
-| 運行時 | 職責 | 技術 |
-|---|---|---|
-| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
-| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
-
-**禁止跨越邊界**：
-- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
-- py_fn 不持有 UI 狀態或 session 邏輯。
-
-### 4.2 資料層架構
-
-```
-Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
-Firebase Storage      ← 檔案儲存（上傳文件）
-Upstash Vector        ← 向量索引（RAG）
-Upstash Redis         ← 快取（RAG query cache）
-```
-
-### 4.3 Firestore 資料模型（頂層）
-
-```
-accounts/{accountId}/
-├── documents/{documentId}     ← 文件（Wiki-Beta）
-├── pages/{pageId}             ← 頁面（Pages）
-├── databases/{databaseId}     ← 資料庫（Libraries）
-├── workspaces/{workspaceId}   ← 工作區（Workspace）
-└── members/{memberId}         ← 成員（Account）
-```
-
-> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
-
-### 4.4 認證與授權
-
-```
-Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
-```
-
-| 角色 | 說明 |
-|---|---|
-| `owner` | 帳號擁有者，全部權限 |
-| `admin` | 管理員，可管理成員與設定 |
-| `member` | 一般成員，可讀寫工作區資源 |
-| `viewer` | 唯讀成員，只能查看 |
-
----
-
-## 5. 模組責任邊界
-
-20 個 MDDD 業務模組的責任分配：
-
-| 模組 | 職責概要 |
-|---|---|
-| `account` | 用戶帳號、成員角色、帳號策略 |
-| `organization` | 組織（租戶）管理、策略 |
-| `workspace` | 工作區管理、成員管理 |
-| `wiki-beta` | 知識庫、文件、Pages、Libraries、RAG |
-| `ai` | AI 協調、RAG 查詢（不擁有資料） |
-| `file` | 檔案生命週期、版本、權限 |
-| `identity` | 身份認證、Token 刷新 |
-| `audit` | 不可變稽核記錄 |
-| `event` | 領域事件 Bus |
-| `schedule` | 雙向排程 |
-| `daily` | 每日摘要 |
-| `namespace` | Slug 路由機制 |
-| `billing` | 帳務記錄（佔位，高風險） |
-| `finance` | 財務追蹤 |
-| `issue` | 問題追蹤 |
-| `task` | 任務管理 |
-| `parser` | 文件解析就緒狀態 |
-| `acceptance` | 工作區就緒驗收 |
-| `notification` | 通知 |
-| `qa` | 品質保證 |
-
----
-
-## 6. 整合點
-
-| 整合對象 | 用途 | SDK/協議 |
-|---|---|---|
-| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
-| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
-| Firebase Auth | 身份認證 | Firebase SDK v12 |
-| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
-| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
-| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
-| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
-| Upstash Vector | 向量搜尋 | Upstash SDK |
-| Upstash Redis | 快取 | Upstash SDK |
-| QStash | 非同步任務佇列 | Upstash QStash |
-
----
-
-## 7. 驗收標準（系統級別）
-
-| 代號 | 標準 |
-|---|---|
-| S1 | 使用者可登入並進入 Shell |
-| S2 | 使用者可建立組織與工作區 |
-| S3 | 使用者可上傳文件並在列表看到 |
-| S4 | 文件解析後 `status` 更新為 `ready` |
-| S5 | RAG 問答可回傳 answer 與 citations |
-| S6 | 管理員可管理組織成員與角色 |
-| S7 | Console 無初始化錯誤 |
-| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/agent-architecture-commander-subagents.mermaid
-`````
-%% Xuanwu commander plus six sub-agents architecture
-%% Purpose: show orchestration relationships between the commander and currently available specialist sub-agents
-%% Scope: agent workflow topology only
-
-flowchart TB
-    Commander["Commander\nOrchestrates scope, priorities, handoffs"]
-
-    Commander --> Planner["Planner\nCreates execution plan"]
-    Commander --> Explore["Explore\nFast read-only codebase discovery"]
-    Commander --> Implementer["Implementer\nExecutes approved changes"]
-    Commander --> Reviewer["Reviewer\nFindings, regressions, architecture fit"]
-    Commander --> QA["QA\nScenario validation and release evidence"]
-    Commander --> Foundry["Custom Agent Foundry\nDesigns specialized agents / workflows"]
-
-    Planner --> Commander
-    Explore --> Commander
-    Implementer --> Commander
-    Reviewer --> Commander
-    QA --> Commander
-    Foundry --> Commander
-
-    Planner --> Implementer
-    Implementer --> Reviewer
-    Reviewer --> Implementer
-    Reviewer --> QA
-    QA --> Implementer
-
-    Explore -. context support .-> Planner
-    Explore -. code search support .-> Implementer
-    Foundry -. workflow extension .-> Commander
-
-    classDef commander fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef primary fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
-    classDef support fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
-
-    class Commander commander;
-    class Planner,Implementer,Reviewer,QA primary;
-    class Explore,Foundry support;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/api-data-flow.mermaid
-`````
-%% Xuanwu API and data flow diagram
-%% Purpose: describe request flow, runtime boundaries, persistence, ingestion, and response assembly
-%% Scope: API and data movement only; complements hierarchy, ER, interaction, and architecture overview diagrams
-
-flowchart LR
-    User["User"] --> Browser["Browser UI\nApp Router Screens"]
-
-    subgraph NextRuntime ["Next.js Runtime"]
-        direction TB
-        Browser --> ClientState["Client Components\nLocal State / Forms / Query Cache"]
-        ClientState --> ServerActions["Server Actions"]
-        ClientState --> RouteHandlers["Route Handlers / APIs"]
-        ClientState --> AuthSession["Auth / Session Context"]
-
-        ServerActions --> InputValidation["Validation / DTO Mapping"]
-        RouteHandlers --> InputValidation
-        AuthSession --> Authorization["Authorization / Workspace Scope Check"]
-        InputValidation --> Authorization
-        Authorization --> UseCases["Application Use Cases"]
-        UseCases --> Repositories["Domain Repositories"]
-        UseCases --> QueryOrchestrator["AI / Search Orchestration"]
-    end
-
-    subgraph DataPlane ["Primary Data Plane"]
-        direction TB
-        Repositories --> Firestore["Firestore\nAccounts / Workspaces / Pages / Rows / Tags"]
-        Repositories --> Storage["Cloud Storage\nFiles / Assets / Upload Blobs"]
-        QueryOrchestrator --> Cache["Cache / Queue / Rate Limit\nUpstash / Runtime Cache"]
-        QueryOrchestrator --> VectorLookup["Retrieval / Search Index"]
-    end
-
-    subgraph WorkerPlane ["Python Worker Runtime"]
-        direction TB
-        IngestionTrigger["Upload / Parse Trigger"] --> Parser["Document Parse / Clean / Chunk"]
-        Parser --> Embedding["Embedding / Enrichment"]
-        Embedding --> ChunkStore["Chunk Metadata / Vectors"]
-    end
-
-    Storage --> IngestionTrigger
-    Firestore --> IngestionTrigger
-    ChunkStore --> VectorLookup
-
-    Firestore --> ResponseAssembler["Response Assembly\nView Models / Payloads"]
-    Storage --> ResponseAssembler
-    VectorLookup --> ResponseAssembler
-    Cache --> ResponseAssembler
-
-    ResponseAssembler --> Revalidation["Revalidate / Refresh / Stream"]
-    Revalidation --> Browser
-
-    UseCases --> AuditLog["Audit / Activity Events"]
-    AuditLog --> Firestore
-
-    classDef actor fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef runtime fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.8px;
-    classDef service fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
-    classDef data fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
-    classDef worker fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
-
-    class User,Browser actor;
-    class ClientState,ServerActions,RouteHandlers,AuthSession,InputValidation,Authorization,UseCases,Repositories,QueryOrchestrator,ResponseAssembler,Revalidation,AuditLog service;
-    class Firestore,Storage,Cache,VectorLookup,ChunkStore data;
-    class IngestionTrigger,Parser,Embedding worker;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/auth-state-machine.mermaid
-`````
-%% Xuanwu auth state machine
-%% Purpose: describe the client auth lifecycle implemented by AuthProvider and shell guard
-%% Scope: auth state transitions only
-
-stateDiagram-v2
-    [*] --> Initializing
-
-    Initializing --> Authenticated: onAuthStateChanged(user)
-    Initializing --> ResolveSignedOut: onAuthStateChanged(null)
-    Initializing --> ResolveSignedOut: Firebase init failed
-    Initializing --> Unauthenticated: bootstrap timeout
-
-    ResolveSignedOut --> Authenticated: local dev demo session exists
-    ResolveSignedOut --> Unauthenticated: no demo session
-
-    Authenticated --> Authenticated: UPDATE_DISPLAY_NAME
-    Authenticated --> Authenticated: TOKEN_REFRESH_SIGNAL\ngetIdToken(true)
-    Authenticated --> Unauthenticated: onAuthStateChanged(null)
-    Authenticated --> SigningOut: logout requested
-
-    SigningOut --> Unauthenticated: signOut success
-    SigningOut --> Unauthenticated: signOut failed\nforce local unauthenticated state
-
-    Unauthenticated --> Authenticated: onAuthStateChanged(user)
-    Unauthenticated --> Authenticated: local dev demo sign-in
-
-    note right of Initializing
-      Source of truth:
-      Firebase auth listener
-      plus 6s bootstrap timeout fallback
-    end note
-
-    note right of ResolveSignedOut
-      resolveSignedOutStatePayload()
-      checks local dev demo session
-    end note
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/core-logic.mermaid
-`````
-flowchart TD
-  %% Core logic skeleton for RAG architecture
-
-  subgraph UserFacing[Next.js User-Facing Runtime]
-    U1[User uploads document]
-    U2[Validate auth, tenant, workspace]
-    U3[Generate documentId and traceId]
-    U4[Write upload metadata]
-    U5[User sends query]
-    U6[Apply query gates]
-    U7[Assemble context and prompt]
-    U8[Stream response with citations]
-  end
-
-  subgraph CanonicalStores[Firebase Canonical Stores]
-    S1[(Storage: raw file)]
-    F1[(Firestore documents)]
-    F2[(Firestore chunks + embedding)]
-    F3[(Firestore queryCache optional)]
-    F4[(Firestore queryFeedback optional)]
-  end
-
-  subgraph WorkerRuntime[Cloud Functions Python Worker]
-    W1[Trigger when documents.status=uploaded]
-    W2[Set status=processing]
-    W3[Parse file]
-    W4[Clean and normalize text]
-    W5[Document taxonomy]
-    W6[Chunking]
-    W7[Embedding]
-    W8[Upsert chunks using documentId_chunkIndex]
-    W9[Set status=ready or failed]
-  end
-
-  U1 --> U2 --> U3
-  U3 --> S1
-  U3 --> U4 --> F1
-
-  F1 --> W1 --> W2 --> W3 --> W4 --> W5 --> W6 --> W7 --> W8 --> F2
-  W8 --> W9 --> F1
-
-  U5 --> U6 --> U7
-  U6 --> F1
-  U6 --> F2
-  U6 --> F3
-  U7 --> U8
-  U8 --> F4
-
-  classDef user fill:#E8F4FD,stroke:#1E88E5,color:#0D47A1;
-  classDef store fill:#E8F5E9,stroke:#43A047,color:#1B5E20;
-  classDef worker fill:#FFF8E1,stroke:#FB8C00,color:#E65100;
-
-  class U1,U2,U3,U4,U5,U6,U7,U8 user;
-  class S1,F1,F2,F3,F4 store;
-  class W1,W2,W3,W4,W5,W6,W7,W8,W9 worker;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/erd-model.mermaid
-`````
-erDiagram
-  DOCUMENTS ||--o{ CHUNKS : contains
-  DOCUMENTS ||--o{ QUERY_CACHE : serves
-  DOCUMENTS ||--o{ QUERY_FEEDBACK : receives
-
-  DOCUMENTS {
-    string id PK
-    string tenantId
-    string workspaceId
-    string title
-    string originalFilename
-    string contentType
-    string extension
-    number sizeBytes
-    string storageBucket
-    string storagePath
-    string checksum
-    string parser
-    string status
-    string taxonomy
-    string createdBy
-    datetime createdAt
-    datetime updatedAt
-    datetime processingStartedAt
-    datetime readyAt
-    datetime failedAt
-    datetime archivedAt
-    string errorCode
-    string errorMessage
-  }
-
-  CHUNKS {
-    string id PK
-    string tenantId
-    string workspaceId
-    string docId FK
-    number chunkIndex
-    string text
-    vector embedding
-    string taxonomy
-    number page
-    string tags
-    number tokenCount
-    number charCount
-    string sourceHeading
-    datetime createdAt
-    datetime updatedAt
-  }
-
-  QUERY_CACHE {
-    string id PK
-    string tenantId
-    string workspaceId
-    string queryHash
-    string response
-    string retrievedChunkIds
-    datetime createdAt
-    datetime expiresAt
-  }
-
-  QUERY_FEEDBACK {
-    string id PK
-    string tenantId
-    string workspaceId
-    string queryHash
-    string responseId
-    string rating
-    string reason
-    datetime createdAt
-  }
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/event-bus-message-flow.mermaid
-`````
-%% Xuanwu event bus and pub-sub message flow
-%% Purpose: describe domain event capture, persistence, dispatch, retry, and consumer paths
-%% Scope: message flow only; complements API flow and projection diagrams
-
-flowchart LR
-    Feature["Feature Module\nWrite-side Use Case"] --> DomainEvent["DomainEvent\naggregateType + aggregateId + payload"]
-    DomainEvent --> Store["Event Store\nundispatched"]
-    Store --> Worker["Outbox / Dispatcher Worker"]
-    Worker --> Policy{"Dispatch Policy\nretry? backoff?"}
-
-    Policy --> Bus["Event Bus Port\nIEventBusRepository"]
-    Bus --> Noop["Noop Bus Adapter\ncurrent scaffold"]
-    Bus --> RealBus["Real Bus Adapter\nfuture Pub/Sub / queue"]
-
-    RealBus --> Projection["Projection Consumers\nschedule / daily / read models"]
-    RealBus --> AuditSink["Audit Sink\nappend-only evidence"]
-    RealBus --> Notification["Notification Routing"]
-    RealBus --> Claims["Token Refresh Signal\nrole / policy changed"]
-    RealBus --> Analytics["Telemetry / Integration Consumers"]
-
-    Noop -. used in tests / scaffold .-> Observer["Manual / in-memory observers"]
-
-    Projection --> ReadModels["Projection Collections\nUI-facing read models"]
-    AuditSink --> AuditLog["auditLogs"]
-    Claims --> TokenSignal["tokenRefreshSignals/{accountId}"]
-
-    Worker --> Mark["markDispatched(id, dispatchedAt)"]
-    Bus -. publish failed .-> RetryQueue["Undispatched Event\nretry later"]
-    RetryQueue --> Worker
-
-    classDef start fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef event fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
-    classDef future fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
-    classDef decision fill:#7c2d12,stroke:#9a3412,color:#ffffff,stroke-width:1.4px;
-
-    class Feature start;
-    class DomainEvent,Store,Worker,Bus,Projection,AuditSink,Notification,Claims,Analytics,Mark,ReadModels,AuditLog,TokenSignal,Observer event;
-    class Noop,RealBus,RetryQueue future;
-    class Policy decision;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/firestore-collection-path-structure.mermaid
-`````
-%% Xuanwu Firestore collection path structure
-%% Purpose: map Firestore top-level collections and important nested subcollection paths
-%% Scope: collection topology only; complements architecture, hierarchy, interaction, and ER diagrams
-
-flowchart TB
-    Root[(Firestore /databases/{db}/documents)]
-
-    Root --> Accounts["accounts/{accountId}"]
-    Root --> Organizations["organizations/{organizationId}"]
-    Root --> Workspaces["workspaces/{workspaceId}"]
-    Root --> AccountRoles["accountRoles/{accountId}"]
-    Root --> AccountPolicies["accountPolicies/{policyId}"]
-    Root --> OrgPolicies["orgPolicies/{policyId}"]
-    Root --> TokenRefresh["tokenRefreshSignals/{accountId}"]
-    Root --> Notifications["notifications/{notificationId}"]
-    Root --> AuditLogs["auditLogs/{logId}"]
-    Root --> WorkspaceTasks["workspaceTasks/{taskId}"]
-    Root --> WorkspaceIssues["workspaceIssues/{issueId}"]
-    Root --> WorkspaceQualityChecks["workspaceQualityChecks/{qualityCheckId}"]
-    Root --> WorkspaceScheduleAck["workspaceScheduleAcknowledgements/{ackId}"]
-    Root --> ScheduleRequests["scheduleRequests/{requestId}"]
-    Root --> ScheduleMdddRequests["scheduleMdddRequests/{requestId}"]
-    Root --> ScheduleMdddAssignments["scheduleMdddAssignments/{assignmentId}"]
-    Root --> ScheduleMdddTasks["scheduleMdddTasks/{taskId}"]
-    Root --> ScheduleMdddMatches["scheduleMdddMatches/{matchId}"]
-    Root --> ScheduleMdddSchedules["scheduleMdddSchedules/{scheduleId}"]
-    Root --> ScheduleMdddFlows["scheduleMdddFlowProjections/{projectionId}"]
-    Root --> Finance["finance/{workspaceId}"]
-
-    Accounts --> AccountDocs["documents/{docId}\nRAG index / parse status"]
-    Accounts --> AccountPages["pages/{pageId}\nWiki pages"]
-    Accounts --> WalletTx["walletTransactions/{transactionId}"]
-    Accounts -. legacy .-> LegacySchedule["schedule_items/{itemId}\nlegacy read model"]
-
-    Organizations --> OrgInvites["invites/{inviteId}"]
-    Organizations --> OrgTeams["teams/{teamId}"]
-    Organizations --> OrgPartnerInvites["partnerInvites/{inviteId}"]
-
-    subgraph FileModel ["Canonical File Model Target"]
-        direction TB
-        Root --> FileDocuments["fileDocuments/{fileId}"]
-        FileDocuments --> FileVersions["versions/{versionId}"]
-        Root --> FilePermissionSnapshots["filePermissionSnapshots/{snapshotId}"]
-        Root --> FileRetentionPolicies["fileRetentionPolicies/{policyId}"]
-        Root --> FileUploadSessions["fileUploadSessions/{uploadSessionId}"]
-        Root --> FileAuditRecords["fileAuditRecords/{auditRecordId}"]
-    end
-
-    subgraph Notes ["Scope Markers"]
-        direction TB
-        Note1["Top-level collections = active application collections"]
-        Note2["Nested under accounts / organizations = account-scoped or org-scoped subcollections"]
-        Note3["Dashed edge = legacy / compatibility path"]
-        Note4["FileModel block = canonical target model documented by file module"]
-    end
-
-    classDef root fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef active fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
-    classDef scoped fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.2px;
-    classDef planned fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
-    classDef note fill:#f8fafc,stroke:#64748b,color:#334155,stroke-width:1px;
-
-    class Root root;
-    class Accounts,Organizations,Workspaces,AccountRoles,AccountPolicies,OrgPolicies,TokenRefresh,Notifications,AuditLogs,WorkspaceTasks,WorkspaceIssues,WorkspaceQualityChecks,WorkspaceScheduleAck,ScheduleRequests,ScheduleMdddRequests,ScheduleMdddAssignments,ScheduleMdddTasks,ScheduleMdddMatches,ScheduleMdddSchedules,ScheduleMdddFlows,Finance active;
-    class AccountDocs,AccountPages,WalletTx,OrgInvites,OrgTeams,OrgPartnerInvites,LegacySchedule scoped;
-    class FileDocuments,FileVersions,FilePermissionSnapshots,FileRetentionPolicies,FileUploadSessions,FileAuditRecords planned;
-    class Note1,Note2,Note3,Note4 note;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/kb-ingestion-pipeline-state-machine.mermaid
-`````
-%% Xuanwu knowledge base ingestion pipeline state machine
-%% Purpose: describe the storage-triggered parse and RAG ingestion lifecycle for uploaded knowledge files
-%% Scope: ingestion states only; complements API/data flow diagrams
-
-stateDiagram-v2
-    [*] --> UploadDetected
-
-    UploadDetected --> ScopeValidated: uploads/ prefix matched\naccount_id + workspace_id resolved
-    UploadDetected --> Ignored: unsupported file / missing scope
-
-    ScopeValidated --> ProcessingIndexed: init_document()\nFirestore status=processing
-    ProcessingIndexed --> ParsingDocument: process_document_gcs()
-
-    ParsingDocument --> ParseFailed: Document AI exception
-    ParsingDocument --> ParsedJsonStored: upload_json(files/...json)
-
-    ParsedJsonStored --> ParseIndexed: update_parsed()\nFirestore status=completed
-    ParseIndexed --> RagChunking: ingest_document_for_rag()
-
-    RagChunking --> Embedding: chunk_text prepared
-    Embedding --> SearchIndexed: vectors + search docs upserted
-    SearchIndexed --> RagReady: mark_rag_ready()\nrag.status=ready
-
-    RagChunking --> RagFailed: ingestion exception
-    Embedding --> RagFailed: embedding exception
-    SearchIndexed --> RagFailed: index sync exception
-    RagFailed --> CompletedWithRagError: record_rag_error()\nparse result remains available
-
-    ParseFailed --> ErrorRecorded: record_error()\nstatus=error
-
-    RagReady --> [*]
-    CompletedWithRagError --> [*]
-    ErrorRecorded --> [*]
-    Ignored --> [*]
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/nextjs-app-router-structure.mermaid
-`````
-%% Xuanwu Next.js App Router structure
-%% Purpose: map the current app/ route hierarchy and route groups
-%% Scope: routing structure only; complements interaction and system hierarchy diagrams
-
-flowchart TB
-    App["app/"]
-    App --> RootLayout["layout.tsx\nRoot providers + document shell"]
-    App --> PublicGroup["(public)"]
-    App --> ShellGroup["(shell)"]
-
-    PublicGroup --> PublicPage["page.tsx\nRoute: /"]
-
-    ShellGroup --> ShellLayout["layout.tsx\nAuthenticated shell frame"]
-    ShellGroup --> Dashboard["dashboard/page.tsx\n/dashboard"]
-    ShellGroup --> WorkspaceHub["workspace/page.tsx\n/workspace"]
-    ShellGroup --> WorkspaceDetail["workspace/[workspaceId]/page.tsx\n/workspace/:workspaceId"]
-    ShellGroup --> AIChat["ai-chat/page.tsx\n/ai-chat"]
-    ShellGroup --> WikiBeta["wiki-beta/page.tsx\n/wiki-beta"]
-    ShellGroup --> DevTools["dev-tools/page.tsx\n/dev-tools"]
-    ShellGroup --> Settings["settings/"]
-    ShellGroup --> Organization["organization/"]
-
-    WikiBeta --> WikiPages["pages/page.tsx\n/wiki-beta/pages"]
-    WikiBeta --> WikiDocuments["documents/page.tsx\n/wiki-beta/documents"]
-    WikiBeta --> WikiLibraries["libraries/page.tsx\n/wiki-beta/libraries"]
-    WikiBeta --> WikiNamespaces["namespaces/page.tsx\n/wiki-beta/namespaces"]
-    WikiBeta --> WikiRagQuery["rag-query/page.tsx\n/wiki-beta/rag-query"]
-    WikiBeta --> WikiRagReindex["rag-reindex/page.tsx\n/wiki-beta/rag-reindex"]
-
-    Settings --> SettingsIndex["page.tsx\n/settings"]
-    Settings --> SettingsGeneral["general/page.tsx\n/settings/general"]
-    Settings --> SettingsProfile["profile/page.tsx\n/settings/profile"]
-    Settings --> SettingsNotifications["notifications/page.tsx\n/settings/notifications"]
-
-    Organization --> OrgIndex["page.tsx\n/organization"]
-    Organization --> OrgMembers["members/page.tsx\n/organization/members"]
-    Organization --> OrgTeams["teams/page.tsx\n/organization/teams"]
-    Organization --> OrgPermissions["permissions/page.tsx\n/organization/permissions"]
-    Organization --> OrgWorkspaces["workspaces/page.tsx\n/organization/workspaces"]
-    Organization --> OrgSchedule["schedule/page.tsx\n/organization/schedule"]
-    Organization --> OrgDaily["daily/page.tsx\n/organization/daily"]
-    Organization --> OrgKnowledge["knowledge/page.tsx\n/organization/knowledge"]
-    Organization --> OrgAudit["audit/page.tsx\n/organization/audit"]
-
-    classDef root fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef group fill:#115e59,stroke:#0f766e,color:#ffffff,stroke-width:1.6px;
-    classDef route fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
-
-    class App,RootLayout root;
-    class PublicGroup,ShellGroup,WikiBeta,Settings,Organization,ShellLayout group;
-    class PublicPage,Dashboard,WorkspaceHub,WorkspaceDetail,AIChat,DevTools,WikiPages,WikiDocuments,WikiLibraries,WikiNamespaces,WikiRagQuery,WikiRagReindex,SettingsIndex,SettingsGeneral,SettingsProfile,SettingsNotifications,OrgIndex,OrgMembers,OrgTeams,OrgPermissions,OrgWorkspaces,OrgSchedule,OrgDaily,OrgKnowledge,OrgAudit route;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/project-derivation.mermaid
-`````
-graph LR
-    classDef roleActor fill:#dcfce7,stroke:#16a34a,color:#14532d,font-weight:bold
-    classDef roleActorLite fill:#fef9c3,stroke:#ca8a04,color:#713f12,font-weight:bold
-    classDef systemActor fill:#f3e8ff,stroke:#a855f7,color:#6b21a8,font-weight:bold
-    classDef appUC fill:#eff6ff,stroke:#3b82f6,color:#1e40af
-    classDef domainUC fill:#f0fdf4,stroke:#22c55e,color:#166534
-    classDef dataUC fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
-    classDef opsUC fill:#fff7ed,stroke:#f97316,color:#9a3412
-    classDef aiUC fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-    classDef refUC fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 2
-
-    PlatformOwner((平台擁有者)):::roleActor
-    OrgAdmin((組織管理員)):::roleActor
-    WorkspaceAdmin((工作區管理員)):::roleActor
-    Member((成員)):::roleActorLite
-    Viewer((訪客)):::roleActorLite
-
-    NextJS((Next.js App Runtime)):::systemActor
-    Worker((Functions Python Worker)):::systemActor
-    Firestore((Firestore)):::systemActor
-    Storage((Firebase Storage)):::systemActor
-    Genkit((Genkit / LLM)):::systemActor
-
-    subgraph appLayer[🧭 App and Shell Layer]
-        APP1([公開入口與登入]):::appUC
-        APP2([Shell 佈局與工作區切換]):::appUC
-        APP3([Route Handler 與 Server Action]):::appUC
-        APP4([多提供者 Context 管理]):::appUC
-    end
-
-    subgraph identityOrg[🪪 Identity and Organization]
-        ID1([帳號註冊與登入識別]):::domainUC
-        ID2([角色與權限模型]):::domainUC
-        ID3([組織與成員管理]):::domainUC
-        ID4([租戶邊界驗證]):::domainUC
-    end
-
-    subgraph workspaceModule[🏢 Workspace]
-        WS1([建立工作區]):::domainUC
-        WS2([工作區設定與偏好]):::domainUC
-        WS3([工作區儀表板]):::domainUC
-        WS4([工作區層級活動彙整]):::domainUC
-    end
-
-    subgraph executionModules[📦 業務執行模組]
-        TK1([Task 任務生命週期]):::domainUC
-        TK2([Issue 問題追蹤]):::domainUC
-        TK3([Schedule 排程與指派]):::domainUC
-        TK4([Notification 通知中心]):::domainUC
-        TK5([Daily 日報與追蹤]):::domainUC
-        TK6([Acceptance 驗收記錄]):::domainUC
-        TK7([Audit 稽核事件]):::domainUC
-    end
-
-    subgraph knowledgeAI[🧠 Knowledge and AI]
-        KG1([File 上傳與文件管理]):::aiUC
-        KG2([Parser 文件解析]):::aiUC
-        KG3([Knowledge 索引與知識檢索]):::aiUC
-        KG4([RAG Query 編排與回覆]):::aiUC
-        KG5([引用與回饋循環]):::aiUC
-    end
-
-    subgraph businessSupport[💼 商務與支援模組]
-        BM1([Billing 計費週期]):::opsUC
-        BM2([Finance 應收應付]):::opsUC
-        BM3([Account 帳務資料]):::opsUC
-        BM4([Organization 組織治理策略]):::opsUC
-    end
-
-    subgraph coreData[🗂️ Canonical Data Resources]
-        D1([users]):::dataUC
-        D2([organizations]):::dataUC
-        D3([workspaces]):::dataUC
-        D4([tasks and issues]):::dataUC
-        D5([documents]):::dataUC
-        D6([chunks and embedding]):::dataUC
-        D7([queryCache and feedback]):::dataUC
-        D8([auditLogs and notifications]):::dataUC
-        D9([billing and finance records]):::dataUC
-    end
-
-    subgraph crossCutting[🔗 Cross-Cutting Contracts]
-        C1([租戶隔離 tenantId and workspaceId]):::refUC
-        C2([狀態機驅動 lifecycle contract]):::refUC
-        C3([事件與重試 idempotency]):::refUC
-        C4([觀測指標與 SLO gate]):::refUC
-        C5([MDDD 依賴方向守則]):::refUC
-    end
-
-    PlatformOwner --> APP2
-    PlatformOwner --> ID2
-    PlatformOwner --> BM1
-
-    OrgAdmin --> ID3
-    OrgAdmin --> WS1
-    OrgAdmin --> WS2
-    OrgAdmin --> BM2
-
-    WorkspaceAdmin --> WS3
-    WorkspaceAdmin --> TK1
-    WorkspaceAdmin --> TK2
-    WorkspaceAdmin --> TK3
-    WorkspaceAdmin --> KG1
-    WorkspaceAdmin --> KG4
-
-    Member --> TK1
-    Member --> TK2
-    Member --> TK3
-    Member --> TK4
-    Member --> KG4
-    Member --> KG5
-
-    Viewer --> WS3
-    Viewer --> TK4
-    Viewer --> KG5
-
-    APP1 --> NextJS
-    APP2 --> NextJS
-    APP3 --> NextJS
-    APP4 --> NextJS
-
-    NextJS --> ID1
-    NextJS --> ID4
-    NextJS --> WS3
-    NextJS --> TK1
-    NextJS --> TK2
-    NextJS --> TK3
-    NextJS --> TK4
-    NextJS --> KG1
-    NextJS --> KG4
-
-    KG1 --> Storage
-    KG1 --> D5
-    KG2 --> Worker
-    Worker --> KG2
-    Worker --> KG3
-    Worker --> D6
-    KG4 --> Genkit
-    KG4 --> D6
-    KG4 --> D7
-    KG5 --> D7
-
-    Firestore --> D1
-    Firestore --> D2
-    Firestore --> D3
-    Firestore --> D4
-    Firestore --> D5
-    Firestore --> D6
-    Firestore --> D7
-    Firestore --> D8
-    Firestore --> D9
-
-    TK1 --> D4
-    TK2 --> D4
-    TK3 --> D4
-    TK4 --> D8
-    TK6 --> D8
-    TK7 --> D8
-
-    BM1 --> D9
-    BM2 --> D9
-    BM3 --> D9
-    BM4 --> D2
-
-    ID1 -.-> C1
-    ID4 -.-> C1
-    WS1 -.-> C1
-    KG4 -.-> C1
-
-    TK1 -.-> C2
-    TK2 -.-> C2
-    KG1 -.-> C2
-    KG3 -.-> C2
-
-    Worker -.-> C3
-    KG2 -.-> C3
-    KG3 -.-> C3
-
-    NextJS -.-> C4
-    Worker -.-> C4
-    Genkit -.-> C4
-
-    APP3 -.-> C5
-    ID2 -.-> C5
-    TK1 -.-> C5
-    KG3 -.-> C5
-    BM1 -.-> C5
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/README.md
-`````markdown
-# Diagrams Index
-
-架構、流程、資料與狀態機圖的統一入口。一張圖描述一個視角，讓產品、架構、實作讀者快速定位。
-
-## 圖表分類
-
-| 分類 | 圖表 |
-| --- | --- |
-| System | [system-architecture-overview-combined.mermaid](./system-architecture-overview-combined.mermaid), [system-multi-workspace-hierarchy.mermaid](./system-multi-workspace-hierarchy.mermaid), [ai-knowledge-platform-architecture.png](./ai-knowledge-platform-architecture.png) |
-| Workspace | [workspace-internal-data-model.mermaid](./workspace-internal-data-model.mermaid), [workspace-interaction-flow.mermaid](./workspace-interaction-flow.mermaid) |
-| Data & Runtime | [firestore-collection-path-structure.mermaid](./firestore-collection-path-structure.mermaid), [api-data-flow.mermaid](./api-data-flow.mermaid) |
-| Auth & Security | [auth-state-machine.mermaid](./auth-state-machine.mermaid), [security-rules-decision-flow.mermaid](./security-rules-decision-flow.mermaid) |
-| Knowledge & Events | [kb-ingestion-pipeline-state-machine.mermaid](./kb-ingestion-pipeline-state-machine.mermaid), [event-bus-message-flow.mermaid](./event-bus-message-flow.mermaid) |
-| Next.js & Agents | [nextjs-app-router-structure.mermaid](./nextjs-app-router-structure.mermaid), [agent-architecture-commander-subagents.mermaid](./agent-architecture-commander-subagents.mermaid) |
-| Domain Models | [core-logic.mermaid](./core-logic.mermaid), [erd-model.mermaid](./erd-model.mermaid), [project-derivation.mermaid](./project-derivation.mermaid), [rag-enterprise-e2e.mermaid](./rag-enterprise-e2e.mermaid), [state-machine.mermaid](./state-machine.mermaid) |
-
-## 建議閱讀順序
-
-開始於系統概觀，然後深入工作區、資料、認證、知識流程。
-
-## 相關文件
-
-- [docs/decision-architecture/architecture/](../../decision-architecture/architecture/)
-- [docs/development-reference/development/modules-implementation-guide.md](../../development-reference/development/modules-implementation-guide.md)
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/security-rules-decision-flow.mermaid
-`````
-%% Xuanwu security rules decision flow
-%% Purpose: describe the target production decision path for Firestore authorization
-%% Scope: authorization decisions only; complements API flow and collection path diagrams
-
-flowchart TD
-    Request["Incoming Firestore Request"] --> Mode{"Environment Mode"}
-    Mode -- Development now --> DevBypass["Current root rules are permissive\nallow read, write: if true"]
-    Mode -- Target production --> Op{"Operation"}
-
-    Op --> Auth{"request.auth exists?"}
-    Auth -- No --> DenyAuth["DENY\nUnauthenticated"]
-    Auth -- Yes --> Scope{"Tenant / Scope matches?\norganizationId / accountId / workspaceId"}
-
-    Scope -- No --> DenyScope["DENY\nCross-tenant or cross-workspace"]
-    Scope -- Yes --> Role{"Has org/workspace role?"}
-
-    Role -- No --> DenyRole["DENY\nNo membership or insufficient role"]
-    Role -- Yes --> Policy{"Explicit policy deny?"}
-
-    Policy -- Yes --> DenyPolicy["DENY\nPolicy deny overrides allow"]
-    Policy -- No --> Resource{"Resource-specific access control?\nvisibility / accessControl / owner"}
-
-    Resource -- Fail --> DenyResource["DENY\nResource ACL / visibility failed"]
-    Resource -- Pass --> Mutation{"Write / Admin action?"}
-
-    Mutation -- No --> AllowRead["ALLOW read"]
-    Mutation -- Yes --> Capability{"Role permits mutation?\nowner / admin / member / viewer"}
-
-    Capability -- No --> DenyWrite["DENY\nMutation not permitted"]
-    Capability -- Yes --> FinalCheck{"Additional constraints?\nlegal hold / retention / immutable fields"}
-
-    FinalCheck -- Fail --> DenyConstraint["DENY\nConstraint violation"]
-    FinalCheck -- Pass --> AllowWrite["ALLOW write"]
-
-    classDef start fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef decision fill:#7c2d12,stroke:#9a3412,color:#ffffff,stroke-width:1.6px;
-    classDef allow fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1.2px;
-    classDef deny fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
-    classDef note fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
-
-    class Request start;
-    class Mode,Op,Auth,Scope,Role,Policy,Resource,Mutation,Capability,FinalCheck decision;
-    class AllowRead,AllowWrite allow;
-    class DenyAuth,DenyScope,DenyRole,DenyPolicy,DenyResource,DenyWrite,DenyConstraint deny;
-    class DevBypass note;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/state-machine.mermaid
-`````
-stateDiagram-v2
-  [*] --> Uploaded
-
-  Uploaded --> Processing: Worker accepted
-  Uploaded --> Failed: Invalid metadata or artifact missing
-
-  Processing --> Ready: Parse, chunk, embed, persist success
-  Processing --> Failed: Runtime or provider error
-
-  Failed --> Processing: Retry policy or manual retry
-  Ready --> Processing: Reprocess request
-  Ready --> Archived: Archive request
-
-  Archived --> [*]
-
-  state Processing {
-    [*] --> Parse
-    Parse --> Clean
-    Clean --> Taxonomy
-    Taxonomy --> Chunk
-    Chunk --> Embed
-    Embed --> PersistChunks
-    PersistChunks --> [*]
-  }
-
-  note right of Uploaded
-    Required gates:
-    - tenantId
-    - workspaceId
-    - checksum
-    - storagePath
-  end note
-
-  note right of Processing
-    Idempotency key:
-    documentId + checksum + chunkIndex
-  end note
-
-  note right of Ready
-    Query can read only Ready docs
-  end note
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/system-architecture-overview-combined.mermaid
-`````
-%% Xuanwu combined system architecture overview
-%% Purpose: combine multi-workspace hierarchy and canonical workspace data domains
-%% Scope: overview only; complements the dedicated hierarchy and ER diagrams without duplicating their full detail
-
-flowchart TB
-    System["System"] --> Accounts["Accounts"]
-    Accounts --> Account["Account\nPersonal / Organization"]
-
-    Account --> W1["Workspace A"]
-    Account --> W2["Workspace B"]
-    Account --> W3["Workspace C"]
-
-    W1 --> Boundary["Workspace Boundary\nCanonical Internal Model"]
-    W2 -. same structure .-> Boundary
-    W3 -. same structure .-> Boundary
-
-    subgraph BoundaryModel ["Single Workspace Canonical Data Domains"]
-        direction TB
-
-        Boundary --> Core["Workspace Core\n- Workspace\n- Settings\n- Members"]
-        Boundary --> Knowledge["Knowledge Domain\n- Spaces\n- Pages\n- Blocks"]
-        Boundary --> Data["Structured Data Domain\n- Databases\n- Rows / Pages\n- Property Values"]
-        Boundary --> Assets["Asset Domain\n- Files\n- Templates"]
-        Boundary --> Taxonomy["Taxonomy Domain\n- Tags"]
-
-        Knowledge --> Spaces["Spaces"]
-        Spaces --> Pages["Pages"]
-        Pages --> PageBlocks["Blocks"]
-
-        Data --> Databases["Databases"]
-        Databases --> Rows["Rows / Pages"]
-        Rows --> RowValues["Property Values"]
-        Rows --> RowBlocks["Blocks"]
-
-        Assets --> Files["Files"]
-        Assets --> Templates["Templates"]
-        Taxonomy --> Tags["Tags"]
-        Core --> Members["Members"]
-        Core --> Settings["Settings"]
-    end
-
-    Tags -. classify .-> Pages
-    Tags -. classify .-> Rows
-    Files -. attach .-> Pages
-    Files -. attach .-> Rows
-    Files -. embed .-> PageBlocks
-    Files -. embed .-> RowBlocks
-    Members -. permission scope .-> Boundary
-    Settings -. configure .-> Boundary
-
-    subgraph UI ["Three-Pane Product Mapping"]
-        direction LR
-        Left["Left Sidebar\nGlobal Scope\nAccount / Workspace Switch"]
-        Middle["Middle Sidebar\nWorkspace Scope\nSpaces / Databases / Files / Tags"]
-        Right["Content View\nPages / Rows / Blocks"]
-
-        Left --> Middle --> Right
-    end
-
-    Account -. selects .-> Left
-    Boundary -. navigates in .-> Middle
-    Pages -. renders in .-> Right
-    Rows -. renders in .-> Right
-
-    classDef root fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef workspace fill:#115e59,stroke:#0f766e,color:#ffffff,stroke-width:2px;
-    classDef domain fill:#f8fafc,stroke:#334155,color:#0f172a,stroke-width:1.5px;
-    classDef detail fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
-    classDef accent fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
-
-    class System,Accounts,Account root;
-    class W1,W2,W3,Boundary workspace;
-    class Core,Knowledge,Data,Assets,Taxonomy domain;
-    class Spaces,Pages,PageBlocks,Databases,Rows,RowValues,RowBlocks,Files,Templates,Tags,Members,Settings detail;
-    class Left,Middle,Right accent;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/system-multi-workspace-hierarchy.mermaid
-`````
-%% Xuanwu multi-workspace system hierarchy
-%% Purpose: system-level hierarchy, workspace data isolation, and three-pane UI mapping
-
-flowchart TB
-    System["System"] --> Accounts["Accounts"]
-    Accounts --> Account["Account\nPersonal / Organization"]
-
-    Account --> WA["Workspace A"]
-    Account --> WB["Workspace B"]
-    Account --> WC["Workspace C"]
-
-    subgraph WorkspaceA ["Workspace A Scope"]
-        direction TB
-        WA --> WAHome["Home"]
-        WA --> WASpaces["Spaces"]
-        WA --> WAPages["Pages"]
-        WA --> WADatabases["Databases"]
-        WA --> WAFiles["Files"]
-        WA --> WATags["Tags"]
-        WA --> WAMembers["Members"]
-        WA --> WASettings["Settings"]
-
-        WASpaces --> WAPagesNode["Pages"]
-        WAPagesNode --> WABlocks["Blocks"]
-
-        WADatabases --> WARows["Rows / Pages"]
-        WARows --> WADBBlocks["Blocks"]
-    end
-
-    subgraph WorkspaceB ["Workspace B Scope"]
-        direction TB
-        WB --> WBSpaces["Spaces"]
-        WB --> WBDatabases["Databases"]
-        WB --> WBFiles["Files"]
-        WB --> WBMembers["Members"]
-        WB --> WBSettings["Settings"]
-    end
-
-    subgraph WorkspaceC ["Workspace C Scope"]
-        direction TB
-        WC --> WCSpaces["Spaces"]
-        WC --> WCDatabases["Databases"]
-        WC --> WCFiles["Files"]
-        WC --> WCMembers["Members"]
-        WC --> WCSettings["Settings"]
-    end
-
-    subgraph UI ["Three-Pane UI Mapping"]
-        direction LR
-        Left["Left Sidebar\nGlobal Layer\n- Account\n- Workspace List\n- Search\n- Notifications\n- AI\n- Settings"]
-        Middle["Middle Sidebar\nWorkspace Layer\n- Home\n- Favorites\n- Recent\n- Spaces\n- Databases\n- Tags\n- Files\n- Templates\n- Members\n- Trash"]
-        Right["Content Area\nContent Layer\n- Page Title\n- Page Content\n- Blocks"]
-
-        Left --> Middle --> Right
-    end
-
-    Account -. global switcher .-> Left
-    WA -. workspace navigation .-> Middle
-    WAPagesNode -. rendered in .-> Right
-    WARows -. rendered in .-> Right
-
-    classDef root fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef account fill:#14532d,stroke:#14532d,color:#ffffff,stroke-width:2px;
-    classDef workspace fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:2px;
-    classDef content fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.5px;
-    classDef ui fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.5px;
-
-    class System,Accounts root;
-    class Account account;
-    class WA,WB,WC workspace;
-    class WAHome,WASpaces,WAPages,WADatabases,WAFiles,WATags,WAMembers,WASettings,WAPagesNode,WABlocks,WARows,WADBBlocks,WBSpaces,WBDatabases,WBFiles,WBMembers,WBSettings,WCSpaces,WCDatabases,WCFiles,WCMembers,WCSettings content;
-    class Left,Middle,Right ui;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/workspace-interaction-flow.mermaid
-`````
-%% Xuanwu workspace interaction flow
-%% Purpose: describe end-to-end user interaction flow inside a workspace
-%% Scope: behavior, decisions, and navigation flow; complements hierarchy and data model diagrams
-
-flowchart TD
-    Start([User Opens App]) --> Auth{Authenticated?}
-    Auth -- No --> Login[Login / Session Restore]
-    Login --> AccountScope[Load Account Context]
-    Auth -- Yes --> AccountScope
-
-    AccountScope --> WorkspaceSelect{Select Workspace}
-    WorkspaceSelect --> LoadWorkspace[Resolve accountId + workspaceId]
-    LoadWorkspace --> CheckMembership{Membership Valid?}
-
-    CheckMembership -- No --> Denied[Show Access Denied\nRequest Access / Switch Workspace]
-    CheckMembership -- Yes --> Bootstrap[Bootstrap Workspace Shell]
-
-    Bootstrap --> LeftNav[Render Left Sidebar\nGlobal Navigation]
-    Bootstrap --> MiddleNav[Render Workspace Sidebar\nSpaces / Databases / Files / Tags]
-    Bootstrap --> Home[Open Workspace Home]
-
-    Home --> Intent{User Intent}
-
-    Intent --> BrowseSpace[Browse Space Tree]
-    Intent --> OpenDatabase[Open Database]
-    Intent --> OpenFiles[Open Files]
-    Intent --> Search[Run Workspace Search]
-    Intent --> ManageMembers[Open Members / Settings]
-
-    BrowseSpace --> OpenPage[Open Page]
-    OpenPage --> LoadBlocks[Load Page Blocks]
-    LoadBlocks --> PageAction{Page Action}
-    PageAction --> EditPage[Edit Title / Blocks]
-    PageAction --> MovePage[Move / Reorganize]
-    PageAction --> TagPage[Apply Tags]
-    PageAction --> AttachFileToPage[Attach File]
-    PageAction --> PublishPage[Save / Publish]
-    PublishPage --> RefreshPage[Refresh Page View]
-    EditPage --> AutosavePage[Autosave Changes]
-    MovePage --> UpdateTree[Update Space/Page Tree]
-    TagPage --> RefreshPage
-    AttachFileToPage --> RefreshPage
-    AutosavePage --> RefreshPage
-    UpdateTree --> MiddleNav
-
-    OpenDatabase --> LoadSchema[Load Database Schema + Views]
-    LoadSchema --> OpenRows[Open Row List / View]
-    OpenRows --> RowAction{Database Action}
-    RowAction --> OpenRow[Open Row Detail]
-    RowAction --> CreateRow[Create Row]
-    RowAction --> FilterSort[Filter / Sort / Group]
-    RowAction --> UploadToRow[Attach File]
-    CreateRow --> OpenRow
-    OpenRow --> EditProperties[Edit Property Values]
-    OpenRow --> EditRowBlocks[Edit Row Blocks]
-    EditProperties --> SaveRow[Save Row]
-    EditRowBlocks --> SaveRow
-    FilterSort --> OpenRows
-    UploadToRow --> SaveRow
-    SaveRow --> RefreshDatabase[Refresh Database View]
-
-    OpenFiles --> FilesAction{File Action}
-    FilesAction --> UploadFile[Upload File]
-    FilesAction --> PreviewFile[Preview File]
-    FilesAction --> LinkFile[Link to Page / Row / Block]
-    UploadFile --> IndexFile[Store Metadata + Link Asset]
-    PreviewFile --> OpenFiles
-    LinkFile --> OpenFiles
-    IndexFile --> OpenFiles
-
-    Search --> SearchScope[Search Within Current Workspace]
-    SearchScope --> SearchTarget{Search Result Type}
-    SearchTarget --> ResultPage[Page Result]
-    SearchTarget --> ResultRow[Database Row Result]
-    SearchTarget --> ResultFile[File Result]
-    ResultPage --> OpenPage
-    ResultRow --> OpenRow
-    ResultFile --> PreviewFile
-
-    ManageMembers --> MemberAction{Admin Action}
-    MemberAction --> UpdateRole[Change Role / Status]
-    MemberAction --> UpdateSettings[Update Workspace Settings]
-    UpdateRole --> Reauthorize[Re-evaluate Permissions]
-    UpdateSettings --> ApplySettings[Apply Workspace Configuration]
-    Reauthorize --> Home
-    ApplySettings --> Home
-
-    Denied --> WorkspaceSelect
-    RefreshPage --> Intent
-    RefreshDatabase --> Intent
-    OpenFiles --> Intent
-
-    classDef start fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
-    classDef gate fill:#7c2d12,stroke:#9a3412,color:#ffffff,stroke-width:1.8px;
-    classDef shell fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.8px;
-    classDef action fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
-    classDef state fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
-    classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
-
-    class Start start;
-    class Auth,WorkspaceSelect,CheckMembership,Intent,PageAction,RowAction,FilesAction,SearchTarget,MemberAction gate;
-    class Bootstrap,LeftNav,MiddleNav,Home shell;
-    class Login,AccountScope,LoadWorkspace,BrowseSpace,OpenDatabase,OpenFiles,Search,ManageMembers,OpenPage,LoadBlocks,EditPage,MovePage,TagPage,AttachFileToPage,PublishPage,AutosavePage,UpdateTree,LoadSchema,OpenRows,OpenRow,CreateRow,FilterSort,UploadToRow,EditProperties,EditRowBlocks,SaveRow,UploadFile,PreviewFile,LinkFile,IndexFile,SearchScope,ResultPage,ResultRow,ResultFile,UpdateRole,UpdateSettings,Reauthorize,ApplySettings action;
-    class RefreshPage,RefreshDatabase state;
-    class Denied warn;
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/workspace-internal-data-model.mermaid
-`````
-%% Xuanwu workspace internal data model
-%% Purpose: describe core entities, ownership, containment, and content composition inside a single workspace
-
-erDiagram
-    WORKSPACE ||--o{ SPACE : contains
-    WORKSPACE ||--o{ DATABASE : contains
-    WORKSPACE ||--o{ FILE_ASSET : stores
-    WORKSPACE ||--o{ TAG : defines
-    WORKSPACE ||--o{ WORKSPACE_MEMBER : grants_access
-    WORKSPACE ||--|| WORKSPACE_SETTINGS : configures
-    WORKSPACE ||--o{ TEMPLATE : provides
-
-    SPACE ||--o{ PAGE : organizes
-    PAGE ||--o{ BLOCK : composes
-    PAGE }o--o{ TAG : tagged_with
-
-    DATABASE ||--o{ DATABASE_VIEW : presents
-    DATABASE ||--o{ DATABASE_PROPERTY : defines_schema
-    DATABASE ||--o{ DATABASE_ROW : contains
-
-    DATABASE_ROW ||--o{ ROW_PROPERTY_VALUE : stores_values
-    DATABASE_ROW ||--o{ BLOCK : embeds_content
-    DATABASE_ROW }o--o{ TAG : tagged_with
-
-    FILE_ASSET }o--|| PAGE : attached_to_page
-    FILE_ASSET }o--|| DATABASE_ROW : attached_to_row
-    FILE_ASSET }o--|| BLOCK : embedded_in_block
-
-    TAG }o--|| SPACE : scoped_in
-    WORKSPACE_MEMBER }o--|| MEMBER_PROFILE : resolves_to
-
-    WORKSPACE {
-        string workspace_id PK
-        string account_id FK
-        string name
-        string slug
-        string visibility
-        string default_home_page_id FK
-        datetime created_at
-        datetime updated_at
-    }
-
-    WORKSPACE_SETTINGS {
-        string workspace_id PK, FK
-        string locale
-        string timezone
-        string permission_model
-        boolean ai_enabled
-        boolean search_index_enabled
-    }
-
-    WORKSPACE_MEMBER {
-        string membership_id PK
-        string workspace_id FK
-        string member_profile_id FK
-        string role
-        string status
-        datetime joined_at
-    }
-
-    MEMBER_PROFILE {
-        string member_profile_id PK
-        string account_id FK
-        string display_name
-        string email
-        string member_type
-    }
-
-    SPACE {
-        string space_id PK
-        string workspace_id FK
-        string parent_space_id FK
-        string name
-        string icon
-        string sort_order
-    }
-
-    PAGE {
-        string page_id PK
-        string workspace_id FK
-        string space_id FK
-        string parent_page_id FK
-        string title
-        string page_type
-        string status
-        datetime updated_at
-    }
-
-    BLOCK {
-        string block_id PK
-        string workspace_id FK
-        string page_id FK
-        string database_row_id FK
-        string parent_block_id FK
-        string block_type
-        string content_ref
-        int sort_order
-    }
-
-    DATABASE {
-        string database_id PK
-        string workspace_id FK
-        string space_id FK
-        string name
-        string database_type
-        string primary_view_id FK
-        datetime updated_at
-    }
-
-    DATABASE_VIEW {
-        string view_id PK
-        string database_id FK
-        string view_type
-        string filter_json
-        string sort_json
-    }
-
-    DATABASE_PROPERTY {
-        string property_id PK
-        string database_id FK
-        string name
-        string property_type
-        boolean required
-        string config_json
-    }
-
-    DATABASE_ROW {
-        string row_id PK
-        string database_id FK
-        string workspace_id FK
-        string title
-        string status
-        string created_by FK
-        datetime updated_at
-    }
-
-    ROW_PROPERTY_VALUE {
-        string value_id PK
-        string row_id FK
-        string property_id FK
-        string value_type
-        string value_json
-    }
-
-    FILE_ASSET {
-        string file_id PK
-        string workspace_id FK
-        string uploader_member_id FK
-        string file_name
-        string mime_type
-        string storage_path
-        int size_bytes
-    }
-
-    TAG {
-        string tag_id PK
-        string workspace_id FK
-        string space_id FK
-        string name
-        string color
-    }
-
-    TEMPLATE {
-        string template_id PK
-        string workspace_id FK
-        string template_type
-        string source_entity_type
-        string source_entity_id FK
-    }
-`````
-
-## File: docs/diagrams-events-explanations/explanation/agentic-delivery-model.md
-`````markdown
----
-title: Agentic delivery model
-description: Explanation of the Xuanwu Copilot Delivery Suite, including why delivery work is split across planning, implementation, review, and QA stages.
----
-
-# Agentic delivery model
-
-The Xuanwu Copilot Delivery Suite exists to make AI-assisted delivery predictable in a repository that already enforces MDDD, runtime boundaries, and contract-first workflows. The goal is not to add more personas. The goal is to stop complex work from collapsing into one long chat session with mixed responsibilities.
-
-## Why a delivery model is needed
-
-This repository already has strong architectural guidance, but architecture guidance alone does not tell an agent how to deliver a change end to end. Without a formal delivery model, the same session tends to mix:
-
-- requirement discovery,
-- plan creation,
-- code writing,
-- architecture review,
-- and QA verification.
-
-That mixing creates three common failures:
-
-1. implementation starts before scope is stable,
-2. review happens too late and becomes expensive,
-3. QA evidence is reduced to a vague summary instead of a release gate.
-
-## Why the workflow is split into four stages
-
-The suite uses four delivery stages:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Each stage owns one kind of decision.
-
-### Planner
-
-The Planner turns a request into an implementation contract for the current task. It identifies owners, runtime boundaries, affected areas, validation, and documentation impact before code changes begin.
-
-### Implementer
-
-The Implementer executes the approved plan. It writes code, updates docs, and runs the validation defined by the plan. It does not expand scope on its own.
-
-### Reviewer
-
-The Reviewer checks whether the implementation is actually acceptable. This includes correctness, MDDD alignment, contract compliance, regression risk, and missing validation or documentation.
-
-### QA
-
-QA verifies what was delivered, what failed, what evidence exists, and whether release risk remains. QA is separated from review because verification and critique are not the same activity.
-
-## Why planning is formal instead of conversational
-
-The implementation plan is not a casual summary. It is the shared input contract for the Implementer, Reviewer, and QA stages.
-
-That is why the suite includes both:
-
-- [implementation-plan-template.md](../../../development-reference/reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../../development-reference/reference/ai/plan-schema.md)
-
-The template defines the shape contributors read. The schema defines the fields that later stages rely on. Together they stop the plan from becoming an inconsistent free-form note.
-
-## Why agents and prompts both exist
-
-Agents define persistent roles, tool limits, and handoff behavior. Prompts define task-specific entry points and recovery paths.
-
-The suite needs both because real delivery work does not always follow one uninterrupted path. A contributor might need to:
-
-- start from a new feature request,
-- rerun review only,
-- rerun QA only,
-- or recover after an interrupted session.
-
-The prompts handle those operational paths without weakening the role boundaries encoded in the agents.
-
-## Why the model fits Xuanwu architecture
-
-The model is intentionally aligned with the repository's existing architecture rules.
-
-- The Planner identifies the owning module, runtime, and contract.
-- The Implementer keeps changes inside `interfaces -> application -> domain <- infrastructure`.
-- The Reviewer checks that the change respects MDDD boundaries and does not create accidental ownership in UI or adapter code.
-- QA verifies the delivered behavior rather than trusting architectural intent alone.
-
-This is especially important in Xuanwu because workflows can cross:
-
-- Next.js and `py_fn`,
-- multiple business modules,
-- and contract-governed domains such as RAG, schedule, daily, billing, and audit.
-
-## Why recovery is a first-class design concern
-
-Long AI-assisted tasks fail in ordinary ways:
-
-- the chat session becomes noisy,
-- the current request goes off track,
-- a contributor wants to restart from the plan,
-- or a later stage needs to rerun independently.
-
-The suite treats recovery as part of the design, not as an afterthought. That is why it ships with re-entry prompts and operational how-to documents, not just personas.
-
-## Governance principle
-
-The delivery suite should evolve like the rest of the repository:
-
-- architecture rules stay in the existing authoritative files,
-- delivery workflow rules stay in the AI documentation set,
-- and legacy assets are retired through explicit migration notes instead of silent drift.
-
-If a workflow change alters responsibility boundaries, required validation, or handoff behavior, update the delivery documents in the same change.
-`````
-
-## File: docs/diagrams-events-explanations/explanation/development-contract-governance.md
-`````markdown
----
-title: Development contract governance
-description: Explanation of why development contracts exist, how they align with MDDD boundaries, and how to keep them consistent as implementation evolves.
----
-
-# Development contract governance
-
-Development contracts exist to stop implementation from drifting into route files, UI components, or undocumented cross-module behavior. They sit between high-level ADRs and concrete use cases: narrower than architecture guidance, but broader than a single adapter or action.
-
-## What a development contract must contain
-
-A development contract should make five things explicit:
-
-1. the owning module and runtime,
-2. the current public inputs and outputs,
-3. the allowed state transitions and actors,
-4. the invariants that future code must preserve,
-5. and the acceptance gates that must be satisfied before broader implementation starts.
-
-This keeps the repository from using UI behavior, Firestore document shapes, and worker payloads as accidental sources of truth.
-
-## When to create one
-
-A contract is needed when any of the following is true:
-
-- multiple runtimes share one workflow,
-- a module exposes a derived read model but does not yet have a write-side,
-- enterprise governance or auditability matters,
-- or the repository has repeated ADRs and plans but no single implementation reference.
-
-That is why the first contract set covers RAG, parser, schedule, acceptance, billing, and audit.
-
-## How contracts relate to MDDD layers
-
-Development contracts do not replace module ports or use cases. Instead, they define the stable boundary that those ports and use cases must implement.
-
-- UI reads contracts to know which inputs are allowed.
-- Application uses them to define DTOs and workflow boundaries.
-- Domain uses them to guard lifecycle rules and invariants.
-- Infrastructure uses them to map persistence and external adapters without inventing new ownership rules.
-
-## How to update a contract
-
-Update a contract when one of these changes lands:
-
-- a new write-side action becomes official,
-- a state transition changes,
-- a field becomes required or deprecated,
-- runtime ownership moves between Next.js, Firebase, Python, or another adapter,
-- or acceptance gates change because the delivery risk changed.
-
-If the change is breaking, update the contract in the same pull request as the code and identify the compatibility period. If the change is transitional, mark the compatibility path explicitly instead of pretending the repository already runs the target design.
-
-## What to avoid
-
-Do not use development contracts to duplicate every ADR verbatim. Do not store implementation detail that belongs only in one adapter. Do not mix explanation, tutorial, and reference styles in the same page. The contract page should stay short enough that a contributor can use it as an implementation checklist before opening code.
-`````
-
-## File: docs/diagrams-events-explanations/explanation/README.md
-`````markdown
-# Explanations & Governance
-
-Conceptual explanations, architectural rationale, and governance documentation.
-
-## Core Content
-
-- [development-contract-governance.md](./development-contract-governance.md) — Development contract purpose, maintenance, and governance
-- [agentic-delivery-model.md](./agentic-delivery-model.md) — Agentic delivery suite design and rationale
-
-## Related
-
-- [../../README.md](../../README.md) — Root: diagrams, events, explanations
-- [../diagrams/README.md](../diagrams/README.md) — System architecture diagrams
-- [../../development-reference/reference/development-contracts/overview.md](../../development-reference/reference/development-contracts/overview.md) — Development contracts overview
-`````
-
-## File: docs/how-to-user/how-to/organize-docs-for-ai.md
-`````markdown
----
-title: Organize repository docs for AI
-description: How to structure, summarize, index, and maintain Xuanwu App documentation so AI tools can route and read the right material quickly.
----
-
-# Organize repository docs for AI
-
-Use this guide when you want Xuanwu App documents to be easier for Copilot, agents, and retrieval workflows to understand.
-
-## Goal
-
-Turn scattered documents into a predictable knowledge flow:
-
-1. collect and classify,
-2. add table-of-contents and summaries,
-3. maintain an index with metadata,
-4. separate overview from detail,
-5. optionally enable retrieval,
-6. guide AI with the right prompt entry points,
-7. keep everything current.
-
-## Recommended storage layout in this repository
-
-Use the existing docs structure instead of adding a parallel documentation tree.
-
-| Content type | Primary location | Why |
-| --- | --- | --- |
-| High-level architecture and rationale | [docs/decision-architecture/](../../decision-architecture/) | Design intent, ADRs, system architecture |
-| Development workflows and technical references | [docs/development-reference/](../../development-reference/) | Implementation rules, contracts, specifications |
-| Diagrams and explanations | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) | Visual and explanatory support material |
-| User-facing guides and operator flows | [docs/how-to-user/](../../how-to-user/) | How-to and manual content |
-| Agent and repo operating rules | [agents/](../../agents/) and [.github/](../../.github/) | AI instructions, command references, workflow assets |
-
-Do not create a new root-level docs bucket unless the existing structure cannot express the ownership clearly.
-
-## Step 1: Collect and classify
-
-Before editing content, decide the document's home by intent, not by filename.
-
-| Question | Place it here |
-| --- | --- |
-| Is this about architecture decisions or rationale? | [docs/decision-architecture/](../../decision-architecture/) |
-| Is this a rule, contract, specification, or engineering reference? | [docs/development-reference/](../../development-reference/) |
-| Is this a how-to, operator guide, or user manual? | [docs/how-to-user/](../../how-to-user/) |
-| Is this mainly a diagram or visual explanation? | [docs/diagrams-events-explanations/](../../diagrams-events-explanations/) |
-
-When consolidating files:
-
-- remove duplicate copies,
-- archive or delete stale drafts,
-- keep one canonical source per topic,
-- update the nearest README when a file moves.
-
-## Step 2: Add a table of contents and section summaries
-
-Every long Markdown file should have:
-
-1. a short introduction that explains what the file is for,
-2. a predictable heading hierarchy,
-3. a one- or two-line summary at the start of each major section.
-
-Recommended pattern:
-
-```md
-# Title
-
-One paragraph summary of what this document covers and when to read it.
-
-## Section A
-
-Short summary of why this section matters.
-
-### Detail A.1
-```
-
-Prefer explicit headings over hidden or tool-specific TOC syntax. In this repository, clear headings and index pages are more reliable than relying on `[TOC]` rendering.
-
-## Step 3: Maintain an index with metadata
-
-For each folder that acts as a document hub, keep a README index table. At minimum, include:
-
-| File | Topic | Keywords | Summary |
-| --- | --- | --- | --- |
-| `example.md` | runtime boundary | nextjs, worker, rag | Explains which runtime owns each step. |
-
-For larger collections, use this richer schema:
-
-| File | Type | Layer | Topic | Keywords | Summary | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| `rag-ingestion-contract.md` | reference | mid | RAG ingestion | rag, ingestion, worker, firestore | Canonical upload-to-worker contract. | active |
-
-Field guidance:
-
-- File: canonical path from the current folder
-- Type: tutorial, how-to, reference, explanation
-- Layer: high, mid, low
-- Topic: main subject area
-- Keywords: search-oriented terms an AI would likely match
-- Summary: one sentence with the decision-relevant point
-- Status: active, draft, legacy, archived
-
-## Step 4: Separate high, mid, and low layers
-
-AI tools should read the smallest useful layer first.
-
-| Layer | Purpose | Typical files in this repo |
-| --- | --- | --- |
-| High | Fast orientation and routing | [docs/README.md](../../README.md), [docs/development-reference/specification/system-overview.md](../../development-reference/specification/system-overview.md), [agents/knowledge-base.md](../../agents/knowledge-base.md) |
-| Mid | Implementation guidance and workflows | contracts, development READMEs, AI workflow references |
-| Low | Raw detail and supporting artifacts | ADRs, diagrams, logs, detailed specs |
-
-Apply this reading rule:
-
-1. Start from a README or overview page.
-2. Move to the specific contract, guide, or reference page.
-3. Only then open detailed diagrams, ADRs, or low-level artifacts.
-
-## Step 5: Optional retrieval and embeddings
-
-If the documentation set becomes too large for direct reading:
-
-1. chunk by heading boundaries,
-2. store chunk metadata with path, section title, topic, and keywords,
-3. index the chunks in a vector store,
-4. return the most relevant sections before loading full files.
-
-Recommended chunk metadata:
-
-| Field | Purpose |
-| --- | --- |
-| `path` | file location |
-| `title` | document title |
-| `section` | heading path |
-| `layer` | high, mid, low |
-| `topic` | business or technical topic |
-| `keywords` | retrieval hints |
-| `summary` | short routing hint |
-
-## Step 6: Give AI a stable entry prompt
-
-Use a consistent instruction pattern when asking AI to work from docs.
-
-Example prompt:
-
-```text
-先讀 llms.txt 與 docs/README.md，根據摘要與關鍵字定位最相關文件。
-先回報你選了哪些高層文件，再下鑽到契約或細節文件。
-如果找到多份重複來源，請指出 canonical file。
-```
-
-For this repository, preferred entry order is:
-
-1. [llms.txt](../../llms.txt)
-2. [docs/README.md](../../README.md)
-3. nearest folder README
-4. specific contract, guide, or reference page
-5. supporting ADRs or diagrams
-
-## Step 7: Keep it current
-
-Whenever a new document is added or moved, update in the same change:
-
-1. the nearest README index,
-2. any affected root index such as [docs/README.md](../../README.md),
-3. summaries and keywords,
-4. AI entry points such as [llms.txt](../../llms.txt) if routing changes materially.
-
-Use this maintenance checklist:
-
-- Is there exactly one canonical file for the topic?
-- Does the document start with a summary?
-- Is the heading structure easy to chunk by section?
-- Is the document indexed from the nearest README?
-- Does the file belong to the correct high, mid, or low layer?
-- Would an AI know when to open this file from its title, summary, and keywords alone?
-
-## Minimum standard for new docs
-
-Every new important document should provide all of the following:
-
-- title,
-- one-paragraph summary,
-- clear headings,
-- index entry in a nearby README,
-- keywords or topic wording that matches likely search terms,
-- a stable canonical location.
-
-## Related references
-
-- [docs/README.md](../../README.md)
-- [docs/development-reference/reference/ai/customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-- [agents/knowledge-base.md](../../agents/knowledge-base.md)
-`````
-
-## File: docs/how-to-user/how-to/README.md
-`````markdown
-# How-To Guides
-
-Procedural guides for Xuanwu App platform and AI-assisted development workflows.
-
-## AI Workflow Guides
-
-- **Start a feature** → [start-feature-delivery.md](./start-feature-delivery.md)
-- **Recover workflow** → [recover-agent-flow.md](./recover-agent-flow.md)
-- **Update customizations** → [update-customizations.md](./update-customizations.md)
-- **Organize documentation** → [organize-docs-for-ai.md](./organize-docs-for-ai.md)
-
-## Related
-
-- [../README.md](../README.md) — How-to-user root
-- [../../development-reference/reference/ai/implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md) — Plan template
-`````
-
-## File: docs/how-to-user/how-to/recover-agent-flow.md
-`````markdown
----
-title: Recover an interrupted agent flow
-description: How to recover the formal Copilot delivery workflow after interruption, context reset, or stage-specific reruns.
----
-
-# Recover an interrupted agent flow
-
-Use this guide when the formal delivery workflow was interrupted or needs to resume from a later stage.
-
-## Common recovery cases
-
-### Case 1: Planning is done, but implementation has not started or the session was lost
-
-- Use `/implement-plan`.
-- Provide the plan file or paste the plan text.
-
-### Case 2: Implementation is partially complete and review must restart
-
-- Use `/review-changes`.
-- Provide the plan reference and a concise change summary.
-
-### Case 3: Review passed, but QA must rerun
-
-- Use `/run-qa`.
-- Provide the plan reference, current change summary, and any known risk areas.
-
-### Case 4: The stage is unclear or the chat history is polluted
-
-- Use `/resume-delivery`.
-- Provide the last known stage, plan reference, and any outstanding findings.
-
-## Recovery rules
-
-- Do not restart from Planner unless scope, owner, runtime, or validation requirements changed materially.
-- Do not use QA to infer missing implementation state. Reconstruct the stage first.
-- If the plan cannot be located or no longer reflects the intended scope, rerun planning explicitly instead of guessing.
-- Prefer a durable saved plan reference over chat history when reconstructing delivery state across sessions.
-
-## Related references
-
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
-- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-`````
-
-## File: docs/how-to-user/how-to/start-feature-delivery.md
-`````markdown
----
-title: Start feature delivery with Copilot
-description: How to use the Xuanwu Copilot Delivery Suite for a formal feature workflow.
----
-
-# Start feature delivery with Copilot
-
-Use this workflow when the requested change is non-trivial, crosses module boundaries, changes a public workflow, or needs formal review and QA gates.
-
-## When to use this flow
-
-Use the formal delivery flow when one or more of the following are true:
-
-- the change touches more than one module or package,
-- the change affects runtime ownership,
-- a contract-governed workflow is involved,
-- the change needs explicit review and QA evidence,
-- or the task is large enough that implementation should not begin from an ad hoc chat summary.
-
-## Start the workflow
-
-1. Open a fresh chat session.
-2. Run `/plan-feature`.
-3. Provide the request, constraints, and any relevant file or document context.
-4. Review the implementation plan before starting implementation.
-5. If the work will span multiple sessions, save the approved plan in a durable location instead of relying on chat history alone.
-
-## Plan persistence
-
-- If you use the built-in Plan agent, VS Code keeps the generated plan in session memory as `plan.md` for the current conversation only.
-- If you use the Xuanwu Planner agent or expect the work to continue in a later session, store the approved plan in a repository document, issue comment, or other durable reference before implementation starts.
-- Reuse that saved plan when invoking `/implement-plan`, `/review-changes`, `/run-qa`, or `/resume-delivery`.
-
-## Move through the stages
-
-1. Planner produces the formal plan.
-2. Use the `Start Implementation` handoff or run `/implement-plan`.
-3. After implementation, use the `Review Implementation` handoff or run `/review-changes`.
-4. After review passes, use the `Run QA` handoff or run `/run-qa`.
-
-## What “done” means
-
-The workflow is complete when all of the following are true:
-
-- required implementation tasks are complete,
-- required validation has actually run,
-- required docs are updated,
-- review findings are cleared or explicitly accepted,
-- QA has produced evidence and a release recommendation.
-
-## Related references
-
-- [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
-`````
-
-## File: docs/how-to-user/how-to/update-customizations.md
-`````markdown
----
-title: Update AI customizations
-description: Maintenance guide for changing the Xuanwu Copilot Delivery Suite without breaking workflow contracts.
----
-
-# Update AI customizations
-
-This guide is for maintainers who need to change agents, prompts, baseline instructions, or planning contract documents.
-
-## Update order
-
-When changing the delivery workflow, update files in this order:
-
-1. authoritative references,
-2. planning contract documents,
-3. agents,
-4. prompts,
-5. operational docs and index pages.
-
-## If you change the plan structure
-
-Update all of the following in the same change:
-
-- [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
-- [.github/agents/planner.agent.md](../../.github/agents/planner.agent.md)
-- planning prompts under [.github/prompts](../../.github/prompts)
-- any operational docs that explain planning or recovery
-
-## If you change a handoff rule
-
-Update all of the following in the same change:
-
-- the relevant `.agent.md` file,
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md),
-- [agentic-delivery-model.md](../../diagrams-events-explanations/explanation/agentic-delivery-model.md) if rationale changed,
-- recovery guidance if the valid re-entry path changed.
-
-## If you add or retire an asset
-
-Update all of the following in the same change:
-
-- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-- [legacy-customizations-migration.md](../../development-reference/reference/ai/legacy-customizations-migration.md) when applicable
-- README or contributing guidance if contributor-facing entry points changed
-
-## Validation expectations
-
-- Check links between docs and customization files.
-- Ensure agent and prompt names match the intended invocation model.
-- Ensure no active custom agents share the same visible name unless the duplication is intentional and documented.
-- Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
-- Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
-- Keep authoritative sources and workflow docs aligned.
-
-## Handling conflicts with docs
-
-- When merge conflicts happen between `.github/` assets and docs mirrors, keep the `.github/` version.
-- Adjust the docs-side index or links after resolving the conflict to match `.github/` instead of copying file bodies.
-- Remove duplicated excerpts to reduce future diff noise.
-`````
-
-## File: docs/how-to-user/README.md
-`````markdown
-# User Guides & Documentation
-
-End-user documentation, administrator guides, UI/UX design, and operation workflows.
-
-## Organization
-
-| Subdirectory | Content | Entry |
-| --- | --- | --- |
-| [how-to/](./how-to/) | How-to guides and operational workflows | [how-to/README.md](./how-to/README.md) |
-| [ui-ux/](./ui-ux/) | UI design, UX principles, components | [ui-ux/README.md](./ui-ux/README.md) |
-| [user-manual/](./user-manual/) | End-user and admin guides | [user-manual/README.md](./user-manual/README.md) |
-
-## Reading Order
-
-1. **For end users**: [user-manual/user-guide.md](./user-manual/user-guide.md)
-2. **For administrators**: [user-manual/admin-guide.md](./user-manual/admin-guide.md)
-3. **For designers**: [ui-ux/README.md](./ui-ux/README.md)
-4. **For AI/Copilot workflow**: [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
-
-## Quick Start
-
-- **I'm a user**: Start with [user-manual/user-guide.md](./user-manual/user-guide.md)
-- **I'm an admin**: Start with [user-manual/admin-guide.md](./user-manual/admin-guide.md)
-- **I need design specs**: Read [ui-ux/README.md](./ui-ux/README.md)
-- **I'm using Copilot**: See [how-to/start-feature-delivery.md](./how-to/start-feature-delivery.md)
-
-## Related
-
-- [../.github/README.md](../../.github/README.md) — Copilot customization assets
-- [../development-reference/README.md](../development-reference/README.md) — Development guides
-`````
-
-## File: docs/how-to-user/ui-ux/component-patterns.md
-`````markdown
-# UI 元件模式（Component Patterns）
-
-> **參考文件類型**：本文件定義 Xuanwu App 中 UI 元件的使用規範、組合模式與常見陷阱。
-> 元件實作以 **shadcn/ui**（`@ui-shadcn`）為基礎，Lucide React 提供圖示。
-
----
-
-## 1. 元件架構原則
-
-### 1.1 元件分類
-
-| 類型 | 位置 | 說明 |
-|---|---|---|
-| **基礎元件（Primitive）** | `@ui-shadcn/ui/*` | shadcn/ui 提供；不修改來源 |
-| **功能元件（Feature）** | `modules/*/interfaces/components/` | 業務功能元件；含狀態與資料 |
-| **Shell 元件（Layout）** | `app/(shell)/_components/` | 版型元件；App Rail、Sidebar 等 |
-| **頁面元件（Page）** | `app/(shell)/*/page.tsx` | 薄協調層；只組裝元件 |
-
-### 1.2 Server vs Client 元件選擇
-
-| 情況 | 選擇 |
-|---|---|
-| 靜態渲染、無互動 | `Server Component`（預設） |
-| 需要 `useState`、`useEffect`、事件處理 | `'use client'` |
-| 需要 Firestore `onSnapshot` 即時訂閱 | `'use client'` |
-| 需要 `useRouter`、`useSearchParams` | `'use client'` |
-
----
-
-## 2. 常用元件模式
-
-### 2.1 卡片容器模式（Card Pattern）
-
-用於包裝獨立功能區塊（上傳區、查詢區、結果區）。
-
-```tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-<Card>
-  <CardHeader>
-    <CardTitle>Upload File</CardTitle>
-  </CardHeader>
-  <CardContent>
-    {/* 內容 */}
-  </CardContent>
-</Card>
-```
-
-**使用時機**：
-- 功能明確邊界的操作區塊
-- 統計摘要卡片
-- 設定區塊
-
-### 2.2 操作按鈕模式（Action Button Pattern）
-
-主要操作（Primary Action）按鈕的標準 loading 狀態處理：
-
-```tsx
-import { Button } from "@ui-shadcn/ui/button";
-import { Loader2 } from "lucide-react";
-
-<Button
-  onClick={handleAction}
-  disabled={isLoading || !canSubmit}
->
-  {isLoading ? (
-    <>
-      <Loader2 className="mr-2 size-4 animate-spin" />
-      上傳中...
-    </>
-  ) : (
-    "上傳並啟動解析 ↑"
-  )}
-</Button>
-```
-
-**規則**：
-- loading 時必須同時 `disabled` 防止重複提交。
-- loading 文字以進行式動詞結尾（「上傳中...」而非「上傳」）。
-- disabled（非 loading）時加 Tooltip 說明原因。
-
-### 2.3 骨架屏模式（Skeleton Pattern）
-
-資料載入時的占位元件：
-
-```tsx
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-// 列表骨架屏
-{isLoading ? (
-  <div className="space-y-2">
-    {Array.from({ length: 5 }).map((_, i) => (
-      <Skeleton key={i} className="h-12 w-full" />
-    ))}
-  </div>
-) : (
-  <DataTable data={data} />
-)}
-```
-
-### 2.4 空狀態模式（Empty State Pattern）
-
-```tsx
-{data.length === 0 && (
-  <div className="flex flex-col items-center gap-4 py-16 text-center">
-    <FileX className="size-12 text-muted-foreground" />
-    <div>
-      <p className="font-semibold">目前還沒有文件</p>
-      <p className="text-sm text-muted-foreground">
-        試著上傳第一份檔案。
-      </p>
-    </div>
-    <Button variant="outline" onClick={scrollToUpload}>
-      前往上傳
-    </Button>
-  </div>
-)}
-```
-
-### 2.5 Toast 通知模式
-
-```tsx
-import { toast } from "sonner";
-
-// 成功
-toast.success("已觸發重整，稍後觀察 rag status 更新");
-
-// 失敗（含原因）
-toast.error(`上傳失敗：${error.message}`);
-
-// 背景任務提示
-toast.info("正在處理中，請稍候…");
-```
-
-**注意**：`<Toaster />` 已掛載於 `app/providers/providers.tsx`，無需重複掛載。
-
-### 2.6 Dropdown 選單模式
-
-```tsx
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
-
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="ghost" size="sm" aria-label="更多操作">
-      <MoreHorizontal className="size-4" />
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent align="end">
-    <DropdownMenuItem onClick={handleEdit}>編輯</DropdownMenuItem>
-    <DropdownMenuItem
-      className="text-destructive"
-      onClick={handleDelete}
-    >
-      刪除
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
-```
-
-### 2.7 狀態徽章模式（Status Badge Pattern）
-
-```tsx
-import { Badge } from "@ui-shadcn/ui/badge";
-
-function StatusBadge({ status }: { status: "ready" | "processing" | "error" | "pending" }) {
-  const map = {
-    ready:      { label: "✓ ready",       variant: "success" },
-    processing: { label: "⏳ processing",  variant: "secondary" },
-    error:      { label: "✗ error",        variant: "destructive" },
-    pending:    { label: "— pending",      variant: "outline" },
-  };
-  const { label, variant } = map[status];
-  return <Badge variant={variant as never}>{label}</Badge>;
-}
-```
-
-**規則**：狀態徽章必須同時包含圖示與文字（不可只用顏色）。
-
-### 2.8 Tooltip 模式
-
-```tsx
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button disabled aria-disabled>
-        手動重整
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>文件尚未完成解析</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
-```
-
----
-
-## 3. 表單元件模式
-
-### 3.1 基本輸入框
-
-```tsx
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-<div className="space-y-2">
-  <Label htmlFor="title">標題</Label>
-  <Input
-    id="title"
-    value={title}
-    onChange={(e) => setTitle(e.target.value)}
-    placeholder="請輸入標題..."
-    aria-invalid={!!error}
-  />
-  {error && (
-    <p className="text-sm text-destructive" role="alert">
-      {error}
-    </p>
-  )}
-</div>
-```
-
-### 3.2 拖曳上傳區（Drop Zone）
-
-Drop Zone 的可近用性規格：
-
-```tsx
-<div
-  role="button"
-  tabIndex={0}
-  aria-label="點擊選擇檔案，或拖曳檔案至此上傳"
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-    isDragOver && "border-primary bg-primary/5",
-    "focus:outline-none focus:ring-2 focus:ring-ring"
-  )}
-  onDragOver={handleDragOver}
-  onDragLeave={handleDragLeave}
-  onDrop={handleDrop}
-  onClick={handleClick}
-  onKeyDown={(e) => {
-    if (e.key === "Enter" || e.key === " ") handleClick();
-  }}
->
-  {isDragOver ? "放開以上傳" : "點擊或拖曳上傳"}
-</div>
-```
-
----
-
-## 4. 資料表格模式（Data Table Pattern）
-
-使用 TanStack Table（`@lib-tanstack`）實作資料表格：
-
-```tsx
-// 簡易表格（列表較短時）
-<Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>檔名</TableHead>
-      <TableHead>狀態</TableHead>
-      <TableHead>操作</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {documents.map((doc) => (
-      <TableRow key={doc.id}>
-        <TableCell>{doc.filename}</TableCell>
-        <TableCell><StatusBadge status={doc.status} /></TableCell>
-        <TableCell>
-          <ActionButton doc={doc} />
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-```
-
-**選用 TanStack Table 時機**：
-- 需要排序功能
-- 需要列選取（多選刪除）
-- 需要虛擬化（列數 > 100）
-
----
-
-## 5. 頁面組裝模式（Page Composition Pattern）
-
-`page.tsx` 應保持薄協調，只組裝元件：
-
-```tsx
-// ✅ 正確：薄協調層
-export default async function WikiBetaDocumentsPage() {
-  return <WikiBetaDocumentsView />;
-}
-
-// ✅ 正確：有少量 Server-side data fetch
-export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
-  const workspace = await getWorkspaceById(params.workspaceId);
-  if (!workspace) notFound();
-  return <WorkspaceOverview workspace={workspace} />;
-}
-
-// ❌ 錯誤：page 內有業務邏輯
-export default async function DocumentsPage() {
-  const db = getFirestore();
-  const docs = await db.collection("documents").get(); // 直接在 page 呼叫 Firebase
-  return <div>{/* ... */}</div>;
-}
-```
-
----
-
-## 6. 常見反模式（Anti-patterns）
-
-| 反模式 | 問題 | 正確做法 |
-|---|---|---|
-| 直接在 page 使用 Firebase SDK | 違反 MDDD 分層 | 透過 use-case 或 Server Action |
-| 在元件內直接 `new FirebaseXxxRepository()` | 難以測試 | 由 use-case 透過 constructor injection |
-| 只用顏色區分狀態 | 色盲使用者無法識別 | 同時包含圖示與文字 |
-| Toast 成功但無失敗處理 | 靜默失敗 | try/catch 包覆，失敗也顯示 toast |
-| Disabled 按鈕無 Tooltip | 使用者不知為何不可用 | 加 `Tooltip` 說明原因 |
-| 空狀態顯示空白頁面 | 使用者困惑 | 實作 Empty State 元件 |
-| `'use client'` 加在 layout 或不必要的元件 | 阻止 Server Component 優化 | 只在必要的最小範圍加 `'use client'` |
-
----
-
-## 7. 元件命名規範
-
-| 元件類型 | 命名格式 | 範例 |
-|---|---|---|
-| Feature 元件 | `{Module}{Feature}View` | `WikiBetaDocumentsView` |
-| 子元件（列表項） | `{Feature}Row` / `{Feature}Card` | `DocumentRow` |
-| 表單元件 | `{Action}{Resource}Form` | `UploadDocumentForm` |
-| Dialog 元件 | `{Action}{Resource}Dialog` | `CreateWorkspaceDialog` |
-| 頁面 Shell 元件 | `{Module}Shell` | `WikiBetaShell` |
-
----
-
-## 8. 匯入規則
-
-```tsx
-// ✅ 正確
-import { Button } from "@ui-shadcn/ui/button";
-import { Card } from "@ui-shadcn/ui/card";
-import { cn } from "@shared-utils";
-import { Plus, Loader2 } from "lucide-react";
-
-// ❌ 錯誤：使用 legacy 路徑
-import { Button } from "@/ui/shadcn/ui/button";
-import { cn } from "@/shared/utils";
-```
-`````
-
-## File: docs/how-to-user/ui-ux/design-system.md
-`````markdown
-# 設計系統（Design System）
-
-> **參考文件類型**：此文件是 Xuanwu App 的設計語言規範，定義色彩、字型、間距、圖示等基礎設計代碼（Design Tokens）。
-> 技術實作以 Tailwind CSS v4 + shadcn/ui 為基準。
-
----
-
-## 1. 設計哲學
-
-Xuanwu App 的設計語言依循三個核心原則：
-
-| 原則 | 說明 |
-|---|---|
-| **功能優先** | 每個設計決策服務於使用者完成特定任務，不追求裝飾性 |
-| **系統一致** | 相同情境使用相同元件，減少使用者的學習成本 |
-| **資訊密度平衡** | 在資訊豐富（enterprise）與認知負荷（簡潔）之間取得平衡 |
-
----
-
-## 2. 色彩系統
-
-### 2.1 語義色彩（Semantic Colors）
-
-語義色彩基於 shadcn/ui 的 CSS 變數系統，使用時請優先選用語義名稱，不直接使用 HEX 值。
-
-| 代碼 | CSS 變數 | 用途說明 |
-|---|---|---|
-| **background** | `--background` | 頁面底色 |
-| **foreground** | `--foreground` | 主要文字色 |
-| **card** | `--card` | 卡片底色 |
-| **card-foreground** | `--card-foreground` | 卡片文字色 |
-| **popover** | `--popover` | 彈出層底色 |
-| **primary** | `--primary` | 主要操作色（按鈕、連結） |
-| **primary-foreground** | `--primary-foreground` | 主要操作色上的文字 |
-| **secondary** | `--secondary` | 次要操作色 |
-| **muted** | `--muted` | 弱化背景色（placeholder、禁用） |
-| **muted-foreground** | `--muted-foreground` | 弱化文字（次要說明文字） |
-| **accent** | `--accent` | 強調色（hover 狀態） |
-| **destructive** | `--destructive` | 危險操作色（刪除、錯誤） |
-| **border** | `--border` | 邊框色 |
-| **input** | `--input` | 輸入框邊框色 |
-| **ring** | `--ring` | 焦點環色（鍵盤導覽） |
-
-### 2.2 狀態色彩
-
-用於文件狀態、流程狀態等情境的語義指示：
-
-| 狀態 | 顏色建議 | Tailwind Class | 說明 |
-|---|---|---|---|
-| 成功 / Ready | 綠色 | `text-green-600` / `bg-green-50` | 操作完成、狀態正常 |
-| 處理中 | 藍色/琥珀色 | `text-blue-600` / `text-amber-600` | 背景處理中 |
-| 警告 | 黃色 | `text-yellow-600` / `bg-yellow-50` | 需注意但不影響使用 |
-| 錯誤 | 紅色 | `text-red-600` / `bg-red-50` | 操作失敗、系統錯誤 |
-| 禁用 | 灰色 | `text-muted-foreground` | 功能不可用 |
-
-> **可近用性規則**：狀態不可只依賴顏色區分，必須同時提供文字標籤（例如 `✓ ready`、`⏳ processing`、`✗ error`）。
-
----
-
-## 3. 字型系統
-
-### 3.1 字型層次
-
-| 層次 | Tailwind Class | 用途 |
-|---|---|---|
-| 頁面標題（H1） | `text-2xl font-bold` 或 `text-3xl font-bold` | 頁面主標題 |
-| 區塊標題（H2） | `text-xl font-semibold` | 卡片標題、主要區塊標題 |
-| 子標題（H3） | `text-base font-semibold` | 次要標題、欄位群組標題 |
-| 正文 | `text-sm` | 一般內容文字 |
-| 說明文字 | `text-sm text-muted-foreground` | 輔助說明、placeholder |
-| 微文字 | `text-xs text-muted-foreground` | 時間戳記、狀態標籤 |
-
-### 3.2 字型族
-
-- **主字型**：系統字型（`font-sans`）— `system-ui`, `Arial`, `sans-serif`
-- **程式碼字型**：`font-mono` — `ui-monospace`, `Consolas`, `monospace`
-
----
-
-## 4. 間距與版型
-
-### 4.1 間距比例
-
-遵循 Tailwind CSS 4 的 4px 基準間距系統：
-
-| 代碼 | px | 用途 |
-|---|---|---|
-| `space-1` | 4px | 圖示與文字之間 |
-| `space-2` | 8px | 行內元素間距 |
-| `space-3` | 12px | 緊湊型元件內距 |
-| `space-4` | 16px | 標準元件內距（按鈕、輸入框） |
-| `space-6` | 24px | 區塊間距 |
-| `space-8` | 32px | 頁面區段間距 |
-| `space-12` | 48px | 大型區塊間距 |
-
-### 4.2 版型結構
-
-Xuanwu App 採用三欄式 Shell 版型：
-
-```
-+-------+------------------+----------------------------+
-|  App  |   Secondary Nav   |       Main Content          |
-|  Rail |  (Dashboard       |                             |
-| (48px)|   Sidebar)        |    page.tsx 協調層          |
-|       |   (240px)         |                             |
-+-------+------------------+----------------------------+
-```
-
-| 欄位 | 寬度 | 說明 |
-|---|---|---|
-| App Rail | `w-12`（48px） | 最左側圖示導覽欄 |
-| Secondary Nav | `w-60`（240px）| 次要側邊欄（可收合） |
-| Main Content | `flex-1` | 頁面主要內容區 |
-
----
-
-## 5. 圓角系統
-
-| 元件類型 | Tailwind Class | 說明 |
-|---|---|---|
-| 小元件（badge、tag） | `rounded` | 4px |
-| 標準元件（button、input） | `rounded-md` | 6px |
-| 卡片、面板 | `rounded-lg` | 8px |
-| 對話框、Sheet | `rounded-xl` | 12px |
-| 圓形圖示 | `rounded-full` | 100% |
-
----
-
-## 6. 圖示系統
-
-所有圖示使用 **Lucide React** 圖示庫（`lucide-react`），保持圖示風格一致。
-
-### 6.1 常用語義圖示
-
-| 功能語義 | 圖示名稱 | 使用情境 |
-|---|---|---|
-| 工作區 | `Building2` | 工作區中心 App Rail 項目 |
-| 知識庫 | `BookOpen` | Wiki-Beta App Rail 項目 |
-| AI 對話 | `Bot` | AI Chat App Rail 項目 |
-| 組織 | `Users` | 組織管理 |
-| 設定 | `Settings` | 設定頁面 |
-| 新增 | `Plus` | 快捷建立按鈕 |
-| 收合 | `ChevronDown` / `ChevronRight` | 可折疊區塊 |
-| 關閉側欄 | `PanelLeftClose` | 側邊欄收合 |
-| 調整 | `SlidersHorizontal` | 自訂導覽 |
-
-### 6.2 尺寸規範
-
-```tsx
-// 圖示標準尺寸
-<Icon className="size-4" />     // 16px — 行內文字旁的小圖示
-<Icon className="size-[18px]" /> // 18px — App Rail 圖示
-<Icon className="size-5" />     // 20px — 按鈕內的圖示
-<Icon className="size-6" />     // 24px — 卡片標題旁的圖示
-```
-
----
-
-## 7. 陰影與層級
-
-| 層次 | Tailwind Class | 使用情境 |
-|---|---|---|
-| 無陰影 | （預設） | 一般卡片、列表 |
-| 輕微陰影 | `shadow-sm` | 可互動的卡片、按鈕（hover） |
-| 標準陰影 | `shadow` | 浮動工具列 |
-| 深度陰影 | `shadow-md` | Dropdown、Popover |
-| 對話框陰影 | `shadow-xl` | Modal、Dialog |
-
----
-
-## 8. 動態與過渡
-
-| 用途 | Tailwind Class | 說明 |
-|---|---|---|
-| 一般過渡 | `transition-colors` | 顏色切換（hover、focus） |
-| 全屬性過渡 | `transition-all duration-150` | 展開/收合動畫 |
-| 禁用動畫 | `motion-reduce:transition-none` | 尊重使用者偏好 |
-
----
-
-## 9. 深色 / 淺色主題
-
-系統支援亮色（light）與深色（dark）主題，依賴 CSS 變數切換。
-
-- 主題切換由 `Header Controls` 中的主題切換器（`translation-switcher.tsx` 區域）控制。
-- 所有色彩使用 CSS 語義變數，不使用硬編碼顏色值。
-- 元件開發時，使用 `bg-background text-foreground` 而非 `bg-white text-black`。
-
----
-
-## 10. 可近用性設計代碼
-
-| 需求 | 實作方式 |
-|---|---|
-| 鍵盤焦點可見 | 使用 `ring` 色彩，確保焦點環清晰可見 |
-| 色彩對比度 | 前景 / 背景最低對比 4.5:1（WCAG AA） |
-| 螢幕閱讀器 | 所有圖示按鈕加 `aria-label`；Toast 使用 `role="alert"` |
-| 狀態不依賴顏色 | 狀態標籤同時包含圖示與文字 |
-| 禁用元件 | 使用 `aria-disabled` + `cursor-not-allowed`，並提供 tooltip 說明原因 |
-`````
-
-## File: docs/how-to-user/ui-ux/information-architecture.md
-`````markdown
-# 資訊架構（Information Architecture）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的全站資訊架構、導覽層級、路由地圖與頁面組織原則。
-> 實際路由以 `app/` 目錄為準；本文件作為閱讀地圖與設計指引。
-
----
-
-## 1. 全站資訊架構圖
-
-```
-Xuanwu App
-├── (public)                          ← 未登入公開區域
-│   ├── /login                        ← 登入頁
-│   └── /register（planned）          ← 註冊頁
-│
-└── (shell)                           ← 已登入 Shell（三欄版型）
-    ├── /workspace                    ← 工作區中心
-    │   └── /workspace/[workspaceId]  ← 單一工作區
-    │
-    ├── /wiki-beta                    ← 知識庫（Wiki-Beta）
-    │   ├── /wiki-beta（知識總覽）
-    │   ├── /wiki-beta/documents      ← 主操作頁
-    │   ├── /wiki-beta/rag-query      ← AI 問答
-    │   ├── /wiki-beta/rag-reindex    ← RAG 重整
-    │   ├── /wiki-beta/pages          ← 頁面管理
-    │   └── /wiki-beta/libraries      ← 資料庫管理
-    │
-    ├── /ai-chat                      ← AI 對話介面
-    │
-    ├── /organization                 ← 組織管理
-    │   ├── /organization/members     ← 成員管理
-    │   ├── /organization/teams       ← 團隊管理
-    │   ├── /organization/permissions ← 權限管理
-    │   ├── /organization/workspaces  ← 工作區管理
-    │   ├── /organization/schedule    ← 排程管理
-    │   ├── /organization/daily       ← 每日摘要
-    │   └── /organization/audit       ← 稽核記錄
-    │
-    ├── /dashboard                    ← 個人儀表板
-    │
-    └── /settings                     ← 設定
-```
-
----
-
-## 2. Shell 版型層級
-
-### 2.1 三欄結構
-
-```
-+--App Rail--+--Secondary Nav (Dashboard Sidebar)--+--Main Content--+
-|   48px     |           240px（可收合）              |   flex-1       |
-|            |                                       |                |
-| 圖示導覽   |  依所在區域顯示次要導覽                |  page.tsx      |
-|            |                                       |  協調層        |
-+------------+---------------------------------------+----------------+
-```
-
-### 2.2 App Rail（最左欄）
-
-App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
-
-| 圖示 | 路由 | 標籤 |
-|---|---|---|
-| `Building2` | `/workspace` | 工作區中心 |
-| `BookOpen` | `/wiki-beta` | Account Wiki-Beta |
-| `Bot` | `/ai-chat` | AI 對話 |
-| `Users` | `/organization` | 組織管理 |
-| `FlaskConical` | `/dev-tools`（開發環境） | 開發工具 |
-| `Settings` | `/settings` | 設定 |
-| `Plus` | — | 快速建立工作區 / 組織 |
-
-### 2.3 Dashboard Sidebar（次要側邊欄）
-
-次要側邊欄根據**目前所在的功能區域**動態顯示對應的子導覽。
-
-**工作區（/workspace/[id]）子導覽**：
-
-| 群組 | 項目 |
-|---|---|
-| Primary | Overview、Members |
-| Spaces | Spaces 列表 |
-| Databases | Databases 列表 |
-| Library | Files、Documents |
-| Modules | Issues、Tasks、Schedule、Daily |
-
-**Wiki-Beta（/wiki-beta）子導覽**：
-
-| 項目 | 路由 | 狀態 |
-|---|---|---|
-| 知識總覽 | `/wiki-beta` | ✅ 現有 |
-| RAG Query | `/wiki-beta/rag-query` | ✅ 現有 |
-| RAG Reindex | `/wiki-beta/rag-reindex` | ✅ 現有 |
-| Documents [+] | `/wiki-beta/documents` | ✅ 現有 |
-| Pages | `/wiki-beta/pages` | ✅ 現有 |
-| Libraries | `/wiki-beta/libraries` | ✅ 現有 |
-| Workspaces | — | ✅ 現有（可摺疊） |
-
-**組織管理（/organization）子導覽**：
-
-| 項目 | 路由 | 說明 |
-|---|---|---|
-| 成員 | `/organization/members` | 組織成員管理 |
-| 團隊 | `/organization/teams` | 群組管理 |
-| 權限 | `/organization/permissions` | RBAC 角色與權限 |
-| 工作區 | `/organization/workspaces` | 組織下工作區管理 |
-| 排程 | `/organization/schedule` | 排程管理 |
-| 每日 | `/organization/daily` | 每日摘要 |
-| 稽核 | `/organization/audit` | 操作稽核記錄 |
-
----
-
-## 3. 路由設計原則
-
-### 3.1 路由命名規則
-
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 資源列表 | `/resource` | `/wiki-beta/documents` |
-| 資源詳情 | `/resource/[id]` | `/workspace/[workspaceId]` |
-| 功能子頁 | `/context/function` | `/wiki-beta/rag-query` |
-| 設定頁 | `/resource/settings` | `/workspace/[id]/settings` |
-
-### 3.2 路由群組（Route Groups）
-
-Next.js App Router 使用路由群組 `(name)` 來共用 layout 而不影響 URL：
-
-| 群組 | 路徑 | 共用 layout |
-|---|---|---|
-| `(public)` | — | 未登入頁面 layout（無 Shell） |
-| `(shell)` | — | 已登入 Shell layout（三欄版型 + Auth guard） |
-
-### 3.3 URL 參數規範
-
-| 參數 | 說明 | 範例 |
-|---|---|---|
-| `workspaceId` | workspace 篩選視角 | `?workspaceId=ws_123` |
-| `tab` | 功能頁籤切換 | `?tab=overview` |
-| `q` | 搜尋關鍵字 | `?q=keyword` |
-
----
-
-## 4. 資料範圍與 Scope 設計
-
-Xuanwu App 的資料圍繞三層結構：
-
-```
-System
-└── Account（個人帳號 / 組織帳號）
-    └── Workspace（工作區）
-        └── Resources（Pages、Files、Documents...）
-```
-
-| 層次 | 說明 | 存取範圍 |
-|---|---|---|
-| **Account** | 資料主範圍。所有資料歸屬於帳號，不跨帳號共用。 | 帳號擁有者 + 邀請成員 |
-| **Workspace** | 帳號下的分組視角。workspace 是篩選，不是資料邊界。 | Workspace 成員 |
-| **Namespace** | 路由 slug 機制，背景能力，不在 UI 中獨立暴露。 | 系統內部 |
-
-**重要設計原則**：
-- 使用者的 **預設視角** 為帳號全覽（account scope）。
-- 切換 workspace 是「縮小視角」的操作，不是「換資料庫」的操作。
-- 跨 workspace 的資料彙總需在 account 層完成。
-
----
-
-## 5. 頁面類型分類
-
-### 5.1 列表頁（List Page）
-
-顯示某類資源的清單，支援篩選、排序與操作。
-
-**必要元素**：
-- 頁首標題 + 篩選狀態提示
-- 載入中骨架屏（Skeleton）
-- 空狀態（Empty State）+ 引導行動
-- 每列的操作按鈕
-
-**範例**：`/wiki-beta/documents`、`/wiki-beta/pages`
-
-### 5.2 詳情頁（Detail Page）
-
-顯示單一資源的完整資訊，支援編輯操作。
-
-**必要元素**：
-- 返回連結（Back button）
-- 資源標題 + 元資料
-- 內容主體
-- 操作按鈕（Edit / Delete / Share）
-
-**範例**：`/workspace/[workspaceId]`
-
-### 5.3 功能操作頁（Functional Page）
-
-以特定功能為主（非 CRUD 列表），例如 RAG 查詢、上傳操作。
-
-**必要元素**：
-- 操作輸入區
-- 執行按鈕（含 loading 狀態）
-- 結果顯示區
-- 錯誤 / 空狀態處理
-
-**範例**：`/wiki-beta/rag-query`、`/wiki-beta/rag-reindex`
-
-### 5.4 總覽頁（Overview / Dashboard Page）
-
-提供某功能區域的整體摘要與入口。
-
-**必要元素**：
-- 快速操作入口（Quick Actions）
-- 統計摘要（Counters / Metrics）
-- 最近活動或重要提示
-
-**範例**：`/wiki-beta`（知識總覽）
-
----
-
-## 6. 導覽自訂化
-
-使用者可透過「自訂導覽」對話框（`CustomizeNavigationDialog`）調整側邊欄顯示的項目：
-
-- **偏好存儲**：`localStorage` key `xuanwu:nav-preferences`
-- **偏好格式**：pinnedItems（置頂項目）+ workspaceOrder（工作區排序）
-- **有效項目集合**：系統定義 `VALID_PINNED_ITEMS` 與 `VALID_WORKSPACE_ORDER_IDS`，確保偏好合法性
-
----
-
-## 7. 搜尋與導覽輔助
-
-### 7.1 全站搜尋（planned）
-
-- **入口**：Header 右側搜尋圖示（`/search`）
-- **範圍**：account 範圍內所有 Pages、Documents、Records
-- **鍵盤捷徑**：`Cmd/Ctrl + K`
-
-### 7.2 麵包屑（Breadcrumb）
-
-- 目前各頁面使用「← 返回」按鈕
-- 計畫在頁首加入麵包屑導覽（planned）
-
-### 7.3 語言切換
-
-- Header Controls 提供語言切換器（`translation-switcher.tsx`）
-- 支援語言：中文（繁體）、英文（計畫中）
-`````
-
-## File: docs/how-to-user/ui-ux/README.md
-`````markdown
-# UI/UX 文件索引
-
-Xuanwu App 介面設計與體驗規格。
-
-## 文件地圖
-
-| 文件 | 說明 |
-| --- | --- |
-| [design-system.md](./design-system.md) | 色彩、字型、間距、圖示 |
-| [ux-principles.md](./ux-principles.md) | UX 原則、互動規則、可近用性 |
-| [information-architecture.md](./information-architecture.md) | 導覽、路由、IA 圖 |
-| [wireframes.md](./wireframes.md) | 主要畫面線框 |
-| [component-patterns.md](./component-patterns.md) | 元件模式與組合規範 |
-
-## 角色指引
-
-- **UI 設計師** → [design-system.md](./design-system.md), [wireframes.md](./wireframes.md)
-- **前端工程師** → [component-patterns.md](./component-patterns.md), [information-architecture.md](./information-architecture.md)
-- **產品經理** → [ux-principles.md](./ux-principles.md), [information-architecture.md](./information-architecture.md)
-- **QA** → [wireframes.md](./wireframes.md), [ux-principles.md](./ux-principles.md)
-
-## 相關
-
-- [architecture](../../diagrams-events-explanations/diagrams/README.md) — 系統架構圖
-- [specifications](../../development-reference/specification/README.md) — 系統規格
-`````
-
-## File: docs/how-to-user/ui-ux/ux-principles.md
-`````markdown
-# UX 原則與互動規範
-
-> **說明文件類型**：本文件說明 Xuanwu App 的使用者體驗設計哲學，定義互動模式、反饋機制與可近用性標準。
-> 設計決策均與 Diátaxis 的「說明」象限對應 — 著重「為什麼」而非「如何做」。
-
----
-
-## 1. 核心 UX 原則
-
-### 1.1 UX1 — 操作可見（System Visibility）
-
-> _使用者在任何時刻都知道系統正在做什麼。_
-
-**來源**：Don Norman《The Design of Everyday Things》— 回饋原則。
-
-**實作規範**：
-- 所有非同步操作（上傳、查詢、刪除）必須有 loading 狀態指示。
-- loading 狀態使用 **spinner + 文字** 雙重提示（例如「上傳中...」），不只有 spinner。
-- 後台處理完成後（例如文件解析），以 **toast 通知** 明確告知結果。
-- 即時變動的資料（例如文件 `status`）盡量使用 **Firestore `onSnapshot`** 讓狀態自動更新，而非需要使用者手動刷新。
-
-### 1.2 UX2 — 降低認知負擔（Minimize Cognitive Load）
-
-> _核心操作集中在一個頁面完成，不強迫使用者在多頁面間跳轉。_
-
-**來源**：Steve Krug《Don't Make Me Think》— 最少點擊數。
-
-**實作規範**：
-- 每個主功能頁面（例如 `/wiki-beta/documents`）自我完備 — 上傳、列表、操作三位一體。
-- 側邊欄導覽項目最多顯示 **7 個頂層項目**（米勒定律：工作記憶限制）。
-- 次要操作（例如快捷建立）使用 **hover 顯示** 的次要元素，不佔主要視覺空間。
-
-### 1.3 UX3 — 錯誤可修復（Error Recovery）
-
-> _出錯時顯示原因與建議的下一步行動。_
-
-**來源**：Don Norman《The Design of Everyday Things》— 錯誤設計原則。
-
-**實作規範**：
-- 所有錯誤 toast 包含 **原因 + 建議行動**（例如「上傳失敗，請確認網路連線後重試」）。
-- 格式驗證錯誤在使用者動作當下即時顯示，不等待 submit。
-- 禁用按鈕（disabled）必須搭配 **tooltip 說明不可用原因**，不可靜默。
-
-### 1.4 UX4 — 資料全覽預設（Default to Overview）
-
-> _預設顯示 account 全覽，不因工作區切換讓資料「消失」。_
-
-**來源**：Lean UX — 從使用者痛點出發的設計。
-
-**實作規範**：
-- 所有資料列表預設顯示 **account 範圍**，不以 workspace 為預設篩選。
-- workspace 篩選為選擇性操作，透過 URL 參數（`?workspaceId=<id>`）觸發。
-- 篩選啟動時，頁面需顯示明確的篩選提示（例如「workspace: {id} ×」）。
-
-### 1.5 UX5 — 鍵盤可近用性（Keyboard Accessibility）
-
-> _所有互動操作均可由鍵盤完整操作，不依賴滑鼠。_
-
-**來源**：WCAG 2.1 AA 標準。
-
-**實作規範**：
-- 所有可互動元素（按鈕、連結、輸入框）可 Tab 鍵聚焦。
-- Dropdown / Popover 支援 ↑↓ 導覽與 Enter 觸發、Esc 關閉。
-- 焦點管理：開啟 Modal/Dialog 後焦點移入；關閉後焦點回到觸發元素。
-- 焦點環（focus ring）在所有互動元素上清晰可見。
-
-### 1.6 UX6 — 一致性（Consistency）
-
-> _相同功能在全平台使用相同元件與文案模式。_
-
-**來源**：Jakob Nielsen《10 Usability Heuristics》— Consistency and Standards。
-
-**實作規範**：
-- 統一使用 shadcn/ui 元件庫，不自行實作已有的基礎元件。
-- 操作文案統一：「建立」（不混用「新增」和「新建」）、「刪除」（不混用「移除」）。
-- 狀態圖示統一：`✓ ready`、`⏳ processing`、`✗ error`。
-
----
-
-## 2. 互動模式規範
-
-### 2.1 Toast 通知規則
-
-Toast 是 Xuanwu App 的主要反饋機制，使用 **Sonner** 函式庫。
-
-| 情境 | Toast 類型 | 顯示時間 |
-|---|---|---|
-| 操作成功（建立、儲存、觸發） | `success` | 3 秒自動消失 |
-| 操作失敗（網路、驗證、權限） | `error` | 5 秒（或手動關閉） |
-| 背景處理中（可能需要等待） | `info` | 4 秒自動消失 |
-| 危險操作前的確認 | 不用 toast，用 Dialog | — |
-
-**格式規範**：
-```
-成功：「已{動作} {對象}」        例：「已建立 工作區 Marketing」
-失敗：「{動作}失敗：{原因}」     例：「上傳失敗：格式不支援」
-處理中：「{動作}中，請稍候…」   例：「重整中，請稍候…」
-```
-
-**實作位置**：`<Toaster />` 已掛載於 `app/providers/providers.tsx`。
-
-### 2.2 Loading 狀態規範
-
-| 情境 | Loading 模式 |
-|---|---|
-| 頁面初始載入 | Skeleton（骨架屏） — 整頁占位符 |
-| 列表資料載入 | Skeleton rows — 每列占位符 |
-| 按鈕觸發的操作 | Inline spinner + 文字 + disabled |
-| 單列操作（不影響其他列） | 僅該列顯示 spinner，其他列保持互動 |
-| 全頁阻斷操作 | 避免使用；若必要，使用半透明 overlay |
-
-### 2.3 空狀態設計
-
-每個列表頁面須定義 **空狀態（Empty State）**，避免空白頁面讓使用者困惑。
-
-| 場景 | 空狀態內容 |
-|---|---|
-| 無文件（Documents） | 說明文字 + 指向 Upload 卡的引導箭頭 |
-| 無頁面（Pages） | 說明文字 + 「建立第一個頁面」按鈕 |
-| 無查詢結果（RAG Query） | 說明文字 + 建議的下一步（確認文件已 indexed） |
-| 無工作區 | 說明文字 + 「建立工作區」按鈕 |
-
-**空狀態文案格式**：
-```
-「目前還沒有 {資源名稱}，{引導動作}。」
-例：「目前還沒有文件，試著上傳第一份檔案。」
-```
-
-### 2.4 確認對話框規則
-
-需要使用 Dialog 確認的操作：
-
-| 操作類型 | 是否需要確認 |
-|---|---|
-| 刪除永久性資源 | ✅ 必須 |
-| 批次刪除 | ✅ 必須 |
-| 清除資料 | ✅ 必須 |
-| 建立 | ❌ 不需要 |
-| 儲存 | ❌ 不需要 |
-| 觸發背景任務（例如 reindex） | ❌ 不需要（有 toast 反饋即可） |
-
----
-
-## 3. 表單設計規範
-
-### 3.1 輸入驗證時機
-
-| 驗證類型 | 觸發時機 |
-|---|---|
-| 格式驗證（日期、Email） | blur（失去焦點時） |
-| 必填欄位 | submit（提交時）；如果已 blur 過也可 blur 時顯示 |
-| 即時搜尋 | change（每次輸入後，加 debounce） |
-| 伺服器端驗證 | submit 後，以 toast 或 inline error 顯示 |
-
-### 3.2 按鈕狀態
-
-所有可提交的按鈕（Primary Button）遵循以下狀態：
-
-```
-idle → loading → success（toast） or error（toast）
-```
-
-- **idle**：正常可點擊狀態，顯示操作文字。
-- **loading**：顯示 spinner + 操作進行中文字，按鈕 disabled。
-- **success**：toast 顯示成功訊息，按鈕回到 idle（或 navigate）。
-- **error**：toast 顯示錯誤訊息，按鈕回到 idle（允許重試）。
-
----
-
-## 4. 導覽行為規範
-
-### 4.1 側邊欄展開 / 收合
-
-- **預設狀態**：展開。
-- **收合觸發**：使用者點擊 `PanelLeftClose` 圖示，偏好存於 `localStorage`（key: `xuanwu:nav-preferences`）。
-- **收合狀態**：僅顯示圖示，懸停（hover）顯示 Tooltip 提示完整名稱。
-
-### 4.2 Active 狀態顯示
-
-- 側邊欄以路由 prefix 判斷 active（`pathname.startsWith(href + "/")`）。
-- Active 項目：背景色 `bg-accent`，文字加粗。
-
-### 4.3 麵包屑（Breadcrumb）
-
-目前未實作全站麵包屑；各功能區頁首有「返回」按鈕（例如「← 返回 Wiki Beta」）。
-
----
-
-## 5. 可近用性完整清單
-
-### 5.1 必要實作（WCAG 2.1 AA）
-
-| 需求 | 實作細節 |
-|---|---|
-| 色彩對比 | 文字與背景對比 ≥ 4.5:1（一般文字）；≥ 3:1（大文字） |
-| 鍵盤可操作 | 所有功能可不依賴滑鼠完成 |
-| 螢幕閱讀器 | 圖示按鈕有 `aria-label`；狀態用 `aria-live` 或 `role="status"` |
-| 焦點管理 | 開啟 Dialog/Popover 後焦點移入，關閉後焦點回到觸發元素 |
-| 錯誤識別 | 錯誤訊息不僅依賴紅色，需有文字說明 |
-| 選單鍵盤操作 | Arrow 鍵導覽、Enter 觸發、Esc 關閉 |
-
-### 5.2 元件可近用性規格
-
-| 元件 | 鍵盤行為 | ARIA 需求 |
-|---|---|---|
-| Drop Zone | Tab 聚焦；Enter/Space 觸發選檔 | `role="button"`, `aria-label` |
-| Dropdown Menu | ↑↓ 導覽；Enter 選擇；Esc 關閉 | `role="menu"`, `role="menuitem"` |
-| Dialog | Esc 關閉；焦點陷阱 | `role="dialog"`, `aria-labelledby` |
-| Toast | 自動朗讀 | `role="alert"` 或 `aria-live="assertive"` |
-| Table | Tab 導覽至互動元素 | `<table>` 語意標籤 |
-| Badge / Status | — | 不可只用顏色；需有文字 |
-
----
-
-## 6. 回應式設計規範
-
-Xuanwu App 主要針對桌面（Desktop first），但核心頁面需支援平板與手機。
-
-| 斷點 | Tailwind Prefix | 說明 |
-|---|---|---|
-| 手機 | （預設） | 單欄版型；隱藏 Secondary Nav |
-| 平板 | `md:` | 可選性顯示 Secondary Nav |
-| 桌面 | `lg:` | 完整三欄版型 |
-
-**手機版規則**：
-- App Rail 收合為底部導覽列（planned）。
-- 資料列表改為卡片式呈現，取代桌面的表格。
-- 複雜操作（例如上傳）維持可用，但版型調整為全寬。
-`````
-
-## File: docs/how-to-user/ui-ux/wireframes.md
-`````markdown
-# 線框圖（Wireframes）
-
-> **參考文件類型**：本文件包含 Xuanwu App 各主要功能區域的線框圖（Wireframe），以 ASCII 文字圖呈現布局結構與元件配置。
-> 詳細的個別功能 UI 規格，請參閱 [規格索引](../../development-reference/specification/README.md)。
-
----
-
-## 1. Shell 版型（三欄結構）
-
-所有已登入頁面共用三欄 Shell 版型：
-
-```
-+--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
-|   48px       |    240px          |    flex-1         |
-|              |  （可收合）        |                   |
-| [Logo]       |  根據功能區域      |  page.tsx         |
-|              |  動態顯示子導覽    |  協調層           |
-| [Workspace]  |                   |                   |
-| [Wiki Beta]  |                   |                   |
-| [AI Chat]    |                   |                   |
-| [Org]        |                   |                   |
-|              |                   |                   |
-| ─────────── |                   |                   |
-| [Settings]   |                   |                   |
-| [User Avatar]|                   |                   |
-+--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
-```
-
-### Header（頁首）
-
-```
-+----------------------------------------------------------------+
-| Breadcrumb / Page Title        [Search] [Lang] [Theme] [User] |
-+----------------------------------------------------------------+
-```
-
----
-
-## 2. Wiki-Beta 功能區
-
-### 2.1 `/wiki-beta`（知識總覽）
-
-```
-+--App Rail--+--Wiki-Beta Nav--+------Main Content------+
-|            | 知識總覽 ●      | [← 返回]               |
-|            | RAG Query       |                        |
-|            | RAG Reindex     | Wiki Beta              |
-|            | Documents   [+] | ─────────────────────  |
-|            | Pages           |                        |
-|            | Libraries       | ┌─────────┐ ┌─────────┐|
-|            | ─────────────  | │ 文件上傳 │ │RAG Query│|
-|            | Workspaces ▼   | │  圖示+   │ │ 圖示+   │|
-|            |  > ws-1         | │  說明文字│ │ 說明文字│|
-|            |  > ws-2         | └─────────┘ └─────────┘|
-|            |                 |                        |
-|            |                 | 帳號統計               |
-|            |                 | 文件：N  Ready：M      |
-|            |                 | 工作區：K              |
-+--App Rail--+--Wiki-Beta Nav--+------Main Content------+
-```
-
-### 2.2 `/wiki-beta/documents`（主操作頁）
-
-```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Documents       |
-|            | RAG Query       | account 全覽 / ws: {id} ×  |
-|            | RAG Reindex     | ─────────────────────────── |
-|            | Documents ● [+] |                             |
-|            | Pages           | ┌── 上傳檔案 ─────────────┐|
-|            | Libraries       | │                           │|
-|            |                 | │  ╔═══════════════════╗   │|
-|            |                 | │  ║ 點擊或拖曳上傳     ║   │|
-|            |                 | │  ║ .pdf .tiff .png    ║   │|
-|            |                 | │  ╚═══════════════════╝   │|
-|            |                 | │                           │|
-|            |                 | │  [上傳並啟動解析 ↑] [✕]  │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Documents (帳號全覽) ───┐|
-|            |                 | │ filename │ status │ rag   │|
-|            |                 | │──────────│────────│───────│|
-|            |                 | │report.pdf│✓ ready │✓ idx  │|
-|            |                 | │scan.tiff │⏳ proc │⏳ pend│|
-|            |                 | │error.pdf │✗ error │ —    │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-```
-
-**Documents [+] 快捷選單（Popover）**：
-
-```
-Documents [+]
-          │
-          ▼
-     ┌─────────────────┐
-     │ ＋ 新增頁面      │
-     │ ＋ 新增資料庫    │
-     └─────────────────┘
-```
-
-### 2.3 `/wiki-beta/rag-query`
-
-```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · RAG Query       |
-|            | RAG Query ●     | ─────────────────────────── |
-|            | RAG Reindex     |                             |
-|            | Documents   [+] | ┌── RAG Query ─────────────┐|
-|            | Pages           | │                           │|
-|            | Libraries       | │ ┌─────────────────────┐   │|
-|            |                 | │ │ 請輸入你的問題...     │   │|
-|            |                 | │ └─────────────────────┘   │|
-|            |                 | │ top_k: [5 ▼] [送出查詢]  │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Answer ────────────────┐|
-|            |                 | │ AI 回答文字...            │|
-|            |                 | │                           │|
-|            |                 | │ [cache:hit][scope:acct]  │|
-|            |                 | │ [vector:5][search:3]     │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Citations (3 筆) ──────┐|
-|            |                 | │ 1. report.pdf — 第5頁     │|
-|            |                 | │    "...引用片段..."        │|
-|            |                 | │ 2. scan.tiff — 第1頁      │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-```
-
-### 2.4 `/wiki-beta/pages`（Pages 頁面管理）
-
-```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Pages           |
-|            | RAG Query       | ─────────────────────────── |
-|            | RAG Reindex     |                  [新增頁面]  |
-|            | Documents   [+] |                             |
-|            | Pages ●         | ┌── 頁面列表 ───────────────┐|
-|            | Libraries       | │ title     │ updatedAt │ → │|
-|            |                 | │───────────│───────────│───│|
-|            |                 | │ 專案概覽  │ 2026-03-20│ > │|
-|            |                 | │   > 里程碑│ 2026-03-21│ > │|
-|            |                 | │ 技術規格  │ 2026-03-22│ > │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-```
-
-### 2.5 `/wiki-beta/libraries`（Libraries 資料庫管理）
-
-```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Libraries       |
-|            | RAG Query       | ─────────────────────────── |
-|            | RAG Reindex     |              [新增資料庫]    |
-|            | Documents   [+] |                             |
-|            | Pages           | ┌── 資料庫列表 ─────────────┐|
-|            | Libraries ●     | │ name      │ fields │ rows │|
-|            |                 | │───────────│────────│──────│|
-|            |                 | │ 任務追蹤  │ 5欄位  │ 20列 │|
-|            |                 | │ 聯絡人    │ 3欄位  │ 8列  │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
-```
-
----
-
-## 3. 工作區（Workspace）
-
-### 3.1 `/workspace`（工作區中心）
-
-```
-+--App Rail--+--Nav--+--------Main Content---------+
-|            |       | 工作區中心                  |
-|            |       | ─────────────────────────── |
-|            |       | [建立工作區]                 |
-|            |       |                             |
-|            |       | ┌── 我的工作區 ─────────────┐|
-|            |       | │ ┌─────────┐ ┌─────────┐  │|
-|            |       | │ │  工作區  │ │  工作區  │  │|
-|            |       | │ │  Marketing│ │ Product │  │|
-|            |       | │ │  →進入    │ │  →進入  │  │|
-|            |       | │ └─────────┘ └─────────┘  │|
-|            |       | └───────────────────────────┘|
-+--App Rail--+--Nav--+--------Main Content---------+
-```
-
----
-
-## 4. 組織管理（Organization）
-
-### 4.1 `/organization/members`
-
-```
-+--App Rail--+--Org Nav--+--------Main Content---------+
-|            | 成員 ●    | 組織 · 成員管理             |
-|            | 團隊      | ─────────────────────────── |
-|            | 權限      |                 [邀請成員]   |
-|            | 工作區    |                             |
-|            | 排程      | ┌── 成員列表 ───────────────┐|
-|            | 每日      | │ 姓名  │ 角色   │ 狀態 │操作│|
-|            | 稽核      | │───────│────────│──────│────│|
-|            |           | │ Alice │ Admin  │ 活躍 │ … │|
-|            |           | │ Bob   │ Member │ 活躍 │ … │|
-|            |           | └───────────────────────────┘|
-+--App Rail--+--Org Nav--+--------Main Content---------+
-```
-
----
-
-## 5. AI Chat
-
-### 5.1 `/ai-chat`
-
-```
-+--App Rail--+--Nav--+--------Main Content---------+
-|            |       | AI 對話                     |
-|            |       | ─────────────────────────── |
-|            |       | ┌── 對話歷史 ───────────────┐|
-|            |       | │ 使用者: 這份文件說什麼?    │|
-|            |       | │                           │|
-|            |       | │ AI: 根據文件內容，...      │|
-|            |       | │                           │|
-|            |       | └───────────────────────────┘|
-|            |       |                             |
-|            |       | ┌── 輸入區 ─────────────────┐|
-|            |       | │ 請輸入問題...    [送出 →]  │|
-|            |       | └───────────────────────────┘|
-+--App Rail--+--Nav--+--------Main Content---------+
-```
-
----
-
-## 6. 手機版線框圖
-
-手機版（< 768px）調整三欄為單欄：
-
-### 6.1 手機版 Documents
-
-```
-+--[Header: Wiki Beta · Documents]--+
-| [← 返回]                [↺ 刷新] |
-+-------------------------------------+
-| ┌── 上傳檔案 ─────────────────────┐|
-| │  .pdf .tiff .png .jpg            │|
-| │  ╔═══════════════════╗           │|
-| │  ║   點擊或拖曳上傳   ║           │|
-| │  ╚═══════════════════╝           │|
-| │  [上傳並啟動解析] [清除]         │|
-| └─────────────────────────────────┘|
-|                                     |
-| ┌── Documents (N 筆) ──────────────┐|
-| │ report.pdf                        │|
-| │  ✓ ready · ✓ indexed · 12 頁    │|
-| │  [手動重整]                       │|
-| │─────────────────────────────────│|
-| │ scan.tiff                         │|
-| │  ⏳ processing · ⏳ pending      │|
-| │  [— 解析中 —]                   │|
-| └─────────────────────────────────┘|
-```
-
-### 6.2 手機版底部導覽（planned）
-
-```
-+─────────────────────────────────────+
-| [工作區] [Wiki] [AI] [組織] [設定]  |
-+─────────────────────────────────────+
-```
-
----
-
-## 7. 對話框（Dialog）設計
-
-### 7.1 建立工作區 Dialog
-
-```
-+─────────────────────────────────────────+
-│  建立工作區                          ✕  │
-│                                         │
-│  工作區名稱                             │
-│  ┌─────────────────────────────────┐   │
-│  │ 請輸入工作區名稱...              │   │
-│  └─────────────────────────────────┘   │
-│  {錯誤訊息（若有）}                    │
-│                                         │
-│                    [取消]  [建立工作區] │
-+─────────────────────────────────────────+
-```
-
-### 7.2 刪除確認 Dialog
-
-```
-+─────────────────────────────────────────+
-│  確認刪除                            ✕  │
-│                                         │
-│  您確定要刪除「{資源名稱}」嗎？         │
-│  此操作無法復原。                       │
-│                                         │
-│                       [取消]  [確認刪除]│
-+─────────────────────────────────────────+
-```
-
----
-
-## 8. 狀態元件規格
-
-### 8.1 Status Badge
-
-```
-✓ ready         ← 綠色背景，白色文字
-⏳ processing   ← 藍/琥珀色背景，白色文字
-✗ error         ← 紅色背景，白色文字
-— pending       ← 灰色背景，灰色文字
-```
-
-### 8.2 Loading Skeleton 
-
-```
-Documents 列表載入中：
-+─────────────────────────────────────+
-│ ▓▓▓▓▓▓▓▓▓▓▓ │ ▓▓▓▓▓▓▓ │ ▓▓▓▓▓  │
-│ ▓▓▓▓▓▓▓▓    │ ▓▓▓▓▓▓▓ │ ▓▓▓    │
-│ ▓▓▓▓▓▓▓▓▓▓  │ ▓▓▓▓▓▓  │ ▓▓▓▓   │
-+─────────────────────────────────────+
-（▓ 代表 Skeleton 骨架屏 pulse 動畫區塊）
-```
-
----
-
-## 相關文件
-
-- [設計系統](./design-system.md) — 色彩、字型規範
-- [UX 原則](./ux-principles.md) — 互動規則、可近用性
-- [資訊架構](./information-architecture.md) — 全站路由地圖
-- [規格索引](../../development-reference/specification/README.md) — Wiki-Beta 與其他功能規格入口
-`````
-
-## File: docs/how-to-user/user-manual/README.md
-`````markdown
-# 使用手冊
-
-一般使用者、管理員、進階使用者的操作指南。
-
-## 文件地圖
-
-| 文件 | 讀者 | 說明 |
-| --- | --- | --- |
-| [user-guide.md](./user-guide.md) | 一般使用者 | 核心功能與操作 |
-| [admin-guide.md](./admin-guide.md) | 組織管理員 | 成員、權限、維運 |
-
-## 快速開始
-
-1. 登入 → 2. 建立工作區 → 3. 進入 Wiki-Beta → 4. 上傳文件 → 5. 執行 AI 問答
-
-## 常見操作
-
-| 操作 | 路徑 | 條件 |
-|------|------|------|
-| 上傳知識文件 | `/wiki-beta/documents` | 已登入 |
-| RAG 問答 | `/wiki-beta/rag-query` | 至少一份 ready 文件 |
-| 建立頁面 | `/wiki-beta/pages` | 已登入 |
-| 建立資料庫 | `/wiki-beta/libraries` | 已登入 |
-| 管理成員 | `/organization/members` | Admin |
-| 查看稽核 | `/organization/audit` | Admin |
-
-## 相關
-
-- [../ui-ux/README.md](../ui-ux/README.md)
-- [../../development-reference/specification/README.md](../../development-reference/specification/README.md)
-`````
-
-## File: docs/how-to-user/user-manual/user-guide.md
-`````markdown
-# 使用者指南（User Guide）
-
-> **目標讀者**：Xuanwu App 一般使用者（個人帳號與組織成員）
-> **目標**：帶你完成平台的核心操作流程，從登入到使用 AI 知識查詢。
-
----
-
-## 快速參考
-
-| 我想要… | 路徑 | 所需條件 |
-|---|---|---|
-| 上傳知識文件 | `/wiki-beta/documents` | 帳號登入 |
-| AI 知識問答 | `/wiki-beta/rag-query` | 至少一份 ready 狀態的文件 |
-| 建立頁面 | `/wiki-beta/pages` | 帳號登入 |
-| 管理工作區 | `/workspace` | 帳號登入 |
-| AI 對話 | `/ai-chat` | 帳號登入 |
-
----
-
-## 1. 登入與初始設定
-
-### 1.1 登入系統
-
-1. 開啟 Xuanwu App 網址。
-2. 輸入你的帳號（Email）與密碼。
-3. 點選 **「登入」**。
-
-> 登入後，系統會進入已驗證的 Shell，左側顯示 App Rail 導覽欄。
-
-### 1.2 建立工作區
-
-若你是第一次使用，系統可能無工作區。建立第一個工作區：
-
-1. 點選 App Rail 底部的 **`+`（Plus）** 圖示。
-2. 選擇 **「建立工作區」**。
-3. 輸入工作區名稱（例如「個人筆記」）。
-4. 點選 **「建立工作區」**。
-5. ✅ **成功**：側邊欄出現新工作區，系統自動導向工作區頁面。
-
-### 1.3 建立組織（可選）
-
-若你需要與他人協作：
-
-1. 點選 App Rail 的 **`+`** 圖示。
-2. 選擇 **「建立組織」**。
-3. 輸入組織名稱。
-4. 點選 **「建立組織」**。
-5. ✅ **成功**：導向組織管理頁，可開始邀請成員。
-
----
-
-## 2. 知識庫（Wiki-Beta）基本操作
-
-### 2.1 進入知識庫
-
-點選 App Rail 的 **`BookOpen`（書本）** 圖示，或直接訪問 `/wiki-beta`。
-
-預設進入 **知識總覽** 頁，顯示文件統計與快捷入口。
-
-### 2.2 上傳文件
-
-1. 從左側 Wiki-Beta 導覽進入 **「Documents」**。
-2. 在上傳區塊，**拖曳** `.pdf`、`.tiff`、`.png` 或 `.jpg` 檔案至虛線框，或點選框內 **選擇檔案**。
-3. 確認已選擇檔案後，點選 **「上傳並啟動解析」**。
-4. 按鈕顯示 loading 狀態，完成後：
-   - ✅ 文件出現在下方列表，`status` 顯示 `⏳ processing`。
-   - toast 通知確認上傳成功。
-
-> **背景解析需要時間**：文件 `status` 從 `processing` 轉為 `ready` 通常需要 30 秒至數分鐘，視文件大小而定。
-
-### 2.3 查看文件狀態
-
-Documents 列表欄位說明：
-
-| 欄位 | 說明 |
-|---|---|
-| **filename** | 原始上傳檔名 |
-| **status** | 解析狀態：`⏳ processing`、`✓ ready`、`✗ error` |
-| **rag status** | RAG 索引狀態：`— pending`、`✓ indexed`、`✗ error` |
-| **pages** | 文件頁數（解析完成後顯示） |
-| **uploadedAt** | 上傳時間 |
-
-**刷新方式**：點選頁面上方 **「↺ 刷新文件」** 按鈕，或重新整理頁面。
-
-### 2.4 篩選特定工作區的文件
-
-預設顯示帳號下**所有工作區**的文件。若只想看某個工作區：
-
-在 URL 加入 `?workspaceId=<workspace-id>` 參數。
-
-頁面會顯示篩選提示「workspace: {id} ×」，點 `×` 可清除篩選回全覽。
-
----
-
-## 3. RAG AI 問答
-
-### 3.1 執行問答
-
-1. 進入 Wiki-Beta 側邊欄的 **「RAG Query」**。
-2. 在輸入框輸入你的問題（例如：「這份報告的主要結論是什麼？」）。
-3. `top_k` 設定建議保留預設值（5）。
-4. 點選 **「送出查詢」**。
-5. 等待 AI 處理：
-   - ✅ **Answer** 區塊顯示 AI 回答。
-   - ✅ **Citations** 區塊列出引用的原始文件片段。
-
-### 3.2 理解回答
-
-| 區塊 | 說明 |
-|---|---|
-| **Answer** | AI 根據文件內容生成的回答 |
-| **Citations** | 回答所引用的原始文件片段，包含文件名與頁碼 |
-| **[cache: hit/miss]** | 是否使用快取回答 |
-| **[vector: N]** | 向量搜尋命中數量 |
-| **[search: N]** | 全文搜尋命中數量 |
-
-### 3.3 沒有 Citations 怎麼辦？
-
-若問答無引用：
-1. 到 Documents 頁確認文件 `rag status` 是否為 `✓ indexed`。
-2. 若為 `— pending`，等待索引完成後再試。
-3. 若為 `✗ error`，請手動執行重整（見 3.4）。
-4. 嘗試更換問題語句，使問題語意更接近文件內容。
-
-### 3.4 手動 RAG 重整
-
-當文件的 RAG 索引需要重建時：
-
-1. 進入 **「RAG Reindex」** 頁面（或在 Documents 列表找到對應文件）。
-2. 找到目標文件，確認 `status` 為 `✓ ready`（有 json_gcs_uri）。
-3. 點選 **「手動重整」**。
-4. ✅ 按鈕顯示 loading，完成後 `rag status` 更新，toast 確認成功。
-
----
-
-## 4. 頁面管理（Pages）
-
-### 4.1 建立頁面
-
-1. 進入 Wiki-Beta 側邊欄的 **「Pages」**。
-2. 點選右上角 **「新增頁面」** 按鈕。
-3. 輸入頁面標題。
-4. ✅ 頁面建立成功，可進入頁面開始編輯。
-
-**快捷建立**：側邊欄 `Documents` 項目右側有 **`+`** 圖示（hover 才顯示），點選後選擇「新增頁面」。
-
-### 4.2 頁面層級
-
-Pages 支援巢狀層級（Parent-Child）。在頁面清單中，子頁面顯示在父頁面下方（縮排）。
-
----
-
-## 5. 資料庫管理（Libraries）
-
-### 5.1 建立資料庫
-
-1. 進入 Wiki-Beta 側邊欄的 **「Libraries」**。
-2. 點選 **「新增資料庫」**。
-3. 輸入資料庫名稱。
-4. ✅ 資料庫建立成功，可開始新增欄位（Fields）與資料（Records）。
-
-### 5.2 欄位類型
-
-| 欄位類型 | 說明 |
-|---|---|
-| `text` | 純文字 |
-| `number` | 數字 |
-| `boolean` | 是 / 否 |
-| `date` | 日期 |
-| `select` | 單選下拉 |
-| `relation` | 關聯其他資料庫 |
-
----
-
-## 6. 工作區操作
-
-### 6.1 切換工作區
-
-在左側 Dashboard Sidebar 底部，點選工作區名稱即可切換。
-
-### 6.2 自訂側邊欄
-
-點選側邊欄上方的 **`SlidersHorizontal`（調整）** 圖示，開啟「自訂導覽」對話框：
-
-- **置頂項目**：可選擇要在頂部顯示的導覽項目
-- **工作區排序**：調整工作區在側邊欄的順序
-
-設定自動儲存於瀏覽器，下次開啟仍有效。
-
----
-
-## 7. 常見問題
-
-### Q1：為什麼文件上傳後看不到？
-
-1. 點選 **「↺ 刷新文件」** 或重新整理頁面。
-2. 確認是否有 workspace 篩選（移除 URL 中的 `workspaceId` 參數）。
-3. 若有篩選，切換至 account 全覽。
-4. `status` 若仍是 `processing`，等待 1–2 分鐘後再刷新。
-
-### Q2：文件 status 顯示 error？
-
-1. 確認檔案格式為 `.pdf`、`.tiff`、`.png` 或 `.jpg`。
-2. 確認檔案可正常開啟（未損毀、未加密）。
-3. 嘗試重新上傳。
-4. 若持續問題，聯繫管理員提供 `documentId`。
-
-### Q3：為什麼無法點選「上傳並啟動解析」？
-
-按鈕在以下情況為不可用：
-- 未選擇任何檔案（先選擇檔案）。
-- 帳號未登入或已失效（重新登入）。
-
-### Q4：RAG Query 沒有回答？
-
-確認相關文件的 `rag status` 為 `✓ indexed`。若為 `error`，先執行手動重整。
-
----
-
-## 8. 操作技巧
-
-- **日常觀察**：每天先到 Documents 確認 `status` / `rag status` 正常。
-- **先重整再查詢**：有新文件上傳後，先確認 `rag status` 為 `indexed`，再執行 RAG 問答。
-- **全覽視角**：不確定文件在哪個工作區時，先移除 URL workspace 篩選，使用全覽檢查。
-- **鍵盤捷徑**：大多數對話框可用 `Esc` 關閉，Dropdown 可用 `↑↓` 導覽、`Enter` 選擇。
-`````
-
-## File: docs/README.md
-`````markdown
-# Xuanwu App 文件入口
-
-`docs/` 是 Xuanwu App 的文件總入口，負責路由到架構、開發參考、圖解說明與使用指南。
-
-## 讀取原則
-
-- 先讀總覽，再進子目錄。
-- 先讀 High-level，再讀契約與細節。
-- 主題若屬於 Copilot/agent/prompt/skill/workflow，優先讀 [.github/README.md](../.github/README.md)。
-
-## 文件地圖
-
-| 目錄 | 內容 | Index | 主要讀者 |
-| --- | --- | --- | --- |
-| [decision-architecture/](./decision-architecture/) | ADR、Architecture | [decision-architecture/README.md](./decision-architecture/README.md) | 架構師、Tech Lead |
-| [development-reference/](./development-reference/) | Development、Reference、Specification、Event、Namespace | [development-reference/README.md](./development-reference/README.md) | 工程師、PM |
-| [diagrams-events-explanations/](./diagrams-events-explanations/) | Diagrams、Explanation | [diagrams-events-explanations/README.md](./diagrams-events-explanations/README.md) | 架構師、工程師 |
-| [how-to-user/](./how-to-user/) | How-to、UI/UX、User Manual | [how-to-user/README.md](./how-to-user/README.md) | 使用者、工程師、設計師 |
-
-## 建議閱讀順序
-
-1. [../llms.txt](../llms.txt)
-2. [README.md](./README.md)
-3. 目標子目錄的 README
-4. 對應契約或規格
-5. ADR 與圖表補充
-
-## 核心入口
-
-| 主題 | 文件 |
-| --- | --- |
-| 系統高階架構 | [decision-architecture/architecture/ai-knowledge-platform-architecture.md](./decision-architecture/architecture/ai-knowledge-platform-architecture.md) |
-| 模組實作邊界 | [development-reference/development/modules-implementation-guide.md](./development-reference/development/modules-implementation-guide.md) |
-| 架構視覺圖 | [diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png](./diagrams-events-explanations/diagrams/ai-knowledge-platform-architecture.png) |
-| 系統全局規格 | [development-reference/specification/system-overview.md](./development-reference/specification/system-overview.md) |
-
-## Diataxis 對位
-
-| 類型 | 問題 | 主要位置 |
-| --- | --- | --- |
-| Tutorial | 如何學習 | `how-to-user/how-to/`, `how-to-user/user-manual/` |
-| How-to | 如何完成特定任務 | `how-to-user/how-to/` |
-| Reference | 規格與定義是什麼 | `development-reference/reference/`, `development-reference/specification/`, `how-to-user/ui-ux/` |
-| Explanation | 為什麼這樣設計 | `diagrams-events-explanations/explanation/`, `decision-architecture/adr/` |
-
-## 維護規則
-
-新增、搬移、刪除文件時，請在同一個變更內同步更新：
-
-1. 最近的 README 索引
-2. [../llms.txt](../llms.txt)（若路由改變）
-3. [README.md](./README.md)（若總入口改變）
-4. 文件的主題、關鍵字與分層資訊
-`````
-
 ## File: firebase.apphosting.json
 `````json
 {
@@ -28149,88 +18039,6 @@ export async function getContentVersions(
 ): Promise<ContentVersion[]> {
   return [];
 }
-`````
-
-## File: modules/DomainDefinitions.md
-`````markdown
-# Domain Context & Model Definitions
-
-本文件定義 `Architecture.md` 中三大核心系統（Notion、Wiki、NotebookLM）融合後的領域邊界與資料模型。所有開發命名需嚴格遵守此處定義的 Ubiquitous Language。
-
----
-
-## 1. Bounded Context Map (領域邊界圖)
-
-系統劃分為三個核心 Bounded Context，透過 Domain Events 進行低耦合溝通。
-
-| Context | 核心職責 | 對應原型 | 主要 Aggregate Root |
-| :--- | :--- | :--- | :--- |
-| **Content Context** | 結構化內容編輯、區塊管理、頁面樹狀結構 | Notion | `Page`, `Block` |
-| **Knowledge Context** | 雙向連結、標籤管理、圖譜結構計算 | Wiki | `GraphNode`, `Link` |
-| **Intelligence Context** | 向量檢索、LLM 對話、自動推論 | NotebookLM | `Thread`, `Insight` |
-
----
-
-## 2. Core Domain Models (核心領域模型)
-
-### A. Content Domain (Notion-like)
-負責資料的「結構與呈現」。
-
-- **Page (Entity)**: 內容的容器。
-  - `id`: UUID
-  - `title`: String
-  - `icon`: Emoji | URL
-  - `cover`: URL
-  - `blocks`: List<BlockId> (Ordered)
-
-- **Block (Polymorphic Entity)**: 內容的最小原子單位。
-  - `id`: UUID
-  - `type`: `paragraph` | `heading` | `code` | `image` | `embed` | `toggle`
-  - `content`: JSON (SuperJSON serialized)
-  - `properties`: Map<String, Any> (e.g., checked, language)
-  - `parentId`: UUID (PageId or BlockId)
-  - `children`: List<BlockId> (Recursive structure)
-
-### B. Knowledge Domain (Wiki-like)
-負責資料的「關聯與拓撲」。
-
-- **GraphNode (Entity)**: 知識圖譜中的節點，通常對應一個 Page，但也可是 Tag 或外部資源。
-  - `id`: UUID (對應 PageId)
-  - `label`: String
-  - `type`: `page` | `tag` | `attachment`
-  - `weight`: Number (基於引用次數計算的權重)
-
-- **Link (Value Object)**: 節點間的連線。
-  - `sourceId`: UUID
-  - `targetId`: UUID
-  - `type`: `explicit` (手動引用) | `implicit` (AI 建議) | `hierarchy` (父子頁面)
-  - `context`: String (連結周圍的文本摘要)
-
-### C. Intelligence Domain (NotebookLM-like)
-負責資料的「理解與生成」。
-
-- **VectorEmbedding (Value Object)**: 內容的數學表示。
-  - `targetId`: UUID (BlockId or PageId)
-  - `vector`: Float32Array
-  - `contentHash`: String (用於變更檢測)
-
-- **Thread (Aggregate)**: 用戶與 AI 的對話上下文。
-  - `id`: UUID
-  - `contextIds`: List<UUID> (此對話引用的 Page/Block 範圍)
-  - `messages`: List<Message>
-
----
-
-## 3. Domain Events (關鍵領域事件)
-
-事件驅動是三層融合的關鍵神經系統。
-
-| 事件名稱 | 觸發源 (Source) | 處理者 (Consumer) | 業務邏輯 |
-| :--- | :--- | :--- | :--- |
-| `ContentBlockUpdated` | Content | Intelligence | 觸發 Vector Ingestion (重新計算 Embedding) |
-| `ContentBlockUpdated` | Content | Knowledge | 解析 `[[WikiLink]]`，更新圖譜連線 |
-| `PageMoved` | Content | Knowledge | 更新 Hierarchy 類型的連結關係 |
-| `InsightGenerated` | Intelligence | Content | AI 自動在頁面側邊欄生成摘要或建議標籤 |
 `````
 
 ## File: modules/event/api/index.ts
@@ -53831,273 +43639,6 @@ export default {
 }
 `````
 
-## File: .github/.github/instructions/architecture-api-boundary.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/architecture-mddd.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/architecture-modules.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/architecture-monorepo.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/branching-strategy.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/ci-cd.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/cloud-functions.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/commit-convention.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/embedding-pipeline.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/firebase-architecture.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/firestore-schema.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/genkit-flow.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/hosting-deploy.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/lint-format.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/nextjs-app-router.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/nextjs-parallel-routes.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/nextjs-server-actions.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/prompt-engineering.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/rag-architecture.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/README.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/security-rules.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/shadcn-ui.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/tailwind-design-system.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/testing-e2e.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/instructions/testing-unit.instructions.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/analyze-repo.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/chunk-docs.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/debug-error.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/embedding-docs.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/implement-feature.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/implement-firestore-schema.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/implement-genkit-flow.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/implement-security-rules.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/implement-server-action.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/implement-ui-component.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/ingest-docs.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/plan-api.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/plan-feature.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/plan-module.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/README.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/refactor-api.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/refactor-module.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/review-architecture.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/review-code.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/review-performance.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/review-security.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/write-docs.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/write-e2e-tests.prompt.md
-`````markdown
-
-`````
-
-## File: .github/.github/prompts/write-tests.prompt.md
-`````markdown
-
-`````
-
-## File: .github/agents/app/README.md
-`````markdown
-# App Agents Notes
-
-This folder is reserved for app-specific agent context.
-
-Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active app-specific persona lives in [../app-router-composer.agent.md](../app-router-composer.agent.md).
-
-Keep app-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
-`````
-
-## File: .github/agents/modules/README.md
-`````markdown
-# Modules Agents Notes
-
-This folder is reserved for modules-specific agent context.
-
-Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active modules-specific persona lives in [../modules-api-surface-steward.agent.md](../modules-api-surface-steward.agent.md).
-
-Keep modules-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
-`````
-
 ## File: .github/instructions/app/app-router-parallel-routes.instructions.md
 `````markdown
 ---
@@ -57785,743 +47326,1671 @@ export async function action(input) { return useCase.execute(input); }
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 `````
 
-## File: docs/development-reference/reference/development-contracts/audit-contract.md
+## File: docs/APIContract.md
 `````markdown
----
-title: Audit development contract
-description: Implementation contract for append-only audit queries, source boundaries, and future audit ingestion rules.
-status: "🏗️ Midway"
----
+# API Contract & Data Transfer Objects (DTOs)
 
-# Audit development contract
-
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
-## Scope
-
-Audit module: append-only read boundary for workspace and organization audit visibility, plus rules for future write-side integration.
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Workspace and organization audit queries | `modules/workspace-audit` |
-| Durable storage adapter | `modules/workspace-audit` Firebase repository |
-| Upstream audit event producers | other modules through future ports or adapters |
-
-## Current query contract
-
-### Workspace query
-
-`getWorkspaceAuditLogs(workspaceId)` returns all logs for a workspace, or an empty list if the input is blank.
-
-### Organization query
-
-`getOrganizationAuditLogs(workspaceIds, maxCount?)` returns logs aggregated over a list of workspace ids.
-
-### Audit log shape
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `id` | `string` | Audit event identifier |
-| `workspaceId` | `string` | Workspace scope |
-| `actorId` | `string` | Actor responsible for the event |
-| `action` | `string` | Event action name |
-| `detail` | `string` | Human-readable event detail |
-| `source` | `workspace \| finance \| notification \| system` | Producing source boundary |
-| `occurredAtISO` | `string` | Event timestamp |
-
-## Target write-side boundary
-
-Future audit ingestion should expose an append-only audit sink rather than let feature modules write directly to Firebase collections.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `workspaceId` | `string` | yes | Scope boundary |
-| `actorId` | `string` | yes | Actor identifier or system principal |
-| `action` | `string` | yes | Stable event name |
-| `detail` | `string` | yes | Operator-facing summary |
-| `source` | enum | yes | Producing module |
-| `occurredAtISO` | `string` | yes | Source event time |
-| `traceId` | `string` | no | Cross-service correlation |
-| `metadata` | object | no | Structured audit context |
-
-## State machine
-
-Audit logs are append-only. The relevant workflow is event delivery, not business-state mutation.
-
-| State | Trigger actor | Allowed next states | Notes |
-| --- | --- | --- | --- |
-| `accepted` | audit sink | `persisted`, `failed` | Validation passed |
-| `persisted` | audit repository | terminal | Visible to queries |
-| `failed` | audit sink or repository | `accepted` through explicit retry | Preserve original payload |
-
-## Invariants
-
-1. Queries never mutate audit records.
-2. Audit records are append-only and must not be repurposed as operational state.
-3. Source modules emit audit events through an audit-owned boundary rather than writing storage records directly.
-4. Organization-level views aggregate workspace logs without duplicating the source event.
-
-## Acceptance gates
-
-Before expanding integrations, define:
-- Canonical audit sink interface
-- Idempotency rules for retried events
-- Retention and redaction policy
-- Minimum structured metadata for enterprise investigations
-`````
-
-## File: docs/development-reference/reference/development-contracts/parser-contract.md
-`````markdown
----
-title: Parser development contract
-description: Implementation contract for parser module inputs, summary outputs, future parser job ownership, and acceptance rules.
-status: "🏗️ Midway"
----
-
-# Parser development contract
-
-> **開發狀態**：🏗️ Midway — 開發部分完成
-
-## Scope
-
-Parser module: read-side summary of workspace parser readiness, source discovery, and future job ownership rules.
-
-## Current owner and dependencies
-
-| Concern | Owner |
-| --- | --- |
-| Parser summary derivation | `modules/parser` |
-| Asset readiness input | `modules/asset` query boundary |
-| Workspace capability and cover context | `modules/workspace` read model |
-
-## Current query contract
-
-### Entry point
-
-`getWorkspaceParserSignalSummary(workspace)` resolves asset data through the asset module and returns a `WorkspaceParserSummary`.
-
-### Output shape
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `supportedSources` | `number` | Sources for parser |
-| `readyAssetCount` | `number` | Usable assets |
-| `blockedReasons` | `string[]` | Not-ready reasons |
-| `nextActions` | `string[]` | Follow-ups |
-
-## Input contract
-
-Parser may use only:
-- Workspace cover/media
-- Workspace capability count
-- Asset-module items + lifecycle status
-
-❌ Forbidden: storage blobs, parser-job collections, RAG chunks
-
-Future parser execution creates parser-owned job contract:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `jobId` | `string` | UUID |
-| `workspaceId` | `string` | Scope |
-| `sourceFileId` | `string` | File ref |
-| `status` | `queued\|processing\|ready\|failed` | Lifecycle |
-| `triggeredByAccountId` | `string` | Audit |
-| `errorCode` | `string?` | Failure class |
-| `errorMessage` | `string?` | Failure detail |
-
-## State machine
-
-| `blocked` | derived | `ready` | From source readiness |
-| `ready` | derived/job | `processing`, `blocked` | |
-| `processing` | worker | `ready`, `failed` | Future |
-| `failed` | worker | `processing`, `blocked` | Future |
-
-## Invariants
-
-1. Summary = parser projection, not file shadow
-2. File metadata = canonical
-3. Execution state → parser records (not workspace entity)
-4. Query path: read-only, deterministic
-
-## Acceptance gates
-
-Before write-side, define:
-- Asset eligibility rules
-- Job storage (parser-owned infra)
-- File-module boundary (query/port)
-- Failure/retry semantics
-`````
-
-## File: docs/development-reference/reference/development-contracts/rag-ingestion-contract.md
-`````markdown
----
-title: RAG ingestion development contract
-description: Authoritative cross-runtime contract for RAG upload registration, worker execution, lifecycle transitions, and acceptance gates.
-status: "🚧 Developing"
----
-
-# RAG ingestion development contract
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-## Scope
-
-Authoritative cross-runtime contract for upload-to-worker boundary spanning Next.js registration, Firestore metadata, Python execution, and retrieval readiness.
-
-## Owning modules and runtimes
-
-| Responsibility | Owner |
-| --- | --- |
-| Upload registration and browser-facing orchestration | `modules/asset` and Next.js interfaces |
-| Ingestion registration and lifecycle intent | `modules/knowledge` |
-| Retrieval orchestration and answer generation | `modules/retrieval` |
-| Parsing, chunking, embedding, and lifecycle write-back | `py_fn` |
-
-## Canonical upload request
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `organizationId` | `string` | Tenant |
-| `workspaceId` | `string` | Retrieval scope |
-| `uploaderId` | `string` | Audit actor |
-| `sourceFileName` | `string` | File name |
-| `mimeType` | `string` | Parser routing |
-| `sizeBytes` | `number` | Size |
-| `checksum` | `string` | Idempotency |
-
-## Canonical `documents` metadata
-
-**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}`
-
-| `id` | `string` | Doc ID |
-| `organizationId` | `string` | Tenant |
-| `workspaceId` | `string` | Retrieval scope |
-| `title` | `string` | Display |
-| `sourceFileName` | `string` | File name |
-| `mimeType` | `string` | Parser routing |
-| `storagePath` | `string` | Storage pointer |
-| `checksum` | `string?` | Idempotency |
-| `taxonomy` | `string?` | Classification hint |
-| `status` | `uploaded\|processing\|ready\|failed\|archived` | Lifecycle |
-| `processingStartedAt` | `timestamp?` | Worker-owned |
-| `readyAt` | `timestamp?` | Worker-owned |
-| `failedAt` | `timestamp?` | Worker-owned |
-| `archivedAt` | `timestamp?` | Governance |
-| `errorCode` | `string?` | Failure class |
-| `errorMessage` | `string?` | Failure detail |
-| `createdAt` | `timestamp` | Registered |
-| `updatedAt` | `timestamp` | Updated |
-
-## Worker invocation boundary
-
-Firestore-driven: document `status=uploaded` triggers worker to resolve metadata, read artifact, set `processing`, persist chunks, write terminal status.
-
-Python callable bridge remains for internal/admin reprocess flows when `rawText` omitted, uses document `storagePath`.
-
-## Worker command fields
-
-| `documentId` | `string` | Correlation key |
-| `organizationId` | `string` | Tenant (reject if missing) |
-| `workspaceId` | `string` | Scope (reject if missing) |
-| `title` | `string` | Prompt/audit |
-| `sourceFileName` | `string` | Audit context |
-| `mimeType` | `string` | Router hint |
-| `storagePath` | `string` | Storage path |
-| `checksum` | `string?` | Idempotency |
-| `taxonomyHint` | `string?` | Pre-classify hint |
-
-## `chunks` persistence contract
-
-**Path**: `/knowledge_base/{organizationId}/workspaces/{workspaceId}/chunks/{chunkId}`
-
-| `chunkId` | `string` | Deterministic ID |
-| `docId` | `string` | Parent doc ID |
-| `organizationId` | `string` | Tenant filter |
-| `workspaceId` | `string` | Workspace filter |
-| `chunkIndex` | `number` | Sequence |
-| `text` | `string` | Retrieval source |
-| `embedding` | `number[]` | Vector |
-| `taxonomy` | `string` | Filter field |
-| `page` | `number?` | Page ref |
-| `tags` | `string[]?` | Metadata |
-
-## Lifecycle state machine
-
-| `uploaded` | Next.js | `processing` | Registration only |
-| `processing` | Worker | `ready`, `failed` | Started |
-| `ready` | Worker/governance | `processing`, `archived` | Terminal success |
-| `failed` | Worker | `processing` | Retry |
-| `archived` | Governance | terminal | No self-revive |
-
-## Invariants
-
-1. `organizationId` + `workspaceId` on both documents + chunks
-2. Embeddings computed once, reused (org/workspace scoped)
-3. Workspace retrieval preferred (cheaper than org-scoped)
-4. Archive ≠ ingestion side-effect
-5. Worker: never persist chunks without terminal status
-6. Idempotency: `documentId + checksum`, reprocess replaces prior chunks
-
-## Legacy note
-
-Fallback to Firestore snapshot IDs (pre-MVP docs/chunks without duplicated `id`/`chunkId` still readable). No automatic backfill; legacy rows pick up duplicated fields on next reprocess.
-
-## Acceptance gates
-
-✓ DTOs, fields, command fields match this contract
-✓ Trigger path explicit (Firestore or callable, one primary)
-✓ Firestore indexes support documented patterns
-✓ Worker records all timestamps + classified errors
-
-## Open blockers
-
-- Replace compatibility callable with Firestore `status=uploaded` trigger
-- Consolidate ADR-010 with current `mimeType` + `sourceFileName` usage
-- Add archive/unarchive write-side before UI governance
-`````
-
-## File: docs/diagrams-events-explanations/diagrams/rag-enterprise-e2e.mermaid
-`````
-flowchart TD
-  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
-  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
-  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
-  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
-  classDef naming fill:#fef2f2,stroke:#ef4444,color:#7f1d1d
-  classDef docai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
-  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
-  classDef accel fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
-  classDef pyown fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,font-weight:bold
-  classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
-
-  subgraph ING[① Ingestion Pipeline - 資料進來]
-    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
-    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
-    I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
-  end
-
-  subgraph DOCAI[①A document_ai 核心用途與輸出]
-    DA1[讀取 raw 檔案 bytes]:::docai --> DA2[Document AI Layout Parser]:::docai --> DA3[抽取 text pages tables headings]:::docai --> DA4[輸出 layout artifact json]:::docai
-    DA3 --> DA5[正規化 normalize 與去雜訊]:::docai --> DA6[doc-level taxonomy]:::docai --> DA7[chunking 與 chunkIndex 決定]:::docai
-    DA7 --> DA8[chunk metadata 組裝 page taxonomy tags]:::docai --> DA9[輸出 chunk payload 給 embedding]:::docai
-    DA2 --> DA10{document_ai 失敗?}:::docai
-    DA10 -->|yes| DA11[回寫 documents status failed with errorCode errorMessage]:::docai
-    DA10 -->|no| DA5
-  end
-
-  subgraph QRY[② Query Pipeline - 查詢與 RAG]
-    subgraph QRYA[②A 查詢主線]
-      Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Index readiness gate]:::query --> Q6[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q7{Top-K chunks found?}:::query
-      Q7 -->|yes| Q8[Context 組裝 prompt building]:::query --> Q9[Genkit LLM 回答生成]:::query --> Q10[Streaming 回傳 Next.js UI]:::query
-    end
-    subgraph QRYB[②B 查詢回退與觀測]
-      Q7 -->|no| Q11[No-context fallback response]:::query
-      Q9 --> Q12[query traces latency and cost metrics]:::query
-    end
-  end
-
-  subgraph OPT[③ Optional 強化 - 企業必備]
-    subgraph OPTA[③A Retrieval and Rerank]
-      O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
-      O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
-    end
-    subgraph OPTB[③B Cache and Feedback]
-      O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
-      O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
-    end
-  end
-
-  subgraph DATA[④ Firestore 資料結構核心]
-    subgraph DATAA[④A documents 契約]
-      D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
-    end
-    subgraph DATAB[④B chunks 契約]
-      D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
-    end
-  end
-
-  subgraph NAMING[④C 檔案命名與儲存結構契約]
-    N1[canonical documentId 與 originalFilename 分離]:::naming
-    N2[raw 檔固定命名 source plus ext]:::naming
-    N3[storagePath tenants slash tenantId slash workspaces slash workspaceId slash documents slash documentId slash raw slash source ext]:::naming
-    N4[derived 輸出放在 derived 子目錄]:::naming
-    N5[chunk upsert key documentId underscore chunkIndex]:::naming
-    N6[documents 必填 tenantId workspaceId checksum storagePath]:::naming
-  end
-
-  subgraph KEY[⑤ 關鍵觀念濃縮]
-    subgraph KEYA[⑤A Retrieval 原則]
-      K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
-      K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
-      K3[Vector Search 在 query 做 每次查詢]:::keypoint
-    end
-    subgraph KEYB[⑤B Runtime 原則]
-      K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
-      K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
-    end
-  end
-
-  subgraph SUM[⑥B 一句話總結]
-    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
-    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
-  end
-
-  subgraph OWN[⑥A Runtime Ownership]
-    R1[綠色框 = Next.js 主責節點]:::nxown
-    R2[藍色框 = py_fn 主責節點]:::pyown
-  end
-
-  subgraph LINKRULE[⑥C 線路規則]
-    L1[實線 = 主流程執行順序]:::summary
-    L2[虛線 = 契約或能力映射]:::keypoint
-    L3[跨區連線優先以區塊級映射呈現]:::keypoint
-  end
-
-  subgraph ACCEL[⑦ package.json 可直接降低開發難度]
-    subgraph ACCELA[⑦A 開發迭代工具]
-      A1[scripts dev build lint 降低本地迭代摩擦]:::accel
-      A4[zod 契約驗證 可用於 UploadRequest QueryInput WorkerEvent]:::accel
-      A5[tanstack react-query 快速實作 query 快取 重試 與狀態同步]:::accel
-      A7[xstate plus zustand 可把複雜流程狀態與 UI 狀態拆分管理]:::accel
-      A8[axios 可統一 infrastructure adapter 的 HTTP 呼叫]:::accel
-      A9[tailwind plus shadcn 加速介面與後台工具頁建置]:::accel
-    end
-    subgraph ACCELB[⑦B 部署與基礎設施]
-      A2[scripts deploy:functions:py-fn deploy:firestore:indexes deploy:rules 降低部署心智負擔]:::accel
-    end
-    subgraph ACCELC[⑦C RAG 流程能力]
-      A3[genkit plus google-genai 直接支援 Query Flow 與 LLM orchestration]:::accel
-      A6[upstash redis vector 可支援 Optional Cache 與 Retrieval 擴充]:::accel
-    end
-  end
-
-  I4 -.-> DA1
-  DA9 -.-> I11
-  DA11 -.-> I16
-
-  ING -.-> DATA
-  QRY -.-> DATA
-  NAMING -.-> ING
-  NAMING -.-> DATA
-  QRY -.-> OPT
-
-  DA4 -.-> N4
-  DA11 -.-> D1
-
-  S1 -.-> ING
-  S2 -.-> QRY
-
-  ACCELA -.-> ING
-  ACCELA -.-> QRY
-  ACCELB -.-> ING
-  ACCELC -.-> QRY
-  ACCELC -.-> OPT
-
-  class I1,I3,Q1,Q2,Q10,Q11 nxown
-  class I4,I11,I12,I15,I16,DA1,DA2,DA3,DA4,DA5,DA6,DA7,DA8,DA9,DA10,DA11 pyown
-`````
-
-## File: docs/diagrams-events-explanations/README.md
-`````markdown
-# Diagrams & Explanations
-
-System diagrams and conceptual explanations that clarify architecture and decisions.
-
-## Organization
-
-| Subdirectory | Content | Entry |
-| --- | --- | --- |
-| [diagrams/](./diagrams/) | Architecture, data, flow, and state diagrams | [diagrams/README.md](./diagrams/README.md) |
-| [explanation/](./explanation/) | Detailed explanations of design rationale | [explanation/README.md](./explanation/README.md) |
-
-## Reading Order
-
-1. **System overview**: [../decision-architecture/architecture/ai-knowledge-platform-architecture.md](../decision-architecture/architecture/ai-knowledge-platform-architecture.md)
-2. **Diagrams**: [diagrams/README.md](./diagrams/README.md)
-3. **Architecture decisions**: [../decision-architecture/adr/](../decision-architecture/adr/)
-4. **Detailed explanations**: [explanation/](./explanation/)
-
-## Quick Start
-
-- **For visual understanding**: See [diagrams/README.md](./diagrams/README.md)
-- **For rationale behind decisions**: Read [explanation/](./explanation/)
-- **For domain event / namespace module guides**: See [../development-reference/event/](../development-reference/event/) and [../development-reference/namespace/](../development-reference/namespace/)
-
-## Related
-
-- [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture records and ADRs
-- [../development-reference/specification/README.md](../development-reference/specification/README.md) — System specifications
-`````
-
-## File: docs/how-to-user/user-manual/admin-guide.md
-`````markdown
-# 管理員指南（Admin Guide）
-
-> **目標讀者**：組織管理員（Admin Role）與系統維運人員
-> **目標**：說明成員管理、權限設定、系統監控與維運操作。
+本文件定義模組間及前後端互動的標準介面。所有 Server Actions 需回傳標準化的 `Result<T>`。
 
 ---
 
-## 快速參考
+## 1. Common Types
 
-| 我想要… | 路徑 | 角色需求 |
-|---|---|---|
-| 管理組織成員 | `/organization/members` | Admin |
-| 管理團隊 | `/organization/teams` | Admin |
-| 設定權限 | `/organization/permissions` | Admin |
-| 管理工作區 | `/organization/workspaces` | Admin |
-| 查看稽核記錄 | `/organization/audit` | Admin |
-| 設定排程 | `/organization/schedule` | Admin |
-| 每日摘要 | `/organization/daily` | Admin / Member |
-| 手動觸發 RAG 重整 | `/wiki-beta/rag-reindex` | Member+ |
+```typescript
+type Result<T> = {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+};
 
----
-
-## 1. 組織管理
-
-### 1.1 建立組織
-
-1. 點選 App Rail 左側 **`+`** 圖示。
-2. 選擇 **「建立組織」**。
-3. 輸入組織名稱。
-4. 點選 **「建立組織」**。
-5. ✅ 組織建立成功，帳號類型變更為 `organization`。
-
-> **注意**：組織一旦建立後，帳號類型固定為組織帳號，不可切換回個人帳號。
-
-### 1.2 查看組織資訊
-
-1. 點選 App Rail 的 **`Users`（使用者）** 圖示，進入 `/organization`。
-2. 側邊欄顯示組織管理功能：成員、團隊、權限、工作區、排程、每日、稽核。
-
----
-
-## 2. 成員管理
-
-### 2.1 邀請成員
-
-1. 進入 `/organization/members`。
-2. 點選 **「邀請成員」** 按鈕。
-3. 輸入成員的 Email，選擇角色。
-4. 點選 **「發送邀請」**。
-5. ✅ 被邀請者收到邀請通知後，可加入組織。
-
-### 2.2 角色說明
-
-| 角色 | 說明 | 可執行操作 |
-|---|---|---|
-| `owner` | 組織擁有者 | 所有操作，包含刪除組織 |
-| `admin` | 管理員 | 成員管理、工作區管理、稽核查看 |
-| `member` | 一般成員 | 讀寫工作區資源、文件上傳 |
-| `viewer` | 唯讀成員 | 僅查看，不可修改 |
-
-> 完整權限矩陣見 [`PERMISSIONS.md`](../../../PERMISSIONS.md)。
-
-### 2.3 調整成員角色
-
-1. 在成員列表找到目標成員。
-2. 點選成員右側 **`...`（更多）** 圖示。
-3. 選擇 **「調整角色」**。
-4. 選擇新角色後確認。
-
-### 2.4 移除成員
-
-1. 找到目標成員，點選 **`...`** → **「移除成員」**。
-2. 在確認對話框點選 **「確認移除」**。
-3. ✅ 成員移除後，其工作區存取權限立即撤銷。
-
----
-
-## 3. 團隊管理
-
-### 3.1 建立團隊
-
-1. 進入 `/organization/teams`。
-2. 點選 **「建立團隊」**。
-3. 輸入團隊名稱（例如「工程師」、「設計師」）。
-4. 將成員加入團隊。
-
-### 3.2 團隊用途
-
-- 批次設定工作區存取權限（以團隊為單位）。
-- 組織成員分群，方便管理通知與排程。
-
----
-
-## 4. 工作區管理
-
-### 4.1 查看所有工作區
-
-進入 `/organization/workspaces`，顯示組織下所有工作區的列表。
-
-**顯示欄位**：
-- 工作區名稱
-- 成員數量
-- 建立時間
-- 最後活動時間
-
-### 4.2 刪除工作區
-
-1. 找到目標工作區，點選 **「刪除工作區」**。
-2. 在確認對話框輸入工作區名稱確認。
-3. ✅ **注意**：刪除後工作區下的資源（Pages、Documents 等）將無法恢復。
-
----
-
-## 5. 稽核記錄
-
-### 5.1 查看稽核記錄
-
-進入 `/organization/audit`，顯示組織內所有關鍵操作的記錄。
-
-**記錄項目包括**：
-- 成員邀請 / 移除
-- 角色調整
-- 工作區建立 / 刪除
-- 關鍵資源操作（文件刪除等）
-
-### 5.2 記錄欄位說明
-
-| 欄位 | 說明 |
-|---|---|
-| **timestamp** | 操作時間 |
-| **actor** | 執行操作的成員（Email） |
-| **action** | 操作類型（例如 `member.invite`） |
-| **target** | 操作對象（例如被邀請的成員 Email） |
-| **result** | 操作結果（`success` / `failure`） |
-
-### 5.3 記錄保留原則
-
-- 稽核記錄為**不可變（immutable）**記錄，已提交的記錄不可修改或刪除。
-- 記錄保留期限依系統配置，預設保留 90 天。
-
----
-
-## 6. 排程管理
-
-### 6.1 查看排程
-
-進入 `/organization/schedule`，顯示組織的資源排程。
-
-排程模組使用**雙向資源-請求配對**模型，適用於人員與任務的配對管理。
-
----
-
-## 7. 知識庫維運
-
-### 7.1 監控文件處理狀態
-
-進入 `/wiki-beta/documents`，查看組織下所有文件的解析狀態：
-
-- `⏳ processing`：正常，等待解析完成
-- `✓ ready`：解析完成，可進行 RAG
-- `✗ error`：解析失敗，需要介入
-
-**批量檢查**：若多份文件顯示 `error`，可能是 py_fn Worker 服務異常，需排查。
-
-### 7.2 手動觸發 RAG 重整
-
-當 RAG 索引異常或文件更新後：
-
-1. 進入 `/wiki-beta/rag-reindex`。
-2. 找到目標文件（`status: ready`，`rag status: error` 或 `pending`）。
-3. 點選 **「手動重整」**。
-4. ✅ 觸發成功，`rag status` 更新。
-
-**批量重整**：目前不支援批量重整，需逐一觸發。
-
----
-
-## 8. 系統部署與維運
-
-### 8.1 部署指令
-
-```bash
-# 部署所有 Firebase 資源
-npm run deploy:firebase
-
-# 僅部署 Python Cloud Functions
-npm run deploy:functions:py-fn
-
-# 僅部署 Firestore + Storage 規則
-npm run deploy:rules
+type PaginationParams = {
+  cursor?: string;
+  limit: number;
+};
 ```
 
-### 8.2 環境設定
+## 2. Content Module API (`modules/content/api`)
 
-系統依賴以下環境變數（於 Firebase App Hosting 或 `.env.local` 配置）：
+### Actions
+- `createPage(parentId?: string, title?: string): Promise<Result<PageDTO>>`
+- `updateBlock(blockId: string, content: Partial<BlockContent>): Promise<Result<BlockDTO>>`
+- `moveBlock(blockId: string, targetParentId: string, index: number): Promise<Result<void>>`
 
-| 變數 | 說明 |
-|---|---|
-| `NEXT_PUBLIC_FIREBASE_*` | Firebase 客戶端 SDK 設定 |
-| `GOOGLE_CLOUD_PROJECT` | GCP 專案 ID |
-| `OPENAI_API_KEY` | OpenAI API Key（py_fn 使用） |
-| `UPSTASH_VECTOR_*` | Upstash Vector 連線設定 |
-| `UPSTASH_REDIS_*` | Upstash Redis 連線設定 |
+### Queries
+- `getPageStructure(pageId: string): Promise<Result<PageStructureDTO>>`
+  - 回傳包含遞迴 Block 樹的完整結構。
 
-> **安全提示**：不可將上述金鑰提交至版本控制系統。
-
-### 8.3 監控與告警
-
-- **Firebase Console**：查看 Cloud Functions 執行日誌、Firestore 讀寫統計。
-- **Upstash Console**：查看 Vector / Redis 使用量與請求記錄。
-- **Google Cloud Console**：查看 Document AI 請求記錄與費用。
-
-### 8.4 Firestore Security Rules 維護
-
-```bash
-# 部署 Firestore Rules
-firebase deploy --only firestore:rules
-
-# 部署 Storage Rules
-firebase deploy --only storage:rules
+```typescript
+interface BlockDTO {
+  id: string;
+  type: 'text' | 'heading' | 'todo' | 'toggle';
+  content: any; // SuperJSON structured
+  children: BlockDTO[]; // Recursive
+}
 ```
 
-Rules 文件位置：
-- `firestore.rules` — Firestore 安全規則
-- `storage.rules` — Storage 安全規則
+## 3. Knowledge Module API (`modules/knowledge/api`)
 
-### 8.5 Firestore 索引管理
+### Actions
+- `createLink(sourceId: string, targetId: string, type: LinkType): Promise<Result<void>>`
 
-```bash
-# 部署 Firestore Indexes
-firebase deploy --only firestore:indexes
+### Queries
+- `getBacklinks(pageId: string): Promise<Result<GraphLinkDTO[]>>`
+- `getGraphData(scope?: 'global' | 'local', focusId?: string): Promise<Result<GraphDataDTO>>`
+
+```typescript
+interface GraphDataDTO {
+  nodes: Array<{ id: string; label: string; group: string }>;
+  edges: Array<{ from: string; to: string; type: string }>;
+}
 ```
 
-索引設定：`firestore.indexes.json`
+## 4. Agent Module API (`modules/agent/api`)
+
+### Actions
+- `streamChat(messages: Message[], context: ContextFilter): Promise<ReadableStream>`
+  - 串流回應，不走標準 Result 包裝。
+- `ingestContent(entityId: string, type: 'page' | 'block'): Promise<Result<IngestStats>>`
+
+### Queries
+- `getSimilarBlocks(text: string, threshold: number): Promise<Result<ScoredBlockDTO[]>>`
+`````
+
+## File: docs/Architecture.md
+`````markdown
+# 「Notion × Wiki × NotebookLM」融合架構學術指南
+
+AI 知識系統與產品架構設計方法論（完整強化版）
 
 ---
 
-## 9. 常見維運問題
+## 一、研究背景：現代知識系統的三種典範
 
-### Q1：文件大量顯示 error 狀態？
+當代知識管理與文件系統，大致可分為三種代表性工具與架構思想：Notion、Wikipedia（Wiki 系統代表）、NotebookLM。這三者分別代表三種不同的知識系統設計哲學：
 
-**可能原因**：py_fn Worker 服務故障或 Document AI 配額超限。
+| 系統 | 核心模型 | 強項 |
+| --- | --- | --- |
+| Notion | Block + Database | UI / UX / 工作管理 |
+| Wiki | Page + Link Graph | 知識結構 / 關聯 |
+| NotebookLM | Document + Embedding | AI / RAG / 推理 |
 
-**排查步驟**：
-1. 檢查 Firebase Console → Functions → 查看最近的 error 日誌。
-2. 確認 Google Cloud Document AI 配額未超限。
-3. 若服務已恢復，手動重整 error 的文件。
+產品級知識平台的發展方向不是選其中一個，而是三者融合。
 
-### Q2：RAG Query 回應時間過長？
+---
 
-**可能原因**：Upstash Vector 或 Redis 連線異常，或 OpenAI API 限速。
+## 二、Notion 核心功能完整解析
 
-**排查步驟**：
-1. 確認 Upstash 服務狀態。
-2. 確認 OpenAI API 配額。
-3. 查看 py_fn callable 日誌。
+Notion 是以 Block Editor + Database System 為核心的工作空間平台，其設計哲學是「讓內容好整理、好使用」。
 
-### Q3：新成員無法登入？
+### 2.1 Block 系統（核心內容單元）
 
-**排查步驟**：
-1. 確認成員是否已完成 Email 驗證。
-2. 在 Firebase Console → Authentication 確認帳號狀態。
-3. 確認成員有 Firestore 中的對應帳號記錄。
+Notion 的最小單位是 Block，每個 Block 可獨立拖曳、轉換類型，並支援巢狀結構。
+
+| Block 類型 | 說明 | 對應用途 |
+| --- | --- | --- |
+| Text / Heading | 純文字、H1 / H2 / H3 標題 | 文件撰寫 |
+| Toggle | 可折疊的內容區塊 | FAQ / 摘要 |
+| Callout | 強調提示框（含 emoji icon） | 警告 / 提示 |
+| Code Block | 多語言語法高亮程式碼區塊 | 技術文件 |
+| Quote | 引用樣式區塊 | 引言 / 備注 |
+| Divider | 水平分隔線 | 版面分隔 |
+| Table | 簡易表格（非 Database） | 靜態對比 |
+| Image / Video / File | 媒體嵌入與檔案附件 | 富媒體內容 |
+| Embed | 外部服務嵌入（Figma / YouTube / Map） | 整合外部工具 |
+| Synced Block | 跨頁面同步區塊（修改一處全更新） | 共用內容模組 |
+| Column Layout | 多欄排版（左右並排內容） | 版面設計 |
+| Breadcrumb | 自動顯示頁面路徑麵包屑 | 導覽 |
+| Table of Contents | 自動從 Heading 生成目錄 | 長文件導航 |
+
+### 2.2 Database 系統（結構化資料核心）
+
+Notion Database 是其最強大的功能，支援多種視圖與豐富的 Property 類型，本質是 NoSQL + 試算表的融合。
+
+#### Database 視圖類型
+
+| 視圖類型 | 說明 | 適用場景 |
+| --- | --- | --- |
+| Table View | 試算表式橫列縱欄顯示 | 資料總覽 / CRM |
+| Board View | Kanban 看板（以 Select property 分欄） | 專案管理 / 工作流 |
+| Gallery View | 卡片式圖片陳列 | 作品集 / 產品型錄 |
+| List View | 簡潔清單（顯示標題 + 少量欄位） | 任務清單 / 閱讀清單 |
+| Calendar View | 以日期 property 排列的月曆 | 排程 / 內容日曆 |
+| Timeline View | 甘特圖式時間軸 | 專案時程規劃 |
+
+#### Database Property 類型
+
+| Property 類型 | 說明 |
+| --- | --- |
+| Text | 短文字或長文字輸入 |
+| Number | 數字（支援格式化：貨幣、百分比、進度條） |
+| Select | 單選下拉選單（含顏色標記） |
+| Multi-select | 多選標籤 |
+| Date | 日期 / 日期範圍 / 含提醒 |
+| Checkbox | 完成狀態切換 |
+| URL / Email / Phone | 格式化超連結輸入 |
+| Person | 指定工作區成員 |
+| Files & Media | 附件上傳 |
+| Relation | 跨 Database 關聯（外鍵概念） |
+| Rollup | 彙整 Relation 資料（sum / count / avg） |
+| Formula | 自定義計算公式（引用其他 property） |
+| Created time / Last edited time | 自動時間戳 |
+| Created by / Last edited by | 自動記錄操作者 |
+| ID | 自動遞增唯一識別碼 |
+| Status | 工作流狀態（Not started / In progress / Done） |
+| Button | 一鍵觸發動作（自動化 Action） |
+| AI Property | 自動 AI 摘要 / 填寫（Notion AI 功能） |
+
+### 2.3 Page 系統與導覽架構
+
+| 功能 | 說明 |
+| --- | --- |
+| Page Tree（側邊欄） | 層階樹狀頁面結構，支援無限巢狀 |
+| Breadcrumb | 頁面路徑顯示，支援快速跳轉 |
+| Page Icon & Cover | 頁面圖示（emoji / 自訂圖片）與封面圖 |
+| Sub-page | 頁面內建立子頁面（Block 形式嵌入） |
+| Page Link / Mention | @mention 連結其他頁面（非雙向連結） |
+| Favorites | 常用頁面加入收藏 |
+| Backlinks | 顯示哪些頁面連結到此頁（弱版 Graph） |
+| Page Lock | 鎖定頁面防止意外編輯 |
+
+### 2.4 協作功能
+
+| 功能 | 說明 |
+| --- | --- |
+| Real-time Collaboration | 多人同時編輯（即時同步） |
+| Comment & Discussion | Block 層級留言與討論串 |
+| Mention (@) | 提及成員觸發通知 |
+| Page History | 頁面版本歷程（30 天 / 無限，依方案） |
+| Permission System | 頁面層級權限（Full access / Can edit / Can comment / Can view） |
+| Guest Access | 邀請外部用戶單頁存取 |
+| Share to Web | 公開發布頁面為網頁 |
+| Export | 匯出為 PDF / Markdown / HTML / CSV |
+
+### 2.5 自動化與整合
+
+| 功能 | 說明 |
+| --- | --- |
+| Notion AI | 內建 AI 寫作助手（摘要 / 翻譯 / 改寫 / Q&A） |
+| Automation | Database 觸發自動化（當狀態改變時發通知 / 修改欄位） |
+| API | 開放 REST API 供外部系統整合 |
+| Webhook | 事件觸發 Webhook（搭配 Zapier / Make） |
+| Template | 頁面與 Database 模板系統 |
+| Import | 從 Confluence / Evernote / Markdown / CSV 匯入 |
+
+---
+
+## 三、Wiki 核心功能完整解析
+
+Wiki 系統（以 Wikipedia / Confluence / MediaWiki 為代表）的本質是 Knowledge Graph，設計哲學是「讓知識彼此連結」。
+
+### 3.1 頁面系統（Page = Graph Node）
+
+| 功能 | 說明 |
+| --- | --- |
+| Page CRUD | 頁面建立 / 讀取 / 更新 / 刪除 |
+| Namespace | 命名空間分類（Talk: / User: / Category: / File:） |
+| Redirect | 重定向頁面（別名統一導向主條目） |
+| Disambiguation | 消歧義頁面（同名詞條分流） |
+| Stub | 不完整頁面標記（待補全提示） |
+| Featured Article | 優質條目標記系統 |
+| Page Protection | 頁面保護（防止匿名 / 新手 / 所有人編輯） |
+| Transclusion | 跨頁面內容嵌入（Template 系統核心機制） |
+
+### 3.2 連結與圖譜系統（Graph Model 核心）
+
+| 功能 | 說明 | 技術意義 |
+| --- | --- | --- |
+| Internal Link | `[[頁面名稱]]` 雙方括號語法建立連結 | Knowledge Graph Edge |
+| Backlinks | 自動追蹤「哪些頁面連結到此頁」 | 入度（In-degree）計算 |
+| Redirect Link | 別名連結（同義詞指向正式頁面） | Entity Normalization |
+| External Link | 引用外部網站 URL | 外部知識引用 |
+| Interwiki Link | 跨 Wiki 站點連結（跨語言 / 跨站） | Federation |
+| Category Link | 頁面隸屬分類（可多重分類） | Taxonomic Edge |
+| Link Graph | 全站頁面連結視覺化圖譜 | Knowledge Map |
+| Dead Link Detection | 偵測失效連結（紅色顯示） | Graph 完整性維護 |
+
+### 3.3 版本控制系統（Version Control）
+
+Wiki 的版本控制是其核心能力，每次編輯均自動快照，支援完整的比對與回溯。
+
+| 功能 | 說明 |
+| --- | --- |
+| Edit History | 每次編輯自動記錄版本（含時間 / 作者 / 摘要） |
+| Diff View | 逐行比對任意兩版本差異（增刪標色顯示） |
+| Rollback | 一鍵回溯到任意歷史版本 |
+| Blame（Annotate） | 每一行內容對應到最後一次修改的作者與版本 |
+| Edit Summary | 每次提交附帶編輯說明（類似 Git commit message） |
+| Minor Edit Flag | 標記為小修改（拼字更正 / 格式調整） |
+| Pending Changes | 新手編輯需審核後才公開顯示 |
+| Page Move History | 頁面重命名歷程追蹤（自動建立重定向） |
+
+### 3.4 分類與標籤系統（Taxonomy Layer）
+
+| 功能 | 說明 |
+| --- | --- |
+| Category System | 樹狀分類系統（Category 可繼承 / 巢狀） |
+| Category Intersection | 多分類交集查詢（找同屬 A 且屬 B 的頁面） |
+| Category Tree | 分類層級視覺化（根分類 → 子分類 → 頁面） |
+| Template Tags | Template 作為語意標記（如 `{{Unreferenced}}` `{{Stub}}`） |
+| Wikidata Integration | 連接結構化知識庫（Q-number 實體對齊） |
+
+### 3.5 編輯與協作系統
+
+| 功能 | 說明 |
+| --- | --- |
+| Wikitext / Markup | Wiki 專屬標記語法（`== 標題 ==` / `[[ ]]` 連結 / `{{ }}` Template） |
+| Visual Editor | WYSIWYG 視覺化編輯器（無需學習 Wikitext） |
+| Talk Page | 每個條目附帶討論頁（編輯協商空間） |
+| User Page | 編輯者個人頁面（貢獻記錄 / 自我介紹） |
+| Watchlist | 追蹤關注頁面的最新修改通知 |
+| Edit Conflict Detection | 多人同時編輯時的衝突偵測與合併提示 |
+| Rollback Permission | 快速回退惡意編輯（巡查員權限） |
+| Patrol System | 新編輯標記「待審」，巡查員審核後標記通過 |
+
+### 3.6 搜尋與導覽系統
+
+| 功能 | 說明 |
+| --- | --- |
+| Full-text Search | 全文搜尋（含拼字糾正 / 近似詞匹配） |
+| Prefix Search | 即時搜尋建議（輸入前綴自動補全） |
+| Search by Category | 依分類篩選搜尋結果 |
+| Special Pages | 系統自動生成的特殊頁面（孤立頁 / 死連結 / 最多連結頁） |
+| Random Article | 隨機跳轉條目（知識探索功能） |
+| What Links Here | 查詢哪些頁面連結到指定頁面（Backlink 探索） |
+| Related Changes | 追蹤某頁面所有連結頁面的最新修改 |
+
+### 3.7 Template 系統（知識模組化）
+
+Template 是 Wiki 的代碼模組化機制，相當於 Wiki 的「元件系統」。
+
+| 功能 | 說明 |
+| --- | --- |
+| Infobox Template | 右側資訊框（人物 / 地點 / 電影等結構化屬性） |
+| Navigation Template | 底部導覽區塊（同系列條目快速跳轉） |
+| Citation Template | 標準化引用格式（書籍 / 網站 / 期刊 cite 模板） |
+| Warning Template | 條目品質警告標記（`{{POV}}` `{{Cleanup}}` 等） |
+| Parameterized Template | 支援傳入參數的動態 Template（`{{{1}}}` 佔位符） |
+| Transclusion | Template 內容直接嵌入目標頁面（非複製） |
+
+---
+
+## 四、Wiki 與 Notion 的本質差異（資料模型層）
+
+### 4.1 Wiki：Graph Model（知識圖）
+
+Wiki 系統本質資料模型：
+
+```text
+Page = Node
+Link = Edge
+→ Knowledge Graph
+```
+
+資料結構：pages / links / versions / categories / templates
+
+特徵：
+- 強調「知識與知識之間的關係」
+- 非階層式，可形成網狀結構
+- 雙向連結（Backlinks 自動維護）
+- 適合知識庫、技術文件、研究資料
+
+### 4.2 Notion：Block + Tree Model（內容結構）
+
+Notion 資料模型：
+
+```text
+Page
+ └── Blocks
+     ├── Text
+     ├── Heading
+     ├── Table
+     ├── Toggle
+     └── Image
+```
+
+資料結構：pages / blocks / databases / properties / automations
+
+特徵：
+- 強調排版、資料表、UI 操作
+- Relation property（單向 / 雙向）+ @mention（弱連結）
+- 適合專案管理、文件、筆記、CRM
+
+### 4.3 核心哲學差異對比
+
+| 面向 | Wiki | Notion |
+| --- | --- | --- |
+| 核心 | 知識關聯 | 工作與內容 |
+| 資料模型 | Graph | Tree + Database |
+| 單位 | Page | Page + Block |
+| 關聯 | Page Link（圖邊） | Relation Database（外鍵） |
+| 連結方向 | 雙向（Backlink 追蹤） | 單向 / 雙向（需設定） |
+| 版本控制 | 原生 Diff / Rollback | History（依方案） |
+| 分類 | Category Tree（圖節點） | Tag / Filter（屬性） |
+| Template | Transclusion 嵌入 | Template 頁面（複製） |
+| 協作模式 | 開放編輯 + 審核制度 | 權限管理 + 即時協作 |
+| 搜尋 | 全文 + Backlink + 分類 | 全文 + Database Filter |
+| 強項 | 知識網絡 | UX / UI / 工作流 |
+| 用途 | 知識庫 | 工作空間 |
+| 思維 | Knowledge Graph | Structured Workspace |
+
+關鍵一句話差異：
+- **Wiki**：讓知識彼此連結
+- **Notion**：讓內容好整理、好使用
+
+---
+
+## 五、NotebookLM 的角色（AI 層）
+
+NotebookLM 代表第三種系統：AI 知識系統模型（RAG）。
+
+資料流程：
+
+```text
+Documents
+   ↓
+Chunking
+   ↓
+Embedding
+   ↓
+Vector Database
+   ↓
+Retrieval
+   ↓
+LLM
+   ↓
+Answer / Summary / Reasoning
+```
+
+這種架構稱為：Retrieval-Augmented Generation（RAG）。
+
+NotebookLM 本質不是筆記工具，而是 `AI Knowledge Reasoning System`，解決：文件理解、問答、摘要、推理、跨文件分析。
+
+---
+
+## 六、Query Understanding Layer（查詢理解層）
+
+在使用者輸入問題到 RAG 系統之間，存在一層「查詢理解層」，負責解析、拆解與轉化查詢意圖。
+
+### Query Planner 架構
+
+```text
+User Input
+    ↓
+Query Understanding Layer
+    ├── Intent Classification（意圖分類）
+    ├── Query Decomposition（查詢拆解）
+    ├── Query Rewriting（查詢改寫）
+    ├── Hypothetical Document Embedding (HyDE)
+    └── Sub-query Generation（子查詢生成）
+    ↓
+Retrieval Layer
+```
+
+### 核心功能
+
+| 功能 | 說明 |
+| --- | --- |
+| Intent Classification | 分類：問答 / 摘要 / 比較 / 推理 |
+| Query Decomposition | 複雜問題拆成多個子問題 |
+| Query Rewriting | 改寫為更適合向量搜尋的語句 |
+| HyDE | 先生成假設文件再做 embedding 搜尋 |
+| Multi-step Planning | 規劃多步推理路徑 |
+
+Query Understanding 是提升 RAG 精準度的關鍵前處理層。
+
+---
+
+## 七、AI Memory Layer（三層記憶架構）
+
+NotebookLM 的「記憶」由三種記憶類型組成：
+
+```text
+AI Memory Layer
+├── 1. Semantic Memory（語意記憶）
+│       → Embedding / Vector Database
+├── 2. Episodic Memory（互動記憶）
+│       → User Interaction History / Sessions
+└── 3. Working Memory（上下文記憶）
+        → Current Chat Context Window
+```
+
+### 三層記憶對比
+
+| 記憶類型 | 範圍 | 持久性 | 技術實作 |
+| --- | --- | --- | --- |
+| Semantic Memory | 知識庫 | 長期 | Vector DB（Pinecone / Firestore Vector） |
+| Episodic Memory | 使用者歷史 | 中期 | Session Store（Firestore sessions） |
+| Working Memory | 當前對話 | 短期 | Context Buffer（in-memory） |
+
+完整 AI Memory 層 = 三層協同運作，而非僅有 Embedding。
+
+---
+
+## 八、Indexing Strategy Layer（索引策略層）
+
+索引策略決定了 RAG 的搜尋能力上限。單一 Vector Search 不足以支撐複雜查詢。
+
+### Hybrid Retrieval（多索引融合）
+
+```text
+User Query
+    ↓
+┌─────────────────────────────────┐
+│       Hybrid Retrieval Layer     │
+│  ┌──────────┐  ┌─────────────┐  │
+│  │  Dense   │  │   Sparse    │  │
+│  │ Retrieval│  │  Retrieval  │  │
+│  │(Vector)  │  │(BM25/TF-IDF)│  │
+│  └────┬─────┘  └──────┬──────┘  │
+│       └────────┬───────┘         │
+│           ┌────┴──────┐          │
+│           │  Reranker  │          │
+│           └────────────┘          │
+└─────────────────────────────────┘
+    ↓
+Top-K Results → LLM
+```
+
+### 索引策略類型
+
+| 索引類型 | 說明 | 適用場景 |
+| --- | --- | --- |
+| Dense（Vector） | 語意相似性搜尋 | 概念性問題 |
+| Sparse（BM25） | 關鍵字精確匹配 | 術語 / 代碼搜尋 |
+| Hybrid | Dense + Sparse 融合 | 通用場景 |
+| Graph Index | 知識圖譜關係搜尋 | 推理 / 關聯查詢 |
+| Hierarchical | 階層式索引（文件→段落→句子） | 長文件 |
+
+### Reranker（重排序）
+
+```text
+Initial Retrieval Results (Top-50)
+    ↓
+Cross-Encoder Reranker
+    ↓
+Final Top-K (Top-5 / Top-10)
+    ↓
+LLM Context
+```
+
+Hybrid Retrieval + Reranker 是企業級 RAG 系統標準配置。
+
+---
+
+## 九、Graph-Augmented RAG（圖增強檢索）
+
+Graph-Augmented RAG 將知識圖譜與向量搜尋融合，解決純 Vector Search 無法處理的多跳推理問題。
+
+### 架構圖
+
+```text
+User Query
+    ↓
+┌──────────────────────────────────────┐
+│         Graph-Augmented RAG           │
+│                                        │
+│  ┌──────────────┐  ┌───────────────┐  │
+│  │ Vector Search │  │  Graph Search │  │
+│  │  (Semantic)   │  │ (Relational)  │  │
+│  └──────┬────────┘  └───────┬───────┘  │
+│         └──────────┬────────┘          │
+│              ┌─────┴──────┐            │
+│              │  Fusion     │            │
+│              │  & Ranking  │            │
+│              └─────────────┘            │
+└──────────────────────────────────────┘
+    ↓
+LLM（with graph context）
+```
+
+### 知識圖譜結構
+
+```text
+Entity Node：概念 / 實體 / 頁面
+    ↓
+Relation Edge：IS_A / PART_OF / RELATED_TO / CAUSES
+    ↓
+Knowledge Graph（可導航推理路徑）
+```
+
+### Graph vs. Vector 比較
+
+| 面向 | Vector Search | Graph Search |
+| --- | --- | --- |
+| 搜尋基礎 | 語意相似度 | 實體關係路徑 |
+| 強項 | 模糊語意匹配 | 精確關係推理 |
+| 弱點 | 無關係推理 | 稀疏圖效果差 |
+| 融合效果 | 互補，共同支撐複雜查詢 | ← |
+
+Graph-Augmented RAG 是下一代知識系統的核心競爭力。
+
+---
+
+## 十、Multi-Document Reasoning（跨文件推理）
+
+### Multi-hop Reasoning（多步推理）
+
+```text
+Complex Question
+    ↓
+Query Decomposition（拆解子問題）
+    ↓
+Sub-query 1 → Document A
+Sub-query 2 → Document B
+Sub-query 3 → Document C
+    ↓
+Evidence Aggregation（證據彙整）
+    ↓
+Multi-hop Reasoning（多步推理）
+    ↓
+Final Answer（綜合回答）
+```
+
+### 推理類型
+
+| 推理類型 | 說明 |
+| --- | --- |
+| Bridge Reasoning | A → B → C 鏈式推理 |
+| Comparison Reasoning | A vs. B 比較推理 |
+| Compositional Reasoning | 組合多條件推理 |
+| Temporal Reasoning | 時間序列推理 |
+
+### 跨文件分析能力
+
+```text
+Document 1（技術文件）
+Document 2（規格書）
+Document 3（會議記錄）
+    ↓
+Cross-Document Analysis
+    ├── 矛盾偵測（Contradiction Detection）
+    ├── 知識補全（Knowledge Completion）
+    └── 時間線整合（Timeline Synthesis）
+    ↓
+Unified Answer with Source Attribution
+```
+
+---
+
+## 十一、Source Grounding / Citation System（引用系統）
+
+AI 回答必須可追溯（Traceable）與可驗證（Verifiable），這是企業級 AI 系統的核心需求。
+
+### Citation 架構
+
+```text
+LLM Answer
+    ↓
+Citation Extraction（引用萃取）
+    ↓
+Source Mapping（來源對應）
+    ├── Document ID
+    ├── Chunk ID
+    ├── Page / Section
+    └── Confidence Score
+    ↓
+Grounded Answer（可追溯回答）
+```
+
+### 引用輸出格式
+
+```text
+回答：「根據文件 A 第 3 節¹ 與文件 B 第 7 頁²，系統設計應採用...」
+
+¹ 文件A - 系統規格書 v2.1, 第3節, 第12頁
+² 文件B - 架構設計文件, 第7頁
+```
+
+### Grounding 驗證層
+
+| 驗證項目 | 說明 |
+| --- | --- |
+| Faithfulness | 回答是否忠實於來源文件 |
+| Relevance | 引用來源是否與問題相關 |
+| Completeness | 是否涵蓋所有必要資訊 |
+| Hallucination Detection | 偵測 LLM 幻覺輸出 |
+
+Source Grounding 讓 AI 回答從「黑盒」變成「可審計系統」。
+
+---
+
+## 十二、Ingestion Pipeline（資料生命週期）
+
+完整的資料生命週期管理，從原始文件到可查詢知識庫的完整流程。
+
+### 完整 Ingestion Pipeline
+
+```text
+Raw Documents（原始資料）
+    ↓
+1. Parse（解析）
+   ├── PDF / DOCX / HTML / Markdown
+   ├── Table Extraction
+   └── Image OCR
+    ↓
+2. Clean（清洗）
+   ├── Remove noise / boilerplate
+   ├── Normalize encoding
+   └── Language detection
+    ↓
+3. Taxonomy（分類標記）
+   ├── Auto-tagging
+   ├── Category classification
+   └── Metadata extraction
+    ↓
+4. Chunk（分塊）
+   ├── Semantic chunking
+   ├── Hierarchical chunking
+   └── Overlap strategy
+    ↓
+5. Chunk Metadata（塊 metadata）
+   ├── source_doc_id
+   ├── section / heading path
+   ├── page_number
+   └── chunk_index
+    ↓
+6. Embedding（向量化）
+   ├── Embedding model selection
+   └── Batch embedding generation
+    ↓
+7. Firestore Writes（持久化）
+   ├── Vector store
+   ├── Metadata store
+   └── Document registry
+    ↓
+8. Mark Ready（標記就緒）
+   └── status: "indexed" → available for query
+```
+
+### 資料狀態機
+
+```text
+uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
+```
+
+### Ingestion 品質指標
+
+| 指標 | 說明 |
+| --- | --- |
+| Parse Success Rate | 文件成功解析率 |
+| Chunk Quality Score | 分塊語意完整性 |
+| Embedding Coverage | Embedding 覆蓋率 |
+| Index Latency | 完整 Pipeline 耗時 |
+
+---
+
+## 十三、Tool / Agent Layer（工具調用層）
+
+AI 系統從「回答問題」進化到「執行動作」，需要 Tool / Agent 層支撐。
+
+### Agent 架構
+
+```text
+User Request
+    ↓
+Agent Orchestrator
+    ↓
+┌─────────────────────────────────────┐
+│              Tool Registry           │
+│  ┌──────────┐  ┌──────────────────┐ │
+│  │  Search  │  │  Knowledge Graph │ │
+│  │  Tool    │  │  Query Tool      │ │
+│  └──────────┘  └──────────────────┘ │
+│  ┌──────────┐  ┌──────────────────┐ │
+│  │  Create  │  │   Summarize      │ │
+│  │  Doc     │  │   Tool           │ │
+│  └──────────┘  └──────────────────┘ │
+│  ┌──────────┐  ┌──────────────────┐ │
+│  │  Link    │  │   External API   │ │
+│  │  Pages   │  │   Connector      │ │
+│  └──────────┘  └──────────────────┘ │
+└─────────────────────────────────────┘
+    ↓
+Action Execution → Result → User
+```
+
+### 工具類型
+
+| 工具類型 | 說明 | 對應功能 |
+| --- | --- | --- |
+| Retrieval Tool | 知識庫搜尋 | Vector + Graph Search |
+| Creation Tool | 文件 / 頁面自動生成 | Auto-draft |
+| Summarization Tool | 文件摘要 | Auto Summary |
+| Linking Tool | 知識圖譜連結 | Auto Link |
+| Classification Tool | 自動標記 / 分類 | Auto Tag |
+| External Tool | 呼叫外部 API | 第三方整合 |
+
+### ReAct / Chain-of-Thought 模式
+
+```text
+Thought: 使用者想了解 X，需要先查 Y 再推論 Z
+Action: search_tool("Y")
+Observation: [retrieved context]
+Thought: 已取得 Y，現在推論 Z
+Action: reasoning_tool("Z given Y")
+Final Answer: [grounded answer with citations]
+```
+
+---
+
+## 十四、Schema + Ontology Layer（知識語意層）
+
+知識語意層定義「知識的意義」與「概念間的關係」，讓 AI 能理解領域語意而非僅做字串匹配。
+
+### Ontology 結構
+
+```text
+Domain Ontology
+    ├── Classes（類別）
+    │       ├── Document
+    │       ├── Person
+    │       ├── Project
+    │       └── Concept
+    ├── Properties（屬性）
+    │       ├── hasAuthor
+    │       ├── createdAt
+    │       └── relatedTo
+    └── Relations（關係）
+            ├── IS_A（繼承）
+            ├── PART_OF（組成）
+            ├── DEPENDS_ON（依賴）
+            └── CONTRADICTS（矛盾）
+```
+
+### Schema 層用途
+
+| 用途 | 說明 |
+| --- | --- |
+| Entity Normalization | 統一同義詞 / 別名 |
+| Relation Typing | 為圖譜邊定義語意類型 |
+| Query Semantics | 理解查詢的業務語意 |
+| Knowledge Validation | 驗證知識一致性 |
+
+### Ontology 與 RAG 整合
+
+```text
+User Query（自然語言）
+    ↓
+Ontology Mapping（概念對齊）
+    ↓
+Enriched Query（附帶語意上下文）
+    ↓
+Graph + Vector Retrieval
+    ↓
+Semantically Grounded Answer
+```
+
+Schema + Ontology 層讓知識系統從「資料庫」進化為「知識庫」。
+
+---
+
+## 十五、三種系統的架構分層（非常重要）
+
+```text
+┌──────────────────────┐
+│        AI Layer       │  ← NotebookLM / RAG
+├──────────────────────┤
+│   Knowledge Graph     │  ← Wiki
+├──────────────────────┤
+│   Content / UI Layer  │  ← Notion
+└──────────────────────┘
+```
+
+| 層 | 功能 | 對應系統 |
+| --- | --- | --- |
+| AI Layer | 搜尋、問答、推理 | NotebookLM / RAG |
+| Graph Layer | 知識關聯 | Wiki |
+| Content / UI Layer | 編輯、排版、資料庫 | Notion |
+
+真正的 AI 知識平台 = 三層架構。
+
+---
+
+## 十六、產品級架構模型（AI SaaS 最強形態）
+
+Notion × Wiki × NotebookLM 融合架構：
+
+```text
+               ┌──────────────┐
+                │      AI       │
+                │  RAG / Chat   │
+                └──────┬───────┘
+                       │
+            ┌──────────┴──────────┐
+            │    Knowledge Graph   │
+            │   Page Links / Tags  │
+            └──────────┬──────────┘
+                       │
+                ┌──────┴──────┐
+                │  Block Editor│
+                │   Database   │
+                └──────────────┘
+```
+
+### 知識系統演化三階段
+
+| 時代 | 系統 | 架構 |
+| --- | --- | --- |
+| Web 1.0 | Wiki | Knowledge Graph |
+| Web 2.0 | Notion | Block + Database |
+| AI Era | NotebookLM | RAG + LLM |
+| 未來 | Hybrid | Graph + Block + AI |
+
+工程公式：
+
+```text
+AI Knowledge System
+= Editor
++ Database
++ Knowledge Graph
++ Vector Search
++ LLM
+```
+
+---
+
+## 十七、對應到技術架構（Firestore + Genkit + Next.js）
+
+### 17.1 Firestore Schema（資料層）
+
+| Collection | 說明 | 對應概念 |
+| --- | --- | --- |
+| pages | 頁面文件（含 Block 樹 + Graph Node） | Wiki Page / Notion Page |
+| blocks | Block 內容單元 | Notion Block |
+| databases | 結構化 Database 定義 | Notion Database |
+| relations | 跨 Database Relation | Notion Relation Property |
+| page_links | 頁面連結（fromPageId / toPageId / type） | Wiki Internal Link |
+| embeddings | pageId / blockId / vector / content | NotebookLM Semantic Memory |
+| tags | 多維標籤 | Wiki Category / Notion Tag |
+| comments | Block 層級留言 | Notion Comment |
+| versions | 頁面版本快照 | Wiki Revision History |
+| sessions | 使用者互動歷程 | Episodic Memory |
+
+Graph 關聯：
+
+```text
+page_links
+  fromPageId
+  toPageId
+  type（IS_A / RELATED_TO / PART_OF）
+```
+
+RAG：
+
+```text
+embeddings
+  pageId
+  blockId
+  vector
+  content
+  chunkIndex
+  sectionPath
+```
+
+### 17.2 Genkit Flow（AI 層）
+
+| Flow | 說明 |
+| --- | --- |
+| QueryPlannerFlow | Intent 分類 + Query 拆解 + HyDE |
+| RetrievalFlow | Hybrid RAG（Dense + Sparse + Graph + Reranker） |
+| IngestionFlow | Parse → Chunk → Embed → Index Pipeline |
+| AgentOrchestratorFlow | ReAct 模式多工具調用 |
+| CitationFlow | Answer + Source Mapping + Faithfulness Check |
+
+AI 功能：
+
+- Chat with Docs
+- Auto Summary
+- Auto Tag
+- Auto Link
+- Knowledge Graph Expansion
+
+### 17.3 Next.js Parallel Routes（UI 層）
+
+```text
+/workspace
+    /@editor      → Block Editor（Notion Layer）
+    /@graph       → Knowledge Graph View（Wiki Layer）
+    /@chat        → AI Chat + RAG（NotebookLM Layer）
+    /@database    → Database View（Notion Layer）
+```
+
+畫面佈局：
+
+```text
+┌───────────────┬───────────────┐
+│   Page Tree   │    Editor     │
+├───────────────┼───────────────┤
+│ KnowledgeGraph│     AI Chat   │
+└───────────────┴───────────────┘
+```
+
+這就是：`AI Knowledge Operating System`
+
+---
+
+## 十八、最終學術級結論（完整架構層次）
+
+### 完整 AI 知識平台架構層次
+
+```text
+┌─────────────────────────────────────────────────┐
+│                  User Interface                   │
+│          （Block Editor / Chat / Graph View）      │
+├─────────────────────────────────────────────────┤
+│           Tool / Agent Layer（工具調用層）          │
+│    Search / Create / Link / Summarize / External  │
+├─────────────────────────────────────────────────┤
+│        Query Understanding Layer（查詢理解層）      │
+│    Intent / Decompose / Rewrite / Plan / HyDE     │
+├──────────────────────┬──────────────────────────┤
+│  Multi-Document      │   Source Grounding /      │
+│  Reasoning（多步推理）│   Citation System（引用）  │
+├──────────────────────┴──────────────────────────┤
+│         Graph-Augmented RAG（圖增強檢索）          │
+│          Vector Search + Graph Search + Reranker  │
+├─────────────────────────────────────────────────┤
+│         Indexing Strategy Layer（索引策略層）       │
+│         Dense / Sparse / Graph / Hierarchical     │
+├─────────────────────────────────────────────────┤
+│              AI Memory Layer（記憶層）              │
+│  Semantic Memory | Episodic Memory | Working Mem  │
+├─────────────────────────────────────────────────┤
+│           Ingestion Pipeline（資料生命週期）         │
+│    Parse → Clean → Taxonomy → Chunk → Embed       │
+│                → Persist → Mark Ready             │
+├─────────────────────────────────────────────────┤
+│       Schema + Ontology Layer（知識語意層）         │
+│        Classes / Properties / Relations           │
+├─────────────────────────────────────────────────┤
+│         Knowledge Graph（知識圖譜層）               │
+│     Page Links / Backlinks / Category / Template  │
+│     Redirect / Namespace / Version Control        │
+├─────────────────────────────────────────────────┤
+│           Content / Data Layer（內容層）            │
+│   Block Editor / Database / Views / Automation   │
+│   Property Types / Collaboration / Template      │
+└─────────────────────────────────────────────────┘
+```
+
+### 完整架構能力對照
+
+| 能力 | 實現機制 | 層次 |
+| --- | --- | --- |
+| Query Planner | Intent classification + query decomposition | Query Understanding Layer |
+| Multi-hop reasoning | Sub-query generation + evidence aggregation | Multi-Document Reasoning |
+| Hybrid retrieval | Dense + Sparse + Reranker | Indexing Strategy Layer |
+| Graph-augmented RAG | Vector + Graph fusion | Graph-Augmented RAG |
+| Citation / grounding | Source mapping + faithfulness check | Citation System |
+| Semantic Memory | Vector embeddings + persistent vector database | AI Memory Layer |
+| Episodic Memory | User interaction history + cross-session store | AI Memory Layer |
+| Working Memory | In-memory conversation buffer | AI Memory Layer |
+| Ingestion pipeline | Parse → Embed → Index lifecycle | Ingestion Pipeline |
+| Agent / tool layer | ReAct + tool registry | Tool / Agent Layer |
+| Ontology / schema | Domain classes + relation types | Schema + Ontology Layer |
+| Block Editor | Drag-drop / nested blocks / 13+ block types | Content / UI Layer |
+| Database System | 6 views / 18+ property types / automation | Content / UI Layer |
+| Knowledge Graph | Backlinks / redirects / category tree | Knowledge Graph Layer |
+| Version Control | Diff / Rollback / Edit history / Blame | Knowledge Graph Layer |
+| Template System | Transclusion / parameterized templates | Knowledge Graph Layer |
+
+---
+
+> 這就是現代 AI SaaS 文件 / 知識 / 協作 / AI 系統的完整理論架構。
+>
+> **下一代知識平台架構：**
+> Notion（UI / Block / Database）+ Wiki（Knowledge Graph）+ NotebookLM（RAG / AI）= **AI Knowledge Platform**
+`````
+
+## File: docs/DomainDefinitions.md
+`````markdown
+# Domain Context & Model Definitions
+
+本文件定義 `Architecture.md` 中三大核心系統（Notion、Wiki、NotebookLM）融合後的領域邊界與資料模型。所有開發命名需嚴格遵守此處定義的 Ubiquitous Language。
+
+---
+
+## 1. Bounded Context Map (領域邊界圖)
+
+系統劃分為三個核心 Bounded Context，透過 Domain Events 進行低耦合溝通。
+
+| Context | 核心職責 | 對應原型 | 主要 Aggregate Root |
+| :--- | :--- | :--- | :--- |
+| **Content Context** | 結構化內容編輯、區塊管理、頁面樹狀結構 | Notion | `Page`, `Block` |
+| **Knowledge Context** | 雙向連結、標籤管理、圖譜結構計算 | Wiki | `GraphNode`, `Link` |
+| **Intelligence Context** | 向量檢索、LLM 對話、自動推論 | NotebookLM | `Thread`, `Insight` |
+
+---
+
+## 2. Core Domain Models (核心領域模型)
+
+### A. Content Domain (Notion-like)
+負責資料的「結構與呈現」。
+
+- **Page (Entity)**: 內容的容器。
+  - `id`: UUID
+  - `title`: String
+  - `icon`: Emoji | URL
+  - `cover`: URL
+  - `blocks`: List<BlockId> (Ordered)
+
+- **Block (Polymorphic Entity)**: 內容的最小原子單位。
+  - `id`: UUID
+  - `type`: `paragraph` | `heading` | `code` | `image` | `embed` | `toggle`
+  - `content`: JSON (SuperJSON serialized)
+  - `properties`: Map<String, Any> (e.g., checked, language)
+  - `parentId`: UUID (PageId or BlockId)
+  - `children`: List<BlockId> (Recursive structure)
+
+### B. Knowledge Domain (Wiki-like)
+負責資料的「關聯與拓撲」。
+
+- **GraphNode (Entity)**: 知識圖譜中的節點，通常對應一個 Page，但也可是 Tag 或外部資源。
+  - `id`: UUID (對應 PageId)
+  - `label`: String
+  - `type`: `page` | `tag` | `attachment`
+  - `weight`: Number (基於引用次數計算的權重)
+
+- **Link (Value Object)**: 節點間的連線。
+  - `sourceId`: UUID
+  - `targetId`: UUID
+  - `type`: `explicit` (手動引用) | `implicit` (AI 建議) | `hierarchy` (父子頁面)
+  - `context`: String (連結周圍的文本摘要)
+
+### C. Intelligence Domain (NotebookLM-like)
+負責資料的「理解與生成」。
+
+- **VectorEmbedding (Value Object)**: 內容的數學表示。
+  - `targetId`: UUID (BlockId or PageId)
+  - `vector`: Float32Array
+  - `contentHash`: String (用於變更檢測)
+
+- **Thread (Aggregate)**: 用戶與 AI 的對話上下文。
+  - `id`: UUID
+  - `contextIds`: List<UUID> (此對話引用的 Page/Block 範圍)
+  - `messages`: List<Message>
+
+---
+
+## 3. Domain Events (關鍵領域事件)
+
+事件驅動是三層融合的關鍵神經系統。
+
+| 事件名稱 | 觸發源 (Source) | 處理者 (Consumer) | 業務邏輯 |
+| :--- | :--- | :--- | :--- |
+| `ContentBlockUpdated` | Content | Intelligence | 觸發 Vector Ingestion (重新計算 Embedding) |
+| `ContentBlockUpdated` | Content | Knowledge | 解析 `[[WikiLink]]`，更新圖譜連線 |
+| `PageMoved` | Content | Knowledge | 更新 Hierarchy 類型的連結關係 |
+| `InsightGenerated` | Intelligence | Content | AI 自動在頁面側邊欄生成摘要或建議標籤 |
+`````
+
+## File: docs/hybrid_rag_flow.svg
+`````xml
+<svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Query In -->
+  <g onclick="sendPrompt('queryPlannerFlow 怎麼做 HyDE 和 query decomposition？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="215" y="30" width="250" height="44" rx="8" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="52" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">query planner flow</text>
+  </g>
+
+  <!-- arrow down, fork -->
+  <line x1="340" y1="74" x2="340" y2="104" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- fork lines to 3 branches -->
+  <line x1="130" y1="104" x2="550" y2="104" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="130" y1="104" x2="130" y2="134" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="340" y1="104" x2="340" y2="134" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="550" y1="104" x2="550" y2="134" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Dense -->
+  <g onclick="sendPrompt('dense retrieval 怎麼用 Firestore Vector Search 或 Pinecone 實作？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="40" y="134" width="180" height="56" rx="8" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="130" y="156" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">dense retrieval</text>
+    <text x="130" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">vector similarity · top-50</text>
+  </g>
+
+  <!-- Sparse -->
+  <g onclick="sendPrompt('sparse retrieval BM25 在 Firestore 怎麼實作？有沒有替代方案？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="250" y="134" width="180" height="56" rx="8" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="156" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">sparse retrieval</text>
+    <text x="340" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">BM25 · keyword · top-50</text>
+  </g>
+
+  <!-- Graph -->
+  <g onclick="sendPrompt('graph retrieval 怎麼用 Firestore page_links 做多跳推理？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="460" y="134" width="180" height="56" rx="8" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="550" y="156" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">graph retrieval</text>
+    <text x="550" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">relation edges · top-50</text>
+  </g>
+
+  <!-- merge lines to RRF -->
+  <line x1="130" y1="190" x2="130" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="340" y1="190" x2="340" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="550" y1="190" x2="550" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="130" y1="280" x2="550" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="340" y1="280" x2="340" y2="296" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- RRF Fusion -->
+  <g onclick="sendPrompt('RRF fusion 公式是什麼？怎麼用 Genkit Flow 實作？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="215" y="300" width="250" height="56" rx="8" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="322" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">RRF fusion</text>
+    <text x="340" y="342" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">reciprocal rank fusion · merged top-100</text>
+  </g>
+
+  <!-- arrow to reranker -->
+  <line x1="340" y1="356" x2="340" y2="386" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Reranker -->
+  <g onclick="sendPrompt('reranker 用 cross-encoder 還是 LLM-based？Genkit 怎麼接？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="215" y="390" width="250" height="56" rx="8" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="412" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">reranker</text>
+    <text x="340" y="432" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">cross-encoder score · top-10</text>
+  </g>
+
+  <!-- arrow to citation -->
+  <line x1="340" y1="446" x2="340" y2="476" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Citation + LLM -->
+  <g onclick="sendPrompt('citation flow 怎麼做 source mapping 和 faithfulness check？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="215" y="480" width="250" height="56" rx="8" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="502" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">citation flow</text>
+    <text x="340" y="522" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">source map · faithfulness · LLM</text>
+  </g>
+
+  <!-- arrow to output -->
+  <line x1="340" y1="536" x2="340" y2="566" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Output -->
+  <g onclick="sendPrompt('grounded answer 的 TypeScript 型別怎麼定義？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="215" y="570" width="250" height="36" rx="8" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="588" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">grounded answer + citations</text>
+  </g>
+</svg>
+`````
+
+## File: docs/RemotePorts.md
+`````markdown
+# Remote Ports & Infrastructure Interfaces
+
+本文件定義 `infrastructure/` 層必須實作的 Port 介面。這實現了 Hexagonal Architecture，讓核心領域邏輯不依賴具體的外部服務（如 Firebase, Upstash, OpenAI）。
+
+---
+
+## 1. Vector Store Port (`modules/retrieval/domain/ports`)
+
+負責向量資料庫的讀寫。
+
+```typescript
+export interface IVectorStore {
+  /**
+   * 將文本區塊轉換為向量並儲存
+   * @param documents - 包含 id, content, metadata 的物件
+   */
+  upsertDocuments(documents: VectorDocument[]): Promise<void>;
+
+  /**
+   * 根據查詢字串尋找相似區塊
+   * @param query - 查詢文本
+   * @param k - 回傳數量
+   * @param filter - 屬性過濾 (e.g., pageId)
+   */
+  similaritySearch(query: string, k: number, filter?: Record<string, any>): Promise<ScoredDocument[]>;
+
+  /**
+   * 刪除指定 ID 的向量
+   */
+  deleteDocuments(ids: string[]): Promise<void>;
+}
+
+export type VectorDocument = {
+  id: string;
+  content: string;
+  metadata: Record<string, any>;
+};
+```
+
+## 2. LLM Orchestrator Port (`modules/agent/domain`)
+
+負責與 Python Runtime (`py_fn`) 或 Genkit 溝通的介面。
+
+```typescript
+export interface ILLMOrchestrator {
+  /**
+   * 生成對話回應 (支援 Streaming)
+   */
+  generateResponseStream(
+    history: ChatMessage[],
+    context: ContextBlock[],
+    options?: GenerationOptions
+  ): AsyncGenerator<string, void, unknown>;
+
+  /**
+   * 結構化資料提取 (用於自動標籤、摘要)
+   */
+  extractStructuredData<T>(
+    content: string,
+    schema: ZodSchema<T>
+  ): Promise<T>;
+}
+```
+
+## 3. Event Bus Port (`shared/domain/ports`)
+
+負責跨模組的非同步事件傳遞。
+
+```typescript
+export interface IEventBus {
+  /**
+   * 發布領域事件
+   */
+  publish<T extends DomainEvent>(event: T): Promise<void>;
+
+  /**
+   * 訂閱特定事件
+   */
+  subscribe<T extends DomainEvent>(
+    eventName: string,
+    handler: (event: T) => Promise<void>
+  ): void;
+}
+```
+
+## 4. Implementation Guidelines (實作指引)
+
+- **Development Stub**: 在開發環境中，若未連接真實 Python 後端，應提供 `MockLLMOrchestrator` 回傳固定的 Lorem Ipsum 字串，以確保 UI 開發不受阻。
+- **Production**: `FirebaseFunctionsLLMAdapter` 應透過 HTTPS Callable Function 呼叫部署在 Google Cloud Functions (Python Genkit) 上的邏輯。
+- **Vector DB**: 優先使用 `UpstashVectorAdapter` 透過 HTTP REST API 進行操作，保持 Edge Runtime 相容性。
+`````
+
+## File: docs/UseCases.md
+`````markdown
+# Use Case Specifications
+
+本文件描述「Notion × Wiki × NotebookLM」融合架構下的關鍵使用者案例。
+
+---
+
+## UC-01: 智能寫作與即時連結 (Writing with Auto-Linking)
+
+### 簡述
+當用戶在編輯器中寫作時，系統自動識別關鍵字並建議建立 Wiki 連結，或將內容轉為向量索引。
+
+- **Actor**: Content Creator
+- **Primary Module**: `modules/content`
+- **Supporting Modules**: `modules/knowledge`, `modules/agent`
+
+### Main Flow
+1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
+2. `BlockEditor` 偵測到 `[[` 觸發符。
+3. **[Knowledge]** 搜尋現有 `GraphNode` 並回傳建議列表。
+4. 用戶選擇目標頁面，系統插入 `PageLink` Block。
+5. 用戶完成一段文字並失焦 (OnBlur)。
+6. **[System]** 發送 `ContentBlockUpdated` 事件。
+7. **[Intelligence]** (Async) 接收事件，將該 Block 文字轉為 Vector 並存入 Upstash。
+
+---
+
+## UC-02: 上下文感知問答 (Context-Aware Chat / RAG)
+
+### 簡述
+用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
+
+- **Actor**: Knowledge Worker
+- **Primary Module**: `modules/agent`
+- **Supporting Modules**: `modules/retrieval`, `modules/content`
+
+### Main Flow
+1. 用戶開啟右側 `Assistant Panel`。
+2. 系統自動鎖定當前 `PageId` 作為 Context。
+3. 用戶提問：「這份文件的核心結論是什麼？」
+4. **[Intelligence]** 將問題轉為向量，並結合 `PageId` 過濾條件查詢 `VectorStore`。
+5. **[Search]** 回傳 Top-K 相關的 `Block` 內容。
+6. **[Intelligence]** 組裝 Prompt (包含原始 Block 內容) 發送給 LLM。
+7. **[UI]** 串流顯示答案，並在答案中標註引用來源 (Citation)。
+8. 用戶點擊引用來源，左側編輯器自動捲動到對應 Block。
+
+---
+
+## UC-03: 圖譜導航與關聯發現 (Graph Navigation)
+
+### 簡述
+用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
+
+- **Actor**: Researcher
+- **Primary Module**: `modules/knowledge-graph`
+- **Supporting Modules**: `modules/knowledge`
+
+### Main Flow
+1. 用戶切換至 `Graph View`。
+2. **[Knowledge]** 聚合所有 `Page` 與 `Link` 數據回傳。
+3. **[Graph]** 渲染力導向圖 (Force-Directed Graph)。
+4. 節點大小根據 `Backlinks` 數量動態調整。
+5. 用戶點擊節點 A。
+6. **[UI]** 開啟側邊預覽 (Preview Card)，顯示節點 A 的摘要與直接關聯。
+7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
+`````
+
+## File: docs/xuanwu_architecture.mermaid
+`````
+---
+title: Xuanwu — AI Knowledge Platform Architecture (v3)
+---
+graph TD
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 0 — workspace（基礎設施 · 所有模組共用 context）
+  %% ══════════════════════════════════════════════════════
+  subgraph WS["workspace（基礎設施層）"]
+    direction LR
+    WS1["tenant isolation"]
+    WS2["auth · orgId boundary"]
+    WS3["event bus · shared context"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 1 — content（Notion 層）
+  %% ══════════════════════════════════════════════════════
+  subgraph CT["content（↔ Notion）"]
+    direction TB
+    CT1["Page · Block · Database · View"]
+    CT2["Version · Comment · Template"]
+    CT3["Collaboration · Permission · Automation"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 1 — knowledge-graph（Wiki 層）
+  %% ══════════════════════════════════════════════════════
+  subgraph KG["knowledge-graph（↔ Wiki）"]
+    direction TB
+    KG1["PageLink · Backlink · Relation"]
+    KG2["Category · Tag · Namespace · Redirect"]
+    KG3["Ontology · Schema · VersionGraph"]
+  end
+
+  %% content → knowledge-graph：pageId 參照
+  CT -- "pageId ref" --> KG
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 2 — knowledge（NotebookLM · Ingestion Pipeline）
+  %% ══════════════════════════════════════════════════════
+  subgraph KN["knowledge（↔ NotebookLM · Ingestion）"]
+    direction TB
+    KN1["1 Parse：PDF · DOCX · HTML · MD · OCR"]
+    KN2["2 Clean：noise · encoding · language detect"]
+    KN3["3 Taxonomy：auto-tag · classify · metadata"]
+    KN4["4 Chunk：semantic · hierarchical · overlap"]
+    KN4b["5 Chunk Metadata：source_doc_id · section · page_number · chunk_index"]
+    KN5["6 Embed：model select · batch generation"]
+    KN6["7 Persist：vector store · metadata · registry"]
+    KN7["8 Mark Ready：status = indexed"]
+    KN8(["Status Machine：uploaded → parsing → chunking → embedding → indexed → stale → re-indexing"])
+    KN1 --> KN2 --> KN3 --> KN4 --> KN4b --> KN5 --> KN6 --> KN7
+  end
+
+  CT -- "doc content" --> KN
+  KG -- "graph edges" --> KN
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 3 — retrieval（NotebookLM · RAG Query Layer）
+  %% ══════════════════════════════════════════════════════
+  subgraph RT["retrieval（↔ NotebookLM · RAG Query）"]
+    direction TB
+
+    subgraph QU["Query Understanding Layer"]
+      QU1["Intent Classification"]
+      QU2["Query Decomposition · Sub-query"]
+      QU3["Query Rewriting · HyDE"]
+    end
+
+    subgraph HR["Hybrid RAG Layer"]
+      HR1["Dense Retrieval（Vector · Semantic）"]
+      HR2["Sparse Retrieval（BM25 · TF-IDF）"]
+      HR3["Graph Search（Relational · Multi-hop）"]
+      HR4["Reranker（Cross-encoder · Top-K）"]
+      HR1 --> HR4
+      HR2 --> HR4
+      HR3 --> HR4
+    end
+
+    subgraph MDR["Multi-Document Reasoning Layer"]
+      MDR1["Bridge Reasoning：A → B → C 鏈式推理"]
+      MDR2["Comparison Reasoning：A vs B 比較推理"]
+      MDR3["Compositional Reasoning：多條件組合推理"]
+      MDR4["Temporal Reasoning：時間序列推理"]
+      MDR5["Cross-Doc Analysis：Contradiction · Completion · Timeline"]
+    end
+
+    subgraph MEM["AI Memory Layer"]
+      MEM1["Semantic Memory（Vector DB · long-term）"]
+      MEM2["Episodic Memory（sessions · mid-term）"]
+      MEM3["Working Memory（context buffer · short-term）"]
+    end
+
+    subgraph CIT["Citation and Grounding"]
+      CIT1["Source Mapping：docId · chunkId · page"]
+      CIT2["Faithfulness · Relevance · Completeness"]
+      CIT3["Hallucination Detection"]
+    end
+
+    QU --> HR
+    HR --> MDR
+    MDR --> CIT
+    MEM --> HR
+  end
+
+  KN -- "embeddings + chunks" --> RT
+  KG -- "graph index" --> RT
+
+  %% ══════════════════════════════════════════════════════
+  %% LAYER 4 — agent（ReAct Orchestration · Tool Layer）
+  %% ══════════════════════════════════════════════════════
+  subgraph AG["agent（Tool / Agent Layer）"]
+    direction TB
+
+    subgraph REACT["ReAct Orchestrator"]
+      R1["Thought：intent planning"]
+      R2["Action：tool dispatch"]
+      R3["Observation：result parse"]
+      R4["Answer：grounded response"]
+      R1 --> R2 --> R3 --> R4
+    end
+
+    subgraph TOOLS["Tool Registry"]
+      T1["search-tool → retrieval/api"]
+      T2["create-doc-tool → content/api"]
+      T3["summarize-tool → retrieval/api"]
+      T4["auto-link-tool → knowledge-graph/api"]
+      T5["auto-tag-tool → knowledge-graph/api"]
+      T6["knowledge-graph-query-tool → knowledge-graph/api"]
+      T7["external-api-connector"]
+    end
+
+    REACT --> TOOLS
+  end
+
+  RT -- "query result + citations" --> AG
+
+  %% agent → 各模組 api/ 層（跨模組 api call）
+  AG -. "api/ call" .-> CT
+  AG -. "api/ call" .-> KG
+  AG -. "api/ call" .-> KN
+  AG -. "api/ call" .-> RT
+
+  %% workspace → 全部模組
+  WS -. "context inject" .-> CT
+  WS -. "context inject" .-> KG
+  WS -. "context inject" .-> KN
+  WS -. "context inject" .-> RT
+  WS -. "context inject" .-> AG
+
+  %% ══════════════════════════════════════════════════════
+  %% MODULE INTERNAL STRUCTURE（每個 module 統一規範）
+  %% ══════════════════════════════════════════════════════
+  subgraph INT["每個 module 的內部結構（統一規範）"]
+    direction LR
+    L_IF["interfaces/\nNext.js Route Handler\nFirebase CF Trigger\n薄層 無業務邏輯"]
+    L_AP["application/\nUse Case\nCommand / Query Handler\nEvent Publisher"]
+    L_DO["domain/\nEntity · Value Object\nRepository Interface\nDomain Service · Event"]
+    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flows：\n  QueryPlannerFlow\n  RetrievalFlow\n  IngestionFlow\n  AgentOrchestratorFlow\n  CitationFlow"]
+    L_API["api/\npublic contract\nTypeScript types\nfunction signatures\n唯一對外出口"]
+
+    L_IF --> L_AP
+    L_AP --> L_DO
+    L_DO -. "implements" .-> L_IN
+    L_AP -. "exposes via" .-> L_API
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% BOUNDARY RULE
+  %% ══════════════════════════════════════════════════════
+  RULE["⚠️ 跨模組邊界規則\nimport from module/api 只\n嚴禁穿透 domain/ 或 infrastructure/\nindex.ts 只 re-export api/ 內容"]
+
+  %% ══════════════════════════════════════════════════════
+  %% FIRESTORE COLLECTION OWNERSHIP
+  %% ══════════════════════════════════════════════════════
+  subgraph FS["Firestore Collection Ownership"]
+    direction LR
+    FS_CT["content owns\npages · blocks\ndatabases · comments · versions"]
+    FS_KG["knowledge-graph owns\npage_links · relations\ncategories · tags · templates"]
+    FS_KN["knowledge owns\nembeddings · chunks\ningestion_jobs"]
+    FS_RT["retrieval owns\nsessions · memory\ncitation_logs"]
+  end
+
+  %% ══════════════════════════════════════════════════════
+  %% STYLES
+  %% ══════════════════════════════════════════════════════
+  classDef wsStyle   fill:#444441,stroke:#888780,color:#D3D1C7
+  classDef ctStyle   fill:#085041,stroke:#1D9E75,color:#9FE1CB
+  classDef kgStyle   fill:#3C3489,stroke:#7F77DD,color:#CECBF6
+  classDef knStyle   fill:#633806,stroke:#BA7517,color:#FAC775
+  classDef rtStyle   fill:#0C447C,stroke:#378ADD,color:#B5D4F4
+  classDef agStyle   fill:#712B13,stroke:#D85A30,color:#F5C4B3
+  classDef intStyle  fill:#2C2C2A,stroke:#5F5E5A,color:#D3D1C7
+  classDef ruleStyle fill:#501313,stroke:#E24B4A,color:#F7C1C1
+  classDef fsStyle   fill:#173404,stroke:#639922,color:#C0DD97
+
+  class WS1,WS2,WS3 wsStyle
+  class CT1,CT2,CT3 ctStyle
+  class KG1,KG2,KG3 kgStyle
+  class KN1,KN2,KN3,KN4,KN4b,KN5,KN6,KN7,KN8 knStyle
+  class QU1,QU2,QU3 rtStyle
+  class HR1,HR2,HR3,HR4 rtStyle
+  class MDR1,MDR2,MDR3,MDR4,MDR5 rtStyle
+  class MEM1,MEM2,MEM3 rtStyle
+  class CIT1,CIT2,CIT3 rtStyle
+  class R1,R2,R3,R4 agStyle
+  class T1,T2,T3,T4,T5,T6,T7 agStyle
+  class L_IF,L_AP,L_DO,L_IN,L_API intStyle
+  class RULE ruleStyle
+  class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
+`````
+
+## File: docs/xuanwu_domain_modules.svg
+`````xml
+<svg width="100%" viewBox="0 0 680 780" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-dash" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- ── workspace (top, full width) ── -->
+  <g onclick="sendPrompt('workspace 模組的 domain/ 和 infrastructure/ 應該放什麼？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="40" y="30" width="600" height="72" rx="10" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="58" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">workspace</text>
+    <text x="340" y="78" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">tenant context · auth · event bus · orgId boundary</text>
+  </g>
+
+  <!-- down arrow from workspace -->
+  <line x1="340" y1="102" x2="340" y2="128" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="355" y="118" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">context</text>
+
+  <!-- ── knowledge ── -->
+  <g onclick="sendPrompt('knowledge 模組的 ingestion pipeline 怎麼設計 Cloud Functions？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="40" y="132" width="280" height="140" rx="10" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="180" y="162" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">knowledge</text>
+    <text x="180" y="184" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">document · block · version</text>
+    <text x="180" y="202" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">ingestion pipeline · status machine</text>
+    <text x="180" y="220" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">parse → chunk → embed → index</text>
+    <text x="180" y="238" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Firestore · Cloud Storage · Document AI</text>
+  </g>
+
+  <!-- ── graph ── -->
+  <g onclick="sendPrompt('graph 模組和 knowledge 模組的邊界怎麼劃？page_links 誰擁有？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="360" y="132" width="280" height="140" rx="10" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="500" y="162" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">graph</text>
+    <text x="500" y="184" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">page_links · relations · tags</text>
+    <text x="500" y="202" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">category · template · namespace</text>
+    <text x="500" y="220" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">backlinks · redirect · version graph</text>
+    <text x="500" y="238" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Firestore graph collections</text>
+  </g>
+
+  <!-- horizontal arrow: knowledge → graph (pageId reference) -->
+  <line x1="320" y1="202" x2="358" y2="202" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="339" y="195" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">pageId</text>
+
+  <!-- down arrows to retrieval -->
+  <line x1="180" y1="272" x2="180" y2="318" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="500" y1="272" x2="500" y2="318" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="104" y="298" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">embeddings</text>
+  <text x="422" y="298" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">graph edges</text>
+
+  <!-- ── retrieval ── -->
+  <g onclick="sendPrompt('retrieval 模組的 Hybrid RAG Genkit Flow 怎麼實作 Dense + Sparse + Reranker？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="40" y="322" width="600" height="140" rx="10" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="352" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">retrieval</text>
+    <text x="340" y="374" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">query understanding · intent · decompose · HyDE · rewrite</text>
+    <text x="340" y="392" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">hybrid RAG · dense (vector) · sparse (BM25) · graph search · reranker</text>
+    <text x="340" y="410" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">semantic memory · episodic memory · working memory</text>
+    <text x="340" y="428" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">citation · faithfulness · hallucination detection</text>
+    <text x="340" y="446" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Pinecone · Firestore Vector · Genkit Flow</text>
+  </g>
+
+  <!-- down arrow retrieval → agent -->
+  <line x1="340" y1="462" x2="340" y2="498" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="360" y="483" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">query result</text>
+
+  <!-- ── agent ── -->
+  <g onclick="sendPrompt('agent 模組的 Commander Agent 如何用 ReAct 模式調用 retrieval 和 knowledge？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="40" y="502" width="600" height="120" rx="10" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="532" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">agent</text>
+    <text x="340" y="554" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">commander agent · tool registry · ReAct orchestrator</text>
+    <text x="340" y="572" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">search · create-doc · summarize · auto-link · auto-tag · external-api</text>
+    <text x="340" y="590" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">cross-module caller — calls api/ of all other modules</text>
+    <text x="340" y="608" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Genkit ReAct Flow · tool calling</text>
+  </g>
+
+  <!-- agent → knowledge api (curved back up left) -->
+  <path d="M80 502 Q20 420 20 202 Q20 132 38 132" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="8" y="330" text-anchor="middle" dominant-baseline="central" transform="rotate(-90,8,330)" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">api call</text>
+
+  <!-- agent → graph api (curved back up right) -->
+  <path d="M620 502 Q660 420 660 202 Q660 132 642 132" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="672" y="330" text-anchor="middle" dominant-baseline="central" transform="rotate(90,672,330)" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">api call</text>
+
+  <!-- ── legend ── -->
+  <line x1="80" y1="660" x2="130" y2="660" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="138" y="664" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">event / data flow</text>
+  <line x1="280" y1="660" x2="330" y2="660" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="338" y="664" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">api/ 層呼叫</text>
+
+  <!-- module count label -->
+  <text x="340" y="700" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">4 個業務領域 + 1 個基礎設施領域（workspace）</text>
+  <text x="340" y="720" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">每個 module 內部均為 api / application / domain / infrastructure</text>
+</svg>
 `````
 
 ## File: modules/account/application/use-cases/account-policy.use-cases.ts
@@ -59152,80 +49621,6 @@ export async function answerRagQuery(input: AnswerRagQueryInput): Promise<Answer
 ## File: modules/agent/interfaces/index.ts
 `````typescript
 export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
-`````
-
-## File: modules/APIContract.md
-`````markdown
-# API Contract & Data Transfer Objects (DTOs)
-
-本文件定義模組間及前後端互動的標準介面。所有 Server Actions 需回傳標準化的 `Result<T>`。
-
----
-
-## 1. Common Types
-
-```typescript
-type Result<T> = {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-};
-
-type PaginationParams = {
-  cursor?: string;
-  limit: number;
-};
-```
-
-## 2. Content Module API (`modules/content/api`)
-
-### Actions
-- `createPage(parentId?: string, title?: string): Promise<Result<PageDTO>>`
-- `updateBlock(blockId: string, content: Partial<BlockContent>): Promise<Result<BlockDTO>>`
-- `moveBlock(blockId: string, targetParentId: string, index: number): Promise<Result<void>>`
-
-### Queries
-- `getPageStructure(pageId: string): Promise<Result<PageStructureDTO>>`
-  - 回傳包含遞迴 Block 樹的完整結構。
-
-```typescript
-interface BlockDTO {
-  id: string;
-  type: 'text' | 'heading' | 'todo' | 'toggle';
-  content: any; // SuperJSON structured
-  children: BlockDTO[]; // Recursive
-}
-```
-
-## 3. Knowledge Module API (`modules/knowledge/api`)
-
-### Actions
-- `createLink(sourceId: string, targetId: string, type: LinkType): Promise<Result<void>>`
-
-### Queries
-- `getBacklinks(pageId: string): Promise<Result<GraphLinkDTO[]>>`
-- `getGraphData(scope?: 'global' | 'local', focusId?: string): Promise<Result<GraphDataDTO>>`
-
-```typescript
-interface GraphDataDTO {
-  nodes: Array<{ id: string; label: string; group: string }>;
-  edges: Array<{ from: string; to: string; type: string }>;
-}
-```
-
-## 4. Agent Module API (`modules/agent/api`)
-
-### Actions
-- `streamChat(messages: Message[], context: ContextFilter): Promise<ReadableStream>`
-  - 串流回應，不走標準 Result 包裝。
-- `ingestContent(entityId: string, type: 'page' | 'block'): Promise<Result<IngestStats>>`
-
-### Queries
-- `getSimilarBlocks(text: string, threshold: number): Promise<Result<ScoredBlockDTO[]>>`
 `````
 
 ## File: modules/asset/api/index.ts
@@ -61559,96 +51954,6 @@ export async function getFileDownloadUrl(input: GetFileDownloadUrlInput): Promis
 - 這也是最小、最安全、最符合本專案 MDDD 遷移順序的第一個 PR。
 `````
 
-## File: modules/hybrid_rag_flow.svg
-`````xml
-<svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-  </defs>
-
-  <!-- Query In -->
-  <g onclick="sendPrompt('queryPlannerFlow 怎麼做 HyDE 和 query decomposition？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="215" y="30" width="250" height="44" rx="8" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="52" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">query planner flow</text>
-  </g>
-
-  <!-- arrow down, fork -->
-  <line x1="340" y1="74" x2="340" y2="104" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- fork lines to 3 branches -->
-  <line x1="130" y1="104" x2="550" y2="104" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="130" y1="104" x2="130" y2="134" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="340" y1="104" x2="340" y2="134" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="550" y1="104" x2="550" y2="134" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Dense -->
-  <g onclick="sendPrompt('dense retrieval 怎麼用 Firestore Vector Search 或 Pinecone 實作？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="40" y="134" width="180" height="56" rx="8" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="130" y="156" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">dense retrieval</text>
-    <text x="130" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">vector similarity · top-50</text>
-  </g>
-
-  <!-- Sparse -->
-  <g onclick="sendPrompt('sparse retrieval BM25 在 Firestore 怎麼實作？有沒有替代方案？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="250" y="134" width="180" height="56" rx="8" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="156" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">sparse retrieval</text>
-    <text x="340" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">BM25 · keyword · top-50</text>
-  </g>
-
-  <!-- Graph -->
-  <g onclick="sendPrompt('graph retrieval 怎麼用 Firestore page_links 做多跳推理？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="460" y="134" width="180" height="56" rx="8" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="550" y="156" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">graph retrieval</text>
-    <text x="550" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">relation edges · top-50</text>
-  </g>
-
-  <!-- merge lines to RRF -->
-  <line x1="130" y1="190" x2="130" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="340" y1="190" x2="340" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="550" y1="190" x2="550" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="130" y1="280" x2="550" y2="280" stroke="var(--color-border-secondary)" stroke-width="0.5" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="340" y1="280" x2="340" y2="296" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- RRF Fusion -->
-  <g onclick="sendPrompt('RRF fusion 公式是什麼？怎麼用 Genkit Flow 實作？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="215" y="300" width="250" height="56" rx="8" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="322" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">RRF fusion</text>
-    <text x="340" y="342" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">reciprocal rank fusion · merged top-100</text>
-  </g>
-
-  <!-- arrow to reranker -->
-  <line x1="340" y1="356" x2="340" y2="386" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Reranker -->
-  <g onclick="sendPrompt('reranker 用 cross-encoder 還是 LLM-based？Genkit 怎麼接？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="215" y="390" width="250" height="56" rx="8" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="412" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">reranker</text>
-    <text x="340" y="432" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">cross-encoder score · top-10</text>
-  </g>
-
-  <!-- arrow to citation -->
-  <line x1="340" y1="446" x2="340" y2="476" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Citation + LLM -->
-  <g onclick="sendPrompt('citation flow 怎麼做 source mapping 和 faithfulness check？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="215" y="480" width="250" height="56" rx="8" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="502" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">citation flow</text>
-    <text x="340" y="522" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">source map · faithfulness · LLM</text>
-  </g>
-
-  <!-- arrow to output -->
-  <line x1="340" y1="536" x2="340" y2="566" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Output -->
-  <g onclick="sendPrompt('grounded answer 的 TypeScript 型別怎麼定義？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="215" y="570" width="250" height="36" rx="8" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="588" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">grounded answer + citations</text>
-  </g>
-</svg>
-`````
-
 ## File: modules/knowledge-graph/.gitkeep
 `````
 
@@ -62756,100 +53061,6 @@ export class InMemoryIngestionJobRepository implements IngestionJobRepository {
     return updated;
   }
 }
-`````
-
-## File: modules/RemotePorts.md
-`````markdown
-# Remote Ports & Infrastructure Interfaces
-
-本文件定義 `infrastructure/` 層必須實作的 Port 介面。這實現了 Hexagonal Architecture，讓核心領域邏輯不依賴具體的外部服務（如 Firebase, Upstash, OpenAI）。
-
----
-
-## 1. Vector Store Port (`modules/retrieval/domain/ports`)
-
-負責向量資料庫的讀寫。
-
-```typescript
-export interface IVectorStore {
-  /**
-   * 將文本區塊轉換為向量並儲存
-   * @param documents - 包含 id, content, metadata 的物件
-   */
-  upsertDocuments(documents: VectorDocument[]): Promise<void>;
-
-  /**
-   * 根據查詢字串尋找相似區塊
-   * @param query - 查詢文本
-   * @param k - 回傳數量
-   * @param filter - 屬性過濾 (e.g., pageId)
-   */
-  similaritySearch(query: string, k: number, filter?: Record<string, any>): Promise<ScoredDocument[]>;
-
-  /**
-   * 刪除指定 ID 的向量
-   */
-  deleteDocuments(ids: string[]): Promise<void>;
-}
-
-export type VectorDocument = {
-  id: string;
-  content: string;
-  metadata: Record<string, any>;
-};
-```
-
-## 2. LLM Orchestrator Port (`modules/agent/domain`)
-
-負責與 Python Runtime (`py_fn`) 或 Genkit 溝通的介面。
-
-```typescript
-export interface ILLMOrchestrator {
-  /**
-   * 生成對話回應 (支援 Streaming)
-   */
-  generateResponseStream(
-    history: ChatMessage[],
-    context: ContextBlock[],
-    options?: GenerationOptions
-  ): AsyncGenerator<string, void, unknown>;
-
-  /**
-   * 結構化資料提取 (用於自動標籤、摘要)
-   */
-  extractStructuredData<T>(
-    content: string,
-    schema: ZodSchema<T>
-  ): Promise<T>;
-}
-```
-
-## 3. Event Bus Port (`shared/domain/ports`)
-
-負責跨模組的非同步事件傳遞。
-
-```typescript
-export interface IEventBus {
-  /**
-   * 發布領域事件
-   */
-  publish<T extends DomainEvent>(event: T): Promise<void>;
-
-  /**
-   * 訂閱特定事件
-   */
-  subscribe<T extends DomainEvent>(
-    eventName: string,
-    handler: (event: T) => Promise<void>
-  ): void;
-}
-```
-
-## 4. Implementation Guidelines (實作指引)
-
-- **Development Stub**: 在開發環境中，若未連接真實 Python 後端，應提供 `MockLLMOrchestrator` 回傳固定的 Lorem Ipsum 字串，以確保 UI 開發不受阻。
-- **Production**: `FirebaseFunctionsLLMAdapter` 應透過 HTTPS Callable Function 呼叫部署在 Google Cloud Functions (Python Genkit) 上的邏輯。
-- **Vector DB**: 優先使用 `UpstashVectorAdapter` 透過 HTTP REST API 進行操作，保持 Edge Runtime 相容性。
 `````
 
 ## File: modules/retrieval/application/use-cases/answer-rag-query.use-case.ts
@@ -67264,104 +57475,6 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 }
 `````
 
-## File: modules/xuanwu_domain_modules.svg
-`````xml
-<svg width="100%" viewBox="0 0 680 780" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrow-dash" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-  </defs>
-
-  <!-- ── workspace (top, full width) ── -->
-  <g onclick="sendPrompt('workspace 模組的 domain/ 和 infrastructure/ 應該放什麼？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="40" y="30" width="600" height="72" rx="10" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="58" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">workspace</text>
-    <text x="340" y="78" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">tenant context · auth · event bus · orgId boundary</text>
-  </g>
-
-  <!-- down arrow from workspace -->
-  <line x1="340" y1="102" x2="340" y2="128" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="355" y="118" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">context</text>
-
-  <!-- ── knowledge ── -->
-  <g onclick="sendPrompt('knowledge 模組的 ingestion pipeline 怎麼設計 Cloud Functions？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="40" y="132" width="280" height="140" rx="10" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="180" y="162" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">knowledge</text>
-    <text x="180" y="184" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">document · block · version</text>
-    <text x="180" y="202" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">ingestion pipeline · status machine</text>
-    <text x="180" y="220" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">parse → chunk → embed → index</text>
-    <text x="180" y="238" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Firestore · Cloud Storage · Document AI</text>
-  </g>
-
-  <!-- ── graph ── -->
-  <g onclick="sendPrompt('graph 模組和 knowledge 模組的邊界怎麼劃？page_links 誰擁有？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="360" y="132" width="280" height="140" rx="10" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="500" y="162" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">graph</text>
-    <text x="500" y="184" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">page_links · relations · tags</text>
-    <text x="500" y="202" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">category · template · namespace</text>
-    <text x="500" y="220" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">backlinks · redirect · version graph</text>
-    <text x="500" y="238" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Firestore graph collections</text>
-  </g>
-
-  <!-- horizontal arrow: knowledge → graph (pageId reference) -->
-  <line x1="320" y1="202" x2="358" y2="202" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="339" y="195" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">pageId</text>
-
-  <!-- down arrows to retrieval -->
-  <line x1="180" y1="272" x2="180" y2="318" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="500" y1="272" x2="500" y2="318" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="104" y="298" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">embeddings</text>
-  <text x="422" y="298" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">graph edges</text>
-
-  <!-- ── retrieval ── -->
-  <g onclick="sendPrompt('retrieval 模組的 Hybrid RAG Genkit Flow 怎麼實作 Dense + Sparse + Reranker？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="40" y="322" width="600" height="140" rx="10" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="352" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">retrieval</text>
-    <text x="340" y="374" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">query understanding · intent · decompose · HyDE · rewrite</text>
-    <text x="340" y="392" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">hybrid RAG · dense (vector) · sparse (BM25) · graph search · reranker</text>
-    <text x="340" y="410" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">semantic memory · episodic memory · working memory</text>
-    <text x="340" y="428" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">citation · faithfulness · hallucination detection</text>
-    <text x="340" y="446" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Pinecone · Firestore Vector · Genkit Flow</text>
-  </g>
-
-  <!-- down arrow retrieval → agent -->
-  <line x1="340" y1="462" x2="340" y2="498" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="360" y="483" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">query result</text>
-
-  <!-- ── agent ── -->
-  <g onclick="sendPrompt('agent 模組的 Commander Agent 如何用 ReAct 模式調用 retrieval 和 knowledge？')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="40" y="502" width="600" height="120" rx="10" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="532" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">agent</text>
-    <text x="340" y="554" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">commander agent · tool registry · ReAct orchestrator</text>
-    <text x="340" y="572" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">search · create-doc · summarize · auto-link · auto-tag · external-api</text>
-    <text x="340" y="590" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">cross-module caller — calls api/ of all other modules</text>
-    <text x="340" y="608" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Genkit ReAct Flow · tool calling</text>
-  </g>
-
-  <!-- agent → knowledge api (curved back up left) -->
-  <path d="M80 502 Q20 420 20 202 Q20 132 38 132" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="8" y="330" text-anchor="middle" dominant-baseline="central" transform="rotate(-90,8,330)" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">api call</text>
-
-  <!-- agent → graph api (curved back up right) -->
-  <path d="M620 502 Q660 420 660 202 Q660 132 642 132" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="672" y="330" text-anchor="middle" dominant-baseline="central" transform="rotate(90,672,330)" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">api call</text>
-
-  <!-- ── legend ── -->
-  <line x1="80" y1="660" x2="130" y2="660" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arrow)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="138" y="664" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">event / data flow</text>
-  <line x1="280" y1="660" x2="330" y2="660" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-dash)" style="fill:rgb(0, 0, 0);stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="338" y="664" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">api/ 層呼叫</text>
-
-  <!-- module count label -->
-  <text x="340" y="700" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">4 個業務領域 + 1 個基礎設施領域（workspace）</text>
-  <text x="340" y="720" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">每個 module 內部均為 api / application / domain / infrastructure</text>
-</svg>
-`````
-
 ## File: packages/README.md
 `````markdown
 # packages/
@@ -67708,6 +57821,19 @@ target: 'vscode'
 - Keep parsing, chunking, embedding in py_fn workers.
 `````
 
+## File: .github/agents/app/README.md
+`````markdown
+# App Agents Notes
+
+This folder is reserved for app-specific agent context.
+
+Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active app-specific personas live in [../app-router.agent.md](../app-router.agent.md), [../parallel-routes.agent.md](../parallel-routes.agent.md), and [../frontend-lead.agent.md](../frontend-lead.agent.md).
+
+Keep app-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
+
+Execution baseline: autonomous Serena-first discovery, Context7 only when repo docs are insufficient, and apply `xuanwu-app-skill` for repository-specific patterns.
+`````
+
 ## File: .github/agents/billing-architect.agent.md
 `````markdown
 ---
@@ -67874,6 +58000,19 @@ Keep rule compliance high while minimizing churn.
 
 - Fix root causes, not symptoms.
 - Preserve existing architecture boundaries.
+`````
+
+## File: .github/agents/modules/README.md
+`````markdown
+# Modules Agents Notes
+
+This folder is reserved for modules-specific agent context.
+
+Current workspace diagnostics only recognize custom agents reliably from the top-level `.github/agents/` directory, so the active modules-specific personas live in [../mddd-architect.agent.md](../mddd-architect.agent.md), [../domain-lead.agent.md](../domain-lead.agent.md), and [../ts-interface-writer.agent.md](../ts-interface-writer.agent.md).
+
+Keep modules-specific notes or future compatibility shims here if nested agent discovery becomes reliable in this workspace.
+
+Execution baseline: autonomous Serena-first discovery, Context7 only when repository sources are not authoritative, and apply `xuanwu-app-skill` for module conventions.
 `````
 
 ## File: .github/agents/prompt-engineer.agent.md
@@ -68277,164 +58416,6 @@ applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Cover happy, boundary, and negative paths for core domain logic.
 `````
 
-## File: .github/mcp_to_agent_mapping.svg
-`````xml
-<svg width="100%" viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg">
-<defs>
-  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </marker>
-</defs>
-
-<!-- MCP column header -->
-<text x="110" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">MCP 工具</text>
-<text x="430" y="24" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">對應 Agent / 目錄用途</text>
-<line x1="40" y1="32" x2="640" y2="32" stroke="var(--t)" stroke-width="0.5" opacity="0.3" style="fill:rgb(0, 0, 0);stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.3;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-<!-- Row 1: context7 -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="44" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">context7</text>
-</g>
-<line x1="180" y1="64" x2="220" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="44" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="57" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">全域共用</text>
-  <text x="310" y="74" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">instructions / skills</text>
-</g>
-<line x1="400" y1="64" x2="440" y2="64" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="44" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="64" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">查官方文件 → 注入 instructions</text>
-</g>
-
-<!-- Row 2: shadcn -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="100" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">shadcn MCP</text>
-</g>
-<line x1="180" y1="120" x2="220" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="100" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="113" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Component Agent</text>
-  <text x="310" y="130" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
-</g>
-<line x1="400" y1="120" x2="440" y2="120" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="100" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="120" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">scaffolding shadcn/ui 元件</text>
-</g>
-
-<!-- Row 3: serena -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="156" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">serena MCP</text>
-</g>
-<line x1="180" y1="176" x2="220" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="156" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="169" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Commander / Serena</text>
-  <text x="310" y="186" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
-</g>
-<line x1="400" y1="176" x2="440" y2="176" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="156" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="176" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">語意理解 / 重構分析</text>
-</g>
-
-<!-- Row 4: next-devtools -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="212" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">next-devtools</text>
-  <text x="110" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
-</g>
-<line x1="180" y1="232" x2="220" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="212" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="225" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">App Router Agent</text>
-  <text x="310" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / instructions</text>
-</g>
-<line x1="400" y1="232" x2="440" y2="232" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="212" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="232" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">bundle / route 診斷</text>
-</g>
-
-<!-- Row 5: markitdown -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="268" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">markitdown</text>
-  <text x="110" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">MCP</text>
-</g>
-<line x1="180" y1="288" x2="220" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="268" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(245, 196, 179);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">RAG Vector Agent</text>
-  <text x="310" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / skills</text>
-</g>
-<line x1="400" y1="288" x2="440" y2="288" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="268" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(113, 43, 19);stroke:rgb(240, 153, 123);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="288" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 153, 123);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">PDF/DOCX → MD → 向量化</text>
-</g>
-
-<!-- Row 6: playwright -->
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="40" y="324" width="140" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="110" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">playwright MCP</text>
-</g>
-<line x1="180" y1="344" x2="220" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="220" y="324" width="180" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="310" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">E2E QA Agent</text>
-  <text x="310" y="355" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">agents / prompts</text>
-</g>
-<line x1="400" y1="344" x2="440" y2="344" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-<g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-  <rect x="440" y="324" width="200" height="40" rx="6" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="540" y="344" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">瀏覽器 E2E 驗收測試</text>
-</g>
-
-<text x="340" y="400" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">點擊各列深入了解</text>
-</svg>
-`````
-
-## File: .github/prompts/analyze-repo.prompt.md
-`````markdown
----
-name: analyze-repo
-description: Analyze repository structure, ownership boundaries, and change impact before implementation.
-agent: serena-coding-agent
-argument-hint: Provide target area, goal, and constraints.
----
-
-# Analyze Repo
-
-## Mission
-
-Map ownership, boundaries, and risks before coding.
-
-## Inputs
-
-- target: ${input:target:modules/workspace}
-- goal: ${input:goal:what needs to change}
-- constraints: ${input:constraints:boundary, runtime, timeline}
-
-## Workflow
-
-1. Identify owning module and runtime.
-2. Locate existing APIs, use cases, and adapters.
-3. Flag boundary violations and regression risks.
-4. Recommend minimal-change implementation path.
-
-## Output Contract
-
-- Ownership map
-- Affected files
-- Risk list
-- Suggested next prompt
-`````
-
 ## File: .github/prompts/app/create-parallel-route-slice.prompt.md
 `````markdown
 ---
@@ -68540,32 +58521,6 @@ argument-hint: Provide doc sources, embedding model/runtime, and storage target.
 2. Generate embeddings with stable metadata.
 3. Write vectors and verify retrieval compatibility.
 4. Report failures, retries, and quality risks.
-`````
-
-## File: .github/prompts/implement-feature.prompt.md
-`````markdown
----
-name: implement-feature
-description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
-agent: Implementer
-argument-hint: Provide approved plan reference and tasks to execute.
----
-
-# Implement Feature
-
-## Requirements
-
-- Treat the approved plan as execution contract.
-- Keep within scope and non-goals.
-- Run required validation commands.
-- Update listed docs in the same change.
-
-## Output
-
-- Tasks completed
-- Validation run
-- Documentation updated
-- Deviations or blockers
 `````
 
 ## File: .github/prompts/implement-firestore-schema.prompt.md
@@ -68790,38 +58745,6 @@ argument-hint: Provide current API, target API, and migration constraints.
 - Make compatibility path explicit when breaking changes are required.
 `````
 
-## File: .github/prompts/review-architecture.prompt.md
-`````markdown
----
-name: review-architecture
-description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
-agent: Reviewer
-argument-hint: Provide plan reference, changed files, and architecture concerns.
----
-
-# Review Architecture
-
-Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
-`````
-
-## File: .github/prompts/review-code.prompt.md
-`````markdown
----
-name: review-code
-description: Perform risk-first code review for correctness, regressions, and missing validation.
-agent: Reviewer
-argument-hint: Provide change summary, touched files, and known risk areas.
----
-
-# Review Code
-
-## Requirements
-
-- Findings first, ordered by severity.
-- Include why it matters and blocking status.
-- State residual risks and testing gaps explicitly.
-`````
-
 ## File: .github/prompts/review-performance.prompt.md
 `````markdown
 ---
@@ -68853,25 +58776,6 @@ argument-hint: Provide changed auth/rules/critical data paths and threat concern
 # Review Security
 
 Report vulnerabilities first with severity, reproduction notes, and concrete remediation steps.
-`````
-
-## File: .github/prompts/write-docs.prompt.md
-`````markdown
----
-name: write-docs
-description: Write or optimize documentation using structured, deduplicated, and index-driven markdown patterns.
-agent: md-writer
-argument-hint: Provide target docs scope and expected documentation outcome.
----
-
-# Write Docs
-
-## Workflow
-
-1. Lint markdown syntax first.
-2. Compress and deduplicate repeated concepts.
-3. Convert prose to rules/tables where possible.
-4. Update folder index/README after leaf updates.
 `````
 
 ## File: .github/prompts/write-e2e-tests.prompt.md
@@ -68910,62 +58814,6 @@ argument-hint: Provide module scope, behaviors to verify, and known regression r
 - Cover happy, boundary, and negative cases.
 - Keep tests deterministic and isolated.
 - Prioritize behavior contracts over implementation details.
-`````
-
-## File: .github/README.md
-`````markdown
-# .github Customization Index
-
-Operational index for repository-scoped customization assets.
-
-## Commander flow (fast path)
-
-1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
-2. Use [mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the baseline MCP-to-agent routing contract.
-3. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
-4. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
-5. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
-
-## Boundary
-
-- Keep executable customization assets in `.github/`.
-- Keep explanation, governance, and lifecycle context in `docs/`.
-- Update both locations together when behavior changes.
-- Treat existing `agents/`, `instructions/`, and `prompts/` as extension layers on top of the MCP mapping baseline.
-- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
-
-## Folder map
-
-| Path | Purpose | Index |
-| --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
-| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
-| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
-| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
-| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
-| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
-| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
-| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
-
-Nested customizations are supported recursively under these folders. The repository now uses dedicated `app/` and `modules/` subfolders inside `agents/`, `instructions/`, and `prompts/` for narrower discovery and lower context noise.
-
-## Core files
-
-| File | Role |
-| --- | --- |
-| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
-| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
-| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
-| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
-| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
-
-## Maintenance
-
-- Use relative links.
-- Keep one concrete entry file per folder.
-- Keep placeholders as plain text, not fake links.
-- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
 `````
 
 ## File: .github/skills/context7/SKILL.md
@@ -71313,966 +61161,20 @@ import { publishDomainEvent } from "@/modules/event/application/use-cases/publis
 - When ownership shifts, update contracts and architecture docs in the same change.
 `````
 
-## File: docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md
-`````markdown
-# 「Notion × Wiki × NotebookLM」融合架構學術指南
-
-AI 知識系統與產品架構設計方法論（完整強化版）
-
----
-
-## 一、研究背景：現代知識系統的三種典範
-
-當代知識管理與文件系統，大致可分為三種代表性工具與架構思想：Notion、Wikipedia（Wiki 系統代表）、NotebookLM。這三者分別代表三種不同的知識系統設計哲學：
-
-| 系統 | 核心模型 | 強項 |
-| --- | --- | --- |
-| Notion | Block + Database | UI / UX / 工作管理 |
-| Wiki | Page + Link Graph | 知識結構 / 關聯 |
-| NotebookLM | Document + Embedding | AI / RAG / 推理 |
-
-產品級知識平台的發展方向不是選其中一個，而是三者融合。
-
----
-
-## 二、Notion 核心功能完整解析
-
-Notion 是以 Block Editor + Database System 為核心的工作空間平台，其設計哲學是「讓內容好整理、好使用」。
-
-### 2.1 Block 系統（核心內容單元）
-
-Notion 的最小單位是 Block，每個 Block 可獨立拖曳、轉換類型，並支援巢狀結構。
-
-| Block 類型 | 說明 | 對應用途 |
-| --- | --- | --- |
-| Text / Heading | 純文字、H1 / H2 / H3 標題 | 文件撰寫 |
-| Toggle | 可折疊的內容區塊 | FAQ / 摘要 |
-| Callout | 強調提示框（含 emoji icon） | 警告 / 提示 |
-| Code Block | 多語言語法高亮程式碼區塊 | 技術文件 |
-| Quote | 引用樣式區塊 | 引言 / 備注 |
-| Divider | 水平分隔線 | 版面分隔 |
-| Table | 簡易表格（非 Database） | 靜態對比 |
-| Image / Video / File | 媒體嵌入與檔案附件 | 富媒體內容 |
-| Embed | 外部服務嵌入（Figma / YouTube / Map） | 整合外部工具 |
-| Synced Block | 跨頁面同步區塊（修改一處全更新） | 共用內容模組 |
-| Column Layout | 多欄排版（左右並排內容） | 版面設計 |
-| Breadcrumb | 自動顯示頁面路徑麵包屑 | 導覽 |
-| Table of Contents | 自動從 Heading 生成目錄 | 長文件導航 |
-
-### 2.2 Database 系統（結構化資料核心）
-
-Notion Database 是其最強大的功能，支援多種視圖與豐富的 Property 類型，本質是 NoSQL + 試算表的融合。
-
-#### Database 視圖類型
-
-| 視圖類型 | 說明 | 適用場景 |
-| --- | --- | --- |
-| Table View | 試算表式橫列縱欄顯示 | 資料總覽 / CRM |
-| Board View | Kanban 看板（以 Select property 分欄） | 專案管理 / 工作流 |
-| Gallery View | 卡片式圖片陳列 | 作品集 / 產品型錄 |
-| List View | 簡潔清單（顯示標題 + 少量欄位） | 任務清單 / 閱讀清單 |
-| Calendar View | 以日期 property 排列的月曆 | 排程 / 內容日曆 |
-| Timeline View | 甘特圖式時間軸 | 專案時程規劃 |
-
-#### Database Property 類型
-
-| Property 類型 | 說明 |
-| --- | --- |
-| Text | 短文字或長文字輸入 |
-| Number | 數字（支援格式化：貨幣、百分比、進度條） |
-| Select | 單選下拉選單（含顏色標記） |
-| Multi-select | 多選標籤 |
-| Date | 日期 / 日期範圍 / 含提醒 |
-| Checkbox | 完成狀態切換 |
-| URL / Email / Phone | 格式化超連結輸入 |
-| Person | 指定工作區成員 |
-| Files & Media | 附件上傳 |
-| Relation | 跨 Database 關聯（外鍵概念） |
-| Rollup | 彙整 Relation 資料（sum / count / avg） |
-| Formula | 自定義計算公式（引用其他 property） |
-| Created time / Last edited time | 自動時間戳 |
-| Created by / Last edited by | 自動記錄操作者 |
-| ID | 自動遞增唯一識別碼 |
-| Status | 工作流狀態（Not started / In progress / Done） |
-| Button | 一鍵觸發動作（自動化 Action） |
-| AI Property | 自動 AI 摘要 / 填寫（Notion AI 功能） |
-
-### 2.3 Page 系統與導覽架構
-
-| 功能 | 說明 |
-| --- | --- |
-| Page Tree（側邊欄） | 層階樹狀頁面結構，支援無限巢狀 |
-| Breadcrumb | 頁面路徑顯示，支援快速跳轉 |
-| Page Icon & Cover | 頁面圖示（emoji / 自訂圖片）與封面圖 |
-| Sub-page | 頁面內建立子頁面（Block 形式嵌入） |
-| Page Link / Mention | @mention 連結其他頁面（非雙向連結） |
-| Favorites | 常用頁面加入收藏 |
-| Backlinks | 顯示哪些頁面連結到此頁（弱版 Graph） |
-| Page Lock | 鎖定頁面防止意外編輯 |
-
-### 2.4 協作功能
-
-| 功能 | 說明 |
-| --- | --- |
-| Real-time Collaboration | 多人同時編輯（即時同步） |
-| Comment & Discussion | Block 層級留言與討論串 |
-| Mention (@) | 提及成員觸發通知 |
-| Page History | 頁面版本歷程（30 天 / 無限，依方案） |
-| Permission System | 頁面層級權限（Full access / Can edit / Can comment / Can view） |
-| Guest Access | 邀請外部用戶單頁存取 |
-| Share to Web | 公開發布頁面為網頁 |
-| Export | 匯出為 PDF / Markdown / HTML / CSV |
-
-### 2.5 自動化與整合
-
-| 功能 | 說明 |
-| --- | --- |
-| Notion AI | 內建 AI 寫作助手（摘要 / 翻譯 / 改寫 / Q&A） |
-| Automation | Database 觸發自動化（當狀態改變時發通知 / 修改欄位） |
-| API | 開放 REST API 供外部系統整合 |
-| Webhook | 事件觸發 Webhook（搭配 Zapier / Make） |
-| Template | 頁面與 Database 模板系統 |
-| Import | 從 Confluence / Evernote / Markdown / CSV 匯入 |
-
----
-
-## 三、Wiki 核心功能完整解析
-
-Wiki 系統（以 Wikipedia / Confluence / MediaWiki 為代表）的本質是 Knowledge Graph，設計哲學是「讓知識彼此連結」。
-
-### 3.1 頁面系統（Page = Graph Node）
-
-| 功能 | 說明 |
-| --- | --- |
-| Page CRUD | 頁面建立 / 讀取 / 更新 / 刪除 |
-| Namespace | 命名空間分類（Talk: / User: / Category: / File:） |
-| Redirect | 重定向頁面（別名統一導向主條目） |
-| Disambiguation | 消歧義頁面（同名詞條分流） |
-| Stub | 不完整頁面標記（待補全提示） |
-| Featured Article | 優質條目標記系統 |
-| Page Protection | 頁面保護（防止匿名 / 新手 / 所有人編輯） |
-| Transclusion | 跨頁面內容嵌入（Template 系統核心機制） |
-
-### 3.2 連結與圖譜系統（Graph Model 核心）
-
-| 功能 | 說明 | 技術意義 |
-| --- | --- | --- |
-| Internal Link | `[[頁面名稱]]` 雙方括號語法建立連結 | Knowledge Graph Edge |
-| Backlinks | 自動追蹤「哪些頁面連結到此頁」 | 入度（In-degree）計算 |
-| Redirect Link | 別名連結（同義詞指向正式頁面） | Entity Normalization |
-| External Link | 引用外部網站 URL | 外部知識引用 |
-| Interwiki Link | 跨 Wiki 站點連結（跨語言 / 跨站） | Federation |
-| Category Link | 頁面隸屬分類（可多重分類） | Taxonomic Edge |
-| Link Graph | 全站頁面連結視覺化圖譜 | Knowledge Map |
-| Dead Link Detection | 偵測失效連結（紅色顯示） | Graph 完整性維護 |
-
-### 3.3 版本控制系統（Version Control）
-
-Wiki 的版本控制是其核心能力，每次編輯均自動快照，支援完整的比對與回溯。
-
-| 功能 | 說明 |
-| --- | --- |
-| Edit History | 每次編輯自動記錄版本（含時間 / 作者 / 摘要） |
-| Diff View | 逐行比對任意兩版本差異（增刪標色顯示） |
-| Rollback | 一鍵回溯到任意歷史版本 |
-| Blame（Annotate） | 每一行內容對應到最後一次修改的作者與版本 |
-| Edit Summary | 每次提交附帶編輯說明（類似 Git commit message） |
-| Minor Edit Flag | 標記為小修改（拼字更正 / 格式調整） |
-| Pending Changes | 新手編輯需審核後才公開顯示 |
-| Page Move History | 頁面重命名歷程追蹤（自動建立重定向） |
-
-### 3.4 分類與標籤系統（Taxonomy Layer）
-
-| 功能 | 說明 |
-| --- | --- |
-| Category System | 樹狀分類系統（Category 可繼承 / 巢狀） |
-| Category Intersection | 多分類交集查詢（找同屬 A 且屬 B 的頁面） |
-| Category Tree | 分類層級視覺化（根分類 → 子分類 → 頁面） |
-| Template Tags | Template 作為語意標記（如 `{{Unreferenced}}` `{{Stub}}`） |
-| Wikidata Integration | 連接結構化知識庫（Q-number 實體對齊） |
-
-### 3.5 編輯與協作系統
-
-| 功能 | 說明 |
-| --- | --- |
-| Wikitext / Markup | Wiki 專屬標記語法（`== 標題 ==` / `[[ ]]` 連結 / `{{ }}` Template） |
-| Visual Editor | WYSIWYG 視覺化編輯器（無需學習 Wikitext） |
-| Talk Page | 每個條目附帶討論頁（編輯協商空間） |
-| User Page | 編輯者個人頁面（貢獻記錄 / 自我介紹） |
-| Watchlist | 追蹤關注頁面的最新修改通知 |
-| Edit Conflict Detection | 多人同時編輯時的衝突偵測與合併提示 |
-| Rollback Permission | 快速回退惡意編輯（巡查員權限） |
-| Patrol System | 新編輯標記「待審」，巡查員審核後標記通過 |
-
-### 3.6 搜尋與導覽系統
-
-| 功能 | 說明 |
-| --- | --- |
-| Full-text Search | 全文搜尋（含拼字糾正 / 近似詞匹配） |
-| Prefix Search | 即時搜尋建議（輸入前綴自動補全） |
-| Search by Category | 依分類篩選搜尋結果 |
-| Special Pages | 系統自動生成的特殊頁面（孤立頁 / 死連結 / 最多連結頁） |
-| Random Article | 隨機跳轉條目（知識探索功能） |
-| What Links Here | 查詢哪些頁面連結到指定頁面（Backlink 探索） |
-| Related Changes | 追蹤某頁面所有連結頁面的最新修改 |
-
-### 3.7 Template 系統（知識模組化）
-
-Template 是 Wiki 的代碼模組化機制，相當於 Wiki 的「元件系統」。
-
-| 功能 | 說明 |
-| --- | --- |
-| Infobox Template | 右側資訊框（人物 / 地點 / 電影等結構化屬性） |
-| Navigation Template | 底部導覽區塊（同系列條目快速跳轉） |
-| Citation Template | 標準化引用格式（書籍 / 網站 / 期刊 cite 模板） |
-| Warning Template | 條目品質警告標記（`{{POV}}` `{{Cleanup}}` 等） |
-| Parameterized Template | 支援傳入參數的動態 Template（`{{{1}}}` 佔位符） |
-| Transclusion | Template 內容直接嵌入目標頁面（非複製） |
-
----
-
-## 四、Wiki 與 Notion 的本質差異（資料模型層）
-
-### 4.1 Wiki：Graph Model（知識圖）
-
-Wiki 系統本質資料模型：
-
-```text
-Page = Node
-Link = Edge
-→ Knowledge Graph
-```
-
-資料結構：pages / links / versions / categories / templates
-
-特徵：
-- 強調「知識與知識之間的關係」
-- 非階層式，可形成網狀結構
-- 雙向連結（Backlinks 自動維護）
-- 適合知識庫、技術文件、研究資料
-
-### 4.2 Notion：Block + Tree Model（內容結構）
-
-Notion 資料模型：
-
-```text
-Page
- └── Blocks
-     ├── Text
-     ├── Heading
-     ├── Table
-     ├── Toggle
-     └── Image
-```
-
-資料結構：pages / blocks / databases / properties / automations
-
-特徵：
-- 強調排版、資料表、UI 操作
-- Relation property（單向 / 雙向）+ @mention（弱連結）
-- 適合專案管理、文件、筆記、CRM
-
-### 4.3 核心哲學差異對比
-
-| 面向 | Wiki | Notion |
-| --- | --- | --- |
-| 核心 | 知識關聯 | 工作與內容 |
-| 資料模型 | Graph | Tree + Database |
-| 單位 | Page | Page + Block |
-| 關聯 | Page Link（圖邊） | Relation Database（外鍵） |
-| 連結方向 | 雙向（Backlink 追蹤） | 單向 / 雙向（需設定） |
-| 版本控制 | 原生 Diff / Rollback | History（依方案） |
-| 分類 | Category Tree（圖節點） | Tag / Filter（屬性） |
-| Template | Transclusion 嵌入 | Template 頁面（複製） |
-| 協作模式 | 開放編輯 + 審核制度 | 權限管理 + 即時協作 |
-| 搜尋 | 全文 + Backlink + 分類 | 全文 + Database Filter |
-| 強項 | 知識網絡 | UX / UI / 工作流 |
-| 用途 | 知識庫 | 工作空間 |
-| 思維 | Knowledge Graph | Structured Workspace |
-
-關鍵一句話差異：
-- **Wiki**：讓知識彼此連結
-- **Notion**：讓內容好整理、好使用
-
----
-
-## 五、NotebookLM 的角色（AI 層）
-
-NotebookLM 代表第三種系統：AI 知識系統模型（RAG）。
-
-資料流程：
-
-```text
-Documents
-   ↓
-Chunking
-   ↓
-Embedding
-   ↓
-Vector Database
-   ↓
-Retrieval
-   ↓
-LLM
-   ↓
-Answer / Summary / Reasoning
-```
-
-這種架構稱為：Retrieval-Augmented Generation（RAG）。
-
-NotebookLM 本質不是筆記工具，而是 `AI Knowledge Reasoning System`，解決：文件理解、問答、摘要、推理、跨文件分析。
-
----
-
-## 六、Query Understanding Layer（查詢理解層）
-
-在使用者輸入問題到 RAG 系統之間，存在一層「查詢理解層」，負責解析、拆解與轉化查詢意圖。
-
-### Query Planner 架構
-
-```text
-User Input
-    ↓
-Query Understanding Layer
-    ├── Intent Classification（意圖分類）
-    ├── Query Decomposition（查詢拆解）
-    ├── Query Rewriting（查詢改寫）
-    ├── Hypothetical Document Embedding (HyDE)
-    └── Sub-query Generation（子查詢生成）
-    ↓
-Retrieval Layer
-```
-
-### 核心功能
-
-| 功能 | 說明 |
-| --- | --- |
-| Intent Classification | 分類：問答 / 摘要 / 比較 / 推理 |
-| Query Decomposition | 複雜問題拆成多個子問題 |
-| Query Rewriting | 改寫為更適合向量搜尋的語句 |
-| HyDE | 先生成假設文件再做 embedding 搜尋 |
-| Multi-step Planning | 規劃多步推理路徑 |
-
-Query Understanding 是提升 RAG 精準度的關鍵前處理層。
-
----
-
-## 七、AI Memory Layer（三層記憶架構）
-
-NotebookLM 的「記憶」由三種記憶類型組成：
-
-```text
-AI Memory Layer
-├── 1. Semantic Memory（語意記憶）
-│       → Embedding / Vector Database
-├── 2. Episodic Memory（互動記憶）
-│       → User Interaction History / Sessions
-└── 3. Working Memory（上下文記憶）
-        → Current Chat Context Window
-```
-
-### 三層記憶對比
-
-| 記憶類型 | 範圍 | 持久性 | 技術實作 |
-| --- | --- | --- | --- |
-| Semantic Memory | 知識庫 | 長期 | Vector DB（Pinecone / Firestore Vector） |
-| Episodic Memory | 使用者歷史 | 中期 | Session Store（Firestore sessions） |
-| Working Memory | 當前對話 | 短期 | Context Buffer（in-memory） |
-
-完整 AI Memory 層 = 三層協同運作，而非僅有 Embedding。
-
----
-
-## 八、Indexing Strategy Layer（索引策略層）
-
-索引策略決定了 RAG 的搜尋能力上限。單一 Vector Search 不足以支撐複雜查詢。
-
-### Hybrid Retrieval（多索引融合）
-
-```text
-User Query
-    ↓
-┌─────────────────────────────────┐
-│       Hybrid Retrieval Layer     │
-│  ┌──────────┐  ┌─────────────┐  │
-│  │  Dense   │  │   Sparse    │  │
-│  │ Retrieval│  │  Retrieval  │  │
-│  │(Vector)  │  │(BM25/TF-IDF)│  │
-│  └────┬─────┘  └──────┬──────┘  │
-│       └────────┬───────┘         │
-│           ┌────┴──────┐          │
-│           │  Reranker  │          │
-│           └────────────┘          │
-└─────────────────────────────────┘
-    ↓
-Top-K Results → LLM
-```
-
-### 索引策略類型
-
-| 索引類型 | 說明 | 適用場景 |
-| --- | --- | --- |
-| Dense（Vector） | 語意相似性搜尋 | 概念性問題 |
-| Sparse（BM25） | 關鍵字精確匹配 | 術語 / 代碼搜尋 |
-| Hybrid | Dense + Sparse 融合 | 通用場景 |
-| Graph Index | 知識圖譜關係搜尋 | 推理 / 關聯查詢 |
-| Hierarchical | 階層式索引（文件→段落→句子） | 長文件 |
-
-### Reranker（重排序）
-
-```text
-Initial Retrieval Results (Top-50)
-    ↓
-Cross-Encoder Reranker
-    ↓
-Final Top-K (Top-5 / Top-10)
-    ↓
-LLM Context
-```
-
-Hybrid Retrieval + Reranker 是企業級 RAG 系統標準配置。
-
----
-
-## 九、Graph-Augmented RAG（圖增強檢索）
-
-Graph-Augmented RAG 將知識圖譜與向量搜尋融合，解決純 Vector Search 無法處理的多跳推理問題。
-
-### 架構圖
-
-```text
-User Query
-    ↓
-┌──────────────────────────────────────┐
-│         Graph-Augmented RAG           │
-│                                        │
-│  ┌──────────────┐  ┌───────────────┐  │
-│  │ Vector Search │  │  Graph Search │  │
-│  │  (Semantic)   │  │ (Relational)  │  │
-│  └──────┬────────┘  └───────┬───────┘  │
-│         └──────────┬────────┘          │
-│              ┌─────┴──────┐            │
-│              │  Fusion     │            │
-│              │  & Ranking  │            │
-│              └─────────────┘            │
-└──────────────────────────────────────┘
-    ↓
-LLM（with graph context）
-```
-
-### 知識圖譜結構
-
-```text
-Entity Node：概念 / 實體 / 頁面
-    ↓
-Relation Edge：IS_A / PART_OF / RELATED_TO / CAUSES
-    ↓
-Knowledge Graph（可導航推理路徑）
-```
-
-### Graph vs. Vector 比較
-
-| 面向 | Vector Search | Graph Search |
-| --- | --- | --- |
-| 搜尋基礎 | 語意相似度 | 實體關係路徑 |
-| 強項 | 模糊語意匹配 | 精確關係推理 |
-| 弱點 | 無關係推理 | 稀疏圖效果差 |
-| 融合效果 | 互補，共同支撐複雜查詢 | ← |
-
-Graph-Augmented RAG 是下一代知識系統的核心競爭力。
-
----
-
-## 十、Multi-Document Reasoning（跨文件推理）
-
-### Multi-hop Reasoning（多步推理）
-
-```text
-Complex Question
-    ↓
-Query Decomposition（拆解子問題）
-    ↓
-Sub-query 1 → Document A
-Sub-query 2 → Document B
-Sub-query 3 → Document C
-    ↓
-Evidence Aggregation（證據彙整）
-    ↓
-Multi-hop Reasoning（多步推理）
-    ↓
-Final Answer（綜合回答）
-```
-
-### 推理類型
-
-| 推理類型 | 說明 |
-| --- | --- |
-| Bridge Reasoning | A → B → C 鏈式推理 |
-| Comparison Reasoning | A vs. B 比較推理 |
-| Compositional Reasoning | 組合多條件推理 |
-| Temporal Reasoning | 時間序列推理 |
-
-### 跨文件分析能力
-
-```text
-Document 1（技術文件）
-Document 2（規格書）
-Document 3（會議記錄）
-    ↓
-Cross-Document Analysis
-    ├── 矛盾偵測（Contradiction Detection）
-    ├── 知識補全（Knowledge Completion）
-    └── 時間線整合（Timeline Synthesis）
-    ↓
-Unified Answer with Source Attribution
-```
-
----
-
-## 十一、Source Grounding / Citation System（引用系統）
-
-AI 回答必須可追溯（Traceable）與可驗證（Verifiable），這是企業級 AI 系統的核心需求。
-
-### Citation 架構
-
-```text
-LLM Answer
-    ↓
-Citation Extraction（引用萃取）
-    ↓
-Source Mapping（來源對應）
-    ├── Document ID
-    ├── Chunk ID
-    ├── Page / Section
-    └── Confidence Score
-    ↓
-Grounded Answer（可追溯回答）
-```
-
-### 引用輸出格式
-
-```text
-回答：「根據文件 A 第 3 節¹ 與文件 B 第 7 頁²，系統設計應採用...」
-
-¹ 文件A - 系統規格書 v2.1, 第3節, 第12頁
-² 文件B - 架構設計文件, 第7頁
-```
-
-### Grounding 驗證層
-
-| 驗證項目 | 說明 |
-| --- | --- |
-| Faithfulness | 回答是否忠實於來源文件 |
-| Relevance | 引用來源是否與問題相關 |
-| Completeness | 是否涵蓋所有必要資訊 |
-| Hallucination Detection | 偵測 LLM 幻覺輸出 |
-
-Source Grounding 讓 AI 回答從「黑盒」變成「可審計系統」。
-
----
-
-## 十二、Ingestion Pipeline（資料生命週期）
-
-完整的資料生命週期管理，從原始文件到可查詢知識庫的完整流程。
-
-### 完整 Ingestion Pipeline
-
-```text
-Raw Documents（原始資料）
-    ↓
-1. Parse（解析）
-   ├── PDF / DOCX / HTML / Markdown
-   ├── Table Extraction
-   └── Image OCR
-    ↓
-2. Clean（清洗）
-   ├── Remove noise / boilerplate
-   ├── Normalize encoding
-   └── Language detection
-    ↓
-3. Taxonomy（分類標記）
-   ├── Auto-tagging
-   ├── Category classification
-   └── Metadata extraction
-    ↓
-4. Chunk（分塊）
-   ├── Semantic chunking
-   ├── Hierarchical chunking
-   └── Overlap strategy
-    ↓
-5. Chunk Metadata（塊 metadata）
-   ├── source_doc_id
-   ├── section / heading path
-   ├── page_number
-   └── chunk_index
-    ↓
-6. Embedding（向量化）
-   ├── Embedding model selection
-   └── Batch embedding generation
-    ↓
-7. Firestore Writes（持久化）
-   ├── Vector store
-   ├── Metadata store
-   └── Document registry
-    ↓
-8. Mark Ready（標記就緒）
-   └── status: "indexed" → available for query
-```
-
-### 資料狀態機
-
-```text
-uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
-```
-
-### Ingestion 品質指標
-
-| 指標 | 說明 |
-| --- | --- |
-| Parse Success Rate | 文件成功解析率 |
-| Chunk Quality Score | 分塊語意完整性 |
-| Embedding Coverage | Embedding 覆蓋率 |
-| Index Latency | 完整 Pipeline 耗時 |
-
----
-
-## 十三、Tool / Agent Layer（工具調用層）
-
-AI 系統從「回答問題」進化到「執行動作」，需要 Tool / Agent 層支撐。
-
-### Agent 架構
-
-```text
-User Request
-    ↓
-Agent Orchestrator
-    ↓
-┌─────────────────────────────────────┐
-│              Tool Registry           │
-│  ┌──────────┐  ┌──────────────────┐ │
-│  │  Search  │  │  Knowledge Graph │ │
-│  │  Tool    │  │  Query Tool      │ │
-│  └──────────┘  └──────────────────┘ │
-│  ┌──────────┐  ┌──────────────────┐ │
-│  │  Create  │  │   Summarize      │ │
-│  │  Doc     │  │   Tool           │ │
-│  └──────────┘  └──────────────────┘ │
-│  ┌──────────┐  ┌──────────────────┐ │
-│  │  Link    │  │   External API   │ │
-│  │  Pages   │  │   Connector      │ │
-│  └──────────┘  └──────────────────┘ │
-└─────────────────────────────────────┘
-    ↓
-Action Execution → Result → User
-```
-
-### 工具類型
-
-| 工具類型 | 說明 | 對應功能 |
-| --- | --- | --- |
-| Retrieval Tool | 知識庫搜尋 | Vector + Graph Search |
-| Creation Tool | 文件 / 頁面自動生成 | Auto-draft |
-| Summarization Tool | 文件摘要 | Auto Summary |
-| Linking Tool | 知識圖譜連結 | Auto Link |
-| Classification Tool | 自動標記 / 分類 | Auto Tag |
-| External Tool | 呼叫外部 API | 第三方整合 |
-
-### ReAct / Chain-of-Thought 模式
-
-```text
-Thought: 使用者想了解 X，需要先查 Y 再推論 Z
-Action: search_tool("Y")
-Observation: [retrieved context]
-Thought: 已取得 Y，現在推論 Z
-Action: reasoning_tool("Z given Y")
-Final Answer: [grounded answer with citations]
-```
-
----
-
-## 十四、Schema + Ontology Layer（知識語意層）
-
-知識語意層定義「知識的意義」與「概念間的關係」，讓 AI 能理解領域語意而非僅做字串匹配。
-
-### Ontology 結構
-
-```text
-Domain Ontology
-    ├── Classes（類別）
-    │       ├── Document
-    │       ├── Person
-    │       ├── Project
-    │       └── Concept
-    ├── Properties（屬性）
-    │       ├── hasAuthor
-    │       ├── createdAt
-    │       └── relatedTo
-    └── Relations（關係）
-            ├── IS_A（繼承）
-            ├── PART_OF（組成）
-            ├── DEPENDS_ON（依賴）
-            └── CONTRADICTS（矛盾）
-```
-
-### Schema 層用途
-
-| 用途 | 說明 |
-| --- | --- |
-| Entity Normalization | 統一同義詞 / 別名 |
-| Relation Typing | 為圖譜邊定義語意類型 |
-| Query Semantics | 理解查詢的業務語意 |
-| Knowledge Validation | 驗證知識一致性 |
-
-### Ontology 與 RAG 整合
-
-```text
-User Query（自然語言）
-    ↓
-Ontology Mapping（概念對齊）
-    ↓
-Enriched Query（附帶語意上下文）
-    ↓
-Graph + Vector Retrieval
-    ↓
-Semantically Grounded Answer
-```
-
-Schema + Ontology 層讓知識系統從「資料庫」進化為「知識庫」。
-
----
-
-## 十五、三種系統的架構分層（非常重要）
-
-```text
-┌──────────────────────┐
-│        AI Layer       │  ← NotebookLM / RAG
-├──────────────────────┤
-│   Knowledge Graph     │  ← Wiki
-├──────────────────────┤
-│   Content / UI Layer  │  ← Notion
-└──────────────────────┘
-```
-
-| 層 | 功能 | 對應系統 |
-| --- | --- | --- |
-| AI Layer | 搜尋、問答、推理 | NotebookLM / RAG |
-| Graph Layer | 知識關聯 | Wiki |
-| Content / UI Layer | 編輯、排版、資料庫 | Notion |
-
-真正的 AI 知識平台 = 三層架構。
-
----
-
-## 十六、產品級架構模型（AI SaaS 最強形態）
-
-Notion × Wiki × NotebookLM 融合架構：
-
-```text
-               ┌──────────────┐
-                │      AI       │
-                │  RAG / Chat   │
-                └──────┬───────┘
-                       │
-            ┌──────────┴──────────┐
-            │    Knowledge Graph   │
-            │   Page Links / Tags  │
-            └──────────┬──────────┘
-                       │
-                ┌──────┴──────┐
-                │  Block Editor│
-                │   Database   │
-                └──────────────┘
-```
-
-### 知識系統演化三階段
-
-| 時代 | 系統 | 架構 |
-| --- | --- | --- |
-| Web 1.0 | Wiki | Knowledge Graph |
-| Web 2.0 | Notion | Block + Database |
-| AI Era | NotebookLM | RAG + LLM |
-| 未來 | Hybrid | Graph + Block + AI |
-
-工程公式：
-
-```text
-AI Knowledge System
-= Editor
-+ Database
-+ Knowledge Graph
-+ Vector Search
-+ LLM
-```
-
----
-
-## 十七、對應到技術架構（Firestore + Genkit + Next.js）
-
-### 17.1 Firestore Schema（資料層）
-
-| Collection | 說明 | 對應概念 |
-| --- | --- | --- |
-| pages | 頁面文件（含 Block 樹 + Graph Node） | Wiki Page / Notion Page |
-| blocks | Block 內容單元 | Notion Block |
-| databases | 結構化 Database 定義 | Notion Database |
-| relations | 跨 Database Relation | Notion Relation Property |
-| page_links | 頁面連結（fromPageId / toPageId / type） | Wiki Internal Link |
-| embeddings | pageId / blockId / vector / content | NotebookLM Semantic Memory |
-| tags | 多維標籤 | Wiki Category / Notion Tag |
-| comments | Block 層級留言 | Notion Comment |
-| versions | 頁面版本快照 | Wiki Revision History |
-| sessions | 使用者互動歷程 | Episodic Memory |
-
-Graph 關聯：
-
-```text
-page_links
-  fromPageId
-  toPageId
-  type（IS_A / RELATED_TO / PART_OF）
-```
-
-RAG：
-
-```text
-embeddings
-  pageId
-  blockId
-  vector
-  content
-  chunkIndex
-  sectionPath
-```
-
-### 17.2 Genkit Flow（AI 層）
-
-| Flow | 說明 |
-| --- | --- |
-| QueryPlannerFlow | Intent 分類 + Query 拆解 + HyDE |
-| RetrievalFlow | Hybrid RAG（Dense + Sparse + Graph + Reranker） |
-| IngestionFlow | Parse → Chunk → Embed → Index Pipeline |
-| AgentOrchestratorFlow | ReAct 模式多工具調用 |
-| CitationFlow | Answer + Source Mapping + Faithfulness Check |
-
-AI 功能：
-
-- Chat with Docs
-- Auto Summary
-- Auto Tag
-- Auto Link
-- Knowledge Graph Expansion
-
-### 17.3 Next.js Parallel Routes（UI 層）
-
-```text
-/workspace
-    /@editor      → Block Editor（Notion Layer）
-    /@graph       → Knowledge Graph View（Wiki Layer）
-    /@chat        → AI Chat + RAG（NotebookLM Layer）
-    /@database    → Database View（Notion Layer）
-```
-
-畫面佈局：
-
-```text
-┌───────────────┬───────────────┐
-│   Page Tree   │    Editor     │
-├───────────────┼───────────────┤
-│ KnowledgeGraph│     AI Chat   │
-└───────────────┴───────────────┘
-```
-
-這就是：`AI Knowledge Operating System`
-
----
-
-## 十八、最終學術級結論（完整架構層次）
-
-### 完整 AI 知識平台架構層次
-
-```text
-┌─────────────────────────────────────────────────┐
-│                  User Interface                   │
-│          （Block Editor / Chat / Graph View）      │
-├─────────────────────────────────────────────────┤
-│           Tool / Agent Layer（工具調用層）          │
-│    Search / Create / Link / Summarize / External  │
-├─────────────────────────────────────────────────┤
-│        Query Understanding Layer（查詢理解層）      │
-│    Intent / Decompose / Rewrite / Plan / HyDE     │
-├──────────────────────┬──────────────────────────┤
-│  Multi-Document      │   Source Grounding /      │
-│  Reasoning（多步推理）│   Citation System（引用）  │
-├──────────────────────┴──────────────────────────┤
-│         Graph-Augmented RAG（圖增強檢索）          │
-│          Vector Search + Graph Search + Reranker  │
-├─────────────────────────────────────────────────┤
-│         Indexing Strategy Layer（索引策略層）       │
-│         Dense / Sparse / Graph / Hierarchical     │
-├─────────────────────────────────────────────────┤
-│              AI Memory Layer（記憶層）              │
-│  Semantic Memory | Episodic Memory | Working Mem  │
-├─────────────────────────────────────────────────┤
-│           Ingestion Pipeline（資料生命週期）         │
-│    Parse → Clean → Taxonomy → Chunk → Embed       │
-│                → Persist → Mark Ready             │
-├─────────────────────────────────────────────────┤
-│       Schema + Ontology Layer（知識語意層）         │
-│        Classes / Properties / Relations           │
-├─────────────────────────────────────────────────┤
-│         Knowledge Graph（知識圖譜層）               │
-│     Page Links / Backlinks / Category / Template  │
-│     Redirect / Namespace / Version Control        │
-├─────────────────────────────────────────────────┤
-│           Content / Data Layer（內容層）            │
-│   Block Editor / Database / Views / Automation   │
-│   Property Types / Collaboration / Template      │
-└─────────────────────────────────────────────────┘
-```
-
-### 完整架構能力對照
-
-| 能力 | 實現機制 | 層次 |
-| --- | --- | --- |
-| Query Planner | Intent classification + query decomposition | Query Understanding Layer |
-| Multi-hop reasoning | Sub-query generation + evidence aggregation | Multi-Document Reasoning |
-| Hybrid retrieval | Dense + Sparse + Reranker | Indexing Strategy Layer |
-| Graph-augmented RAG | Vector + Graph fusion | Graph-Augmented RAG |
-| Citation / grounding | Source mapping + faithfulness check | Citation System |
-| Semantic Memory | Vector embeddings + persistent vector database | AI Memory Layer |
-| Episodic Memory | User interaction history + cross-session store | AI Memory Layer |
-| Working Memory | In-memory conversation buffer | AI Memory Layer |
-| Ingestion pipeline | Parse → Embed → Index lifecycle | Ingestion Pipeline |
-| Agent / tool layer | ReAct + tool registry | Tool / Agent Layer |
-| Ontology / schema | Domain classes + relation types | Schema + Ontology Layer |
-| Block Editor | Drag-drop / nested blocks / 13+ block types | Content / UI Layer |
-| Database System | 6 views / 18+ property types / automation | Content / UI Layer |
-| Knowledge Graph | Backlinks / redirects / category tree | Knowledge Graph Layer |
-| Version Control | Diff / Rollback / Edit history / Blame | Knowledge Graph Layer |
-| Template System | Transclusion / parameterized templates | Knowledge Graph Layer |
-
----
-
-> 這就是現代 AI SaaS 文件 / 知識 / 協作 / AI 系統的完整理論架構。
->
-> **下一代知識平台架構：**
-> Notion（UI / Block / Database）+ Wiki（Knowledge Graph）+ NotebookLM（RAG / AI）= **AI Knowledge Platform**
-`````
-
-## File: docs/development-reference/development/modules-implementation-guide.md
+## File: docs/README.md
 `````markdown
 # Modules Implementation Guide
 
-本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
+本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
 
-- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
+- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
 - 本文件：回答「在 repository 內如何落地」。
 
 ---
 
-## 1. 與概念架構文件的對位關係
+## 1. 與 Architecture.md 的對位關係
 
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
+`Architecture.md` 定義三層融合：
 
 1. Content / UI Layer
 2. Knowledge Graph Layer
@@ -72358,7 +61260,7 @@ modules/*
   -> packages/* (stable public boundary)
 ```
 
-這個原則與上位概念架構文件的三層融合不衝突：
+這個原則與 `Architecture.md` 的三層融合不衝突：
 
 - 融合的是產品能力（編輯 + 關聯 + AI）
 - 隔離的是程式邊界（module `api/` boundary + package boundary）
@@ -72367,7 +61269,7 @@ modules/*
 
 ## 5. Next.js 路由與融合介面
 
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
+`Architecture.md` 的基礎平行路由示意：
 
 ```text
 /workspace
@@ -72398,7 +61300,7 @@ modules/*
 
 ## 6. 目標對齊聲明
 
-本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
+本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
 
 1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
 2. 明確化「融合體驗」與「邊界隔離」可同時成立。
@@ -72406,11 +61308,11 @@ modules/*
 
 ---
 
-## 7. 以上位概念架構文件為準的落地限制
+## 7. 以 Architecture.md 為準的落地限制
 
-上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+`modules/Architecture.md` 提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
 
-因此本文件只保留與概念模型一致的落地限制：
+因此本文件只保留與上位概念一致的落地限制：
 
 1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
 2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
@@ -72425,1074 +61327,7 @@ modules/*
 2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
 3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
 4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
-`````
-
-## File: docs/development-reference/reference/ai/customizations-index.md
-`````markdown
----
-title: AI customizations index
-description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
----
-
-# AI customizations index
-
-This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
-
-## Scope boundary
-
-- `.github/` is the operational source of truth.
-- This page provides routing, ownership, lifecycle status, and maintenance policy.
-- Avoid duplicating full file bodies from `.github/`.
-- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
-- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
-
-## Baseline references
-
-| Asset | Type | Responsibility | Notes |
-| --- | --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
-| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
-| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
-| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
-| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
-| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
-
-## Primary routing
-
-Use this order when working on customization assets:
-
-1. [.github/README.md](../../../../.github/README.md)
-2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
-3. the target folder under `.github/`
-4. the exact target file
-
-## Delivery workflow agents
-
-| Asset | Stage | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
-| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
-| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
-| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
-| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
-
-## Specialized Custom Agents
-
-| Asset | Focus | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
-| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
-
-## Modules Architecture Suite
-
-| Asset group | Files |
-| --- | --- |
-| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
-| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
-| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
-
-Scope partition for instruction consumption:
-
-- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
-- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
-
-## Delivery prompts
-
-| Asset | Primary use | Typical entry point |
-| --- | --- | --- |
-| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
-| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
-| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
-| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
-| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
-| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
-
-## Planning contract reference
-
-| Asset | Responsibility |
-| --- | --- |
-| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
-| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
-| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
-
-## Operational guidance
-
-| Asset | Audience | Purpose |
-| --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
-| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
-| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
-
-## Existing specialized skills
-
-- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
-- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
-- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
-- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
-- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
-
-## Legacy assets
-
-| Asset | Current status | Replacement |
-| --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
-
-## Ownership and update policy
-
-- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
-- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
-- Keep this page concise; keep executable definitions in `.github/`.
-- Treat undocumented customization assets as provisional.
-`````
-
-## File: modules/Architecture.md
-`````markdown
-# 「Notion × Wiki × NotebookLM」融合架構學術指南
-
-AI 知識系統與產品架構設計方法論（完整強化版）
-
----
-
-## 一、研究背景：現代知識系統的三種典範
-
-當代知識管理與文件系統，大致可分為三種代表性工具與架構思想：Notion、Wikipedia（Wiki 系統代表）、NotebookLM。這三者分別代表三種不同的知識系統設計哲學：
-
-| 系統 | 核心模型 | 強項 |
-| --- | --- | --- |
-| Notion | Block + Database | UI / UX / 工作管理 |
-| Wiki | Page + Link Graph | 知識結構 / 關聯 |
-| NotebookLM | Document + Embedding | AI / RAG / 推理 |
-
-產品級知識平台的發展方向不是選其中一個，而是三者融合。
-
----
-
-## 二、Notion 核心功能完整解析
-
-Notion 是以 Block Editor + Database System 為核心的工作空間平台，其設計哲學是「讓內容好整理、好使用」。
-
-### 2.1 Block 系統（核心內容單元）
-
-Notion 的最小單位是 Block，每個 Block 可獨立拖曳、轉換類型，並支援巢狀結構。
-
-| Block 類型 | 說明 | 對應用途 |
-| --- | --- | --- |
-| Text / Heading | 純文字、H1 / H2 / H3 標題 | 文件撰寫 |
-| Toggle | 可折疊的內容區塊 | FAQ / 摘要 |
-| Callout | 強調提示框（含 emoji icon） | 警告 / 提示 |
-| Code Block | 多語言語法高亮程式碼區塊 | 技術文件 |
-| Quote | 引用樣式區塊 | 引言 / 備注 |
-| Divider | 水平分隔線 | 版面分隔 |
-| Table | 簡易表格（非 Database） | 靜態對比 |
-| Image / Video / File | 媒體嵌入與檔案附件 | 富媒體內容 |
-| Embed | 外部服務嵌入（Figma / YouTube / Map） | 整合外部工具 |
-| Synced Block | 跨頁面同步區塊（修改一處全更新） | 共用內容模組 |
-| Column Layout | 多欄排版（左右並排內容） | 版面設計 |
-| Breadcrumb | 自動顯示頁面路徑麵包屑 | 導覽 |
-| Table of Contents | 自動從 Heading 生成目錄 | 長文件導航 |
-
-### 2.2 Database 系統（結構化資料核心）
-
-Notion Database 是其最強大的功能，支援多種視圖與豐富的 Property 類型，本質是 NoSQL + 試算表的融合。
-
-#### Database 視圖類型
-
-| 視圖類型 | 說明 | 適用場景 |
-| --- | --- | --- |
-| Table View | 試算表式橫列縱欄顯示 | 資料總覽 / CRM |
-| Board View | Kanban 看板（以 Select property 分欄） | 專案管理 / 工作流 |
-| Gallery View | 卡片式圖片陳列 | 作品集 / 產品型錄 |
-| List View | 簡潔清單（顯示標題 + 少量欄位） | 任務清單 / 閱讀清單 |
-| Calendar View | 以日期 property 排列的月曆 | 排程 / 內容日曆 |
-| Timeline View | 甘特圖式時間軸 | 專案時程規劃 |
-
-#### Database Property 類型
-
-| Property 類型 | 說明 |
-| --- | --- |
-| Text | 短文字或長文字輸入 |
-| Number | 數字（支援格式化：貨幣、百分比、進度條） |
-| Select | 單選下拉選單（含顏色標記） |
-| Multi-select | 多選標籤 |
-| Date | 日期 / 日期範圍 / 含提醒 |
-| Checkbox | 完成狀態切換 |
-| URL / Email / Phone | 格式化超連結輸入 |
-| Person | 指定工作區成員 |
-| Files & Media | 附件上傳 |
-| Relation | 跨 Database 關聯（外鍵概念） |
-| Rollup | 彙整 Relation 資料（sum / count / avg） |
-| Formula | 自定義計算公式（引用其他 property） |
-| Created time / Last edited time | 自動時間戳 |
-| Created by / Last edited by | 自動記錄操作者 |
-| ID | 自動遞增唯一識別碼 |
-| Status | 工作流狀態（Not started / In progress / Done） |
-| Button | 一鍵觸發動作（自動化 Action） |
-| AI Property | 自動 AI 摘要 / 填寫（Notion AI 功能） |
-
-### 2.3 Page 系統與導覽架構
-
-| 功能 | 說明 |
-| --- | --- |
-| Page Tree（側邊欄） | 層階樹狀頁面結構，支援無限巢狀 |
-| Breadcrumb | 頁面路徑顯示，支援快速跳轉 |
-| Page Icon & Cover | 頁面圖示（emoji / 自訂圖片）與封面圖 |
-| Sub-page | 頁面內建立子頁面（Block 形式嵌入） |
-| Page Link / Mention | @mention 連結其他頁面（非雙向連結） |
-| Favorites | 常用頁面加入收藏 |
-| Backlinks | 顯示哪些頁面連結到此頁（弱版 Graph） |
-| Page Lock | 鎖定頁面防止意外編輯 |
-
-### 2.4 協作功能
-
-| 功能 | 說明 |
-| --- | --- |
-| Real-time Collaboration | 多人同時編輯（即時同步） |
-| Comment & Discussion | Block 層級留言與討論串 |
-| Mention (@) | 提及成員觸發通知 |
-| Page History | 頁面版本歷程（30 天 / 無限，依方案） |
-| Permission System | 頁面層級權限（Full access / Can edit / Can comment / Can view） |
-| Guest Access | 邀請外部用戶單頁存取 |
-| Share to Web | 公開發布頁面為網頁 |
-| Export | 匯出為 PDF / Markdown / HTML / CSV |
-
-### 2.5 自動化與整合
-
-| 功能 | 說明 |
-| --- | --- |
-| Notion AI | 內建 AI 寫作助手（摘要 / 翻譯 / 改寫 / Q&A） |
-| Automation | Database 觸發自動化（當狀態改變時發通知 / 修改欄位） |
-| API | 開放 REST API 供外部系統整合 |
-| Webhook | 事件觸發 Webhook（搭配 Zapier / Make） |
-| Template | 頁面與 Database 模板系統 |
-| Import | 從 Confluence / Evernote / Markdown / CSV 匯入 |
-
----
-
-## 三、Wiki 核心功能完整解析
-
-Wiki 系統（以 Wikipedia / Confluence / MediaWiki 為代表）的本質是 Knowledge Graph，設計哲學是「讓知識彼此連結」。
-
-### 3.1 頁面系統（Page = Graph Node）
-
-| 功能 | 說明 |
-| --- | --- |
-| Page CRUD | 頁面建立 / 讀取 / 更新 / 刪除 |
-| Namespace | 命名空間分類（Talk: / User: / Category: / File:） |
-| Redirect | 重定向頁面（別名統一導向主條目） |
-| Disambiguation | 消歧義頁面（同名詞條分流） |
-| Stub | 不完整頁面標記（待補全提示） |
-| Featured Article | 優質條目標記系統 |
-| Page Protection | 頁面保護（防止匿名 / 新手 / 所有人編輯） |
-| Transclusion | 跨頁面內容嵌入（Template 系統核心機制） |
-
-### 3.2 連結與圖譜系統（Graph Model 核心）
-
-| 功能 | 說明 | 技術意義 |
-| --- | --- | --- |
-| Internal Link | `[[頁面名稱]]` 雙方括號語法建立連結 | Knowledge Graph Edge |
-| Backlinks | 自動追蹤「哪些頁面連結到此頁」 | 入度（In-degree）計算 |
-| Redirect Link | 別名連結（同義詞指向正式頁面） | Entity Normalization |
-| External Link | 引用外部網站 URL | 外部知識引用 |
-| Interwiki Link | 跨 Wiki 站點連結（跨語言 / 跨站） | Federation |
-| Category Link | 頁面隸屬分類（可多重分類） | Taxonomic Edge |
-| Link Graph | 全站頁面連結視覺化圖譜 | Knowledge Map |
-| Dead Link Detection | 偵測失效連結（紅色顯示） | Graph 完整性維護 |
-
-### 3.3 版本控制系統（Version Control）
-
-Wiki 的版本控制是其核心能力，每次編輯均自動快照，支援完整的比對與回溯。
-
-| 功能 | 說明 |
-| --- | --- |
-| Edit History | 每次編輯自動記錄版本（含時間 / 作者 / 摘要） |
-| Diff View | 逐行比對任意兩版本差異（增刪標色顯示） |
-| Rollback | 一鍵回溯到任意歷史版本 |
-| Blame（Annotate） | 每一行內容對應到最後一次修改的作者與版本 |
-| Edit Summary | 每次提交附帶編輯說明（類似 Git commit message） |
-| Minor Edit Flag | 標記為小修改（拼字更正 / 格式調整） |
-| Pending Changes | 新手編輯需審核後才公開顯示 |
-| Page Move History | 頁面重命名歷程追蹤（自動建立重定向） |
-
-### 3.4 分類與標籤系統（Taxonomy Layer）
-
-| 功能 | 說明 |
-| --- | --- |
-| Category System | 樹狀分類系統（Category 可繼承 / 巢狀） |
-| Category Intersection | 多分類交集查詢（找同屬 A 且屬 B 的頁面） |
-| Category Tree | 分類層級視覺化（根分類 → 子分類 → 頁面） |
-| Template Tags | Template 作為語意標記（如 `{{Unreferenced}}` `{{Stub}}`） |
-| Wikidata Integration | 連接結構化知識庫（Q-number 實體對齊） |
-
-### 3.5 編輯與協作系統
-
-| 功能 | 說明 |
-| --- | --- |
-| Wikitext / Markup | Wiki 專屬標記語法（`== 標題 ==` / `[[ ]]` 連結 / `{{ }}` Template） |
-| Visual Editor | WYSIWYG 視覺化編輯器（無需學習 Wikitext） |
-| Talk Page | 每個條目附帶討論頁（編輯協商空間） |
-| User Page | 編輯者個人頁面（貢獻記錄 / 自我介紹） |
-| Watchlist | 追蹤關注頁面的最新修改通知 |
-| Edit Conflict Detection | 多人同時編輯時的衝突偵測與合併提示 |
-| Rollback Permission | 快速回退惡意編輯（巡查員權限） |
-| Patrol System | 新編輯標記「待審」，巡查員審核後標記通過 |
-
-### 3.6 搜尋與導覽系統
-
-| 功能 | 說明 |
-| --- | --- |
-| Full-text Search | 全文搜尋（含拼字糾正 / 近似詞匹配） |
-| Prefix Search | 即時搜尋建議（輸入前綴自動補全） |
-| Search by Category | 依分類篩選搜尋結果 |
-| Special Pages | 系統自動生成的特殊頁面（孤立頁 / 死連結 / 最多連結頁） |
-| Random Article | 隨機跳轉條目（知識探索功能） |
-| What Links Here | 查詢哪些頁面連結到指定頁面（Backlink 探索） |
-| Related Changes | 追蹤某頁面所有連結頁面的最新修改 |
-
-### 3.7 Template 系統（知識模組化）
-
-Template 是 Wiki 的代碼模組化機制，相當於 Wiki 的「元件系統」。
-
-| 功能 | 說明 |
-| --- | --- |
-| Infobox Template | 右側資訊框（人物 / 地點 / 電影等結構化屬性） |
-| Navigation Template | 底部導覽區塊（同系列條目快速跳轉） |
-| Citation Template | 標準化引用格式（書籍 / 網站 / 期刊 cite 模板） |
-| Warning Template | 條目品質警告標記（`{{POV}}` `{{Cleanup}}` 等） |
-| Parameterized Template | 支援傳入參數的動態 Template（`{{{1}}}` 佔位符） |
-| Transclusion | Template 內容直接嵌入目標頁面（非複製） |
-
----
-
-## 四、Wiki 與 Notion 的本質差異（資料模型層）
-
-### 4.1 Wiki：Graph Model（知識圖）
-
-Wiki 系統本質資料模型：
-
-```text
-Page = Node
-Link = Edge
-→ Knowledge Graph
-```
-
-資料結構：pages / links / versions / categories / templates
-
-特徵：
-- 強調「知識與知識之間的關係」
-- 非階層式，可形成網狀結構
-- 雙向連結（Backlinks 自動維護）
-- 適合知識庫、技術文件、研究資料
-
-### 4.2 Notion：Block + Tree Model（內容結構）
-
-Notion 資料模型：
-
-```text
-Page
- └── Blocks
-     ├── Text
-     ├── Heading
-     ├── Table
-     ├── Toggle
-     └── Image
-```
-
-資料結構：pages / blocks / databases / properties / automations
-
-特徵：
-- 強調排版、資料表、UI 操作
-- Relation property（單向 / 雙向）+ @mention（弱連結）
-- 適合專案管理、文件、筆記、CRM
-
-### 4.3 核心哲學差異對比
-
-| 面向 | Wiki | Notion |
-| --- | --- | --- |
-| 核心 | 知識關聯 | 工作與內容 |
-| 資料模型 | Graph | Tree + Database |
-| 單位 | Page | Page + Block |
-| 關聯 | Page Link（圖邊） | Relation Database（外鍵） |
-| 連結方向 | 雙向（Backlink 追蹤） | 單向 / 雙向（需設定） |
-| 版本控制 | 原生 Diff / Rollback | History（依方案） |
-| 分類 | Category Tree（圖節點） | Tag / Filter（屬性） |
-| Template | Transclusion 嵌入 | Template 頁面（複製） |
-| 協作模式 | 開放編輯 + 審核制度 | 權限管理 + 即時協作 |
-| 搜尋 | 全文 + Backlink + 分類 | 全文 + Database Filter |
-| 強項 | 知識網絡 | UX / UI / 工作流 |
-| 用途 | 知識庫 | 工作空間 |
-| 思維 | Knowledge Graph | Structured Workspace |
-
-關鍵一句話差異：
-- **Wiki**：讓知識彼此連結
-- **Notion**：讓內容好整理、好使用
-
----
-
-## 五、NotebookLM 的角色（AI 層）
-
-NotebookLM 代表第三種系統：AI 知識系統模型（RAG）。
-
-資料流程：
-
-```text
-Documents
-   ↓
-Chunking
-   ↓
-Embedding
-   ↓
-Vector Database
-   ↓
-Retrieval
-   ↓
-LLM
-   ↓
-Answer / Summary / Reasoning
-```
-
-這種架構稱為：Retrieval-Augmented Generation（RAG）。
-
-NotebookLM 本質不是筆記工具，而是 `AI Knowledge Reasoning System`，解決：文件理解、問答、摘要、推理、跨文件分析。
-
----
-
-## 六、Query Understanding Layer（查詢理解層）
-
-在使用者輸入問題到 RAG 系統之間，存在一層「查詢理解層」，負責解析、拆解與轉化查詢意圖。
-
-### Query Planner 架構
-
-```text
-User Input
-    ↓
-Query Understanding Layer
-    ├── Intent Classification（意圖分類）
-    ├── Query Decomposition（查詢拆解）
-    ├── Query Rewriting（查詢改寫）
-    ├── Hypothetical Document Embedding (HyDE)
-    └── Sub-query Generation（子查詢生成）
-    ↓
-Retrieval Layer
-```
-
-### 核心功能
-
-| 功能 | 說明 |
-| --- | --- |
-| Intent Classification | 分類：問答 / 摘要 / 比較 / 推理 |
-| Query Decomposition | 複雜問題拆成多個子問題 |
-| Query Rewriting | 改寫為更適合向量搜尋的語句 |
-| HyDE | 先生成假設文件再做 embedding 搜尋 |
-| Multi-step Planning | 規劃多步推理路徑 |
-
-Query Understanding 是提升 RAG 精準度的關鍵前處理層。
-
----
-
-## 七、AI Memory Layer（三層記憶架構）
-
-NotebookLM 的「記憶」由三種記憶類型組成：
-
-```text
-AI Memory Layer
-├── 1. Semantic Memory（語意記憶）
-│       → Embedding / Vector Database
-├── 2. Episodic Memory（互動記憶）
-│       → User Interaction History / Sessions
-└── 3. Working Memory（上下文記憶）
-        → Current Chat Context Window
-```
-
-### 三層記憶對比
-
-| 記憶類型 | 範圍 | 持久性 | 技術實作 |
-| --- | --- | --- | --- |
-| Semantic Memory | 知識庫 | 長期 | Vector DB（Pinecone / Firestore Vector） |
-| Episodic Memory | 使用者歷史 | 中期 | Session Store（Firestore sessions） |
-| Working Memory | 當前對話 | 短期 | Context Buffer（in-memory） |
-
-完整 AI Memory 層 = 三層協同運作，而非僅有 Embedding。
-
----
-
-## 八、Indexing Strategy Layer（索引策略層）
-
-索引策略決定了 RAG 的搜尋能力上限。單一 Vector Search 不足以支撐複雜查詢。
-
-### Hybrid Retrieval（多索引融合）
-
-```text
-User Query
-    ↓
-┌─────────────────────────────────┐
-│       Hybrid Retrieval Layer     │
-│  ┌──────────┐  ┌─────────────┐  │
-│  │  Dense   │  │   Sparse    │  │
-│  │ Retrieval│  │  Retrieval  │  │
-│  │(Vector)  │  │(BM25/TF-IDF)│  │
-│  └────┬─────┘  └──────┬──────┘  │
-│       └────────┬───────┘         │
-│           ┌────┴──────┐          │
-│           │  Reranker  │          │
-│           └────────────┘          │
-└─────────────────────────────────┘
-    ↓
-Top-K Results → LLM
-```
-
-### 索引策略類型
-
-| 索引類型 | 說明 | 適用場景 |
-| --- | --- | --- |
-| Dense（Vector） | 語意相似性搜尋 | 概念性問題 |
-| Sparse（BM25） | 關鍵字精確匹配 | 術語 / 代碼搜尋 |
-| Hybrid | Dense + Sparse 融合 | 通用場景 |
-| Graph Index | 知識圖譜關係搜尋 | 推理 / 關聯查詢 |
-| Hierarchical | 階層式索引（文件→段落→句子） | 長文件 |
-
-### Reranker（重排序）
-
-```text
-Initial Retrieval Results (Top-50)
-    ↓
-Cross-Encoder Reranker
-    ↓
-Final Top-K (Top-5 / Top-10)
-    ↓
-LLM Context
-```
-
-Hybrid Retrieval + Reranker 是企業級 RAG 系統標準配置。
-
----
-
-## 九、Graph-Augmented RAG（圖增強檢索）
-
-Graph-Augmented RAG 將知識圖譜與向量搜尋融合，解決純 Vector Search 無法處理的多跳推理問題。
-
-### 架構圖
-
-```text
-User Query
-    ↓
-┌──────────────────────────────────────┐
-│         Graph-Augmented RAG           │
-│                                        │
-│  ┌──────────────┐  ┌───────────────┐  │
-│  │ Vector Search │  │  Graph Search │  │
-│  │  (Semantic)   │  │ (Relational)  │  │
-│  └──────┬────────┘  └───────┬───────┘  │
-│         └──────────┬────────┘          │
-│              ┌─────┴──────┐            │
-│              │  Fusion     │            │
-│              │  & Ranking  │            │
-│              └─────────────┘            │
-└──────────────────────────────────────┘
-    ↓
-LLM（with graph context）
-```
-
-### 知識圖譜結構
-
-```text
-Entity Node：概念 / 實體 / 頁面
-    ↓
-Relation Edge：IS_A / PART_OF / RELATED_TO / CAUSES
-    ↓
-Knowledge Graph（可導航推理路徑）
-```
-
-### Graph vs. Vector 比較
-
-| 面向 | Vector Search | Graph Search |
-| --- | --- | --- |
-| 搜尋基礎 | 語意相似度 | 實體關係路徑 |
-| 強項 | 模糊語意匹配 | 精確關係推理 |
-| 弱點 | 無關係推理 | 稀疏圖效果差 |
-| 融合效果 | 互補，共同支撐複雜查詢 | ← |
-
-Graph-Augmented RAG 是下一代知識系統的核心競爭力。
-
----
-
-## 十、Multi-Document Reasoning（跨文件推理）
-
-### Multi-hop Reasoning（多步推理）
-
-```text
-Complex Question
-    ↓
-Query Decomposition（拆解子問題）
-    ↓
-Sub-query 1 → Document A
-Sub-query 2 → Document B
-Sub-query 3 → Document C
-    ↓
-Evidence Aggregation（證據彙整）
-    ↓
-Multi-hop Reasoning（多步推理）
-    ↓
-Final Answer（綜合回答）
-```
-
-### 推理類型
-
-| 推理類型 | 說明 |
-| --- | --- |
-| Bridge Reasoning | A → B → C 鏈式推理 |
-| Comparison Reasoning | A vs. B 比較推理 |
-| Compositional Reasoning | 組合多條件推理 |
-| Temporal Reasoning | 時間序列推理 |
-
-### 跨文件分析能力
-
-```text
-Document 1（技術文件）
-Document 2（規格書）
-Document 3（會議記錄）
-    ↓
-Cross-Document Analysis
-    ├── 矛盾偵測（Contradiction Detection）
-    ├── 知識補全（Knowledge Completion）
-    └── 時間線整合（Timeline Synthesis）
-    ↓
-Unified Answer with Source Attribution
-```
-
----
-
-## 十一、Source Grounding / Citation System（引用系統）
-
-AI 回答必須可追溯（Traceable）與可驗證（Verifiable），這是企業級 AI 系統的核心需求。
-
-### Citation 架構
-
-```text
-LLM Answer
-    ↓
-Citation Extraction（引用萃取）
-    ↓
-Source Mapping（來源對應）
-    ├── Document ID
-    ├── Chunk ID
-    ├── Page / Section
-    └── Confidence Score
-    ↓
-Grounded Answer（可追溯回答）
-```
-
-### 引用輸出格式
-
-```text
-回答：「根據文件 A 第 3 節¹ 與文件 B 第 7 頁²，系統設計應採用...」
-
-¹ 文件A - 系統規格書 v2.1, 第3節, 第12頁
-² 文件B - 架構設計文件, 第7頁
-```
-
-### Grounding 驗證層
-
-| 驗證項目 | 說明 |
-| --- | --- |
-| Faithfulness | 回答是否忠實於來源文件 |
-| Relevance | 引用來源是否與問題相關 |
-| Completeness | 是否涵蓋所有必要資訊 |
-| Hallucination Detection | 偵測 LLM 幻覺輸出 |
-
-Source Grounding 讓 AI 回答從「黑盒」變成「可審計系統」。
-
----
-
-## 十二、Ingestion Pipeline（資料生命週期）
-
-完整的資料生命週期管理，從原始文件到可查詢知識庫的完整流程。
-
-### 完整 Ingestion Pipeline
-
-```text
-Raw Documents（原始資料）
-    ↓
-1. Parse（解析）
-   ├── PDF / DOCX / HTML / Markdown
-   ├── Table Extraction
-   └── Image OCR
-    ↓
-2. Clean（清洗）
-   ├── Remove noise / boilerplate
-   ├── Normalize encoding
-   └── Language detection
-    ↓
-3. Taxonomy（分類標記）
-   ├── Auto-tagging
-   ├── Category classification
-   └── Metadata extraction
-    ↓
-4. Chunk（分塊）
-   ├── Semantic chunking
-   ├── Hierarchical chunking
-   └── Overlap strategy
-    ↓
-5. Chunk Metadata（塊 metadata）
-   ├── source_doc_id
-   ├── section / heading path
-   ├── page_number
-   └── chunk_index
-    ↓
-6. Embedding（向量化）
-   ├── Embedding model selection
-   └── Batch embedding generation
-    ↓
-7. Firestore Writes（持久化）
-   ├── Vector store
-   ├── Metadata store
-   └── Document registry
-    ↓
-8. Mark Ready（標記就緒）
-   └── status: "indexed" → available for query
-```
-
-### 資料狀態機
-
-```text
-uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
-```
-
-### Ingestion 品質指標
-
-| 指標 | 說明 |
-| --- | --- |
-| Parse Success Rate | 文件成功解析率 |
-| Chunk Quality Score | 分塊語意完整性 |
-| Embedding Coverage | Embedding 覆蓋率 |
-| Index Latency | 完整 Pipeline 耗時 |
-
----
-
-## 十三、Tool / Agent Layer（工具調用層）
-
-AI 系統從「回答問題」進化到「執行動作」，需要 Tool / Agent 層支撐。
-
-### Agent 架構
-
-```text
-User Request
-    ↓
-Agent Orchestrator
-    ↓
-┌─────────────────────────────────────┐
-│              Tool Registry           │
-│  ┌──────────┐  ┌──────────────────┐ │
-│  │  Search  │  │  Knowledge Graph │ │
-│  │  Tool    │  │  Query Tool      │ │
-│  └──────────┘  └──────────────────┘ │
-│  ┌──────────┐  ┌──────────────────┐ │
-│  │  Create  │  │   Summarize      │ │
-│  │  Doc     │  │   Tool           │ │
-│  └──────────┘  └──────────────────┘ │
-│  ┌──────────┐  ┌──────────────────┐ │
-│  │  Link    │  │   External API   │ │
-│  │  Pages   │  │   Connector      │ │
-│  └──────────┘  └──────────────────┘ │
-└─────────────────────────────────────┘
-    ↓
-Action Execution → Result → User
-```
-
-### 工具類型
-
-| 工具類型 | 說明 | 對應功能 |
-| --- | --- | --- |
-| Retrieval Tool | 知識庫搜尋 | Vector + Graph Search |
-| Creation Tool | 文件 / 頁面自動生成 | Auto-draft |
-| Summarization Tool | 文件摘要 | Auto Summary |
-| Linking Tool | 知識圖譜連結 | Auto Link |
-| Classification Tool | 自動標記 / 分類 | Auto Tag |
-| External Tool | 呼叫外部 API | 第三方整合 |
-
-### ReAct / Chain-of-Thought 模式
-
-```text
-Thought: 使用者想了解 X，需要先查 Y 再推論 Z
-Action: search_tool("Y")
-Observation: [retrieved context]
-Thought: 已取得 Y，現在推論 Z
-Action: reasoning_tool("Z given Y")
-Final Answer: [grounded answer with citations]
-```
-
----
-
-## 十四、Schema + Ontology Layer（知識語意層）
-
-知識語意層定義「知識的意義」與「概念間的關係」，讓 AI 能理解領域語意而非僅做字串匹配。
-
-### Ontology 結構
-
-```text
-Domain Ontology
-    ├── Classes（類別）
-    │       ├── Document
-    │       ├── Person
-    │       ├── Project
-    │       └── Concept
-    ├── Properties（屬性）
-    │       ├── hasAuthor
-    │       ├── createdAt
-    │       └── relatedTo
-    └── Relations（關係）
-            ├── IS_A（繼承）
-            ├── PART_OF（組成）
-            ├── DEPENDS_ON（依賴）
-            └── CONTRADICTS（矛盾）
-```
-
-### Schema 層用途
-
-| 用途 | 說明 |
-| --- | --- |
-| Entity Normalization | 統一同義詞 / 別名 |
-| Relation Typing | 為圖譜邊定義語意類型 |
-| Query Semantics | 理解查詢的業務語意 |
-| Knowledge Validation | 驗證知識一致性 |
-
-### Ontology 與 RAG 整合
-
-```text
-User Query（自然語言）
-    ↓
-Ontology Mapping（概念對齊）
-    ↓
-Enriched Query（附帶語意上下文）
-    ↓
-Graph + Vector Retrieval
-    ↓
-Semantically Grounded Answer
-```
-
-Schema + Ontology 層讓知識系統從「資料庫」進化為「知識庫」。
-
----
-
-## 十五、三種系統的架構分層（非常重要）
-
-```text
-┌──────────────────────┐
-│        AI Layer       │  ← NotebookLM / RAG
-├──────────────────────┤
-│   Knowledge Graph     │  ← Wiki
-├──────────────────────┤
-│   Content / UI Layer  │  ← Notion
-└──────────────────────┘
-```
-
-| 層 | 功能 | 對應系統 |
-| --- | --- | --- |
-| AI Layer | 搜尋、問答、推理 | NotebookLM / RAG |
-| Graph Layer | 知識關聯 | Wiki |
-| Content / UI Layer | 編輯、排版、資料庫 | Notion |
-
-真正的 AI 知識平台 = 三層架構。
-
----
-
-## 十六、產品級架構模型（AI SaaS 最強形態）
-
-Notion × Wiki × NotebookLM 融合架構：
-
-```text
-               ┌──────────────┐
-                │      AI       │
-                │  RAG / Chat   │
-                └──────┬───────┘
-                       │
-            ┌──────────┴──────────┐
-            │    Knowledge Graph   │
-            │   Page Links / Tags  │
-            └──────────┬──────────┘
-                       │
-                ┌──────┴──────┐
-                │  Block Editor│
-                │   Database   │
-                └──────────────┘
-```
-
-### 知識系統演化三階段
-
-| 時代 | 系統 | 架構 |
-| --- | --- | --- |
-| Web 1.0 | Wiki | Knowledge Graph |
-| Web 2.0 | Notion | Block + Database |
-| AI Era | NotebookLM | RAG + LLM |
-| 未來 | Hybrid | Graph + Block + AI |
-
-工程公式：
-
-```text
-AI Knowledge System
-= Editor
-+ Database
-+ Knowledge Graph
-+ Vector Search
-+ LLM
-```
-
----
-
-## 十七、對應到技術架構（Firestore + Genkit + Next.js）
-
-### 17.1 Firestore Schema（資料層）
-
-| Collection | 說明 | 對應概念 |
-| --- | --- | --- |
-| pages | 頁面文件（含 Block 樹 + Graph Node） | Wiki Page / Notion Page |
-| blocks | Block 內容單元 | Notion Block |
-| databases | 結構化 Database 定義 | Notion Database |
-| relations | 跨 Database Relation | Notion Relation Property |
-| page_links | 頁面連結（fromPageId / toPageId / type） | Wiki Internal Link |
-| embeddings | pageId / blockId / vector / content | NotebookLM Semantic Memory |
-| tags | 多維標籤 | Wiki Category / Notion Tag |
-| comments | Block 層級留言 | Notion Comment |
-| versions | 頁面版本快照 | Wiki Revision History |
-| sessions | 使用者互動歷程 | Episodic Memory |
-
-Graph 關聯：
-
-```text
-page_links
-  fromPageId
-  toPageId
-  type（IS_A / RELATED_TO / PART_OF）
-```
-
-RAG：
-
-```text
-embeddings
-  pageId
-  blockId
-  vector
-  content
-  chunkIndex
-  sectionPath
-```
-
-### 17.2 Genkit Flow（AI 層）
-
-| Flow | 說明 |
-| --- | --- |
-| QueryPlannerFlow | Intent 分類 + Query 拆解 + HyDE |
-| RetrievalFlow | Hybrid RAG（Dense + Sparse + Graph + Reranker） |
-| IngestionFlow | Parse → Chunk → Embed → Index Pipeline |
-| AgentOrchestratorFlow | ReAct 模式多工具調用 |
-| CitationFlow | Answer + Source Mapping + Faithfulness Check |
-
-AI 功能：
-
-- Chat with Docs
-- Auto Summary
-- Auto Tag
-- Auto Link
-- Knowledge Graph Expansion
-
-### 17.3 Next.js Parallel Routes（UI 層）
-
-```text
-/workspace
-    /@editor      → Block Editor（Notion Layer）
-    /@graph       → Knowledge Graph View（Wiki Layer）
-    /@chat        → AI Chat + RAG（NotebookLM Layer）
-    /@database    → Database View（Notion Layer）
-```
-
-畫面佈局：
-
-```text
-┌───────────────┬───────────────┐
-│   Page Tree   │    Editor     │
-├───────────────┼───────────────┤
-│ KnowledgeGraph│     AI Chat   │
-└───────────────┴───────────────┘
-```
-
-這就是：`AI Knowledge Operating System`
-
----
-
-## 十八、最終學術級結論（完整架構層次）
-
-### 完整 AI 知識平台架構層次
-
-```text
-┌─────────────────────────────────────────────────┐
-│                  User Interface                   │
-│          （Block Editor / Chat / Graph View）      │
-├─────────────────────────────────────────────────┤
-│           Tool / Agent Layer（工具調用層）          │
-│    Search / Create / Link / Summarize / External  │
-├─────────────────────────────────────────────────┤
-│        Query Understanding Layer（查詢理解層）      │
-│    Intent / Decompose / Rewrite / Plan / HyDE     │
-├──────────────────────┬──────────────────────────┤
-│  Multi-Document      │   Source Grounding /      │
-│  Reasoning（多步推理）│   Citation System（引用）  │
-├──────────────────────┴──────────────────────────┤
-│         Graph-Augmented RAG（圖增強檢索）          │
-│          Vector Search + Graph Search + Reranker  │
-├─────────────────────────────────────────────────┤
-│         Indexing Strategy Layer（索引策略層）       │
-│         Dense / Sparse / Graph / Hierarchical     │
-├─────────────────────────────────────────────────┤
-│              AI Memory Layer（記憶層）              │
-│  Semantic Memory | Episodic Memory | Working Mem  │
-├─────────────────────────────────────────────────┤
-│           Ingestion Pipeline（資料生命週期）         │
-│    Parse → Clean → Taxonomy → Chunk → Embed       │
-│                → Persist → Mark Ready             │
-├─────────────────────────────────────────────────┤
-│       Schema + Ontology Layer（知識語意層）         │
-│        Classes / Properties / Relations           │
-├─────────────────────────────────────────────────┤
-│         Knowledge Graph（知識圖譜層）               │
-│     Page Links / Backlinks / Category / Template  │
-│     Redirect / Namespace / Version Control        │
-├─────────────────────────────────────────────────┤
-│           Content / Data Layer（內容層）            │
-│   Block Editor / Database / Views / Automation   │
-│   Property Types / Collaboration / Template      │
-└─────────────────────────────────────────────────┘
-```
-
-### 完整架構能力對照
-
-| 能力 | 實現機制 | 層次 |
-| --- | --- | --- |
-| Query Planner | Intent classification + query decomposition | Query Understanding Layer |
-| Multi-hop reasoning | Sub-query generation + evidence aggregation | Multi-Document Reasoning |
-| Hybrid retrieval | Dense + Sparse + Reranker | Indexing Strategy Layer |
-| Graph-augmented RAG | Vector + Graph fusion | Graph-Augmented RAG |
-| Citation / grounding | Source mapping + faithfulness check | Citation System |
-| Semantic Memory | Vector embeddings + persistent vector database | AI Memory Layer |
-| Episodic Memory | User interaction history + cross-session store | AI Memory Layer |
-| Working Memory | In-memory conversation buffer | AI Memory Layer |
-| Ingestion pipeline | Parse → Embed → Index lifecycle | Ingestion Pipeline |
-| Agent / tool layer | ReAct + tool registry | Tool / Agent Layer |
-| Ontology / schema | Domain classes + relation types | Schema + Ontology Layer |
-| Block Editor | Drag-drop / nested blocks / 13+ block types | Content / UI Layer |
-| Database System | 6 views / 18+ property types / automation | Content / UI Layer |
-| Knowledge Graph | Backlinks / redirects / category tree | Knowledge Graph Layer |
-| Version Control | Diff / Rollback / Edit history / Blame | Knowledge Graph Layer |
-| Template System | Transclusion / parameterized templates | Knowledge Graph Layer |
-
----
-
-> 這就是現代 AI SaaS 文件 / 知識 / 協作 / AI 系統的完整理論架構。
->
-> **下一代知識平台架構：**
-> Notion（UI / Block / Database）+ Wiki（Knowledge Graph）+ NotebookLM（RAG / AI）= **AI Knowledge Platform**
+5. 若文件只是概念說明，不額外發明 Architecture.md 未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
 ## File: modules/asset/index.ts
@@ -74032,175 +61867,6 @@ export {};
 export {};
 `````
 
-## File: modules/README.md
-`````markdown
-# Modules Implementation Guide
-
-本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
-
-- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
-
----
-
-## 1. 與 Architecture.md 的對位關係
-
-`Architecture.md` 定義三層融合：
-
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
-
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
-
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
-
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
-```
-
-說明：
-
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
-
----
-
-## 3. 依賴方向與邊界
-
-全域依賴方向：
-
-```text
-interfaces -> application -> domain <- infrastructure
-```
-
-邊界規則：
-
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
-
----
-
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
-```
-
-這個原則與 `Architecture.md` 的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
----
-
-## 5. Next.js 路由與融合介面
-
-`Architecture.md` 的基礎平行路由示意：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-```
-
-實作可依需求擴充，例如：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
-```
-
-擴充原則：
-
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
-
----
-
-## 6. 目標對齊聲明
-
-本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
-
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
-
----
-
-## 7. 以 Architecture.md 為準的落地限制
-
-`modules/Architecture.md` 提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
-
-因此本文件只保留與上位概念一致的落地限制：
-
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
-
-## 8. 實作規劃時的最小檢查點
-
-若要把三層模型落到實際模組，至少先確認：
-
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明 Architecture.md 未定義的 canonical schema、固定規劃數量或模組對照表。
-`````
-
 ## File: modules/retrieval/api/index.ts
 `````typescript
 /**
@@ -74305,74 +61971,6 @@ export class GenkitRagGenerationRepository implements RagGenerationRepository {
     }
   }
 }
-`````
-
-## File: modules/UseCases.md
-`````markdown
-# Use Case Specifications
-
-本文件描述「Notion × Wiki × NotebookLM」融合架構下的關鍵使用者案例。
-
----
-
-## UC-01: 智能寫作與即時連結 (Writing with Auto-Linking)
-
-### 簡述
-當用戶在編輯器中寫作時，系統自動識別關鍵字並建議建立 Wiki 連結，或將內容轉為向量索引。
-
-- **Actor**: Content Creator
-- **Primary Module**: `modules/content`
-- **Supporting Modules**: `modules/knowledge`, `modules/agent`
-
-### Main Flow
-1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
-2. `BlockEditor` 偵測到 `[[` 觸發符。
-3. **[Knowledge]** 搜尋現有 `GraphNode` 並回傳建議列表。
-4. 用戶選擇目標頁面，系統插入 `PageLink` Block。
-5. 用戶完成一段文字並失焦 (OnBlur)。
-6. **[System]** 發送 `ContentBlockUpdated` 事件。
-7. **[Intelligence]** (Async) 接收事件，將該 Block 文字轉為 Vector 並存入 Upstash。
-
----
-
-## UC-02: 上下文感知問答 (Context-Aware Chat / RAG)
-
-### 簡述
-用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
-
-- **Actor**: Knowledge Worker
-- **Primary Module**: `modules/agent`
-- **Supporting Modules**: `modules/retrieval`, `modules/content`
-
-### Main Flow
-1. 用戶開啟右側 `Assistant Panel`。
-2. 系統自動鎖定當前 `PageId` 作為 Context。
-3. 用戶提問：「這份文件的核心結論是什麼？」
-4. **[Intelligence]** 將問題轉為向量，並結合 `PageId` 過濾條件查詢 `VectorStore`。
-5. **[Search]** 回傳 Top-K 相關的 `Block` 內容。
-6. **[Intelligence]** 組裝 Prompt (包含原始 Block 內容) 發送給 LLM。
-7. **[UI]** 串流顯示答案，並在答案中標註引用來源 (Citation)。
-8. 用戶點擊引用來源，左側編輯器自動捲動到對應 Block。
-
----
-
-## UC-03: 圖譜導航與關聯發現 (Graph Navigation)
-
-### 簡述
-用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
-
-- **Actor**: Researcher
-- **Primary Module**: `modules/knowledge-graph`
-- **Supporting Modules**: `modules/knowledge`
-
-### Main Flow
-1. 用戶切換至 `Graph View`。
-2. **[Knowledge]** 聚合所有 `Page` 與 `Link` 數據回傳。
-3. **[Graph]** 渲染力導向圖 (Force-Directed Graph)。
-4. 節點大小根據 `Backlinks` 數量動態調整。
-5. 用戶點擊節點 A。
-6. **[UI]** 開啟側邊預覽 (Preview Card)，顯示節點 A 的摘要與直接關聯。
-7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
 `````
 
 ## File: modules/workspace-audit/README.md
@@ -77646,6 +65244,68 @@ applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx
 - Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
 `````
 
+## File: .github/prompts/analyze-repo.prompt.md
+`````markdown
+---
+name: analyze-repo
+description: Analyze repository structure, ownership boundaries, and change impact before implementation.
+agent: Serena Strategist
+argument-hint: Provide target area, goal, and constraints.
+---
+
+# Analyze Repo
+
+## Mission
+
+Map ownership, boundaries, and risks before coding.
+
+## Inputs
+
+- target: ${input:target:modules/workspace}
+- goal: ${input:goal:what needs to change}
+- constraints: ${input:constraints:boundary, runtime, timeline}
+
+## Workflow
+
+1. Identify owning module and runtime.
+2. Locate existing APIs, use cases, and adapters.
+3. Flag boundary violations and regression risks.
+4. Recommend minimal-change implementation path.
+
+## Output Contract
+
+- Ownership map
+- Affected files
+- Risk list
+- Suggested next prompt
+`````
+
+## File: .github/prompts/implement-feature.prompt.md
+`````markdown
+---
+name: implement-feature
+description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
+agent: Domain Lead
+argument-hint: Provide approved plan reference and tasks to execute.
+---
+
+# Implement Feature
+
+## Requirements
+
+- Treat the approved plan as execution contract.
+- Keep within scope and non-goals.
+- Run required validation commands.
+- Update listed docs in the same change.
+
+## Output
+
+- Tasks completed
+- Validation run
+- Documentation updated
+- Deviations or blockers
+`````
+
 ## File: .github/prompts/refactor-module.prompt.md
 `````markdown
 ---
@@ -77663,6 +65323,57 @@ argument-hint: Provide module name, refactor goal, and boundary risks.
 2. Move logic into correct layer boundaries.
 3. Remove forbidden internal cross-module imports.
 4. Update tests/docs alongside code changes.
+`````
+
+## File: .github/prompts/review-architecture.prompt.md
+`````markdown
+---
+name: review-architecture
+description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
+agent: Quality Lead
+argument-hint: Provide plan reference, changed files, and architecture concerns.
+---
+
+# Review Architecture
+
+Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
+`````
+
+## File: .github/prompts/review-code.prompt.md
+`````markdown
+---
+name: review-code
+description: Perform risk-first code review for correctness, regressions, and missing validation.
+agent: Quality Lead
+argument-hint: Provide change summary, touched files, and known risk areas.
+---
+
+# Review Code
+
+## Requirements
+
+- Findings first, ordered by severity.
+- Include why it matters and blocking status.
+- State residual risks and testing gaps explicitly.
+`````
+
+## File: .github/prompts/write-docs.prompt.md
+`````markdown
+---
+name: write-docs
+description: Write or optimize documentation using structured, deduplicated, and index-driven markdown patterns.
+agent: KB Architect
+argument-hint: Provide target docs scope and expected documentation outcome.
+---
+
+# Write Docs
+
+## Workflow
+
+1. Lint markdown syntax first.
+2. Compress and deduplicate repeated concepts.
+3. Convert prose to rules/tables where possible.
+4. Update folder index/README after leaf updates.
 `````
 
 ## File: .tmp-eslint.json
@@ -78284,50 +65995,6 @@ export function CustomizeNavigationDialog({
 }
 `````
 
-## File: docs/development-reference/reference/development-contracts/overview.md
-`````markdown
----
-title: Development contracts overview
-description: Authoritative index of contracts that unblock RAG, parser, schedule, acceptance, billing, and audit implementation.
----
-
-# Development contracts overview
-
-Contracts that remove implementation ambiguity. Each contract names: owning module, runtime boundary, missing write-side/governance, and acceptance gates.
-
-## Current contract set
-
-| Contract | Status | Primary owner | Current shape | Main blocker removed |
-| --- | --- | --- | --- | --- |
-| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/asset` + `modules/knowledge` + `modules/retrieval` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
-| [Parser contract](./parser-contract.md) | 🏗️ Midway | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
-| [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + projection on submit | Split ownership: derived items, persisted requests, projection read model |
-| [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification digest → workspace feed + org aggregation | Clarify feed, interaction, promotion boundaries |
-| [Acceptance contract](./acceptance-contract.md) | 🏗️ Midway | `modules/acceptance` | Derived acceptance gates over workspace snapshot | No explicit rule for future write-side approval or override flows |
-| [Billing contract](./billing-contract.md) | 📅 Planned | `modules/billing` | Read-side billing record model over in-memory data | No canonical contract for invoice, settlement, and refund slices |
-| [Audit contract](./audit-contract.md) | 🏗️ Midway | `modules/workspace-audit` | Workspace and organization audit queries over Firebase | No explicit append-only audit write contract |
-| [Event contract](./event-contract.md) | 🚧 Developing | `modules/event` | Domain event capture and dispatch skeleton with in-memory adapters | No Firestore/Pub-Sub adapter or real bus integration |
-| [Namespace contract](./namespace-contract.md) | 🚧 Developing | `modules/namespace` | Named-scope registration and slug resolution with in-memory adapter | No Firestore adapter or URL routing integration |
-
-## Why contracts exist
-
-Implementation areas rely on implied boundaries. Contracts convert these into explicit references so teams stay aligned without re-deciding ownership.
-
-## Related sources
-
-- RAG lifecycle and runtime ADRs: `docs/decision-architecture/adr/`
-- MDDD architecture: [agents/knowledge-base.md](../../../../agents/knowledge-base.md)
-- Asset module plan: [modules/asset/README.md](../../../../modules/asset/README.md)
-
-## Rollout order
-
-1. RAG ingestion (crosses Next.js + Python boundary)
-2. Parser, schedule, acceptance (snapshot-derived, need extension rules)
-3. Billing, audit (enterprise governance impact)
-
-See [Development contract governance](../../../diagrams-events-explanations/explanation/development-contract-governance.md) for maintenance rules.
-`````
-
 ## File: modules/workspace-audit/api/index.ts
 `````typescript
 /**
@@ -78384,221 +66051,6 @@ export type {
 } from "./schema";
 
 export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
-`````
-
-## File: modules/xuanwu_architecture.mermaid
-`````
----
-title: Xuanwu — AI Knowledge Platform Architecture (v3)
----
-graph TD
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 0 — workspace（基礎設施 · 所有模組共用 context）
-  %% ══════════════════════════════════════════════════════
-  subgraph WS["workspace（基礎設施層）"]
-    direction LR
-    WS1["tenant isolation"]
-    WS2["auth · orgId boundary"]
-    WS3["event bus · shared context"]
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 1 — content（Notion 層）
-  %% ══════════════════════════════════════════════════════
-  subgraph CT["content（↔ Notion）"]
-    direction TB
-    CT1["Page · Block · Database · View"]
-    CT2["Version · Comment · Template"]
-    CT3["Collaboration · Permission · Automation"]
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 1 — knowledge-graph（Wiki 層）
-  %% ══════════════════════════════════════════════════════
-  subgraph KG["knowledge-graph（↔ Wiki）"]
-    direction TB
-    KG1["PageLink · Backlink · Relation"]
-    KG2["Category · Tag · Namespace · Redirect"]
-    KG3["Ontology · Schema · VersionGraph"]
-  end
-
-  %% content → knowledge-graph：pageId 參照
-  CT -- "pageId ref" --> KG
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 2 — knowledge（NotebookLM · Ingestion Pipeline）
-  %% ══════════════════════════════════════════════════════
-  subgraph KN["knowledge（↔ NotebookLM · Ingestion）"]
-    direction TB
-    KN1["1 Parse：PDF · DOCX · HTML · MD · OCR"]
-    KN2["2 Clean：noise · encoding · language detect"]
-    KN3["3 Taxonomy：auto-tag · classify · metadata"]
-    KN4["4 Chunk：semantic · hierarchical · overlap"]
-    KN4b["5 Chunk Metadata：source_doc_id · section · page_number · chunk_index"]
-    KN5["6 Embed：model select · batch generation"]
-    KN6["7 Persist：vector store · metadata · registry"]
-    KN7["8 Mark Ready：status = indexed"]
-    KN8(["Status Machine：uploaded → parsing → chunking → embedding → indexed → stale → re-indexing"])
-    KN1 --> KN2 --> KN3 --> KN4 --> KN4b --> KN5 --> KN6 --> KN7
-  end
-
-  CT -- "doc content" --> KN
-  KG -- "graph edges" --> KN
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 3 — retrieval（NotebookLM · RAG Query Layer）
-  %% ══════════════════════════════════════════════════════
-  subgraph RT["retrieval（↔ NotebookLM · RAG Query）"]
-    direction TB
-
-    subgraph QU["Query Understanding Layer"]
-      QU1["Intent Classification"]
-      QU2["Query Decomposition · Sub-query"]
-      QU3["Query Rewriting · HyDE"]
-    end
-
-    subgraph HR["Hybrid RAG Layer"]
-      HR1["Dense Retrieval（Vector · Semantic）"]
-      HR2["Sparse Retrieval（BM25 · TF-IDF）"]
-      HR3["Graph Search（Relational · Multi-hop）"]
-      HR4["Reranker（Cross-encoder · Top-K）"]
-      HR1 --> HR4
-      HR2 --> HR4
-      HR3 --> HR4
-    end
-
-    subgraph MDR["Multi-Document Reasoning Layer"]
-      MDR1["Bridge Reasoning：A → B → C 鏈式推理"]
-      MDR2["Comparison Reasoning：A vs B 比較推理"]
-      MDR3["Compositional Reasoning：多條件組合推理"]
-      MDR4["Temporal Reasoning：時間序列推理"]
-      MDR5["Cross-Doc Analysis：Contradiction · Completion · Timeline"]
-    end
-
-    subgraph MEM["AI Memory Layer"]
-      MEM1["Semantic Memory（Vector DB · long-term）"]
-      MEM2["Episodic Memory（sessions · mid-term）"]
-      MEM3["Working Memory（context buffer · short-term）"]
-    end
-
-    subgraph CIT["Citation and Grounding"]
-      CIT1["Source Mapping：docId · chunkId · page"]
-      CIT2["Faithfulness · Relevance · Completeness"]
-      CIT3["Hallucination Detection"]
-    end
-
-    QU --> HR
-    HR --> MDR
-    MDR --> CIT
-    MEM --> HR
-  end
-
-  KN -- "embeddings + chunks" --> RT
-  KG -- "graph index" --> RT
-
-  %% ══════════════════════════════════════════════════════
-  %% LAYER 4 — agent（ReAct Orchestration · Tool Layer）
-  %% ══════════════════════════════════════════════════════
-  subgraph AG["agent（Tool / Agent Layer）"]
-    direction TB
-
-    subgraph REACT["ReAct Orchestrator"]
-      R1["Thought：intent planning"]
-      R2["Action：tool dispatch"]
-      R3["Observation：result parse"]
-      R4["Answer：grounded response"]
-      R1 --> R2 --> R3 --> R4
-    end
-
-    subgraph TOOLS["Tool Registry"]
-      T1["search-tool → retrieval/api"]
-      T2["create-doc-tool → content/api"]
-      T3["summarize-tool → retrieval/api"]
-      T4["auto-link-tool → knowledge-graph/api"]
-      T5["auto-tag-tool → knowledge-graph/api"]
-      T6["knowledge-graph-query-tool → knowledge-graph/api"]
-      T7["external-api-connector"]
-    end
-
-    REACT --> TOOLS
-  end
-
-  RT -- "query result + citations" --> AG
-
-  %% agent → 各模組 api/ 層（跨模組 api call）
-  AG -. "api/ call" .-> CT
-  AG -. "api/ call" .-> KG
-  AG -. "api/ call" .-> KN
-  AG -. "api/ call" .-> RT
-
-  %% workspace → 全部模組
-  WS -. "context inject" .-> CT
-  WS -. "context inject" .-> KG
-  WS -. "context inject" .-> KN
-  WS -. "context inject" .-> RT
-  WS -. "context inject" .-> AG
-
-  %% ══════════════════════════════════════════════════════
-  %% MODULE INTERNAL STRUCTURE（每個 module 統一規範）
-  %% ══════════════════════════════════════════════════════
-  subgraph INT["每個 module 的內部結構（統一規範）"]
-    direction LR
-    L_IF["interfaces/\nNext.js Route Handler\nFirebase CF Trigger\n薄層 無業務邏輯"]
-    L_AP["application/\nUse Case\nCommand / Query Handler\nEvent Publisher"]
-    L_DO["domain/\nEntity · Value Object\nRepository Interface\nDomain Service · Event"]
-    L_IN["infrastructure/\nFirestore Impl\nCloud Storage\nGenkit Flows：\n  QueryPlannerFlow\n  RetrievalFlow\n  IngestionFlow\n  AgentOrchestratorFlow\n  CitationFlow"]
-    L_API["api/\npublic contract\nTypeScript types\nfunction signatures\n唯一對外出口"]
-
-    L_IF --> L_AP
-    L_AP --> L_DO
-    L_DO -. "implements" .-> L_IN
-    L_AP -. "exposes via" .-> L_API
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% BOUNDARY RULE
-  %% ══════════════════════════════════════════════════════
-  RULE["⚠️ 跨模組邊界規則\nimport from module/api 只\n嚴禁穿透 domain/ 或 infrastructure/\nindex.ts 只 re-export api/ 內容"]
-
-  %% ══════════════════════════════════════════════════════
-  %% FIRESTORE COLLECTION OWNERSHIP
-  %% ══════════════════════════════════════════════════════
-  subgraph FS["Firestore Collection Ownership"]
-    direction LR
-    FS_CT["content owns\npages · blocks\ndatabases · comments · versions"]
-    FS_KG["knowledge-graph owns\npage_links · relations\ncategories · tags · templates"]
-    FS_KN["knowledge owns\nembeddings · chunks\ningestion_jobs"]
-    FS_RT["retrieval owns\nsessions · memory\ncitation_logs"]
-  end
-
-  %% ══════════════════════════════════════════════════════
-  %% STYLES
-  %% ══════════════════════════════════════════════════════
-  classDef wsStyle   fill:#444441,stroke:#888780,color:#D3D1C7
-  classDef ctStyle   fill:#085041,stroke:#1D9E75,color:#9FE1CB
-  classDef kgStyle   fill:#3C3489,stroke:#7F77DD,color:#CECBF6
-  classDef knStyle   fill:#633806,stroke:#BA7517,color:#FAC775
-  classDef rtStyle   fill:#0C447C,stroke:#378ADD,color:#B5D4F4
-  classDef agStyle   fill:#712B13,stroke:#D85A30,color:#F5C4B3
-  classDef intStyle  fill:#2C2C2A,stroke:#5F5E5A,color:#D3D1C7
-  classDef ruleStyle fill:#501313,stroke:#E24B4A,color:#F7C1C1
-  classDef fsStyle   fill:#173404,stroke:#639922,color:#C0DD97
-
-  class WS1,WS2,WS3 wsStyle
-  class CT1,CT2,CT3 ctStyle
-  class KG1,KG2,KG3 kgStyle
-  class KN1,KN2,KN3,KN4,KN4b,KN5,KN6,KN7,KN8 knStyle
-  class QU1,QU2,QU3 rtStyle
-  class HR1,HR2,HR3,HR4 rtStyle
-  class MDR1,MDR2,MDR3,MDR4,MDR5 rtStyle
-  class MEM1,MEM2,MEM3 rtStyle
-  class CIT1,CIT2,CIT3 rtStyle
-  class R1,R2,R3,R4 agStyle
-  class T1,T2,T3,T4,T5,T6,T7 agStyle
-  class L_IF,L_AP,L_DO,L_IN,L_API intStyle
-  class RULE ruleStyle
-  class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
 `````
 
 ## File: .github/agents/app-router.agent.md
@@ -78665,80 +66117,6 @@ target: 'vscode'
 - Evidence collected
 - Confirmed failures
 - Release recommendation: ready | ready-with-risk | blocked
-`````
-
-## File: .github/mcp_to_agent_mapping.md
-`````markdown
-# MCP to Agent Mapping (Implemented)
-
-This file records the implemented mapping strategy for using MCP tools through dedicated custom agents, instructions, prompts, and skills.
-
-## Implementation policy
-
-1. Keep custom agents at `.github/agents/` top-level for reliable discovery in this workspace.
-2. Use least-privilege `tools` in agent frontmatter.
-3. Use skills in folder form (`.github/skills/<name>/SKILL.md`), not `*.skill.md` files.
-4. Treat MCP mapping as a preferred routing rule, not a hard lock.
-
-## MCP routing matrix
-
-| MCP server | Primary agent | Supporting assets | Status |
-| --- | --- | --- | --- |
-| `context7/*` | `.github/agents/commander.agent.md` | `.github/instructions/06-context7-usage.instructions.md`, `.github/prompts/context7-mcp.prompt.md` | Implemented |
-| `shadcn/*` | `.github/agents/component.agent.md` | `.github/prompts/shadcn-mcp.prompt.md` | Implemented |
-| `io.github.vercel/next-devtools-mcp/*` | `.github/agents/app-router.agent.md` | `.github/prompts/next‑devtools‑mcp.prompt.md` | Implemented |
-| `microsoft/markitdown/*` | `.github/agents/rag-vector.agent.md` | `.github/instructions/07-markitdown-rag.instructions.md`, `.github/prompts/markitdown-md-optimization.prompt.md` | Implemented |
-| `microsoft/playwright-mcp/*` | `.github/agents/e2e-qa.agent.md` | `.github/prompts/playwright-mcp.prompt.md` | Implemented |
-| `serena/*` | `.github/agents/serena.agent.md`, `.github/agents/commander.agent.md` | `.github/skills/serena-mcp/SKILL.md` | Implemented |
-
-## Phase 2 candidates
-
-1. Add feature-specialized prompts under `prompts/diagnosis` and `prompts/rag` if workflow frequency justifies them.
-2. Add additional agents only when a repeated workflow cannot be covered by existing delivery agents plus prompts.
-3. Keep handoff targets aligned to diagnostics-recognized agent names.
-
-## Legacy to extension mapping
-
-| Legacy area | Extension role in current architecture | Notes |
-| --- | --- | --- |
-| `.github/agents/planner.agent.md`, `.github/agents/implementer.agent.md`, `.github/agents/reviewer.agent.md`, `.github/agents/qa.agent.md` | Core delivery chain | Remains authoritative for formal delivery handoffs |
-| `.github/agents/modules-*.agent.md`, `.github/agents/app-router-composer.agent.md` | Domain-specialized extension lanes | Activated when scope is module boundary or app composition specific |
-| `.github/agents/serena.agent.md` | Serena-first execution lane | Works as cross-cutting execution backbone with symbolic workflow |
-| `.github/prompts/*` | Trigger surface for chain and MCP lanes | Prompt scope routes work to delivery agents or MCP-specialized agents |
-| `.github/instructions/*` | Always-on policy layer | Narrow `applyTo` keeps context noise low while preserving guardrails |
-| `.github/copilot-instructions.md` | Top-level orchestration contract | Defines precedence, boundaries, and mapping baseline usage |
-
-## Legacy inventory decisions
-
-### Agents
-
-| Asset group | Decision | Why |
-| --- | --- | --- |
-| Delivery chain (`planner`, `implementer`, `reviewer`, `qa`) | Keep | Formal delivery workflow remains the primary quality gate for non-trivial work |
-| MCP lanes (`commander`, `app-router`, `component`, `rag-vector`, `e2e-qa`) | Keep | These provide focused execution for MCP-heavy tasks and reduce prompt ambiguity |
-| Domain lanes (`modules-*`, `app-router-composer`) | Keep with role split | Composition/refactor roles are still needed when runtime diagnostics are not the main problem |
-| `serena` | Keep | Cross-cutting execution backbone with symbolic workflow and guarded MCP access |
-| `planner-docs`, `md-writer` | Keep as optional extension | Required for doc-heavy delivery but not mandatory for every feature |
-| `qa-legacy` | Keep hidden, retire later | Retained for historical traceability only; not part of primary routing |
-| `custom-agent-foundry`, `repo-architect` | Keep as maintainer tools | Useful for customization authoring and bootstrap, but not core delivery path |
-
-### Instructions
-
-| Asset group | Decision | Why |
-| --- | --- | --- |
-| Foundation authoring rules (`agents`, `prompt`, `agent-skills`, `instructions`) | Keep | Prevents customization quality drift |
-| Project/runtime rules (`xuanwu-*`, `modules-*`, `app/*`) | Keep | Enforces architecture boundaries and runtime split |
-| MCP extensions (`06-context7`, `07-markitdown-rag`) | Keep | Required to keep external-doc and conversion behavior consistent with mapping |
-| Dotnet guidance | Keep low-priority | Not currently primary stack, but valid for mixed-language contributions |
-
-### Prompts
-
-| Asset group | Decision | Why |
-| --- | --- | --- |
-| Delivery prompts (`plan-*`, `implement-plan`, `review-changes`, `run-qa`) | Keep | Mirrors formal delivery stages |
-| Module/app prompts | Keep | Supports bounded-context and route composition work |
-| MCP prompts (`context7`, `shadcn`, `next-devtools`, `playwright`, `markitdown`) | Keep with routing refactor | Must target MCP-specialized agents to stay self-consistent with mapping |
-| Markdown optimization prompts (`md-*`) | Keep optional | High-value for docs maintenance, not required for code-only changes |
 `````
 
 ## File: .github/agents/repo-architect.agent.md
