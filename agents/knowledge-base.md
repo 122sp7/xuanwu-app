@@ -67,7 +67,9 @@ Not every module has every subdirectory — only what it needs.
 
 Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
 
-`account`, `ai`, `audit`, `collaboration`, `content`, `event`, `file`, `graph`, `identity`, `knowledge`, `namespace`, `notification`, `organization`, `search`, `shared`, `storage`, `wiki-beta`, `workspace`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+`account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+
+> **Removed modules:** `wiki-beta` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
 
 ## Package System (21 Packages)
 
@@ -176,22 +178,25 @@ Example port shapes:
 
 ### Domain Events
 
-Example event use cases:
-- `publish-domain-event.ts` — publishes events to the event store
-- `list-events-by-aggregate.ts` — queries events by aggregate ID
-- Dispatch policy controls event routing
+Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
+- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
+- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
+- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
+- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
+
+Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
 
 ### Internal Imports Within a Module
 
 Inside a module, files use **relative imports** (not the module's own barrel export):
 
 ```typescript
-// ✅ Inside modules/wiki-beta/application/use-cases/create-wiki-beta-page.use-case.ts
-import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.entity";
-import type { IWikiBetaPageRepository } from "../../domain/repositories/iwiki-beta-page.repository";
+// ✅ Inside modules/content/application/use-cases/wiki-beta-pages.use-case.ts
+import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
+import type { IWikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
 
 // ❌ Do NOT self-import via the barrel
-import { WikiBetaPage } from "@/modules/wiki-beta";
+import { WikiBetaPage } from "@/modules/content";
 ```
 
 ### Cross-Module Imports
@@ -199,11 +204,11 @@ import { WikiBetaPage } from "@/modules/wiki-beta";
 Between modules, always use the target module's `api/` boundary:
 
 ```typescript
-// ✅ Cross-module import
-import { publishDomainEvent } from "@/modules/event/api";
+// ✅ Cross-module import — event-store primitives are now in modules/shared
+import { PublishDomainEventUseCase } from "@/modules/shared/api";
 
 // ❌ Reaching into another module's internals
-import { publishDomainEvent } from "@/modules/event/application/use-cases/publish-domain-event";
+import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
 ```
 
 ## Responsibility Boundaries

@@ -12,20 +12,20 @@ architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、A
 ┌─────────────────────────────────────────────────┐
 │              AI Layer（AI 層）                    │  ← modules/retrieval, modules/agent, modules/knowledge
 ├─────────────────────────────────────────────────┤
-│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph, modules/wiki-beta, modules/namespace
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph
 ├─────────────────────────────────────────────────┤
-│         Content / UI Layer（內容層）               │  ← modules/content
+│         Content / UI Layer（內容層）               │  ← modules/content, modules/asset
 ├─────────────────────────────────────────────────┤
 │    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
-│                                                  │     modules/account, modules/identity
+│                                                  │     modules/account, modules/identity, modules/shared
 └─────────────────────────────────────────────────┘
 ```
 
 | 架構層 | 對應模組 | 核心職責 |
 | --- | --- | --- |
-| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載 |
-| Content / UI Layer | `content` | Block 編輯器、頁面樹、資料庫、版本歷程 |
-| Knowledge Graph Layer | `knowledge-graph`, `wiki-beta`, `namespace` | 頁面連結、圖譜邊、分類樹、重定向 |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
+| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
+| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
 | AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
 
 **依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
@@ -202,45 +202,66 @@ Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeI
 
 ### 3.3 WikiBetaPage（Wiki 頁面整合）
 
-作為 content 模組 ContentPage 在 wiki-beta 有界上下文中的投影，加入 Wiki 特有語意（Library 組織、內容樹層級）。
+輕量化的 Wiki 風格頁面實體，用於 wiki-beta 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
 
-**實現位置：** `modules/wiki-beta/domain/entities/`
+> **模組遷移說明：** `modules/wiki-beta` 獨立模組已移除。WikiBetaPage 概念已遷移至 `modules/content`（頁面層）；WikiBetaLibrary 概念遷移至 `modules/asset`（結構化資料層）；WikiBetaContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/retrieval`。
 
-**補充屬性：**
+**實現位置：** `modules/content/domain/entities/wiki-beta-page.types.ts`
+
+**核心屬性：**
 
 | 屬性 | 類型 | 說明 |
 | --- | --- | --- |
-| `libraryId` | `string` | 所屬 Library（對應 Wiki 的 Namespace） |
-| `treeOrder` | `number` | 在內容樹中的排列順序 |
-| `isRedirect` | `boolean` | 是否為重定向頁面（別名條目） |
-| `redirectTargetId` | `string \| null` | 重定向目標頁面 ID |
+| `id` | `string` | 頁面唯一識別碼 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL 友好路徑 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `order` | `number` | 在內容樹中的排列順序 |
+| `status` | `WikiBetaPageStatus` | 頁面狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
 
 ### 3.4 WikiBetaLibrary（Wiki 知識庫聚合根）
 
-WikiBetaLibrary 是 wiki-beta 有界上下文的頂層組織單元，相當於 Wiki 的「書架」或 Notion 的「Teamspace」，用於將多個 WikiBetaPage 群組為一個具有獨立存取權限的知識集合。
+WikiBetaLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
 
-**實現位置：** `modules/wiki-beta/domain/entities/wiki-beta-library.types.ts`
+**實現位置：** `modules/asset/domain/entities/wiki-beta-library.types.ts`
 
 **核心屬性：**
 
 | 屬性 | 類型 | 說明 |
 | --- | --- | --- |
 | `id` | `string` | Library 唯一 ID（聚合根） |
-| `workspaceId` | `string` | 所屬工作區 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
 | `name` | `string` | Library 名稱（顯示於側邊欄） |
-| `description` | `string \| undefined` | Library 說明 |
-| `createdAt` | `Timestamp` | 建立時間 |
+| `slug` | `string` | URL 友好路徑 |
+| `status` | `WikiBetaLibraryStatus` | 狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+**相關實體：**
+- `WikiBetaLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
+- `WikiBetaLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
 
 **與其他概念的關係：**
 - 一個 Workspace 可包含多個 WikiBetaLibrary。
-- 一個 WikiBetaPage 透過 `libraryId` 歸屬於一個 WikiBetaLibrary。
 - WikiBetaContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
 
-### 3.5 Namespace（命名空間）
+### 3.5 Slug 工具（原 Namespace 模組）
 
-對應 Wiki 的 Namespace 機制（User: / Category: / File: 等前綴分類），在 xuanwu-app 中用於 Workspace 層面的知識空間隔離。
+> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
 
-**實現位置：** `modules/namespace/`
+Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
+
+**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
+
+| 函式 | 說明 |
+| --- | --- |
+| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
+| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
 
 ## 四、AI Layer 的領域概念
 
@@ -880,8 +901,8 @@ architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + R
 | `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
 | `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
 | `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
-| `WikiBetaPage` | 投影實體 | `wiki-beta` | ✅ 已實現 |
-| `WikiBetaLibrary` | 聚合根 | `wiki-beta` | ✅ 已實現 |
+| `WikiBetaPage` | 投影實體 | `content` | ✅ 已實現 |
+| `WikiBetaLibrary` | 聚合根 | `asset` | ✅ 已實現 |
 | `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
 | `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
 | `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
@@ -895,7 +916,9 @@ architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + R
 | `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
 | `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
 | `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
-| `Namespace` | 聚合根 | `namespace` | ✅ 已實現 |
+| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
+| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
+| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
 
 ---
 
