@@ -38,26 +38,25 @@ This skill contains the following reference files:
 
 ## Statistics
 
-922 files | 64,312 lines
+913 files | 62,688 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 380 | 20,427 |
-| Markdown | 281 | 16,380 |
+| Markdown | 275 | 15,147 |
 | TypeScript (TSX) | 120 | 18,678 |
 | No Extension | 54 | 108 |
 | Python | 49 | 3,532 |
-| MERMAID | 16 | 1,203 |
+| MERMAID | 15 | 992 |
 | JSON | 10 | 2,549 |
 | Shell | 2 | 602 |
 | RULES | 2 | 18 |
 | Text | 2 | 105 |
-| Other | 6 | 710 |
+| Other | 4 | 530 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (972 lines)
-- `docs/Architecture.md` (942 lines)
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (918 lines)
 - `modules/asset/README.md` (902 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
@@ -65,3 +64,4 @@ This skill contains the following reference files:
 - `app/(shell)/_components/app-rail.tsx` (669 lines)
 - `modules/wiki-beta/interfaces/components/WikiBetaRagView.tsx` (660 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (610 lines)
+- `py_fn/src/infrastructure/external/upstash/clients.py` (538 lines)

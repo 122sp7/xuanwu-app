@@ -1,54 +1,71 @@
-# Xuanwu Copilot Delivery Suite
+# Xuanwu Copilot Workspace Instructions
 
-Baseline for Copilot agents to stay aligned with the repository and toolchain.
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
 
-## Authoritative Sources (read in order)
+## Purpose
 
-1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
-2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
-3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
-4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
-5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
-6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
 
-## Operating rules (concise)
+## Authoritative Sources
 
-- Plan first for cross-module, cross-runtime, or contract-governed work.  
-- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
-- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
-- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
+Read these in order before making non-trivial decisions:
 
-## Serena MCP — mandatory
+1. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+2. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+3. [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+4. [agents/commands.md](../agents/commands.md) for build, lint, test, and deployment commands.
+5. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+6. Contract-governed work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md).
 
-All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
+## Workspace-Wide Operating Rules
 
-- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
-- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
-- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
-- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
 
-## Orchestration pattern
+## Architecture Guardrails
 
-1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
-2. Treat [.github/mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [.github/mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the MCP routing baseline.  
-3. Keep legacy delivery assets as extensions of the mapping baseline:
-   - Delivery chain agents (`planner`, `implementer`, `reviewer`, `qa`) remain primary for formal delivery.
-   - MCP-specialized agents (`commander`, `app-router`, `component`, `rag-vector`, `e2e-qa`) provide focused execution lanes.
-   - Existing prompts and instructions remain valid and should be selected by scope, not duplicated by MCP type.
-4. Activate skills as needed:  
-   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
-   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
-   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
-   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
-   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
-   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
-5. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+
+## Copilot Customization Design Rules
+
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+
+## Serena MCP
+
+Serena is mandatory for project memory, index management, and any `.serena/` operation.
+
+- Activate the `xuanwu-app` project before memory operations.
+- Never edit `.serena/` with direct file tools.
+- Record phase-end memory updates through Serena tooling.
+- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for workflow details.
+
+## Skill And Agent Routing
+
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Treat [.github/mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [.github/mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the routing baseline.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
 
 ## Validation
 
-- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
-- Do not close work until required checks and documentation updates are complete.  
+- Run the matching validation for changed files by using [agents/commands.md](../agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
 
 ## Terminology
 
-See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
+- Normalize naming before implementation when multiple product terms describe the same capability.
+- Prefer canonical vocabulary from [terminology-glossary.md](./terminology-glossary.md), especially for token efficiency, context efficiency, retrieval performance, prompt refactoring, deduplication, and related optimization terms.
+- When introducing new guidance, use glossary-aligned wording so prompts, instructions, and architecture docs stay semantically consistent.
