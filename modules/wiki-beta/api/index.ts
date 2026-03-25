@@ -80,4 +80,16 @@ export type {
 
 // ─── UI components ────────────────────────────────────────────────────────────
 
+// wiki-beta-native component
 export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
+export { WikiBetaOverviewView } from "../interfaces/components/WikiBetaOverviewView";
+
+// Transitional re-exports — delegate to canonical bounded-context modules
+export { WikiBetaBlockEditorView } from "../interfaces/components/WikiBetaBlockEditorView";
+export { WikiBetaDocumentsView } from "../interfaces/components/WikiBetaDocumentsView";
+export { WikiBetaLibrariesView } from "../interfaces/components/WikiBetaLibrariesView";
+export { WikiBetaLibraryTableView } from "../interfaces/components/WikiBetaLibraryTableView";
+export { WikiBetaPagesDnDView } from "../interfaces/components/WikiBetaPagesDnDView";
+export { WikiBetaPagesView } from "../interfaces/components/WikiBetaPagesView";
+export { WikiBetaRagQueryView } from "../interfaces/components/WikiBetaRagQueryView";
+export { WikiBetaRagView } from "../interfaces/components/WikiBetaRagView";
