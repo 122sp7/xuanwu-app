@@ -1,10 +1,8 @@
 /**
- * @deprecated This file has moved to modules/knowledge-graph/infrastructure/InMemoryGraphRepository.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-
- *          Designed for local demos and unit tests (Occam's Razor).
+ * modules/knowledge-graph — infrastructure/in-memory
+ * Purpose: In-memory adapter for GraphRepository.
+ *          Uses plain Map — no external database required.
+ *          Designed for local demos and unit tests.
  */
 
 import type { GraphNode } from "../domain/entities/graph-node";

@@ -1,18 +1,28 @@
 /**
- * @deprecated Moved to modules/knowledge-graph/api/knowledge-graph-api.ts
- * This module (knowledge) is being repurposed for Layer 2 Ingestion Pipeline.
+ * modules/knowledge-graph — api/knowledge-graph-api
+ * Layer: api (cross-module facade)
+ * Purpose: KnowledgeGraphApi — lightweight facade that wires in-memory
+ *          adapters and exposes the knowledge-graph surface needed by
+ *          consumers (e.g. system.ts composition root, debug pages).
+ *
+ * Bootstraps the LinkExtractorService and registers it on the shared event
+ * bus so the knowledge-graph module reacts to content changes automatically.
  */
-export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
-export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
 
+import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
-/** Shape of the graph payload defined in APIContract.md */
+import type { GraphNode } from "../domain/entities/graph-node";
+import type { Link } from "../domain/entities/link";
+import { LinkExtractorService } from "../application/link-extractor.service";
+import { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
+
+/** Shape of the graph payload returned to consumers */
 export interface GraphDataDTO {
   nodes: Array<{ id: string; label: string; group: string }>;
   edges: Array<{ from: string; to: string; type: string }>;
 }
 
-export class KnowledgeApi {
+export class KnowledgeGraphApi {
   private readonly graphRepo: InMemoryGraphRepository;
   readonly linkExtractor: LinkExtractorService;
 
@@ -39,7 +49,7 @@ export class KnowledgeApi {
 
   /**
    * Return a GraphDataDTO summarising the full in-memory graph.
-   * Shape matches the APIContract: `{ nodes: [...], edges: [...] }`.
+   * Shape: `{ nodes: [...], edges: [...] }`.
    */
   async getGraphData(): Promise<GraphDataDTO> {
     const [nodes, links] = await Promise.all([

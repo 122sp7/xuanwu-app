@@ -1,12 +1,7 @@
 /**
- * @deprecated This file has moved to modules/knowledge-graph/application/link-extractor.service.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-
- *
- * Follows Occam's Razor: a minimal regex parser that proves the
- * Content → EventBus → Knowledge loop works end-to-end.
+ * modules/knowledge-graph — application
+ * Purpose: LinkExtractorService — subscribes to ContentUpdatedEvent and
+ *          extracts [[WikiLink]] references to build graph edges.
  *
  * Wikilink syntax: [[Target Page Name]]
  *   - The target label becomes both the node id (lowercased slug) and label.

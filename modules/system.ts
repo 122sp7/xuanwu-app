@@ -22,7 +22,7 @@
 
 import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
 import { ContentApi } from "./content/api/content-api";
-import { KnowledgeApi } from "./knowledge/api/knowledge-api";
+import { KnowledgeGraphApi } from "./knowledge-graph/api/knowledge-graph-api";
 
 // ── Shared account used by the in-memory demo ──────────────────────────────
 
@@ -32,6 +32,6 @@ export const DEMO_ACCOUNT_ID = "demo-account";
 
 const eventBus = new SimpleEventBus();
 export const contentApi = new ContentApi(eventBus);
-export const knowledgeApi = new KnowledgeApi(eventBus);
+export const knowledgeApi = new KnowledgeGraphApi(eventBus);
 // KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
 // subscription is active as soon as the module is imported.

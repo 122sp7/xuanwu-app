@@ -13,7 +13,7 @@
 import { revalidatePath } from "next/cache";
 
 import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "../../system";
-import type { GraphDataDTO } from "../../knowledge/api/knowledge-api";
+import type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
 
 // ── Form-bound Server Actions (return void — re-render via revalidatePath) ──
 
