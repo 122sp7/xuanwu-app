@@ -32,11 +32,7 @@
 				"--context",
 				"ide-assistant",
 				"--mode",
-				"autonomous",
-				"--skills-dir",
-				"~/.github/skills",
-				"--project",
-				"~/."
+				"autonomous"
 			],
 			"gallery": "https://api.mcp.github.com",
 			"version": "1.0.0"
