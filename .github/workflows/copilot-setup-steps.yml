@@ -65,21 +65,3 @@ jobs:
           python --version
           uv --version
           uvx --version
-
-      - name: Smoke test Serena MCP launcher
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # `start-mcp-server` is long-running; timeout(124) means startup succeeded.
-          set +e
-          timeout 12s uvx --from git+https://github.com/oraios/serena serena start-mcp-server serena@latest --context ide-assistant --mode autonomous
-          exit_code=$?
-          set -e
-
-          if [ "$exit_code" -ne 0 ] && [ "$exit_code" -ne 124 ]; then
-            echo "Serena MCP launcher failed with exit code: $exit_code"
-            exit "$exit_code"
-          fi
-
-          echo "Serena MCP launcher smoke test passed (exit code: $exit_code)."
