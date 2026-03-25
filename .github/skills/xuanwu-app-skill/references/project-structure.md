@@ -318,7 +318,7 @@ agents/
   commands.md (52 lines)
   hooks (1 lines)
   instructions (1 lines)
-  knowledge-base.md (218 lines)
+  knowledge-base.md (244 lines)
   prompts (1 lines)
   README.md (70 lines)
   rules (1 lines)

@@ -60,56 +60,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
-## File: .github/agents/ai-genkit-lead.agent.md
-`````markdown
----
-name: AI Genkit Lead
-description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-target: vscode
-handoffs:
-  - label: Refine Genkit Flow
-    agent: Genkit Flow Agent
-    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
-  - label: Review RAG Boundary
-    agent: RAG Lead
-    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
-
----
-
-# AI Genkit Lead
-
-## Target Scope
-
-- `modules/agent/**`
-- `app/**`
-- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
-
-## Focus
-
-- Genkit flow ownership and app-side orchestration
-- Contract-safe integration with ingestion and retrieval layers
-
-## Guardrails
-
-- Keep auth and chat orchestration in Next.js.
-- Keep parsing, chunking, embedding in py_fn workers.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
 ## File: .github/agents/app-router.agent.md
 `````markdown
 ---
@@ -610,57 +560,6 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 - Keep app routes thin and composition-focused.
 - Consume module behavior via module api only.
 - Prefer server components unless client interactivity is required.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
-## File: .github/agents/genkit-flow.agent.md
-`````markdown
----
-name: Genkit Flow Agent
-description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-target: vscode
-handoffs:
-  - label: Review AI Ownership
-    agent: AI Genkit Lead
-    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
-
----
-
-# Genkit Flow Agent
-
-## Target Scope
-
-- `modules/agent/**`
-- `app/**`
-- `modules/retrieval/**`
-
-## Focus
-
-- Flow inputs and outputs
-- Prompt and tool orchestration boundaries
-- Error handling and fallback behavior
-
-## Guardrails
-
-- Keep flow contracts explicit.
-- Avoid leaking worker-only logic into app orchestration.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
@@ -2278,32 +2177,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
-## File: .github/instructions/genkit-flow.instructions.md
-`````markdown
----
-description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
-applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
----
-
-# Genkit Flow
-
-## Rules
-
-- Keep flow inputs/outputs explicit and typed.
-- Keep user-facing orchestration in Next.js.
-- Delegate heavy ingestion/embedding to worker-side pipelines.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
 ## File: .github/instructions/hosting-deploy.instructions.md
 `````markdown
 ---
@@ -3665,44 +3538,6 @@ const good = example()
 Reference: [Link to documentation or resource](https://example.com)
 `````
 
-## File: .github/rules/api-contracts.md
-`````markdown
----
-title: API Contracts via @api-contracts
-impact: HIGH
-impactDescription: Centralizes API route definitions and prevents fragmentation
-tags: api, contracts, routes, rest
----
-
-## API Contracts via @api-contracts
-
-**Impact: HIGH**
-
-REST API routes and GraphQL schemas are defined in the `@api-contracts` package (`packages/api-contracts`). This keeps API surface definitions centralized and version-controlled.
-
-**Incorrect (ad-hoc route definitions scattered across modules):**
-
-```typescript
-// modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
-const TASK_API = "/api/v1/tasks";    // ❌ Route defined locally, not tracked centrally
-```
-
-**Correct (routes from @api-contracts):**
-
-```typescript
-import { API_ROUTES } from "@api-contracts";
-
-// Use centralized route definitions
-const url = API_ROUTES.tasks.list;   // ✅ Single source of truth
-```
-
-**Guidelines:**
-- All REST route paths are registered in `@api-contracts`
-- Controllers in `interfaces/api/` implement the routes but don't define them
-- Type contracts (request/response shapes) should be co-located with route definitions
-- Version API routes explicitly when breaking changes are unavoidable
-`````
-
 ## File: .github/rules/api-module-surface.md
 `````markdown
 ---
@@ -3746,64 +3581,6 @@ export { usePublicEntities } from "./interfaces/queries/public.queries";
 export { PublicPanel } from "./interfaces/components/PublicPanel";
 
 // Keep infrastructure details private to the module.
-```
-`````
-
-## File: .github/rules/architecture-dependency-direction.md
-`````markdown
----
-title: Layer Dependency Direction
-impact: CRITICAL
-impactDescription: Prevents architecture erosion and dependency cycles
-tags: architecture, mddd, dependencies, clean-architecture
----
-
-## Layer Dependency Direction
-
-**Impact: CRITICAL**
-
-Within every module, dependencies flow inward toward the domain layer. The domain layer has **zero outward dependencies** — it knows nothing about Firebase, React, or any framework.
-
-```
-interfaces/ ──→ application/ ──→ domain/ ←── infrastructure/
-   (UI)          (use cases)    (entities)    (adapters)
-```
-
-**Incorrect (domain importing infrastructure):**
-
-```typescript
-// modules/workspace-flow/domain/entities/Task.ts
-import { collection, getDocs } from "firebase/firestore";  // ❌ Domain knows about Firebase
-import { db } from "@integration-firebase";                 // ❌ Domain imports infrastructure
-
-export class Task {
-  static async loadAll() {
-    const snap = await getDocs(collection(db, "tasks"));
-    return snap.docs.map(d => new Task(d.data()));
-  }
-}
-```
-
-**Correct (domain defines interface, infrastructure implements):**
-
-```typescript
-// modules/workspace-flow/domain/repositories/TaskRepository.ts
-export interface TaskRepository {
-  findAll(): Promise<Task[]>;        // ✅ Pure interface, no framework dependency
-  findById(id: string): Promise<Task | null>;
-}
-
-// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@integration-firebase";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-
-export class TaskFirebaseRepository implements TaskRepository {
-  async findAll(): Promise<Task[]> {  // ✅ Infrastructure implements the contract
-    const snap = await getDocs(collection(db, "tasks"));
-    return snap.docs.map(d => new Task(d.data()));
-  }
-}
 ```
 `````
 
@@ -4189,65 +3966,6 @@ AI tools (GitHub Copilot, coding agents) are first-class development aids. Use t
 - **Use skills** — `.github/skills/` provides specialized capabilities (React best practices, documentation writing, design guidelines)
 `````
 
-## File: .github/rules/data-dto-boundaries.md
-`````markdown
----
-title: DTO Boundaries
-impact: HIGH
-impactDescription: Prevents leaking persistence or framework details across layers
-tags: data, dto, boundaries, layers
----
-
-## DTO Boundaries
-
-**Impact: HIGH**
-
-Data Transfer Objects (DTOs) mark the boundary between layers. Domain entities are internal to the module; when data crosses a layer boundary (domain → application, application → interfaces), use a DTO to decouple internal representation from external contracts.
-
-**Incorrect (exposing Firestore document shape to UI):**
-
-```typescript
-// modules/workspace-flow/interfaces/components/TaskList.tsx
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@integration-firebase";
-
-export function TaskList() {
-  const [tasks, setTasks] = useState<DocumentData[]>([]);  // ❌ Raw Firestore data in component
-  useEffect(() => {
-    getDocs(collection(db, "tasks")).then(snap => {
-      setTasks(snap.docs.map(d => d.data()));               // ❌ No type safety
-    });
-  }, []);
-}
-```
-
-**Correct (use case returns typed DTO):**
-
-```typescript
-// modules/workspace-flow/application/use-cases/list-tasks.use-case.ts
-export interface TaskListItemDTO {
-  id: string;
-  title: string;
-  status: "open" | "closed";
-  assigneeId: string | null;
-}
-
-export async function listWorkspaceTasks(workspaceId: string): Promise<TaskListItemDTO[]> {
-  const tasks = await taskRepo.findByWorkspace(workspaceId);
-  return tasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    assigneeId: t.assigneeId,
-  }));
-}
-
-// modules/workspace-flow/interfaces/components/TaskList.tsx
-import { listWorkspaceTasks, type TaskListItemDTO } from "../../application/use-cases/list-tasks.use-case";
-// Component receives typed data, doesn't know about Firestore
-```
-`````
-
 ## File: .github/rules/data-firebase-collections.md
 `````markdown
 ---
@@ -4295,72 +4013,6 @@ export class DailyEntryFirebaseRepository implements DailyEntryRepository {
 - Import from `@integration-firebase`, never from `firebase/firestore` in domain or application layers
 - Firestore queries stay in infrastructure — use cases receive domain objects, not Firestore snapshots
 - For modules that don't need Firebase persistence, use `infrastructure/default/` with in-memory implementations
-`````
-
-## File: .github/rules/data-repository-pattern.md
-`````markdown
----
-title: Repository Pattern — Interface in Domain, Implementation in Infrastructure
-impact: CRITICAL
-impactDescription: Prevents domain contamination and enables technology swap
-tags: data, repository, domain, infrastructure, firebase
----
-
-## Repository Pattern
-
-**Impact: CRITICAL**
-
-Repository **interfaces** live in `domain/repositories/`. Repository **implementations** live in `infrastructure/`. The domain layer never knows how data is persisted — only that it can be.
-
-**Incorrect (domain knows about Firebase):**
-
-```typescript
-// modules/workspace-flow/domain/entities/Task.ts
-import { collection, addDoc } from "firebase/firestore";   // ❌ Domain imports Firebase
-import { db } from "@integration-firebase";
-
-export class Task {
-  async save() {
-    await addDoc(collection(db, "tasks"), this.toJSON());   // ❌ Persistence in entity
-  }
-}
-```
-
-**Correct (interface + implementation split):**
-
-```typescript
-// modules/workspace-flow/domain/repositories/TaskRepository.ts
-import type { Task } from "../entities/Task";
-
-export interface TaskRepository {                           // ✅ Pure interface
-  findById(id: string): Promise<Task | null>;
-  findByWorkspace(workspaceId: string): Promise<Task[]>;
-  save(task: Task): Promise<void>;
-}
-
-// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
-import { collection, doc, getDoc, getDocs, setDoc, query, where } from "firebase/firestore";
-import { db } from "@integration-firebase";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { Task } from "../../domain/entities/Task";
-
-export class TaskFirebaseRepository implements TaskRepository {
-  async findById(id: string): Promise<Task | null> {        // ✅ Implementation
-    const snap = await getDoc(doc(db, "tasks", id));
-    return snap.exists() ? Task.fromFirestore(snap.data()) : null;
-  }
-
-  async findByWorkspace(workspaceId: string): Promise<Task[]> {
-    const q = query(collection(db, "tasks"), where("workspaceId", "==", workspaceId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => Task.fromFirestore(d.data()));
-  }
-
-  async save(task: Task): Promise<void> {
-    await setDoc(doc(db, "tasks", task.id), task.toJSON());
-  }
-}
-```
 `````
 
 ## File: .github/rules/patterns-dependency-injection.md
@@ -4546,61 +4198,6 @@ export async function listWorkspaceScheduleItems(workspaceId: string) {
 - Business rules are centralized and discoverable
 `````
 
-## File: .github/rules/patterns-use-case.md
-`````markdown
----
-title: One Use Case Per File
-impact: MEDIUM
-impactDescription: Ensures single responsibility and discoverability
-tags: patterns, use-case, single-responsibility
----
-
-## One Use Case Per File
-
-**Impact: MEDIUM**
-
-Each use case lives in its own file under `application/use-cases/`. A use case represents a single user-facing operation. Name the file with a `verb-noun` pattern.
-
-**Incorrect (multiple use cases in one file):**
-
-```typescript
-// modules/workspace-flow/application/use-cases/task.use-cases.ts
-export async function createTask(input: CreateTaskInput) { ... }
-export async function updateTask(id: string, input: UpdateTaskInput) { ... }
-export async function deleteTask(id: string) { ... }
-export async function listTasks(workspaceId: string) { ... }
-```
-
-**Correct (one file per use case):**
-
-```
-modules/workspace-flow/application/use-cases/
-├── create-task.use-case.ts
-├── update-task.use-case.ts
-├── archive-task.use-case.ts
-└── assign-task.use-case.ts
-```
-
-```typescript
-// modules/workspace-flow/application/use-cases/create-task.use-case.ts
-import type { CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { Task } from "../../domain/entities/Task";
-
-export async function createTask(
-  input: CreateTaskInput,
-  deps: { taskRepo: TaskRepository },
-): Promise<CommandResult<Task>> {
-  // Single operation — create a task
-  const task = Task.create(input);
-  await deps.taskRepo.save(task);
-  return { success: true, data: task };
-}
-```
-
-**Note:** Some existing modules use a single `*.use-cases.ts` file with multiple exports. This is acceptable for simple CRUD modules but should be split as complexity grows.
-`````
-
 ## File: .github/rules/performance-avoid-quadratic.md
 `````markdown
 ---
@@ -4741,65 +4338,6 @@ LGTM 👍
 ```
 `````
 
-## File: .github/rules/quality-error-handling.md
-`````markdown
----
-title: Error Handling with CommandResult and DomainError
-impact: HIGH
-impactDescription: Ensures consistent, type-safe error handling across the codebase
-tags: quality, error-handling, domain-error, command-result
----
-
-## Error Handling with CommandResult and DomainError
-
-**Impact: HIGH**
-
-Use `CommandResult` for use-case return types and `DomainError` for domain-level errors. Both are defined in `@shared-types`. Avoid throwing raw exceptions from use cases — use typed result objects instead.
-
-**Incorrect (throwing raw errors):**
-
-```typescript
-// modules/workspace-flow/application/use-cases/create-task.use-case.ts
-export async function createTask(input: CreateTaskInput) {
-  if (!input.title) throw new Error("Title is required");       // ❌ Raw throw
-  if (!input.workspaceId) throw new Error("Workspace required"); // ❌ Untyped error
-  // ...
-}
-```
-
-**Correct (typed result objects):**
-
-```typescript
-import type { CommandResult } from "@shared-types";
-import { DomainError } from "@shared-types";
-
-// modules/workspace-flow/application/use-cases/create-task.use-case.ts
-export async function createTask(input: CreateTaskInput): Promise<CommandResult<Task>> {
-  if (!input.title) {
-    return { success: false, error: new DomainError("missing-title", "Title is required") };
-  }
-
-  const task = new Task(input);
-  await taskRepo.save(task);
-  return { success: true, data: task };
-}
-```
-
-**At the interfaces layer, handle the result:**
-
-```typescript
-// modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
-export async function createTaskAction(input: CreateTaskInput) {
-  const result = await createTask(input);
-  if (!result.success) {
-    // Convert DomainError to user-facing message
-    return { error: result.error.message };
-  }
-  return { data: result.data };
-}
-```
-`````
-
 ## File: .github/rules/quality-imports.md
 `````markdown
 ---
@@ -4852,47 +4390,6 @@ import type { DomainEntity } from "@/modules/<target-domain>/api";
 ```typescript
 // Inside modules/<current-domain>/application/use-cases/<use-case>.ts
 import { SourceEntity } from "../../domain/entities/<entity>";
-```
-`````
-
-## File: .github/rules/quality-pr-creation.md
-`````markdown
----
-title: Pull Request Best Practices
-impact: MEDIUM
-impactDescription: Ensures clean, reviewable, and complete pull requests
-tags: quality, pr, git, review
----
-
-## Pull Request Best Practices
-
-**Impact: MEDIUM**
-
-Every pull request must be complete, focused, and reviewable. No "follow-up PRs" for unfinished work — if it's in scope, finish it in the current PR.
-
-**Guidelines:**
-
-1. **Single responsibility** — One PR addresses one concern (feature, bug fix, refactor)
-2. **Complete work** — Don't leave TODOs or broken tests for follow-up PRs
-3. **Clear description** — Explain what changed, why, and how to verify
-4. **Small diffs** — Prefer multiple small PRs over one massive PR
-5. **Module-scoped** — Changes should ideally be contained within one module; cross-module changes need extra review attention
-
-**PR description template:**
-
-```markdown
-## What
-Brief description of the change.
-
-## Why
-Business context or technical motivation.
-
-## How to Verify
-Steps to test the change locally.
-
-## Module(s) Affected
-- modules/workspace-flow
-- packages/shared-types
 ```
 `````
 
@@ -14878,228 +14375,6 @@ Reference for Xuanwu project terminology across token efficiency, system perform
 ../.github/instructions
 `````
 
-## File: agents/knowledge-base.md
-`````markdown
-# Knowledge Base — MDDD Domain & Architecture
-
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`rules/`](rules/).
-
-## Module-Driven Domain Design (MDDD)
-
-The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
-
-### Core Principle
-
-> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
-
-### Global Dependency Direction
-
-```
-UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
-```
-
-The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
-
-## Module Structure
-
-Each module under `modules/` follows a four-layer Clean Architecture:
-
-```
-modules/<module-name>/
-├── api/
-│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
-├── index.ts                    # Optional local barrel for same-module composition
-├── README.md                   # Module documentation (optional)
-├── domain/
-│   ├── entities/               # Aggregate roots, value objects, entity types
-│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
-│   ├── services/               # Pure domain services (stateless business rules)
-│   ├── value-objects/          # DDD value objects (immutable, equality by value)
-│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
-├── application/
-│   ├── use-cases/              # One file per use case (single operation)
-│   └── dto/                    # Data Transfer Objects for use-case I/O
-├── infrastructure/
-│   ├── firebase/               # Firebase Firestore repository implementations
-│   ├── genkit/                 # AI/Genkit integrations (AI module)
-│   ├── default/                # In-memory or simplified implementations
-│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
-│   ├── persistence/            # Persistence adapters
-│   └── repositories/           # Repository implementations (alternative layout)
-└── interfaces/
-    ├── components/             # React UI components
-    ├── queries/                # TanStack Query hooks (read-side)
-    ├── _actions/               # Next.js Server Actions (write-side)
-    ├── hooks/                  # Custom React hooks
-    ├── api/                    # REST API route controllers
-    ├── contracts/              # API contracts
-    └── view-models/            # View model transformations
-```
-
-Not every module has every subdirectory — only what it needs.
-
-### Boundary Policy
-
-- Every `modules/<module-name>/` is isolated.
-- Cross-module imports are allowed only via `modules/<target-module>/api/`.
-- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
-- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
-
-## Module Inventory
-
-Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
-
-`account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
-
-> **Removed modules:** `wiki-beta` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
-
-## Package System (21 Packages)
-
-Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
-
-### Import Rule
-
-```typescript
-// ✅ CORRECT — via @alias from tsconfig.json
-import type { CommandResult, DomainError } from "@shared-types";
-import { cn, formatDate } from "@shared-utils";
-import { auth } from "@integration-firebase";
-
-// ❌ NEVER — relative paths to package internals
-import type { CommandResult } from "../../../../packages/shared-types/index";
-
-// ❌ NEVER — legacy paths (ESLint will block)
-import type { CommandResult } from "@/shared/types";
-```
-
-### Package Catalog
-
-| Alias | Package | Purpose |
-|-------|---------|---------|
-| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
-| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
-| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
-| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | integration-http | Axios HTTP client with interceptors |
-| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
-| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
-| `@lib-zod` | lib-zod | Zod v4 wrapper |
-| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
-| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
-| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
-| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
-| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
-| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
-| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
-| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
-
-### ESLint Boundary Enforcement
-
-Legacy import paths are blocked by `eslint.config.mjs`:
-
-| Blocked Pattern | Replacement |
-|----------------|-------------|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` or `@integration-*` |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
-`modules/` 內也有額外邊界保護：
-
-- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
-- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
-- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
-
-## Tech Stack
-
-| Concern | Technology | Version |
-|---------|-----------|---------|
-| Framework | Next.js (App Router) | 16.1.7 |
-| UI Library | React | 19.2.3 |
-| Language | TypeScript | 5 |
-| Backend | Firebase (client SDK) | 12 |
-| Styling | Tailwind CSS | 4 |
-| Validation | Zod | 4.3.6 |
-| State (global) | Zustand | 5.0.12 |
-| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
-| AI | Genkit + Google GenAI | 1.30.1 |
-| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
-| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
-| Date Handling | date-fns | 4 |
-| HTTP Client | Axios | 1.13.6 |
-| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
-| Node Engine | Node.js | 24 |
-
-## Key Architectural Patterns
-
-### Repository Pattern
-
-- **Interface** lives in `domain/repositories/` — defines what the module needs
-- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
-- Domain layer never imports infrastructure
-
-### Use Case Pattern
-
-- Each use case is a single file under `application/use-cases/`
-- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
-- One use case = one user-facing operation
-
-### Hexagonal Ports (Advanced)
-
-Example port shapes:
-- `domain/ports/ActorContextPort.ts` — resolves who is acting
-- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
-- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
-- All access decisions flow through ports, not scattered in UI/router
-
-### Domain Events
-
-Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
-- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
-- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
-- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
-- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
-
-Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
-
-### Internal Imports Within a Module
-
-Inside a module, files use **relative imports** (not the module's own barrel export):
-
-```typescript
-// ✅ Inside modules/content/application/use-cases/wiki-beta-pages.use-case.ts
-import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
-import type { IWikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
-
-// ❌ Do NOT self-import via the barrel
-import { WikiBetaPage } from "@/modules/content";
-```
-
-### Cross-Module Imports
-
-Between modules, always use the target module's `api/` boundary:
-
-```typescript
-// ✅ Cross-module import — event-store primitives are now in modules/shared
-import { PublishDomainEventUseCase } from "@/modules/shared/api";
-
-// ❌ Reaching into another module's internals
-import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
-```
-
-## Responsibility Boundaries
-
-- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
-- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
-- When ownership shifts, update contracts and architecture docs in the same change.
-`````
-
 ## File: agents/prompts
 `````
 ../.github/prompts
@@ -23739,935 +23014,6 @@ flowchart TB
     class WorkspaceDomain,ContentDomain,KnowledgeGraphDomain,KnowledgeDomain,RetrievalDomain,EventDomain,IdentityDomain,Interfaces,Application,Domain,Infrastructure,PublicApi domain;
     class Account,WorkspaceA,WorkspaceB,WorkspaceC,CanonicalBoundary boundary;
     class Firestore,Storage,CoreData,KnowledgeData,StructuredData,AssetData,TaxonomyData data;
-`````
-
-## File: docs/guides/explanation/architecture-domain.md
-`````markdown
-# 領域概念模型：AI 知識平台架構實現指南
-
-基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
-
----
-
-## 一、四層架構與有界上下文對應
-
-architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
-
-```text
-┌─────────────────────────────────────────────────┐
-│              AI Layer（AI 層）                    │  ← modules/retrieval, modules/agent, modules/knowledge
-├─────────────────────────────────────────────────┤
-│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph
-├─────────────────────────────────────────────────┤
-│         Content / UI Layer（內容層）               │  ← modules/content, modules/asset
-├─────────────────────────────────────────────────┤
-│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
-│                                                  │     modules/account, modules/identity, modules/shared
-└─────────────────────────────────────────────────┘
-```
-
-| 架構層 | 對應模組 | 核心職責 |
-| --- | --- | --- |
-| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
-| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
-| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
-| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
-
-**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
-
-```text
-依賴方向（箭頭表示「依賴」）：
-
-AI Layer
-  ↓ 依賴
-Knowledge Graph Layer
-  ↓ 依賴
-Content / UI Layer
-  ↓ 依賴
-Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
-```
-
----
-
-## 二、Content / UI Layer 的領域概念
-
-### 2.1 Page（頁面聚合根）
-
-Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
-
-**實現位置：** `modules/content/domain/entities/content-page.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 唯一識別碼（聚合根 ID） |
-| `title` | `string` | 頁面標題（Graph Node 標籤） |
-| `slug` | `string` | URL 友好路徑（重定向的基礎） |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
-| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
-| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
-| `organizationId` | `string` | 所屬組織（多租戶） |
-
-**值物件：**
-- `PageStatus`：`"draft" | "published" | "archived"`
-- `PageSlug`：確保唯一且 URL-safe 的值物件
-
-**不變式（Invariants）：**
-- 一個 Page 必須屬於一個 Workspace。
-- `slug` 在同一 Workspace 中必須唯一。
-- 已 `archived` 的頁面不能再接受 Block 更新。
-
-### 2.2 Block（區塊聚合根）
-
-Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
-
-**實現位置：** `modules/content/domain/entities/content-block.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Block 唯一識別碼 |
-| `pageId` | `string` | 所屬頁面（外鍵） |
-| `type` | `BlockType` | Block 類型（見下方） |
-| `content` | `BlockContent` | 具體內容（依 type 變化） |
-| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
-| `order` | `number` | 在頁面中的排列順序 |
-
-**BlockType 值物件（對應 Notion Block 類型）：**
-
-```typescript
-type BlockType =
-  | "text"
-  | "heading_1" | "heading_2" | "heading_3"
-  | "toggle"
-  | "callout"
-  | "code"
-  | "quote"
-  | "divider"
-  | "table"
-  | "image" | "video" | "file"
-  | "embed"
-  | "synced_block"
-  | "column_layout"
-  | "bulleted_list" | "numbered_list"
-  | "to_do"
-  | "page_link";
-```
-
-**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
-
-### 2.3 ContentVersion（版本快照）
-
-對應 Wiki 的 Edit History / Diff / Rollback 能力。
-
-**實現位置：** `modules/content/domain/entities/content-version.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 版本 ID |
-| `pageId` | `string` | 所屬頁面 |
-| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
-| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
-| `authorId` | `string` | 作者 ID |
-| `createdAt` | `Timestamp` | 版本時間戳 |
-| `isMinorEdit` | `boolean` | 是否為小修改標記 |
-
----
-
-## 三、Knowledge Graph Layer 的領域概念
-
-### 3.1 GraphNode（知識圖節點）
-
-對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
-
-**實現位置：** `modules/knowledge-graph/domain/entities/graph-node.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
-| `label` | `string` | 顯示標籤 |
-| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
-| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
-
-**GraphNodeStatus 狀態機：**
-
-```text
-draft ──────────→ active ──────────→ archived
-  ↑                  │
-  └──────────────────┘ (reactivation)
-```
-
-**領域事件：**
-- `graph-node.activated`：節點從 draft 轉為 active 時觸發
-- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
-
-### 3.2 GraphEdge / Link（知識圖邊）
-
-對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
-
-**實現位置：** `modules/knowledge-graph/domain/entities/link.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邊唯一 ID |
-| `fromNodeId` | `string` | 來源節點（連結發起方） |
-| `toNodeId` | `string` | 目標節點（連結目標） |
-| `type` | `EdgeType` | 語意關係類型（見下方） |
-| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
-
-**EdgeType 值物件（對應 Schema + Ontology Layer）：**
-
-```typescript
-type EdgeType =
-  | "IS_A"        // 繼承關係（A 是 B 的一種）
-  | "PART_OF"     // 組成關係（A 是 B 的一部分）
-  | "RELATED_TO"  // 相關關係（通用）
-  | "DEPENDS_ON"  // 依賴關係
-  | "CAUSES"      // 因果關係
-  | "CONTRADICTS" // 矛盾關係
-  | "REDIRECT"    // 重定向（別名統一）
-  | "CATEGORY";   // 分類從屬
-```
-
-**不變式：**
-- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
-- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
-
-**Backlink 的領域含義：**  
-Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
-
-### 3.3 WikiBetaPage（Wiki 頁面整合）
-
-輕量化的 Wiki 風格頁面實體，用於 wiki-beta 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
-
-> **模組遷移說明：** `modules/wiki-beta` 獨立模組已移除。WikiBetaPage 概念已遷移至 `modules/content`（頁面層）；WikiBetaLibrary 概念遷移至 `modules/asset`（結構化資料層）；WikiBetaContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/retrieval`。
-
-**實現位置：** `modules/content/domain/entities/wiki-beta-page.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 頁面唯一識別碼 |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL 友好路徑 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `order` | `number` | 在內容樹中的排列順序 |
-| `status` | `WikiBetaPageStatus` | 頁面狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-### 3.4 WikiBetaLibrary（Wiki 知識庫聚合根）
-
-WikiBetaLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
-
-**實現位置：** `modules/asset/domain/entities/wiki-beta-library.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Library 唯一 ID（聚合根） |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `name` | `string` | Library 名稱（顯示於側邊欄） |
-| `slug` | `string` | URL 友好路徑 |
-| `status` | `WikiBetaLibraryStatus` | 狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-**相關實體：**
-- `WikiBetaLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
-- `WikiBetaLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
-
-**與其他概念的關係：**
-- 一個 Workspace 可包含多個 WikiBetaLibrary。
-- WikiBetaContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
-
-### 3.5 Slug 工具（原 Namespace 模組）
-
-> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
-
-Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
-
-**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
-
-| 函式 | 說明 |
-| --- | --- |
-| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
-| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
-
-## 四、AI Layer 的領域概念
-
-### 4.1 IngestionDocument（攝入文件聚合根）
-
-文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 文件唯一 ID |
-| `organizationId` | `string` | 所屬組織（多租戶隔離） |
-| `workspaceId` | `string` | 所屬工作區 |
-| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
-| `title` | `string` | 文件標題 |
-| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
-| `status` | `IngestionStatus` | 攝入狀態（見下方） |
-
-**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
-
-```text
-                        ┌─────────────────────────────────────┐
-                        ↓                                     │
-uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
-    │          │          │           │                         │
-    └──────────┴──────────┴───────────┴─────────────────────────┘
-                                  failed（任一階段可轉入）
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `uploaded` | 檔案已上傳，等待處理 |
-| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
-| `chunking` | 正在分塊（Chunk 階段：語意分段） |
-| `embedding` | 正在向量化（Embedding 階段） |
-| `indexed` | 已完成索引，可供查詢 |
-| `stale` | 原始文件已更新，需重新索引 |
-| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
-| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
-
----
-
-### 4.2 IngestionJob（攝入作業）
-
-追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 作業唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `stage` | `PipelineStage` | 當前執行階段 |
-| `startedAt` | `Timestamp` | 開始時間 |
-| `completedAt` | `Timestamp \| null` | 完成時間 |
-| `error` | `string \| null` | 錯誤訊息（若 failed） |
-
-**PipelineStage 值物件：**
-
-```typescript
-type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
-```
-
-### 4.3 IngestionChunk（語意分塊）
-
-代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
-
-**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Chunk 唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `content` | `string` | Chunk 文字內容 |
-| `chunkIndex` | `number` | 在文件中的順序編號 |
-| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
-| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
-| `vector` | `number[]` | 向量表示（Embedding 結果） |
-| `tokenCount` | `number` | Token 數量（分塊品質指標） |
-
-**不變式：**
-- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
-- `content` 長度不得超過所選 Embedding Model 的 token 上限。
-
-### 4.4 RagQuery（RAG 查詢聚合根）
-
-代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
-
-**實現位置：** `modules/retrieval/domain/entities/RagQuery.ts`
-
-**核心介面：**
-
-```typescript
-interface RagQuery {
-  id: string;
-  workspaceId: string;
-  input: string;               // 用戶原始輸入
-  intent?: QueryIntent;        // 分類後的查詢意圖
-  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
-  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
-}
-```
-
-**QueryIntent 值物件（對應 Query Understanding Layer）：**
-
-```typescript
-type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
-```
-
-**RagRetrievedChunk 值物件（檢索結果項目）：**
-
-```typescript
-interface RagRetrievedChunk {
-  chunkId: string;
-  documentId: string;
-  content: string;
-  score: number;           // 相關性分數（Reranker 輸出）
-  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
-}
-```
-
-**RagCitation 值物件（引用系統，對應 Source Grounding）：**
-
-```typescript
-interface RagCitation {
-  documentId: string;
-  documentTitle: string;
-  chunkId: string;
-  sectionPath: string;
-  pageNumber?: number;
-  confidenceScore: number;     // 引用可信度
-}
-```
-
-**RagRetrievalSummary 值物件（完整回答結果）：**
-
-```typescript
-interface RagRetrievalSummary {
-  answer: string;              // LLM 生成的回答
-  citations: RagCitation[];    // 引用來源列表
-  faithfulnessScore?: number;  // Faithfulness 驗證分數
-  isGrounded: boolean;         // 是否通過 Grounding 驗證
-}
-```
-
-### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
-
-對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
-
-**實現位置：**
-- `modules/agent/domain/entities/thread.ts`
-- `modules/agent/domain/entities/message.ts`
-
-**AgentThread 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 對話 Thread ID |
-| `workspaceId` | `string` | 所屬工作區 |
-| `userId` | `string` | 發起用戶 |
-| `createdAt` | `Timestamp` | 建立時間 |
-| `updatedAt` | `Timestamp` | 最後更新時間 |
-
-**AgentMessage 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 訊息唯一 ID |
-| `threadId` | `string` | 所屬 Thread |
-| `role` | `"user" \| "assistant"` | 訊息角色 |
-| `content` | `string` | 訊息內容 |
-| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
----
-
-## 五、Platform Foundation Layer 的領域概念
-
-Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
-
-### 5.1 Identity（身份識別）
-
-Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
-
-**實現位置：** `modules/identity/domain/entities/Identity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
-| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 大頭照 URL |
-| `isAnonymous` | `boolean` | 是否為匿名會話 |
-| `emailVerified` | `boolean` | 信箱是否已驗證 |
-
-**值物件：**
-- `SignInCredentials`：`{ email: string; password: string }`
-- `RegistrationInput`：`{ email: string; password: string; name: string }`
-
-**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
-
-#### TokenRefreshSignal（Custom Claims 刷新訊號）
-
-當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
-
-```text
-Party 1（account / organization 模組）
-    → 角色或政策變更
-    → 呼叫 identityApi.emitTokenRefreshSignal()
-
-Party 2（identity 模組 TokenRefreshRepository）
-    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
-
-Party 3（前端 useTokenRefreshListener hook）
-    → 監聽 Firestore 該文件
-    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
-```
-
-**TokenRefreshSignal 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `accountId` | `string` | 觸發刷新的帳戶 ID |
-| `reason` | `TokenRefreshReason` | 觸發原因 |
-| `issuedAt` | `string` | ISO-8601 時間戳 |
-| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
-
-**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
-
----
-
-### 5.2 Account（帳戶聚合根）
-
-Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
-
-**實現位置：** `modules/account/domain/entities/Account.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
-| `name` | `string` | 帳戶顯示名稱 |
-| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
-| `email` | `string \| undefined` | 聯絡信箱 |
-| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
-| `bio` | `string \| undefined` | 個人簡介或組織描述 |
-| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
-| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
-| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
-| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
-| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
-| `createdAt` | `Timestamp \| undefined` | 建立時間 |
-
-**值物件：**
-- `AccountType`：`"user" | "organization"`
-- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
-- `Presence`：`"active" | "away" | "offline"`
-- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
-- `Wallet`：`{ balance: number }`（積分系統）
-
-**Team 嵌套物件（組織帳戶專屬）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 小組 ID |
-| `name` | `string` | 小組名稱 |
-| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
-| `memberIds` | `string[]` | 成員 ID 列表 |
-
-**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
-
-#### AccountPolicy（帳戶層 ABAC 政策）
-
-Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
-
-**AccountPolicy 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 政策唯一 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `name` | `string` | 政策名稱 |
-| `rules` | `PolicyRule[]` | 規則列表 |
-| `isActive` | `boolean` | 是否啟用 |
-| `createdAt` | `string` | ISO-8601 建立時間 |
-| `traceId` | `string \| undefined` | 審計追蹤 ID |
-
-**PolicyRule 值物件：**
-
-```typescript
-interface PolicyRule {
-  resource: string;                      // 受保護資源路徑
-  actions: string[];                     // 允許或拒絕的操作列表
-  effect: "allow" | "deny";             // 政策效果
-  conditions?: Record<string, string>;   // 條件約束（可選）
-}
-```
-
-政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
-
----
-
-### 5.3 Organization（組織聚合根）
-
-Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
-
-**實現位置：** `modules/organization/domain/entities/Organization.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 組織唯一 ID（聚合根） |
-| `name` | `string` | 組織名稱 |
-| `ownerId` | `string` | 擁有者 UID |
-| `email` | `string \| undefined` | 組織聯絡信箱 |
-| `description` | `string \| undefined` | 組織描述 |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
-| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
-| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
-| `teams` | `Team[]` | 小組列表 |
-| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**PartnerInvite 值物件（合作夥伴邀請）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邀請唯一 ID |
-| `email` | `string` | 被邀請方信箱 |
-| `teamId` | `string` | 加入的小組 |
-| `role` | `OrganizationRole` | 授予角色 |
-| `inviteState` | `InviteState` | 邀請狀態 |
-| `invitedAt` | `Timestamp` | 邀請時間 |
-| `protocol` | `string` | 協議說明（外部協作規範） |
-
-**InviteState 值物件：** `"pending" | "accepted" | "expired"`
-
-#### OrgPolicy（組織層 ABAC 政策）
-
-與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
-
-**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
-
-**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
-
----
-
-### 5.4 Workspace（工作區聚合根）
-
-Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
-
-**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 工作區唯一 ID（聚合根） |
-| `name` | `string` | 工作區名稱 |
-| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
-| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
-| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
-| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
-| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
-| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
-| `teamIds` | `string[]` | 關聯的組織小組 |
-| `address` | `Address \| undefined` | 實體地址（選填） |
-| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
-| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**WorkspaceLifecycleState 狀態機：**
-
-```text
-preparatory ──────────→ active ──────────→ stopped
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `preparatory` | 工作區準備中，正在初始化能力與設定 |
-| `active` | 工作區正常運作，可使用全部能力 |
-| `stopped` | 工作區已停用，保留資料但不可新增內容 |
-
-**Capability 值物件（能力模組）：**
-
-工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
-
-```typescript
-interface Capability {
-  id: string;
-  name: string;
-  type: "ui" | "api" | "data" | "governance" | "monitoring";
-  status: "stable" | "beta";
-  description: string;
-  config?: object;  // 各能力的自訂設定
-}
-```
-
-**WorkspaceGrant 值物件（存取授權）：**
-
-```typescript
-interface WorkspaceGrant {
-  userId?: string;   // 個人授權
-  teamId?: string;   // 小組授權
-  role: string;      // 授予的角色
-  protocol?: string; // 授權協議（外部合作適用）
-}
-```
-
-**不變式：**
-- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
-- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
-- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
-
-**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
-
-#### WorkspaceMemberView（工作區成員讀取模型）
-
-WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
-
-**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 成員 ID |
-| `displayName` | `string` | 顯示名稱 |
-| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
-| `isExternal` | `boolean` | 是否為外部合作成員 |
-| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
-
-**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
-
-#### WikiBetaContentTree（側邊欄導覽樹聚合根）
-
-WikiBetaContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
-
-**實現位置：** `modules/workspace/domain/entities/WikiBetaContentTree.ts`
-
-**樹狀結構：**
-
-```text
-WikiBetaAccountContentNode（帳戶節點）
-  ├── accountId, accountName, accountType（personal | organization）
-  ├── membersHref（組織帳戶限定）
-  ├── teamsHref（組織帳戶限定）
-  └── workspaces[]
-        └── WikiBetaWorkspaceContentNode（工作區節點）
-              ├── workspaceId, workspaceName
-              └── contentBaseItems[]
-                    └── WikiBetaContentItemNode（內容入口）
-                          ├── key（spaces | pages | libraries | rag | ai-tools …）
-                          ├── label, href
-                          └── enabled（是否啟用）
-```
-
-**不變式：**
-- Personal 帳戶節點排列在 Organization 帳戶節點之前。
-- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
-
----
-
-### 5.5 Platform Foundation 跨模組關係
-
-```text
-Identity ──→ Account ──→ Organization ──→ Workspace
-  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
-  │             │               │               │
-  │         AccountPolicy   OrgPolicy       Capability
-  │             │               │
-  └─────────────┴───────────────┘
-         [S6] Claims Refresh Protocol
-         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
-```
-
-| 關係 | 說明 |
-| --- | --- |
-| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
-| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
-| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
-| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
-| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
-
-## 六、三層記憶架構的領域映射
-
-架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
-
-| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
-| --- | --- | --- | --- |
-| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
-| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
-| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
-
----
-
-## 七、Ingestion Pipeline 的領域事件
-
-完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
-
-| 領域事件 | 觸發時機 | 訂閱方 |
-| --- | --- | --- |
-| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
-| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
-| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
-| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
-| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
-| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
-
-**事件 DTO 結構慣例：**
-
-```typescript
-interface DomainEventDTO {
-  type: "knowledge.document_registered";  // 格式：module.event_name
-  payload: { documentId: string; workspaceId: string; };
-  occurredAtISO: string;                  // ISO 8601 時間戳
-}
-```
-
----
-
-## 八、Query Understanding Layer 的領域服務
-
-Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
-
-**建議的領域服務介面（位於 `modules/retrieval/domain/services/`）：**
-
-```typescript
-interface QueryPlannerService {
-  classifyIntent(query: string): Promise<QueryIntent>;
-  decomposeQuery(query: string): Promise<string[]>;
-  rewriteForRetrieval(query: string): Promise<string>;
-  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
-}
-```
-
-**對應的 Genkit Flow（`modules/agent/infrastructure/genkit/` 或 `modules/retrieval/infrastructure/genkit/`）：**
-- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
-- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
-- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
-
----
-
-## 九、Schema + Ontology Layer 的領域概念
-
-架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
-
-### Ontology 在 EdgeType 中的實現
-
-GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
-
-```text
-IS_A        → 類別繼承（OWL SubClassOf）
-PART_OF     → 組成關係（Mereology）
-RELATED_TO  → 通用相關（RDF関係）
-DEPENDS_ON  → 工程依賴
-CAUSES      → 因果推理
-CONTRADICTS → 知識矛盾偵測
-```
-
-### 未來擴充：Entity Normalization（實體正規化）
-
-為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
-1. `WikiBetaPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
-2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
-3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
-
----
-
-## 十、Hybrid Retrieval 的技術邊界說明
-
-architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
-
-| 元件 | 層級 | 位置 |
-| --- | --- | --- |
-| Dense Retrieval（Vector Search） | Infrastructure | `modules/retrieval/infrastructure/firebase/` |
-| Sparse Retrieval（BM25） | Infrastructure | `modules/retrieval/infrastructure/` |
-| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/knowledge-graph/infrastructure/` |
-| Reranker | Infrastructure / AI | `modules/retrieval/infrastructure/genkit/` |
-| Fusion & Ranking | Application | `modules/retrieval/application/use-cases/answer-rag-query.use-case.ts` |
-
-領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
-
----
-
-## 十一、完整領域概念清單
-
-| 領域概念 | 類型 | 模組 | 狀態 |
-| --- | --- | --- | --- |
-| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
-| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
-| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
-| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
-| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
-| `Account` | 聚合根 | `account` | ✅ 已實現 |
-| `AccountType` | 值物件 | `account` | ✅ 已實現 |
-| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
-| `Presence` | 值物件 | `account` | ✅ 已實現 |
-| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
-| `Wallet` | 值物件 | `account` | ✅ 已實現 |
-| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
-| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
-| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
-| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
-| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
-| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
-| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
-| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
-| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
-| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
-| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
-| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
-| `WikiBetaContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
-| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
-| `BlockType` | 值物件 | `content` | ✅ 已實現 |
-| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
-| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
-| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
-| `WikiBetaPage` | 投影實體 | `content` | ✅ 已實現 |
-| `WikiBetaLibrary` | 聚合根 | `asset` | ✅ 已實現 |
-| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
-| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
-| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
-| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
-| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
-| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
-| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
-| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
-| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
-| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
-| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
-
----
-
-> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 `````
 
 ## File: docs/guides/explanation/architecture.md
@@ -37404,13 +35750,13 @@ export type {
 	IngestionStatus,
 } from "../domain/entities/IngestionJob";
 
-export type { Link, LinkType } from "../../knowledge-graph/domain/entities/link";
-export type { GraphNode, GraphNodeType } from "../../knowledge-graph/domain/entities/graph-node";
-export type { GraphRepository } from "../../knowledge-graph/domain/repositories/GraphRepository";
-export { InMemoryGraphRepository } from "../../knowledge-graph/infrastructure/InMemoryGraphRepository";
-export { LinkExtractorService } from "../../knowledge-graph/application/link-extractor.service";
-export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api/knowledge-graph-api";
-export type { GraphDataDTO } from "../../knowledge-graph/api/knowledge-graph-api";
+export type { Link, LinkType } from "../../knowledge-graph/api";
+export type { GraphNode, GraphNodeType } from "../../knowledge-graph/api";
+export type { GraphRepository } from "../../knowledge-graph/api";
+export { InMemoryGraphRepository } from "../../knowledge-graph/api";
+export { LinkExtractorService } from "../../knowledge-graph/api";
+export { KnowledgeGraphApi as KnowledgeApi } from "../../knowledge-graph/api";
+export type { GraphDataDTO } from "../../knowledge-graph/api";
 `````
 
 ## File: modules/knowledge/api/knowledge-api.ts
@@ -71494,6 +69840,757 @@ export default {
 }
 `````
 
+## File: .github/agents/ai-genkit-lead.agent.md
+`````markdown
+---
+name: AI Genkit Lead
+description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+  - label: Refine Genkit Flow
+    agent: Genkit Flow Agent
+    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
+  - label: Review RAG Boundary
+    agent: RAG Lead
+    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
+
+---
+
+# AI Genkit Lead
+
+## Target Scope
+
+- `modules/agent/**`
+- `app/**`
+- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
+
+## Focus
+
+- Genkit flow ownership and app-side orchestration
+- Contract-safe integration with ingestion and retrieval layers
+
+## Guardrails
+
+- Keep auth and chat orchestration in Next.js.
+- Keep parsing, chunking, embedding in py_fn workers.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
+`````
+
+## File: .github/agents/genkit-flow.agent.md
+`````markdown
+---
+name: Genkit Flow Agent
+description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+  - label: Review AI Ownership
+    agent: AI Genkit Lead
+    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
+
+---
+
+# Genkit Flow Agent
+
+## Target Scope
+
+- `modules/agent/**`
+- `app/**`
+- `modules/retrieval/**`
+
+## Focus
+
+- Flow inputs and outputs
+- Prompt and tool orchestration boundaries
+- Error handling and fallback behavior
+
+## Guardrails
+
+- Keep flow contracts explicit.
+- Avoid leaking worker-only logic into app orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
+`````
+
+## File: .github/instructions/genkit-flow.instructions.md
+`````markdown
+---
+description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
+applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
+---
+
+# Genkit Flow
+
+## Rules
+
+- Keep flow inputs/outputs explicit and typed.
+- Keep user-facing orchestration in Next.js.
+- Delegate heavy ingestion/embedding to worker-side pipelines.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
+`````
+
+## File: .github/rules/api-contracts.md
+`````markdown
+---
+title: API Contracts via @api-contracts
+impact: HIGH
+impactDescription: Centralizes API route definitions and prevents fragmentation
+tags: api, contracts, routes, rest
+---
+
+## API Contracts via @api-contracts
+
+**Impact: HIGH**
+
+REST API routes and GraphQL schemas are defined in the `@api-contracts` package (`packages/api-contracts`). This keeps API surface definitions centralized and version-controlled.
+
+**Incorrect (ad-hoc route definitions scattered across modules):**
+
+```typescript
+// modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
+const TASK_API = "/api/v1/tasks";    // ❌ Route defined locally, not tracked centrally
+```
+
+**Correct (routes from @api-contracts):**
+
+```typescript
+import { API_ROUTES } from "@api-contracts";
+
+// Use centralized route definitions
+const url = API_ROUTES.tasks.list;   // ✅ Single source of truth
+```
+
+**Guidelines:**
+- All REST route paths are registered in `@api-contracts`
+- Controllers in `interfaces/api/` implement the routes but don't define them
+- Type contracts (request/response shapes) should be co-located with route definitions
+- Version API routes explicitly when breaking changes are unavoidable
+`````
+
+## File: .github/rules/architecture-dependency-direction.md
+`````markdown
+---
+title: Layer Dependency Direction
+impact: CRITICAL
+impactDescription: Prevents architecture erosion and dependency cycles
+tags: architecture, mddd, dependencies, clean-architecture
+---
+
+## Layer Dependency Direction
+
+**Impact: CRITICAL**
+
+Within every module, dependencies flow inward toward the domain layer. The domain layer has **zero outward dependencies** — it knows nothing about Firebase, React, or any framework.
+
+```
+interfaces/ ──→ application/ ──→ domain/ ←── infrastructure/
+   (UI)          (use cases)    (entities)    (adapters)
+```
+
+**Incorrect (domain importing infrastructure):**
+
+```typescript
+// modules/workspace-flow/domain/entities/Task.ts
+import { collection, getDocs } from "firebase/firestore";  // ❌ Domain knows about Firebase
+import { db } from "@integration-firebase";                 // ❌ Domain imports infrastructure
+
+export class Task {
+  static async loadAll() {
+    const snap = await getDocs(collection(db, "tasks"));
+    return snap.docs.map(d => new Task(d.data()));
+  }
+}
+```
+
+**Correct (domain defines interface, infrastructure implements):**
+
+```typescript
+// modules/workspace-flow/domain/repositories/TaskRepository.ts
+export interface TaskRepository {
+  findAll(): Promise<Task[]>;        // ✅ Pure interface, no framework dependency
+  findById(id: string): Promise<Task | null>;
+}
+
+// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@integration-firebase";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+
+export class TaskFirebaseRepository implements TaskRepository {
+  async findAll(): Promise<Task[]> {  // ✅ Infrastructure implements the contract
+    const snap = await getDocs(collection(db, "tasks"));
+    return snap.docs.map(d => new Task(d.data()));
+  }
+}
+```
+`````
+
+## File: .github/rules/data-dto-boundaries.md
+`````markdown
+---
+title: DTO Boundaries
+impact: HIGH
+impactDescription: Prevents leaking persistence or framework details across layers
+tags: data, dto, boundaries, layers
+---
+
+## DTO Boundaries
+
+**Impact: HIGH**
+
+Data Transfer Objects (DTOs) mark the boundary between layers. Domain entities are internal to the module; when data crosses a layer boundary (domain → application, application → interfaces), use a DTO to decouple internal representation from external contracts.
+
+**Incorrect (exposing Firestore document shape to UI):**
+
+```typescript
+// modules/workspace-flow/interfaces/components/TaskList.tsx
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@integration-firebase";
+
+export function TaskList() {
+  const [tasks, setTasks] = useState<DocumentData[]>([]);  // ❌ Raw Firestore data in component
+  useEffect(() => {
+    getDocs(collection(db, "tasks")).then(snap => {
+      setTasks(snap.docs.map(d => d.data()));               // ❌ No type safety
+    });
+  }, []);
+}
+```
+
+**Correct (use case returns typed DTO):**
+
+```typescript
+// modules/workspace-flow/application/use-cases/list-tasks.use-case.ts
+export interface TaskListItemDTO {
+  id: string;
+  title: string;
+  status: "open" | "closed";
+  assigneeId: string | null;
+}
+
+export async function listWorkspaceTasks(workspaceId: string): Promise<TaskListItemDTO[]> {
+  const tasks = await taskRepo.findByWorkspace(workspaceId);
+  return tasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    assigneeId: t.assigneeId,
+  }));
+}
+
+// modules/workspace-flow/interfaces/components/TaskList.tsx
+import { listWorkspaceTasks, type TaskListItemDTO } from "../../application/use-cases/list-tasks.use-case";
+// Component receives typed data, doesn't know about Firestore
+```
+`````
+
+## File: .github/rules/data-repository-pattern.md
+`````markdown
+---
+title: Repository Pattern — Interface in Domain, Implementation in Infrastructure
+impact: CRITICAL
+impactDescription: Prevents domain contamination and enables technology swap
+tags: data, repository, domain, infrastructure, firebase
+---
+
+## Repository Pattern
+
+**Impact: CRITICAL**
+
+Repository **interfaces** live in `domain/repositories/`. Repository **implementations** live in `infrastructure/`. The domain layer never knows how data is persisted — only that it can be.
+
+**Incorrect (domain knows about Firebase):**
+
+```typescript
+// modules/workspace-flow/domain/entities/Task.ts
+import { collection, addDoc } from "firebase/firestore";   // ❌ Domain imports Firebase
+import { db } from "@integration-firebase";
+
+export class Task {
+  async save() {
+    await addDoc(collection(db, "tasks"), this.toJSON());   // ❌ Persistence in entity
+  }
+}
+```
+
+**Correct (interface + implementation split):**
+
+```typescript
+// modules/workspace-flow/domain/repositories/TaskRepository.ts
+import type { Task } from "../entities/Task";
+
+export interface TaskRepository {                           // ✅ Pure interface
+  findById(id: string): Promise<Task | null>;
+  findByWorkspace(workspaceId: string): Promise<Task[]>;
+  save(task: Task): Promise<void>;
+}
+
+// modules/workspace-flow/infrastructure/firebase/TaskFirebaseRepository.ts
+import { collection, doc, getDoc, getDocs, setDoc, query, where } from "firebase/firestore";
+import { db } from "@integration-firebase";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { Task } from "../../domain/entities/Task";
+
+export class TaskFirebaseRepository implements TaskRepository {
+  async findById(id: string): Promise<Task | null> {        // ✅ Implementation
+    const snap = await getDoc(doc(db, "tasks", id));
+    return snap.exists() ? Task.fromFirestore(snap.data()) : null;
+  }
+
+  async findByWorkspace(workspaceId: string): Promise<Task[]> {
+    const q = query(collection(db, "tasks"), where("workspaceId", "==", workspaceId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => Task.fromFirestore(d.data()));
+  }
+
+  async save(task: Task): Promise<void> {
+    await setDoc(doc(db, "tasks", task.id), task.toJSON());
+  }
+}
+```
+`````
+
+## File: .github/rules/patterns-use-case.md
+`````markdown
+---
+title: One Use Case Per File
+impact: MEDIUM
+impactDescription: Ensures single responsibility and discoverability
+tags: patterns, use-case, single-responsibility
+---
+
+## One Use Case Per File
+
+**Impact: MEDIUM**
+
+Each use case lives in its own file under `application/use-cases/`. A use case represents a single user-facing operation. Name the file with a `verb-noun` pattern.
+
+**Incorrect (multiple use cases in one file):**
+
+```typescript
+// modules/workspace-flow/application/use-cases/task.use-cases.ts
+export async function createTask(input: CreateTaskInput) { ... }
+export async function updateTask(id: string, input: UpdateTaskInput) { ... }
+export async function deleteTask(id: string) { ... }
+export async function listTasks(workspaceId: string) { ... }
+```
+
+**Correct (one file per use case):**
+
+```
+modules/workspace-flow/application/use-cases/
+├── create-task.use-case.ts
+├── update-task.use-case.ts
+├── archive-task.use-case.ts
+└── assign-task.use-case.ts
+```
+
+```typescript
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
+import type { CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { Task } from "../../domain/entities/Task";
+
+export async function createTask(
+  input: CreateTaskInput,
+  deps: { taskRepo: TaskRepository },
+): Promise<CommandResult<Task>> {
+  // Single operation — create a task
+  const task = Task.create(input);
+  await deps.taskRepo.save(task);
+  return { success: true, data: task };
+}
+```
+
+**Note:** Some existing modules use a single `*.use-cases.ts` file with multiple exports. This is acceptable for simple CRUD modules but should be split as complexity grows.
+`````
+
+## File: .github/rules/quality-error-handling.md
+`````markdown
+---
+title: Error Handling with CommandResult and DomainError
+impact: HIGH
+impactDescription: Ensures consistent, type-safe error handling across the codebase
+tags: quality, error-handling, domain-error, command-result
+---
+
+## Error Handling with CommandResult and DomainError
+
+**Impact: HIGH**
+
+Use `CommandResult` for use-case return types and `DomainError` for domain-level errors. Both are defined in `@shared-types`. Avoid throwing raw exceptions from use cases — use typed result objects instead.
+
+**Incorrect (throwing raw errors):**
+
+```typescript
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
+export async function createTask(input: CreateTaskInput) {
+  if (!input.title) throw new Error("Title is required");       // ❌ Raw throw
+  if (!input.workspaceId) throw new Error("Workspace required"); // ❌ Untyped error
+  // ...
+}
+```
+
+**Correct (typed result objects):**
+
+```typescript
+import type { CommandResult } from "@shared-types";
+import { DomainError } from "@shared-types";
+
+// modules/workspace-flow/application/use-cases/create-task.use-case.ts
+export async function createTask(input: CreateTaskInput): Promise<CommandResult<Task>> {
+  if (!input.title) {
+    return { success: false, error: new DomainError("missing-title", "Title is required") };
+  }
+
+  const task = new Task(input);
+  await taskRepo.save(task);
+  return { success: true, data: task };
+}
+```
+
+**At the interfaces layer, handle the result:**
+
+```typescript
+// modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
+export async function createTaskAction(input: CreateTaskInput) {
+  const result = await createTask(input);
+  if (!result.success) {
+    // Convert DomainError to user-facing message
+    return { error: result.error.message };
+  }
+  return { data: result.data };
+}
+```
+`````
+
+## File: .github/rules/quality-pr-creation.md
+`````markdown
+---
+title: Pull Request Best Practices
+impact: MEDIUM
+impactDescription: Ensures clean, reviewable, and complete pull requests
+tags: quality, pr, git, review
+---
+
+## Pull Request Best Practices
+
+**Impact: MEDIUM**
+
+Every pull request must be complete, focused, and reviewable. No "follow-up PRs" for unfinished work — if it's in scope, finish it in the current PR.
+
+**Guidelines:**
+
+1. **Single responsibility** — One PR addresses one concern (feature, bug fix, refactor)
+2. **Complete work** — Don't leave TODOs or broken tests for follow-up PRs
+3. **Clear description** — Explain what changed, why, and how to verify
+4. **Small diffs** — Prefer multiple small PRs over one massive PR
+5. **Module-scoped** — Changes should ideally be contained within one module; cross-module changes need extra review attention
+
+**PR description template:**
+
+```markdown
+## What
+Brief description of the change.
+
+## Why
+Business context or technical motivation.
+
+## How to Verify
+Steps to test the change locally.
+
+## Module(s) Affected
+- modules/workspace-flow
+- packages/shared-types
+```
+`````
+
+## File: agents/knowledge-base.md
+`````markdown
+# Knowledge Base — MDDD Domain & Architecture
+
+This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`rules/`](rules/).
+
+## Module-Driven Domain Design (MDDD)
+
+The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
+
+### Core Principle
+
+> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+
+### Global Dependency Direction
+
+```
+UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
+```
+
+The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
+
+## Module Structure
+
+Each module under `modules/` follows a four-layer Clean Architecture:
+
+```
+modules/<module-name>/
+├── api/
+│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
+├── index.ts                    # Optional local barrel for same-module composition
+├── README.md                   # Module documentation (optional)
+├── domain/
+│   ├── entities/               # Aggregate roots, value objects, entity types
+│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
+│   ├── services/               # Pure domain services (stateless business rules)
+│   ├── value-objects/          # DDD value objects (immutable, equality by value)
+│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
+├── application/
+│   ├── use-cases/              # One file per use case (single operation)
+│   └── dto/                    # Data Transfer Objects for use-case I/O
+├── infrastructure/
+│   ├── firebase/               # Firebase Firestore repository implementations
+│   ├── genkit/                 # AI/Genkit integrations (AI module)
+│   ├── default/                # In-memory or simplified implementations
+│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
+│   ├── persistence/            # Persistence adapters
+│   └── repositories/           # Repository implementations (alternative layout)
+└── interfaces/
+    ├── components/             # React UI components
+    ├── queries/                # TanStack Query hooks (read-side)
+    ├── _actions/               # Next.js Server Actions (write-side)
+    ├── hooks/                  # Custom React hooks
+    ├── api/                    # REST API route controllers
+    ├── contracts/              # API contracts
+    └── view-models/            # View model transformations
+```
+
+Not every module has every subdirectory — only what it needs.
+
+### Boundary Policy
+
+- Every `modules/<module-name>/` is isolated.
+- Cross-module imports are allowed only via `modules/<target-module>/api/`.
+- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
+- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+
+## Module Inventory
+
+Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+
+`account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+
+> **Removed modules:** `wiki-beta` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
+
+## Package System (21 Packages)
+
+Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
+
+### Import Rule
+
+```typescript
+// ✅ CORRECT — via @alias from tsconfig.json
+import type { CommandResult, DomainError } from "@shared-types";
+import { cn, formatDate } from "@shared-utils";
+import { auth } from "@integration-firebase";
+
+// ❌ NEVER — relative paths to package internals
+import type { CommandResult } from "../../../../packages/shared-types/index";
+
+// ❌ NEVER — legacy paths (ESLint will block)
+import type { CommandResult } from "@/shared/types";
+```
+
+### Package Catalog
+
+| Alias | Package | Purpose |
+|-------|---------|---------|
+| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
+| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
+| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
+| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
+| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
+| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
+| `@integration-http` | integration-http | Axios HTTP client with interceptors |
+| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
+| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
+| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
+| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
+| `@lib-zod` | lib-zod | Zod v4 wrapper |
+| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
+| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
+| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
+| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
+| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
+| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
+| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
+| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
+
+### ESLint Boundary Enforcement
+
+Legacy import paths are blocked by `eslint.config.mjs`:
+
+| Blocked Pattern | Replacement |
+|----------------|-------------|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` or `@integration-*` |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+`modules/` 內也有額外邊界保護：
+
+- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
+- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
+- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
+
+### 已知邊界警告（待修復）
+
+以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，117 warnings 基準）：
+
+**`no-restricted-imports`（模組 root barrel 而非 `/api`）**
+
+| 違規檔案 | 違規 import |
+|---------|------------|
+| `app/(public)/page.tsx` | `@/modules/identity`、`@/modules/account` |
+| `app/(shell)/_components/*.tsx` | `@/modules/organization`、`@/modules/identity` |
+| `app/(shell)/organization/*.tsx` | `@/modules/workspace`、`@/modules/workspace-audit`、`@/modules/workspace-feed`、`@/modules/workspace-scheduling`、`@/modules/organization` |
+| `app/(shell)/workspace/*.tsx` | `@/modules/workspace` |
+| `modules/workspace/interfaces/components/*.tsx` | `@/modules/workspace`（self）、`@/modules/workspace-feed` |
+| `modules/workspace-scheduling/interfaces/*.tsx` | `@/modules/workspace` |
+
+**`boundaries/dependencies`（application → infrastructure 跨層）**
+
+| 違規檔案 | 說明 |
+|---------|------|
+| `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` | application 直接引用 infrastructure |
+| `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` | application 直接引用 infrastructure |
+| `modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts` | application 直接引用 infrastructure |
+| `modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts` | application 直接引用 infrastructure |
+
+> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
+
+## Tech Stack
+
+| Concern | Technology | Version |
+|---------|-----------|---------|
+| Framework | Next.js (App Router) | 16.1.7 |
+| UI Library | React | 19.2.3 |
+| Language | TypeScript | 5 |
+| Backend | Firebase (client SDK) | 12 |
+| Styling | Tailwind CSS | 4 |
+| Validation | Zod | 4.3.6 |
+| State (global) | Zustand | 5.0.12 |
+| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
+| AI | Genkit + Google GenAI | 1.30.1 |
+| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
+| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
+| Date Handling | date-fns | 4 |
+| HTTP Client | Axios | 1.13.6 |
+| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
+| Node Engine | Node.js | 24 |
+
+## Key Architectural Patterns
+
+### Repository Pattern
+
+- **Interface** lives in `domain/repositories/` — defines what the module needs
+- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
+- Domain layer never imports infrastructure
+
+### Use Case Pattern
+
+- Each use case is a single file under `application/use-cases/`
+- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
+- One use case = one user-facing operation
+
+### Hexagonal Ports (Advanced)
+
+Example port shapes:
+- `domain/ports/ActorContextPort.ts` — resolves who is acting
+- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
+- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
+- All access decisions flow through ports, not scattered in UI/router
+
+### Domain Events
+
+Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
+- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
+- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
+- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
+- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
+
+Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
+
+### Internal Imports Within a Module
+
+Inside a module, files use **relative imports** (not the module's own barrel export):
+
+```typescript
+// ✅ Inside modules/content/application/use-cases/wiki-beta-pages.use-case.ts
+import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
+import type { IWikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+
+// ❌ Do NOT self-import via the barrel
+import { WikiBetaPage } from "@/modules/content";
+```
+
+### Cross-Module Imports
+
+Between modules, always use the target module's `api/` boundary:
+
+```typescript
+// ✅ Cross-module import — event-store primitives are now in modules/shared
+import { PublishDomainEventUseCase } from "@/modules/shared/api";
+
+// ❌ Reaching into another module's internals
+import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
+```
+
+## Responsibility Boundaries
+
+- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
+- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
+- When ownership shifts, update contracts and architecture docs in the same change.
+`````
+
 ## File: docs/architecture/domain-implementation-target.md
 `````markdown
 # Domain Implementation Target
@@ -72594,4 +71691,933 @@ Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account ro
 | S6 | 管理員可管理組織成員與角色 |
 | S7 | Console 無初始化錯誤 |
 | S8 | `npm run lint` 0 errors；`npm run build` 成功 |
+`````
+
+## File: docs/guides/explanation/architecture-domain.md
+`````markdown
+# 領域概念模型：AI 知識平台架構實現指南
+
+基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
+
+---
+
+## 一、四層架構與有界上下文對應
+
+architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
+
+```text
+┌─────────────────────────────────────────────────┐
+│              AI Layer（AI 層）                    │  ← modules/retrieval, modules/agent, modules/knowledge
+├─────────────────────────────────────────────────┤
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/knowledge-graph
+├─────────────────────────────────────────────────┤
+│         Content / UI Layer（內容層）               │  ← modules/content, modules/asset
+├─────────────────────────────────────────────────┤
+│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
+│                                                  │     modules/account, modules/identity, modules/shared
+└─────────────────────────────────────────────────┘
+```
+
+| 架構層 | 對應模組 | 核心職責 |
+| --- | --- | --- |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
+| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
+| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
+| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
+
+**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
+
+```text
+依賴方向（箭頭表示「依賴」）：
+
+AI Layer
+  ↓ 依賴
+Knowledge Graph Layer
+  ↓ 依賴
+Content / UI Layer
+  ↓ 依賴
+Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
+```
+
+---
+
+## 二、Content / UI Layer 的領域概念
+
+### 2.1 Page（頁面聚合根）
+
+Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
+
+**實現位置：** `modules/content/domain/entities/content-page.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 唯一識別碼（聚合根 ID） |
+| `title` | `string` | 頁面標題（Graph Node 標籤） |
+| `slug` | `string` | URL 友好路徑（重定向的基礎） |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
+| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
+| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
+| `organizationId` | `string` | 所屬組織（多租戶） |
+
+**值物件：**
+- `PageStatus`：`"draft" | "published" | "archived"`
+- `PageSlug`：確保唯一且 URL-safe 的值物件
+
+**不變式（Invariants）：**
+- 一個 Page 必須屬於一個 Workspace。
+- `slug` 在同一 Workspace 中必須唯一。
+- 已 `archived` 的頁面不能再接受 Block 更新。
+
+### 2.2 Block（區塊聚合根）
+
+Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
+
+**實現位置：** `modules/content/domain/entities/content-block.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Block 唯一識別碼 |
+| `pageId` | `string` | 所屬頁面（外鍵） |
+| `type` | `BlockType` | Block 類型（見下方） |
+| `content` | `BlockContent` | 具體內容（依 type 變化） |
+| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
+| `order` | `number` | 在頁面中的排列順序 |
+
+**BlockType 值物件（對應 Notion Block 類型）：**
+
+```typescript
+type BlockType =
+  | "text"
+  | "heading_1" | "heading_2" | "heading_3"
+  | "toggle"
+  | "callout"
+  | "code"
+  | "quote"
+  | "divider"
+  | "table"
+  | "image" | "video" | "file"
+  | "embed"
+  | "synced_block"
+  | "column_layout"
+  | "bulleted_list" | "numbered_list"
+  | "to_do"
+  | "page_link";
+```
+
+**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
+
+### 2.3 ContentVersion（版本快照）
+
+對應 Wiki 的 Edit History / Diff / Rollback 能力。
+
+**實現位置：** `modules/content/domain/entities/content-version.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 版本 ID |
+| `pageId` | `string` | 所屬頁面 |
+| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
+| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
+| `authorId` | `string` | 作者 ID |
+| `createdAt` | `Timestamp` | 版本時間戳 |
+| `isMinorEdit` | `boolean` | 是否為小修改標記 |
+
+---
+
+## 三、Knowledge Graph Layer 的領域概念
+
+### 3.1 GraphNode（知識圖節點）
+
+對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
+
+**實現位置：** `modules/knowledge-graph/domain/entities/graph-node.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
+| `label` | `string` | 顯示標籤 |
+| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
+| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
+
+**GraphNodeStatus 狀態機：**
+
+```text
+draft ──────────→ active ──────────→ archived
+  ↑                  │
+  └──────────────────┘ (reactivation)
+```
+
+**領域事件：**
+- `graph-node.activated`：節點從 draft 轉為 active 時觸發
+- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
+
+### 3.2 GraphEdge / Link（知識圖邊）
+
+對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
+
+**實現位置：** `modules/knowledge-graph/domain/entities/link.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邊唯一 ID |
+| `fromNodeId` | `string` | 來源節點（連結發起方） |
+| `toNodeId` | `string` | 目標節點（連結目標） |
+| `type` | `EdgeType` | 語意關係類型（見下方） |
+| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
+
+**EdgeType 值物件（對應 Schema + Ontology Layer）：**
+
+```typescript
+type EdgeType =
+  | "IS_A"        // 繼承關係（A 是 B 的一種）
+  | "PART_OF"     // 組成關係（A 是 B 的一部分）
+  | "RELATED_TO"  // 相關關係（通用）
+  | "DEPENDS_ON"  // 依賴關係
+  | "CAUSES"      // 因果關係
+  | "CONTRADICTS" // 矛盾關係
+  | "REDIRECT"    // 重定向（別名統一）
+  | "CATEGORY";   // 分類從屬
+```
+
+**不變式：**
+- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
+- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
+
+**Backlink 的領域含義：**  
+Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
+
+### 3.3 WikiBetaPage（Wiki 頁面整合）
+
+輕量化的 Wiki 風格頁面實體，用於 wiki-beta 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
+
+> **模組遷移說明：** `modules/wiki-beta` 獨立模組已移除。WikiBetaPage 概念已遷移至 `modules/content`（頁面層）；WikiBetaLibrary 概念遷移至 `modules/asset`（結構化資料層）；WikiBetaContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/retrieval`。
+
+**實現位置：** `modules/content/domain/entities/wiki-beta-page.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 頁面唯一識別碼 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL 友好路徑 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `order` | `number` | 在內容樹中的排列順序 |
+| `status` | `WikiBetaPageStatus` | 頁面狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+### 3.4 WikiBetaLibrary（Wiki 知識庫聚合根）
+
+WikiBetaLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
+
+**實現位置：** `modules/asset/domain/entities/wiki-beta-library.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Library 唯一 ID（聚合根） |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `name` | `string` | Library 名稱（顯示於側邊欄） |
+| `slug` | `string` | URL 友好路徑 |
+| `status` | `WikiBetaLibraryStatus` | 狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+**相關實體：**
+- `WikiBetaLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
+- `WikiBetaLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
+
+**與其他概念的關係：**
+- 一個 Workspace 可包含多個 WikiBetaLibrary。
+- WikiBetaContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
+
+### 3.5 Slug 工具（原 Namespace 模組）
+
+> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
+
+Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
+
+**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
+
+| 函式 | 說明 |
+| --- | --- |
+| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
+| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
+
+## 四、AI Layer 的領域概念
+
+### 4.1 IngestionDocument（攝入文件聚合根）
+
+文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 文件唯一 ID |
+| `organizationId` | `string` | 所屬組織（多租戶隔離） |
+| `workspaceId` | `string` | 所屬工作區 |
+| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
+| `title` | `string` | 文件標題 |
+| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
+| `status` | `IngestionStatus` | 攝入狀態（見下方） |
+
+**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
+
+```text
+                        ┌─────────────────────────────────────┐
+                        ↓                                     │
+uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
+    │          │          │           │                         │
+    └──────────┴──────────┴───────────┴─────────────────────────┘
+                                  failed（任一階段可轉入）
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `uploaded` | 檔案已上傳，等待處理 |
+| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
+| `chunking` | 正在分塊（Chunk 階段：語意分段） |
+| `embedding` | 正在向量化（Embedding 階段） |
+| `indexed` | 已完成索引，可供查詢 |
+| `stale` | 原始文件已更新，需重新索引 |
+| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
+| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
+
+---
+
+### 4.2 IngestionJob（攝入作業）
+
+追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 作業唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `stage` | `PipelineStage` | 當前執行階段 |
+| `startedAt` | `Timestamp` | 開始時間 |
+| `completedAt` | `Timestamp \| null` | 完成時間 |
+| `error` | `string \| null` | 錯誤訊息（若 failed） |
+
+**PipelineStage 值物件：**
+
+```typescript
+type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
+```
+
+### 4.3 IngestionChunk（語意分塊）
+
+代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
+
+**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Chunk 唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `content` | `string` | Chunk 文字內容 |
+| `chunkIndex` | `number` | 在文件中的順序編號 |
+| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
+| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
+| `vector` | `number[]` | 向量表示（Embedding 結果） |
+| `tokenCount` | `number` | Token 數量（分塊品質指標） |
+
+**不變式：**
+- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
+- `content` 長度不得超過所選 Embedding Model 的 token 上限。
+
+### 4.4 RagQuery（RAG 查詢聚合根）
+
+代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
+
+**實現位置：** `modules/retrieval/domain/entities/RagQuery.ts`
+
+**核心介面：**
+
+```typescript
+interface RagQuery {
+  id: string;
+  workspaceId: string;
+  input: string;               // 用戶原始輸入
+  intent?: QueryIntent;        // 分類後的查詢意圖
+  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
+  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
+}
+```
+
+**QueryIntent 值物件（對應 Query Understanding Layer）：**
+
+```typescript
+type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
+```
+
+**RagRetrievedChunk 值物件（檢索結果項目）：**
+
+```typescript
+interface RagRetrievedChunk {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;           // 相關性分數（Reranker 輸出）
+  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
+}
+```
+
+**RagCitation 值物件（引用系統，對應 Source Grounding）：**
+
+```typescript
+interface RagCitation {
+  documentId: string;
+  documentTitle: string;
+  chunkId: string;
+  sectionPath: string;
+  pageNumber?: number;
+  confidenceScore: number;     // 引用可信度
+}
+```
+
+**RagRetrievalSummary 值物件（完整回答結果）：**
+
+```typescript
+interface RagRetrievalSummary {
+  answer: string;              // LLM 生成的回答
+  citations: RagCitation[];    // 引用來源列表
+  faithfulnessScore?: number;  // Faithfulness 驗證分數
+  isGrounded: boolean;         // 是否通過 Grounding 驗證
+}
+```
+
+### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
+
+對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
+
+**實現位置：**
+- `modules/agent/domain/entities/thread.ts`
+- `modules/agent/domain/entities/message.ts`
+
+**AgentThread 核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 對話 Thread ID |
+| `workspaceId` | `string` | 所屬工作區 |
+| `userId` | `string` | 發起用戶 |
+| `createdAt` | `Timestamp` | 建立時間 |
+| `updatedAt` | `Timestamp` | 最後更新時間 |
+
+**AgentMessage 核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 訊息唯一 ID |
+| `threadId` | `string` | 所屬 Thread |
+| `role` | `"user" \| "assistant"` | 訊息角色 |
+| `content` | `string` | 訊息內容 |
+| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+---
+
+## 五、Platform Foundation Layer 的領域概念
+
+Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
+
+### 5.1 Identity（身份識別）
+
+Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
+
+**實現位置：** `modules/identity/domain/entities/Identity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
+| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
+| `displayName` | `string \| null` | 顯示名稱 |
+| `photoURL` | `string \| null` | 大頭照 URL |
+| `isAnonymous` | `boolean` | 是否為匿名會話 |
+| `emailVerified` | `boolean` | 信箱是否已驗證 |
+
+**值物件：**
+- `SignInCredentials`：`{ email: string; password: string }`
+- `RegistrationInput`：`{ email: string; password: string; name: string }`
+
+**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
+
+#### TokenRefreshSignal（Custom Claims 刷新訊號）
+
+當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
+
+```text
+Party 1（account / organization 模組）
+    → 角色或政策變更
+    → 呼叫 identityApi.emitTokenRefreshSignal()
+
+Party 2（identity 模組 TokenRefreshRepository）
+    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
+
+Party 3（前端 useTokenRefreshListener hook）
+    → 監聽 Firestore 該文件
+    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
+```
+
+**TokenRefreshSignal 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `accountId` | `string` | 觸發刷新的帳戶 ID |
+| `reason` | `TokenRefreshReason` | 觸發原因 |
+| `issuedAt` | `string` | ISO-8601 時間戳 |
+| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
+
+**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
+
+---
+
+### 5.2 Account（帳戶聚合根）
+
+Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
+
+**實現位置：** `modules/account/domain/entities/Account.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
+| `name` | `string` | 帳戶顯示名稱 |
+| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
+| `email` | `string \| undefined` | 聯絡信箱 |
+| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
+| `bio` | `string \| undefined` | 個人簡介或組織描述 |
+| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
+| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
+| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
+| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
+| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
+| `createdAt` | `Timestamp \| undefined` | 建立時間 |
+
+**值物件：**
+- `AccountType`：`"user" | "organization"`
+- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
+- `Presence`：`"active" | "away" | "offline"`
+- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
+- `Wallet`：`{ balance: number }`（積分系統）
+
+**Team 嵌套物件（組織帳戶專屬）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 小組 ID |
+| `name` | `string` | 小組名稱 |
+| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
+| `memberIds` | `string[]` | 成員 ID 列表 |
+
+**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
+
+#### AccountPolicy（帳戶層 ABAC 政策）
+
+Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
+
+**AccountPolicy 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 政策唯一 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `name` | `string` | 政策名稱 |
+| `rules` | `PolicyRule[]` | 規則列表 |
+| `isActive` | `boolean` | 是否啟用 |
+| `createdAt` | `string` | ISO-8601 建立時間 |
+| `traceId` | `string \| undefined` | 審計追蹤 ID |
+
+**PolicyRule 值物件：**
+
+```typescript
+interface PolicyRule {
+  resource: string;                      // 受保護資源路徑
+  actions: string[];                     // 允許或拒絕的操作列表
+  effect: "allow" | "deny";             // 政策效果
+  conditions?: Record<string, string>;   // 條件約束（可選）
+}
+```
+
+政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
+
+---
+
+### 5.3 Organization（組織聚合根）
+
+Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
+
+**實現位置：** `modules/organization/domain/entities/Organization.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 組織唯一 ID（聚合根） |
+| `name` | `string` | 組織名稱 |
+| `ownerId` | `string` | 擁有者 UID |
+| `email` | `string \| undefined` | 組織聯絡信箱 |
+| `description` | `string \| undefined` | 組織描述 |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
+| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
+| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
+| `teams` | `Team[]` | 小組列表 |
+| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**PartnerInvite 值物件（合作夥伴邀請）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邀請唯一 ID |
+| `email` | `string` | 被邀請方信箱 |
+| `teamId` | `string` | 加入的小組 |
+| `role` | `OrganizationRole` | 授予角色 |
+| `inviteState` | `InviteState` | 邀請狀態 |
+| `invitedAt` | `Timestamp` | 邀請時間 |
+| `protocol` | `string` | 協議說明（外部協作規範） |
+
+**InviteState 值物件：** `"pending" | "accepted" | "expired"`
+
+#### OrgPolicy（組織層 ABAC 政策）
+
+與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
+
+**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
+
+**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
+
+---
+
+### 5.4 Workspace（工作區聚合根）
+
+Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
+
+**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 工作區唯一 ID（聚合根） |
+| `name` | `string` | 工作區名稱 |
+| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
+| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
+| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
+| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
+| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
+| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
+| `teamIds` | `string[]` | 關聯的組織小組 |
+| `address` | `Address \| undefined` | 實體地址（選填） |
+| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
+| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**WorkspaceLifecycleState 狀態機：**
+
+```text
+preparatory ──────────→ active ──────────→ stopped
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `preparatory` | 工作區準備中，正在初始化能力與設定 |
+| `active` | 工作區正常運作，可使用全部能力 |
+| `stopped` | 工作區已停用，保留資料但不可新增內容 |
+
+**Capability 值物件（能力模組）：**
+
+工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
+
+```typescript
+interface Capability {
+  id: string;
+  name: string;
+  type: "ui" | "api" | "data" | "governance" | "monitoring";
+  status: "stable" | "beta";
+  description: string;
+  config?: object;  // 各能力的自訂設定
+}
+```
+
+**WorkspaceGrant 值物件（存取授權）：**
+
+```typescript
+interface WorkspaceGrant {
+  userId?: string;   // 個人授權
+  teamId?: string;   // 小組授權
+  role: string;      // 授予的角色
+  protocol?: string; // 授權協議（外部合作適用）
+}
+```
+
+**不變式：**
+- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
+- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
+- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
+
+**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
+
+#### WorkspaceMemberView（工作區成員讀取模型）
+
+WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
+
+**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 成員 ID |
+| `displayName` | `string` | 顯示名稱 |
+| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
+| `isExternal` | `boolean` | 是否為外部合作成員 |
+| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
+
+**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
+
+#### WikiBetaContentTree（側邊欄導覽樹聚合根）
+
+WikiBetaContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
+
+**實現位置：** `modules/workspace/domain/entities/WikiBetaContentTree.ts`
+
+**樹狀結構：**
+
+```text
+WikiBetaAccountContentNode（帳戶節點）
+  ├── accountId, accountName, accountType（personal | organization）
+  ├── membersHref（組織帳戶限定）
+  ├── teamsHref（組織帳戶限定）
+  └── workspaces[]
+        └── WikiBetaWorkspaceContentNode（工作區節點）
+              ├── workspaceId, workspaceName
+              └── contentBaseItems[]
+                    └── WikiBetaContentItemNode（內容入口）
+                          ├── key（spaces | pages | libraries | rag | ai-tools …）
+                          ├── label, href
+                          └── enabled（是否啟用）
+```
+
+**不變式：**
+- Personal 帳戶節點排列在 Organization 帳戶節點之前。
+- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
+
+---
+
+### 5.5 Platform Foundation 跨模組關係
+
+```text
+Identity ──→ Account ──→ Organization ──→ Workspace
+  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
+  │             │               │               │
+  │         AccountPolicy   OrgPolicy       Capability
+  │             │               │
+  └─────────────┴───────────────┘
+         [S6] Claims Refresh Protocol
+         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
+```
+
+| 關係 | 說明 |
+| --- | --- |
+| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
+| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
+| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
+| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
+| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
+
+## 六、三層記憶架構的領域映射
+
+架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
+
+| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
+| --- | --- | --- | --- |
+| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
+| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
+| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
+
+---
+
+## 七、Ingestion Pipeline 的領域事件
+
+完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
+
+| 領域事件 | 觸發時機 | 訂閱方 |
+| --- | --- | --- |
+| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
+| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
+| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
+| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
+| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
+| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
+
+**事件 DTO 結構慣例：**
+
+```typescript
+interface DomainEventDTO {
+  type: "knowledge.document_registered";  // 格式：module.event_name
+  payload: { documentId: string; workspaceId: string; };
+  occurredAtISO: string;                  // ISO 8601 時間戳
+}
+```
+
+---
+
+## 八、Query Understanding Layer 的領域服務
+
+Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
+
+**建議的領域服務介面（位於 `modules/retrieval/domain/services/`）：**
+
+```typescript
+interface QueryPlannerService {
+  classifyIntent(query: string): Promise<QueryIntent>;
+  decomposeQuery(query: string): Promise<string[]>;
+  rewriteForRetrieval(query: string): Promise<string>;
+  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
+}
+```
+
+**對應的 Genkit Flow（`modules/agent/infrastructure/genkit/` 或 `modules/retrieval/infrastructure/genkit/`）：**
+- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
+- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
+- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
+
+---
+
+## 九、Schema + Ontology Layer 的領域概念
+
+架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
+
+### Ontology 在 EdgeType 中的實現
+
+GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
+
+```text
+IS_A        → 類別繼承（OWL SubClassOf）
+PART_OF     → 組成關係（Mereology）
+RELATED_TO  → 通用相關（RDF関係）
+DEPENDS_ON  → 工程依賴
+CAUSES      → 因果推理
+CONTRADICTS → 知識矛盾偵測
+```
+
+### 未來擴充：Entity Normalization（實體正規化）
+
+為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
+1. `WikiBetaPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
+2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
+3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
+
+---
+
+## 十、Hybrid Retrieval 的技術邊界說明
+
+architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
+
+| 元件 | 層級 | 位置 |
+| --- | --- | --- |
+| Dense Retrieval（Vector Search） | Infrastructure | `modules/retrieval/infrastructure/firebase/` |
+| Sparse Retrieval（BM25） | Infrastructure | `modules/retrieval/infrastructure/` |
+| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/knowledge-graph/infrastructure/` |
+| Reranker | Infrastructure / AI | `modules/retrieval/infrastructure/genkit/` |
+| Fusion & Ranking | Application | `modules/retrieval/application/use-cases/answer-rag-query.use-case.ts` |
+
+領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
+
+---
+
+## 十一、完整領域概念清單
+
+| 領域概念 | 類型 | 模組 | 狀態 |
+| --- | --- | --- | --- |
+| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
+| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
+| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
+| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
+| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
+| `Account` | 聚合根 | `account` | ✅ 已實現 |
+| `AccountType` | 值物件 | `account` | ✅ 已實現 |
+| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
+| `Presence` | 值物件 | `account` | ✅ 已實現 |
+| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
+| `Wallet` | 值物件 | `account` | ✅ 已實現 |
+| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
+| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
+| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
+| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
+| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
+| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
+| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
+| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
+| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
+| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
+| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
+| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
+| `WikiBetaContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
+| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
+| `BlockType` | 值物件 | `content` | ✅ 已實現 |
+| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
+| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
+| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
+| `WikiBetaPage` | 投影實體 | `content` | ✅ 已實現 |
+| `WikiBetaLibrary` | 聚合根 | `asset` | ✅ 已實現 |
+| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
+| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
+| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
+| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
+| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
+| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
+| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
+| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
+| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
+| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
+| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
+
+---
+
+> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 `````
