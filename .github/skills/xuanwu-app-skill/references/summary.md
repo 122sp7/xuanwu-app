@@ -38,11 +38,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-975 files | 77,159 lines
+973 files | 77,122 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 382 | 20,464 |
+| TypeScript | 380 | 20,427 |
 | Markdown | 312 | 27,902 |
 | TypeScript (TSX) | 120 | 18,678 |
 | No Extension | 57 | 111 |

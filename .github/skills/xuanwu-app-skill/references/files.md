@@ -22718,80 +22718,6 @@ export function subscribeToAccountsForUser(
 
 `````
 
-## File: modules/APIContract.md
-`````markdown
-# API Contract & Data Transfer Objects (DTOs)
-
-本文件定義模組間及前後端互動的標準介面。所有 Server Actions 需回傳標準化的 `Result<T>`。
-
----
-
-## 1. Common Types
-
-```typescript
-type Result<T> = {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-};
-
-type PaginationParams = {
-  cursor?: string;
-  limit: number;
-};
-```
-
-## 2. Content Module API (`modules/content/api`)
-
-### Actions
-- `createPage(parentId?: string, title?: string): Promise<Result<PageDTO>>`
-- `updateBlock(blockId: string, content: Partial<BlockContent>): Promise<Result<BlockDTO>>`
-- `moveBlock(blockId: string, targetParentId: string, index: number): Promise<Result<void>>`
-
-### Queries
-- `getPageStructure(pageId: string): Promise<Result<PageStructureDTO>>`
-  - 回傳包含遞迴 Block 樹的完整結構。
-
-```typescript
-interface BlockDTO {
-  id: string;
-  type: 'text' | 'heading' | 'todo' | 'toggle';
-  content: any; // SuperJSON structured
-  children: BlockDTO[]; // Recursive
-}
-```
-
-## 3. Knowledge Module API (`modules/knowledge/api`)
-
-### Actions
-- `createLink(sourceId: string, targetId: string, type: LinkType): Promise<Result<void>>`
-
-### Queries
-- `getBacklinks(pageId: string): Promise<Result<GraphLinkDTO[]>>`
-- `getGraphData(scope?: 'global' | 'local', focusId?: string): Promise<Result<GraphDataDTO>>`
-
-```typescript
-interface GraphDataDTO {
-  nodes: Array<{ id: string; label: string; group: string }>;
-  edges: Array<{ from: string; to: string; type: string }>;
-}
-```
-
-## 4. Intelligence Module API (`modules/ai/api`)
-
-### Actions
-- `streamChat(messages: Message[], context: ContextFilter): Promise<ReadableStream>`
-  - 串流回應，不走標準 Result 包裝。
-- `ingestContent(entityId: string, type: 'page' | 'block'): Promise<Result<IngestStats>>`
-
-### Queries
-- `getSimilarBlocks(text: string, threshold: number): Promise<Result<ScoredBlockDTO[]>>`
-`````
-
 ## File: modules/content/api/content-api.ts
 `````typescript
 /**
@@ -25263,39 +25189,6 @@ export class EventController {
   async listByAggregate(input: ListEventsByAggregateDTO) {
     return this.listEventsByAggregate.execute(input)
   }
-}
-`````
-
-## File: modules/graph/domain/entities/view-config.ts
-`````typescript
-/**
- * modules/graph — domain entity: GraphViewConfig
- *
- * Describes the visual configuration for rendering a knowledge graph.
- * This is a pure data type; rendering logic lives in the interfaces layer.
- */
-
-import type { ID } from "@shared-types";
-
-/** Layout algorithm for positioning nodes */
-export type GraphLayout = "force-directed" | "hierarchical" | "radial";
-
-/** Visual configuration for a knowledge-graph view */
-export interface GraphViewConfig {
-  /** Identifier for this configuration */
-  readonly id: ID;
-  /** Human-readable name */
-  readonly label: string;
-  /** Layout algorithm to apply */
-  readonly layout: GraphLayout;
-  /** IDs of nodes that should be visible; empty means show all */
-  readonly visibleNodeIds: ID[];
-  /** ID of the node to center / focus the view on (optional) */
-  readonly focusNodeId?: ID;
-  /** Whether to show edge labels */
-  readonly showEdgeLabels: boolean;
-  /** Maximum graph depth to render from the focus node */
-  readonly maxDepth: number;
 }
 `````
 
@@ -49057,6 +48950,62 @@ export default {
 ../.github/skills
 `````
 
+## File: .github/agents/implementer.agent.md
+`````markdown
+---
+name: Implementer
+description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'todo', 'serena/*']
+handoffs:
+  - label: Review Implementation
+    agent: reviewer
+    prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
+    send: false
+---
+
+# Implementer
+
+You are the formal implementation stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Execute the approved implementation plan without expanding scope. Write code, update documentation, and run the validation required by the plan.
+
+## Required references
+
+- Use the approved implementation plan as the execution contract.
+- Follow [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [.github/copilot-instructions.md](../copilot-instructions.md).
+- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement matters.
+- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) when a workflow is contract-governed.
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
+
+## Workflow
+
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the plan completely before editing.
+3. Execute the implementation tasks in a deliberate order.
+4. Keep changes inside the documented scope and non-goals.
+5. Run the validation named in the plan.
+6. Update the documentation listed in the plan.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
+8. Prepare a concise completion summary for review.
+
+## Guardrails
+
+- Do not invent new scope because it seems adjacent or useful.
+- Do not bypass required validation.
+- Do not ignore required documentation updates.
+- Stop and request a plan revision if owner, runtime, or validation is unclear.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+
+## Output expectations
+
+- Report completed tasks against the plan checklist.
+- Report validation actually run.
+- Report documentation updated.
+- Note any deviations from the plan and why they were unavoidable.
+`````
+
 ## File: .github/agents/md-writer.chat.agent.md
 `````markdown
 ---
@@ -49119,6 +49068,60 @@ docs/{decision-architecture,development-reference,diagrams-events-explanations,h
 - List all dedup actions in the dedup log format defined in `md-dedup`.
 - Flag any file that exceeds token budget after compression for manual review.
 - If scope is ambiguous, ask which folder or file to target before starting.
+`````
+
+## File: .github/agents/planner.agent.md
+`````markdown
+---
+name: Planner
+description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
+tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
+handoffs:
+  - label: Start Implementation
+    agent: implementer
+    prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
+    send: false
+---
+
+# Planner
+
+You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Turn a delivery request into an implementation plan that later stages can execute without re-deciding ownership, runtime boundaries, or validation.
+
+## Required references
+
+- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
+- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
+- Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
+- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) to activate the project context before reading memories.
+
+## Workflow
+
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Clarify the request until scope, owner, and runtime are clear.
+3. Identify the owning modules, packages, and layers.
+4. Check whether a development contract governs the workflow.
+5. Produce a formal implementation plan using the required template and schema.
+6. Ensure the plan names validation and documentation work explicitly.
+7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scope, decisions, and open questions; then call `serena/summarize_changes`.
+
+## Guardrails
+
+- Do not write implementation code.
+- Do not leave required sections implicit or blank.
+- Do not let the plan use generic ownership labels when a concrete module or package owner can be named.
+- Do not skip non-goals for convenience.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+
+## Output expectations
+
+- Return a complete implementation plan.
+- State any open questions that block safe implementation.
+- If the request is too vague, ask concise clarifying questions before planning.
 `````
 
 ## File: .github/agents/planner.chat.agent.md
@@ -49189,6 +49192,73 @@ Turn a delivery request into an implementation plan that later stages can execut
 | **Optimize Docs** | Plan touches or creates `.md` files; hand to `md-writer` to optimize |
 `````
 
+## File: .github/agents/qa.agent.md
+`````markdown
+---
+name: QA
+description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
+tools: ['vscode', 'execute', 'read', 'search', 'web', 'todo', 'serena/*']
+handoffs:
+  - label: Fix QA Findings
+    agent: implementer
+    prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
+    send: false
+---
+
+# QA
+
+You are the formal QA stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Verify what was delivered, prove what works, document what does not, and state the residual risk before release.
+
+## Core principles
+
+1. Assume behavior is unproven until scenarios are executed.
+2. Reproduce before reporting.
+3. Trace tests back to requirements, scope, or expected behavior.
+4. Prefer deterministic evidence over narrative confidence.
+5. Separate confirmed failures from residual risks and nice-to-have improvements.
+
+## Workflow
+
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the approved plan and the reviewer output.
+3. Build a verification list from scope, risks, and validation requirements.
+4. Execute scenarios across happy path, boundary, negative, error handling, and regression-sensitive paths.
+5. Capture evidence for failures and noteworthy residual risks.
+6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
+7. Conclude with a release recommendation.
+
+## Output format
+
+### Scope checked
+- <scope item>
+
+### Scenarios executed
+1. <scenario>
+
+### Evidence collected
+- <evidence>
+
+### Failures found
+- <failure or none>
+
+### Residual risks
+- <risk or none>
+
+### Release recommendation
+- `ready | ready-with-risk | blocked`
+
+## Guardrails
+
+- Do not edit source files.
+- Do not mark a change ready if required validation was not actually executed.
+- Do not collapse missing evidence into general confidence language.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+`````
+
 ## File: .github/agents/README.md
 `````markdown
 # Delivery Workflow Agents
@@ -49229,6 +49299,124 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 - [../.github/skills/](../skills/) — Specialized capabilities and workflows
 - [../.github/prompts/](../prompts/) — Slash-command entry points
 - [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
+`````
+
+## File: .github/agents/reviewer.agent.md
+`````markdown
+---
+name: Reviewer
+description: 'Review Xuanwu implementations for correctness, architecture alignment, regression risk, and missing validation or documentation.'
+tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
+handoffs:
+  - label: Fix Review Findings
+    agent: implementer
+    prompt: Apply fixes for the review findings above. Keep the scope bounded to those findings and rerun the required validation.
+    send: false
+  - label: Run QA
+    agent: qa
+    prompt: Execute QA against the approved plan and reviewed implementation. Verify scenarios, evidence, residual risk, and release readiness.
+    send: false
+---
+
+# Reviewer
+
+You are the formal review stage of the Xuanwu Copilot Delivery Suite.
+
+## Mission
+
+Evaluate whether the implementation is acceptable before QA starts. Focus on bugs, regressions, boundary violations, missing validation, and missing documentation.
+
+## Review lenses
+
+1. Correctness and behavioral regressions
+2. MDDD ownership and dependency direction
+3. Contract alignment and invariant preservation
+4. Validation completeness
+5. Documentation completeness
+
+## Required references
+
+- Review against the approved implementation plan.
+- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) for ownership and boundary checks.
+- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) for contract-governed workflows.
+- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
+
+## Workflow
+
+1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
+2. Read the approved plan and the implementation output.
+3. Evaluate across the five review lenses.
+4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with findings, severity, and recommendation; then call `serena/summarize_changes`.
+
+## Guardrails
+
+- Do not edit files.
+- Do not restate the implementation summary as the review.
+- Do not focus on style trivia before reporting bugs, risk, or missing validation.
+- If no serious findings exist, say so explicitly and note residual risks or test gaps.
+- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
+
+## Output expectations
+
+Present findings first, ordered by severity. Include:
+
+- summary,
+- affected area,
+- why it matters,
+- and whether the issue blocks QA or release.
+`````
+
+## File: .github/copilot-instructions.md
+`````markdown
+# Xuanwu Copilot Delivery Suite
+
+Baseline for Copilot agents to stay aligned with the repository and toolchain.
+
+## Authoritative Sources (read in order)
+
+1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
+2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
+3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
+4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
+5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
+6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
+
+## Operating rules (concise)
+
+- Plan first for cross-module, cross-runtime, or contract-governed work.  
+- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
+- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
+- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
+
+## Serena MCP — mandatory
+
+All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
+
+- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
+- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
+- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
+- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
+
+## Orchestration pattern
+
+1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
+2. Activate skills as needed:  
+   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
+   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
+   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
+   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
+   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
+   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
+3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
+
+## Validation
+
+- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
+- Do not close work until required checks and documentation updates are complete.  
+
+## Terminology
+
+See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
 `````
 
 ## File: .github/instructions/dotnet-architecture-good-practices.instructions.md
@@ -56803,173 +56991,376 @@ export default function OrganizationSchedulePage() {
 }
 `````
 
-## File: docs/development-reference/development/modules-implementation-guide.md
+## File: docs/development-reference/development/code-style.md
 `````markdown
-# Modules Implementation Guide
+# 程式碼風格指南（Code Style Guide）
 
-本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
-
-- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
+> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
+> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
 
 ---
 
-## 1. 與概念架構文件的對位關係
+## 1. TypeScript
 
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
+### 1.1 型別宣告原則
 
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
+```typescript
+// ✅ 優先使用 interface 定義物件形狀
+interface UserProfile {
+  readonly id: string;
+  name: string;
+  email: string;
+}
 
-在本專案中的實作對位：
+// ✅ 使用 type 定義聯合型別、交叉型別、別名
+type DocumentStatus = "processing" | "ready" | "error";
+type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
 
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
+// ✅ 從 @shared-types 匯入跨模組共用型別
+import type { CommandResult, DomainError } from "@shared-types";
 
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
+// ❌ 避免 any
+const data: any = fetchData(); // 禁止
 
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
+// ✅ 使用 unknown 代替 any
+const data: unknown = fetchData();
 ```
 
-說明：
+### 1.2 命名規範
 
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
+| 類型 | 格式 | 範例 |
+|---|---|---|
+| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
+| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
+| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
+| 函式 | `camelCase` | `uploadDocument` |
+| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
+| React 元件 | `PascalCase` | `WikiBetaDocumentsView` |
+| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
+| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
+| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
+| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
+| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
+| 檔案：React 元件 | `PascalCase.tsx` | `WikiBetaDocumentsView.tsx` |
 
----
+### 1.3 函式宣告風格
 
-## 3. 依賴方向與邊界
+```typescript
+// ✅ 匯出函式使用 function 宣告（可讀性較佳）
+export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
+  // ...
+}
 
-全域依賴方向：
+// ✅ 回呼、lambda 使用 arrow function
+const items = list.map((item) => item.id);
 
-```text
-interfaces -> application -> domain <- infrastructure
+// ✅ 元件使用 function 宣告
+export function WikiBetaDocumentsView() {
+  // ...
+}
+
+// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
+export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
 ```
 
-邊界規則：
+### 1.4 非同步處理
 
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
+```typescript
+// ✅ 使用 async/await，避免 Promise chain
+async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
+  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
+  return snapshot.docs.map(docToEntity);
+}
 
----
+// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
+export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
+  try {
+    await triggerReindex(input);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: toDomainError(error) };
+  }
+}
 
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
+// ❌ 不在元件內 catch 後靜默吞錯誤
+try {
+  await doSomething();
+} catch {
+  // 靜默失敗 — 禁止
+}
 ```
 
-這個原則與上位概念架構文件的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
 ---
 
-## 5. Next.js 路由與融合介面
+## 2. React 元件規範
 
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
+### 2.1 元件結構順序
 
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
+```tsx
+"use client"; // 若需要（置頂）
+
+import React, { useState, useEffect, useCallback } from "react";
+// 外部函式庫
+import { toast } from "sonner";
+import { Loader2, Plus } from "lucide-react";
+
+// 內部 alias imports
+import { Button } from "@ui-shadcn/ui/button";
+import { cn } from "@shared-utils";
+
+// 同模組 relative imports
+import type { WikiBetaDocument } from "../../domain/entities/wiki-beta-document.entity";
+
+// 型別定義
+interface DocumentCardProps {
+  readonly document: WikiBetaDocument;
+  readonly onReindex: (docId: string) => Promise<void>;
+}
+
+// 元件主體
+export function DocumentCard({ document, onReindex }: DocumentCardProps) {
+  // 1. Hooks（useState、useEffect、custom hooks）
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 2. Derived state / memoized values
+  const canReindex = document.status === "ready";
+
+  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
+  const handleReindex = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await onReindex(document.id);
+      toast.success("已觸發重整");
+    } catch (err) {
+      toast.error(`重整失敗：${String(err)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [document.id, onReindex]);
+
+  // 4. Render
+  return (
+    <div className="flex items-center gap-4 rounded-lg border p-4">
+      <span className="flex-1">{document.filename}</span>
+      <Button
+        size="sm"
+        disabled={!canReindex || isLoading}
+        onClick={handleReindex}
+        aria-disabled={!canReindex || isLoading}
+      >
+        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
+      </Button>
+    </div>
+  );
+}
 ```
 
-實作可依需求擴充，例如：
+### 2.2 Props 設計規則
 
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
+```typescript
+// ✅ 使用 readonly 標記不可變 props
+interface MyProps {
+  readonly id: string;
+  readonly onAction: () => void;
+  className?: string; // 可選 className 用於樣式擴展
+}
+
+// ✅ 事件 handler 命名使用 on 前綴
+onSubmit, onChange, onDelete, onSelect
+
+// ✅ Boolean props 命名使用 is/has/can 前綴
+isLoading, hasError, canEdit, isCollapsed
+
+// ❌ 避免過於泛用的 props
+data: any;          // 禁止
+config: Record<string, unknown>; // 避免
 ```
 
-擴充原則：
+### 2.3 Server Component vs Client Component
 
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
+```typescript
+// ✅ 頁面預設為 Server Component（無 "use client"）
+export default async function DocumentsPage() {
+  return <WikiBetaDocumentsView />;
+}
+
+// ✅ 只在需要時才加 "use client"
+// 需要: useState, useEffect, onClick, onChange, browser APIs
+"use client";
+export function InteractiveUploader() {
+  const [isDragOver, setIsDragOver] = useState(false);
+  // ...
+}
+
+// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
+```
 
 ---
 
-## 6. 目標對齊聲明
+## 3. 匯入規範
 
-本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
+### 3.1 匯入順序
 
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+```typescript
+// 1. React（若使用 JSX 元素需明確匯入）
+import React from "react";
+
+// 2. Next.js 核心
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+// 3. 第三方函式庫
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+
+// 5. @/ 模組匯入（app/ 和 modules/）
+import type { WorkspaceEntity } from "@/modules/workspace";
+import { createWorkspace } from "@/modules/workspace";
+
+// 6. 相對路徑（同模組內部）
+import type { DocumentEntity } from "../../domain/entities/document.entity";
+import { useDocuments } from "../hooks/use-documents";
+```
+
+### 3.2 禁止使用的 Legacy 路徑
+
+| 禁止 | 替代方案 |
+|---|---|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` 對應套件 |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
 
 ---
 
-## 7. 以上位概念架構文件為準的落地限制
+## 4. CSS 與 Tailwind 規範
 
-上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+### 4.1 Class 排列順序
 
-因此本文件只保留與概念模型一致的落地限制：
+遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
 
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+```tsx
+// Layout → Position → Spacing → Sizing → Typography → Visual
+<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
+```
 
-## 8. 實作規劃時的最小檢查點
+建議安裝 `prettier-plugin-tailwindcss` 自動排列。
 
-若要把三層模型落到實際模組，至少先確認：
+### 4.2 條件 Class 使用 cn()
 
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
+```tsx
+import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
+
+<div
+  className={cn(
+    "rounded-lg border-2 border-dashed p-8",
+    isDragOver && "border-primary bg-primary/5",
+    isError && "border-destructive",
+    className // 允許外部覆蓋
+  )}
+/>
+```
+
+### 4.3 避免 CSS 反模式
+
+```tsx
+// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
+<div style={{ backgroundColor: "#f00" }} />
+
+// ✅ 使用 Tailwind 語義色
+<div className="bg-destructive" />
+
+// ❌ 避免 @apply（Tailwind 不推薦用於元件）
+// @apply flex items-center;
+
+// ✅ 使用元件封裝重用樣式
+```
+
+---
+
+## 5. JSDoc 規範
+
+函式與類別加 JSDoc 的時機：
+
+```typescript
+// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
+/**
+ * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
+ * @param input - 包含 file、accountId 與選填的 workspaceId。
+ * @returns CommandResult，成功時包含 documentId。
+ */
+export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
+  // ...
+}
+
+// ✅ 複雜業務邏輯加說明
+// ❌ 簡單 getter / setter 無需 JSDoc
+```
+
+---
+
+## 6. 測試風格
+
+### 6.1 測試檔案命名
+
+| 類型 | 格式 |
+|---|---|
+| Unit test | `*.test.ts` / `*.test.tsx` |
+| Integration test | `*.integration.test.ts` |
+| E2E test | `*.e2e.ts`（Playwright） |
+
+### 6.2 測試命名
+
+```typescript
+describe("uploadDocument use case", () => {
+  it("should return success with documentId when file is valid", async () => {
+    // ...
+  });
+
+  it("should return error when accountId is missing", async () => {
+    // ...
+  });
+});
+```
+
+---
+
+## 7. ESLint 執行
+
+```bash
+# 執行 lint（必須 0 errors）
+npm run lint
+
+# 自動修復可修正的問題
+npm run lint -- --fix
+```
+
+**常見 ESLint 規則**（`eslint.config.mjs`）：
+
+- `no-unused-vars` — 未使用的變數
+- `@typescript-eslint/no-explicit-any` — 禁止 any
+- `jsdoc/*` — JSDoc 格式檢查
+- `@typescript-eslint/naming-convention` — 命名規範
+- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
+- 匯入路徑邊界（legacy path 封鎖）
+
+### 7.1 什麼時候要調整 `eslint.config.mjs`
+
+- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
+- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
+- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
+- **同步文件**：調整規則時一併更新
+  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
+  - 本節清單（如新增/刪除常見規則）
+- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
 `````
 
 ## File: docs/development-reference/reference/development-contracts/audit-contract.md
@@ -57680,6 +58071,80 @@ export async function answerRagQuery(input: AnswerRagQueryInput): Promise<Answer
 ## File: modules/agent/interfaces/index.ts
 `````typescript
 export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
+`````
+
+## File: modules/APIContract.md
+`````markdown
+# API Contract & Data Transfer Objects (DTOs)
+
+本文件定義模組間及前後端互動的標準介面。所有 Server Actions 需回傳標準化的 `Result<T>`。
+
+---
+
+## 1. Common Types
+
+```typescript
+type Result<T> = {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+};
+
+type PaginationParams = {
+  cursor?: string;
+  limit: number;
+};
+```
+
+## 2. Content Module API (`modules/content/api`)
+
+### Actions
+- `createPage(parentId?: string, title?: string): Promise<Result<PageDTO>>`
+- `updateBlock(blockId: string, content: Partial<BlockContent>): Promise<Result<BlockDTO>>`
+- `moveBlock(blockId: string, targetParentId: string, index: number): Promise<Result<void>>`
+
+### Queries
+- `getPageStructure(pageId: string): Promise<Result<PageStructureDTO>>`
+  - 回傳包含遞迴 Block 樹的完整結構。
+
+```typescript
+interface BlockDTO {
+  id: string;
+  type: 'text' | 'heading' | 'todo' | 'toggle';
+  content: any; // SuperJSON structured
+  children: BlockDTO[]; // Recursive
+}
+```
+
+## 3. Knowledge Module API (`modules/knowledge/api`)
+
+### Actions
+- `createLink(sourceId: string, targetId: string, type: LinkType): Promise<Result<void>>`
+
+### Queries
+- `getBacklinks(pageId: string): Promise<Result<GraphLinkDTO[]>>`
+- `getGraphData(scope?: 'global' | 'local', focusId?: string): Promise<Result<GraphDataDTO>>`
+
+```typescript
+interface GraphDataDTO {
+  nodes: Array<{ id: string; label: string; group: string }>;
+  edges: Array<{ from: string; to: string; type: string }>;
+}
+```
+
+## 4. Agent Module API (`modules/agent/api`)
+
+### Actions
+- `streamChat(messages: Message[], context: ContextFilter): Promise<ReadableStream>`
+  - 串流回應，不走標準 Result 包裝。
+- `ingestContent(entityId: string, type: 'page' | 'block'): Promise<Result<IngestStats>>`
+
+### Queries
+- `getSimilarBlocks(text: string, threshold: number): Promise<Result<ScoredBlockDTO[]>>`
 `````
 
 ## File: modules/asset/api/index.ts
@@ -60045,18 +60510,6 @@ export { PublishDomainEventUseCase } from "../application/use-cases/publish-doma
 export type { PublishDomainEventDTO } from "../application/use-cases/publish-domain-event";
 `````
 
-## File: modules/graph/api/index.ts
-`````typescript
-/**
- * @deprecated modules/graph is retired.
- * Import from @/modules/knowledge-graph/api instead.
- */
-export type {
-  GraphViewConfig,
-  GraphLayout,
-} from "../../knowledge-graph/api";
-`````
-
 ## File: modules/hybrid_rag_flow.svg
 `````xml
 <svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
@@ -60904,81 +61357,6 @@ export class InMemoryGraphRepository implements GraphRepository {
 }
 `````
 
-## File: modules/knowledge-graph/README.md
-`````markdown
-# graph — Knowledge Graph Layer
-
-`modules/graph` は Knowledge Graph Layer の中核モジュールです。Wiki スタイルのナレッジグラフを管理し、ノード（GraphNode）とエッジ（GraphEdge）のライフサイクルを定義します。
-
-外界との互動規則：
-- 外界は `api/` のみを通じてこのモジュールを使用してください
-- UI は外部ページまたは他のモジュールが独自に組み立てます
-- `domain/`, `application/`, `infrastructure/`, `interfaces/` への直接インポートは禁止です
-
-## アーキテクチャ図
-
-| ファイル | 内容 |
-|---|---|
-| [`./Graph-Flow.mermaid`](./Graph-Flow.mermaid) | ドメイン状態機械（GraphNode / GraphEdge ライフサイクル） |
-| [`./Graph-UI.mermaid`](./Graph-UI.mermaid) | UI 組み立てと API 境界（App Router → api/ → Vis.js キャンバス） |
-| [`./Graph-Tree.mermaid`](./Graph-Tree.mermaid) | MDDD ディレクトリ構造と境界ルール |
-| [`./Graph-Sequence.mermaid`](./Graph-Sequence.mermaid) | ノード作成・エッジリンクの循環図 |
-| [`./Graph-ERD.mermaid`](./Graph-ERD.mermaid) | エンティティ関聯図（GraphNode / GraphEdge / GraphMetadata） |
-
----
-
-## コアプリンシプル
-
-```
-GraphNode   → 知識の単位 (Wiki ページに相当)
-GraphEdge   → 知識間の関係 (Wiki リンクに相当)
-GraphMetadata → 付加情報 (タグ / カテゴリ / カスタム属性)
-```
-
-**独立した 2 つの状態機械が、それぞれのライフサイクルを管理します。**
-
----
-
-## 1. GraphNode State Machine
-
-```
-draft       --[ACTIVATE]-->   active
-active      --[ARCHIVE]-->    archived    (guard: no pending or active edges)
-archived    --[RESTORE]-->    active
-```
-
-| state | 説明 |
-|---|---|
-| `draft` | ノード作成済み、未公開 |
-| `active` | 公開中・グラフに表示 |
-| `archived` | アーカイブ済み |
-
----
-
-## 2. GraphEdge State Machine
-
-```
-pending     --[ACTIVATE]-->    active      (guard: both nodes active)
-active      --[DEACTIVATE]-->  inactive
-inactive    --[ACTIVATE]-->    active
-active      --[REMOVE]-->      removed
-pending     --[REMOVE]-->      removed
-```
-
-| state | 説明 |
-|---|---|
-| `pending` | エッジ作成済み、未有効化 |
-| `active` | 有効なエッジ |
-| `inactive` | 一時的に非表示 |
-| `removed` | 削除済み |
-
----
-
-## 参照アーキテクチャ
-
-`docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` の Knowledge Graph Layer に対応します。
-`````
-
 ## File: modules/knowledge/api/knowledge-ingestion-api.ts
 `````typescript
 import { AdvanceIngestionStageUseCase } from "../application/use-cases/advance-ingestion-stage.use-case";
@@ -61382,175 +61760,6 @@ export { dispatchNotification } from "../interfaces/_actions/notification.action
 // ─── Query functions ──────────────────────────────────────────────────────────
 
 export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
-`````
-
-## File: modules/README.md
-`````markdown
-# Modules Implementation Guide
-
-本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
-
-- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
-
----
-
-## 1. 與 Architecture.md 的對位關係
-
-`Architecture.md` 定義三層融合：
-
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
-
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
-
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
-
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
-```
-
-說明：
-
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
-
----
-
-## 3. 依賴方向與邊界
-
-全域依賴方向：
-
-```text
-interfaces -> application -> domain <- infrastructure
-```
-
-邊界規則：
-
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
-
----
-
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
-```
-
-這個原則與 `Architecture.md` 的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
----
-
-## 5. Next.js 路由與融合介面
-
-`Architecture.md` 的基礎平行路由示意：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-```
-
-實作可依需求擴充，例如：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
-```
-
-擴充原則：
-
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
-
----
-
-## 6. 目標對齊聲明
-
-本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
-
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
-
----
-
-## 7. 以 Architecture.md 為準的落地限制
-
-`modules/Architecture.md` 提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
-
-因此本文件只保留與上位概念一致的落地限制：
-
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
-
-## 8. 實作規劃時的最小檢查點
-
-若要把三層模型落到實際模組，至少先確認：
-
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明 Architecture.md 未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
 ## File: modules/RemotePorts.md
@@ -62132,74 +62341,6 @@ export const contentApi = new ContentApi(eventBus);
 export const knowledgeApi = new KnowledgeGraphApi(eventBus);
 // KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
 // subscription is active as soon as the module is imported.
-`````
-
-## File: modules/UseCases.md
-`````markdown
-# Use Case Specifications
-
-本文件描述「Notion × Wiki × NotebookLM」融合架構下的關鍵使用者案例。
-
----
-
-## UC-01: 智能寫作與即時連結 (Writing with Auto-Linking)
-
-### 簡述
-當用戶在編輯器中寫作時，系統自動識別關鍵字並建議建立 Wiki 連結，或將內容轉為向量索引。
-
-- **Actor**: Content Creator
-- **Primary Module**: `modules/content`
-- **Supporting Modules**: `modules/knowledge`, `modules/agent`
-
-### Main Flow
-1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
-2. `BlockEditor` 偵測到 `[[` 觸發符。
-3. **[Knowledge]** 搜尋現有 `GraphNode` 並回傳建議列表。
-4. 用戶選擇目標頁面，系統插入 `PageLink` Block。
-5. 用戶完成一段文字並失焦 (OnBlur)。
-6. **[System]** 發送 `ContentBlockUpdated` 事件。
-7. **[Intelligence]** (Async) 接收事件，將該 Block 文字轉為 Vector 並存入 Upstash。
-
----
-
-## UC-02: 上下文感知問答 (Context-Aware Chat / RAG)
-
-### 簡述
-用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
-
-- **Actor**: Knowledge Worker
-- **Primary Module**: `modules/agent`
-- **Supporting Modules**: `modules/retrieval`, `modules/content`
-
-### Main Flow
-1. 用戶開啟右側 `Assistant Panel`。
-2. 系統自動鎖定當前 `PageId` 作為 Context。
-3. 用戶提問：「這份文件的核心結論是什麼？」
-4. **[Intelligence]** 將問題轉為向量，並結合 `PageId` 過濾條件查詢 `VectorStore`。
-5. **[Search]** 回傳 Top-K 相關的 `Block` 內容。
-6. **[Intelligence]** 組裝 Prompt (包含原始 Block 內容) 發送給 LLM。
-7. **[UI]** 串流顯示答案，並在答案中標註引用來源 (Citation)。
-8. 用戶點擊引用來源，左側編輯器自動捲動到對應 Block。
-
----
-
-## UC-03: 圖譜導航與關聯發現 (Graph Navigation)
-
-### 簡述
-用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
-
-- **Actor**: Researcher
-- **Primary Module**: `modules/graph`
-- **Supporting Modules**: `modules/knowledge`
-
-### Main Flow
-1. 用戶切換至 `Graph View`。
-2. **[Knowledge]** 聚合所有 `Page` 與 `Link` 數據回傳。
-3. **[Graph]** 渲染力導向圖 (Force-Directed Graph)。
-4. 節點大小根據 `Backlinks` 數量動態調整。
-5. 用戶點擊節點 A。
-6. **[UI]** 開啟側邊預覽 (Preview Card)，顯示節點 A 的摘要與直接關聯。
-7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
 `````
 
 ## File: modules/workspace-audit/AGENT.md
@@ -66656,248 +66797,6 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 }
 `````
 
-## File: .github/agents/implementer.agent.md
-`````markdown
----
-name: Implementer
-description: 'Execute approved implementation plans within Xuanwu scope, boundary, validation, and documentation rules.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'todo', 'serena/*']
-handoffs:
-  - label: Review Implementation
-    agent: reviewer
-    prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
-    send: false
----
-
-# Implementer
-
-You are the formal implementation stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Execute the approved implementation plan without expanding scope. Write code, update documentation, and run the validation required by the plan.
-
-## Required references
-
-- Use the approved implementation plan as the execution contract.
-- Follow [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [.github/copilot-instructions.md](../copilot-instructions.md).
-- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) when ownership or layer placement matters.
-- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) when a workflow is contract-governed.
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the plan completely before editing.
-3. Execute the implementation tasks in a deliberate order.
-4. Keep changes inside the documented scope and non-goals.
-5. Run the validation named in the plan.
-6. Update the documentation listed in the plan.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/impl-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with completed tasks, validation results, and deviations; then call `serena/summarize_changes`.
-8. Prepare a concise completion summary for review.
-
-## Guardrails
-
-- Do not invent new scope because it seems adjacent or useful.
-- Do not bypass required validation.
-- Do not ignore required documentation updates.
-- Stop and request a plan revision if owner, runtime, or validation is unclear.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-- Report completed tasks against the plan checklist.
-- Report validation actually run.
-- Report documentation updated.
-- Note any deviations from the plan and why they were unavoidable.
-`````
-
-## File: .github/agents/planner.agent.md
-`````markdown
----
-name: Planner
-description: 'Create formal implementation plans for Xuanwu delivery work before code changes begin.'
-tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
-handoffs:
-  - label: Start Implementation
-    agent: implementer
-    prompt: Implement the approved plan above. Stay inside the documented scope, non-goals, validation plan, and documentation updates.
-    send: false
----
-
-# Planner
-
-You are the formal planning stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Turn a delivery request into an implementation plan that later stages can execute without re-deciding ownership, runtime boundaries, or validation.
-
-## Required references
-
-- Use [implementation plan template](../../docs/development-reference/reference/ai/implementation-plan-template.md) as the output skeleton.
-- Enforce [plan schema](../../docs/development-reference/reference/ai/plan-schema.md) before finalizing a plan.
-- Use [AGENTS.md](../../AGENTS.md), [CLAUDE.md](../../CLAUDE.md), and [agents/knowledge-base.md](../../agents/knowledge-base.md) as repository context.
-- For governed workflows, consult [development contracts overview](../../docs/development-reference/reference/development-contracts/overview.md).
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) to activate the project context before reading memories.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Clarify the request until scope, owner, and runtime are clear.
-3. Identify the owning modules, packages, and layers.
-4. Check whether a development contract governs the workflow.
-5. Produce a formal implementation plan using the required template and schema.
-6. Ensure the plan names validation and documentation work explicitly.
-7. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/plan-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scope, decisions, and open questions; then call `serena/summarize_changes`.
-
-## Guardrails
-
-- Do not write implementation code.
-- Do not leave required sections implicit or blank.
-- Do not let the plan use generic ownership labels when a concrete module or package owner can be named.
-- Do not skip non-goals for convenience.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-- Return a complete implementation plan.
-- State any open questions that block safe implementation.
-- If the request is too vague, ask concise clarifying questions before planning.
-`````
-
-## File: .github/agents/qa.agent.md
-`````markdown
----
-name: QA
-description: 'Verify Xuanwu implementations with scenario coverage, evidence, residual risk, and release readiness reporting.'
-tools: ['vscode', 'execute', 'read', 'search', 'web', 'todo', 'serena/*']
-handoffs:
-  - label: Fix QA Findings
-    agent: implementer
-    prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
-    send: false
----
-
-# QA
-
-You are the formal QA stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Verify what was delivered, prove what works, document what does not, and state the residual risk before release.
-
-## Core principles
-
-1. Assume behavior is unproven until scenarios are executed.
-2. Reproduce before reporting.
-3. Trace tests back to requirements, scope, or expected behavior.
-4. Prefer deterministic evidence over narrative confidence.
-5. Separate confirmed failures from residual risks and nice-to-have improvements.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the approved plan and the reviewer output.
-3. Build a verification list from scope, risks, and validation requirements.
-4. Execute scenarios across happy path, boundary, negative, error handling, and regression-sensitive paths.
-5. Capture evidence for failures and noteworthy residual risks.
-6. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/qa-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with scenarios executed, failures, risks, and release recommendation; then call `serena/summarize_changes`.
-7. Conclude with a release recommendation.
-
-## Output format
-
-### Scope checked
-- <scope item>
-
-### Scenarios executed
-1. <scenario>
-
-### Evidence collected
-- <evidence>
-
-### Failures found
-- <failure or none>
-
-### Residual risks
-- <risk or none>
-
-### Release recommendation
-- `ready | ready-with-risk | blocked`
-
-## Guardrails
-
-- Do not edit source files.
-- Do not mark a change ready if required validation was not actually executed.
-- Do not collapse missing evidence into general confidence language.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-`````
-
-## File: .github/agents/reviewer.agent.md
-`````markdown
----
-name: Reviewer
-description: 'Review Xuanwu implementations for correctness, architecture alignment, regression risk, and missing validation or documentation.'
-tools: ['vscode', 'read', 'search', 'web', 'todo', 'serena/*']
-handoffs:
-  - label: Fix Review Findings
-    agent: implementer
-    prompt: Apply fixes for the review findings above. Keep the scope bounded to those findings and rerun the required validation.
-    send: false
-  - label: Run QA
-    agent: qa
-    prompt: Execute QA against the approved plan and reviewed implementation. Verify scenarios, evidence, residual risk, and release readiness.
-    send: false
----
-
-# Reviewer
-
-You are the formal review stage of the Xuanwu Copilot Delivery Suite.
-
-## Mission
-
-Evaluate whether the implementation is acceptable before QA starts. Focus on bugs, regressions, boundary violations, missing validation, and missing documentation.
-
-## Review lenses
-
-1. Correctness and behavioral regressions
-2. MDDD ownership and dependency direction
-3. Contract alignment and invariant preservation
-4. Validation completeness
-5. Documentation completeness
-
-## Required references
-
-- Review against the approved implementation plan.
-- Use [xuanwu-mddd-boundaries](../skills/xuanwu-mddd-boundaries/SKILL.md) for ownership and boundary checks.
-- Use [xuanwu-development-contracts](../skills/xuanwu-development-contracts/SKILL.md) for contract-governed workflows.
-- Use [serena-mcp](../skills/serena-mcp/SKILL.md) — activate project context and run the phase-end update.
-
-## Workflow
-
-1. Activate Serena project context (`serena/activate_project`, project: `xuanwu-app`).
-2. Read the approved plan and the implementation output.
-3. Evaluate across the five review lenses.
-4. **Phase-end Serena update**: call `serena/write_memory` (name: `workflow/review-{task-id}`, content: phase-end template from [serena-mcp SKILL](../skills/serena-mcp/SKILL.md)) with findings, severity, and recommendation; then call `serena/summarize_changes`.
-
-## Guardrails
-
-- Do not edit files.
-- Do not restate the implementation summary as the review.
-- Do not focus on style trivia before reporting bugs, risk, or missing validation.
-- If no serious findings exist, say so explicitly and note residual risks or test gaps.
-- Do not edit files under `.serena/` directly; use `serena/write_memory` or `serena/delete_memory` only.
-
-## Output expectations
-
-Present findings first, ordered by severity. Include:
-
-- summary,
-- affected area,
-- why it matters,
-- and whether the issue blocks QA or release.
-`````
-
 ## File: .github/agents/serena.agent.md
 `````markdown
 ---
@@ -66953,59 +66852,6 @@ Before implementing new features:
 - Keep changes minimal and localized
 - Update DTOs/interfaces when altering data structures
 - Leverage `xuanwu-app-skill` for reusable patterns, code templates, and project-specific rules
-`````
-
-## File: .github/copilot-instructions.md
-`````markdown
-# Xuanwu Copilot Delivery Suite
-
-Baseline for Copilot agents to stay aligned with the repository and toolchain.
-
-## Authoritative Sources (read in order)
-
-1. [AGENTS.md](../AGENTS.md) — repository-wide operating rules  
-2. [CLAUDE.md](../CLAUDE.md) — cross-agent compatibility  
-3. [agents/knowledge-base.md](../agents/knowledge-base.md) — module ownership and MDDD boundaries  
-4. [agents/commands.md](../agents/commands.md) — build, lint, and deployment commands  
-5. [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution and validation expectations  
-6. Contract work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md)
-
-## Operating rules (concise)
-
-- Plan first for cross-module, cross-runtime, or contract-governed work.  
-- Each `modules/` context is isolated; cross-module access must use the target `api/` boundary.  
-- Keep business logic in `domain` + `application`; keep UI/transport in `interfaces` and `app/`.  
-- Treat the approved plan as the contract; stay within scope and update docs when boundaries or public APIs change.  
-
-## Serena MCP — mandatory
-
-All agents must use Serena MCP tools for project memory, index, and `.serena/` management:
-
-- **Activate first**: call `serena/activate_project` (project: `xuanwu-app`) before any memory operation.
-- **Phase-end update**: every delivery stage (Plan, Implement, Review, QA) must call `serena/write_memory` and `serena/summarize_changes` before handing off.
-- **`.serena/` is protected**: never use file-editing tools (`edit`, `create`, `write`, `replace_lines`, `insert_at_line`, `delete_lines`) on paths under `.serena/`. Route all `.serena/` changes through the matching Serena MCP tool.
-- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for the full workflow, tool reference, and memory naming convention.
-
-## Orchestration pattern
-
-1. Use Planner → Implementer → Reviewer → QA for non-trivial work (re-enter via prompts if a stage restarts).  
-2. Activate skills as needed:  
-   - [serena-mcp](skills/serena-mcp/SKILL.md) *(mandatory — activate first)*  
-   - [xuanwu-app-skill](skills/xuanwu-app-skill/SKILL.md) *(use when codebase structure, implementation location, or repository-wide reference is needed)*  
-   - [xuanwu-mddd-boundaries](skills/xuanwu-mddd-boundaries/SKILL.md)  
-   - [xuanwu-development-contracts](skills/xuanwu-development-contracts/SKILL.md)  
-   - [xuanwu-rag-runtime-boundary](skills/xuanwu-rag-runtime-boundary/SKILL.md)  
-   - [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)  
-3. Prefer Copilot tools per the VS Code overview: search/read before edit, run lint/build commands from `agents/commands.md`, and use diagnostics when customizations fail to load.  
-
-## Validation
-
-- Run the matching validation for the files you change using [agents/commands.md](../agents/commands.md).  
-- Do not close work until required checks and documentation updates are complete.  
-
-## Terminology
-
-See [terminology-glossary.md](./terminology-glossary.md) for efficiency and vocabulary.
 `````
 
 ## File: .github/instructions/agent-skills.instructions.md
@@ -71251,376 +71097,294 @@ AI 功能：
 > Notion（UI / Block / Database）+ Wiki（Knowledge Graph）+ NotebookLM（RAG / AI）= **AI Knowledge Platform**
 `````
 
-## File: docs/development-reference/development/code-style.md
+## File: docs/development-reference/development/modules-implementation-guide.md
 `````markdown
-# 程式碼風格指南（Code Style Guide）
+# Modules Implementation Guide
 
-> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
-> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
+本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
 
----
-
-## 1. TypeScript
-
-### 1.1 型別宣告原則
-
-```typescript
-// ✅ 優先使用 interface 定義物件形狀
-interface UserProfile {
-  readonly id: string;
-  name: string;
-  email: string;
-}
-
-// ✅ 使用 type 定義聯合型別、交叉型別、別名
-type DocumentStatus = "processing" | "ready" | "error";
-type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
-
-// ✅ 從 @shared-types 匯入跨模組共用型別
-import type { CommandResult, DomainError } from "@shared-types";
-
-// ❌ 避免 any
-const data: any = fetchData(); // 禁止
-
-// ✅ 使用 unknown 代替 any
-const data: unknown = fetchData();
-```
-
-### 1.2 命名規範
-
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
-| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
-| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
-| 函式 | `camelCase` | `uploadDocument` |
-| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
-| React 元件 | `PascalCase` | `WikiBetaDocumentsView` |
-| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
-| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
-| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
-| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
-| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
-| 檔案：React 元件 | `PascalCase.tsx` | `WikiBetaDocumentsView.tsx` |
-
-### 1.3 函式宣告風格
-
-```typescript
-// ✅ 匯出函式使用 function 宣告（可讀性較佳）
-export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
-  // ...
-}
-
-// ✅ 回呼、lambda 使用 arrow function
-const items = list.map((item) => item.id);
-
-// ✅ 元件使用 function 宣告
-export function WikiBetaDocumentsView() {
-  // ...
-}
-
-// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
-export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
-```
-
-### 1.4 非同步處理
-
-```typescript
-// ✅ 使用 async/await，避免 Promise chain
-async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
-  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
-  return snapshot.docs.map(docToEntity);
-}
-
-// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
-export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
-  try {
-    await triggerReindex(input);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: toDomainError(error) };
-  }
-}
-
-// ❌ 不在元件內 catch 後靜默吞錯誤
-try {
-  await doSomething();
-} catch {
-  // 靜默失敗 — 禁止
-}
-```
+- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
+- 本文件：回答「在 repository 內如何落地」。
 
 ---
 
-## 2. React 元件規範
+## 1. 與概念架構文件的對位關係
 
-### 2.1 元件結構順序
+[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
 
-```tsx
-"use client"; // 若需要（置頂）
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
 
-import React, { useState, useEffect, useCallback } from "react";
-// 外部函式庫
-import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
+在本專案中的實作對位：
 
-// 內部 alias imports
-import { Button } from "@ui-shadcn/ui/button";
-import { cn } from "@shared-utils";
+| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
+| --- | --- | --- |
+| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
 
-// 同模組 relative imports
-import type { WikiBetaDocument } from "../../domain/entities/wiki-beta-document.entity";
-
-// 型別定義
-interface DocumentCardProps {
-  readonly document: WikiBetaDocument;
-  readonly onReindex: (docId: string) => Promise<void>;
-}
-
-// 元件主體
-export function DocumentCard({ document, onReindex }: DocumentCardProps) {
-  // 1. Hooks（useState、useEffect、custom hooks）
-  const [isLoading, setIsLoading] = useState(false);
-
-  // 2. Derived state / memoized values
-  const canReindex = document.status === "ready";
-
-  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
-  const handleReindex = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await onReindex(document.id);
-      toast.success("已觸發重整");
-    } catch (err) {
-      toast.error(`重整失敗：${String(err)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [document.id, onReindex]);
-
-  // 4. Render
-  return (
-    <div className="flex items-center gap-4 rounded-lg border p-4">
-      <span className="flex-1">{document.filename}</span>
-      <Button
-        size="sm"
-        disabled={!canReindex || isLoading}
-        onClick={handleReindex}
-        aria-disabled={!canReindex || isLoading}
-      >
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
-      </Button>
-    </div>
-  );
-}
-```
-
-### 2.2 Props 設計規則
-
-```typescript
-// ✅ 使用 readonly 標記不可變 props
-interface MyProps {
-  readonly id: string;
-  readonly onAction: () => void;
-  className?: string; // 可選 className 用於樣式擴展
-}
-
-// ✅ 事件 handler 命名使用 on 前綴
-onSubmit, onChange, onDelete, onSelect
-
-// ✅ Boolean props 命名使用 is/has/can 前綴
-isLoading, hasError, canEdit, isCollapsed
-
-// ❌ 避免過於泛用的 props
-data: any;          // 禁止
-config: Record<string, unknown>; // 避免
-```
-
-### 2.3 Server Component vs Client Component
-
-```typescript
-// ✅ 頁面預設為 Server Component（無 "use client"）
-export default async function DocumentsPage() {
-  return <WikiBetaDocumentsView />;
-}
-
-// ✅ 只在需要時才加 "use client"
-// 需要: useState, useEffect, onClick, onChange, browser APIs
-"use client";
-export function InteractiveUploader() {
-  const [isDragOver, setIsDragOver] = useState(false);
-  // ...
-}
-
-// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
-```
+> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
 
 ---
 
-## 3. 匯入規範
+## 2. module 標準結構（MDDD）
 
-### 3.1 匯入順序
-
-```typescript
-// 1. React（若使用 JSX 元素需明確匯入）
-import React from "react";
-
-// 2. Next.js 核心
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-// 3. 第三方函式庫
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-
-// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-
-// 5. @/ 模組匯入（app/ 和 modules/）
-import type { WorkspaceEntity } from "@/modules/workspace";
-import { createWorkspace } from "@/modules/workspace";
-
-// 6. 相對路徑（同模組內部）
-import type { DocumentEntity } from "../../domain/entities/document.entity";
-import { useDocuments } from "../hooks/use-documents";
+```text
+<domain-id>/
+│
+├── api/
+│   └── index.ts
+│
+├── domain/
+│   ├── entities/
+│   ├── value-objects/
+│   ├── repositories/
+│   ├── services/
+│   └── events/
+│
+├── application/
+│   ├── use-cases/
+│   └── dto/
+│
+├── infrastructure/
+│   ├── firebase/
+│   ├── persistence/
+│   ├── external/
+│   └── repositories/
+│
+├── interfaces/
+│   ├── _actions/
+│   ├── api/
+│   ├── queries/
+│   ├── hooks/
+│   └── components/
+│
 ```
 
-### 3.2 禁止使用的 Legacy 路徑
+說明：
 
-| 禁止 | 替代方案 |
-|---|---|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` 對應套件 |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
+1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
 
 ---
 
-## 4. CSS 與 Tailwind 規範
+## 3. 依賴方向與邊界
 
-### 4.1 Class 排列順序
+全域依賴方向：
 
-遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
-
-```tsx
-// Layout → Position → Spacing → Sizing → Typography → Visual
-<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
+```text
+interfaces -> application -> domain <- infrastructure
 ```
 
-建議安裝 `prettier-plugin-tailwindcss` 自動排列。
+邊界規則：
 
-### 4.2 條件 Class 使用 cn()
-
-```tsx
-import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
-
-<div
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8",
-    isDragOver && "border-primary bg-primary/5",
-    isError && "border-destructive",
-    className // 允許外部覆蓋
-  )}
-/>
-```
-
-### 4.3 避免 CSS 反模式
-
-```tsx
-// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
-<div style={{ backgroundColor: "#f00" }} />
-
-// ✅ 使用 Tailwind 語義色
-<div className="bg-destructive" />
-
-// ❌ 避免 @apply（Tailwind 不推薦用於元件）
-// @apply flex items-center;
-
-// ✅ 使用元件封裝重用樣式
-```
+1. `domain/` 不得依賴 framework 與外部 SDK。
+2. `application/` 負責流程編排，不直接綁定具體外部實作。
+3. `infrastructure/` 實作 domain 介面，不主導業務流程。
+4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
 
 ---
 
-## 5. JSDoc 規範
+## 4. 與 packages 的關係
 
-函式與類別加 JSDoc 的時機：
+模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
 
-```typescript
-// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
-/**
- * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
- * @param input - 包含 file、accountId 與選填的 workspaceId。
- * @returns CommandResult，成功時包含 documentId。
- */
-export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
-  // ...
-}
-
-// ✅ 複雜業務邏輯加說明
-// ❌ 簡單 getter / setter 無需 JSDoc
+```text
+modules/*
+  -> packages/* (stable public boundary)
 ```
+
+這個原則與上位概念架構文件的三層融合不衝突：
+
+- 融合的是產品能力（編輯 + 關聯 + AI）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
 
 ---
 
-## 6. 測試風格
+## 5. Next.js 路由與融合介面
 
-### 6.1 測試檔案命名
+[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
 
-| 類型 | 格式 |
-|---|---|
-| Unit test | `*.test.ts` / `*.test.tsx` |
-| Integration test | `*.integration.test.ts` |
-| E2E test | `*.e2e.ts`（Playwright） |
-
-### 6.2 測試命名
-
-```typescript
-describe("uploadDocument use case", () => {
-  it("should return success with documentId when file is valid", async () => {
-    // ...
-  });
-
-  it("should return error when accountId is missing", async () => {
-    // ...
-  });
-});
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
 ```
+
+實作可依需求擴充，例如：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+    /@collab
+    /@workflow
+```
+
+擴充原則：
+
+1. 新 slot 必須能回對到既有 module ownership。
+2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
 
 ---
 
-## 7. ESLint 執行
+## 6. 目標對齊聲明
 
-```bash
-# 執行 lint（必須 0 errors）
-npm run lint
+本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
 
-# 自動修復可修正的問題
-npm run lint -- --fix
-```
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
+2. 明確化「融合體驗」與「邊界隔離」可同時成立。
+3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
 
-**常見 ESLint 規則**（`eslint.config.mjs`）：
+---
 
-- `no-unused-vars` — 未使用的變數
-- `@typescript-eslint/no-explicit-any` — 禁止 any
-- `jsdoc/*` — JSDoc 格式檢查
-- `@typescript-eslint/naming-convention` — 命名規範
-- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
-- 匯入路徑邊界（legacy path 封鎖）
+## 7. 以上位概念架構文件為準的落地限制
 
-### 7.1 什麼時候要調整 `eslint.config.mjs`
+上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
 
-- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
-- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
-- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
-- **同步文件**：調整規則時一併更新
-  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
-  - 本節清單（如新增/刪除常見規則）
-- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
+因此本文件只保留與概念模型一致的落地限制：
+
+1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
+2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
+4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+
+## 8. 實作規劃時的最小檢查點
+
+若要把三層模型落到實際模組，至少先確認：
+
+1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
+3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
+4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
+5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
+`````
+
+## File: docs/development-reference/reference/ai/customizations-index.md
+`````markdown
+---
+title: AI customizations index
+description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
+---
+
+# AI customizations index
+
+This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
+
+## Scope boundary
+
+- `.github/` is the operational source of truth.
+- This page provides routing, ownership, lifecycle status, and maintenance policy.
+- Avoid duplicating full file bodies from `.github/`.
+- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
+- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
+
+## Baseline references
+
+| Asset | Type | Responsibility | Notes |
+| --- | --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
+| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
+| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
+| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
+| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
+| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
+
+## Primary routing
+
+Use this order when working on customization assets:
+
+1. [.github/README.md](../../../../.github/README.md)
+2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
+3. the target folder under `.github/`
+4. the exact target file
+
+## Delivery workflow agents
+
+| Asset | Stage | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
+| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
+| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
+| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
+| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
+
+## Specialized Custom Agents
+
+| Asset | Focus | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
+| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
+
+## Modules Architecture Suite
+
+| Asset group | Files |
+| --- | --- |
+| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
+| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
+| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
+
+Scope partition for instruction consumption:
+
+- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
+- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
+
+## Delivery prompts
+
+| Asset | Primary use | Typical entry point |
+| --- | --- | --- |
+| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
+| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
+| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
+| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
+| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
+| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
+
+## Planning contract reference
+
+| Asset | Responsibility |
+| --- | --- |
+| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
+| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
+| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
+
+## Operational guidance
+
+| Asset | Audience | Purpose |
+| --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
+| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
+| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
+| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
+| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
+| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
+
+## Existing specialized skills
+
+- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
+- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
+- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
+- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
+- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
+
+## Legacy assets
+
+| Asset | Current status | Replacement |
+| --- | --- | --- |
+| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
+
+## Ownership and update policy
+
+- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
+- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
+- Keep this page concise; keep executable definitions in `.github/`.
+- Treat undocumented customization assets as provisional.
 `````
 
 ## File: docs/development-reference/reference/development-contracts/overview.md
@@ -73269,6 +73033,81 @@ export type { GraphDataDTO } from "./knowledge-graph-api";
 export type { GraphViewConfig, GraphLayout } from "../domain/entities/view-config";
 `````
 
+## File: modules/knowledge-graph/README.md
+`````markdown
+# knowledge-graph — Knowledge Graph Layer
+
+`modules/knowledge-graph` は Knowledge Graph Layer の中核モジュールです。Wiki スタイルのナレッジグラフを管理し、ノード（GraphNode）とエッジ（GraphEdge）のライフサイクルを定義します。
+
+外界との互動規則：
+- 外界は `api/` のみを通じてこのモジュールを使用してください
+- UI は外部ページまたは他のモジュールが独自に組み立てます
+- `domain/`, `application/`, `infrastructure/`, `interfaces/` への直接インポートは禁止です
+
+## アーキテクチャ図
+
+| ファイル | 内容 |
+|---|---|
+| [`./Graph-Flow.mermaid`](./Graph-Flow.mermaid) | ドメイン状態機械（GraphNode / GraphEdge ライフサイクル） |
+| [`./Graph-UI.mermaid`](./Graph-UI.mermaid) | UI 組み立てと API 境界（App Router → api/ → Vis.js キャンバス） |
+| [`./Graph-Tree.mermaid`](./Graph-Tree.mermaid) | MDDD ディレクトリ構造と境界ルール |
+| [`./Graph-Sequence.mermaid`](./Graph-Sequence.mermaid) | ノード作成・エッジリンクの循環図 |
+| [`./Graph-ERD.mermaid`](./Graph-ERD.mermaid) | エンティティ関聯図（GraphNode / GraphEdge / GraphMetadata） |
+
+---
+
+## コアプリンシプル
+
+```
+GraphNode   → 知識の単位 (Wiki ページに相当)
+GraphEdge   → 知識間の関係 (Wiki リンクに相当)
+GraphMetadata → 付加情報 (タグ / カテゴリ / カスタム属性)
+```
+
+**独立した 2 つの状態機械が、それぞれのライフサイクルを管理します。**
+
+---
+
+## 1. GraphNode State Machine
+
+```
+draft       --[ACTIVATE]-->   active
+active      --[ARCHIVE]-->    archived    (guard: no pending or active edges)
+archived    --[RESTORE]-->    active
+```
+
+| state | 説明 |
+|---|---|
+| `draft` | ノード作成済み、未公開 |
+| `active` | 公開中・グラフに表示 |
+| `archived` | アーカイブ済み |
+
+---
+
+## 2. GraphEdge State Machine
+
+```
+pending     --[ACTIVATE]-->    active      (guard: both nodes active)
+active      --[DEACTIVATE]-->  inactive
+inactive    --[ACTIVATE]-->    active
+active      --[REMOVE]-->      removed
+pending     --[REMOVE]-->      removed
+```
+
+| state | 説明 |
+|---|---|
+| `pending` | エッジ作成済み、未有効化 |
+| `active` | 有効なエッジ |
+| `inactive` | 一時的に非表示 |
+| `removed` | 削除済み |
+
+---
+
+## 参照アーキテクチャ
+
+`docs/decision-architecture/architecture/ai-knowledge-platform-architecture.md` の Knowledge Graph Layer に対応します。
+`````
+
 ## File: modules/knowledge/api/index.ts
 `````typescript
 /**
@@ -73323,6 +73162,175 @@ export {};
  * No new code should be added here.
  */
 export {};
+`````
+
+## File: modules/README.md
+`````markdown
+# Modules Implementation Guide
+
+本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
+
+- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
+- 本文件：回答「在 repository 內如何落地」。
+
+---
+
+## 1. 與 Architecture.md 的對位關係
+
+`Architecture.md` 定義三層融合：
+
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
+
+在本專案中的實作對位：
+
+| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
+| --- | --- | --- |
+| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
+
+> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
+
+---
+
+## 2. module 標準結構（MDDD）
+
+```text
+<domain-id>/
+│
+├── api/
+│   └── index.ts
+│
+├── domain/
+│   ├── entities/
+│   ├── value-objects/
+│   ├── repositories/
+│   ├── services/
+│   └── events/
+│
+├── application/
+│   ├── use-cases/
+│   └── dto/
+│
+├── infrastructure/
+│   ├── firebase/
+│   ├── persistence/
+│   ├── external/
+│   └── repositories/
+│
+├── interfaces/
+│   ├── _actions/
+│   ├── api/
+│   ├── queries/
+│   ├── hooks/
+│   └── components/
+│
+```
+
+說明：
+
+1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
+
+---
+
+## 3. 依賴方向與邊界
+
+全域依賴方向：
+
+```text
+interfaces -> application -> domain <- infrastructure
+```
+
+邊界規則：
+
+1. `domain/` 不得依賴 framework 與外部 SDK。
+2. `application/` 負責流程編排，不直接綁定具體外部實作。
+3. `infrastructure/` 實作 domain 介面，不主導業務流程。
+4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
+
+---
+
+## 4. 與 packages 的關係
+
+模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
+
+```text
+modules/*
+  -> packages/* (stable public boundary)
+```
+
+這個原則與 `Architecture.md` 的三層融合不衝突：
+
+- 融合的是產品能力（編輯 + 關聯 + AI）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
+
+---
+
+## 5. Next.js 路由與融合介面
+
+`Architecture.md` 的基礎平行路由示意：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+```
+
+實作可依需求擴充，例如：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+    /@collab
+    /@workflow
+```
+
+擴充原則：
+
+1. 新 slot 必須能回對到既有 module ownership。
+2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
+
+---
+
+## 6. 目標對齊聲明
+
+本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
+
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
+2. 明確化「融合體驗」與「邊界隔離」可同時成立。
+3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+
+---
+
+## 7. 以 Architecture.md 為準的落地限制
+
+`modules/Architecture.md` 提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+
+因此本文件只保留與上位概念一致的落地限制：
+
+1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
+2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
+4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+
+## 8. 實作規劃時的最小檢查點
+
+若要把三層模型落到實際模組，至少先確認：
+
+1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
+3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
+4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
+5. 若文件只是概念說明，不額外發明 Architecture.md 未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
 ## File: modules/retrieval/api/index.ts
@@ -73429,6 +73437,74 @@ export class GenkitRagGenerationRepository implements RagGenerationRepository {
     }
   }
 }
+`````
+
+## File: modules/UseCases.md
+`````markdown
+# Use Case Specifications
+
+本文件描述「Notion × Wiki × NotebookLM」融合架構下的關鍵使用者案例。
+
+---
+
+## UC-01: 智能寫作與即時連結 (Writing with Auto-Linking)
+
+### 簡述
+當用戶在編輯器中寫作時，系統自動識別關鍵字並建議建立 Wiki 連結，或將內容轉為向量索引。
+
+- **Actor**: Content Creator
+- **Primary Module**: `modules/content`
+- **Supporting Modules**: `modules/knowledge`, `modules/agent`
+
+### Main Flow
+1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
+2. `BlockEditor` 偵測到 `[[` 觸發符。
+3. **[Knowledge]** 搜尋現有 `GraphNode` 並回傳建議列表。
+4. 用戶選擇目標頁面，系統插入 `PageLink` Block。
+5. 用戶完成一段文字並失焦 (OnBlur)。
+6. **[System]** 發送 `ContentBlockUpdated` 事件。
+7. **[Intelligence]** (Async) 接收事件，將該 Block 文字轉為 Vector 並存入 Upstash。
+
+---
+
+## UC-02: 上下文感知問答 (Context-Aware Chat / RAG)
+
+### 簡述
+用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
+
+- **Actor**: Knowledge Worker
+- **Primary Module**: `modules/agent`
+- **Supporting Modules**: `modules/retrieval`, `modules/content`
+
+### Main Flow
+1. 用戶開啟右側 `Assistant Panel`。
+2. 系統自動鎖定當前 `PageId` 作為 Context。
+3. 用戶提問：「這份文件的核心結論是什麼？」
+4. **[Intelligence]** 將問題轉為向量，並結合 `PageId` 過濾條件查詢 `VectorStore`。
+5. **[Search]** 回傳 Top-K 相關的 `Block` 內容。
+6. **[Intelligence]** 組裝 Prompt (包含原始 Block 內容) 發送給 LLM。
+7. **[UI]** 串流顯示答案，並在答案中標註引用來源 (Citation)。
+8. 用戶點擊引用來源，左側編輯器自動捲動到對應 Block。
+
+---
+
+## UC-03: 圖譜導航與關聯發現 (Graph Navigation)
+
+### 簡述
+用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
+
+- **Actor**: Researcher
+- **Primary Module**: `modules/knowledge-graph`
+- **Supporting Modules**: `modules/knowledge`
+
+### Main Flow
+1. 用戶切換至 `Graph View`。
+2. **[Knowledge]** 聚合所有 `Page` 與 `Link` 數據回傳。
+3. **[Graph]** 渲染力導向圖 (Force-Directed Graph)。
+4. 節點大小根據 `Backlinks` 數量動態調整。
+5. 用戶點擊節點 A。
+6. **[UI]** 開啟側邊預覽 (Preview Card)，顯示節點 A 的摘要與直接關聯。
+7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
 `````
 
 ## File: modules/wiki-beta/api/index.ts
@@ -76808,6 +76884,68 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
+## File: .github/skills/serena-mcp/SKILL.md
+`````markdown
+---
+name: serena-mcp
+description: >-
+  Enforce Serena MCP usage for project memory and .serena governance. Use for memory read/write, onboarding checks,
+  phase-end updates, and any .serena scoped operation.
+disable-model-invocation: true
+---
+
+# Serena MCP Enforcement (Condensed)
+
+## When to Use
+
+- Phase start/end (plan/impl/review/qa)
+- Project memory read/write/update
+- Any `.serena/` path operation
+
+## Mandatory Rules
+
+1. Never edit `.serena/` with direct file tools.
+2. Use Serena memory tools for create/update/delete.
+3. Activate project before memory operations.
+4. Execute phase-end memory update before handoff.
+
+## Phase-End Flow
+
+1. Activate project
+2. List memories
+3. Write phase memory
+4. Delete stale memories (if needed)
+5. Summarize changes
+
+## Minimal Phase Memory Template
+
+```markdown
+## Phase: <plan|impl|review|qa>
+## Task: <id or short description>
+## Date: <YYYY-MM-DD>
+
+### Scope
+- <item>
+
+### Decisions / Findings
+- <item>
+
+### Validation / Evidence
+- <item>
+
+### Deviations / Risks
+- <item or none>
+
+### Open Questions
+- <item or none>
+```
+
+## Guardrails
+
+- If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
+- Keep memory names consistent (`workflow/<phase>-<task-id>`).
+`````
+
 ## File: .github/skills/slavingia-skills-company-values/SKILL.md
 `````markdown
 ---
@@ -78101,127 +78239,6 @@ export function CustomizeNavigationDialog({
 }
 `````
 
-## File: docs/development-reference/reference/ai/customizations-index.md
-`````markdown
----
-title: AI customizations index
-description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
----
-
-# AI customizations index
-
-This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
-
-## Scope boundary
-
-- `.github/` is the operational source of truth.
-- This page provides routing, ownership, lifecycle status, and maintenance policy.
-- Avoid duplicating full file bodies from `.github/`.
-- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
-- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
-
-## Baseline references
-
-| Asset | Type | Responsibility | Notes |
-| --- | --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
-| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
-| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
-| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
-| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
-| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
-
-## Primary routing
-
-Use this order when working on customization assets:
-
-1. [.github/README.md](../../../../.github/README.md)
-2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
-3. the target folder under `.github/`
-4. the exact target file
-
-## Delivery workflow agents
-
-| Asset | Stage | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
-| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
-| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
-| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
-| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
-
-## Specialized Custom Agents
-
-| Asset | Focus | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
-| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
-
-## Modules Architecture Suite
-
-| Asset group | Files |
-| --- | --- |
-| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
-| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
-| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
-
-Scope partition for instruction consumption:
-
-- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
-- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
-
-## Delivery prompts
-
-| Asset | Primary use | Typical entry point |
-| --- | --- | --- |
-| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
-| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
-| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
-| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
-| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
-| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
-
-## Planning contract reference
-
-| Asset | Responsibility |
-| --- | --- |
-| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
-| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
-| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
-
-## Operational guidance
-
-| Asset | Audience | Purpose |
-| --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
-| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
-| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
-
-## Existing specialized skills
-
-- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
-- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
-- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
-- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
-- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
-
-## Legacy assets
-
-| Asset | Current status | Replacement |
-| --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
-
-## Ownership and update policy
-
-- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
-- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
-- Keep this page concise; keep executable definitions in `.github/`.
-- Treat undocumented customization assets as provisional.
-`````
-
 ## File: modules/workspace-audit/api/index.ts
 `````typescript
 /**
@@ -78854,68 +78871,6 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Prefer checklist-style guidance over long prose.
 - Keep this file focused on skill-specific execution intent.
 - Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: .github/skills/serena-mcp/SKILL.md
-`````markdown
----
-name: serena-mcp
-description: >-
-  Enforce Serena MCP usage for project memory and .serena governance. Use for memory read/write, onboarding checks,
-  phase-end updates, and any .serena scoped operation.
-disable-model-invocation: true
----
-
-# Serena MCP Enforcement (Condensed)
-
-## When to Use
-
-- Phase start/end (plan/impl/review/qa)
-- Project memory read/write/update
-- Any `.serena/` path operation
-
-## Mandatory Rules
-
-1. Never edit `.serena/` with direct file tools.
-2. Use Serena memory tools for create/update/delete.
-3. Activate project before memory operations.
-4. Execute phase-end memory update before handoff.
-
-## Phase-End Flow
-
-1. Activate project
-2. List memories
-3. Write phase memory
-4. Delete stale memories (if needed)
-5. Summarize changes
-
-## Minimal Phase Memory Template
-
-```markdown
-## Phase: <plan|impl|review|qa>
-## Task: <id or short description>
-## Date: <YYYY-MM-DD>
-
-### Scope
-- <item>
-
-### Decisions / Findings
-- <item>
-
-### Validation / Evidence
-- <item>
-
-### Deviations / Risks
-- <item or none>
-
-### Open Questions
-- <item or none>
-```
-
-## Guardrails
-
-- If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
-- Keep memory names consistent (`workflow/<phase>-<task-id>`).
 `````
 
 ## File: .github/skills/vercel-cli-with-tokens/SKILL.md
