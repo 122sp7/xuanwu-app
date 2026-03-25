@@ -1,0 +1,61 @@
+%% Domain-ID API boundary template
+%% Purpose: reusable template for bounded contexts with API-only cross-domain interaction
+%% Rule: each domain owns its internals; cross-domain calls must go through api/
+
+flowchart LR
+    App["App / Orchestration Layer"]
+
+    subgraph DomainA["Domain A - DOMAIN_ID_A"]
+        direction TB
+        A_API["api/\ncontracts + facade"]
+        A_APP["application/\nuse cases"]
+        A_DOM["domain/\nentities + rules"]
+        A_INF["infrastructure/\nadapters"]
+        A_API --> A_APP --> A_DOM
+        A_INF --> A_DOM
+    end
+
+    subgraph DomainB["Domain B - DOMAIN_ID_B"]
+        direction TB
+        B_API["api/\ncontracts + facade"]
+        B_APP["application/\nuse cases"]
+        B_DOM["domain/\nentities + rules"]
+        B_INF["infrastructure/\nadapters"]
+        B_API --> B_APP --> B_DOM
+        B_INF --> B_DOM
+    end
+
+    subgraph DomainC["Domain C - DOMAIN_ID_C"]
+        direction TB
+        C_API["api/\ncontracts + facade"]
+        C_APP["application/\nuse cases"]
+        C_DOM["domain/\nentities + rules"]
+        C_INF["infrastructure/\nadapters"]
+        C_API --> C_APP --> C_DOM
+        C_INF --> C_DOM
+    end
+
+    App --> A_API
+    App --> B_API
+    App --> C_API
+
+    A_API -. "API call only" .-> B_API
+    B_API -. "API call only" .-> C_API
+    C_API -. "API call only" .-> A_API
+
+    Forbidden["Forbidden:\nNo direct import to another domain's application/domain/infrastructure"]
+    Forbidden -. never .-> A_APP
+    Forbidden -. never .-> B_DOM
+    Forbidden -. never .-> C_INF
+
+    classDef app fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef api fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
+    classDef layer fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
+    classDef infra fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
+    classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
+
+    class App app;
+    class A_API,B_API,C_API api;
+    class A_APP,A_DOM,B_APP,B_DOM,C_APP,C_DOM layer;
+    class A_INF,B_INF,C_INF infra;
+    class Forbidden warn;

@@ -20,6 +20,8 @@
 	- Firestore 權限決策流程
 - `agent-architecture-commander-subagents.mermaid`
 	- 指揮代理與子代理協作拓樸
+- `domain-id-api-boundary-template.mermaid`
+	- Domain-ID 領域模板：各領域自有邊界、跨領域僅透過 `api/` 交互
 
 ## 建議內容
 
