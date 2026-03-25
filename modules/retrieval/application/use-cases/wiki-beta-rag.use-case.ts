@@ -6,13 +6,13 @@
  *          backward compatibility during transitional decomposition.
  */
 
-import type { WikiBetaContentRepository } from "../domain/repositories/WikiBetaContentRepository";
+import type { WikiBetaContentRepository } from "../../domain/repositories/WikiBetaContentRepository";
 import type {
   WikiBetaParsedDocument,
   WikiBetaRagQueryResult,
   WikiBetaReindexInput,
-} from "../domain/entities/WikiBetaRagTypes";
-import { FirebaseWikiBetaContentRepository } from "../infrastructure/firebase/FirebaseWikiBetaContentRepository";
+} from "../../domain/entities/WikiBetaRagTypes";
+import { FirebaseWikiBetaContentRepository } from "../../infrastructure/firebase/FirebaseWikiBetaContentRepository";
 
 const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
 
