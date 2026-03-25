@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WikiBetaRagQueryView } from "@/modules/wiki-beta";
+import { RagQueryView } from "@/modules/retrieval/api";
 
 export default function WikiBetaRagQueryPage() {
   const searchParams = useSearchParams();
@@ -18,7 +18,7 @@ export default function WikiBetaRagQueryPage() {
         <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
-      <WikiBetaRagQueryView workspaceId={workspaceId} />
+      <RagQueryView workspaceId={workspaceId} />
     </div>
   );
 }

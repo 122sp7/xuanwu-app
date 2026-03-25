@@ -10,9 +10,9 @@ import type {
   WikiBetaAccountSeed,
   WikiBetaContentItemNode,
   WikiBetaWorkspaceContentNode,
-} from "../domain/entities/WikiBetaContentTree";
-import type { WikiBetaWorkspaceRepository } from "../domain/repositories/WikiBetaWorkspaceRepository";
-import { FirebaseWikiBetaWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
+} from "../../domain/entities/WikiBetaContentTree";
+import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/WikiBetaWorkspaceRepository";
+import { FirebaseWikiBetaWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
 
 const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
 

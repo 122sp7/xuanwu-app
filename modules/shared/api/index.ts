@@ -13,3 +13,19 @@ export {
 } from "../domain/events/content-updated.event";
 export { SimpleEventBus } from "../infrastructure/SimpleEventBus";
 export type { EventHandler } from "../infrastructure/SimpleEventBus";
+
+// ── Slug utilities (moved from modules/namespace) ─────────────────────────────
+export { deriveSlugCandidate, isValidSlug } from "../domain/slug-utils";
+
+// ── Event-store primitives (moved from modules/event) ─────────────────────────
+export { EventRecord } from "../domain/event-record";
+export type {
+  EventRecordPayload,
+  EventMetadata,
+  IEventStoreRepository,
+  IEventBusRepository,
+} from "../domain/event-record";
+export { PublishDomainEventUseCase } from "../application/publish-domain-event";
+export type { PublishDomainEventDTO } from "../application/publish-domain-event";
+export { InMemoryEventStoreRepository } from "../infrastructure/InMemoryEventStoreRepository";
+export { NoopEventBusRepository } from "../infrastructure/NoopEventBusRepository";

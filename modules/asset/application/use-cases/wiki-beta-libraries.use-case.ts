@@ -10,8 +10,9 @@ import {
   InMemoryEventStoreRepository,
   NoopEventBusRepository,
   PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
 
 import type {
   AddWikiBetaLibraryFieldInput,
@@ -20,9 +21,9 @@ import type {
   WikiBetaLibrary,
   WikiBetaLibraryField,
   WikiBetaLibraryRow,
-} from "../domain/entities/wiki-beta-library.types";
-import type { WikiBetaLibraryRepository } from "../domain/repositories/WikiBetaLibraryRepository";
-import { InMemoryWikiBetaLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-beta-library.repository";
+} from "../../domain/entities/wiki-beta-library.types";
+import type { WikiBetaLibraryRepository } from "../../domain/repositories/WikiBetaLibraryRepository";
+import { InMemoryWikiBetaLibraryRepository } from "../../infrastructure/repositories/in-memory-wiki-beta-library.repository";
 
 const defaultLibraryRepository: WikiBetaLibraryRepository = new InMemoryWikiBetaLibraryRepository();
 const defaultEventPublisher = new PublishDomainEventUseCase(

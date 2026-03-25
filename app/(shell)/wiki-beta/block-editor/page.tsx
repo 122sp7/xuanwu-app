@@ -1,6 +1,6 @@
 "use client";
 
-import { WikiBetaBlockEditorView } from "@/modules/wiki-beta";
+import { BlockEditorView } from "@/modules/content/api";
 
 export default function WikiBetaBlockEditorPage() {
   return (
@@ -13,7 +13,7 @@ export default function WikiBetaBlockEditorPage() {
         </p>
       </header>
 
-      <WikiBetaBlockEditorView />
+      <BlockEditorView />
     </div>
   );
 }

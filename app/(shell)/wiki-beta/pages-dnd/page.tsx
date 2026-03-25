@@ -2,7 +2,7 @@
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { WikiBetaPagesDnDView } from "@/modules/wiki-beta";
+import { PagesDnDView } from "@/modules/content/api";
 
 export default function WikiBetaPagesDnDPage() {
   const { state: appState } = useApp();
@@ -21,7 +21,7 @@ export default function WikiBetaPagesDnDPage() {
         </p>
       </header>
 
-      <WikiBetaPagesDnDView accountId={accountId} workspaceId={workspaceId} />
+      <PagesDnDView accountId={accountId} workspaceId={workspaceId} />
     </div>
   );
 }

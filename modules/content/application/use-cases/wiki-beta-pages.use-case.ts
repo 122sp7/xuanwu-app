@@ -11,8 +11,9 @@ import {
   InMemoryEventStoreRepository,
   NoopEventBusRepository,
   PublishDomainEventUseCase,
-} from "@/modules/event";
-import { deriveSlugCandidate, isValidSlug } from "@/modules/namespace";
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
 
 import type {
   CreateWikiBetaPageInput,
@@ -20,9 +21,9 @@ import type {
   RenameWikiBetaPageInput,
   WikiBetaPage,
   WikiBetaPageTreeNode,
-} from "../domain/entities/wiki-beta-page.types";
-import type { WikiBetaPageRepository } from "../domain/repositories/WikiBetaPageRepository";
-import { FirebaseWikiBetaPageRepository } from "../infrastructure/repositories/firebase-wiki-beta-page.repository";
+} from "../../domain/entities/wiki-beta-page.types";
+import type { WikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+import { FirebaseWikiBetaPageRepository } from "../../infrastructure/repositories/firebase-wiki-beta-page.repository";
 
 const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
 const defaultEventPublisher = new PublishDomainEventUseCase(
