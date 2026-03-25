@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: interfaces/_actions
  * Purpose: Server Actions — the authorised write surface for the UI.
  *

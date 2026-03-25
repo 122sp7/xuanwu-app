@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: application/use-cases
  * Purpose: Application services — orchestrate domain logic.
  *

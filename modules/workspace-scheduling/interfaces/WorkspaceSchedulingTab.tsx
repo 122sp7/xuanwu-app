@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: interfaces
  * Purpose: Workspace (tenant) view — submit demands, view own schedule.
  *
@@ -49,7 +49,7 @@ const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-interface WorkspacePlannerTabProps {
+interface WorkspaceSchedulingTabProps {
   readonly workspace: WorkspaceEntity;
   /** Account ID for scoping demands. */
   readonly accountId: string;
@@ -59,11 +59,11 @@ interface WorkspacePlannerTabProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function WorkspacePlannerTab({
+export function WorkspaceSchedulingTab({
   workspace,
   accountId,
   currentUserId,
-}: WorkspacePlannerTabProps) {
+}: WorkspaceSchedulingTabProps) {
   const [demands, setDemands] = useState<WorkDemand[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [formOpen, setFormOpen] = useState(false);

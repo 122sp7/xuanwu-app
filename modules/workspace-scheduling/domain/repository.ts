@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: domain/repository
  * Purpose: IDemandRepository port — implemented by infrastructure adapters.
  *

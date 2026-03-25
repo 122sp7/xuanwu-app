@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: api/barrel
  * Purpose: Public anti-corruption layer for the WorkDemand API contract.
  *

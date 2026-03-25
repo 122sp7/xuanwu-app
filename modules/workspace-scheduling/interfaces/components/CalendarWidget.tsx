@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: interfaces/components
  * Purpose: Lightweight month-view calendar widget.
  *

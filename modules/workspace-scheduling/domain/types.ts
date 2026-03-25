@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: domain
  * Purpose: Core WorkDemand entity and value types.
  *

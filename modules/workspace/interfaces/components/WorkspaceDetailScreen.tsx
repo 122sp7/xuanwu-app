@@ -40,7 +40,7 @@ import { Separator } from "@ui-shadcn/ui/separator";
 import { WorkspaceAuditTab } from "@/modules/workspace-audit";
 import { WorkspaceFilesTab } from "@/modules/file";
 import { WikiBetaWorkspaceView } from "@/modules/wiki-beta";
-import { WorkspacePlannerTab } from "@/modules/workspace-planner";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -503,7 +503,7 @@ export function WorkspaceDetailScreen({
         return <WikiBetaWorkspaceView workspace={workspace} />;
       case "Schedule":
         return (
-          <WorkspacePlannerTab
+          <WorkspaceSchedulingTab
             workspace={workspace}
             accountId={accountId ?? workspace.accountId}
             currentUserId={accountId ?? "anonymous"}

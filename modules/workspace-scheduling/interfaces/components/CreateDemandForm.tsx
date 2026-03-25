@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: interfaces/components
  * Purpose: Quick-capture form for creating a new WorkDemand.
  *

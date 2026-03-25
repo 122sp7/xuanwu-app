@@ -1,7 +1,7 @@
 "use client";
 
 import { useApp } from "@/app/providers/app-provider";
-import { AccountPlannerView } from "@/modules/workspace-planner";
+import { AccountSchedulingView } from "@/modules/workspace-scheduling";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationSchedulePage() {
@@ -24,14 +24,14 @@ export default function OrganizationSchedulePage() {
     <section className="flex flex-col gap-6 px-4 py-6">
       <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-          Account Planner
+          Account Scheduling
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           工作需求總覽
         </h1>
       </header>
 
-      <AccountPlannerView
+      <AccountSchedulingView
         accountId={activeOrganizationId}
         currentUserId={activeOrganizationId}
       />

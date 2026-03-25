@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: interfaces/queries
  * Purpose: Read-side query helpers for WorkDemand.
  *

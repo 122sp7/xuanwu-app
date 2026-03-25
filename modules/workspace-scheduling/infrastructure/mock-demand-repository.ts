@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: infrastructure/mock
  * Purpose: In-memory mock implementation of IDemandRepository.
  *

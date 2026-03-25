@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: interfaces
  * Purpose: Account (manager) view — overview of all workspace demands.
  *
@@ -57,7 +57,7 @@ const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "ou
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-interface AccountPlannerViewProps {
+interface AccountSchedulingViewProps {
   readonly accountId: string;
   /** Current actor (manager) ID used as assignedBy. */
   readonly currentUserId: string;
@@ -67,11 +67,11 @@ interface AccountPlannerViewProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AccountPlannerView({
+export function AccountSchedulingView({
   accountId,
   currentUserId,
   availableMembers = [],
-}: AccountPlannerViewProps) {
+}: AccountSchedulingViewProps) {
   const [demands, setDemands] = useState<WorkDemand[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [pendingAssign, setPendingAssign] = useState<string | null>(null);

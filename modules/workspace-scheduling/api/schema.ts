@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: api/schema
  * Purpose: Zod validation schemas for WorkDemand commands.
  *

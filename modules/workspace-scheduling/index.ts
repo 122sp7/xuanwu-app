@@ -1,5 +1,5 @@
 /**
- * Module: workspace-planner
+ * Module: workspace-scheduling
  * Layer: module/barrel (public API)
  *
  * External modules MUST import from here ONLY.
@@ -30,9 +30,9 @@ export {
 export type { CreateDemandInput, AssignMemberInput } from "./api/schema";
 
 // ── Interfaces: UI components ─────────────────────────────────────────────────
-export { WorkspacePlannerTab } from "./interfaces/WorkspacePlannerTab";
-export { AccountPlannerView } from "./interfaces/AccountPlannerView";
-export type { AccountMember } from "./interfaces/AccountPlannerView";
+export { WorkspaceSchedulingTab } from "./interfaces/WorkspaceSchedulingTab";
+export { AccountSchedulingView } from "./interfaces/AccountSchedulingView";
+export type { AccountMember } from "./interfaces/AccountSchedulingView";
 
 // ── Interfaces: server actions ────────────────────────────────────────────────
 export { submitWorkDemand, assignWorkDemand } from "./interfaces/_actions/work-demand.actions";
