@@ -21,5 +21,5 @@ Describe the concrete outcome.
 
 ## Next
 
-- [Related how-to](../how-to/<target>.md)
-- [Related reference](../reference/<target>.md)
+- Related how-to: <target>
+- Related reference: <target>

@@ -20,5 +20,5 @@ State the task in one line.
 
 ## Related
 
-- [Reference](../reference/<target>.md)
-- [Explanation](../explanation/<target>.md)
+- Reference: <target>
+- Explanation: <target>

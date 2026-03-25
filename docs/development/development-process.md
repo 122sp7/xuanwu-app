@@ -30,9 +30,9 @@ npm run dev      # http://localhost:3000
 
 在開始任何功能開發前，請先確認：
 
-- [ ] [`agents/knowledge-base.md`](../../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
-- [ ] [`agents/README.md`](../../../agents/README.md) — 架構規則索引
-- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀 [`docs/development-reference/reference/development-contracts/overview.md`](../reference/development-contracts/overview.md)
+- [ ] [`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
+- [ ] [`agents/README.md`](../../agents/README.md) — 架構規則索引
+- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀目前維護中的契約總覽文件
 
 ### 2.3 建立分支
 
@@ -43,7 +43,7 @@ git pull origin main
 git checkout -b feature/your-feature-name
 ```
 
-分支命名規則見 [branch-strategy.md](./branch-strategy.md)。
+分支命名規則見分支策略文件。
 
 ---
 
@@ -257,7 +257,7 @@ git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
 「使用 @planner 規劃 wiki-beta pages CRUD 功能」
 ```
 
-計畫格式見 [`docs/development-reference/reference/ai/implementation-plan-template.md`](../reference/ai/implementation-plan-template.md)。
+計畫格式見 AI implementation plan template 文件。
 
 ### 7.2 使用 Implementer Agent（實作階段）
 
@@ -272,4 +272,4 @@ git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
 
 完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
 
-詳細說明見 [`docs/development-reference/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
+詳細說明見 AI handoff matrix 文件。

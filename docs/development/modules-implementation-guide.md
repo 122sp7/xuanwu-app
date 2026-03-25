@@ -1,15 +1,15 @@
 # Modules Implementation Guide
 
-本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
+本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件的設計方向。
 
-- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
+- 上位概念架構文件：回答「為什麼」與「系統如何分層」。
 - 本文件：回答「在 repository 內如何落地」。
 
 ---
 
 ## 1. 與概念架構文件的對位關係
 
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
+上位概念架構文件定義三層融合：
 
 1. Content / UI Layer
 2. Knowledge Graph Layer
@@ -104,7 +104,7 @@ modules/*
 
 ## 5. Next.js 路由與融合介面
 
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
+上位概念架構文件的基礎平行路由示意：
 
 ```text
 /workspace
