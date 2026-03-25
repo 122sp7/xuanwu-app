@@ -8,12 +8,12 @@ flowchart LR
 
     subgraph DomainA["Domain A - DOMAIN_ID_A"]
         direction TB
-        A_IF["interfaces/\nUI adapter / route / action"]
-        A_API["api/\ncontracts + facade"]
-        A_APP["application/\nuse cases"]
-        A_DOM["domain/\nentities + domain services"]
+        A_IF["interfaces/\n- page or component\n- route handler or action\n- request response mapping"]
+        A_API["api/\n- contracts (DTO and types)\n- facade (public entry)\n- module boundary only"]
+        A_APP["application/\n- command and query use cases\n- orchestration and policies\n- transaction and idempotency"]
+        A_DOM["domain/\n- entities and value objects\n- invariants and domain services\n- domain events"]
         A_PORT["domain/ports + repositories\nrequired abstractions"]
-        A_INF["infrastructure/\nexternal adapters"]
+        A_INF["infrastructure/\n- repository adapter impl\n- db, queue, cache\n- external API clients"]
 
         A_IF --> A_API --> A_APP --> A_DOM
         A_APP -->|depends on abstraction| A_PORT
@@ -22,12 +22,12 @@ flowchart LR
 
     subgraph DomainB["Domain B - DOMAIN_ID_B"]
         direction TB
-        B_IF["interfaces/\nUI adapter / route / action"]
-        B_API["api/\ncontracts + facade"]
-        B_APP["application/\nuse cases"]
-        B_DOM["domain/\nentities + domain services"]
+        B_IF["interfaces/\n- page or component\n- route handler or action\n- request response mapping"]
+        B_API["api/\n- contracts (DTO and types)\n- facade (public entry)\n- module boundary only"]
+        B_APP["application/\n- command and query use cases\n- orchestration and policies\n- transaction and idempotency"]
+        B_DOM["domain/\n- entities and value objects\n- invariants and domain services\n- domain events"]
         B_PORT["domain/ports + repositories\nrequired abstractions"]
-        B_INF["infrastructure/\nexternal adapters"]
+        B_INF["infrastructure/\n- repository adapter impl\n- db, queue, cache\n- external API clients"]
 
         B_IF --> B_API --> B_APP --> B_DOM
         B_APP -->|depends on abstraction| B_PORT
@@ -36,12 +36,12 @@ flowchart LR
 
     subgraph DomainC["Domain C - DOMAIN_ID_C"]
         direction TB
-        C_IF["interfaces/\nUI adapter / route / action"]
-        C_API["api/\ncontracts + facade"]
-        C_APP["application/\nuse cases"]
-        C_DOM["domain/\nentities + domain services"]
+        C_IF["interfaces/\n- page or component\n- route handler or action\n- request response mapping"]
+        C_API["api/\n- contracts (DTO and types)\n- facade (public entry)\n- module boundary only"]
+        C_APP["application/\n- command and query use cases\n- orchestration and policies\n- transaction and idempotency"]
+        C_DOM["domain/\n- entities and value objects\n- invariants and domain services\n- domain events"]
         C_PORT["domain/ports + repositories\nrequired abstractions"]
-        C_INF["infrastructure/\nexternal adapters"]
+        C_INF["infrastructure/\n- repository adapter impl\n- db, queue, cache\n- external API clients"]
 
         C_IF --> C_API --> C_APP --> C_DOM
         C_APP -->|depends on abstraction| C_PORT
@@ -52,6 +52,7 @@ flowchart LR
     App --> B_API
     App --> C_API
     App -. follows .-> DependencyRule
+    App -. follows .-> Allowed
 
     A_API -. "API call only" .-> B_API
     B_API -. "API call only" .-> C_API
@@ -61,6 +62,8 @@ flowchart LR
     Forbidden -. never .-> A_APP
     Forbidden -. never .-> B_DOM
     Forbidden -. never .-> C_INF
+
+    Allowed["Allowed inside one domain:\ninterfaces -> api -> application -> domain\napplication -> ports <- infrastructure"]
 
     classDef app fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
     classDef api fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
@@ -76,4 +79,5 @@ flowchart LR
     class A_PORT,B_PORT,C_PORT port;
     class A_INF,B_INF,C_INF infra;
     class DependencyRule rule;
+    class Allowed rule;
     class Forbidden warn;
