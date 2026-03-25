@@ -35,7 +35,7 @@
 			"gallery": "https://api.mcp.github.com",
 			"version": "1.0.0"
 		},
-		"io.github.upstash/context7": {
+		"context7": {
 			"type": "stdio",
 			"command": "npx",
 			"args": [
