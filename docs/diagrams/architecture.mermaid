@@ -1,6 +1,6 @@
 %% Derived from domain-id-api-boundary-template-v2.mermaid
 %% Source mapping from docs/guides/explanation/architecture.md
-%% Domain count: 8 (expanded from the architecture layers)
+%% Domain count: 12 (expanded architecture layers + core business modules)
 flowchart LR
     App["App / Orchestration Layer\nNext.js app routes and server actions"]
     DependencyRule["Dependency Rule:\nall dependencies point inward\ninner layers never depend on outer layers"]
@@ -117,6 +117,62 @@ flowchart LR
         H_INF -.implements adapter for.-> H_PORT
     end
 
+    %% ---------------- Domain I ----------------
+    subgraph DomainI["Domain I - Account Module"]
+        direction TB
+        I_IF["interfaces/"]
+        I_API["api/"]
+        I_APP["application/"]
+        I_DOM["domain/"]
+        I_PORT["domain/ports + repositories"]
+        I_INF["infrastructure/"]
+        I_IF --> I_API --> I_APP --> I_DOM
+        I_APP -->|depends on abstraction| I_PORT
+        I_INF -.implements adapter for.-> I_PORT
+    end
+
+    %% ---------------- Domain J ----------------
+    subgraph DomainJ["Domain J - Identity Module"]
+        direction TB
+        J_IF["interfaces/"]
+        J_API["api/"]
+        J_APP["application/"]
+        J_DOM["domain/"]
+        J_PORT["domain/ports + repositories"]
+        J_INF["infrastructure/"]
+        J_IF --> J_API --> J_APP --> J_DOM
+        J_APP -->|depends on abstraction| J_PORT
+        J_INF -.implements adapter for.-> J_PORT
+    end
+
+    %% ---------------- Domain K ----------------
+    subgraph DomainK["Domain K - Organization Module"]
+        direction TB
+        K_IF["interfaces/"]
+        K_API["api/"]
+        K_APP["application/"]
+        K_DOM["domain/"]
+        K_PORT["domain/ports + repositories"]
+        K_INF["infrastructure/"]
+        K_IF --> K_API --> K_APP --> K_DOM
+        K_APP -->|depends on abstraction| K_PORT
+        K_INF -.implements adapter for.-> K_PORT
+    end
+
+    %% ---------------- Domain L ----------------
+    subgraph DomainL["Domain L - Asset Module"]
+        direction TB
+        L_IF["interfaces/"]
+        L_API["api/"]
+        L_APP["application/"]
+        L_DOM["domain/"]
+        L_PORT["domain/ports + repositories"]
+        L_INF["infrastructure/"]
+        L_IF --> L_API --> L_APP --> L_DOM
+        L_APP -->|depends on abstraction| L_PORT
+        L_INF -.implements adapter for.-> L_PORT
+    end
+
     %% ---------------- App Layer ----------------
     App --> A_API
     App --> B_API
@@ -124,6 +180,10 @@ flowchart LR
     App --> F_API
     App --> G_API
     App --> H_API
+    App --> I_API
+    App --> J_API
+    App --> K_API
+    App --> L_API
     App -. follows .-> DependencyRule
 
     %% ---------------- Cross-domain allowed API calls ----------------
@@ -134,12 +194,18 @@ flowchart LR
     D_API -. "API call only -> F_API" .-> F_API
     F_API -. "API call only -> G_API" .-> G_API
     G_API -. "API call only -> H_API" .-> H_API
+    I_API -. "API call only -> J_API" .-> J_API
+    J_API -. "API call only -> K_API" .-> K_API
+    K_API -. "API call only -> I_API" .-> I_API
+    A_API -. "API call only -> L_API" .-> L_API
+    L_API -. "API call only -> B_API" .-> B_API
 
     %% ---------------- Rules ----------------
     Forbidden["Forbidden:\nNo direct import to another domain internals\n(interfaces/application/domain/ports/infrastructure)"]
     Forbidden -. never .-> A_APP
     Forbidden -. never .-> D_DOM
     Forbidden -. never .-> H_INF
+    Forbidden -. never .-> L_DOM
 
     Allowed["Allowed inside one domain:\ninterfaces -> api -> application -> domain\napplication -> ports <- infrastructure"]
 
@@ -153,10 +219,10 @@ flowchart LR
     classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
 
     class App app;
-    class A_API,B_API,C_API,D_API,E_API,F_API,G_API,H_API api;
-    class A_IF,A_APP,A_DOM,B_IF,B_APP,B_DOM,C_IF,C_APP,C_DOM,D_IF,D_APP,D_DOM,E_IF,E_APP,E_DOM,F_IF,F_APP,F_DOM,G_IF,G_APP,G_DOM,H_IF,H_APP,H_DOM layer;
-    class A_PORT,B_PORT,C_PORT,D_PORT,E_PORT,F_PORT,G_PORT,H_PORT port;
-    class A_INF,B_INF,C_INF,D_INF,E_INF,F_INF,G_INF,H_INF infra;
+    class A_API,B_API,C_API,D_API,E_API,F_API,G_API,H_API,I_API,J_API,K_API,L_API api;
+    class A_IF,A_APP,A_DOM,B_IF,B_APP,B_DOM,C_IF,C_APP,C_DOM,D_IF,D_APP,D_DOM,E_IF,E_APP,E_DOM,F_IF,F_APP,F_DOM,G_IF,G_APP,G_DOM,H_IF,H_APP,H_DOM,I_IF,I_APP,I_DOM,J_IF,J_APP,J_DOM,K_IF,K_APP,K_DOM,L_IF,L_APP,L_DOM layer;
+    class A_PORT,B_PORT,C_PORT,D_PORT,E_PORT,F_PORT,G_PORT,H_PORT,I_PORT,J_PORT,K_PORT,L_PORT port;
+    class A_INF,B_INF,C_INF,D_INF,E_INF,F_INF,G_INF,H_INF,I_INF,J_INF,K_INF,L_INF infra;
     class DependencyRule rule;
     class Allowed rule;
     class Forbidden warn;
