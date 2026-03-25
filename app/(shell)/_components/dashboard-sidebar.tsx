@@ -547,6 +547,52 @@ export function DashboardSidebar({
                       })}
                     </div>
 
+                    {isWorkspaceItemEnabled("workspace-modules") && (
+                      <div className="my-1.5 border-t border-border/40" />
+                    )}
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("workspace-modules") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceModulesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceModulesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
+                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceModulesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
                     <div className="space-y-0.5">
                       {isWorkspaceItemEnabled("spaces") && (
                         <>
@@ -653,51 +699,6 @@ export function DashboardSidebar({
                       })}
                     </div>
 
-                    {isWorkspaceItemEnabled("workspace-modules") && (
-                      <div className="my-1.5 border-t border-border/40" />
-                    )}
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("workspace-modules") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceModulesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceModulesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
-                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceModulesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
                   </nav>
                 ) : (
                   // ── Workspace hub: show recent workspaces ──────────────
