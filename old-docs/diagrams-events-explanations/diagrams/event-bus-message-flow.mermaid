@@ -1,0 +1,39 @@
+%% Xuanwu event bus and pub-sub message flow
+%% Purpose: describe domain event capture, persistence, dispatch, retry, and consumer paths
+%% Scope: message flow only; complements API flow and projection diagrams
+
+flowchart LR
+    Feature["Feature Module\nWrite-side Use Case"] --> DomainEvent["DomainEvent\naggregateType + aggregateId + payload"]
+    DomainEvent --> Store["Event Store\nundispatched"]
+    Store --> Worker["Outbox / Dispatcher Worker"]
+    Worker --> Policy{"Dispatch Policy\nretry? backoff?"}
+
+    Policy --> Bus["Event Bus Port\nIEventBusRepository"]
+    Bus --> Noop["Noop Bus Adapter\ncurrent scaffold"]
+    Bus --> RealBus["Real Bus Adapter\nfuture Pub/Sub / queue"]
+
+    RealBus --> Projection["Projection Consumers\nschedule / daily / read models"]
+    RealBus --> AuditSink["Audit Sink\nappend-only evidence"]
+    RealBus --> Notification["Notification Routing"]
+    RealBus --> Claims["Token Refresh Signal\nrole / policy changed"]
+    RealBus --> Analytics["Telemetry / Integration Consumers"]
+
+    Noop -. used in tests / scaffold .-> Observer["Manual / in-memory observers"]
+
+    Projection --> ReadModels["Projection Collections\nUI-facing read models"]
+    AuditSink --> AuditLog["auditLogs"]
+    Claims --> TokenSignal["tokenRefreshSignals/{accountId}"]
+
+    Worker --> Mark["markDispatched(id, dispatchedAt)"]
+    Bus -. publish failed .-> RetryQueue["Undispatched Event\nretry later"]
+    RetryQueue --> Worker
+
+    classDef start fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef event fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
+    classDef future fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
+    classDef decision fill:#7c2d12,stroke:#9a3412,color:#ffffff,stroke-width:1.4px;
+
+    class Feature start;
+    class DomainEvent,Store,Worker,Bus,Projection,AuditSink,Notification,Claims,Analytics,Mark,ReadModels,AuditLog,TokenSignal,Observer event;
+    class Noop,RealBus,RetryQueue future;
+    class Policy decision;
