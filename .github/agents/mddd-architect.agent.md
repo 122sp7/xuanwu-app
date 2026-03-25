@@ -3,7 +3,7 @@ name: MDDD Architect
 description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # MDDD Architect

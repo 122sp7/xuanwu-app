@@ -57805,7 +57805,7 @@ name: AI Genkit Lead
 description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
 tools: ['read', 'edit', 'search', 'todo', 'context7/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # AI Genkit Lead
@@ -57841,7 +57841,7 @@ name: Billing Architect
 description: Define and evolve billing module boundaries, contracts, and workflow invariants under MDDD and contract-first delivery.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Billing Architect
@@ -57864,7 +57864,7 @@ name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
 tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Chunk Strategist
@@ -57883,7 +57883,7 @@ name: CI CD Deploy Agent
 description: Design and operate build, lint, test, and deployment pipelines with rollback-safe release checks.
 tools: ['read', 'edit', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # CI CD Deploy Agent
@@ -57902,7 +57902,7 @@ name: Embedding Writer
 description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Embedding Writer
@@ -57921,7 +57921,7 @@ name: Firestore Schema Agent
 description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Firestore Schema Agent
@@ -57940,7 +57940,7 @@ name: Frontend Lead
 description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
 tools: ['read', 'edit', 'search', 'execute', 'shadcn/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Frontend Lead
@@ -57963,7 +57963,7 @@ name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
 tools: ['read', 'edit', 'search', 'todo', 'context7/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Genkit Flow Agent
@@ -57987,7 +57987,7 @@ name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Lint Rule Enforcer
@@ -58022,7 +58022,7 @@ name: Prompt Engineer
 description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
 tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Prompt Engineer
@@ -58046,7 +58046,7 @@ name: Schema Migration Agent
 description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Schema Migration Agent
@@ -58065,7 +58065,7 @@ name: Security Rules Agent
 description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Security Rules Agent
@@ -58088,7 +58088,7 @@ name: Server Action Writer
 description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
 tools: ['read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Server Action Writer
@@ -58107,7 +58107,7 @@ name: Test Scenario Writer
 description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
 tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Test Scenario Writer
@@ -64592,7 +64592,7 @@ name: Doc Ingest Agent
 description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
 tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Doc Ingest Agent
@@ -64612,7 +64612,7 @@ name: Domain Lead
 description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Domain Lead
@@ -64644,7 +64644,7 @@ name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # KB Architect
@@ -64674,7 +64674,7 @@ name: MDDD Architect
 description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # MDDD Architect
@@ -64711,7 +64711,7 @@ name: Parallel Routes Agent
 description: Build and refactor app parallel-route UI slots with one-way data flow and API-only module consumption.
 tools: ['read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Parallel Routes Agent
@@ -64748,7 +64748,7 @@ name: Quality Lead
 description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
 tools: ['read', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Quality Lead
@@ -64784,7 +64784,7 @@ name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
 tools: ['read', 'edit', 'search', 'todo', 'microsoft/markitdown/*', 'context7/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # RAG Lead
@@ -64808,7 +64808,7 @@ name: Serena Strategist
 description: Strategic Serena-first task routing for plan, boundary checks, and MCP evidence decisions.
 tools: ['read', 'search', 'todo', 'agent', 'serena/*', 'context7/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Serena Strategist
@@ -64839,7 +64839,7 @@ description: Compose and refactor UI components using shadcn patterns while pres
 argument-hint: Describe component goal, target route, and required interaction states.
 tools: ['read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Shadcn Composer
@@ -64864,7 +64864,7 @@ name: Support Architect
 description: Design support workflows, escalation paths, and operational boundaries across modules, docs, and QA evidence.
 tools: ['read', 'edit', 'search', 'todo', 'agent']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Support Architect
@@ -64894,7 +64894,7 @@ name: Tool Caller
 description: Select and sequence tools with least privilege, evidence-first execution, and bounded scope per task.
 tools: ['read', 'search', 'todo', 'agent', 'context7/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Tool Caller
@@ -64925,7 +64925,7 @@ name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
 tools: ['read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # TS Interface Writer
@@ -66061,7 +66061,7 @@ description: Diagnose and implement Next.js App Router behavior using runtime ev
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
 tools: ['read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # App Router Agent
@@ -66094,7 +66094,7 @@ name: E2E QA Agent
 description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
 tools: ['read', 'search', 'todo', 'microsoft/playwright-mcp/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # E2E QA Agent

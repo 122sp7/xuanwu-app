@@ -3,7 +3,7 @@ name: Tool Caller
 description: Select and sequence tools with least privilege, evidence-first execution, and bounded scope per task.
 tools: ['read', 'search', 'todo', 'agent', 'context7/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Tool Caller

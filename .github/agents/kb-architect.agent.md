@@ -3,7 +3,7 @@ name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # KB Architect

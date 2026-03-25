@@ -3,7 +3,7 @@ name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
 tools: ['read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Chunk Strategist

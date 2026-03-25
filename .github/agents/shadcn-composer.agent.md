@@ -4,7 +4,7 @@ description: Compose and refactor UI components using shadcn patterns while pres
 argument-hint: Describe component goal, target route, and required interaction states.
 tools: ['read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
-target: 'vscode'
+
 ---
 
 # Shadcn Composer
