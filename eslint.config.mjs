@@ -186,30 +186,6 @@ const eslintConfig = defineConfig([
           ],
         },
       ],
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/index", "**/index.ts", "**/index.tsx"],
-              message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-            },
-            {
-              group: [
-                "@/modules/*/application/**",
-                "@/modules/*/domain/**",
-                "@/modules/*/infrastructure/**",
-                "@/modules/*/interfaces/**",
-              ],
-              message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-            },
-            {
-              group: ["@/modules/*"],
-              message: "Within modules/, cross-module imports must use `@/modules/<module>/api` instead of root barrel.",
-            },
-          ],
-        },
-      ],
     },
   },
   // ─── Package boundary enforcement ───────────────────────────────────────
@@ -243,6 +219,36 @@ const eslintConfig = defineConfig([
             {
               group: ["@/interfaces/*"],
               message: "Use @api-contracts instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
+  {
+    files: moduleFileGlobs,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/index", "**/index.ts", "**/index.tsx"],
+              message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+            },
+            {
+              group: [
+                "@/modules/*/application/**",
+                "@/modules/*/domain/**",
+                "@/modules/*/infrastructure/**",
+                "@/modules/*/interfaces/**",
+              ],
+              message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+            },
+            {
+              group: ["@/modules/*"],
+              message: "Within modules/, cross-module imports must use `@/modules/<module>/api` instead of root barrel.",
             },
           ],
         },

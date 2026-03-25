@@ -698,40 +698,26 @@
         "patterns": [
           {
             "group": [
-              "@/shared/*"
+              "**/index",
+              "**/index.ts",
+              "**/index.tsx"
             ],
-            "message": "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead."
+            "message": "Import the target file or public module boundary directly instead of using an explicit index path."
           },
           {
             "group": [
-              "@/infrastructure/*"
+              "@/modules/*/application/**",
+              "@/modules/*/domain/**",
+              "@/modules/*/infrastructure/**",
+              "@/modules/*/interfaces/**"
             ],
-            "message": "Use @integration-firebase, @integration-upstash, or @integration-http instead."
+            "message": "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path."
           },
           {
             "group": [
-              "@/libs/*"
+              "@/modules/*"
             ],
-            "message": "Use the corresponding @lib-* or @integration-* package alias instead."
-          },
-          {
-            "group": [
-              "@/ui/shadcn/*"
-            ],
-            "message": "Use @ui-shadcn/* instead."
-          },
-          {
-            "group": [
-              "@/ui/vis",
-              "@/ui/vis/*"
-            ],
-            "message": "Use @ui-vis instead."
-          },
-          {
-            "group": [
-              "@/interfaces/*"
-            ],
-            "message": "Use @api-contracts instead."
+            "message": "Within modules/, cross-module imports must use `@/modules/<module>/api` instead of root barrel."
           }
         ]
       }
