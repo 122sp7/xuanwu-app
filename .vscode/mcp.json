@@ -20,23 +20,6 @@
 				"MDB_MCP_CONNECTION_STRING": "${input:MDB_MCP_CONNECTION_STRING}"
 			}
 		},
-		"serena": {
-			"type": "stdio",
-			"command": "uvx",
-			"args": [
-				"--from",
-				"git+https://github.com/oraios/serena",
-				"serena",
-				"start-mcp-server",
-				"serena@latest",
-				"--context",
-				"ide-assistant",
-				"--mode",
-				"autonomous"
-			],
-			"gallery": "https://api.mcp.github.com",
-			"version": "1.0.0"
-		},
 		"context7": {
 			"type": "stdio",
 			"command": "npx",
@@ -105,6 +88,21 @@
 			],
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.0.1-seed"
+		},
+		"oraios/serena": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"--from",
+				"git+https://github.com/oraios/serena",
+				"serena",
+				"start-mcp-server",
+				"serena@latest",
+				"--context",
+				"ide-assistant"
+			],
+			"gallery": "https://api.mcp.github.com",
+			"version": "1.0.0"
 		}
 	},
 	"inputs": [
