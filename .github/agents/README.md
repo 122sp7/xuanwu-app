@@ -1,59 +1,118 @@
-# Delivery Workflow Agents
+# Agent Command Structure
 
-Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Review → QA.
+Military-style operating map for `.github/agents`.
 
-## Mapping Baseline
+This file treats current agents as a command system with clear tiers, responsibilities, and retirement policy.
 
-- MCP routing baseline: [../mcp_to_agent_mapping.md](../mcp_to_agent_mapping.md)
-- Visual routing map: [../mcp_to_agent_mapping.svg](../mcp_to_agent_mapping.svg)
-- Existing delivery and module agents are extension lanes on top of this baseline.
+## Tier 0: Strategic Command (HQ)
 
-## Delivery Chain
+| Agent | File | Role |
+| --- | --- | --- |
+| Serena Coding Agent | `serena.agent.md` | Primary execution backbone, symbolic workflow, MCP-aware routing |
+| Commander | `commander.agent.md` | Multi-lane orchestration and MCP-first dispatch |
 
-| Stage | Agent | File | Purpose |
+## Tier 1: Delivery Command Chain
+
+| Stage | Agent | File | Role |
 | --- | --- | --- | --- |
-| Planning | Planner | `planner.agent.md` | Clarify scope, map ownership, produce formal implementation plans |
-| Planning (Docs Variant) | Planner Docs Flow | `planner-docs.agent.md` | Plan delivery and offer post-approval markdown optimization handoff |
-| Implementation | Implementer | `implementer.agent.md` | Execute approved plans, run validation, update documentation |
-| Review | Reviewer | `reviewer.agent.md` | Evaluate correctness, architecture, risk, missing validation |
-| QA | QA | `qa.agent.md` | Verify scenarios, collect evidence, assess release readiness |
+| Plan | Planner | `planner.agent.md` | Formal plan generation and scope locking |
+| Implement | Implementer | `implementer.agent.md` | Plan execution and change delivery |
+| Review | Reviewer | `reviewer.agent.md` | Risk-first correctness and boundary review |
+| QA | QA | `qa.agent.md` | Evidence-driven verification and release recommendation |
 
-## Specialized Agents
+## Tier 2: Domain Lead Lanes
 
-| Agent | File | Focus | Purpose |
+| Domain | Agent | File | Role |
 | --- | --- | --- | --- |
-| Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
-| Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
-| App Router Composer | `app-router-composer.agent.md` | App composition | Build `app/` route slices and parallel-route blocks that consume module APIs only |
-| Modules API Surface Steward | `modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
-| Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
-| Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
-| QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
-| Commander | `commander.agent.md` | MCP-aware orchestration | Route complex work with Serena-first discovery and Context7 confirmation |
-| App Router Agent | `app-router.agent.md` | Runtime route diagnostics | Use Next DevTools MCP for app-router troubleshooting and fixes |
-| Component Agent | `component.agent.md` | UI composition | Use shadcn MCP for component-focused implementation |
-| RAG Vector Agent | `rag-vector.agent.md` | Ingest + retrieval prep | Use MarkItDown MCP and docs-backed decisions for RAG pipelines |
-| E2E QA Agent | `e2e-qa.agent.md` | Browser verification | Use Playwright MCP to collect acceptance evidence |
+| App Composition | App Router Composer | `app-router-composer.agent.md` | App route slices and parallel-route composition |
+| Module Lifecycle | Modules Architect | `modules-architect.agent.md` | Module create/refactor/split/merge/delete |
+| Boundary Governance | Module Boundary Steward | `modules-boundary-steward.agent.md` | Ownership and dependency-direction enforcement |
+| API Surface | Modules API Surface Steward | `modules-api-surface-steward.agent.md` | `modules/*/api` contracts, facades, safe exports |
 
-## Quick Start
+## Tier 3: Specialist Feature Agents (MCP Lanes)
 
-1. **For a feature**: Run `/plan-feature` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-2. **For a bug**: Run `/plan-bugfix` → Planner produces plan → Use `Start Implementation` handoff to Implementer
-3. **For docs-heavy planning**: Use `Planner Docs Flow` when the task explicitly needs markdown optimization handoff
-4. **After implementation**: Use `Review Implementation` handoff to Reviewer
-5. **After review**: Use `Run QA` handoff to QA
-6. **For module work**: Use `Modules Architect` for design, `Module Boundary Steward` for enforcement
+| Specialty | Agent | File | MCP focus |
+| --- | --- | --- | --- |
+| Next runtime | App Router Agent | `app-router.agent.md` | `io.github.vercel/next-devtools-mcp/*` |
+| UI scaffolding | Component Agent | `component.agent.md` | `shadcn/*` |
+| RAG ingest/retrieval | RAG Vector Agent | `rag-vector.agent.md` | `microsoft/markitdown/*`, `context7/*` |
+| Browser acceptance | E2E QA Agent | `e2e-qa.agent.md` | `microsoft/playwright-mcp/*` |
 
-## Related References
+## Tier 4: Support and Legacy Lanes
 
-- [.github/README.md](../README.md) — Root entry for `.github/` navigation
-- [../.github/skills/](../skills/) — Specialized capabilities and workflows
-- [../.github/prompts/](../prompts/) — Slash-command entry points
-- [../../AGENTS.md](../../AGENTS.md) — Repository-wide operating rules
+| Type | Agent | File | Policy |
+| --- | --- | --- | --- |
+| Docs planning variant | Planner Docs Flow | `planner-docs.agent.md` | Keep as optional extension for markdown-heavy work |
+| Markdown optimization | md-writer | `md-writer.agent.md` | Keep as specialized post-plan optimizer |
+| Customization authoring | Custom Agent Foundry | `custom-agent-foundry.agent.md` | Keep for agent/prompt/instruction authoring workflows |
+| Repo bootstrap | Repo Architect Agent | `repo-architect.agent.md` | Keep as maintainer utility lane |
+| Legacy QA persona | QA Legacy | `qa-legacy.agent.md` | Keep hidden; retire when no downstream dependency remains |
 
-## Maintenance Notes
+## Keep vs Retire Assessment
 
-- Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
-- Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
-- Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
-- Keep app/modules-specialized agents at the top level when diagnostics show nested agent discovery is unavailable in the current workspace behavior.
+### Keep (core)
+
+- `serena.agent.md`
+- `commander.agent.md`
+- `planner.agent.md`
+- `implementer.agent.md`
+- `reviewer.agent.md`
+- `qa.agent.md`
+
+### Keep (specialized)
+
+- `app-router-composer.agent.md`
+- `modules-architect.agent.md`
+- `modules-boundary-steward.agent.md`
+- `modules-api-surface-steward.agent.md`
+- `app-router.agent.md`
+- `component.agent.md`
+- `rag-vector.agent.md`
+- `e2e-qa.agent.md`
+
+### Keep as optional support
+
+- `planner-docs.agent.md`
+- `md-writer.agent.md`
+- `custom-agent-foundry.agent.md`
+- `repo-architect.agent.md`
+
+### Legacy / retirement candidate
+
+- `qa-legacy.agent.md` (hidden lane; retain only for backward compatibility)
+
+## Current File Tree
+
+```text
+.github/agents/
+	app/
+	app-router-composer.agent.md
+	app-router.agent.md
+	commander.agent.md
+	component.agent.md
+	custom-agent-foundry.agent.md
+	e2e-qa.agent.md
+	implementer.agent.md
+	md-writer.agent.md
+	modules/
+	modules-api-surface-steward.agent.md
+	modules-architect.agent.md
+	modules-boundary-steward.agent.md
+	planner-docs.agent.md
+	planner.agent.md
+	qa-legacy.agent.md
+	qa.agent.md
+	rag-vector.agent.md
+	README.md
+	repo-architect.agent.md
+	reviewer.agent.md
+	serena.agent.md
+```
+
+## Command Rules
+
+1. Baseline mapping authority: `../mcp_to_agent_mapping.md` and `../mcp_to_agent_mapping.svg`.
+2. New agents must justify a unique lane not already covered by Tier 1-3.
+3. Keep handoff target names aligned to diagnostics-recognized visible agent names.
+4. Keep tools least-privilege and MCP scopes explicit.
+5. Do not move active top-level agents into nested folders unless diagnostics confirms discovery parity.
