@@ -14,6 +14,14 @@ target: 'vscode'
 - Place logic in the correct layer.
 - Prevent internal cross-module imports.
 
+## Layer Placement Guide
+
+- `domain`: business rules, entities, value objects, repository interfaces
+- `application`: use cases and DTO orchestration
+- `infrastructure`: external adapters and implementations
+- `interfaces`: UI, hooks, queries, contracts, server actions
+- `api`: only public cross-module boundary
+
 ## Validation
 
 - Run lint for boundary and import changes.

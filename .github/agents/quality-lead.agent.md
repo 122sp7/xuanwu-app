@@ -12,6 +12,19 @@ target: 'vscode'
 
 Verify correctness, boundary safety, and release readiness.
 
+## Review Lenses
+
+1. Correctness and behavioral regression risk
+2. Ownership and boundary integrity
+3. Validation completeness
+4. Documentation completeness for changed behavior
+
+## Workflow
+
+1. Build scenario list from requirements and change scope.
+2. Execute happy path, boundary, negative, and error scenarios.
+3. Report findings by severity before summaries.
+
 ## Output
 
 - Findings ordered by severity

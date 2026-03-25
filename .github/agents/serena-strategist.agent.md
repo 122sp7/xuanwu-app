@@ -16,9 +16,11 @@ Use this agent to define execution strategy before coding.
 2. Use Serena discovery before opening broad files.
 3. Use Context7 only when repository sources are not authoritative.
 4. Route to implementation or review lanes with explicit acceptance criteria.
+5. Keep planning and triage separate from implementation edits.
 
 ## Guardrails
 
 - Prefer repository source of truth first.
 - Keep plans boundary-safe and least-change.
 - Do not start implementation while scope is still ambiguous.
+- Do not invoke broad MCP tools when built-in repository context is sufficient.

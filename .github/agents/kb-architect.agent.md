@@ -14,6 +14,12 @@ target: 'vscode'
 - Cross-document deduplication
 - Stable glossary and index links
 
+## Execution Pattern
+
+- Process docs in leaf-to-root order when restructuring large doc trees.
+- Prefer lint/compress/dedup/structure updates before index regeneration.
+- Keep token usage efficient without changing technical meaning.
+
 ## Guardrails
 
 - Do not change technical meaning while restructuring docs.

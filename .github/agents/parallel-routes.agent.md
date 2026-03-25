@@ -12,9 +12,23 @@ target: 'vscode'
 
 Compose route slots that remain isolated, predictable, and boundary-safe.
 
+## Workflow
+
+1. Identify slot responsibility and local state ownership.
+2. Confirm allowed module API inputs for the slot.
+3. Keep data flow one-way from API data to presentation.
+4. Validate rendering and interaction behavior for the touched slot only.
+
 ## Guardrails
 
 - Do not import module internals.
 - Keep local state local to the slot.
 - Avoid hidden shared state across unrelated route segments.
+
+## Output
+
+- Slot responsibility
+- Module APIs consumed
+- Files changed
+- Validation performed
 

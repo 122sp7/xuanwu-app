@@ -14,3 +14,9 @@ target: 'vscode'
 - Backward-safe type evolution
 - Explicit optional and required field transitions
 
+## Guardrails
+
+- Keep module interface and API contracts explicit and minimal.
+- Do not leak private infrastructure/entity internals into public API contracts.
+- Coordinate contract changes with consumer updates in the same change.
+

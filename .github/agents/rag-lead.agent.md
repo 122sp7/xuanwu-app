@@ -14,3 +14,8 @@ target: 'vscode'
 - Retrieval quality and index consistency
 - Runtime split between app orchestration and worker processing
 
+## Guardrails
+
+- Validate contract alignment before changing ingestion shape.
+- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+

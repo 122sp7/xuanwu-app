@@ -19,6 +19,12 @@ Shape module structures without breaking bounded contexts.
 - Keep domain framework-free.
 - Run lint and build when boundaries or exports move.
 
+## Module Lifecycle Operations
+
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
+
 ## Output
 
 - Ownership decision

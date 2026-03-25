@@ -1,6 +1,6 @@
 # Agents Decomposition Map
 
-This folder contains the decomposed agent set derived from `.github/agents/xx`.
+This folder contains the active decomposed agent set. Legacy sources from `.github/agents/xx` have been semantically consolidated and retired.
 
 ## Source-to-target mapping
 
@@ -50,4 +50,10 @@ This folder contains the decomposed agent set derived from `.github/agents/xx`.
 - `test-scenario-writer.agent.md`
 - `tool-caller.agent.md`
 - `ts-interface-writer.agent.md`
+
+## Migration Status
+
+- Legacy source folder `xx/` was used as migration input only.
+- Semantic value was merged into the target agents listed above.
+- Keep future updates on target agents only; do not reintroduce `xx/` mirrors.
 

@@ -13,4 +13,5 @@ target: 'vscode'
 - Keep conversion and normalization deterministic.
 - Preserve source attribution fields.
 - Align outputs with chunk and embedding contracts.
+- Flag notable format-loss risk when source conversion may affect downstream retrieval.
 
