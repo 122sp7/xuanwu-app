@@ -2165,6 +2165,58 @@ Split an existing module into multiple bounded contexts without introducing boun
 - List validation performed
 `````
 
+## File: .github/README.md
+`````markdown
+# .github Customization Index
+
+Operational index for repository-scoped customization assets.
+
+## Commander flow (fast path)
+
+1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
+2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
+3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
+4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
+
+## Boundary
+
+- Keep executable customization assets in `.github/`.
+- Keep explanation, governance, and lifecycle context in `docs/`.
+- Update both locations together when behavior changes.
+- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
+
+## Folder map
+
+| Path | Purpose | Index |
+| --- | --- | --- |
+| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
+| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
+| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
+| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
+| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
+| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
+| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
+| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
+| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
+
+## Core files
+
+| File | Role |
+| --- | --- |
+| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
+| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
+| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
+| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
+| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
+
+## Maintenance
+
+- Use relative links.
+- Keep one concrete entry file per folder.
+- Keep placeholders as plain text, not fake links.
+- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
+`````
+
 ## File: .github/rules/_sections.md
 `````markdown
 # Sections
@@ -7362,6 +7414,212 @@ export function useGlobalSearch() {
 }
 `````
 
+## File: app/(shell)/_components/header-controls.tsx
+`````typescript
+"use client";
+
+/**
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
+ */
+
+import { Bell, Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  type NotificationEntity,
+  markAllNotificationsRead,
+  markNotificationRead,
+  getNotificationsForRecipient,
+} from "@/modules/notification";
+import { Button } from "@ui-shadcn/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
+import { TranslationSwitcher } from "./translation-switcher";
+
+const THEME_KEY = "xuanwu_theme";
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+export function HeaderControls() {
+  const { state: authState } = useAuth();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const storedTheme = window.localStorage.getItem(THEME_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isNotificationLoading, setIsNotificationLoading] = useState(false);
+  const [isNotificationMutating, setIsNotificationMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const recipientId = authState.user?.id ?? "";
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, notification) => count + (notification.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsNotificationLoading(true);
+    try {
+      const nextNotifications = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(nextNotifications);
+    } finally {
+      setIsNotificationLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
+  async function handleNotificationOpenChange(nextOpen: boolean) {
+    setIsNotificationOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsNotificationMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === notificationId ? { ...notification, read: true } : notification,
+      ),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) {
+        setNotifications(previous);
+      }
+    } finally {
+      setIsNotificationMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsNotificationMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) {
+        setNotifications(previous);
+      }
+    } finally {
+      setIsNotificationMutating(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <TranslationSwitcher />
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="text-muted-foreground"
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+
+      <DropdownMenu open={isNotificationOpen} onOpenChange={handleNotificationOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Open notifications"
+            className="relative text-muted-foreground"
+          >
+            <Bell className="h-4 w-4" />
+            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-80 p-0">
+          <div className="flex items-center justify-between px-3 py-2">
+            <p className="text-sm font-semibold">Notifications</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={isNotificationMutating || unreadCount === 0}
+              onClick={handleMarkAllRead}
+            >
+              Mark all read
+            </Button>
+          </div>
+          <DropdownMenuSeparator />
+          <div className="max-h-80 overflow-y-auto">
+            {isNotificationLoading ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+            ) : notifications.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+            ) : (
+              notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => void handleMarkOneRead(notification.id)}
+                  disabled={isNotificationMutating}
+                  className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">{notification.title}</p>
+                    {!notification.read ? (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                    ) : null}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {notification.message}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatNotificationTime(notification.timestamp)}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+`````
+
 ## File: app/(shell)/_components/header-user-avatar.tsx
 `````typescript
 "use client";
@@ -7491,6 +7749,60 @@ export function NavUser({ name, email, onSignOut }: NavUserProps) {
       </Button>
     </div>
   );
+}
+`````
+
+## File: app/(shell)/_components/shell-guard.tsx
+`````typescript
+"use client";
+
+/**
+ * shell-guard.tsx
+ * Client-side auth guard for the authenticated shell.
+ *
+ * Responsibilities:
+ *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
+ *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
+ *  3. Show a loading state while auth is initializing
+ */
+
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { useTokenRefreshListener } from "@/modules/identity";
+
+interface ShellGuardProps {
+  children: ReactNode;
+}
+
+export function ShellGuard({ children }: ShellGuardProps) {
+  const { state } = useAuth();
+  const { user, status } = state;
+  const router = useRouter();
+
+  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
+  useTokenRefreshListener(user?.id ?? null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/");
+    }
+  }, [status, router]);
+
+  if (status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return null;
+  }
+
+  return <>{children}</>;
 }
 `````
 
@@ -14124,175 +14436,6 @@ git commit -m "docs(ui-ux): add wireframes for wiki-beta pages"
 詳細說明見 [`docs/development-reference/reference/ai/handoff-matrix.md`](../reference/ai/handoff-matrix.md)。
 `````
 
-## File: docs/development-reference/development/modules-implementation-guide.md
-`````markdown
-# Modules Implementation Guide
-
-本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
-
-- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
-
----
-
-## 1. 與概念架構文件的對位關係
-
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
-
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
-
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/graph`, `modules/search` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/ai` + `py_fn/` | RAG orchestration、向量處理與背景作業 |
-
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
-
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
-```
-
-說明：
-
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
-
----
-
-## 3. 依賴方向與邊界
-
-全域依賴方向：
-
-```text
-interfaces -> application -> domain <- infrastructure
-```
-
-邊界規則：
-
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
-
----
-
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
-```
-
-這個原則與上位概念架構文件的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
----
-
-## 5. Next.js 路由與融合介面
-
-[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-```
-
-實作可依需求擴充，例如：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
-```
-
-擴充原則：
-
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
-
----
-
-## 6. 目標對齊聲明
-
-本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
-
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
-
----
-
-## 7. 以上位概念架構文件為準的落地限制
-
-上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
-
-因此本文件只保留與概念模型一致的落地限制：
-
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
-
-## 8. 實作規劃時的最小檢查點
-
-若要把三層模型落到實際模組，至少先確認：
-
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
-`````
-
 ## File: docs/development-reference/development/README.md
 `````markdown
 # 開發指南索引
@@ -18920,6 +19063,70 @@ The workflow is complete when all of the following are true:
 - [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md)
 `````
 
+## File: docs/how-to-user/how-to/update-customizations.md
+`````markdown
+---
+title: Update AI customizations
+description: Maintenance guide for changing the Xuanwu Copilot Delivery Suite without breaking workflow contracts.
+---
+
+# Update AI customizations
+
+This guide is for maintainers who need to change agents, prompts, baseline instructions, or planning contract documents.
+
+## Update order
+
+When changing the delivery workflow, update files in this order:
+
+1. authoritative references,
+2. planning contract documents,
+3. agents,
+4. prompts,
+5. operational docs and index pages.
+
+## If you change the plan structure
+
+Update all of the following in the same change:
+
+- [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
+- [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
+- [.github/agents/planner.agent.md](../../.github/agents/planner.agent.md)
+- planning prompts under [.github/prompts](../../.github/prompts)
+- any operational docs that explain planning or recovery
+
+## If you change a handoff rule
+
+Update all of the following in the same change:
+
+- the relevant `.agent.md` file,
+- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md),
+- [agentic-delivery-model.md](../../diagrams-events-explanations/explanation/agentic-delivery-model.md) if rationale changed,
+- recovery guidance if the valid re-entry path changed.
+
+## If you add or retire an asset
+
+Update all of the following in the same change:
+
+- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
+- [legacy-customizations-migration.md](../../development-reference/reference/ai/legacy-customizations-migration.md) when applicable
+- README or contributing guidance if contributor-facing entry points changed
+
+## Validation expectations
+
+- Check links between docs and customization files.
+- Ensure agent and prompt names match the intended invocation model.
+- Ensure no active custom agents share the same visible name unless the duplication is intentional and documented.
+- Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
+- Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
+- Keep authoritative sources and workflow docs aligned.
+
+## Handling conflicts with docs
+
+- When merge conflicts happen between `.github/` assets and docs mirrors, keep the `.github/` version.
+- Adjust the docs-side index or links after resolving the conflict to match `.github/` instead of copying file bodies.
+- Remove duplicated excerpts to reduce future diff noise.
+`````
+
 ## File: docs/how-to-user/README.md
 `````markdown
 # User Guides & Documentation
@@ -22511,117 +22718,6 @@ export function subscribeToAccountsForUser(
 
 `````
 
-## File: modules/ai/AGENT.md
-`````markdown
-# AI Domain Agent Rules
-
-## Role
-你是 AI orchestration layer，只負責組裝，不擁有資料。
-
-## Must
-- 只能透過 retrieval 查詢資料
-- 必須支援 citation
-- prompt 必須可組合（不可硬編碼）
-
-## Must Not
-- 不可直接呼叫 Upstash
-- 不可存 document
-- 不可實作 embedding
-
-## Flow Contract
-input:
-- query
-- orgId
-- filters
-
-output:
-- answer
-- citations[]
-
-## Design Constraint
-- Stateless
-- Deterministic prompt structure
-`````
-
-## File: modules/ai/application/.gitkeep
-`````
-
-`````
-
-## File: modules/ai/domain/.gitkeep
-`````
-
-`````
-
-## File: modules/ai/infrastructure/.gitkeep
-`````
-
-`````
-
-## File: modules/ai/infrastructure/firebase/index.ts
-`````typescript
-export { FirebaseRagRetrievalRepository } from "./FirebaseRagRetrievalRepository";
-`````
-
-## File: modules/ai/interfaces/.gitkeep
-`````
-
-`````
-
-## File: modules/ai/interfaces/index.ts
-`````typescript
-export { answerRagQuery, generateAIResponse } from "./_actions/ai.actions";
-`````
-
-## File: modules/ai/ports/.gitkeep
-`````
-
-`````
-
-## File: modules/ai/README.md
-`````markdown
-# AI Domain
-
-> **開發狀態**：🚧 Developing — 積極開發中
-
-## 🎯 Purpose
-負責 AI orchestration（RAG），不擁有資料，只組裝 knowledge / taxonomy / retrieval。
-
-## 🧠 Responsibilities
-- RAG flow（Genkit）
-- Prompt pipeline
-- Context assembling
-- Citation generation
-
-## ❌ Not Responsible
-- 不儲存資料
-- 不做 vector search
-- 不做 embedding
-- 不管理 taxonomy
-
-## 🔄 Flow
-1. 接收 user query
-2. 呼叫 retrieval 取得 chunks
-3. 注入 taxonomy / metadata
-4. 組 prompt
-5. 呼叫 LLM
-6. 回傳 answer + citation
-
-## 📂 Structure
-- application → RAG usecases
-- domain → prompt model / policy
-- infrastructure → Genkit adapter
-- interfaces → API routes
-
-## 🔗 Dependencies
-- retrieval（必要）
-- knowledge（hydration）
-- taxonomy（filter/context）
-
-## 📌 Key Rule
-AI = orchestration only（不可持有資料）
-`````
-
 ## File: modules/APIContract.md
 `````markdown
 # API Contract & Data Transfer Objects (DTOs)
@@ -25578,6 +25674,37 @@ export interface TokenRefreshRepository {
 }
 `````
 
+## File: modules/identity/index.ts
+`````typescript
+/**
+ * identity module public API
+ */
+export type { IdentityEntity, SignInCredentials, RegistrationInput } from "./domain/entities/Identity";
+export type { TokenRefreshSignal, TokenRefreshReason } from "./domain/entities/TokenRefreshSignal";
+export type { IdentityRepository } from "./domain/repositories/IdentityRepository";
+export type { TokenRefreshRepository } from "./domain/repositories/TokenRefreshRepository";
+export {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "./application/use-cases/identity.use-cases";
+export { EmitTokenRefreshSignalUseCase } from "./application/use-cases/token-refresh.use-cases";
+export { FirebaseIdentityRepository } from "./infrastructure/firebase/FirebaseIdentityRepository";
+export { FirebaseTokenRefreshRepository } from "./infrastructure/firebase/FirebaseTokenRefreshRepository";
+export {
+  signIn,
+  signInAnonymously,
+  register,
+  sendPasswordResetEmail,
+  signOut,
+} from "./interfaces/_actions/identity.actions";
+// Client-only hook — must be imported from the module barrel only from "use client" files
+// to avoid RSC bundle contamination.
+export { useTokenRefreshListener } from "./interfaces/hooks/useTokenRefreshListener";
+`````
+
 ## File: modules/identity/infrastructure/firebase/FirebaseIdentityRepository.ts
 `````typescript
 /**
@@ -28213,329 +28340,6 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 `````
 
-## File: modules/README.md
-`````markdown
-# Modules Implementation Guide
-
-本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
-
-- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
-
----
-
-## 1. 與 Architecture.md 的對位關係
-
-`Architecture.md` 定義三層融合：
-
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
-
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/graph`, `modules/search` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/ai` + `py_fn/` | RAG orchestration、向量處理與背景作業 |
-
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
-
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
-```
-
-說明：
-
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
-
----
-
-## 3. 依賴方向與邊界
-
-全域依賴方向：
-
-```text
-interfaces -> application -> domain <- infrastructure
-```
-
-邊界規則：
-
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
-
----
-
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
-```
-
-這個原則與 `Architecture.md` 的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
----
-
-## 5. Next.js 路由與融合介面
-
-`Architecture.md` 的基礎平行路由示意：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-```
-
-實作可依需求擴充，例如：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
-```
-
-擴充原則：
-
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
-
----
-
-## 6. 目標對齊聲明
-
-本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
-
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
-
----
-
-## 7. 以 Architecture.md 為準的落地限制
-
-`modules/Architecture.md` 提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
-
-因此本文件只保留與上位概念一致的落地限制：
-
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
-
-## 8. 實作規劃時的最小檢查點
-
-若要把三層模型落到實際模組，至少先確認：
-
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明 Architecture.md 未定義的 canonical schema、固定規劃數量或模組對照表。
-`````
-
-## File: modules/RemotePorts.md
-`````markdown
-# Remote Ports & Infrastructure Interfaces
-
-本文件定義 `infrastructure/` 層必須實作的 Port 介面。這實現了 Hexagonal Architecture，讓核心領域邏輯不依賴具體的外部服務（如 Firebase, Upstash, OpenAI）。
-
----
-
-## 1. Vector Store Port (`modules/search/domain/ports`)
-
-負責向量資料庫的讀寫。
-
-```typescript
-export interface IVectorStore {
-  /**
-   * 將文本區塊轉換為向量並儲存
-   * @param documents - 包含 id, content, metadata 的物件
-   */
-  upsertDocuments(documents: VectorDocument[]): Promise<void>;
-
-  /**
-   * 根據查詢字串尋找相似區塊
-   * @param query - 查詢文本
-   * @param k - 回傳數量
-   * @param filter - 屬性過濾 (e.g., pageId)
-   */
-  similaritySearch(query: string, k: number, filter?: Record<string, any>): Promise<ScoredDocument[]>;
-
-  /**
-   * 刪除指定 ID 的向量
-   */
-  deleteDocuments(ids: string[]): Promise<void>;
-}
-
-export type VectorDocument = {
-  id: string;
-  content: string;
-  metadata: Record<string, any>;
-};
-```
-
-## 2. LLM Orchestrator Port (`modules/ai/domain/ports`)
-
-負責與 Python Runtime (`py_fn`) 或 Genkit 溝通的介面。
-
-```typescript
-export interface ILLMOrchestrator {
-  /**
-   * 生成對話回應 (支援 Streaming)
-   */
-  generateResponseStream(
-    history: ChatMessage[],
-    context: ContextBlock[],
-    options?: GenerationOptions
-  ): AsyncGenerator<string, void, unknown>;
-
-  /**
-   * 結構化資料提取 (用於自動標籤、摘要)
-   */
-  extractStructuredData<T>(
-    content: string,
-    schema: ZodSchema<T>
-  ): Promise<T>;
-}
-```
-
-## 3. Event Bus Port (`shared/domain/ports`)
-
-負責跨模組的非同步事件傳遞。
-
-```typescript
-export interface IEventBus {
-  /**
-   * 發布領域事件
-   */
-  publish<T extends DomainEvent>(event: T): Promise<void>;
-
-  /**
-   * 訂閱特定事件
-   */
-  subscribe<T extends DomainEvent>(
-    eventName: string,
-    handler: (event: T) => Promise<void>
-  ): void;
-}
-```
-
-## 4. Implementation Guidelines (實作指引)
-
-- **Development Stub**: 在開發環境中，若未連接真實 Python 後端，應提供 `MockLLMOrchestrator` 回傳固定的 Lorem Ipsum 字串，以確保 UI 開發不受阻。
-- **Production**: `FirebaseFunctionsLLMAdapter` 應透過 HTTPS Callable Function 呼叫部署在 Google Cloud Functions (Python Genkit) 上的邏輯。
-- **Vector DB**: 優先使用 `UpstashVectorAdapter` 透過 HTTP REST API 進行操作，保持 Edge Runtime 相容性。
-`````
-
-## File: modules/search/.gitkeep
-`````
-
-`````
-
-## File: modules/search/domain/ports/vector-store.ts
-`````typescript
-/**
- * modules/search — domain port: IVectorStore
- *
- * Hexagonal architecture port that abstracts the underlying vector database
- * (e.g. Upstash Vector, Pinecone).  Infrastructure layer must implement this
- * interface; no concrete SDK details belong here.
- */
-
-/** A document to index in the vector store */
-export interface VectorDocument {
-  /** Unique identifier (e.g. BlockId or PageId) */
-  readonly id: string;
-  /** Raw text content used to generate the embedding */
-  readonly content: string;
-  /** Arbitrary metadata for filtering (e.g. { pageId, workspaceId }) */
-  readonly metadata?: Record<string, string | number | boolean>;
-}
-
-/** A search result returned by the vector store */
-export interface VectorSearchResult {
-  /** The matched document's ID */
-  readonly id: string;
-  /** Similarity score (0–1, higher is more similar) */
-  readonly score: number;
-  /** Metadata attached to the matched document */
-  readonly metadata?: Record<string, string | number | boolean>;
-}
-
-/**
- * Port that every vector-store adapter must satisfy.
- * Domain and application layers depend ONLY on this interface.
- */
-export interface IVectorStore {
-  /**
-   * Insert or update documents in the vector store.
-   * Embeddings are computed by the adapter implementation.
-   */
-  upsert(documents: VectorDocument[]): Promise<void>;
-
-  /**
-   * Find the top-K documents most similar to the query text.
-   * @param query   - Natural-language query string
-   * @param k       - Number of results to return
-   * @param filter  - Optional metadata filter
-   */
-  search(
-    query: string,
-    k: number,
-    filter?: Record<string, string | number | boolean>,
-  ): Promise<VectorSearchResult[]>;
-}
-`````
-
 ## File: modules/shared/api/index.ts
 `````typescript
 /**
@@ -28741,74 +28545,6 @@ export class SimpleEventBus {
     this.handlers.clear();
   }
 }
-`````
-
-## File: modules/UseCases.md
-`````markdown
-# Use Case Specifications
-
-本文件描述「Notion × Wiki × NotebookLM」融合架構下的關鍵使用者案例。
-
----
-
-## UC-01: 智能寫作與即時連結 (Writing with Auto-Linking)
-
-### 簡述
-當用戶在編輯器中寫作時，系統自動識別關鍵字並建議建立 Wiki 連結，或將內容轉為向量索引。
-
-- **Actor**: Content Creator
-- **Primary Module**: `modules/content`
-- **Supporting Modules**: `modules/knowledge`, `modules/ai`
-
-### Main Flow
-1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
-2. `BlockEditor` 偵測到 `[[` 觸發符。
-3. **[Knowledge]** 搜尋現有 `GraphNode` 並回傳建議列表。
-4. 用戶選擇目標頁面，系統插入 `PageLink` Block。
-5. 用戶完成一段文字並失焦 (OnBlur)。
-6. **[System]** 發送 `ContentBlockUpdated` 事件。
-7. **[Intelligence]** (Async) 接收事件，將該 Block 文字轉為 Vector 並存入 Upstash。
-
----
-
-## UC-02: 上下文感知問答 (Context-Aware Chat / RAG)
-
-### 簡述
-用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
-
-- **Actor**: Knowledge Worker
-- **Primary Module**: `modules/ai`
-- **Supporting Modules**: `modules/search`, `modules/content`
-
-### Main Flow
-1. 用戶開啟右側 `Assistant Panel`。
-2. 系統自動鎖定當前 `PageId` 作為 Context。
-3. 用戶提問：「這份文件的核心結論是什麼？」
-4. **[Intelligence]** 將問題轉為向量，並結合 `PageId` 過濾條件查詢 `VectorStore`。
-5. **[Search]** 回傳 Top-K 相關的 `Block` 內容。
-6. **[Intelligence]** 組裝 Prompt (包含原始 Block 內容) 發送給 LLM。
-7. **[UI]** 串流顯示答案，並在答案中標註引用來源 (Citation)。
-8. 用戶點擊引用來源，左側編輯器自動捲動到對應 Block。
-
----
-
-## UC-03: 圖譜導航與關聯發現 (Graph Navigation)
-
-### 簡述
-用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
-
-- **Actor**: Researcher
-- **Primary Module**: `modules/graph`
-- **Supporting Modules**: `modules/knowledge`
-
-### Main Flow
-1. 用戶切換至 `Graph View`。
-2. **[Knowledge]** 聚合所有 `Page` 與 `Link` 數據回傳。
-3. **[Graph]** 渲染力導向圖 (Force-Directed Graph)。
-4. 節點大小根據 `Backlinks` 數量動態調整。
-5. 用戶點擊節點 A。
-6. **[UI]** 開啟側邊預覽 (Preview Card)，顯示節點 A 的摘要與直接關聯。
-7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
 `````
 
 ## File: modules/wiki-beta/application/index.ts
@@ -49648,58 +49384,6 @@ Before implementing new features:
 - Follow module boundaries.
 `````
 
-## File: .github/README.md
-`````markdown
-# .github Customization Index
-
-Operational index for repository-scoped customization assets.
-
-## Commander flow (fast path)
-
-1. Start with [copilot-instructions.md](./copilot-instructions.md) for orchestration rules and tool use.
-2. Jump to [agents/README.md](./agents/README.md) for stage-specific agents or [prompts/README.md](./prompts/README.md) for slash commands.
-3. Pull supporting skills from [skills/README.md](./skills/README.md) when extra capabilities are needed.
-4. Cross-check mirrors in [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) when routing changes.
-
-## Boundary
-
-- Keep executable customization assets in `.github/`.
-- Keep explanation, governance, and lifecycle context in `docs/`.
-- Update both locations together when behavior changes.
-- If a merge conflict arises between `.github/` assets and docs mirrors, keep the `.github/` version and edit the docs-side index to match to avoid noisy diffs.
-
-## Folder map
-
-| Path | Purpose | Index |
-| --- | --- | --- |
-| [agents/](./agents/) | Delivery-stage and specialized agents | [agents/README.md](./agents/README.md) |
-| [copilot/](./copilot/) | Copilot-specific reserved assets | reserved placeholder |
-| [hooks/](./hooks/) | Hook and enforcement wiring assets | reserved placeholder |
-| [instructions/](./instructions/) | Always-on and `applyTo`-scoped instructions | [instructions/README.md](./instructions/README.md) |
-| [ISSUE_TEMPLATE/](./ISSUE_TEMPLATE/) | GitHub issue templates | reserved placeholder |
-| [prompts/](./prompts/) | Slash-command prompt workflows | [prompts/README.md](./prompts/README.md) |
-| [rules/](./rules/) | Machine-readable rule library | [rules/README.md](./rules/README.md) |
-| [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
-| [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
-
-## Core files
-
-| File | Role |
-| --- | --- |
-| [copilot-instructions.md](./copilot-instructions.md) | Copilot baseline and routing |
-| [agents/planner.agent.md](./agents/planner.agent.md) | Planning stage entry |
-| [agents/implementer.agent.md](./agents/implementer.agent.md) | Implementation stage entry |
-| [agents/reviewer.agent.md](./agents/reviewer.agent.md) | Review stage entry |
-| [agents/qa.agent.md](./agents/qa.agent.md) | QA stage entry |
-
-## Maintenance
-
-- Use relative links.
-- Keep one concrete entry file per folder.
-- Keep placeholders as plain text, not fake links.
-- Update this file and [../docs/development-reference/reference/ai/customizations-index.md](../docs/development-reference/reference/ai/customizations-index.md) together when routing changes.
-`````
-
 ## File: .github/skills/deploy-to-vercel/resources/deploy-codex.sh
 `````bash
 #!/bin/bash
@@ -56062,266 +55746,6 @@ export function DashboardSidebar({
 }
 `````
 
-## File: app/(shell)/_components/header-controls.tsx
-`````typescript
-"use client";
-
-/**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
- */
-
-import { Bell, Moon, Sun } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  type NotificationEntity,
-  markAllNotificationsRead,
-  markNotificationRead,
-  getNotificationsForRecipient,
-} from "@/modules/notification";
-import { Button } from "@ui-shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
-import { TranslationSwitcher } from "./translation-switcher";
-
-const THEME_KEY = "xuanwu_theme";
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-export function HeaderControls() {
-  const { state: authState } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isNotificationLoading, setIsNotificationLoading] = useState(false);
-  const [isNotificationMutating, setIsNotificationMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const recipientId = authState.user?.id ?? "";
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, notification) => count + (notification.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsNotificationLoading(true);
-    try {
-      const nextNotifications = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(nextNotifications);
-    } finally {
-      setIsNotificationLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-  }
-
-  async function handleNotificationOpenChange(nextOpen: boolean) {
-    setIsNotificationOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsNotificationMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === notificationId ? { ...notification, read: true } : notification,
-      ),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) {
-        setNotifications(previous);
-      }
-    } finally {
-      setIsNotificationMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsNotificationMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) {
-        setNotifications(previous);
-      }
-    } finally {
-      setIsNotificationMutating(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <DropdownMenu open={isNotificationOpen} onOpenChange={handleNotificationOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Open notifications"
-            className="relative text-muted-foreground"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80 p-0">
-          <div className="flex items-center justify-between px-3 py-2">
-            <p className="text-sm font-semibold">Notifications</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              disabled={isNotificationMutating || unreadCount === 0}
-              onClick={handleMarkAllRead}
-            >
-              Mark all read
-            </Button>
-          </div>
-          <DropdownMenuSeparator />
-          <div className="max-h-80 overflow-y-auto">
-            {isNotificationLoading ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-            ) : notifications.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-            ) : (
-              notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  type="button"
-                  onClick={() => void handleMarkOneRead(notification.id)}
-                  disabled={isNotificationMutating}
-                  className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">{notification.title}</p>
-                    {!notification.read ? (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                    ) : null}
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {notification.message}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatNotificationTime(notification.timestamp)}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-`````
-
-## File: app/(shell)/_components/shell-guard.tsx
-`````typescript
-"use client";
-
-/**
- * shell-guard.tsx
- * Client-side auth guard for the authenticated shell.
- *
- * Responsibilities:
- *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
- *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
- *  3. Show a loading state while auth is initializing
- */
-
-import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { useTokenRefreshListener } from "@/modules/identity";
-
-interface ShellGuardProps {
-  children: ReactNode;
-}
-
-export function ShellGuard({ children }: ShellGuardProps) {
-  const { state } = useAuth();
-  const { user, status } = state;
-  const router = useRouter();
-
-  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
-  useTokenRefreshListener(user?.id ?? null);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/");
-    }
-  }, [status, router]);
-
-  if (status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (status === "unauthenticated") {
-    return null;
-  }
-
-  return <>{children}</>;
-}
-`````
-
 ## File: app/(shell)/dev-tools/page.tsx
 `````typescript
 "use client";
@@ -57379,231 +56803,173 @@ export default function OrganizationSchedulePage() {
 }
 `````
 
-## File: app/debug/arch-demo/_actions/demo.actions.ts
-`````typescript
-"use server";
+## File: docs/development-reference/development/modules-implementation-guide.md
+`````markdown
+# Modules Implementation Guide
 
-/**
- * app/debug/arch-demo/_actions/demo.actions.ts
- *
- * Architecture Phase 3 — Server Actions for the /debug/arch-demo page.
- *
- * MDDD boundary rule:
- *   Imports ONLY from `@/modules/system` (which re-exports via api/ paths).
- *   Never reaches into domain/, application/, or infrastructure/ layers.
- */
+本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件 [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的設計方向。
 
-import { revalidatePath } from "next/cache";
+- [ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md)：回答「為什麼」與「系統如何分層」。
+- 本文件：回答「在 repository 內如何落地」。
 
-import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "@/modules/system";
-import type { GraphDataDTO } from "@/modules/knowledge-graph/api/knowledge-graph-api";
+---
 
-// ── Form-bound Server Actions (return void — re-render via revalidatePath) ──
+## 1. 與概念架構文件的對位關係
 
-/**
- * Create a new in-memory page.
- */
-export async function createPageAction(formData: FormData): Promise<void> {
-  const title = (formData.get("title") as string | null)?.trim() || "Untitled";
-  await contentApi.createPage(DEMO_ACCOUNT_ID, title);
-  revalidatePath("/debug/arch-demo");
-}
+[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 定義三層融合：
 
-/**
- * Add a block to an existing page.
- */
-export async function addBlockAction(formData: FormData): Promise<void> {
-  const pageId = (formData.get("pageId") as string | null)?.trim() ?? "";
-  const text = (formData.get("text") as string | null) ?? "";
-  if (!pageId) return;
-  await contentApi.addBlock(DEMO_ACCOUNT_ID, pageId, text);
-  revalidatePath("/debug/arch-demo");
-}
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
 
-/**
- * Update a block's text content.
- * If the text contains [[WikiLinks]], the event bus propagates the change to
- * KnowledgeGraphApi, which extracts new graph nodes and edges.
- */
-export async function updateBlockAction(formData: FormData): Promise<void> {
-  const blockId = (formData.get("blockId") as string | null)?.trim() ?? "";
-  const text = (formData.get("text") as string | null) ?? "";
-  if (!blockId) return;
-  await contentApi.updateBlock(DEMO_ACCOUNT_ID, blockId, text);
-  revalidatePath("/debug/arch-demo");
-}
+在本專案中的實作對位：
 
-/**
- * Expose the current graph data for programmatic use.
- */
-export async function getGraphDataAction(): Promise<GraphDataDTO> {
-  return knowledgeApi.getGraphData();
-}
-`````
+| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
+| --- | --- | --- |
+| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
 
-## File: app/debug/arch-demo/page.tsx
-`````typescript
-/**
- * app/debug/arch-demo/page.tsx
- *
- * Architecture Phase 3 — Debug Page
- *
- * Server Component that demonstrates the full Content → EventBus → Knowledge loop.
- * - Creates a page via createPageAction.
- * - Adds / updates a block with [[WikiLinks]] via addBlockAction / updateBlockAction.
- * - Renders a JSON dump of the knowledge graph to verify the loop is working.
- *
- * Constraints (MDDD & Occam's Razor):
- *   - Reads data directly from the module-level singletons in modules/system.ts.
- *   - Mutations go through Server Actions in modules/interfaces/_actions/demo.actions.ts.
- *   - UI is minimal raw HTML + Tailwind; no complex shared components.
- */
+> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
 
-import { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from "@/modules/system";
-import {
-  createPageAction,
-  addBlockAction,
-  updateBlockAction,
-} from "./_actions/demo.actions";
+---
 
-export const metadata = { title: "Arch Demo — Phase 3" };
+## 2. module 標準結構（MDDD）
 
-export default async function ArchDemoPage() {
-  // ── Read current state from in-memory singletons ──────────────────────────
-  const pages = await contentApi.listPages(DEMO_ACCOUNT_ID);
-  const graphData = await knowledgeApi.getGraphData();
+```text
+<domain-id>/
+│
+├── api/
+│   └── index.ts
+│
+├── domain/
+│   ├── entities/
+│   ├── value-objects/
+│   ├── repositories/
+│   ├── services/
+│   └── events/
+│
+├── application/
+│   ├── use-cases/
+│   └── dto/
+│
+├── infrastructure/
+│   ├── firebase/
+│   ├── persistence/
+│   ├── external/
+│   └── repositories/
+│
+├── interfaces/
+│   ├── _actions/
+│   ├── api/
+│   ├── queries/
+│   ├── hooks/
+│   └── components/
+│
+```
 
-  return (
-    <main className="min-h-screen bg-gray-50 p-8 font-mono text-sm">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">
-        🏗️ Architecture Phase 3 — Interface Wiring Demo
-      </h1>
+說明：
 
-      {/* ── Section 1: Create Page ────────────────────────────────────────── */}
-      <section className="mb-8 rounded border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-gray-700">1. Create Page</h2>
-        <form action={createPageAction} className="flex gap-2">
-          <input
-            name="title"
-            type="text"
-            defaultValue="My Demo Page"
-            className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
-            placeholder="Page title"
-          />
-          <button
-            type="submit"
-            className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Create Page
-          </button>
-        </form>
-      </section>
+1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
 
-      {/* ── Section 2: Add Block ──────────────────────────────────────────── */}
-      <section className="mb-8 rounded border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-gray-700">2. Add Block to Page</h2>
-        {pages.length === 0 ? (
-          <p className="text-gray-400">No pages yet — create one first.</p>
-        ) : (
-          <form action={addBlockAction} className="flex flex-col gap-2">
-            <select
-              name="pageId"
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
-            >
-              {pages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title} ({p.id.slice(0, 8)}…)
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <input
-                name="text"
-                type="text"
-                defaultValue="Hello [[World]]"
-                className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
-                placeholder="Block text (use [[WikiLinks]])"
-              />
-              <button
-                type="submit"
-                className="rounded bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700"
-              >
-                Add Block
-              </button>
-            </div>
-          </form>
-        )}
-      </section>
+---
 
-      {/* ── Section 3: Update Block ───────────────────────────────────────── */}
-      <section className="mb-8 rounded border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-gray-700">
-          3. Update Block (triggers Event → Knowledge)
-        </h2>
-        {pages.length === 0 ? (
-          <p className="text-gray-400">No pages yet.</p>
-        ) : (
-          <form action={updateBlockAction} className="flex flex-col gap-2">
-            <input
-              name="blockId"
-              type="text"
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
-              placeholder="Block ID (copy from below)"
-            />
-            <div className="flex gap-2">
-              <input
-                name="text"
-                type="text"
-                defaultValue="Updated text [[AnotherLink]]"
-                className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
-                placeholder="New block text (use [[WikiLinks]] to grow the graph)"
-              />
-              <button
-                type="submit"
-                className="rounded bg-purple-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
-              >
-                Update Block
-              </button>
-            </div>
-          </form>
-        )}
-      </section>
+## 3. 依賴方向與邊界
 
-      {/* ── Section 4: Current Pages ──────────────────────────────────────── */}
-      <section className="mb-8 rounded border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-gray-700">
-          Current Pages ({pages.length})
-        </h2>
-        {pages.length === 0 ? (
-          <p className="text-gray-400">No pages yet.</p>
-        ) : (
-          <ul className="space-y-1">
-            {pages.map((p) => (
-              <li key={p.id} className="rounded bg-gray-50 px-3 py-1.5">
-                <span className="font-medium">{p.title}</span>{" "}
-                <span className="text-gray-400">id={p.id}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+全域依賴方向：
 
-      {/* ── Section 5: Knowledge Graph (JSON dump) ────────────────────────── */}
-      <section className="rounded border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-gray-700">
-          Knowledge Graph ({graphData.nodes.length} nodes, {graphData.edges.length} edges)
-        </h2>
-        <p className="mb-2 text-xs text-gray-500">
-          Add a block with <code className="bg-gray-100 px-1">[[WikiLink]]</code> syntax and the
-          graph will update automatically via the event bus.
-        </p>
-        <pre className="max-h-96 overflow-auto rounded bg-gray-900 p-4 text-xs text-green-400">
-          {JSON.stringify(graphData, null, 2)}
-        </pre>
-      </section>
-    </main>
-  );
-}
+```text
+interfaces -> application -> domain <- infrastructure
+```
+
+邊界規則：
+
+1. `domain/` 不得依賴 framework 與外部 SDK。
+2. `application/` 負責流程編排，不直接綁定具體外部實作。
+3. `infrastructure/` 實作 domain 介面，不主導業務流程。
+4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
+
+---
+
+## 4. 與 packages 的關係
+
+模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
+
+```text
+modules/*
+  -> packages/* (stable public boundary)
+```
+
+這個原則與上位概念架構文件的三層融合不衝突：
+
+- 融合的是產品能力（編輯 + 關聯 + AI）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
+
+---
+
+## 5. Next.js 路由與融合介面
+
+[ai-knowledge-platform-architecture.md](../../decision-architecture/architecture/ai-knowledge-platform-architecture.md) 的基礎平行路由示意：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+```
+
+實作可依需求擴充，例如：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+    /@collab
+    /@workflow
+```
+
+擴充原則：
+
+1. 新 slot 必須能回對到既有 module ownership。
+2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
+
+---
+
+## 6. 目標對齊聲明
+
+本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
+
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
+2. 明確化「融合體驗」與「邊界隔離」可同時成立。
+3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+
+---
+
+## 7. 以上位概念架構文件為準的落地限制
+
+上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+
+因此本文件只保留與概念模型一致的落地限制：
+
+1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
+2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
+4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+
+## 8. 實作規劃時的最小檢查點
+
+若要把三層模型落到實際模組，至少先確認：
+
+1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
+3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
+4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
+5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
 ## File: docs/development-reference/reference/development-contracts/audit-contract.md
@@ -57934,70 +57300,6 @@ System diagrams and conceptual explanations that clarify architecture and decisi
 
 - [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture records and ADRs
 - [../development-reference/specification/README.md](../development-reference/specification/README.md) — System specifications
-`````
-
-## File: docs/how-to-user/how-to/update-customizations.md
-`````markdown
----
-title: Update AI customizations
-description: Maintenance guide for changing the Xuanwu Copilot Delivery Suite without breaking workflow contracts.
----
-
-# Update AI customizations
-
-This guide is for maintainers who need to change agents, prompts, baseline instructions, or planning contract documents.
-
-## Update order
-
-When changing the delivery workflow, update files in this order:
-
-1. authoritative references,
-2. planning contract documents,
-3. agents,
-4. prompts,
-5. operational docs and index pages.
-
-## If you change the plan structure
-
-Update all of the following in the same change:
-
-- [implementation-plan-template.md](../../development-reference/reference/ai/implementation-plan-template.md)
-- [plan-schema.md](../../development-reference/reference/ai/plan-schema.md)
-- [.github/agents/planner.agent.md](../../.github/agents/planner.agent.md)
-- planning prompts under [.github/prompts](../../.github/prompts)
-- any operational docs that explain planning or recovery
-
-## If you change a handoff rule
-
-Update all of the following in the same change:
-
-- the relevant `.agent.md` file,
-- [handoff-matrix.md](../../development-reference/reference/ai/handoff-matrix.md),
-- [agentic-delivery-model.md](../../diagrams-events-explanations/explanation/agentic-delivery-model.md) if rationale changed,
-- recovery guidance if the valid re-entry path changed.
-
-## If you add or retire an asset
-
-Update all of the following in the same change:
-
-- [customizations-index.md](../../development-reference/reference/ai/customizations-index.md)
-- [legacy-customizations-migration.md](../../development-reference/reference/ai/legacy-customizations-migration.md) when applicable
-- README or contributing guidance if contributor-facing entry points changed
-
-## Validation expectations
-
-- Check links between docs and customization files.
-- Ensure agent and prompt names match the intended invocation model.
-- Ensure no active custom agents share the same visible name unless the duplication is intentional and documented.
-- Use Chat customization diagnostics to confirm agents, prompts, instructions, and skills are discovered without errors.
-- Add hooks only when deterministic lifecycle enforcement is required; document the hook rationale and affected stages in the same change.
-- Keep authoritative sources and workflow docs aligned.
-
-## Handling conflicts with docs
-
-- When merge conflicts happen between `.github/` assets and docs mirrors, keep the `.github/` version.
-- Adjust the docs-side index or links after resolving the conflict to match `.github/` instead of copying file bodies.
-- Remove duplicated excerpts to reduce future diff noise.
 `````
 
 ## File: modules/agent/.gitkeep
@@ -58378,203 +57680,6 @@ export async function answerRagQuery(input: AnswerRagQueryInput): Promise<Answer
 ## File: modules/agent/interfaces/index.ts
 `````typescript
 export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
-`````
-
-## File: modules/ai/api/index.ts
-`````typescript
-/**
- * @deprecated modules/ai API moved to modules/agent/api.
- */
-export * from "@/modules/agent/api";
-`````
-
-## File: modules/ai/application/index.ts
-`````typescript
-export {
-	GenerateAgentResponseUseCase as GenerateAIResponseUseCase,
-	AnswerRagQueryUseCase,
-} from "@/modules/agent/api";
-`````
-
-## File: modules/ai/application/use-cases/answer-rag-query.use-case.ts
-`````typescript
-/**
- * @deprecated AnswerRagQueryUseCase ownership has moved to modules/retrieval.
- * Keep this bridge temporarily for compatibility within the ai module.
- */
-export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/application/use-cases/generate-ai-response.use-case.ts
-`````typescript
-/**
- * @deprecated AI response use-case moved to modules/agent.
- */
-export { GenerateAgentResponseUseCase as GenerateAIResponseUseCase } from "@/modules/agent/api";
-`````
-
-## File: modules/ai/domain/entities/AIGeneration.ts
-`````typescript
-/**
- * @deprecated AI generation contracts moved to modules/agent.
- */
-export type {
-  AgentResponse as AIResponse,
-  GenerateAgentResponseInput as GenerateAIResponseInput,
-  GenerateAgentResponseResult as GenerateAIResponseResult,
-} from "@/modules/agent/api";
-`````
-
-## File: modules/ai/domain/entities/message.ts
-`````typescript
-/**
- * @deprecated Message contract moved to modules/agent.
- */
-export type { Message, MessageRole } from "@/modules/agent/api";
-`````
-
-## File: modules/ai/domain/entities/RagQuery.ts
-`````typescript
-/**
- * @deprecated Retrieval query contracts moved to modules/retrieval.
- */
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/domain/entities/thread.ts
-`````typescript
-/**
- * @deprecated Thread contract moved to modules/agent.
- */
-export type { Thread } from "@/modules/agent/api";
-`````
-
-## File: modules/ai/domain/index.ts
-`````typescript
-export type {
-  AgentResponse as AIResponse,
-  GenerateAgentResponseInput as GenerateAIResponseInput,
-  GenerateAgentResponseResult as GenerateAIResponseResult,
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-  AgentRepository as AIRepository,
-} from "@/modules/agent/api";
-`````
-
-## File: modules/ai/domain/repositories/AIRepository.ts
-`````typescript
-/**
- * @deprecated AI repository contract moved to modules/agent.
- */
-export type { AgentRepository as AIRepository } from "@/modules/agent/api";
-`````
-
-## File: modules/ai/domain/repositories/RagGenerationRepository.ts
-`````typescript
-/**
- * @deprecated RAG generation contracts moved to modules/retrieval.
- */
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/domain/repositories/RagRetrievalRepository.ts
-`````typescript
-/**
- * @deprecated Retrieval repository contracts moved to modules/retrieval.
- */
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/index.ts
-`````typescript
-/**
- * @deprecated modules/ai ownership moved to modules/agent.
- */
-export * from "@/modules/agent";
-`````
-
-## File: modules/ai/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
-`````typescript
-/**
- * @deprecated Retrieval adapter ownership moved to modules/retrieval.
- */
-export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/infrastructure/genkit/client.ts
-`````typescript
-/**
- * @deprecated AI genkit client moved to modules/agent.
- */
-export {
-  agentClient as aiClient,
-  createGenkitClient,
-  getConfiguredGenkitModel,
-  type GenkitClientOptions,
-} from "@/modules/agent/infrastructure/genkit/client";
-`````
-
-## File: modules/ai/infrastructure/genkit/GenkitAIRepository.ts
-`````typescript
-/**
- * @deprecated AI generation adapter moved to modules/agent.
- */
-export { GenkitAgentRepository as GenkitAIRepository } from "@/modules/agent/api";
-`````
-
-## File: modules/ai/infrastructure/genkit/GenkitRagGenerationRepository.ts
-`````typescript
-/**
- * @deprecated RAG generation adapter moved to modules/retrieval.
- */
-export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/infrastructure/genkit/index.ts
-`````typescript
-/**
- * @deprecated AI genkit infrastructure moved to modules/agent.
- */
-export {
-  agentClient as aiClient,
-  createGenkitClient,
-  getConfiguredGenkitModel,
-  type GenkitClientOptions,
-} from "@/modules/agent/infrastructure/genkit";
-export { GenkitAgentRepository as GenkitAIRepository } from "@/modules/agent/api";
-export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
-`````
-
-## File: modules/ai/infrastructure/index.ts
-`````typescript
-export * from "@/modules/agent/infrastructure";
 `````
 
 ## File: modules/asset/api/index.ts
@@ -61042,37 +60147,6 @@ export type {
 </svg>
 `````
 
-## File: modules/identity/index.ts
-`````typescript
-/**
- * identity module public API
- */
-export type { IdentityEntity, SignInCredentials, RegistrationInput } from "./domain/entities/Identity";
-export type { TokenRefreshSignal, TokenRefreshReason } from "./domain/entities/TokenRefreshSignal";
-export type { IdentityRepository } from "./domain/repositories/IdentityRepository";
-export type { TokenRefreshRepository } from "./domain/repositories/TokenRefreshRepository";
-export {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "./application/use-cases/identity.use-cases";
-export { EmitTokenRefreshSignalUseCase } from "./application/use-cases/token-refresh.use-cases";
-export { FirebaseIdentityRepository } from "./infrastructure/firebase/FirebaseIdentityRepository";
-export { FirebaseTokenRefreshRepository } from "./infrastructure/firebase/FirebaseTokenRefreshRepository";
-export {
-  signIn,
-  signInAnonymously,
-  register,
-  sendPasswordResetEmail,
-  signOut,
-} from "./interfaces/_actions/identity.actions";
-// Client-only hook — must be imported from the module barrel only from "use client" files
-// to avoid RSC bundle contamination.
-export { useTokenRefreshListener } from "./interfaces/hooks/useTokenRefreshListener";
-`````
-
 ## File: modules/knowledge-graph/.gitkeep
 `````
 
@@ -62310,9 +61384,267 @@ export { dispatchNotification } from "../interfaces/_actions/notification.action
 export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
 `````
 
-## File: modules/retrieval/.gitkeep
+## File: modules/README.md
+`````markdown
+# Modules Implementation Guide
+
+本文件是 `modules/` 的實作導向說明，並**遷就且對齊** `modules/Architecture.md` 的概念架構。
+
+- `modules/Architecture.md`：回答「為什麼」與「系統如何分層」。
+- 本文件：回答「在 repository 內如何落地」。
+
+---
+
+## 1. 與 Architecture.md 的對位關係
+
+`Architecture.md` 定義三層融合：
+
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
+
+在本專案中的實作對位：
+
+| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
+| --- | --- | --- |
+| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki-beta`, `modules/graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
+
+> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
+
+---
+
+## 2. module 標準結構（MDDD）
+
+```text
+<domain-id>/
+│
+├── api/
+│   └── index.ts
+│
+├── domain/
+│   ├── entities/
+│   ├── value-objects/
+│   ├── repositories/
+│   ├── services/
+│   └── events/
+│
+├── application/
+│   ├── use-cases/
+│   └── dto/
+│
+├── infrastructure/
+│   ├── firebase/
+│   ├── persistence/
+│   ├── external/
+│   └── repositories/
+│
+├── interfaces/
+│   ├── _actions/
+│   ├── api/
+│   ├── queries/
+│   ├── hooks/
+│   └── components/
+│
+```
+
+說明：
+
+1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
+
+---
+
+## 3. 依賴方向與邊界
+
+全域依賴方向：
+
+```text
+interfaces -> application -> domain <- infrastructure
+```
+
+邊界規則：
+
+1. `domain/` 不得依賴 framework 與外部 SDK。
+2. `application/` 負責流程編排，不直接綁定具體外部實作。
+3. `infrastructure/` 實作 domain 介面，不主導業務流程。
+4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
+
+---
+
+## 4. 與 packages 的關係
+
+模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
+
+```text
+modules/*
+  -> packages/* (stable public boundary)
+```
+
+這個原則與 `Architecture.md` 的三層融合不衝突：
+
+- 融合的是產品能力（編輯 + 關聯 + AI）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
+
+---
+
+## 5. Next.js 路由與融合介面
+
+`Architecture.md` 的基礎平行路由示意：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+```
+
+實作可依需求擴充，例如：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+    /@collab
+    /@workflow
+```
+
+擴充原則：
+
+1. 新 slot 必須能回對到既有 module ownership。
+2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
+
+---
+
+## 6. 目標對齊聲明
+
+本文件已以 `modules/Architecture.md` 為上位概念文件，並將其轉換為可執行的 module implementation 規範：
+
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
+2. 明確化「融合體驗」與「邊界隔離」可同時成立。
+3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+
+---
+
+## 7. 以 Architecture.md 為準的落地限制
+
+`modules/Architecture.md` 提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+
+因此本文件只保留與上位概念一致的落地限制：
+
+1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
+2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
+4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+
+## 8. 實作規劃時的最小檢查點
+
+若要把三層模型落到實際模組，至少先確認：
+
+1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
+3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
+4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
+5. 若文件只是概念說明，不額外發明 Architecture.md 未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
+## File: modules/RemotePorts.md
+`````markdown
+# Remote Ports & Infrastructure Interfaces
+
+本文件定義 `infrastructure/` 層必須實作的 Port 介面。這實現了 Hexagonal Architecture，讓核心領域邏輯不依賴具體的外部服務（如 Firebase, Upstash, OpenAI）。
+
+---
+
+## 1. Vector Store Port (`modules/retrieval/domain/ports`)
+
+負責向量資料庫的讀寫。
+
+```typescript
+export interface IVectorStore {
+  /**
+   * 將文本區塊轉換為向量並儲存
+   * @param documents - 包含 id, content, metadata 的物件
+   */
+  upsertDocuments(documents: VectorDocument[]): Promise<void>;
+
+  /**
+   * 根據查詢字串尋找相似區塊
+   * @param query - 查詢文本
+   * @param k - 回傳數量
+   * @param filter - 屬性過濾 (e.g., pageId)
+   */
+  similaritySearch(query: string, k: number, filter?: Record<string, any>): Promise<ScoredDocument[]>;
+
+  /**
+   * 刪除指定 ID 的向量
+   */
+  deleteDocuments(ids: string[]): Promise<void>;
+}
+
+export type VectorDocument = {
+  id: string;
+  content: string;
+  metadata: Record<string, any>;
+};
+```
+
+## 2. LLM Orchestrator Port (`modules/agent/domain`)
+
+負責與 Python Runtime (`py_fn`) 或 Genkit 溝通的介面。
+
+```typescript
+export interface ILLMOrchestrator {
+  /**
+   * 生成對話回應 (支援 Streaming)
+   */
+  generateResponseStream(
+    history: ChatMessage[],
+    context: ContextBlock[],
+    options?: GenerationOptions
+  ): AsyncGenerator<string, void, unknown>;
+
+  /**
+   * 結構化資料提取 (用於自動標籤、摘要)
+   */
+  extractStructuredData<T>(
+    content: string,
+    schema: ZodSchema<T>
+  ): Promise<T>;
+}
+```
+
+## 3. Event Bus Port (`shared/domain/ports`)
+
+負責跨模組的非同步事件傳遞。
+
+```typescript
+export interface IEventBus {
+  /**
+   * 發布領域事件
+   */
+  publish<T extends DomainEvent>(event: T): Promise<void>;
+
+  /**
+   * 訂閱特定事件
+   */
+  subscribe<T extends DomainEvent>(
+    eventName: string,
+    handler: (event: T) => Promise<void>
+  ): void;
+}
+```
+
+## 4. Implementation Guidelines (實作指引)
+
+- **Development Stub**: 在開發環境中，若未連接真實 Python 後端，應提供 `MockLLMOrchestrator` 回傳固定的 Lorem Ipsum 字串，以確保 UI 開發不受阻。
+- **Production**: `FirebaseFunctionsLLMAdapter` 應透過 HTTPS Callable Function 呼叫部署在 Google Cloud Functions (Python Genkit) 上的邏輯。
+- **Vector DB**: 優先使用 `UpstashVectorAdapter` 透過 HTTP REST API 進行操作，保持 Edge Runtime 相容性。
 `````
 
 ## File: modules/retrieval/application/use-cases/answer-rag-query.use-case.ts
@@ -62761,19 +62093,6 @@ export function getConfiguredGenkitModel(model?: string): string {
 }
 `````
 
-## File: modules/search/api/index.ts
-`````typescript
-/**
- * @deprecated modules/search is retired.
- * Import from @/modules/retrieval/api instead.
- */
-export type {
-  IVectorStore,
-  VectorDocument,
-  VectorSearchResult,
-} from "../../retrieval/api";
-`````
-
 ## File: modules/system.ts
 `````typescript
 /**
@@ -62813,6 +62132,74 @@ export const contentApi = new ContentApi(eventBus);
 export const knowledgeApi = new KnowledgeGraphApi(eventBus);
 // KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
 // subscription is active as soon as the module is imported.
+`````
+
+## File: modules/UseCases.md
+`````markdown
+# Use Case Specifications
+
+本文件描述「Notion × Wiki × NotebookLM」融合架構下的關鍵使用者案例。
+
+---
+
+## UC-01: 智能寫作與即時連結 (Writing with Auto-Linking)
+
+### 簡述
+當用戶在編輯器中寫作時，系統自動識別關鍵字並建議建立 Wiki 連結，或將內容轉為向量索引。
+
+- **Actor**: Content Creator
+- **Primary Module**: `modules/content`
+- **Supporting Modules**: `modules/knowledge`, `modules/agent`
+
+### Main Flow
+1. 用戶在 `Page` 中輸入文字 (e.g., "關於 [[專案X]] 的進度...")。
+2. `BlockEditor` 偵測到 `[[` 觸發符。
+3. **[Knowledge]** 搜尋現有 `GraphNode` 並回傳建議列表。
+4. 用戶選擇目標頁面，系統插入 `PageLink` Block。
+5. 用戶完成一段文字並失焦 (OnBlur)。
+6. **[System]** 發送 `ContentBlockUpdated` 事件。
+7. **[Intelligence]** (Async) 接收事件，將該 Block 文字轉為 Vector 並存入 Upstash。
+
+---
+
+## UC-02: 上下文感知問答 (Context-Aware Chat / RAG)
+
+### 簡述
+用戶針對當前頁面或選定的知識範圍提問，AI 引用具體 Block 進行回答。
+
+- **Actor**: Knowledge Worker
+- **Primary Module**: `modules/agent`
+- **Supporting Modules**: `modules/retrieval`, `modules/content`
+
+### Main Flow
+1. 用戶開啟右側 `Assistant Panel`。
+2. 系統自動鎖定當前 `PageId` 作為 Context。
+3. 用戶提問：「這份文件的核心結論是什麼？」
+4. **[Intelligence]** 將問題轉為向量，並結合 `PageId` 過濾條件查詢 `VectorStore`。
+5. **[Search]** 回傳 Top-K 相關的 `Block` 內容。
+6. **[Intelligence]** 組裝 Prompt (包含原始 Block 內容) 發送給 LLM。
+7. **[UI]** 串流顯示答案，並在答案中標註引用來源 (Citation)。
+8. 用戶點擊引用來源，左側編輯器自動捲動到對應 Block。
+
+---
+
+## UC-03: 圖譜導航與關聯發現 (Graph Navigation)
+
+### 簡述
+用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
+
+- **Actor**: Researcher
+- **Primary Module**: `modules/graph`
+- **Supporting Modules**: `modules/knowledge`
+
+### Main Flow
+1. 用戶切換至 `Graph View`。
+2. **[Knowledge]** 聚合所有 `Page` 與 `Link` 數據回傳。
+3. **[Graph]** 渲染力導向圖 (Force-Directed Graph)。
+4. 節點大小根據 `Backlinks` 數量動態調整。
+5. 用戶點擊節點 A。
+6. **[UI]** 開啟側邊預覽 (Preview Card)，顯示節點 A 的摘要與直接關聯。
+7. **[System]** 高亮顯示與節點 A 有「潛在語義關聯」(由 AI 計算) 的節點 B、C。
 `````
 
 ## File: modules/workspace-audit/AGENT.md
@@ -72530,26 +71917,6 @@ export async function revokeAccountRole(accountId: string): Promise<CommandResul
 }
 `````
 
-## File: modules/ai/interfaces/_actions/ai.actions.ts
-`````typescript
-"use server";
-
-import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "@/modules/agent/api";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/agent/api";
-import { answerRagQuery, generateAgentResponse } from "@/modules/agent/api";
-
-export async function generateAIResponse(
-  input: GenerateAgentResponseInput,
-): Promise<GenerateAgentResponseResult> {
-  return generateAgentResponse(input);
-}
-
-export { answerRagQuery };
-`````
-
 ## File: modules/Architecture.md
 `````markdown
 # 「Notion × Wiki × NotebookLM」融合架構學術指南
@@ -73884,20 +73251,6 @@ export async function getWorkspaceRagDocuments(
     workspaceId: workspace.id,
   });
 }
-`````
-
-## File: modules/interfaces/_actions/demo.actions.ts
-`````typescript
-/**
- * @deprecated modules/interfaces is retired.
- * Server Actions have moved to app/debug/arch-demo/_actions/demo.actions.ts.
- */
-export {
-  createPageAction,
-  addBlockAction,
-  updateBlockAction,
-  getGraphDataAction,
-} from "../../../app/debug/arch-demo/_actions/demo.actions";
 `````
 
 ## File: modules/knowledge-graph/api/index.ts
@@ -78748,6 +78101,127 @@ export function CustomizeNavigationDialog({
 }
 `````
 
+## File: docs/development-reference/reference/ai/customizations-index.md
+`````markdown
+---
+title: AI customizations index
+description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
+---
+
+# AI customizations index
+
+This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
+
+## Scope boundary
+
+- `.github/` is the operational source of truth.
+- This page provides routing, ownership, lifecycle status, and maintenance policy.
+- Avoid duplicating full file bodies from `.github/`.
+- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
+- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
+
+## Baseline references
+
+| Asset | Type | Responsibility | Notes |
+| --- | --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
+| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
+| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
+| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
+| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
+| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
+
+## Primary routing
+
+Use this order when working on customization assets:
+
+1. [.github/README.md](../../../../.github/README.md)
+2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
+3. the target folder under `.github/`
+4. the exact target file
+
+## Delivery workflow agents
+
+| Asset | Stage | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
+| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
+| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
+| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
+| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
+
+## Specialized Custom Agents
+
+| Asset | Focus | Responsibility | Allowed edits |
+| --- | --- | --- | --- |
+| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
+| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
+
+## Modules Architecture Suite
+
+| Asset group | Files |
+| --- | --- |
+| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
+| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
+| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
+
+Scope partition for instruction consumption:
+
+- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
+- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
+
+## Delivery prompts
+
+| Asset | Primary use | Typical entry point |
+| --- | --- | --- |
+| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
+| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
+| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
+| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
+| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
+| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
+
+## Planning contract reference
+
+| Asset | Responsibility |
+| --- | --- |
+| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
+| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
+| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
+
+## Operational guidance
+
+| Asset | Audience | Purpose |
+| --- | --- | --- |
+| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
+| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
+| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
+| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
+| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
+| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
+
+## Existing specialized skills
+
+- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
+- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
+- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
+- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
+- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
+
+## Legacy assets
+
+| Asset | Current status | Replacement |
+| --- | --- | --- |
+| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
+
+## Ownership and update policy
+
+- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
+- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
+- Keep this page concise; keep executable definitions in `.github/`.
+- Treat undocumented customization assets as provisional.
+`````
+
 ## File: modules/workspace-audit/api/index.ts
 `````typescript
 /**
@@ -79518,127 +78992,6 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Prefer checklist-style guidance over long prose.
 - Keep this file focused on skill-specific execution intent.
 - Remove repeated conceptual background that exists elsewhere.
-`````
-
-## File: docs/development-reference/reference/ai/customizations-index.md
-`````markdown
----
-title: AI customizations index
-description: Reference index for the Xuanwu Copilot Delivery Suite, including primary files, workflow agents, prompts, skills, and legacy assets.
----
-
-# AI customizations index
-
-This page is the docs-side index for the Xuanwu Copilot Delivery Suite.
-
-## Scope boundary
-
-- `.github/` is the operational source of truth.
-- This page provides routing, ownership, lifecycle status, and maintenance policy.
-- Avoid duplicating full file bodies from `.github/`.
-- If this page conflicts with `.github/`, treat `.github/` as authoritative and update this page.
-- When merge conflicts appear between `.github/` files and this index, resolve in favor of `.github/` first, then trim or relink this page to match so we don't churn on duplicated content.
-
-## Baseline references
-
-| Asset | Type | Responsibility | Notes |
-| --- | --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Directory index | Root inventory for `.github/` folders, recommended entries, and link policy | Start here when routing inside `.github/` |
-| [AGENTS.md](../../../../AGENTS.md) | Always-on instructions | Repository-wide operating rules shared across agents | Primary repository contract |
-| [CLAUDE.md](../../../../CLAUDE.md) | Always-on instructions | Claude-compatible repository instructions | Keep aligned with `AGENTS.md` |
-| [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md) | Always-on Copilot baseline | Copilot-specific delivery baseline and workflow routing | Primary Copilot entry point |
-| [agents/knowledge-base.md](../../../../agents/knowledge-base.md) | Reference knowledge | MDDD structure, ownership, import boundaries | Primary architecture summary |
-| [agents/commands.md](../../../../agents/commands.md) | Command reference | Validation and runtime commands | Primary command reference |
-
-## Primary routing
-
-Use this order when working on customization assets:
-
-1. [.github/README.md](../../../../.github/README.md)
-2. [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md)
-3. the target folder under `.github/`
-4. the exact target file
-
-## Delivery workflow agents
-
-| Asset | Stage | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/planner.agent.md](../../../../.github/agents/planner.agent.md) | Planning | Clarify scope, map ownership, and produce implementation plans | No |
-| [.github/agents/planner.chat.agent.md](../../../../.github/agents/planner.chat.agent.md) | Planning (Docs Variant) | Plan delivery and optionally hand off markdown optimization after approval | No |
-| [.github/agents/implementer.agent.md](../../../../.github/agents/implementer.agent.md) | Implementation | Execute approved plan tasks and validation | Yes |
-| [.github/agents/reviewer.agent.md](../../../../.github/agents/reviewer.agent.md) | Review | Evaluate correctness, architecture, risk, and missing validation | No |
-| [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) | QA | Verify behavior, evidence, residual risk, and delivery readiness | No |
-
-## Specialized Custom Agents
-
-| Asset | Focus | Responsibility | Allowed edits |
-| --- | --- | --- | --- |
-| [.github/agents/modules-boundary-steward.agent.md](../../../../.github/agents/modules-boundary-steward.agent.md) | `modules/` MDDD work | Own module selection, layer placement, API-boundary enforcement, import discipline, and validation for changes inside `modules/` | Yes |
-| [.github/agents/modules-architect.agent.md](../../../../.github/agents/modules-architect.agent.md) | `modules/` lifecycle architecture | Create, refactor, split, merge, and delete modules while preserving MDDD layers, API-only interaction, and dependency direction | Yes |
-
-## Modules Architecture Suite
-
-| Asset group | Files |
-| --- | --- |
-| Instructions | `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`, `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md` |
-| Prompts | `.github/prompts/create-module.prompt.md`, `.github/prompts/refactor-module.prompt.md`, `.github/prompts/split-module.prompt.md`, `.github/prompts/merge-module.prompt.md`, `.github/prompts/delete-module.prompt.md` |
-| Supporting skills | Existing VS Code skills plus `.github/skills/xuanwu-mddd-boundaries/SKILL.md` |
-
-Scope partition for instruction consumption:
-
-- Module code rules: `.github/instructions/modules-api-boundary.instructions.md`, `.github/instructions/modules-dependency-graph.instructions.md`
-- Module planning/docs rules: `.github/instructions/modules-architecture.instructions.md`, `.github/instructions/modules-naming.instructions.md`, `.github/instructions/modules-refactoring.instructions.md`
-
-## Delivery prompts
-
-| Asset | Primary use | Typical entry point |
-| --- | --- | --- |
-| [.github/prompts/plan-feature.prompt.md](../../../../.github/prompts/plan-feature.prompt.md) | Plan a feature or structured enhancement | New feature delivery |
-| [.github/prompts/plan-bugfix.prompt.md](../../../../.github/prompts/plan-bugfix.prompt.md) | Plan a bug fix with reproduction and regression framing | Bug investigation |
-| [.github/prompts/implement-plan.prompt.md](../../../../.github/prompts/implement-plan.prompt.md) | Execute a saved implementation plan | Re-entry at implementation stage |
-| [.github/prompts/review-changes.prompt.md](../../../../.github/prompts/review-changes.prompt.md) | Review changes against plan, boundaries, and validation | Independent review rerun |
-| [.github/prompts/run-qa.prompt.md](../../../../.github/prompts/run-qa.prompt.md) | Execute QA verification against scope and evidence requirements | Independent QA rerun |
-| [.github/prompts/resume-delivery.prompt.md](../../../../.github/prompts/resume-delivery.prompt.md) | Resume an interrupted delivery workflow | Recovery |
-
-## Planning contract reference
-
-| Asset | Responsibility |
-| --- | --- |
-| [implementation-plan-template.md](./implementation-plan-template.md) | Standard Markdown skeleton for formal implementation plans |
-| [plan-schema.md](./plan-schema.md) | Field-level semantics, required sections, and acceptance rules for plans |
-| [handoff-matrix.md](./handoff-matrix.md) | Formal stage transitions and re-entry rules |
-
-## Operational guidance
-
-| Asset | Audience | Purpose |
-| --- | --- | --- |
-| [.github/README.md](../../../../.github/README.md) | Maintainers and contributors | Root entry for `.github/` navigation, recommended entries, and link policy |
-| [start-feature-delivery.md](../../../how-to-user/how-to/start-feature-delivery.md) | Contributors | Start a formal delivery workflow |
-| [recover-agent-flow.md](../../../how-to-user/how-to/recover-agent-flow.md) | Contributors | Recover after interruption or context reset |
-| [update-customizations.md](../../../how-to-user/how-to/update-customizations.md) | Maintainers | Update agents, prompts, and planning contracts safely |
-| [agentic-delivery-model.md](../../../diagrams-events-explanations/explanation/agentic-delivery-model.md) | Maintainers and reviewers | Explain the design model and rationale |
-| [legacy-customizations-migration.md](./legacy-customizations-migration.md) | Maintainers | Track legacy asset replacement and removal |
-
-## Existing specialized skills
-
-- [.github/skills/serena-mcp/SKILL.md](../../../../.github/skills/serena-mcp/SKILL.md) *(mandatory — all agents; Serena MCP enforcement, phase-end update, `.serena/` protection)*
-- [.github/skills/xuanwu-mddd-boundaries/SKILL.md](../../../../.github/skills/xuanwu-mddd-boundaries/SKILL.md)
-- [.github/skills/xuanwu-development-contracts/SKILL.md](../../../../.github/skills/xuanwu-development-contracts/SKILL.md)
-- [.github/skills/xuanwu-rag-runtime-boundary/SKILL.md](../../../../.github/skills/xuanwu-rag-runtime-boundary/SKILL.md)
-- [.github/skills/vercel-react-best-practices/SKILL.md](../../../../.github/skills/vercel-react-best-practices/SKILL.md)
-
-## Legacy assets
-
-| Asset | Current status | Replacement |
-| --- | --- | --- |
-| [.github/agents/qa-subagent.agent.md](../../../../.github/agents/qa-subagent.agent.md) | Legacy QA persona hidden from picker and subagent routing pending retirement | [.github/agents/qa.agent.md](../../../../.github/agents/qa.agent.md) |
-
-## Ownership and update policy
-
-- Update this index when delivery agents, plans, prompts, skills, or operational how-to routes are added, renamed, or retired.
-- Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
-- Keep this page concise; keep executable definitions in `.github/`.
-- Treat undocumented customization assets as provisional.
 `````
 
 ## File: .github/instructions/modules-dependency-graph.instructions.md

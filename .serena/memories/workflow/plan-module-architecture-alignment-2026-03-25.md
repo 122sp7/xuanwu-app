@@ -136,7 +136,17 @@
 - Completed phase8 file-retirement increment on 2026-03-25:
   - removed the remaining bridge files under `modules/file` (`api/index.ts`, `index.ts`, `README.md`) after verifying no runtime imports of `@/modules/file` remain.
 - Validation for phase6+phase8 increment passed: `npm run build` success after migration fix; lint remains warning-only with no new errors from this increment.
-- Next recommended implementation step: perform contract/module-doc synchronization for `modules/agent` ownership wording and then evaluate whether `modules/ai` can be fully deleted after a compatibility window.
+- Completed phase9 hard-retirement increment on 2026-03-25:
+  - removed `modules/ai` completely after verifying no runtime `@/modules/ai` imports remained and `modules/agent` + `modules/retrieval` owned the required surfaces,
+  - removed retired bridge-only `modules/interfaces` module,
+  - removed retired bridge-only `modules/search` module,
+  - removed debug demo route `app/debug/arch-demo` and its server actions.
+- Documentation alignment in the same increment:
+  - updated `modules/README.md`, `modules/UseCases.md`, `docs/development-reference/development/modules-implementation-guide.md`, and `modules/RemotePorts.md` from legacy ai/search ownership wording to agent/retrieval wording.
+- Validation for phase9 increment passed:
+  - `npm run build` success with `/debug/arch-demo` route removed from build output,
+  - `npm run lint` remained warning-only with no new errors from this increment.
+- Next recommended implementation step: refresh architecture diagrams/contracts that still mention legacy module names, then run an import-boundary audit pass for docs/examples.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.
