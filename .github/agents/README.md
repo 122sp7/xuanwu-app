@@ -23,6 +23,11 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 | Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
 | Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
 | QA Legacy | `qa-legacy.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
+| Commander | `commander.agent.md` | MCP-aware orchestration | Route complex work with Serena-first discovery and Context7 confirmation |
+| App Router Agent | `app-router.agent.md` | Runtime route diagnostics | Use Next DevTools MCP for app-router troubleshooting and fixes |
+| Component Agent | `component.agent.md` | UI composition | Use shadcn MCP for component-focused implementation |
+| RAG Vector Agent | `rag-vector.agent.md` | Ingest + retrieval prep | Use MarkItDown MCP and docs-backed decisions for RAG pipelines |
+| E2E QA Agent | `e2e-qa.agent.md` | Browser verification | Use Playwright MCP to collect acceptance evidence |
 
 ## Quick Start
 
