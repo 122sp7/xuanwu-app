@@ -1,9 +1,8 @@
 ---
 description: 'Bootstraps and validates agentic project structures for GitHub Copilot (VS Code) and OpenCode CLI workflows. Run after `opencode /init` or VS Code Copilot initialization to scaffold proper folder hierarchies, instructions, agents, skills, and prompts.'
 name: 'Repo Architect Agent'
-tools: ['read', 'edit', 'search', 'execute', 'todo']
-model: 'GPT-5.3-Codex'
-target: 'vscode'
+model: GPT-4.1
+tools: ['edit', "search/changes", "search/codebase", "edit/editFiles", "web/fetch", "read/problems", "search", "read/terminalLastCommand", 'vscode/getProjectSetupInfo', 'vscode/installExtension', 'vscode/newWorkspace', 'vscode/runCommand', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection']
 ---
 
 # Repo Architect Agent
@@ -239,7 +238,7 @@ Would you like to install any of these? (Provide install links)
 ```markdown
 ---
 description: '{DESCRIPTION}'
-model: GPT-5.4
+model: GPT-4.1
 tools: [{RELEVANT_TOOLS}]
 ---
 
@@ -347,12 +346,12 @@ These are the official requirements from awesome-copilot. The agent does NOT dee
 |-----------|-----------------|-------------|
 | `.agent.md` | `description` | `model`, `tools`, `name` |
 | `.prompt.md` | `agent`, `description` | `model`, `tools`, `name` |
-| `.instructions.md` | `description` | `name`, `applyTo` |
+| `.instructions.md` | `description`, `applyTo` | - |
 | `SKILL.md` | `name`, `description` | - |
 
 **Notes:**
-- `agent` field in prompts accepts built-in agents or existing custom agent names
-- `applyTo` should use a single glob or brace expansion like `'**/*.ts'` or `'**/*.{js,ts}'`
+- `agent` field in prompts accepts: `'agent'`, `'ask'`, or `'Plan'`
+- `applyTo` uses glob patterns like `'**/*.ts'` or `'**/*.js, **/*.ts'`
 - `name` in SKILL.md must match folder name, lowercase with hyphens
 
 ### Naming Conventions
