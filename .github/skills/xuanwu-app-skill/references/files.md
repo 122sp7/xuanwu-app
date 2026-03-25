@@ -2693,92 +2693,6 @@ export class TaskFirebaseRepository implements TaskRepository {
 ```
 `````
 
-## File: .github/rules/architecture-hexagonal-ports.md
-`````markdown
----
-title: Hexagonal Ports for Cross-Cutting Concerns
-impact: HIGH
-impactDescription: Enables testable, dependency-free domain logic for complex modules
-tags: architecture, mddd, hexagonal, ports, adapters
----
-
-## Hexagonal Ports for Cross-Cutting Concerns
-
-**Impact: HIGH**
-
-For modules with complex cross-cutting dependencies (permissions, tenant policies, actor context), use the hexagonal ports pattern. The domain layer defines **port interfaces** that describe what it needs; the infrastructure layer provides **adapters** that implement them.
-
-**Reference implementation: `modules/file/`**
-
-```
-modules/file/
-  domain/
-    ports/
-      ActorContextPort.ts           # Who is acting?
-      WorkspaceGrantPort.ts         # What can they do in this workspace?
-      OrganizationPolicyPort.ts     # What does the tenant allow?
-    entities/
-      File.ts
-    repositories/
-      FileRepository.ts
-  application/
-    use-cases/
-      upload-init-file.use-case.ts  # Orchestrates via ports
-  infrastructure/
-    firebase/
-      FirebaseActorContextAdapter.ts
-      FirebaseWorkspaceGrantAdapter.ts
-```
-
-**Incorrect (scattering permission checks in UI/router):**
-
-```typescript
-// app/(shell)/workspace/files/page.tsx
-import { auth } from "@integration-firebase";
-import { db } from "@integration-firebase";
-
-export default async function FilesPage() {
-  const user = await auth.currentUser;                           // ❌ Auth logic in page
-  const org = await getDoc(doc(db, "organizations", orgId));     // ❌ Policy check in page
-  if (!org.data().allowUploads) return <Forbidden />;            // ❌ Business rule in UI
-}
-```
-
-**Correct (access decisions flow through use cases via ports):**
-
-```typescript
-// modules/file/domain/ports/OrganizationPolicyPort.ts
-export interface OrganizationPolicyPort {
-  allowsFileUpload(organizationId: string): Promise<boolean>;
-}
-
-// modules/file/application/use-cases/upload-init-file.use-case.ts
-export class UploadInitFileUseCase {
-  constructor(
-    private readonly actorContext: ActorContextPort,
-    private readonly orgPolicy: OrganizationPolicyPort,
-    private readonly fileRepo: FileRepository,
-  ) {}
-
-  async execute(input: UploadInitInput): Promise<CommandResult<File>> {
-    const actor = await this.actorContext.resolve();
-    const allowed = await this.orgPolicy.allowsFileUpload(actor.organizationId);
-    if (!allowed) return { success: false, error: new DomainError("upload-forbidden") };
-    // ... proceed
-  }
-}
-```
-
-**When to use ports:**
-- The module has cross-cutting dependencies (auth, permissions, tenant policies)
-- You need to test domain logic in isolation from external systems
-- Multiple infrastructure implementations may exist (Firebase, in-memory, mock)
-
-**When NOT needed:**
-- Simple CRUD modules with a single repository
-- Modules that only need standard repository interfaces
-`````
-
 ## File: .github/rules/architecture-module-boundaries.md
 `````markdown
 ---
@@ -6024,189 +5938,9 @@ package-lock.json
 .firebase\logs\vsce-debug.log
 `````
 
-## File: AGENTS.md
-`````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`agents/README.md`](agents/README.md) — rules index and overview
-2. Read [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`agents/commands.md`](agents/commands.md) — build, lint, deploy commands
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`agents/rules/`](agents/rules/) for the complete set of architecture, quality, data, API, and CI rules.
-`````
-
 ## File: agents/agents
 `````
 ../.github/agents
-`````
-
-## File: agents/commands.md
-`````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:python` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Firebase CLI: `npx firebase` (no global install required)
 `````
 
 ## File: agents/hooks
@@ -10931,55 +10665,6 @@ env:
 
   - variable: DOCAI_HTTP_TIMEOUT_MS
     value: "45000"
-`````
-
-## File: CLAUDE.md
-`````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 20+ bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [agents/commands.md](agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[agents/knowledge-base.md](agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 `````
 
 ## File: CODE_OF_CONDUCT.md
@@ -18091,148 +17776,6 @@ graph LR
     BM1 -.-> C5
 `````
 
-## File: docs/diagrams-events-explanations/diagrams/rag-enterprise-e2e.mermaid
-`````
-flowchart TD
-  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
-  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
-  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
-  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
-  classDef naming fill:#fef2f2,stroke:#ef4444,color:#7f1d1d
-  classDef docai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
-  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
-  classDef accel fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
-  classDef pyown fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,font-weight:bold
-  classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
-
-  subgraph ING[① Ingestion Pipeline - 資料進來]
-    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
-    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
-    I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
-  end
-
-  subgraph DOCAI[①A document_ai 核心用途與輸出]
-    DA1[讀取 raw 檔案 bytes]:::docai --> DA2[Document AI Layout Parser]:::docai --> DA3[抽取 text pages tables headings]:::docai --> DA4[輸出 layout artifact json]:::docai
-    DA3 --> DA5[正規化 normalize 與去雜訊]:::docai --> DA6[doc-level taxonomy]:::docai --> DA7[chunking 與 chunkIndex 決定]:::docai
-    DA7 --> DA8[chunk metadata 組裝 page taxonomy tags]:::docai --> DA9[輸出 chunk payload 給 embedding]:::docai
-    DA2 --> DA10{document_ai 失敗?}:::docai
-    DA10 -->|yes| DA11[回寫 documents status failed with errorCode errorMessage]:::docai
-    DA10 -->|no| DA5
-  end
-
-  subgraph QRY[② Query Pipeline - 查詢與 RAG]
-    subgraph QRYA[②A 查詢主線]
-      Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Index readiness gate]:::query --> Q6[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q7{Top-K chunks found?}:::query
-      Q7 -->|yes| Q8[Context 組裝 prompt building]:::query --> Q9[Genkit LLM 回答生成]:::query --> Q10[Streaming 回傳 Next.js UI]:::query
-    end
-    subgraph QRYB[②B 查詢回退與觀測]
-      Q7 -->|no| Q11[No-context fallback response]:::query
-      Q9 --> Q12[query traces latency and cost metrics]:::query
-    end
-  end
-
-  subgraph OPT[③ Optional 強化 - 企業必備]
-    subgraph OPTA[③A Retrieval and Rerank]
-      O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
-      O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
-    end
-    subgraph OPTB[③B Cache and Feedback]
-      O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
-      O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
-    end
-  end
-
-  subgraph DATA[④ Firestore 資料結構核心]
-    subgraph DATAA[④A documents 契約]
-      D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
-    end
-    subgraph DATAB[④B chunks 契約]
-      D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
-    end
-  end
-
-  subgraph NAMING[④C 檔案命名與儲存結構契約]
-    N1[canonical documentId 與 originalFilename 分離]:::naming
-    N2[raw 檔固定命名 source plus ext]:::naming
-    N3[storagePath tenants slash tenantId slash workspaces slash workspaceId slash documents slash documentId slash raw slash source ext]:::naming
-    N4[derived 輸出放在 derived 子目錄]:::naming
-    N5[chunk upsert key documentId underscore chunkIndex]:::naming
-    N6[documents 必填 tenantId workspaceId checksum storagePath]:::naming
-  end
-
-  subgraph KEY[⑤ 關鍵觀念濃縮]
-    subgraph KEYA[⑤A Retrieval 原則]
-      K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
-      K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
-      K3[Vector Search 在 query 做 每次查詢]:::keypoint
-    end
-    subgraph KEYB[⑤B Runtime 原則]
-      K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
-      K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
-    end
-  end
-
-  subgraph SUM[⑥B 一句話總結]
-    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
-    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
-  end
-
-  subgraph OWN[⑥A Runtime Ownership]
-    R1[綠色框 = Next.js 主責節點]:::nxown
-    R2[藍色框 = py_fn 主責節點]:::pyown
-  end
-
-  subgraph LINKRULE[⑥C 線路規則]
-    L1[實線 = 主流程執行順序]:::summary
-    L2[虛線 = 契約或能力映射]:::keypoint
-    L3[跨區連線優先以區塊級映射呈現]:::keypoint
-  end
-
-  subgraph ACCEL[⑦ package.json 可直接降低開發難度]
-    subgraph ACCELA[⑦A 開發迭代工具]
-      A1[scripts dev build lint 降低本地迭代摩擦]:::accel
-      A4[zod 契約驗證 可用於 UploadRequest QueryInput WorkerEvent]:::accel
-      A5[tanstack react-query 快速實作 query 快取 重試 與狀態同步]:::accel
-      A7[xstate plus zustand 可把複雜流程狀態與 UI 狀態拆分管理]:::accel
-      A8[axios 可統一 infrastructure adapter 的 HTTP 呼叫]:::accel
-      A9[tailwind plus shadcn 加速介面與後台工具頁建置]:::accel
-    end
-    subgraph ACCELB[⑦B 部署與基礎設施]
-      A2[scripts deploy:functions:python deploy:firestore:indexes deploy:rules 降低部署心智負擔]:::accel
-    end
-    subgraph ACCELC[⑦C RAG 流程能力]
-      A3[genkit plus google-genai 直接支援 Query Flow 與 LLM orchestration]:::accel
-      A6[upstash redis vector 可支援 Optional Cache 與 Retrieval 擴充]:::accel
-    end
-  end
-
-  I4 -.-> DA1
-  DA9 -.-> I11
-  DA11 -.-> I16
-
-  ING -.-> DATA
-  QRY -.-> DATA
-  NAMING -.-> ING
-  NAMING -.-> DATA
-  QRY -.-> OPT
-
-  DA4 -.-> N4
-  DA11 -.-> D1
-
-  S1 -.-> ING
-  S2 -.-> QRY
-
-  ACCELA -.-> ING
-  ACCELA -.-> QRY
-  ACCELB -.-> ING
-  ACCELC -.-> QRY
-  ACCELC -.-> OPT
-
-  class I1,I3,Q1,Q2,Q10,Q11 nxown
-  class I4,I11,I12,I15,I16,DA1,DA2,DA3,DA4,DA5,DA6,DA7,DA8,DA9,DA10,DA11 pyown
-`````
-
 ## File: docs/diagrams-events-explanations/diagrams/README.md
 `````markdown
 # Diagrams Index
@@ -20820,273 +20363,6 @@ Documents 列表載入中：
 - [UX 原則](./ux-principles.md) — 互動規則、可近用性
 - [資訊架構](./information-architecture.md) — 全站路由地圖
 - [規格索引](../../development-reference/specification/README.md) — Wiki-Beta 與其他功能規格入口
-`````
-
-## File: docs/how-to-user/user-manual/admin-guide.md
-`````markdown
-# 管理員指南（Admin Guide）
-
-> **目標讀者**：組織管理員（Admin Role）與系統維運人員
-> **目標**：說明成員管理、權限設定、系統監控與維運操作。
-
----
-
-## 快速參考
-
-| 我想要… | 路徑 | 角色需求 |
-|---|---|---|
-| 管理組織成員 | `/organization/members` | Admin |
-| 管理團隊 | `/organization/teams` | Admin |
-| 設定權限 | `/organization/permissions` | Admin |
-| 管理工作區 | `/organization/workspaces` | Admin |
-| 查看稽核記錄 | `/organization/audit` | Admin |
-| 設定排程 | `/organization/schedule` | Admin |
-| 每日摘要 | `/organization/daily` | Admin / Member |
-| 手動觸發 RAG 重整 | `/wiki-beta/rag-reindex` | Member+ |
-
----
-
-## 1. 組織管理
-
-### 1.1 建立組織
-
-1. 點選 App Rail 左側 **`+`** 圖示。
-2. 選擇 **「建立組織」**。
-3. 輸入組織名稱。
-4. 點選 **「建立組織」**。
-5. ✅ 組織建立成功，帳號類型變更為 `organization`。
-
-> **注意**：組織一旦建立後，帳號類型固定為組織帳號，不可切換回個人帳號。
-
-### 1.2 查看組織資訊
-
-1. 點選 App Rail 的 **`Users`（使用者）** 圖示，進入 `/organization`。
-2. 側邊欄顯示組織管理功能：成員、團隊、權限、工作區、排程、每日、稽核。
-
----
-
-## 2. 成員管理
-
-### 2.1 邀請成員
-
-1. 進入 `/organization/members`。
-2. 點選 **「邀請成員」** 按鈕。
-3. 輸入成員的 Email，選擇角色。
-4. 點選 **「發送邀請」**。
-5. ✅ 被邀請者收到邀請通知後，可加入組織。
-
-### 2.2 角色說明
-
-| 角色 | 說明 | 可執行操作 |
-|---|---|---|
-| `owner` | 組織擁有者 | 所有操作，包含刪除組織 |
-| `admin` | 管理員 | 成員管理、工作區管理、稽核查看 |
-| `member` | 一般成員 | 讀寫工作區資源、文件上傳 |
-| `viewer` | 唯讀成員 | 僅查看，不可修改 |
-
-> 完整權限矩陣見 [`PERMISSIONS.md`](../../../PERMISSIONS.md)。
-
-### 2.3 調整成員角色
-
-1. 在成員列表找到目標成員。
-2. 點選成員右側 **`...`（更多）** 圖示。
-3. 選擇 **「調整角色」**。
-4. 選擇新角色後確認。
-
-### 2.4 移除成員
-
-1. 找到目標成員，點選 **`...`** → **「移除成員」**。
-2. 在確認對話框點選 **「確認移除」**。
-3. ✅ 成員移除後，其工作區存取權限立即撤銷。
-
----
-
-## 3. 團隊管理
-
-### 3.1 建立團隊
-
-1. 進入 `/organization/teams`。
-2. 點選 **「建立團隊」**。
-3. 輸入團隊名稱（例如「工程師」、「設計師」）。
-4. 將成員加入團隊。
-
-### 3.2 團隊用途
-
-- 批次設定工作區存取權限（以團隊為單位）。
-- 組織成員分群，方便管理通知與排程。
-
----
-
-## 4. 工作區管理
-
-### 4.1 查看所有工作區
-
-進入 `/organization/workspaces`，顯示組織下所有工作區的列表。
-
-**顯示欄位**：
-- 工作區名稱
-- 成員數量
-- 建立時間
-- 最後活動時間
-
-### 4.2 刪除工作區
-
-1. 找到目標工作區，點選 **「刪除工作區」**。
-2. 在確認對話框輸入工作區名稱確認。
-3. ✅ **注意**：刪除後工作區下的資源（Pages、Documents 等）將無法恢復。
-
----
-
-## 5. 稽核記錄
-
-### 5.1 查看稽核記錄
-
-進入 `/organization/audit`，顯示組織內所有關鍵操作的記錄。
-
-**記錄項目包括**：
-- 成員邀請 / 移除
-- 角色調整
-- 工作區建立 / 刪除
-- 關鍵資源操作（文件刪除等）
-
-### 5.2 記錄欄位說明
-
-| 欄位 | 說明 |
-|---|---|
-| **timestamp** | 操作時間 |
-| **actor** | 執行操作的成員（Email） |
-| **action** | 操作類型（例如 `member.invite`） |
-| **target** | 操作對象（例如被邀請的成員 Email） |
-| **result** | 操作結果（`success` / `failure`） |
-
-### 5.3 記錄保留原則
-
-- 稽核記錄為**不可變（immutable）**記錄，已提交的記錄不可修改或刪除。
-- 記錄保留期限依系統配置，預設保留 90 天。
-
----
-
-## 6. 排程管理
-
-### 6.1 查看排程
-
-進入 `/organization/schedule`，顯示組織的資源排程。
-
-排程模組使用**雙向資源-請求配對**模型，適用於人員與任務的配對管理。
-
----
-
-## 7. 知識庫維運
-
-### 7.1 監控文件處理狀態
-
-進入 `/wiki-beta/documents`，查看組織下所有文件的解析狀態：
-
-- `⏳ processing`：正常，等待解析完成
-- `✓ ready`：解析完成，可進行 RAG
-- `✗ error`：解析失敗，需要介入
-
-**批量檢查**：若多份文件顯示 `error`，可能是 py_fn Worker 服務異常，需排查。
-
-### 7.2 手動觸發 RAG 重整
-
-當 RAG 索引異常或文件更新後：
-
-1. 進入 `/wiki-beta/rag-reindex`。
-2. 找到目標文件（`status: ready`，`rag status: error` 或 `pending`）。
-3. 點選 **「手動重整」**。
-4. ✅ 觸發成功，`rag status` 更新。
-
-**批量重整**：目前不支援批量重整，需逐一觸發。
-
----
-
-## 8. 系統部署與維運
-
-### 8.1 部署指令
-
-```bash
-# 部署所有 Firebase 資源
-npm run deploy:firebase
-
-# 僅部署 Python Cloud Functions
-npm run deploy:functions:python
-
-# 僅部署 Firestore + Storage 規則
-npm run deploy:rules
-```
-
-### 8.2 環境設定
-
-系統依賴以下環境變數（於 Firebase App Hosting 或 `.env.local` 配置）：
-
-| 變數 | 說明 |
-|---|---|
-| `NEXT_PUBLIC_FIREBASE_*` | Firebase 客戶端 SDK 設定 |
-| `GOOGLE_CLOUD_PROJECT` | GCP 專案 ID |
-| `OPENAI_API_KEY` | OpenAI API Key（py_fn 使用） |
-| `UPSTASH_VECTOR_*` | Upstash Vector 連線設定 |
-| `UPSTASH_REDIS_*` | Upstash Redis 連線設定 |
-
-> **安全提示**：不可將上述金鑰提交至版本控制系統。
-
-### 8.3 監控與告警
-
-- **Firebase Console**：查看 Cloud Functions 執行日誌、Firestore 讀寫統計。
-- **Upstash Console**：查看 Vector / Redis 使用量與請求記錄。
-- **Google Cloud Console**：查看 Document AI 請求記錄與費用。
-
-### 8.4 Firestore Security Rules 維護
-
-```bash
-# 部署 Firestore Rules
-firebase deploy --only firestore:rules
-
-# 部署 Storage Rules
-firebase deploy --only storage:rules
-```
-
-Rules 文件位置：
-- `firestore.rules` — Firestore 安全規則
-- `storage.rules` — Storage 安全規則
-
-### 8.5 Firestore 索引管理
-
-```bash
-# 部署 Firestore Indexes
-firebase deploy --only firestore:indexes
-```
-
-索引設定：`firestore.indexes.json`
-
----
-
-## 9. 常見維運問題
-
-### Q1：文件大量顯示 error 狀態？
-
-**可能原因**：py_fn Worker 服務故障或 Document AI 配額超限。
-
-**排查步驟**：
-1. 檢查 Firebase Console → Functions → 查看最近的 error 日誌。
-2. 確認 Google Cloud Document AI 配額未超限。
-3. 若服務已恢復，手動重整 error 的文件。
-
-### Q2：RAG Query 回應時間過長？
-
-**可能原因**：Upstash Vector 或 Redis 連線異常，或 OpenAI API 限速。
-
-**排查步驟**：
-1. 確認 Upstash 服務狀態。
-2. 確認 OpenAI API 配額。
-3. 查看 py_fn callable 日誌。
-
-### Q3：新成員無法登入？
-
-**排查步驟**：
-1. 確認成員是否已完成 Email 驗證。
-2. 在 Firebase Console → Authentication 確認帳號狀態。
-3. 確認成員有 Firestore 中的對應帳號記錄。
 `````
 
 ## File: docs/how-to-user/user-manual/README.md
@@ -37736,108 +37012,6 @@ export {
 export type { StoreApi, UseBoundStore, StateCreator, StoreMutatorIdentifier } from "zustand";
 `````
 
-## File: packages/README.md
-`````markdown
-# packages/
-
-Stable public boundary layer for the Xuanwu MDDD architecture.
-
-Every directory under `packages/` is a self-contained package with a barrel
-`index.ts` and a TypeScript path alias defined in `tsconfig.json`. Consumers
-import through the alias (e.g. `@shared-types`, `@integration-firebase`) —
-**never** through relative paths that reach into another package's internals.
-
-## Design Principles
-
-Inspired by **Cal.com** (`packages/@calcom/*`) and **Plane** (`packages/@plane/*`):
-
-1. **Single source of truth** — each concern lives in exactly one package.
-2. **No shims, no re-export chains** — packages contain actual implementations.
-3. **Barrel exports define the public API** — unexported internals stay private.
-4. **Dependency direction** — `UI → Application → Domain ← Infrastructure`.
-   Packages never reverse-import from `app/` or `modules/` internals.
-5. **ESLint enforced** — `no-restricted-imports` forbids legacy `@/shared/*`,
-   `@/libs/*`, `@/infrastructure/*`, `@/ui/*`, `@/interfaces/*` paths.
-
-## Package Inventory
-
-| Alias | Directory | Purpose |
-|-------|-----------|---------|
-| `@shared-types` | `shared-types/` | Primitive types, `CommandResult`, `DomainError`, `Timestamp` |
-| `@shared-utils` | `shared-utils/` | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | `shared-validators/` | Zod schemas for cross-cutting validation |
-| `@shared-constants` | `shared-constants/` | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | `shared-hooks/` | `useAppStore` (Zustand global store) |
-| `@integration-firebase` | `integration-firebase/` | Firebase client SDK (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | `integration-http/` | Axios HTTP client with interceptors |
-| `@api-contracts` | `api-contracts/` | REST route registry + GraphQL schema |
-| `@ui-shadcn` | `ui-shadcn/` | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | `ui-vis/` | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | `lib-date-fns/` | date-fns v4 wrapper |
-| `@lib-zod` | `lib-zod/` | Zod v4 wrapper |
-| `@lib-uuid` | `lib-uuid/` | UUID v13 wrapper |
-| `@lib-zustand` | `lib-zustand/` | Zustand v5 wrapper |
-| `@lib-xstate` | `lib-xstate/` | XState v5 + React hooks wrapper |
-| `@lib-tanstack` | `lib-tanstack/` | TanStack Query/Form/Table/Virtual wrapper |
-| `@lib-superjson` | `lib-superjson/` | SuperJSON wrapper |
-| `@lib-dragdrop` | `lib-dragdrop/` | Atlaskit Pragmatic Drag and Drop wrapper |
-| `@lib-react-markdown` | `lib-react-markdown/` | react-markdown wrapper |
-| `@lib-remark-gfm` | `lib-remark-gfm/` | remark-gfm wrapper |
-| `@lib-vis` | `lib-vis/` | vis-data / vis-network / vis-timeline / vis-graph3d wrappers |
-
-## Usage
-
-```typescript
-// Domain types
-import type { CommandResult, DomainError } from "@shared-types";
-
-// Utilities
-import { cn, formatDate } from "@shared-utils";
-
-// Validation
-import { taskSchema } from "@shared-validators";
-
-// Firebase
-import { firebaseClientApp } from "@integration-firebase/client";
-import { getFirebaseAuth } from "@integration-firebase";
-
-// UI components
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-// Library wrappers
-import { z } from "@lib-zod";
-import { format } from "@lib-date-fns";
-```
-
-## Adding a New Package
-
-1. Create `packages/<name>/index.ts` with barrel exports.
-2. Add a `@<alias>` path in `tsconfig.json` → `"./packages/<name>/index.ts"`.
-3. Add a `@<alias>/*` wildcard path if sub-module imports are needed.
-4. Update this README.
-5. Run `npm run lint && npm run build` to verify.
-
-## Migration History
-
-| Phase | What moved | From | To |
-|-------|-----------|------|-----|
-| 1 | Domain types, utils, validators, constants, hooks | `shared/*` | `packages/shared-*` |
-| 2 | Firebase client SDK | `libs/firebase/` + `infrastructure/firebase/` | `packages/integration-firebase/` |
-| 3 | HTTP client | `infrastructure/axios/` | `packages/integration-http/` |
-| 4 | API contracts | `interfaces/rest/` + `interfaces/graphql/` | `packages/api-contracts/` |
-| 5 | shadcn components + cn() | `ui/shadcn/` + `libs/utils.ts` | `packages/ui-shadcn/` |
-| 6 | Vis.js components | `ui/vis/` | `packages/ui-vis/` |
-| 7 | Library wrappers | `libs/*` | `packages/lib-*` |
-| — | Python worker runtime | `libs/firebase/py_fn/` | `py_fn/` (root) |
-
-> **Note:** `py_fn/` is a Python Firebase Functions codebase and is **not** a TypeScript
-> package. It lives at the project root as a first-class deployment artifact (Firebase codebase name
-> `py_fn`). It is deployed via `npm run deploy:functions:python` and uses its own
-> `pyproject.toml` / `requirements.txt`. It is **not** imported by TypeScript code — interactions
-> happen through Firebase callable functions and Firestore triggers.
-`````
-
 ## File: packages/shared-constants/index.ts
 `````typescript
 export const APP_NAME = "Xuanwu App";
@@ -44284,92 +43458,6 @@ export const VisTimeline: FC<VisTimelineProps> = ({
 export default VisTimeline;
 `````
 
-## File: PERMISSIONS.md
-`````markdown
-# Permissions — Xuanwu App
-
-This document describes the role-based access control (RBAC) model used in Xuanwu App.
-
-## Role Hierarchy
-
-### Organization Roles
-
-Roles are stored on organization membership records (`OrganizationRole`):
-
-| Role | Description |
-|------|-------------|
-| `Owner` | Full control — manage members, settings, billing, and all resources |
-| `Admin` | Manage members and workspaces; cannot transfer ownership |
-| `Member` | Standard access — create and use workspaces |
-| `Guest` | Limited read-only access to shared resources |
-
-### Workspace Roles
-
-Workspace membership carries a role string (convention mirrors org roles):
-
-| Role | Description |
-|------|-------------|
-| `owner` | Full workspace control |
-| `admin` | Manage workspace members and settings |
-| `member` | Read/write access to workspace content |
-| `viewer` | Read-only access |
-
-## Access Control Patterns
-
-### Organization Actions
-
-```ts
-// Check organization role in a Server Action
-const member = await orgRepo.getMember(orgId, userId);
-if (member?.role !== "Owner" && member?.role !== "Admin") {
-  return { success: false, error: "Insufficient permissions" };
-}
-```
-
-### Workspace Actions
-
-```ts
-// Check workspace membership before mutation
-const member = await workspaceRepo.getMember(workspaceId, userId);
-if (!member) return { success: false, error: "Not a workspace member" };
-```
-
-### RAG Document Access Control
-
-Documents carry an `accessControl` array (`string[]`) listing the roles or member IDs that can retrieve chunks from that document during RAG retrieval:
-
-```ts
-// RagDocumentRepository — accessControl field
-readonly accessControl?: readonly string[];
-```
-
-The `FirebaseRagRetrievalRepository` filters vector search results by checking `userRoles` against the document's `accessControl` array.
-
-## Firestore Security Rules
-
-Security rules are defined in `firestore.rules` at the repository root.
-
-> **Note**: Rules are currently permissive during active development. Tighten rules before production deployment.
-
-## Module Ownership
-
-| Module | Permission Concern |
-|--------|-------------------|
-| `organization` | `OrganizationRole` — Owner/Admin/Member/Guest |
-| `workspace` | Workspace membership and role |
-| `account` | User account policies |
-| `identity` | Firebase Auth, token refresh |
-| `file` | `accessControl` array on RAG documents |
-| `ai` | `userRoles` passed to RAG retrieval |
-
-## Adding New Permission Checks
-
-1. Define the role check in the relevant `application/use-cases/` file.
-2. Keep all permission logic in the application layer — never in `domain/` or UI components.
-3. Return a typed `CommandResult` with a descriptive error message on failure.
-4. Document new roles or resources in this file.
-`````
-
 ## File: postcss.config.mjs
 `````javascript
 const config = {
@@ -48697,94 +47785,6 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()
 `````
 
-## File: README.md
-`````markdown
-# Xuanwu App
-
-A Next.js 16 knowledge-management and AI-assisted workspace platform built on Firebase, following the **Module-Driven Domain Design (MDDD)** architecture.
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
-| Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
-| AI / RAG | Google Genkit, Document AI, Upstash Vector |
-| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
-| Realtime | Upstash Redis, QStash |
-
-## Project Structure
-
-```
-xuanwu-app/
-├── app/              # Next.js App Router pages, layouts, route handlers
-├── modules/          # 20 MDDD business modules (bounded contexts)
-├── packages/         # Stable shared packages with TypeScript aliases
-├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
-├── agents/           # AI agent knowledge base and rules
-└── docs/             # Architecture docs, ADRs, design documents
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Install
-
-```bash
-npm install
-```
-
-### Development
-
-```bash
-npm run dev        # Start Next.js dev server (port 3000)
-npm run build      # Production build (includes TypeScript type-check)
-npm run lint       # Run ESLint
-```
-
-### Firebase Deployment
-
-```bash
-npm run deploy:firebase              # Deploy all Firebase resources
-npm run deploy:functions:python      # Deploy Python Cloud Functions only
-npm run deploy:rules                 # Deploy Firestore + Storage rules
-```
-
-See [`agents/commands.md`](agents/commands.md) for the full command reference.
-
-## Architecture
-
-This project follows **Module-Driven Domain Design (MDDD)**:
-
-- Each business capability is a self-contained module under `modules/`.
-- Each `modules/<module-name>/` is an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `UI → Application → Domain ← Infrastructure`.
-- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
-- Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
-
-See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## AI Delivery Workflow
-
-This repository includes a formal Copilot delivery workflow for non-trivial changes.
-
-- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
-- Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
-
-## Code of Conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
-`````
-
 ## File: scripts/demo-flow.ts
 `````typescript
 /**
@@ -48890,115 +47890,6 @@ main().catch((err) => {
   console.error("❌  Demo flow failed:", err);
   process.exit(1);
 });
-`````
-
-## File: SPEC-WORKFLOW.md
-`````markdown
-# Spec-Driven Development Workflow
-
-This workflow is **opt-in**. Use it when explicitly requested by saying "use spec-driven development" or "follow the spec workflow".
-
-## Design Documents
-
-Design documents for features in development live under `docs/decision-architecture/design/` (or in a feature subdirectory under `docs/`).
-
-Each spec follows this structure:
-
-```
-docs/decision-architecture/design/{feature}/
-├── CLAUDE.md           # Feature-specific instructions (read this first)
-├── design.md           # The specification
-├── implementation.md   # Current status and what's done
-├── decisions.md        # Why decisions were made
-├── prompts.md          # Reusable prompts
-├── future-work.md      # What's deferred
-└── screenshots/        # Documentation screenshots
-```
-
-**Workflow:**
-
-1. Read the spec's `CLAUDE.md` for specific instructions
-2. Read `design.md` to understand what we're building
-3. Check `implementation.md` for current status
-4. Find the relevant code in the codebase
-5. Implement in small pieces, update `implementation.md` after each
-
----
-
-## When Implementing Features (Spec Mode)
-
-1. **Check for design doc** in `docs/decision-architecture/design/` — if it exists, follow it
-2. **If no spec exists** — ask if you should create one first
-3. **Look at existing patterns** — find similar code and follow conventions (see [`agents/knowledge-base.md`](agents/knowledge-base.md))
-4. **Update implementation.md** — mark what's done after each piece
-5. **Update decisions.md** — when choosing between approaches
-
----
-
-## Creating a New Spec
-
-When user asks to build a new feature:
-
-1. Create the directory: `mkdir -p docs/decision-architecture/design/{feature-name}`
-2. Explore the codebase to understand existing patterns
-3. Write `design.md` with technical spec
-4. Write `CLAUDE.md` with feature-specific instructions
-5. Initialize `implementation.md` with "not-started" status
-6. Ask user to review before implementing
-
----
-
-## Updating Spec Files
-
-### implementation.md — After completing each piece:
-
-```markdown
-## Status: in-progress
-
-## Completed
-- [x] Domain entities and repository interface
-- [x] Firebase repository implementation
-
-## In Progress
-- Server Actions
-
-## Next Steps
-1. UI components
-2. Tests
-
-## Session Notes
-### 2024-01-15
-- Done: Added domain entities, created Firebase repo
-- Next: Implement Server Actions
-```
-
-### decisions.md — When choosing between approaches:
-
-```markdown
-## ADR-001: Use Firestore Sub-Collection for Chunks
-
-### Context
-Need to store document chunks for RAG retrieval.
-
-### Options
-1. Single `chunks` top-level collection — simpler queries, harder access control
-2. Sub-collection under `documents` — better scoping, follows existing pattern
-
-### Decision
-Sub-collection for better scoping and consistency with the existing data model.
-
-### Consequences
-- Queries must specify the parent document path
-- Access rules inherit from the parent document
-```
-
----
-
-## Don't (When Using Spec-Driven Development)
-
-- Don't implement features without checking for a design doc first
-- Don't skip updating `implementation.md` after completing work
-- Don't make architectural decisions without recording them in `decisions.md`
 `````
 
 ## File: storage.rules
@@ -49570,6 +48461,92 @@ Before implementing new features:
 - Search for existing services, repositories, and DTOs.
 - Reuse existing modules when possible.
 - Follow module boundaries.
+`````
+
+## File: .github/rules/architecture-hexagonal-ports.md
+`````markdown
+---
+title: Hexagonal Ports for Cross-Cutting Concerns
+impact: HIGH
+impactDescription: Enables testable, dependency-free domain logic for complex modules
+tags: architecture, mddd, hexagonal, ports, adapters
+---
+
+## Hexagonal Ports for Cross-Cutting Concerns
+
+**Impact: HIGH**
+
+For modules with complex cross-cutting dependencies (permissions, tenant policies, actor context), use the hexagonal ports pattern. The domain layer defines **port interfaces** that describe what it needs; the infrastructure layer provides **adapters** that implement them.
+
+**Reference implementation: `modules/asset/`**
+
+```
+modules/asset/
+  domain/
+    ports/
+      ActorContextPort.ts           # Who is acting?
+      WorkspaceGrantPort.ts         # What can they do in this workspace?
+      OrganizationPolicyPort.ts     # What does the tenant allow?
+    entities/
+      RagDocument.ts
+    repositories/
+      RagDocumentRepository.ts
+  application/
+    use-cases/
+      register-uploaded-rag-document.use-case.ts  # Orchestrates via ports
+  infrastructure/
+    firebase/
+      FirebaseActorContextAdapter.ts
+      FirebaseWorkspaceGrantAdapter.ts
+```
+
+**Incorrect (scattering permission checks in UI/router):**
+
+```typescript
+// app/(shell)/workspace/files/page.tsx
+import { auth } from "@integration-firebase";
+import { db } from "@integration-firebase";
+
+export default async function FilesPage() {
+  const user = await auth.currentUser;                           // ❌ Auth logic in page
+  const org = await getDoc(doc(db, "organizations", orgId));     // ❌ Policy check in page
+  if (!org.data().allowUploads) return <Forbidden />;            // ❌ Business rule in UI
+}
+```
+
+**Correct (access decisions flow through use cases via ports):**
+
+```typescript
+// modules/asset/domain/ports/OrganizationPolicyPort.ts
+export interface OrganizationPolicyPort {
+  allowsFileUpload(organizationId: string): Promise<boolean>;
+}
+
+// modules/asset/application/use-cases/register-uploaded-rag-document.use-case.ts
+export class RegisterUploadedRagDocumentUseCase {
+  constructor(
+    private readonly actorContext: ActorContextPort,
+    private readonly orgPolicy: OrganizationPolicyPort,
+    private readonly ragDocumentRepo: RagDocumentRepository,
+  ) {}
+
+  async execute(input: RegisterUploadedRagDocumentInput): Promise<CommandResult<RagDocumentRecord>> {
+    const actor = await this.actorContext.resolve();
+    const allowed = await this.orgPolicy.allowsFileUpload(actor.organizationId);
+    if (!allowed) return { success: false, error: new DomainError("upload-forbidden") };
+    // ... proceed
+  }
+}
+```
+
+**When to use ports:**
+- The module has cross-cutting dependencies (auth, permissions, tenant policies)
+- You need to test domain logic in isolation from external systems
+- Multiple infrastructure implementations may exist (Firebase, in-memory, mock)
+
+**When NOT needed:**
+- Simple CRUD modules with a single repository
+- Modules that only need standard repository interfaces
 `````
 
 ## File: .github/skills/deploy-to-vercel/resources/deploy-codex.sh
@@ -54958,6 +53935,187 @@ Limiting font sizes creates visual consistency. Use `fontWeight` (bold/semibold)
 and grayscale colors for hierarchy instead.
 `````
 
+## File: AGENTS.md
+`````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`agents/README.md`](agents/README.md) — rules index and overview
+2. Read [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`agents/commands.md`](agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`agents/rules/`](agents/rules/) for the complete set of architecture, quality, data, API, and CI rules.
+`````
+
+## File: agents/commands.md
+`````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Firebase CLI: `npx firebase` (no global install required)
+`````
+
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
 `````typescript
 "use client";
@@ -56991,6 +56149,55 @@ export default function OrganizationSchedulePage() {
 }
 `````
 
+## File: CLAUDE.md
+`````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [agents/commands.md](agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[agents/knowledge-base.md](agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
+`````
+
 ## File: docs/development-reference/development/code-style.md
 `````markdown
 # 程式碼風格指南（Code Style Guide）
@@ -57661,6 +56868,148 @@ Fallback to Firestore snapshot IDs (pre-MVP docs/chunks without duplicated `id`/
 - Add archive/unarchive write-side before UI governance
 `````
 
+## File: docs/diagrams-events-explanations/diagrams/rag-enterprise-e2e.mermaid
+`````
+flowchart TD
+  classDef ingest fill:#ecfeff,stroke:#0891b2,color:#0c4a6e
+  classDef query fill:#eef2ff,stroke:#4f46e5,color:#312e81
+  classDef optional fill:#fff7ed,stroke:#f97316,color:#9a3412
+  classDef data fill:#f0fdf4,stroke:#22c55e,color:#166534
+  classDef naming fill:#fef2f2,stroke:#ef4444,color:#7f1d1d
+  classDef docai fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef keypoint fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef summary fill:#fefce8,stroke:#ca8a04,color:#713f12
+  classDef accel fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+  classDef pyown fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,font-weight:bold
+  classDef nxown fill:#f0fdf4,stroke:#15803d,color:#14532d,font-weight:bold
+
+  subgraph ING[① Ingestion Pipeline - 資料進來]
+    I1[Next.js 上傳檔案]:::ingest --> I2[Firebase Storage raw file]:::ingest --> I3[Firestore 建立文件 metadata status uploaded]:::ingest --> I4[py_fn document_ai 觸發]:::ingest --> I7[Cleaning normalize 去雜訊]:::ingest --> I8[Document-level Taxonomy 整份文件分類]:::ingest --> I9[Structuring chunk 切分]:::ingest --> I10[Chunk-level Metadata docId chunkId taxonomy page tags]:::ingest --> I11[py_fn Embedding 每個 chunk 向量化]:::ingest --> I12[py_fn Firestore chunks collection with embedding]:::ingest --> I13[Index readiness check for query path]:::ingest --> I14[更新文件狀態 ready]:::ingest
+    I14 --> I15[py_fn ingestion traces and latency metrics]:::ingest
+    I16[failed 文件 retry queue 或手動 reprocess]:::ingest --> I4
+  end
+
+  subgraph DOCAI[①A document_ai 核心用途與輸出]
+    DA1[讀取 raw 檔案 bytes]:::docai --> DA2[Document AI Layout Parser]:::docai --> DA3[抽取 text pages tables headings]:::docai --> DA4[輸出 layout artifact json]:::docai
+    DA3 --> DA5[正規化 normalize 與去雜訊]:::docai --> DA6[doc-level taxonomy]:::docai --> DA7[chunking 與 chunkIndex 決定]:::docai
+    DA7 --> DA8[chunk metadata 組裝 page taxonomy tags]:::docai --> DA9[輸出 chunk payload 給 embedding]:::docai
+    DA2 --> DA10{document_ai 失敗?}:::docai
+    DA10 -->|yes| DA11[回寫 documents status failed with errorCode errorMessage]:::docai
+    DA10 -->|no| DA5
+  end
+
+  subgraph QRY[② Query Pipeline - 查詢與 RAG]
+    subgraph QRYA[②A 查詢主線]
+      Q1[Next.js User Query]:::query --> Q2[Route Handler or Server Action]:::query --> Q3[Genkit Flow Query Preprocess]:::query --> Q4[Query Embedding]:::query --> Q5[Index readiness gate]:::query --> Q6[Firestore Vector Search Top-K and taxonomy filter]:::query --> Q7{Top-K chunks found?}:::query
+      Q7 -->|yes| Q8[Context 組裝 prompt building]:::query --> Q9[Genkit LLM 回答生成]:::query --> Q10[Streaming 回傳 Next.js UI]:::query
+    end
+    subgraph QRYB[②B 查詢回退與觀測]
+      Q7 -->|no| Q11[No-context fallback response]:::query
+      Q9 --> Q12[query traces latency and cost metrics]:::query
+    end
+  end
+
+  subgraph OPT[③ Optional 強化 - 企業必備]
+    subgraph OPTA[③A Retrieval and Rerank]
+      O1[Retrieval 強化 Vector Search plus Keyword Search BM25 to Hybrid Search re-rank]:::optional
+      O2[Re-ranking Top-K chunks to Cross-Encoder or LLM rerank to Top-N]:::optional
+    end
+    subgraph OPTB[③B Cache and Feedback]
+      O3[Cache Query Hash to Firestore or Redis Cache and hit direct response]:::optional
+      O4[Feedback Loop User Feedback to Firestore to ranking and prompt tuning]:::optional
+    end
+  end
+
+  subgraph DATA[④ Firestore 資料結構核心]
+    subgraph DATAA[④A documents 契約]
+      D1[documents id title status uploaded processing ready taxonomy createdAt]:::data
+    end
+    subgraph DATAB[④B chunks 契約]
+      D2[chunks id docId text embedding taxonomy page chunkIndex]:::data
+    end
+  end
+
+  subgraph NAMING[④C 檔案命名與儲存結構契約]
+    N1[canonical documentId 與 originalFilename 分離]:::naming
+    N2[raw 檔固定命名 source plus ext]:::naming
+    N3[storagePath tenants slash tenantId slash workspaces slash workspaceId slash documents slash documentId slash raw slash source ext]:::naming
+    N4[derived 輸出放在 derived 子目錄]:::naming
+    N5[chunk upsert key documentId underscore chunkIndex]:::naming
+    N6[documents 必填 tenantId workspaceId checksum storagePath]:::naming
+  end
+
+  subgraph KEY[⑤ 關鍵觀念濃縮]
+    subgraph KEYA[⑤A Retrieval 原則]
+      K1[Taxonomy 在 Parsing 後 Chunking 前 最重要是 doc-level]:::keypoint
+      K2[Embedding 在 ingestion 做 一次性成本]:::keypoint
+      K3[Vector Search 在 query 做 每次查詢]:::keypoint
+    end
+    subgraph KEYB[⑤B Runtime 原則]
+      K4[Firestore 同時扮演 DB 與 Vector DB 適合中小型系統]:::keypoint
+      K5[Genkit 負責 Flow orchestration LLM 與 tool calling]:::keypoint
+    end
+  end
+
+  subgraph SUM[⑥B 一句話總結]
+    S1[資料進來 Parsing to Taxonomy to Chunk to Embedding to Firestore]:::summary
+    S2[使用者發問 Query to Embedding to Vector Search to LLM 回答]:::summary
+  end
+
+  subgraph OWN[⑥A Runtime Ownership]
+    R1[綠色框 = Next.js 主責節點]:::nxown
+    R2[藍色框 = py_fn 主責節點]:::pyown
+  end
+
+  subgraph LINKRULE[⑥C 線路規則]
+    L1[實線 = 主流程執行順序]:::summary
+    L2[虛線 = 契約或能力映射]:::keypoint
+    L3[跨區連線優先以區塊級映射呈現]:::keypoint
+  end
+
+  subgraph ACCEL[⑦ package.json 可直接降低開發難度]
+    subgraph ACCELA[⑦A 開發迭代工具]
+      A1[scripts dev build lint 降低本地迭代摩擦]:::accel
+      A4[zod 契約驗證 可用於 UploadRequest QueryInput WorkerEvent]:::accel
+      A5[tanstack react-query 快速實作 query 快取 重試 與狀態同步]:::accel
+      A7[xstate plus zustand 可把複雜流程狀態與 UI 狀態拆分管理]:::accel
+      A8[axios 可統一 infrastructure adapter 的 HTTP 呼叫]:::accel
+      A9[tailwind plus shadcn 加速介面與後台工具頁建置]:::accel
+    end
+    subgraph ACCELB[⑦B 部署與基礎設施]
+      A2[scripts deploy:functions:py-fn deploy:firestore:indexes deploy:rules 降低部署心智負擔]:::accel
+    end
+    subgraph ACCELC[⑦C RAG 流程能力]
+      A3[genkit plus google-genai 直接支援 Query Flow 與 LLM orchestration]:::accel
+      A6[upstash redis vector 可支援 Optional Cache 與 Retrieval 擴充]:::accel
+    end
+  end
+
+  I4 -.-> DA1
+  DA9 -.-> I11
+  DA11 -.-> I16
+
+  ING -.-> DATA
+  QRY -.-> DATA
+  NAMING -.-> ING
+  NAMING -.-> DATA
+  QRY -.-> OPT
+
+  DA4 -.-> N4
+  DA11 -.-> D1
+
+  S1 -.-> ING
+  S2 -.-> QRY
+
+  ACCELA -.-> ING
+  ACCELA -.-> QRY
+  ACCELB -.-> ING
+  ACCELC -.-> QRY
+  ACCELC -.-> OPT
+
+  class I1,I3,Q1,Q2,Q10,Q11 nxown
+  class I4,I11,I12,I15,I16,DA1,DA2,DA3,DA4,DA5,DA6,DA7,DA8,DA9,DA10,DA11 pyown
+`````
+
 ## File: docs/diagrams-events-explanations/README.md
 `````markdown
 # Diagrams & Explanations
@@ -57691,6 +57040,273 @@ System diagrams and conceptual explanations that clarify architecture and decisi
 
 - [../decision-architecture/README.md](../decision-architecture/README.md) — Architecture records and ADRs
 - [../development-reference/specification/README.md](../development-reference/specification/README.md) — System specifications
+`````
+
+## File: docs/how-to-user/user-manual/admin-guide.md
+`````markdown
+# 管理員指南（Admin Guide）
+
+> **目標讀者**：組織管理員（Admin Role）與系統維運人員
+> **目標**：說明成員管理、權限設定、系統監控與維運操作。
+
+---
+
+## 快速參考
+
+| 我想要… | 路徑 | 角色需求 |
+|---|---|---|
+| 管理組織成員 | `/organization/members` | Admin |
+| 管理團隊 | `/organization/teams` | Admin |
+| 設定權限 | `/organization/permissions` | Admin |
+| 管理工作區 | `/organization/workspaces` | Admin |
+| 查看稽核記錄 | `/organization/audit` | Admin |
+| 設定排程 | `/organization/schedule` | Admin |
+| 每日摘要 | `/organization/daily` | Admin / Member |
+| 手動觸發 RAG 重整 | `/wiki-beta/rag-reindex` | Member+ |
+
+---
+
+## 1. 組織管理
+
+### 1.1 建立組織
+
+1. 點選 App Rail 左側 **`+`** 圖示。
+2. 選擇 **「建立組織」**。
+3. 輸入組織名稱。
+4. 點選 **「建立組織」**。
+5. ✅ 組織建立成功，帳號類型變更為 `organization`。
+
+> **注意**：組織一旦建立後，帳號類型固定為組織帳號，不可切換回個人帳號。
+
+### 1.2 查看組織資訊
+
+1. 點選 App Rail 的 **`Users`（使用者）** 圖示，進入 `/organization`。
+2. 側邊欄顯示組織管理功能：成員、團隊、權限、工作區、排程、每日、稽核。
+
+---
+
+## 2. 成員管理
+
+### 2.1 邀請成員
+
+1. 進入 `/organization/members`。
+2. 點選 **「邀請成員」** 按鈕。
+3. 輸入成員的 Email，選擇角色。
+4. 點選 **「發送邀請」**。
+5. ✅ 被邀請者收到邀請通知後，可加入組織。
+
+### 2.2 角色說明
+
+| 角色 | 說明 | 可執行操作 |
+|---|---|---|
+| `owner` | 組織擁有者 | 所有操作，包含刪除組織 |
+| `admin` | 管理員 | 成員管理、工作區管理、稽核查看 |
+| `member` | 一般成員 | 讀寫工作區資源、文件上傳 |
+| `viewer` | 唯讀成員 | 僅查看，不可修改 |
+
+> 完整權限矩陣見 [`PERMISSIONS.md`](../../../PERMISSIONS.md)。
+
+### 2.3 調整成員角色
+
+1. 在成員列表找到目標成員。
+2. 點選成員右側 **`...`（更多）** 圖示。
+3. 選擇 **「調整角色」**。
+4. 選擇新角色後確認。
+
+### 2.4 移除成員
+
+1. 找到目標成員，點選 **`...`** → **「移除成員」**。
+2. 在確認對話框點選 **「確認移除」**。
+3. ✅ 成員移除後，其工作區存取權限立即撤銷。
+
+---
+
+## 3. 團隊管理
+
+### 3.1 建立團隊
+
+1. 進入 `/organization/teams`。
+2. 點選 **「建立團隊」**。
+3. 輸入團隊名稱（例如「工程師」、「設計師」）。
+4. 將成員加入團隊。
+
+### 3.2 團隊用途
+
+- 批次設定工作區存取權限（以團隊為單位）。
+- 組織成員分群，方便管理通知與排程。
+
+---
+
+## 4. 工作區管理
+
+### 4.1 查看所有工作區
+
+進入 `/organization/workspaces`，顯示組織下所有工作區的列表。
+
+**顯示欄位**：
+- 工作區名稱
+- 成員數量
+- 建立時間
+- 最後活動時間
+
+### 4.2 刪除工作區
+
+1. 找到目標工作區，點選 **「刪除工作區」**。
+2. 在確認對話框輸入工作區名稱確認。
+3. ✅ **注意**：刪除後工作區下的資源（Pages、Documents 等）將無法恢復。
+
+---
+
+## 5. 稽核記錄
+
+### 5.1 查看稽核記錄
+
+進入 `/organization/audit`，顯示組織內所有關鍵操作的記錄。
+
+**記錄項目包括**：
+- 成員邀請 / 移除
+- 角色調整
+- 工作區建立 / 刪除
+- 關鍵資源操作（文件刪除等）
+
+### 5.2 記錄欄位說明
+
+| 欄位 | 說明 |
+|---|---|
+| **timestamp** | 操作時間 |
+| **actor** | 執行操作的成員（Email） |
+| **action** | 操作類型（例如 `member.invite`） |
+| **target** | 操作對象（例如被邀請的成員 Email） |
+| **result** | 操作結果（`success` / `failure`） |
+
+### 5.3 記錄保留原則
+
+- 稽核記錄為**不可變（immutable）**記錄，已提交的記錄不可修改或刪除。
+- 記錄保留期限依系統配置，預設保留 90 天。
+
+---
+
+## 6. 排程管理
+
+### 6.1 查看排程
+
+進入 `/organization/schedule`，顯示組織的資源排程。
+
+排程模組使用**雙向資源-請求配對**模型，適用於人員與任務的配對管理。
+
+---
+
+## 7. 知識庫維運
+
+### 7.1 監控文件處理狀態
+
+進入 `/wiki-beta/documents`，查看組織下所有文件的解析狀態：
+
+- `⏳ processing`：正常，等待解析完成
+- `✓ ready`：解析完成，可進行 RAG
+- `✗ error`：解析失敗，需要介入
+
+**批量檢查**：若多份文件顯示 `error`，可能是 py_fn Worker 服務異常，需排查。
+
+### 7.2 手動觸發 RAG 重整
+
+當 RAG 索引異常或文件更新後：
+
+1. 進入 `/wiki-beta/rag-reindex`。
+2. 找到目標文件（`status: ready`，`rag status: error` 或 `pending`）。
+3. 點選 **「手動重整」**。
+4. ✅ 觸發成功，`rag status` 更新。
+
+**批量重整**：目前不支援批量重整，需逐一觸發。
+
+---
+
+## 8. 系統部署與維運
+
+### 8.1 部署指令
+
+```bash
+# 部署所有 Firebase 資源
+npm run deploy:firebase
+
+# 僅部署 Python Cloud Functions
+npm run deploy:functions:py-fn
+
+# 僅部署 Firestore + Storage 規則
+npm run deploy:rules
+```
+
+### 8.2 環境設定
+
+系統依賴以下環境變數（於 Firebase App Hosting 或 `.env.local` 配置）：
+
+| 變數 | 說明 |
+|---|---|
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase 客戶端 SDK 設定 |
+| `GOOGLE_CLOUD_PROJECT` | GCP 專案 ID |
+| `OPENAI_API_KEY` | OpenAI API Key（py_fn 使用） |
+| `UPSTASH_VECTOR_*` | Upstash Vector 連線設定 |
+| `UPSTASH_REDIS_*` | Upstash Redis 連線設定 |
+
+> **安全提示**：不可將上述金鑰提交至版本控制系統。
+
+### 8.3 監控與告警
+
+- **Firebase Console**：查看 Cloud Functions 執行日誌、Firestore 讀寫統計。
+- **Upstash Console**：查看 Vector / Redis 使用量與請求記錄。
+- **Google Cloud Console**：查看 Document AI 請求記錄與費用。
+
+### 8.4 Firestore Security Rules 維護
+
+```bash
+# 部署 Firestore Rules
+firebase deploy --only firestore:rules
+
+# 部署 Storage Rules
+firebase deploy --only storage:rules
+```
+
+Rules 文件位置：
+- `firestore.rules` — Firestore 安全規則
+- `storage.rules` — Storage 安全規則
+
+### 8.5 Firestore 索引管理
+
+```bash
+# 部署 Firestore Indexes
+firebase deploy --only firestore:indexes
+```
+
+索引設定：`firestore.indexes.json`
+
+---
+
+## 9. 常見維運問題
+
+### Q1：文件大量顯示 error 狀態？
+
+**可能原因**：py_fn Worker 服務故障或 Document AI 配額超限。
+
+**排查步驟**：
+1. 檢查 Firebase Console → Functions → 查看最近的 error 日誌。
+2. 確認 Google Cloud Document AI 配額未超限。
+3. 若服務已恢復，手動重整 error 的文件。
+
+### Q2：RAG Query 回應時間過長？
+
+**可能原因**：Upstash Vector 或 Redis 連線異常，或 OpenAI API 限速。
+
+**排查步驟**：
+1. 確認 Upstash 服務狀態。
+2. 確認 OpenAI API 配額。
+3. 查看 py_fn callable 日誌。
+
+### Q3：新成員無法登入？
+
+**排查步驟**：
+1. 確認成員是否已完成 Email 驗證。
+2. 在 Firebase Console → Authentication 確認帳號狀態。
+3. 確認成員有 Firestore 中的對應帳號記錄。
 `````
 
 ## File: modules/agent/.gitkeep
@@ -66797,6 +66413,329 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 }
 `````
 
+## File: packages/README.md
+`````markdown
+# packages/
+
+Stable public boundary layer for the Xuanwu MDDD architecture.
+
+Every directory under `packages/` is a self-contained package with a barrel
+`index.ts` and a TypeScript path alias defined in `tsconfig.json`. Consumers
+import through the alias (e.g. `@shared-types`, `@integration-firebase`) —
+**never** through relative paths that reach into another package's internals.
+
+## Design Principles
+
+Inspired by **Cal.com** (`packages/@calcom/*`) and **Plane** (`packages/@plane/*`):
+
+1. **Single source of truth** — each concern lives in exactly one package.
+2. **No shims, no re-export chains** — packages contain actual implementations.
+3. **Barrel exports define the public API** — unexported internals stay private.
+4. **Dependency direction** — `UI → Application → Domain ← Infrastructure`.
+   Packages never reverse-import from `app/` or `modules/` internals.
+5. **ESLint enforced** — `no-restricted-imports` forbids legacy `@/shared/*`,
+   `@/libs/*`, `@/infrastructure/*`, `@/ui/*`, `@/interfaces/*` paths.
+
+## Package Inventory
+
+| Alias | Directory | Purpose |
+|-------|-----------|---------|
+| `@shared-types` | `shared-types/` | Primitive types, `CommandResult`, `DomainError`, `Timestamp` |
+| `@shared-utils` | `shared-utils/` | `cn()`, `formatDate()`, `generateId()` |
+| `@shared-validators` | `shared-validators/` | Zod schemas for cross-cutting validation |
+| `@shared-constants` | `shared-constants/` | `APP_NAME`, `PAGINATION_DEFAULTS` |
+| `@shared-hooks` | `shared-hooks/` | `useAppStore` (Zustand global store) |
+| `@integration-firebase` | `integration-firebase/` | Firebase client SDK (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
+| `@integration-http` | `integration-http/` | Axios HTTP client with interceptors |
+| `@api-contracts` | `api-contracts/` | REST route registry + GraphQL schema |
+| `@ui-shadcn` | `ui-shadcn/` | shadcn/ui components, `cn()` utility, hooks |
+| `@ui-vis` | `ui-vis/` | Vis.js React components (VisNetwork, VisTimeline) |
+| `@lib-date-fns` | `lib-date-fns/` | date-fns v4 wrapper |
+| `@lib-zod` | `lib-zod/` | Zod v4 wrapper |
+| `@lib-uuid` | `lib-uuid/` | UUID v13 wrapper |
+| `@lib-zustand` | `lib-zustand/` | Zustand v5 wrapper |
+| `@lib-xstate` | `lib-xstate/` | XState v5 + React hooks wrapper |
+| `@lib-tanstack` | `lib-tanstack/` | TanStack Query/Form/Table/Virtual wrapper |
+| `@lib-superjson` | `lib-superjson/` | SuperJSON wrapper |
+| `@lib-dragdrop` | `lib-dragdrop/` | Atlaskit Pragmatic Drag and Drop wrapper |
+| `@lib-react-markdown` | `lib-react-markdown/` | react-markdown wrapper |
+| `@lib-remark-gfm` | `lib-remark-gfm/` | remark-gfm wrapper |
+| `@lib-vis` | `lib-vis/` | vis-data / vis-network / vis-timeline / vis-graph3d wrappers |
+
+## Usage
+
+```typescript
+// Domain types
+import type { CommandResult, DomainError } from "@shared-types";
+
+// Utilities
+import { cn, formatDate } from "@shared-utils";
+
+// Validation
+import { taskSchema } from "@shared-validators";
+
+// Firebase
+import { firebaseClientApp } from "@integration-firebase/client";
+import { getFirebaseAuth } from "@integration-firebase";
+
+// UI components
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+// Library wrappers
+import { z } from "@lib-zod";
+import { format } from "@lib-date-fns";
+```
+
+## Adding a New Package
+
+1. Create `packages/<name>/index.ts` with barrel exports.
+2. Add a `@<alias>` path in `tsconfig.json` → `"./packages/<name>/index.ts"`.
+3. Add a `@<alias>/*` wildcard path if sub-module imports are needed.
+4. Update this README.
+5. Run `npm run lint && npm run build` to verify.
+
+## Migration History
+
+| Phase | What moved | From | To |
+|-------|-----------|------|-----|
+| 1 | Domain types, utils, validators, constants, hooks | `shared/*` | `packages/shared-*` |
+| 2 | Firebase client SDK | `libs/firebase/` + `infrastructure/firebase/` | `packages/integration-firebase/` |
+| 3 | HTTP client | `infrastructure/axios/` | `packages/integration-http/` |
+| 4 | API contracts | `interfaces/rest/` + `interfaces/graphql/` | `packages/api-contracts/` |
+| 5 | shadcn components + cn() | `ui/shadcn/` + `libs/utils.ts` | `packages/ui-shadcn/` |
+| 6 | Vis.js components | `ui/vis/` | `packages/ui-vis/` |
+| 7 | Library wrappers | `libs/*` | `packages/lib-*` |
+| — | Python worker runtime | `libs/firebase/py_fn/` | `py_fn/` (root) |
+
+> **Note:** `py_fn/` is a Python Firebase Functions codebase and is **not** a TypeScript
+> package. It lives at the project root as a first-class deployment artifact (Firebase codebase name
+> `py_fn`). It is deployed via `npm run deploy:functions:py-fn` and uses its own
+> `pyproject.toml` / `requirements.txt`. It is **not** imported by TypeScript code — interactions
+> happen through Firebase callable functions and Firestore triggers.
+`````
+
+## File: PERMISSIONS.md
+`````markdown
+# Permissions — Xuanwu App
+
+This document describes the role-based access control (RBAC) model used in Xuanwu App.
+
+## Role Hierarchy
+
+### Organization Roles
+
+Roles are stored on organization membership records (`OrganizationRole`):
+
+| Role | Description |
+|------|-------------|
+| `Owner` | Full control — manage members, settings, billing, and all resources |
+| `Admin` | Manage members and workspaces; cannot transfer ownership |
+| `Member` | Standard access — create and use workspaces |
+| `Guest` | Limited read-only access to shared resources |
+
+### Workspace Roles
+
+Workspace membership carries a role string (convention mirrors org roles):
+
+| Role | Description |
+|------|-------------|
+| `owner` | Full workspace control |
+| `admin` | Manage workspace members and settings |
+| `member` | Read/write access to workspace content |
+| `viewer` | Read-only access |
+
+## Access Control Patterns
+
+### Organization Actions
+
+```ts
+// Check organization role in a Server Action
+const member = await orgRepo.getMember(orgId, userId);
+if (member?.role !== "Owner" && member?.role !== "Admin") {
+  return { success: false, error: "Insufficient permissions" };
+}
+```
+
+### Workspace Actions
+
+```ts
+// Check workspace membership before mutation
+const member = await workspaceRepo.getMember(workspaceId, userId);
+if (!member) return { success: false, error: "Not a workspace member" };
+```
+
+### RAG Document Access Control
+
+Documents carry an `accessControl` array (`string[]`) listing the roles or member IDs that can retrieve chunks from that document during RAG retrieval:
+
+```ts
+// RagDocumentRepository — accessControl field
+readonly accessControl?: readonly string[];
+```
+
+The `FirebaseRagRetrievalRepository` filters vector search results by checking `userRoles` against the document's `accessControl` array.
+
+## Firestore Security Rules
+
+Security rules are defined in `firestore.rules` at the repository root.
+
+> **Note**: Rules are currently permissive during active development. Tighten rules before production deployment.
+
+## Module Ownership
+
+| Module | Permission Concern |
+|--------|-------------------|
+| `organization` | `OrganizationRole` — Owner/Admin/Member/Guest |
+| `workspace` | Workspace membership and role |
+| `account` | User account policies |
+| `identity` | Firebase Auth, token refresh |
+| `asset` | `accessControl` array on RAG documents |
+| `retrieval` | `userRoles` filtering in RAG retrieval |
+| `agent` | Orchestrated query context and actor-aware access flow |
+
+## Adding New Permission Checks
+
+1. Define the role check in the relevant `application/use-cases/` file.
+2. Keep all permission logic in the application layer — never in `domain/` or UI components.
+3. Return a typed `CommandResult` with a descriptive error message on failure.
+4. Document new roles or resources in this file.
+`````
+
+## File: README.md
+`````markdown
+# Xuanwu App
+
+A Next.js 16 knowledge-management and AI-assisted workspace platform built on Firebase, following the **Module-Driven Domain Design (MDDD)** architecture.
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
+| Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
+| AI / RAG | Google Genkit, Document AI, Upstash Vector |
+| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
+| Realtime | Upstash Redis, QStash |
+
+## Project Structure
+
+```
+xuanwu-app/
+├── app/              # Next.js App Router pages, layouts, route handlers
+├── modules/          # 19 MDDD business modules (bounded contexts)
+├── packages/         # Stable shared packages with TypeScript aliases
+├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
+├── agents/           # AI agent knowledge base and rules
+└── docs/             # Architecture docs, ADRs, design documents
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Install
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+npm run dev        # Start Next.js dev server (port 3000)
+npm run build      # Production build (includes TypeScript type-check)
+npm run lint       # Run ESLint
+```
+
+### Firebase Deployment
+
+```bash
+npm run deploy:firebase              # Deploy all Firebase resources
+npm run deploy:functions:py-fn        # Deploy Python Cloud Functions only
+npm run deploy:rules                 # Deploy Firestore + Storage rules
+```
+
+See [`agents/commands.md`](agents/commands.md) for the full command reference.
+
+## Architecture
+
+This project follows **Module-Driven Domain Design (MDDD)**:
+
+- Each business capability is a self-contained module under `modules/`.
+- Each `modules/<module-name>/` is an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `UI → Application → Domain ← Infrastructure`.
+- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
+- Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
+
+See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## AI Delivery Workflow
+
+This repository includes a formal Copilot delivery workflow for non-trivial changes.
+
+- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
+- Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+`````
+
+## File: SPEC-WORKFLOW.md
+`````markdown
+# Spec-Driven Development Workflow
+
+This workflow is **opt-in**. Use it when explicitly requested by saying "use spec-driven development" or "follow the spec workflow".
+
+## Canonical Entry Points
+
+- Start feature planning: [`docs/how-to-user/how-to/start-feature-delivery.md`](docs/how-to-user/how-to/start-feature-delivery.md)
+- Plan template: [`docs/development-reference/reference/ai/implementation-plan-template.md`](docs/development-reference/reference/ai/implementation-plan-template.md)
+- Stage transitions: [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md)
+
+## Workflow (Spec Mode)
+
+1. Clarify scope and constraints with a written implementation plan.
+2. Anchor ownership and boundaries using [`agents/knowledge-base.md`](agents/knowledge-base.md).
+3. Implement in small increments against the approved plan.
+4. Run required validation from [`agents/commands.md`](agents/commands.md).
+5. Update affected docs in the same change when behavior or boundaries move.
+
+## Recommended Spec Location
+
+When a dedicated feature spec is needed, create it under:
+
+```text
+docs/development-reference/specification/<feature-name>/
+```
+
+Suggested files:
+
+```text
+docs/development-reference/specification/<feature-name>/
+├── design.md
+├── implementation.md
+├── decisions.md
+└── future-work.md
+```
+
+## Guardrails
+
+- Do not start non-trivial implementation without an approved plan.
+- Keep module boundaries explicit; cross-module access must use `modules/<module>/api/`.
+- Record major technical decisions in `decisions.md` (or an ADR when appropriate).
+- Keep spec status and checklists current as implementation progresses.
+`````
+
 ## File: .github/agents/serena.agent.md
 `````markdown
 ---
@@ -71447,50 +71386,6 @@ Scope partition for instruction consumption:
 - Keep this page aligned with [.github/README.md](../../../../.github/README.md), [.github/copilot-instructions.md](../../../../.github/copilot-instructions.md), and [legacy-customizations-migration.md](./legacy-customizations-migration.md).
 - Keep this page concise; keep executable definitions in `.github/`.
 - Treat undocumented customization assets as provisional.
-`````
-
-## File: docs/development-reference/reference/development-contracts/overview.md
-`````markdown
----
-title: Development contracts overview
-description: Authoritative index of contracts that unblock RAG, parser, schedule, acceptance, billing, and audit implementation.
----
-
-# Development contracts overview
-
-Contracts that remove implementation ambiguity. Each contract names: owning module, runtime boundary, missing write-side/governance, and acceptance gates.
-
-## Current contract set
-
-| Contract | Status | Primary owner | Current shape | Main blocker removed |
-| --- | --- | --- | --- | --- |
-| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/asset` + `modules/knowledge` + `modules/retrieval` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
-| [Parser contract](./parser-contract.md) | 🏗️ Midway | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
-| [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + projection on submit | Split ownership: derived items, persisted requests, projection read model |
-| [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification digest → workspace feed + org aggregation | Clarify feed, interaction, promotion boundaries |
-| [Acceptance contract](./acceptance-contract.md) | 🏗️ Midway | `modules/acceptance` | Derived acceptance gates over workspace snapshot | No explicit rule for future write-side approval or override flows |
-| [Billing contract](./billing-contract.md) | 📅 Planned | `modules/billing` | Read-side billing record model over in-memory data | No canonical contract for invoice, settlement, and refund slices |
-| [Audit contract](./audit-contract.md) | 🏗️ Midway | `modules/workspace-audit` | Workspace and organization audit queries over Firebase | No explicit append-only audit write contract |
-| [Event contract](./event-contract.md) | 🚧 Developing | `modules/event` | Domain event capture and dispatch skeleton with in-memory adapters | No Firestore/Pub-Sub adapter or real bus integration |
-| [Namespace contract](./namespace-contract.md) | 🚧 Developing | `modules/namespace` | Named-scope registration and slug resolution with in-memory adapter | No Firestore adapter or URL routing integration |
-
-## Why contracts exist
-
-Implementation areas rely on implied boundaries. Contracts convert these into explicit references so teams stay aligned without re-deciding ownership.
-
-## Related sources
-
-- RAG lifecycle and runtime ADRs: `docs/decision-architecture/adr/`
-- MDDD architecture: [agents/knowledge-base.md](../../../../agents/knowledge-base.md)
-- File module plan: [modules/file/README.md](../../../../modules/file/README.md)
-
-## Rollout order
-
-1. RAG ingestion (crosses Next.js + Python boundary)
-2. Parser, schedule, acceptance (snapshot-derived, need extension rules)
-3. Billing, audit (enterprise governance impact)
-
-See [Development contract governance](../../../diagrams-events-explanations/explanation/development-contract-governance.md) for maintenance rules.
 `````
 
 ## File: modules/account/application/use-cases/account-policy.use-cases.ts
@@ -76620,46 +76515,6 @@ Additional folders are allowed when needed, but do not rename the canonical laye
 - Use validation commands from `agents/commands.md` to keep one canonical command source.
 `````
 
-## File: .github/instructions/modules-naming.instructions.md
-`````markdown
----
-description: 'Naming rules for modules/, module APIs, use cases, repositories, entities, events, and related MDDD assets'
-applyTo: 'modules/**/*.md'
----
-
-# Modules Naming
-
-Use consistent naming in module specifications and architecture docs so ownership and layer roles remain obvious.
-
-## Naming Table
-
-| Type | Naming |
-| --- | --- |
-| Module directory | `kebab-case` bounded-context name, e.g. `workspace-planner`, `content` |
-| Module public API folder | `api/` |
-| Module barrel | `index.ts` |
-| Module README | `README.md` |
-| Public facade type | `PascalCaseFacade`, e.g. `ContentFacade` |
-| Public facade instance | `camelCaseFacade`, e.g. `contentFacade` |
-| Use case file | `verb-noun.use-case.ts`, e.g. `create-content-page.use-case.ts` |
-| DTO file | `verb-noun.dto.ts` or domain-specific DTO filename in `application/dto/` |
-| Repository interface | `PascalCaseRepository`, e.g. `ContentPageRepository` |
-| Repository implementation | `TechnologyPascalCaseRepository`, e.g. `FirebaseContentPageRepository` |
-| Entity / aggregate | `PascalCase`, e.g. `ContentPage` |
-| Value object | `PascalCase`, e.g. `IssueStage`, `ContentPath` |
-| Domain event type | `PascalCaseEvent` or clear event object name |
-| Event discriminant | `module-name.action`, e.g. `content.page-created` |
-| Server Action file | `domain-name.actions.ts` under `interfaces/_actions/` |
-| Query file | `domain-name.queries.ts` under `interfaces/queries/` |
-
-## Conventions
-
-- Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration labels.
-- Prefer singular bounded-context names unless established convention is plural.
-- Keep module renames aligned with API surface, event discriminants, and persistence naming.
-- Keep naming aligned with `modules-api-boundary.instructions.md`.
-`````
-
 ## File: .github/instructions/modules-refactoring.instructions.md
 `````markdown
 ---
@@ -78239,6 +78094,50 @@ export function CustomizeNavigationDialog({
 }
 `````
 
+## File: docs/development-reference/reference/development-contracts/overview.md
+`````markdown
+---
+title: Development contracts overview
+description: Authoritative index of contracts that unblock RAG, parser, schedule, acceptance, billing, and audit implementation.
+---
+
+# Development contracts overview
+
+Contracts that remove implementation ambiguity. Each contract names: owning module, runtime boundary, missing write-side/governance, and acceptance gates.
+
+## Current contract set
+
+| Contract | Status | Primary owner | Current shape | Main blocker removed |
+| --- | --- | --- | --- | --- |
+| [RAG ingestion contract](./rag-ingestion-contract.md) | 🚧 Developing | `modules/asset` + `modules/knowledge` + `modules/retrieval` + `py_fn` | Cross-runtime upload, worker, and retrieval boundary | ADR drift and upload-to-worker trigger mismatch |
+| [Parser contract](./parser-contract.md) | 🏗️ Midway | `modules/parser` | Read-side summary over workspace + file data | Missing parser job boundary and source readiness rules |
+| [Schedule contract](./schedule-contract.md) | 🏗️ Midway | `modules/schedule` | Resource request write-side + projection on submit | Split ownership: derived items, persisted requests, projection read model |
+| [Daily contract](./daily-contract.md) | 🏗️ Midway | `modules/daily` | Notification digest → workspace feed + org aggregation | Clarify feed, interaction, promotion boundaries |
+| [Acceptance contract](./acceptance-contract.md) | 🏗️ Midway | `modules/acceptance` | Derived acceptance gates over workspace snapshot | No explicit rule for future write-side approval or override flows |
+| [Billing contract](./billing-contract.md) | 📅 Planned | `modules/billing` | Read-side billing record model over in-memory data | No canonical contract for invoice, settlement, and refund slices |
+| [Audit contract](./audit-contract.md) | 🏗️ Midway | `modules/workspace-audit` | Workspace and organization audit queries over Firebase | No explicit append-only audit write contract |
+| [Event contract](./event-contract.md) | 🚧 Developing | `modules/event` | Domain event capture and dispatch skeleton with in-memory adapters | No Firestore/Pub-Sub adapter or real bus integration |
+| [Namespace contract](./namespace-contract.md) | 🚧 Developing | `modules/namespace` | Named-scope registration and slug resolution with in-memory adapter | No Firestore adapter or URL routing integration |
+
+## Why contracts exist
+
+Implementation areas rely on implied boundaries. Contracts convert these into explicit references so teams stay aligned without re-deciding ownership.
+
+## Related sources
+
+- RAG lifecycle and runtime ADRs: `docs/decision-architecture/adr/`
+- MDDD architecture: [agents/knowledge-base.md](../../../../agents/knowledge-base.md)
+- Asset module plan: [modules/asset/README.md](../../../../modules/asset/README.md)
+
+## Rollout order
+
+1. RAG ingestion (crosses Next.js + Python boundary)
+2. Parser, schedule, acceptance (snapshot-derived, need extension rules)
+3. Billing, audit (enterprise governance impact)
+
+See [Development contract governance](../../../diagrams-events-explanations/explanation/development-contract-governance.md) for maintenance rules.
+`````
+
 ## File: modules/workspace-audit/api/index.ts
 `````typescript
 /**
@@ -78750,6 +78649,46 @@ graph TD
   class L_IF,L_AP,L_DO,L_IN,L_API intStyle
   class RULE ruleStyle
   class FS_CT,FS_KG,FS_KN,FS_RT fsStyle
+`````
+
+## File: .github/instructions/modules-naming.instructions.md
+`````markdown
+---
+description: 'Naming rules for modules/, module APIs, use cases, repositories, entities, events, and related MDDD assets'
+applyTo: 'modules/**/*.md'
+---
+
+# Modules Naming
+
+Use consistent naming in module specifications and architecture docs so ownership and layer roles remain obvious.
+
+## Naming Table
+
+| Type | Naming |
+| --- | --- |
+| Module directory | `kebab-case` bounded-context name, e.g. `workspace-scheduling`, `content` |
+| Module public API folder | `api/` |
+| Module barrel | `index.ts` |
+| Module README | `README.md` |
+| Public facade type | `PascalCaseFacade`, e.g. `ContentFacade` |
+| Public facade instance | `camelCaseFacade`, e.g. `contentFacade` |
+| Use case file | `verb-noun.use-case.ts`, e.g. `create-content-page.use-case.ts` |
+| DTO file | `verb-noun.dto.ts` or domain-specific DTO filename in `application/dto/` |
+| Repository interface | `PascalCaseRepository`, e.g. `ContentPageRepository` |
+| Repository implementation | `TechnologyPascalCaseRepository`, e.g. `FirebaseContentPageRepository` |
+| Entity / aggregate | `PascalCase`, e.g. `ContentPage` |
+| Value object | `PascalCase`, e.g. `IssueStage`, `ContentPath` |
+| Domain event type | `PascalCaseEvent` or clear event object name |
+| Event discriminant | `module-name.action`, e.g. `content.page-created` |
+| Server Action file | `domain-name.actions.ts` under `interfaces/_actions/` |
+| Query file | `domain-name.queries.ts` under `interfaces/queries/` |
+
+## Conventions
+
+- Use business-domain names; avoid `common`, `misc`, `helper`, UI labels, or migration labels.
+- Prefer singular bounded-context names unless established convention is plural.
+- Keep module renames aligned with API surface, event discriminants, and persistence naming.
+- Keep naming aligned with `modules-api-boundary.instructions.md`.
 `````
 
 ## File: .github/instructions/xuanwu-app-nextjs-mddd.instructions.md
