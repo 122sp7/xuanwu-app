@@ -9,6 +9,8 @@ Specialized capabilities bundled with resources, examples, and workflows. Skills
 | MDDD Boundaries | `xuanwu-mddd-boundaries/` | Enforce module ownership, layer placement, API boundaries, dependency direction |
 | Development Contracts | `xuanwu-development-contracts/` | Follow contract-first workflows for RAG, parser, schedule, acceptance, billing, audit |
 | RAG Runtime Boundary | `xuanwu-rag-runtime-boundary/` | Preserve Next.js/Python ownership split for uploads, ingestion, retrieval |
+| App Router Parallel Routes | `app-router-parallel-routes/` | Compose app route slices and parallel-route UI blocks around API-only module access |
+| Modules MDDD API Surface | `modules-mddd-api-surface/` | Build module contracts, facades, clean exports, and layer-safe API consumption |
 
 ## Customization & Architecture
 
@@ -30,7 +32,7 @@ Specialized capabilities bundled with resources, examples, and workflows. Skills
 | React Best Practices | `vercel-react-best-practices/` | Optimize React/Next.js performance, bundle size, data fetching |
 | Web Design Guidelines | `web-design-guidelines/` | Review UI for accessibility and design compliance |
 
-## Total: 13 Skills
+## Total: 15 Skills
 
 All skills are under version control. When editing a skill, update the `description` field to improve auto-discovery.
 

@@ -22,6 +22,13 @@ Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
 | `/split-module` | `split-module.prompt.md` | Split one module into two bounded contexts |
 | `/merge-module` | `merge-module.prompt.md` | Merge two modules into one bounded context |
 | `/delete-module` | `delete-module.prompt.md` | Delete module with safe cross-module cleanup |
+| `/create-module-api-surface` | `modules/create-module-api-surface.prompt.md` | Build or refactor a module public API surface with contracts, facades, and clean exports |
+
+## App Composition
+
+| Prompt | File | Purpose |
+| --- | --- | --- |
+| `/create-parallel-route-slice` | `app/create-parallel-route-slice.prompt.md` | Build or refactor an `app/` route slice or parallel-route block around API-only module access |
 
 ## Customization & Integration
 
@@ -47,7 +54,7 @@ Entry points for quick workflows. Use `/prompt-name` in VS Code chat to invoke.
 | `/shadcn-mcp` | `shadcn-mcp.prompt.md` | shadcn component management with MCP |
 | `/next-devtools-mcp` | `next‑devtools‑mcp.prompt.md` | Next.js development tools integration |
 
-## Total: 26 Prompts
+## Total: 28 Prompts
 
 ## Quick Reference
 
@@ -56,6 +63,8 @@ Each prompt includes:
 - Required inputs and optional arguments
 - Example invocations
 - Validation or output format hints
+
+Nested prompt folders under `prompts/` are valid and now used for `app/` and `modules/`-specific workflows.
 
 ## Related References
 

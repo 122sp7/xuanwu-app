@@ -6,10 +6,10 @@ Repository instruction index for `applyTo`-scoped rules used by Copilot.
 
 | File | Scope | Purpose |
 | --- | --- | --- |
-| [instructions.instructions.md](./instructions.instructions.md) | `.github/instructions/*.instructions.md` | How to create high-quality custom instruction files |
-| [agents.instructions.md](./agents.instructions.md) | `.github/agents/*.agent.md` | How to create custom delivery agents |
+| [instructions.instructions.md](./instructions.instructions.md) | `.github/instructions/**/*.instructions.md` | How to create high-quality custom instruction files |
+| [agents.instructions.md](./agents.instructions.md) | `.github/agents/**/*.agent.md` | How to create custom delivery agents |
 | [agent-skills.instructions.md](./agent-skills.instructions.md) | `.github/skills/**/SKILL.md` | How to create agent skills |
-| [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/*.prompt.md` | How to create slash-command prompts |
+| [prompt.instructions.md](./prompt.instructions.md) | `.github/prompts/**/*.prompt.md` | How to create slash-command prompts |
 
 ## Project-Specific
 
@@ -17,6 +17,7 @@ Repository instruction index for `applyTo`-scoped rules used by Copilot.
 | --- | --- | --- |
 | [xuanwu-app-nextjs-mddd.instructions.md](./xuanwu-app-nextjs-mddd.instructions.md) | `app/**/*.{ts,tsx}`, `packages/**/*.{ts,tsx}`, `providers/**/*.{ts,tsx}`, `debug/**/*.{ts,tsx}` | Next.js 16, React 19, MDDD development standards |
 | [xuanwu-functions-python.instructions.md](./xuanwu-functions-python.instructions.md) | `py_fn/**/*.py` | Python Firebase Functions development standards |
+| [app/app-router-parallel-routes.instructions.md](./app/app-router-parallel-routes.instructions.md) | `app/**/*.{ts,tsx}` | App Router composition rules for route slices and parallel-route UI blocks |
 
 ## Architecture & Modules
 
@@ -27,6 +28,10 @@ Repository instruction index for `applyTo`-scoped rules used by Copilot.
 | [modules-dependency-graph.instructions.md](./modules-dependency-graph.instructions.md) | `modules/**/*.{ts,tsx,js,jsx}` | Dependency direction and layer enforcement |
 | [modules-naming.instructions.md](./modules-naming.instructions.md) | `modules/**/*.md` | Module naming conventions in specs/docs |
 | [modules-refactoring.instructions.md](./modules-refactoring.instructions.md) | `modules/**/*.md` | Refactoring workflows for module planning/docs |
+| [modules/modules-api-surface.instructions.md](./modules/modules-api-surface.instructions.md) | `modules/**/api/**/*.ts` | Public `api/` contracts and facades for API-only module access |
+| [modules/modules-index-entry.instructions.md](./modules/modules-index-entry.instructions.md) | `modules/**/index.ts` | Aggregate-export rules for module root entry points |
+| [modules/modules-interfaces-api-consumption.instructions.md](./modules/modules-interfaces-api-consumption.instructions.md) | `modules/**/interfaces/**/*.{ts,tsx,js,jsx}` | Interface-layer access through module `api/` only |
+| [modules/modules-infrastructure-adapters.instructions.md](./modules/modules-infrastructure-adapters.instructions.md) | `modules/**/infrastructure/**/*.{ts,tsx,js,jsx}` | Adapter-only infrastructure with downward-only dependencies |
 
 ## Other
 
@@ -34,7 +39,7 @@ Repository instruction index for `applyTo`-scoped rules used by Copilot.
 | --- | --- | --- |
 | [dotnet-architecture-good-practices.instructions.md](./dotnet-architecture-good-practices.instructions.md) | `**/*.cs`, `**/*.csproj`, `**/Program.cs`, `**/*.razor` | DDD and .NET architecture guidance |
 
-## Total: 12 Instruction Files
+## Total: 17 Instruction Files
 
 Each instruction file includes clear examples, best practices, and anti-patterns to guide Copilot behavior and enforce project standards.
 
@@ -43,7 +48,9 @@ Each instruction file includes clear examples, best practices, and anti-patterns
 Use this partition to avoid overlapping instruction contexts:
 
 - App and package implementation: `xuanwu-app-nextjs-mddd.instructions.md`
+- App route composition and parallel routes: `app/app-router-parallel-routes.instructions.md`
 - Module code boundaries: `modules-api-boundary.instructions.md` + `modules-dependency-graph.instructions.md`
+- Module API and layer surfaces: `modules/modules-api-surface.instructions.md` + `modules/modules-index-entry.instructions.md` + `modules/modules-interfaces-api-consumption.instructions.md` + `modules/modules-infrastructure-adapters.instructions.md`
 - Module architecture and naming docs: `modules-architecture.instructions.md` + `modules-naming.instructions.md` + `modules-refactoring.instructions.md`
 - Prompt authoring: `prompt.instructions.md`
 - Agent authoring: `agents.instructions.md`

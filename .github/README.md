@@ -30,6 +30,8 @@ Operational index for repository-scoped customization assets.
 | [skills/](./skills/) | Reusable multi-step skills | [skills/README.md](./skills/README.md) |
 | [workflows/](./workflows/) | GitHub Actions automation | [workflows/link-check.yml](./workflows/link-check.yml) |
 
+Nested customizations are supported recursively under these folders. The repository now uses dedicated `app/` and `modules/` subfolders inside `agents/`, `instructions/`, and `prompts/` for narrower discovery and lower context noise.
+
 ## Core files
 
 | File | Role |

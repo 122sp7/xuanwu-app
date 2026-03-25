@@ -18,6 +18,8 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 | --- | --- | --- | --- |
 | Modules Architect | `modules-architect.agent.md` | Module lifecycle | Create, refactor, split, merge, delete modules under MDDD rules |
 | Module Boundary Steward | `modules-boundary-steward.agent.md` | Module work governance | Enforce ownership, layer placement, API boundaries, imports |
+| App Router Composer | `app/app-router-composer.agent.md` | App composition | Build `app/` route slices and parallel-route blocks that consume module APIs only |
+| Modules API Surface Steward | `modules/modules-api-surface-steward.agent.md` | Module public surface | Build `api/contracts.ts`, `api/facade.ts`, safe `interfaces/` usage, and clean `index.ts` exports |
 | Repo Architect | `repo-architect.agent.md` | Project bootstrap | Scaffold agentic project structures for VS Code or CLI workflows |
 | Serena Coding Agent | `serena.agent.md` | Serena-first execution | Activate project context, prefer symbol search, and keep edits localized |
 | QA Legacy | `qa-subagent.agent.md` | Legacy QA workflows | Historical test planning, edge-case analysis, verification |
@@ -43,3 +45,4 @@ Custom agents for the Xuanwu formal delivery chain: Plan → Implement → Revie
 - Keep handoff target names aligned with the visible custom agent names shown by VS Code diagnostics.
 - Prefer least-privilege `tools` lists and avoid unsupported tool aliases.
 - Use the Chat customization diagnostics view when an agent does not appear or a handoff fails to resolve.
+- Nested folders under `agents/` are valid and are now used for `app/` and `modules/`-specific personas.
