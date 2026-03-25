@@ -39,12 +39,12 @@ import {
 import { Separator } from "@ui-shadcn/ui/separator";
 import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
 import { WorkspaceFilesTab } from "@/modules/asset/api";
-import { WikiBetaWorkspaceView } from "@/modules/wiki-beta/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiBetaView } from "./WorkspaceWikiBetaView";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 import {
   getWorkspaceTabLabel,
@@ -500,7 +500,7 @@ export function WorkspaceDetailScreen({
       case "Files":
         return <WorkspaceFilesTab workspace={workspace} />;
       case "Wiki":
-        return <WikiBetaWorkspaceView workspace={workspace} />;
+        return <WorkspaceWikiBetaView workspace={workspace} />;
       case "Schedule":
         return (
           <WorkspaceSchedulingTab
