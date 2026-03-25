@@ -17,7 +17,6 @@ Read these in order before making non-trivial decisions:
 3. [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
 4. [agents/commands.md](../agents/commands.md) for build, lint, test, and deployment commands.
 5. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
-6. Contract-governed work: [development-contracts/overview.md](../docs/development-reference/reference/development-contracts/overview.md) and [development-contract-governance.md](../docs/diagrams-events-explanations/explanation/development-contract-governance.md).
 
 ## Workspace-Wide Operating Rules
 
@@ -56,7 +55,6 @@ Serena is mandatory for project memory, index management, and any `.serena/` ope
 
 - Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
 - Use boundary or contract skills only when the task actually crosses those concerns.
-- Treat [.github/mcp_to_agent_mapping.md](./mcp_to_agent_mapping.md) and [.github/mcp_to_agent_mapping.svg](./mcp_to_agent_mapping.svg) as the routing baseline.
 - Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
 
 ## Validation
