@@ -10,8 +10,8 @@ import { Badge } from "@ui-shadcn/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import { buildWikiBetaContentTree } from "../../application";
-import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "../../domain";
+import { buildWikiBetaContentTree } from "../../api";
+import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "../../api";
 
 const QUICK_ACCESS = [
   {

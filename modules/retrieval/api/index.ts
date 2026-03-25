@@ -36,3 +36,7 @@ export type {
 export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
 export { FirebaseRagRetrievalRepository } from "../infrastructure/firebase/FirebaseRagRetrievalRepository";
 export { GenkitRagGenerationRepository } from "../infrastructure/genkit/GenkitRagGenerationRepository";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+export { RagView } from "../interfaces/components/RagView";

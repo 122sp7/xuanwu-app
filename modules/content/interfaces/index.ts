@@ -22,3 +22,5 @@ export {
   getContentBlocks,
   getContentVersions,
 } from "./queries/content.queries";
+
+export { BlockEditorView } from "./components/BlockEditorView";
