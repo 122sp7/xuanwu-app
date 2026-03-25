@@ -71,8 +71,9 @@ Security rules are defined in `firestore.rules` at the repository root.
 | `workspace` | Workspace membership and role |
 | `account` | User account policies |
 | `identity` | Firebase Auth, token refresh |
-| `file` | `accessControl` array on RAG documents |
-| `ai` | `userRoles` passed to RAG retrieval |
+| `asset` | `accessControl` array on RAG documents |
+| `retrieval` | `userRoles` filtering in RAG retrieval |
+| `agent` | Orchestrated query context and actor-aware access flow |
 
 ## Adding New Permission Checks
 

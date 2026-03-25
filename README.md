@@ -17,7 +17,7 @@ A Next.js 16 knowledge-management and AI-assisted workspace platform built on Fi
 ```
 xuanwu-app/
 ├── app/              # Next.js App Router pages, layouts, route handlers
-├── modules/          # 20 MDDD business modules (bounded contexts)
+├── modules/          # 19 MDDD business modules (bounded contexts)
 ├── packages/         # Stable shared packages with TypeScript aliases
 ├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
 ├── agents/           # AI agent knowledge base and rules
@@ -49,7 +49,7 @@ npm run lint       # Run ESLint
 
 ```bash
 npm run deploy:firebase              # Deploy all Firebase resources
-npm run deploy:functions:python      # Deploy Python Cloud Functions only
+npm run deploy:functions:py-fn        # Deploy Python Cloud Functions only
 npm run deploy:rules                 # Deploy Firestore + Storage rules
 ```
 

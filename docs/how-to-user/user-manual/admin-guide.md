@@ -184,7 +184,7 @@
 npm run deploy:firebase
 
 # 僅部署 Python Cloud Functions
-npm run deploy:functions:python
+npm run deploy:functions:py-fn
 
 # 僅部署 Firestore + Storage 規則
 npm run deploy:rules

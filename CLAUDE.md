@@ -6,7 +6,7 @@ Quick reference for Claude working in this Next.js 16 + MDDD repository.
 
 **Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
 
-**Architecture**: Module-Driven Domain Design (MDDD) — 20+ bounded-context modules
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
 
 **Essential**: Read AGENTS.md for rules, commands, and patterns.
 

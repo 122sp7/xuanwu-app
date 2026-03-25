@@ -11,7 +11,7 @@ Use consistent naming in module specifications and architecture docs so ownershi
 
 | Type | Naming |
 | --- | --- |
-| Module directory | `kebab-case` bounded-context name, e.g. `workspace-planner`, `content` |
+| Module directory | `kebab-case` bounded-context name, e.g. `workspace-scheduling`, `content` |
 | Module public API folder | `api/` |
 | Module barrel | `index.ts` |
 | Module README | `README.md` |

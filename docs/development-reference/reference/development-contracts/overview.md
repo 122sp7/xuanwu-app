@@ -29,7 +29,7 @@ Implementation areas rely on implied boundaries. Contracts convert these into ex
 
 - RAG lifecycle and runtime ADRs: `docs/decision-architecture/adr/`
 - MDDD architecture: [agents/knowledge-base.md](../../../../agents/knowledge-base.md)
-- File module plan: [modules/file/README.md](../../../../modules/file/README.md)
+- Asset module plan: [modules/asset/README.md](../../../../modules/asset/README.md)
 
 ## Rollout order
 

@@ -93,6 +93,6 @@ import { format } from "@lib-date-fns";
 
 > **Note:** `py_fn/` is a Python Firebase Functions codebase and is **not** a TypeScript
 > package. It lives at the project root as a first-class deployment artifact (Firebase codebase name
-> `py_fn`). It is deployed via `npm run deploy:functions:python` and uses its own
+> `py_fn`). It is deployed via `npm run deploy:functions:py-fn` and uses its own
 > `pyproject.toml` / `requirements.txt`. It is **not** imported by TypeScript code — interactions
 > happen through Firebase callable functions and Firestore triggers.

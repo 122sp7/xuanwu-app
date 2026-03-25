@@ -11,22 +11,22 @@ tags: architecture, mddd, hexagonal, ports, adapters
 
 For modules with complex cross-cutting dependencies (permissions, tenant policies, actor context), use the hexagonal ports pattern. The domain layer defines **port interfaces** that describe what it needs; the infrastructure layer provides **adapters** that implement them.
 
-**Reference implementation: `modules/file/`**
+**Reference implementation: `modules/asset/`**
 
 ```
-modules/file/
+modules/asset/
   domain/
     ports/
       ActorContextPort.ts           # Who is acting?
       WorkspaceGrantPort.ts         # What can they do in this workspace?
       OrganizationPolicyPort.ts     # What does the tenant allow?
     entities/
-      File.ts
+      RagDocument.ts
     repositories/
-      FileRepository.ts
+      RagDocumentRepository.ts
   application/
     use-cases/
-      upload-init-file.use-case.ts  # Orchestrates via ports
+      register-uploaded-rag-document.use-case.ts  # Orchestrates via ports
   infrastructure/
     firebase/
       FirebaseActorContextAdapter.ts
@@ -50,20 +50,20 @@ export default async function FilesPage() {
 **Correct (access decisions flow through use cases via ports):**
 
 ```typescript
-// modules/file/domain/ports/OrganizationPolicyPort.ts
+// modules/asset/domain/ports/OrganizationPolicyPort.ts
 export interface OrganizationPolicyPort {
   allowsFileUpload(organizationId: string): Promise<boolean>;
 }
 
-// modules/file/application/use-cases/upload-init-file.use-case.ts
-export class UploadInitFileUseCase {
+// modules/asset/application/use-cases/register-uploaded-rag-document.use-case.ts
+export class RegisterUploadedRagDocumentUseCase {
   constructor(
     private readonly actorContext: ActorContextPort,
     private readonly orgPolicy: OrganizationPolicyPort,
-    private readonly fileRepo: FileRepository,
+    private readonly ragDocumentRepo: RagDocumentRepository,
   ) {}
 
-  async execute(input: UploadInitInput): Promise<CommandResult<File>> {
+  async execute(input: RegisterUploadedRagDocumentInput): Promise<CommandResult<RagDocumentRecord>> {
     const actor = await this.actorContext.resolve();
     const allowed = await this.orgPolicy.allowsFileUpload(actor.organizationId);
     if (!allowed) return { success: false, error: new DomainError("upload-forbidden") };

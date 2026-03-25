@@ -28,6 +28,7 @@ Use the following status flow for issues, tasks, and features:
 1. Read [`agents/README.md`](agents/README.md) — rules index and overview
 2. Read [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
 3. Read [`agents/commands.md`](agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
 ## Key Rules
 

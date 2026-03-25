@@ -20,7 +20,7 @@
 - `npm run deploy:rules` — Deploy Firestore rules + Storage rules
 - `npm run deploy:apphosting` — Deploy App Hosting configuration
 - `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:python` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
 - `npm run deploy:functions:all` — Deploy all Cloud Functions
 
 ## Repomix (AI Skill Generation)
