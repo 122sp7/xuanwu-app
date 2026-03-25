@@ -51,7 +51,7 @@
 用戶通過視覺化圖譜探索知識邊界，發現未直接連結但語義相關的內容。
 
 - **Actor**: Researcher
-- **Primary Module**: `modules/graph`
+- **Primary Module**: `modules/knowledge-graph`
 - **Supporting Modules**: `modules/knowledge`
 
 ### Main Flow

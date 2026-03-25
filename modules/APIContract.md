@@ -59,7 +59,7 @@ interface GraphDataDTO {
 }
 ```
 
-## 4. Intelligence Module API (`modules/ai/api`)
+## 4. Agent Module API (`modules/agent/api`)
 
 ### Actions
 - `streamChat(messages: Message[], context: ContextFilter): Promise<ReadableStream>`
