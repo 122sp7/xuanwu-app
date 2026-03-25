@@ -366,16 +366,14 @@ export function CustomizeNavigationDialog({
 }: CustomizeNavigationDialogProps) {
   const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
-  const [uiLocale, setUiLocale] = useState<"zh" | "en">("zh");
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-
-  useEffect(() => {
+  const uiLocale = useMemo<"zh" | "en">(() => {
     if (typeof navigator === "undefined") {
-      return;
+      return "zh";
     }
     const language = navigator.language?.toLowerCase() ?? "";
-    setUiLocale(language.startsWith("zh") ? "zh" : "en");
+    return language.startsWith("zh") ? "zh" : "en";
   }, []);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {

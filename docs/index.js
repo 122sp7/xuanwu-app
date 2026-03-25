@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const decisionArchitecture = require("./decision-architecture");
 const developmentReference = require("./development-reference");
 const diagramsEventsExplanations = require("./diagrams-events-explanations");

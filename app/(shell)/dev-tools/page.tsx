@@ -92,30 +92,56 @@ function deriveJsonUri(gcsUri: string): string {
   return `gs://${bucket}/files/${stem}.json`;
 }
 
-function mapSnapshotDoc(doc: any): DocRecord {
-  const data = doc.data() as any;
-  const source = data?.source || {};
-  const parsed = data?.parsed || {};
-  const rag = data?.rag || {};
-  const err = data?.error || {};
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return value;
+  }
+  if (value && typeof value === "object" && "toDate" in value) {
+    const candidate = (value as { toDate?: unknown }).toDate;
+    if (typeof candidate === "function") {
+      const converted = candidate();
+      return converted instanceof Date ? converted : null;
+    }
+  }
+  return null;
+}
+
+function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
+  const data = asRecord(doc.data());
+  const source = asRecord(data.source);
+  const parsed = asRecord(data.parsed);
+  const rag = asRecord(data.rag);
+  const err = asRecord(data.error);
 
   return {
     id: doc.id,
-    status: data?.status || "unknown",
-    filename: source.filename || doc.id,
-    gcs_uri: source.gcs_uri || "",
-    uploaded_at: source.uploaded_at?.toDate?.() ?? null,
-    page_count: parsed.page_count,
-    json_gcs_uri: parsed.json_gcs_uri || deriveJsonUri(source.gcs_uri || ""),
-    error_message: err.message,
-    rag_status: rag.status || "",
-    rag_chunk_count: rag.chunk_count,
-    rag_vector_count: rag.vector_count,
-    rag_raw_chars: rag.raw_chars,
-    rag_normalized_chars: rag.normalized_chars,
-    rag_normalization_version: rag.normalization_version,
-    rag_language_hint: rag.language_hint,
-    rag_error: rag.error,
+    status: asString(data.status, "unknown"),
+    filename: asString(source.filename, doc.id),
+    gcs_uri: asString(source.gcs_uri),
+    uploaded_at: asDate(source.uploaded_at),
+    page_count: asNumber(parsed.page_count),
+    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
+    error_message: asString(err.message) || undefined,
+    rag_status: asString(rag.status) || undefined,
+    rag_chunk_count: asNumber(rag.chunk_count),
+    rag_vector_count: asNumber(rag.vector_count),
+    rag_raw_chars: asNumber(rag.raw_chars),
+    rag_normalized_chars: asNumber(rag.normalized_chars),
+    rag_normalization_version: asString(rag.normalization_version) || undefined,
+    rag_language_hint: asString(rag.language_hint) || undefined,
+    rag_error: asString(rag.error) || undefined,
   };
 }
 
@@ -246,22 +272,22 @@ export default function DevToolsPage() {
           return;
         }
 
-        const data = snapshot.data() as any;
-        const docStatus = data?.status || "unknown";
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
 
         appendLog(`Firestore update: status=${docStatus}`);
 
         if (docStatus === "completed") {
-          const parsed = data?.parsed || {};
+          const parsed = asRecord(data.parsed);
           const result: ParseResult = {
             doc_id: docId,
             status: "completed",
-            page_count: parsed.page_count || 0,
-            json_gcs_uri: parsed.json_gcs_uri || "",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
           };
           setResult(result);
           setStatus("done");
-          appendLog(`✅ 解析完成：${parsed.page_count} 頁`);
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
 
           // 取消監聽
           if (unsubscribeRef.current) {
@@ -269,8 +295,8 @@ export default function DevToolsPage() {
             unsubscribeRef.current = null;
           }
         } else if (docStatus === "error") {
-          const error = data?.error || {};
-          const msg = error.message || "未知錯誤";
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
           setErrorMsg(msg);
           setStatus("error");
           appendLog(`❌ 錯誤：${msg}`);

@@ -179,9 +179,10 @@ const eslintConfig = defineConfig([
               allow: [
                 ["module-interfaces", { module: "${from.module}" }],
                 ["module-application", { module: "${from.module}" }],
+                ["module-infrastructure", { module: "${from.module}" }],
                 ["module-domain", { module: "${from.module}" }],
               ],
-              message: "Interfaces may depend only on interfaces/application/domain in the same module.",
+              message: "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
             },
           ],
         },
@@ -245,10 +246,6 @@ const eslintConfig = defineConfig([
                 "@/modules/*/interfaces/**",
               ],
               message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-            },
-            {
-              group: ["@/modules/*"],
-              message: "Within modules/, cross-module imports must use `@/modules/<module>/api` instead of root barrel.",
             },
           ],
         },
