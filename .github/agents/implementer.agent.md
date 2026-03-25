@@ -6,7 +6,7 @@ model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Review Implementation
-    agent: reviewer
+    agent: Reviewer
     prompt: Review the completed implementation against the approved plan. Prioritize correctness, MDDD boundaries, contract alignment, validation coverage, and missing documentation.
     send: false
 ---

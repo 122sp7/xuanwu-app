@@ -6,7 +6,7 @@ model: 'GPT-5.3-Codex'
 target: 'vscode'
 handoffs:
   - label: Fix QA Findings
-    agent: implementer
+    agent: Implementer
     prompt: Fix the QA findings above, rerun the required validation, and prepare the change for another QA pass.
     send: false
 ---
