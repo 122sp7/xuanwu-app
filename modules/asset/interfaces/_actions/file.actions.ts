@@ -15,7 +15,10 @@ import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-co
 import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
 import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
 import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import { KnowledgeIngestionApi } from "@/modules/knowledge/api";
 import type { FileCommandResult } from "../contracts/file-command-result";
+
+const knowledgeIngestionApi = new KnowledgeIngestionApi();
 
 function createCommandId(idempotencyKey?: string) {
   const normalized = idempotencyKey?.trim();
@@ -42,12 +45,34 @@ export async function uploadInitFile(
 export async function uploadCompleteFile(
   input: UploadCompleteFileInputDto,
 ): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
+  const fileRepository = new FirebaseFileRepository();
   const useCase = new UploadCompleteFileUseCase(
-    new FirebaseFileRepository(),
+    fileRepository,
     new FirebaseRagDocumentRepository(),
   );
   const commandId = createCommandId(input.versionId);
   const result = await useCase.execute(input);
+
+  // Best-effort handoff: upload completion can proceed even if ingestion registration fails.
+  if (result.ok) {
+    const file = await fileRepository.findById(input.fileId);
+
+    const registration = await knowledgeIngestionApi.registerDocument({
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      sourceFileId: input.fileId,
+      title: file?.name ?? `uploaded-file-${input.fileId}`,
+      mimeType: file?.mimeType ?? "application/octet-stream",
+    });
+
+    if (!registration.ok && process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[uploadCompleteFile] Knowledge ingestion registration failed:",
+        registration.error.code,
+        registration.error.message,
+      );
+    }
+  }
 
   return {
     ...result,

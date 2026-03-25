@@ -91,7 +91,20 @@
 
 ### Implementation progress
 - Completed phase1 boundary cleanup on 2026-03-25.
-- Next recommended implementation step: compress `modules/file` toward pure bridge-only shape, then rebuild `modules/knowledge` as the real ingestion owner.
+- Completed phase2 file-retirement increment on 2026-03-25: `modules/file` internal `application/domain/infrastructure/interfaces` directories were removed, leaving bridge-only exports through `modules/file/api` and `modules/file/index.ts`.
+- Validation for phase2 increment passed: targeted ESLint clean and full `npm run build` success.
+- Completed phase3 bootstrap increment on 2026-03-25 for `modules/knowledge` Layer 2 ownership:
+  - added ingestion domain entities (`IngestionDocument`, `IngestionChunk`, `IngestionJob`) and status transition rules,
+  - added ingestion repository contract and in-memory implementation,
+  - added application use-cases (`register-ingestion-document`, `advance-ingestion-stage`),
+  - added `KnowledgeIngestionApi` and exported it via `modules/knowledge/api/index.ts` while preserving temporary knowledge-graph compatibility bridge exports.
+- Validation for phase3 bootstrap increment passed: `npx eslint modules/knowledge` clean and full `npm run build` success.
+- Completed phase3 integration increment on 2026-03-25:
+  - wired `modules/asset/interfaces/_actions/file.actions.ts` `uploadCompleteFile` to call `KnowledgeIngestionApi.registerDocument` as a best-effort handoff,
+  - kept upload completion behavior non-blocking even when ingestion registration fails,
+  - added development-time warning logs for failed ingestion registration attempts.
+- Validation for phase3 integration increment passed: full `npm run build` success after integration.
+- Next recommended implementation step: replace bootstrap placeholder metadata (`title`/`mimeType`) in ingestion handoff with canonical values from asset/file repository read model, then begin extraction of retrieval responsibilities from `modules/ai` into `modules/retrieval`.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.

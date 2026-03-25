@@ -5,6 +5,13 @@
  * This barrel is a temporary re-export bridge.
  * This module (knowledge) is being repurposed for Layer 2 Ingestion Pipeline.
  */
+export { KnowledgeIngestionApi } from "./knowledge-ingestion-api";
+
+export type {
+	IngestionJob,
+	IngestionStatus,
+} from "../domain/entities/IngestionJob";
+
 export type { Link, LinkType } from "../../knowledge-graph/domain/entities/link";
 export type { GraphNode, GraphNodeType } from "../../knowledge-graph/domain/entities/graph-node";
 export type { GraphRepository } from "../../knowledge-graph/domain/repositories/GraphRepository";
