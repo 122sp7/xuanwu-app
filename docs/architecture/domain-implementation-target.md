@@ -12,9 +12,11 @@
 
 ## 結論
 
-專案完整目標為 19 個領域（bounded contexts）。
+專案完整目標為 18 個領域（bounded contexts）。
 
-## 19 個目標領域
+`wiki-beta` 不作為最終獨立領域，定位為過渡期整合殼層，需依代碼職責拆分回正式領域。
+
+## 18 個目標領域
 
 1. account
 2. agent
@@ -29,12 +31,48 @@
 11. organization
 12. retrieval
 13. shared
-14. wiki-beta
-15. workspace
-16. workspace-audit
-17. workspace-feed
-18. workspace-flow
-19. workspace-scheduling
+14. workspace
+15. workspace-audit
+16. workspace-feed
+17. workspace-flow
+18. workspace-scheduling
+
+## wiki-beta 分解原則（依代碼性質）
+
+`modules/wiki-beta` 目前屬於混合職責模組，應分解到以下領域：
+
+1. content
+- pages、block editor、content tree、頁面編輯互動
+
+2. asset
+- libraries、documents、檔案清單與資源管理
+
+3. knowledge
+- 文件語意層、知識索引前置資料、知識庫視圖整合
+
+4. knowledge-graph
+- page relation、backlinks、taxonomy 或 graph 結構化關聯
+
+5. retrieval
+- rag query、檢索流程、context assembly、回答編排
+
+6. workspace
+- workspace 視圖組裝與工作區範圍上下文
+
+## wiki-beta 分解對照（use-case 粗映射）
+
+- `wiki-beta-pages.use-case.ts` -> content
+- `wiki-beta-content-tree.use-case.ts` -> content + knowledge-graph
+- `wiki-beta-libraries.use-case.ts` -> asset
+- `wiki-beta-rag.use-case.ts` -> retrieval + knowledge
+- `interfaces/components/WikiBeta*View.tsx` -> 對應領域 interfaces，保留 API-only 使用
+
+## 過渡策略
+
+1. 先凍結 `wiki-beta` 新能力開發，只允許修復。
+2. 新功能直接落在目標領域，不再新增 `wiki-beta` 內部職責。
+3. 逐步搬移 use-case、repository、interfaces 到目標領域。
+4. 以 `wiki-beta/api` 作為過渡 facade，最終下線。
 
 ## 邊界規則
 
@@ -48,8 +86,10 @@
   - identity, organization, workspace, content, knowledge, retrieval, notification, event
 - Phase 2（協作與治理）: 6 個領域
   - account, asset, namespace, workspace-feed, workspace-flow, workspace-audit
-- Phase 3（排程與智能能力）: 5 個領域
-  - workspace-scheduling, wiki-beta, agent, shared, knowledge-graph
+- Phase 3（排程與智能能力）: 4 個領域
+  - workspace-scheduling, agent, shared, knowledge-graph
+- Phase 4（收斂與下線）: wiki-beta 分解完成
+  - wiki-beta 殼層下線
 
 ## 驗收標準
 
