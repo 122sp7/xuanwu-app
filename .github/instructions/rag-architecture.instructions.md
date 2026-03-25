@@ -11,7 +11,7 @@ applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx
 - Keep retrieval metadata auditable and source-traceable.
 - Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

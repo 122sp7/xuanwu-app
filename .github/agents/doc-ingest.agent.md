@@ -32,7 +32,7 @@ handoffs:
 - Align outputs with chunk and embedding contracts.
 - Flag notable format-loss risk when source conversion may affect downstream retrieval.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

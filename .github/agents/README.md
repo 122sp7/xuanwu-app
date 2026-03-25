@@ -60,7 +60,7 @@ In this repository, folder responsibility is documented in each agent body under
 - Update handoffs when agent responsibilities move.
 - Update Serena memory after non-trivial agent-configuration changes.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

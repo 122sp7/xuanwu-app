@@ -14,7 +14,7 @@ argument-hint: Provide API intent, owner module, consumers, and compatibility co
 - Include compatibility and migration strategy.
 - Specify validation and documentation updates.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

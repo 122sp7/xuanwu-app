@@ -14,7 +14,7 @@ argument-hint: Provide component goal, route scope, and interaction states.
 3. Implement states: loading, empty, error, success.
 4. Validate accessibility and interaction behavior.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

@@ -43,7 +43,7 @@ Use this agent to define execution strategy before coding.
 - Do not start implementation while scope is still ambiguous.
 - Do not invoke broad MCP tools when built-in repository context is sufficient.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

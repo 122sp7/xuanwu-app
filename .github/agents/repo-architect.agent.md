@@ -43,4 +43,4 @@ Bootstrap, validate, and simplify repository customization structure without tur
 - Prefer updating existing customization assets over introducing parallel frameworks.
 - Treat Serena memory updates as mandatory for non-trivial customization work.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 

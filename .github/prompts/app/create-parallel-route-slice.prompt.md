@@ -33,7 +33,7 @@ Create or refactor a route slice in `app/` that composes one feature block and k
 - Validation run
 - Any remaining route-state or boundary risks
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

@@ -31,7 +31,7 @@ handoffs:
 - Keep schema and index plans aligned with read and write paths.
 - Track migration impact and backward compatibility.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

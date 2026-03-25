@@ -11,7 +11,7 @@ applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
 - Keep deploy scope explicit (hosting, rules, indexes, functions).
 - Record rollback path for production-impacting changes.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

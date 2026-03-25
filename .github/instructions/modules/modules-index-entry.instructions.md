@@ -23,7 +23,7 @@ Use this instruction for module root `index.ts` files.
 
 - Verify that app-layer or cross-module imports still resolve through the intended public surface.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

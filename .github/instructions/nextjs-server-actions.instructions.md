@@ -13,7 +13,7 @@ applyTo: '{app,modules}/**/*.{ts,tsx}'
 - Validate inputs at action boundaries using shared validators where applicable.
 - Keep infrastructure access out of route files and action wrappers.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

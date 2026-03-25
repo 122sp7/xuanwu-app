@@ -8,7 +8,7 @@ Keep app-specific notes or future compatibility shims here if nested agent disco
 
 Execution baseline: autonomous Serena-first discovery, Context7 only when repo docs are insufficient, and apply `xuanwu-app-skill` for repository-specific patterns.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

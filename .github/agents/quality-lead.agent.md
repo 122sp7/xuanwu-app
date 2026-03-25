@@ -50,7 +50,7 @@ Verify correctness, boundary safety, and release readiness.
 - Evidence and reproduction details
 - Residual risks and recommendation: ready, ready-with-risk, blocked
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

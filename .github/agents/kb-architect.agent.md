@@ -42,7 +42,7 @@ handoffs:
 - Do not change technical meaning while restructuring docs.
 - Keep docs aligned with current module boundaries and contracts.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers

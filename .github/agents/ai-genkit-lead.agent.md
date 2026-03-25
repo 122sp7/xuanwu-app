@@ -35,7 +35,7 @@ handoffs:
 - Keep auth and chat orchestration in Next.js.
 - Keep parsing, chunking, embedding in py_fn workers.
 
-Tags: #use skill context7 #use skill .serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
 #use skill slavingia-skills-find-community
 #use skill slavingia-skills-first-customers
