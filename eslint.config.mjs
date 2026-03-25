@@ -9,6 +9,167 @@ const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const typescriptFileGlobs = ["**/*.{ts,tsx}"];
 const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
 const boundaryRuleSeverity = "warn";
+const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
+
+const moduleApiEntrypointMessage =
+  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+
+const moduleApiEntrypointPattern = {
+  regex: "^@/modules/(?!system$)[^/]+$",
+  message: moduleApiEntrypointMessage,
+};
+
+const explicitIndexPathPattern = {
+  group: ["**/index", "**/index.ts", "**/index.tsx"],
+  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+};
+
+const moduleInternalLayerPattern = {
+  group: [
+    "@/modules/*/application/**",
+    "@/modules/*/domain/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+  ],
+  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+};
+
+const moduleElements = [
+  {
+    type: "module-root",
+    pattern: "modules/*/index.ts",
+    capture: ["module"],
+  },
+  {
+    type: "module-api",
+    pattern: "modules/*/api/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-domain",
+    pattern: "modules/*/domain/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-application",
+    pattern: "modules/*/application/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-infrastructure",
+    pattern: "modules/*/infrastructure/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-interfaces",
+    pattern: "modules/*/interfaces/**/*",
+    capture: ["module"],
+  },
+];
+
+const sameModuleCapture = { module: "{{from.captured.module}}" };
+const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
+
+const crossModuleApiRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [{ to: { type: "module-api" } }],
+  message: "Cross-module imports must go through `modules/<target>/api`.",
+}));
+
+const sameModuleRootRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [sameModuleTarget("module-root")],
+  message: "Module root barrel is allowed only for the same module.",
+}));
+
+const apiLayerRule = {
+  from: { type: "module-api" },
+  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
+  message: "API layer may depend only on same-module layers.",
+};
+
+const sameModuleLayerAllowMap = {
+  "module-domain": ["module-domain"],
+  "module-application": ["module-application", "module-domain"],
+  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
+  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
+};
+
+const sameModuleLayerMessageMap = {
+  "module-domain": "Domain may only depend on domain of the same module.",
+  "module-application": "Application may depend only on application/domain in the same module.",
+  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
+  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
+};
+
+const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
+  message: sameModuleLayerMessageMap[type],
+}));
+
+const moduleDependencyRules = [
+  ...crossModuleApiRules,
+  ...sameModuleRootRules,
+  apiLayerRule,
+  ...sameModuleLayerRules,
+];
+
+const packageAliasMigrationPatterns = [
+  {
+    group: ["@/shared/*"],
+    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
+  },
+  {
+    group: ["@/infrastructure/*"],
+    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
+  },
+  {
+    group: ["@/libs/*"],
+    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
+  },
+  {
+    group: ["@/ui/shadcn/*"],
+    message: "Use @ui-shadcn/* instead.",
+  },
+  {
+    group: ["@/ui/vis", "@/ui/vis/*"],
+    message: "Use @ui-vis instead.",
+  },
+  {
+    group: ["@/interfaces/*"],
+    message: "Use @api-contracts instead.",
+  },
+];
+
+const wikiIsolationPatterns = [
+  {
+    group: ["@/modules/wiki-beta", "@/modules/wiki-beta/*"],
+    message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta。",
+  },
+  {
+    group: ["@/app/(shell)/wiki-beta", "@/app/(shell)/wiki-beta/*"],
+    message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta route。",
+  },
+];
+
+const wikiBetaIsolationPatterns = [
+  {
+    group: ["@/modules/wiki", "@/modules/wiki/*"],
+    message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki。",
+  },
+  {
+    group: ["@/app/(shell)/wiki", "@/app/(shell)/wiki/*"],
+    message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki route。",
+  },
+];
+
+const createRestrictedImportsRule = (patterns) => [
+  boundaryRuleSeverity,
+  {
+    patterns,
+  },
+];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -93,164 +254,14 @@ const eslintConfig = defineConfig([
     },
     settings: {
       "boundaries/include": moduleFileGlobs,
-      "boundaries/elements": [
-        {
-          type: "module-root",
-          pattern: "modules/*/index.ts",
-          capture: ["module"],
-        },
-        {
-          type: "module-api",
-          pattern: "modules/*/api/**/*",
-          capture: ["module"],
-        },
-        {
-          type: "module-domain",
-          pattern: "modules/*/domain/**/*",
-          capture: ["module"],
-        },
-        {
-          type: "module-application",
-          pattern: "modules/*/application/**/*",
-          capture: ["module"],
-        },
-        {
-          type: "module-infrastructure",
-          pattern: "modules/*/infrastructure/**/*",
-          capture: ["module"],
-        },
-        {
-          type: "module-interfaces",
-          pattern: "modules/*/interfaces/**/*",
-          capture: ["module"],
-        },
-      ],
+      "boundaries/elements": moduleElements,
     },
     rules: {
       "boundaries/dependencies": [
         boundaryRuleSeverity,
         {
           default: "disallow",
-          rules: [
-            {
-              from: { type: "module-domain" },
-              allow: [{ to: { type: "module-api" } }],
-              message: "Cross-module imports must go through `modules/<target>/api`.",
-            },
-            {
-              from: { type: "module-application" },
-              allow: [{ to: { type: "module-api" } }],
-              message: "Cross-module imports must go through `modules/<target>/api`.",
-            },
-            {
-              from: { type: "module-infrastructure" },
-              allow: [{ to: { type: "module-api" } }],
-              message: "Cross-module imports must go through `modules/<target>/api`.",
-            },
-            {
-              from: { type: "module-interfaces" },
-              allow: [{ to: { type: "module-api" } }],
-              message: "Cross-module imports must go through `modules/<target>/api`.",
-            },
-            {
-              from: { type: "module-domain" },
-              allow: [
-                {
-                  to: {
-                    type: "module-root",
-                    captured: { module: "{{from.captured.module}}" },
-                  },
-                },
-              ],
-              message: "Module root barrel is allowed only for the same module.",
-            },
-            {
-              from: { type: "module-application" },
-              allow: [
-                {
-                  to: {
-                    type: "module-root",
-                    captured: { module: "{{from.captured.module}}" },
-                  },
-                },
-              ],
-              message: "Module root barrel is allowed only for the same module.",
-            },
-            {
-              from: { type: "module-infrastructure" },
-              allow: [
-                {
-                  to: {
-                    type: "module-root",
-                    captured: { module: "{{from.captured.module}}" },
-                  },
-                },
-              ],
-              message: "Module root barrel is allowed only for the same module.",
-            },
-            {
-              from: { type: "module-interfaces" },
-              allow: [
-                {
-                  to: {
-                    type: "module-root",
-                    captured: { module: "{{from.captured.module}}" },
-                  },
-                },
-              ],
-              message: "Module root barrel is allowed only for the same module.",
-            },
-            {
-              from: { type: "module-api" },
-              allow: [
-                { to: { type: "module-api", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-interfaces", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-infrastructure", captured: { module: "{{from.captured.module}}" } } },
-              ],
-              message: "API layer may depend only on same-module layers.",
-            },
-            {
-              from: { type: "module-domain" },
-              allow: [
-                {
-                  to: {
-                    type: "module-domain",
-                    captured: { module: "{{from.captured.module}}" },
-                  },
-                },
-              ],
-              message: "Domain may only depend on domain of the same module.",
-            },
-            {
-              from: { type: "module-application" },
-              allow: [
-                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
-              ],
-              message: "Application may depend only on application/domain in the same module.",
-            },
-            {
-              from: { type: "module-infrastructure" },
-              allow: [
-                { to: { type: "module-infrastructure", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
-              ],
-              message: "Infrastructure may depend only on infrastructure/application/domain in the same module.",
-            },
-            {
-              from: { type: "module-interfaces" },
-              allow: [
-                { to: { type: "module-interfaces", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-application", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-infrastructure", captured: { module: "{{from.captured.module}}" } } },
-                { to: { type: "module-domain", captured: { module: "{{from.captured.module}}" } } },
-              ],
-              message: "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
-            },
-          ],
+          rules: moduleDependencyRules,
         },
       ],
     },
@@ -259,37 +270,7 @@ const eslintConfig = defineConfig([
   // Forbid legacy import paths that were migrated to packages/*.
   {
     rules: {
-      "no-restricted-imports": [
-        boundaryRuleSeverity,
-        {
-          patterns: [
-            {
-              group: ["@/shared/*"],
-              message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
-            },
-            {
-              group: ["@/infrastructure/*"],
-              message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
-            },
-            {
-              group: ["@/libs/*"],
-              message: "Use the corresponding @lib-* or @integration-* package alias instead.",
-            },
-            {
-              group: ["@/ui/shadcn/*"],
-              message: "Use @ui-shadcn/* instead.",
-            },
-            {
-              group: ["@/ui/vis", "@/ui/vis/*"],
-              message: "Use @ui-vis instead.",
-            },
-            {
-              group: ["@/interfaces/*"],
-              message: "Use @api-contracts instead.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
     },
   },
   // ─── Strict module entrypoint enforcement ───────────────────────────────
@@ -300,88 +281,31 @@ const eslintConfig = defineConfig([
       "debug/**/*.{ts,tsx,js,jsx}",
     ],
     rules: {
-      "no-restricted-imports": [
-        boundaryRuleSeverity,
-        {
-          patterns: [
-            {
-              regex: "^@/modules/(?!system$)[^/]+$",
-              message: "Module imports must use `@/modules/<module>/api` only (except approved system facade).",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": createRestrictedImportsRule([moduleApiEntrypointPattern]),
     },
   },
   // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
   {
     files: moduleFileGlobs,
     rules: {
-      "no-restricted-imports": [
-        boundaryRuleSeverity,
-        {
-          patterns: [
-            {
-              group: ["**/index", "**/index.ts", "**/index.tsx"],
-              message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-            },
-            {
-              regex: "^@/modules/(?!system$)[^/]+$",
-              message: "Module imports must use `@/modules/<module>/api` only (except approved system facade).",
-            },
-            {
-              group: [
-                "@/modules/*/application/**",
-                "@/modules/*/domain/**",
-                "@/modules/*/infrastructure/**",
-                "@/modules/*/interfaces/**",
-              ],
-              message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": createRestrictedImportsRule([
+        explicitIndexPathPattern,
+        moduleApiEntrypointPattern,
+        moduleInternalLayerPattern,
+      ]),
     },
   },
   // ─── Wiki / Wiki-Beta isolation boundaries ───────────────────────────────
   {
     files: ["modules/wiki/**/*.{ts,tsx}", "app/(shell)/wiki/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": [
-        boundaryRuleSeverity,
-        {
-          patterns: [
-            {
-              group: ["@/modules/wiki-beta", "@/modules/wiki-beta/*"],
-              message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta。",
-            },
-            {
-              group: ["@/app/(shell)/wiki-beta", "@/app/(shell)/wiki-beta/*"],
-              message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta route。",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": createRestrictedImportsRule(wikiIsolationPatterns),
     },
   },
   {
     files: ["modules/wiki-beta/**/*.{ts,tsx}", "app/(shell)/wiki-beta/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": [
-        boundaryRuleSeverity,
-        {
-          patterns: [
-            {
-              group: ["@/modules/wiki", "@/modules/wiki/*"],
-              message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki。",
-            },
-            {
-              group: ["@/app/(shell)/wiki", "@/app/(shell)/wiki/*"],
-              message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki route。",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": createRestrictedImportsRule(wikiBetaIsolationPatterns),
     },
   },
   // Override default ignores of eslint-config-next.
