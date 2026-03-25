@@ -10,6 +10,7 @@ user-invocable: false
 disable-model-invocation: true
 ---
 
+# serena執行失敗：run uvx --from git+https://github.com/oraios/serena serena start-mcp-server 
 # .serena-mcp (Condensed)
 
 ## Scope
