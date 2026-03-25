@@ -10,3 +10,29 @@ export type {
   VectorDocument,
   VectorSearchResult,
 } from "../domain/ports/vector-store";
+
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "../domain/entities/RagQuery";
+
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "../domain/repositories/RagRetrievalRepository";
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "../domain/repositories/RagGenerationRepository";
+
+export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+export { FirebaseRagRetrievalRepository } from "../infrastructure/firebase/FirebaseRagRetrievalRepository";
+export { GenkitRagGenerationRepository } from "../infrastructure/genkit/GenkitRagGenerationRepository";

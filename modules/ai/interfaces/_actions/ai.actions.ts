@@ -4,12 +4,12 @@ import type {
   GenerateAIResponseInput,
   GenerateAIResponseResult,
 } from "../../domain/entities/AIGeneration";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "../../domain/entities/RagQuery";
-import { AnswerRagQueryUseCase } from "../../application/use-cases/answer-rag-query.use-case";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/retrieval/api";
+import { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
 import { GenerateAIResponseUseCase } from "../../application/use-cases/generate-ai-response.use-case";
-import { FirebaseRagRetrievalRepository } from "../../infrastructure/firebase/FirebaseRagRetrievalRepository";
+import { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
 import { GenkitAIRepository } from "../../infrastructure/genkit/GenkitAIRepository";
-import { GenkitRagGenerationRepository } from "../../infrastructure/genkit/GenkitRagGenerationRepository";
+import { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
 
 export async function generateAIResponse(
   input: GenerateAIResponseInput,

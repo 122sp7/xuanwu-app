@@ -108,7 +108,13 @@
   - ingestion handoff now resolves canonical `title` and `mimeType` by reading file metadata from `FirebaseFileRepository.findById` before calling `KnowledgeIngestionApi.registerDocument`,
   - fallback placeholder values are kept only when file metadata cannot be resolved.
 - Validation for phase3 refinement increment passed: targeted ESLint clean and full `npm run build` success.
-- Next recommended implementation step: start extraction of retrieval responsibilities from `modules/ai` into `modules/retrieval` (begin with `AnswerRagQueryUseCase` and retrieval repository contracts).
+- Completed phase4 retrieval-extraction increment on 2026-03-25:
+  - added retrieval-owned RagQuery contracts, retrieval/generation repository interfaces, retrieval AnswerRagQueryUseCase, and FirebaseRagRetrievalRepository under `modules/retrieval`,
+  - expanded `modules/retrieval/api/index.ts` to expose those retrieval surfaces,
+  - switched `modules/ai/interfaces/_actions/ai.actions.ts` to consume retrieval-owned `AnswerRagQueryUseCase` and `FirebaseRagRetrievalRepository`,
+  - converted `modules/ai/application/use-cases/answer-rag-query.use-case.ts` into a temporary compatibility bridge re-export.
+- Validation for phase4 increment passed: targeted ESLint clean and full `npm run build` success.
+- Next recommended implementation step: continue phase4 by migrating `RagGenerationRepository` implementation ownership (or adapter ownership) and then deprecate redundant retrieval-side contracts under `modules/ai/domain`.
 
 ### Open Questions
 - Decide whether thread/message/session contracts live entirely in agent or are split between retrieval session memory and agent conversation orchestration.
