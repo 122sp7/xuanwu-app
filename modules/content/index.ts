@@ -25,7 +25,7 @@ export type {
   ContentUpdateBlockParams,
 } from "./api/content-facade";
 
-// ── Domain: entity types (needed to type-check data returned by facade/queries) ──
+// ── Domain: entity types ──────────────────────────────────────────────────────
 export type {
   ContentPage,
   ContentPageStatus,
@@ -38,7 +38,7 @@ export type { ContentVersion } from "./domain/entities/content-version.entity";
 
 export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
 
-// ── Interfaces: Server Actions (UI mutation entry points) ─────────────────────
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
 export {
   createContentPage,
   renameContentPage,
@@ -51,7 +51,7 @@ export {
   publishContentVersion,
 } from "./interfaces/_actions/content.actions";
 
-// ── Interfaces: Queries (UI read entry points) ────────────────────────────────
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
 export {
   getContentPage,
   getContentPages,
@@ -59,3 +59,6 @@ export {
   getContentBlocks,
   getContentVersions,
 } from "./interfaces/queries/content.queries";
+
+// ── Interfaces: Components ────────────────────────────────────────────────────
+export { BlockEditorView } from "./interfaces/components/BlockEditorView";

@@ -12,6 +12,11 @@
 export type { File, FileStatus } from "../domain/entities/File";
 export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
 
+// --- Document snapshot types (owned by asset) --------------------------------
+
+export type { AssetDocument, AssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
+export { useDocumentsSnapshot, mapToAssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
+
 // --- Query functions ---------------------------------------------------------
 
 export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
@@ -19,3 +24,4 @@ export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
 // --- UI components (cross-module public) -------------------------------------
 
 export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { AssetDocumentsView } from "../interfaces/components/AssetDocumentsView";

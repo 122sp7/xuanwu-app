@@ -27,6 +27,21 @@ export type {
   WikiBetaWorkspaceRef,
   WikiBetaWorkspaceContentNode,
   WikiBetaContentItemNode,
+  // Document / RAG types — re-exported for use by asset and retrieval modules
+  WikiBetaParsedDocument,
+  WikiBetaReindexInput,
+  WikiBetaCitation,
+  WikiBetaRagQueryResult,
 } from "../domain/entities/wiki-beta.types";
+
+// ─── Application functions — exposed for cross-module orchestration ───────────
+
+export {
+  runWikiBetaRagQuery,
+  reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments,
+} from "../application/use-cases/wiki-beta-rag.use-case";
+
+// ─── UI components ────────────────────────────────────────────────────────────
 
 export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";

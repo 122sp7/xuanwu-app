@@ -15,3 +15,7 @@ export type {
 } from "./content-facade";
 
 export { ContentApi } from "./content-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
