@@ -12,7 +12,7 @@ import {
   type WikiBetaLibrary,
   type WikiBetaLibraryFieldType,
   type WikiBetaLibraryRow,
-} from "@/modules/wiki-beta/api";
+} from "../../api";
 
 interface WikiBetaLibrariesViewProps {
   readonly accountId: string;

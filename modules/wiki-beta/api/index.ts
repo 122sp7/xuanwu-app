@@ -1,19 +1,38 @@
 /**
  * Module: wiki-beta
  * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the WikiBeta domain.
+ * Purpose: Transitional cross-module facade — all domain logic has been moved
+ *          to canonical bounded-context modules. This barrel re-exports from
+ *          those modules so existing consumers continue to compile unchanged.
  *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+ * Ownership map:
+ *   pages / page types       → modules/content
+ *   libraries / library types → modules/asset
+ *   RAG / citation types      → modules/retrieval
+ *   content-tree types        → modules/workspace
+ *   WikiBetaOverviewView      → wiki-beta (consumes workspace API)
+ *   WikiBetaWorkspaceView     → wiki-beta (consumes retrieval API)
  */
 
-// ─── Core entity types ────────────────────────────────────────────────────────
+// ─── Page types + use-cases (now owned by modules/content) ───────────────────
 
 export type {
   WikiBetaPage,
   WikiBetaPageStatus,
   WikiBetaPageTreeNode,
-} from "../domain/entities/wiki-beta-page.types";
+  CreateWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+} from "@/modules/content/api";
+
+export {
+  createWikiBetaPage,
+  listWikiBetaPagesTree,
+  moveWikiBetaPage,
+  renameWikiBetaPage,
+} from "@/modules/content/api";
+
+// ─── Library types + use-cases (now owned by modules/asset) ──────────────────
 
 export type {
   WikiBetaLibrary,
@@ -21,33 +40,11 @@ export type {
   WikiBetaLibraryFieldType,
   WikiBetaLibraryRow,
   WikiBetaLibraryStatus,
-} from "../domain/entities/wiki-beta-library.types";
-
-export type {
-  WikiBetaWorkspaceRef,
-  WikiBetaWorkspaceContentNode,
-  WikiBetaContentItemNode,
-  // Document / RAG types — re-exported for use by asset and retrieval modules
-  WikiBetaParsedDocument,
-  WikiBetaReindexInput,
-  WikiBetaCitation,
-  WikiBetaRagQueryResult,
-} from "../domain/entities/wiki-beta.types";
-
-// ─── Application functions — exposed for cross-module orchestration ───────────
-
-export {
-  runWikiBetaRagQuery,
-  reindexWikiBetaDocument,
-  listWikiBetaParsedDocuments,
-} from "../application/use-cases/wiki-beta-rag.use-case";
-
-export {
-  createWikiBetaPage,
-  listWikiBetaPagesTree,
-  moveWikiBetaPage,
-  renameWikiBetaPage,
-} from "../application/use-cases/wiki-beta-pages.use-case";
+  AddWikiBetaLibraryFieldInput,
+  CreateWikiBetaLibraryInput,
+  CreateWikiBetaLibraryRowInput,
+  WikiBetaLibrarySnapshot,
+} from "@/modules/asset/api";
 
 export {
   addWikiBetaLibraryField,
@@ -55,32 +52,39 @@ export {
   createWikiBetaLibraryRow,
   getWikiBetaLibrarySnapshot,
   listWikiBetaLibraries,
-} from "../application/use-cases/wiki-beta-libraries.use-case";
+} from "@/modules/asset/api";
 
-export { buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";
-
-// ─── Additional types for page/library inputs ─────────────────────────────────
+// ─── RAG types + use-cases (now owned by modules/retrieval) ──────────────────
 
 export type {
-  CreateWikiBetaPageInput,
-  MoveWikiBetaPageInput,
-  RenameWikiBetaPageInput,
-} from "../domain/entities/wiki-beta-page.types";
+  WikiBetaCitation,
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "@/modules/retrieval/api";
 
-export type {
-  AddWikiBetaLibraryFieldInput,
-  CreateWikiBetaLibraryInput,
-  CreateWikiBetaLibraryRowInput,
-} from "../domain/entities/wiki-beta-library.types";
+export {
+  runWikiBetaRagQuery,
+  reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments,
+} from "@/modules/retrieval/api";
+
+// ─── Content-tree types + use-case (now owned by modules/workspace) ───────────
 
 export type {
   WikiBetaAccountContentNode,
   WikiBetaAccountSeed,
-} from "../domain/entities/wiki-beta.types";
+  WikiBetaAccountType,
+  WikiBetaContentItemNode,
+  WikiBetaWorkspaceContentNode,
+  WikiBetaWorkspaceRef,
+} from "@/modules/workspace/api";
+
+export { buildWikiBetaContentTree } from "@/modules/workspace/api";
 
 // ─── UI components ────────────────────────────────────────────────────────────
 
-// wiki-beta-native component
+// wiki-beta-native components (still live in this module)
 export { WikiBetaWorkspaceView } from "../interfaces/components/WikiBetaWorkspaceView";
 export { WikiBetaOverviewView } from "../interfaces/components/WikiBetaOverviewView";
 

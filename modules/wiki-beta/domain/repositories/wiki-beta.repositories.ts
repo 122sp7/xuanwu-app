@@ -1,49 +1,13 @@
-import type {
-  WikiBetaParsedDocument,
-  WikiBetaRagQueryResult,
-  WikiBetaReindexInput,
-  WikiBetaWorkspaceRef,
-} from "../entities/wiki-beta.types";
-import type { WikiBetaPage } from "../entities/wiki-beta-page.types";
-import type {
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryRow,
-} from "../entities/wiki-beta-library.types";
-
-export interface WikiBetaContentRepository {
-  runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options?: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    },
-  ): Promise<WikiBetaRagQueryResult>;
-  reindexDocument(input: WikiBetaReindexInput): Promise<void>;
-  listParsedDocuments(accountId: string, limitCount: number): Promise<WikiBetaParsedDocument[]>;
-}
-
-export interface WikiBetaWorkspaceRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaWorkspaceRef[]>;
-}
-
-export interface WikiBetaPageRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaPage[]>;
-  findById(accountId: string, pageId: string): Promise<WikiBetaPage | null>;
-  create(page: WikiBetaPage): Promise<void>;
-  update(page: WikiBetaPage): Promise<void>;
-}
-
-export interface WikiBetaLibraryRepository {
-  listByAccountId(accountId: string): Promise<WikiBetaLibrary[]>;
-  findById(accountId: string, libraryId: string): Promise<WikiBetaLibrary | null>;
-  create(library: WikiBetaLibrary): Promise<void>;
-  createField(accountId: string, field: WikiBetaLibraryField): Promise<void>;
-  listFields(accountId: string, libraryId: string): Promise<WikiBetaLibraryField[]>;
-  createRow(accountId: string, row: WikiBetaLibraryRow): Promise<void>;
-  listRows(accountId: string, libraryId: string): Promise<WikiBetaLibraryRow[]>;
-}
+/**
+ * Module: wiki-beta
+ * Layer: domain/repositories
+ *
+ * Repository interfaces have been migrated to their canonical bounded-context modules:
+ *   WikiBetaPageRepository      → modules/content (internal)
+ *   WikiBetaLibraryRepository   → modules/asset (internal)
+ *   WikiBetaContentRepository   → modules/retrieval (internal)
+ *   WikiBetaWorkspaceRepository → modules/workspace (internal)
+ *
+ * Cross-module consumers should import from the target module's api/ boundary.
+ * This file is kept as a tombstone to aid in code archaeology.
+ */

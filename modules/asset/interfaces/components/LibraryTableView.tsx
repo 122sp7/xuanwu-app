@@ -20,7 +20,7 @@ import {
   getWikiBetaLibrarySnapshot,
   listWikiBetaLibraries,
   type WikiBetaLibraryRow,
-} from "@/modules/wiki-beta/api";
+} from "../../api";
 
 interface LibraryTableViewProps {
   readonly accountId: string;
