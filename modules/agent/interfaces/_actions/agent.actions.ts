@@ -5,11 +5,11 @@ import type {
   GenerateAgentResponseResult,
 } from "../../domain/entities/AgentGeneration";
 import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/retrieval/api";
-import { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
+import { AnswerRagQueryUseCase } from "@/modules/retrieval/api/server";
 import { GenerateAgentResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
+import { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api/server";
 import { GenkitAgentRepository } from "../../infrastructure/genkit/GenkitAgentRepository";
-import { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+import { GenkitRagGenerationRepository } from "@/modules/retrieval/api/server";
 
 export async function generateAgentResponse(
   input: GenerateAgentResponseInput,
