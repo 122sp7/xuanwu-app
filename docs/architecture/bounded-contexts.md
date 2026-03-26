@@ -160,6 +160,7 @@ Platform Foundation Layer
 | Domain Event | `content.block_added` | 區塊新增 |
 | Domain Event | `content.block_updated` | 區塊更新 |
 | Domain Event | `content.block_deleted` | 區塊刪除 |
+| Domain Event | `content.version_published` | 版本快照發佈 |
 
 **設計說明：** `ContentBlock` 為獨立 Firestore 文件（非嵌套），以支援大型頁面的局部更新與 Embedding 顆粒度控制。
 

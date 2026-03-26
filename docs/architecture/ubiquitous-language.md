@@ -76,8 +76,10 @@
 | **頁面樹節點** | ContentPageTreeNode | 包含 children 陣列的頁面節點，遞迴表示層級結構 | `content` | `content-page.entity.ts` |
 | **頁面樹** | PageTree | ContentPage 依 parentPageId 構成的層級樹，根節點的 parentPageId 為 null | `content` | 由 use-case 組裝 |
 | **區塊** | ContentBlock | 頁面內的原子內容單元（id、pageId、content、order） | `content` | `modules/content/domain/entities/content-block.entity.ts` |
-| **區塊內容** | BlockContent | 依區塊類型變化的值物件，包含實際富文字內容 | `content` | `modules/content/domain/value-objects/block-content.ts` |
+| **區塊類型** | BlockType | `"text" \| "heading-1" \| "heading-2" \| "heading-3" \| "image" \| "code" \| "bullet-list" \| "numbered-list" \| "divider" \| "quote"` | `content` | `modules/content/domain/value-objects/block-content.ts` |
+| **區塊內容** | BlockContent | 依 BlockType 多型的值物件（type、text、properties?） | `content` | `modules/content/domain/value-objects/block-content.ts` |
 | **版本** | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `content` | `modules/content/domain/entities/content-version.entity.ts` |
+| **版本發佈事件** | ContentVersionPublishedEvent | 使用者手動觸發版本快照時發出的領域事件（type: `content.version_published`） | `content` | `modules/content/domain/events/content.events.ts` |
 | **內容 Facade** | ContentFacade | `content` 模組的公開 API 門面，供其他模組或 app 層調用 | `content` | `modules/content/api/content-facade.ts` |
 
 ### 資產
