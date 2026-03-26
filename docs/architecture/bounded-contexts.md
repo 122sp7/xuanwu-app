@@ -1,360 +1,122 @@
 # 界限上下文（Bounded Contexts）
 
-本文件定義 Xuanwu App 的 **界限上下文（Bounded Contexts）** 全貌。每個上下文對應 `modules/` 下的一個目錄，是一個自治的業務能力單元。
-
-> **閱讀建議：** 若需要術語定義，請先閱讀 [`ubiquitous-language.md`](./ubiquitous-language.md)。架構決策請參考 [`adr/`](./adr/)。
-
----
+本文件定義 Xuanwu App 系統中所有 16 個有界上下文（Bounded Contexts）的邊界、核心職責、主要實體與跨模組事件，作為 MDDD (模組驅動領域設計) 的最高指導原則。
 
 ## 四層架構概覽
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  AI Layer（AI 層）                                                    │
-│  modules/agent · modules/knowledge · modules/retrieval               │
-├─────────────────────────────────────────────────────────────────────┤
-│  Knowledge Graph Layer（知識圖譜層）                                  │
-│  modules/knowledge-graph                                             │
-├─────────────────────────────────────────────────────────────────────┤
-│  Content / UI Layer（內容層）                                         │
-│  modules/content · modules/asset                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│  Platform Foundation Layer（平台基礎層）                              │
-│  modules/identity · modules/account · modules/organization           │
-│  modules/workspace · modules/workspace-{audit,feed,flow,scheduling}  │
-│  modules/notification · modules/shared                               │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**依賴方向（箭頭 = 依賴）：**
-
-```
-AI Layer
-  ↓
-Knowledge Graph Layer
-  ↓
-Content / UI Layer
-  ↓
-Platform Foundation Layer
-```
-
-跨層通訊一律透過目標模組的 `api/` 邊界，禁止直接 import 他模組的內部層。
+系統分為四大邏輯層級，確保依賴方向單向流動（由上層至下層，或透過事件非同步反向驅動）：
+1. **AI Layer (AI 層)**：處理自然語言、向量搜索、知識攝入與對話。
+2. **Knowledge Graph Layer (知識圖譜層)**：處理節點關聯、拓樸走訪與雙向連結。
+3. **Content / UI Layer (內容層)**：處理區塊編輯器、頁面結構與實體檔案。
+4. **Platform Foundation Layer (平台基礎層)**：包含身份、多租戶、工作區與特定工作流程 (Workspace Flow) 子模組。
 
 ---
 
 ## Platform Foundation Layer
 
 ### 1. `identity` — 身份驗證上下文
-
-**職責：** Firebase Authentication 的 domain 封裝，管理登入、登出、token 更新。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `Identity` | 代表已驗證的使用者（uid、email、displayName） |
-| Entity | `TokenRefreshSignal` | token 即將過期的訊號 |
-| Repository | `IdentityRepository` | Firebase Auth 操作（signIn、signOut） |
-| Repository | `TokenRefreshRepository` | 監聽 token 刷新事件 |
-
-**邊界規則：** `identity/api` 必須不含 `"use client"` 匯出，因為 `account` application 層在伺服器端 import 它。
-
----
+- **核心職責**：對接外部身分提供者（Firebase Auth），負責登入、登出與 Token 生命週期。
+- **聚合根/實體**：`Identity` (uid, email)
+- **領域事件**：無對外廣播，僅內部狀態變更。
+- **邊界規則**：其他模組不可依賴 Firebase Auth SDK，必須透過 `identity/api` 取得目前登入者的 `uid`。
 
 ### 2. `account` — 帳戶設定檔上下文
-
-**職責：** 使用者或組織的帳戶 Profile 管理（個人資料、佈景主題、成員清單）。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `AccountEntity` | 帳戶聚合根（id、name、accountType、email、photoURL） |
-| Entity | `AccountPolicy` | 帳戶層級存取策略 |
-| Value Object | `AccountType` | `"user" \| "organization"` |
-| Value Object | `OrganizationRole` | `"Owner" \| "Admin" \| "Member" \| "Guest"` |
-| Value Object | `Presence` | `"active" \| "away" \| "offline"` |
-| Port | `AccountPolicyRepository` | 策略 CRUD |
-| Port | `AccountQueryRepository` | 查詢帳戶列表 |
-
-**跨上下文依賴：** 使用 `identity/api` 取得已驗證的 uid。
-
----
+- **核心職責**：管理系統中的「參與者」基本資料、偏好設定與個人層級的存取策略。
+- **聚合根/實體**：`AccountEntity` (User 或 Organization), `AccountPolicy`
+- **領域事件**：`account.profile_updated`, `account.presence_changed`
+- **邊界規則**：作為所有模組的 Actor 來源，`accountId` 是貫穿全系統的核心外鍵。
 
 ### 3. `organization` — 組織（租戶）上下文
-
-**職責：** 多租戶 SaaS 的頂層容器，管理組織設定、Teams 與成員邀請。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `OrganizationEntity` | 組織聚合根（id、name、ownerId、members、teams） |
-| Value Object | `Team` | 內嵌於組織的群組（id、name、type、memberIds） |
-| Value Object | `MemberReference` | 組織成員快照（id、name、email、role、presence） |
-| Value Object | `OrgPolicy` | 組織層級存取策略（rules、scope） |
-| Value Object | `PartnerInvite` | 外部合作夥伴邀請（email、teamId、role、inviteState） |
-| Value Object | `ThemeConfig` | 組織品牌主題（primary、background、accent） |
-| Value Object | `OrgPolicyScope` | `"workspace" \| "member" \| "global"` |
-
-**重要決策：** `Team` 是 Organization 的值物件集合，**不是**獨立的有界上下文。若未來 Team 需要獨立的 Project 分配或 Team 層級權限，再提取為 `modules/team`。
-
----
+- **核心職責**：B2B SaaS 的多租戶邊界，管理團隊(Team)、成員邀請(Invites)與組織級策略(OrgPolicy)。
+- **聚合根/實體**：`OrganizationEntity`, `Team` (值物件集合), `MemberReference`
+- **領域事件**：`organization.created`, `organization.member_added`
 
 ### 4. `workspace` — 工作區上下文
-
-**職責：** 工作區（Space）的生命週期管理、成員存取、能力掛載與 Wiki 頁面樹結構。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `WorkspaceEntity` | 工作區聚合根（id、name、lifecycleState、visibility、grants） |
-| Entity | `WorkspaceMember` | 工作區成員（userId、role） |
-| Entity | `WikiBetaContentTree` | 頁面樹視圖（pageId 層級結構） |
-| Value Object | `WorkspaceLifecycleState` | `"preparatory" \| "active" \| "stopped"` |
-| Value Object | `WorkspaceVisibility` | `"visible" \| "hidden"` |
-| Value Object | `WorkspaceGrant` | 工作區存取授權（userId/teamId、role） |
-| Value Object | `Capability` | 掛載於工作區的功能模組（type: ui/api/data/governance/monitoring） |
-| Port | `WorkspaceGrantPort` | 檢查工作區存取授權 |
-
----
+- **核心職責**：資源與協作的實體隔離邊界。管理工作區生命週期、能力模組掛載(Capabilities)與頁面樹視圖。
+- **聚合根/實體**：`WorkspaceEntity`, `WorkspaceMember`, `WikiBetaContentTree`
+- **領域事件**：`workspace.created`, `workspace.state_changed`, `workspace.member_added`
+- **邊界規則**：作為大部分業務資料（Task, Page, File, Invoice）的邏輯容器。
 
 ### 5. `notification` — 通知上下文
-
-**職責：** 系統內部通知的派送與已讀狀態管理。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `NotificationEntity` | 通知實體（id、recipientId、title、message、type、read） |
-| Value Object | `NotificationType` | `"info" \| "alert" \| "success" \| "warning"` |
-
----
+- **核心職責**：負責系統內應用程式通知的投遞與狀態（已讀/未讀）管理。
+- **聚合根/實體**：`NotificationEntity`
+- **領域事件**：`notification.sent`, `notification.read`
 
 ### 6. `shared` — 共享核心上下文
-
-**職責：** 跨模組共用的 Domain 原語，包含 Slug 工具與 Event Store 基礎設施。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `EventRecord` | 事件存儲實體（id、eventName、aggregateType、aggregateId、occurredAt、payload、metadata） |
-| Value Object | `EventMetadata` | 事件關聯資訊（correlationId、causationId、actorId） |
-| Interface | `IEventStoreRepository` | 事件存儲 Repository 介面 |
-| Interface | `IEventBusRepository` | 事件匯流排 Repository 介面 |
-| Use Case | `PublishDomainEventUseCase` | 將領域事件持久化至 Event Store |
-| Service | `deriveSlugCandidate` | 從字串生成 URL-safe slug 候選值 |
-| Service | `isValidSlug` | 驗證 slug 格式 |
+- **核心職責**：存放跨領域共用的基礎設施（Event Store、Event Bus）與純邏輯原語（Slug 工具）。
+- **聚合根/實體**：`EventRecord`, `EventMetadata`
+- **邊界規則**：不包含任何具體業務邏輯，僅提供技術層面的抽象介面。
 
 ---
 
 ## Content / UI Layer
 
 ### 7. `content` — 內容上下文（Notion Layer）
-
-**職責：** Block 編輯器的核心業務，管理 Page、Block、ContentVersion 的 CRUD 與版本歷程。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `ContentPage` | 頁面聚合根（id、title、slug、parentPageId、blockIds、status） |
-| Entity | `ContentBlock` | 區塊實體（id、pageId、content、order） |
-| Entity | `ContentVersion` | 版本快照（pageId、snapshotBlocks、editSummary、authorId） |
-| Value Object | `ContentPageStatus` | `"active" \| "archived"` |
-| Value Object | `BlockContent` | 區塊內容值物件（依 BlockType 多型） |
-| Value Object | `ContentPageTreeNode` | 包含 children 的頁面樹節點（遞迴結構） |
-| Domain Event | `content.page_created` | 頁面建立 |
-| Domain Event | `content.page_renamed` | 頁面重新命名 |
-| Domain Event | `content.page_moved` | 頁面移動（parentPageId 變更） |
-| Domain Event | `content.page_archived` | 頁面歸檔 |
-| Domain Event | `content.block_added` | 區塊新增 |
-| Domain Event | `content.block_updated` | 區塊更新 |
-| Domain Event | `content.block_deleted` | 區塊刪除 |
-| Domain Event | `content.version_published` | 版本快照發佈 |
-
-**設計說明：** `ContentBlock` 為獨立 Firestore 文件（非嵌套），以支援大型頁面的局部更新與 Embedding 顆粒度控制。
-
----
+- **核心職責**：提供 Notion-style 的區塊編輯器資料模型，支援頁面層級與區塊層級的增刪改查。
+- **聚合根/實體**：`ContentPage`, `ContentBlock`, `ContentVersion`
+- **領域事件**：`content.page_created`, `content.block_updated`, `content.page_archived`
+- **邊界規則**：`ContentBlock` 為獨立文件，以此支援未來的局部鎖定與細粒度 AI 向量化。
 
 ### 8. `asset` — 資產上下文
-
-**職責：** 檔案上傳、Storage 管理、RAG 文件登錄，以及 Wiki Library 的結構化資料。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `File` | 檔案聚合根（id、name、url、mimeType、size） |
-| Entity | `FileVersion` | 檔案版本（fileId、version、uploadedAt） |
-| Entity | `WikiBetaLibrary` | Wiki Library 聚合根（id、name、workspaceId、documents） |
-| Value Object | `AuditRecord` | 存取稽核記錄 |
-| Value Object | `PermissionSnapshot` | 存取快照 |
-| Value Object | `RetentionPolicy` | 保留政策 |
-| Port | `ActorContextPort` | 解析當前操作者身份 |
-| Port | `OrganizationPolicyPort` | 檢查組織層級策略 |
-| Port | `WorkspaceGrantPort` | 檢查工作區存取授權 |
-
-**Firestore 文件狀態：** `uploaded → processing → ready → failed → archived`
+- **核心職責**：管理靜態檔案上傳、權限控制與 RAG 文件的初始登錄。
+- **聚合根/實體**：`File`, `WikiBetaLibrary`, `RagDocument`
+- **領域事件**：`asset.file_uploaded`, `asset.rag_document_registered`
 
 ---
 
 ## Knowledge Graph Layer
 
 ### 9. `knowledge-graph` — 知識圖譜上下文（Wiki Layer）
-
-**職責：** 知識圖的節點、邊與視圖配置管理，支援 Backlink 查詢與 Graph Traversal。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `GraphNode` | 知識圖節點（id = PageId、label、type） |
-| Entity | `Link` | 有向邊（id、sourceId、targetId、type） |
-| Value Object | `GraphNodeType` | `"page" \| "tag" \| "attachment"` |
-| Value Object | `LinkType` | `"explicit" \| "implicit" \| "hierarchy"` |
-| Value Object | `ViewConfig` | 圖譜視覺化配置（layout、filter） |
-| Repository | `GraphRepository` | 節點/邊的 CRUD + 連通性查詢 |
-
-**Backlink：** 查詢所有 `targetId = pageId` 的 Link，即為該頁面的 Backlinks。
-
-**Auto-link（計畫中）：** `LinkExtractor` service 已存在於 `knowledge-graph/application`，尚缺觸發管道（監聽 `content.page_created` 事件後自動建立隱式 Link）。
+- **核心職責**：維護實體間的有向圖關係，支援雙向連結(Backlink)查詢與關聯度分析。
+- **聚合根/實體**：`GraphNode`, `Link`
+- **領域事件**：`knowledge-graph.link_created`
+- **邊界規則**：不存放龐大的文字內容，僅存放 `id`、`label` 與 `type`，透過 ID 關聯回 `content` 模組。
 
 ---
 
 ## AI Layer
 
 ### 10. `knowledge` — 知識攝入上下文
-
-**職責：** RAG 文件的攝入管線管理（IngestionJob 生命週期、Chunk 生成）。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `IngestionJob` | 攝入作業聚合根（docId、status、stages） |
-| Entity | `IngestionDocument` | 待攝入文件（id、sourceUrl、format） |
-| Entity | `IngestionChunk` | 分塊結果（chunkIndex、text、embedding） |
-| Repository | `IngestionJobRepository` | 攝入作業 CRUD |
-
-**Runtime 說明：** 實際的解析、清洗、分塊、Embedding 在 `py_fn/` Python 側執行；本模組管理 Firestore 端的 Job 狀態追蹤。
-
----
+- **核心職責**：處理異質文件與文字的解析、分塊(Chunking)與向量化(Embedding)非同步管線。
+- **聚合根/實體**：`IngestionJob`, `IngestionChunk`
+- **領域事件**：`knowledge.job_started`, `knowledge.job_ready`, `knowledge.job_failed`
+- **執行邊界**：主要邏輯由 Python Worker (Cloud Functions) 處理。
 
 ### 11. `retrieval` — 檢索上下文（RAG Layer）
-
-**職責：** Vector Search、RAG 查詢、答案生成與引用（Citation）管理。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `RagRetrievedChunk` | 檢索到的文件片段（chunkId、docId、text、score） |
-| Entity | `RagCitation` | 引用記錄（docId、chunkIndex、page、reason） |
-| Entity | `RagRetrievalSummary` | 檢索摘要（mode、scope、retrievedChunkCount、topK） |
-| Entity | `RagStreamEvent` | 串流事件（type: token/citation/done/error） |
-| Port | `VectorStorePort` | 向量存儲的抽象埠（similarity search） |
-| Repository | `RagGenerationRepository` | AI 生成端（Genkit） |
-| Repository | `RagRetrievalRepository` | 向量檢索端（Firestore） |
-| Repository | `WikiBetaContentRepository` | Wiki 內容倉儲（RAG 用） |
-
-**邊界規則：** `retrieval/api` 由 `"use server"` 代碼 import，**禁止**在 `api/index.ts` 匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 `modules/retrieval`（root barrel）import。
-
----
+- **核心職責**：接收自然語言查詢，執行向量檢索(Vector Search)，並組合 LLM 生成具備來源引用的答案。
+- **聚合根/實體**：`RagRetrievedChunk`, `RagCitation`, `RagStreamEvent`
+- **邊界規則**：RAG 生成必須被約束在提供的 Context 內，嚴格執行權限過濾(organizationId/workspaceId)。
 
 ### 12. `agent` — AI 代理上下文
-
-**職責：** 對話式 AI 代理的 Thread、Message 管理與 Genkit 流程編排。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `AgentGeneration` | 一次代理生成結果（input、output、model、traceId） |
-| Entity | `Thread` | 對話執行緒（id、messages） |
-| Entity | `Message` | 對話訊息（role: user/assistant、content） |
-| Entity | `RagQuery` | 代理端 RAG 查詢入口 |
-| Repository | `AgentRepository` | Genkit 代理實作 |
-| Repository | `RagRetrievalRepository` | 委派至 `retrieval` 模組 |
+- **核心職責**：管理多輪對話歷程、思路鏈(Chain of Thought)與自由格式的 AI 生成。
+- **聚合根/實體**：`Thread`, `Message`, `AgentGeneration`
 
 ---
 
 ## WorkSpace Layer（內嵌於 Platform Foundation）
 
 ### 13. `workspace-feed` — 動態牆上下文
-
-**職責：** 工作區的社交動態牆，包含貼文、按讚、留言等互動。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `WorkspaceFeedPost` | 貼文聚合根（id、workspaceId、authorId、content、reactions） |
-| Domain Event | `workspace-feed.post_created` | 貼文建立 |
-| Domain Event | `workspace-feed.post_reacted` | 貼文互動 |
-| Facade | `WorkspaceFeedFacade` | 動態牆公開 API |
-
----
+- **核心職責**：提供工作區內的社交與活動串流。
+- **聚合根/實體**：`WorkspaceFeedPost`
+- **領域事件**：`workspace-feed.post_created`, `workspace-feed.post_liked`
 
 ### 14. `workspace-flow` — 工作流程上下文
-
-**職責：** Task（任務）、Issue（問題回報）、Invoice（發票）三種工作流程的 XState 狀態機管理。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `Task` | 任務聚合根（id、workspaceId、title、status、assigneeId） |
-| Entity | `Issue` | 問題回報聚合根（id、workspaceId、title、status、stage） |
-| Entity | `Invoice` | 發票聚合根（id、workspaceId、status、items） |
-| Entity | `InvoiceItem` | 發票項目（id、invoiceId、amount、description） |
-| Value Object | `TaskStatus` | 任務狀態機值（backlog→todo→in_progress→qa→done→archived） |
-| Value Object | `IssueStatus` | 問題狀態機值 |
-| Value Object | `InvoiceStatus` | 發票狀態機值 |
-| Domain Event | `task.created` / `task.assigned` / `task.archived` | 任務生命週期事件 |
-| Domain Event | `issue.opened` / `issue.resolved` / `issue.closed` | 問題生命週期事件 |
-| Domain Event | `invoice.submitted` / `invoice.approved` / `invoice.paid` | 發票生命週期事件 |
-
----
+- **核心職責**：管理具備嚴格狀態機(State Machine)的業務實體（任務、問題追蹤、發票），並實施業務守衛(Guards)。
+- **聚合根/實體**：`Task`, `Issue`, `Invoice`
+- **領域事件**：`workspace-flow.task.created`, `workspace-flow.issue.status_changed`, `workspace-flow.invoice.paid`
 
 ### 15. `workspace-scheduling` — 排程上下文
-
-**職責：** 工作需求（Demand）的排程管理與月曆視圖。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `WorkDemand` | 排程需求聚合根（id、workspaceId、title、status、dueDate） |
-| Value Object | `DemandStatus` | `"draft" \| "open" \| "in_progress" \| "completed"` |
-| Value Object | `DemandPriority` | `"low" \| "medium" \| "high"` |
-
----
+- **核心職責**：處理工作需求的優先級與時間排程。
+- **聚合根/實體**：`WorkDemand`
 
 ### 16. `workspace-audit` — 稽核上下文
-
-**職責：** 工作區操作的稽核日誌記錄與查詢。
-
-| 元素 | 名稱 | 說明 |
-|------|------|------|
-| Entity | `AuditLog` | 稽核記錄（id、actorId、workspaceId、action、timestamp） |
-| Repository | `AuditRepository` | 稽核記錄 CRUD |
+- **核心職責**：不可變的系統操作日誌記錄，供合規性審查。
+- **聚合根/實體**：`AuditLog`
 
 ---
 
-## 上下文間的互動關係
+## 上下文間的互動關係與邊界規則摘要
 
-```
-organization ──contains──► workspace
-workspace    ──hosts──────► workspace-feed
-workspace    ──hosts──────► workspace-flow
-workspace    ──hosts──────► workspace-scheduling
-workspace    ──hosts──────► workspace-audit
-workspace    ──hosts──────► content (via WikiBetaContentTree)
-workspace    ──hosts──────► asset (Files & Libraries)
-
-content   ──page link events──► knowledge-graph (auto-link, planned)
-content   ──embed chunks──────► knowledge (RAG ingestion)
-knowledge ──vector search──────► retrieval
-retrieval ──answer generation──► agent
-
-identity  ──authenticates──► account
-account   ──profile for──── organization (members)
-account   ──owns──────────► workspace
-```
-
----
-
-## 邊界規則摘要
-
-| 規則 | 說明 |
-|------|------|
-| **API-only 原則** | 跨模組 import 只能走 `modules/<target>/api/index.ts` |
-| **禁止內部 import** | 不可直接 import 他模組的 `domain/`、`application/`、`infrastructure/`、`interfaces/` |
-| **client/server 邊界** | 含 `"use client"` 的 UI 元件不可出現在 `/api` 匯出；需從 root barrel 或 interfaces 匯出 |
-| **domain 零依賴** | `domain/` 不可 import Firebase SDK、React、HTTP client 等框架代碼 |
-| **依賴方向** | `interfaces/ → application/ → domain/ ← infrastructure/` |
-
----
-
-## 已知缺口（Planned）
-
-| 缺口 | 建議位置 | 優先級 |
-|------|---------|--------|
-| Auto-link 觸發管道 | `knowledge-graph/application/use-cases/auto-link.use-case.ts` | 🔴 高 |
-| Global Search 後端 | `modules/search/` 或 Firestore 複合索引 adapter | 🟡 中 |
-| Notion-style Database | `content/domain/entities/ContentDatabase.ts` | 🟡 中 |
-| Collaboration（即時協作） | `modules/collaboration/` (Firebase Realtime DB / CRDT) | 🟢 低 |
+- **跨模組查詢**：一律走目標模組的 `api/index.ts`（例如 Server Actions 或 Query 函式）。
+- **非同步聯動**：內容更新（如 `content.block-updated`）應發佈領域事件，由 `knowledge`（攝入模組）與 `knowledge-graph`（連結擷取）訂閱，**禁止 Content 模組直接呼叫 AI 模組**。
+- **依賴反轉**：所有對 Firebase Firestore / Storage 的操作必須封裝在 `infrastructure/` 層的 Repository 實作中。
