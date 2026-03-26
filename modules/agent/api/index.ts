@@ -34,8 +34,8 @@ export type {
 
 export type { RagRetrievalRepository, RetrieveRagChunksInput } from "@/modules/retrieval/api";
 
-export { AnswerRagQueryUseCase } from "@/modules/retrieval/api";
-export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api";
-export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+export { AnswerRagQueryUseCase } from "@/modules/retrieval/api/server";
+export { FirebaseRagRetrievalRepository } from "@/modules/retrieval/api/server";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api/server";
 
 export { answerRagQuery, generateAgentResponse } from "../interfaces/_actions/agent.actions";

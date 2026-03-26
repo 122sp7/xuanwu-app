@@ -33,10 +33,6 @@ export type {
   RagGenerationRepository,
 } from "../domain/repositories/RagGenerationRepository";
 
-export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-export { FirebaseRagRetrievalRepository } from "../infrastructure/firebase/FirebaseRagRetrievalRepository";
-export { GenkitRagGenerationRepository } from "../infrastructure/genkit/GenkitRagGenerationRepository";
-
 // ── WikiBeta RAG types (transitional — owned by retrieval domain) ─────────────
 export type {
   WikiBetaCitation,

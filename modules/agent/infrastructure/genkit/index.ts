@@ -9,4 +9,4 @@ export {
   type GenkitClientOptions,
 } from "./client";
 export { GenkitAgentRepository } from "./GenkitAgentRepository";
-export { GenkitRagGenerationRepository } from "@/modules/retrieval/api";
+export { GenkitRagGenerationRepository } from "@/modules/retrieval/api/server";
