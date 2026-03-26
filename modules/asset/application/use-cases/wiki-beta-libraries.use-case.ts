@@ -116,8 +116,8 @@ export async function createWikiBetaLibrary(
   await libraryRepository.create(library);
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "wiki_beta.library.created",
-    aggregateType: "wiki-library",
+    eventName: "asset.library_created",
+    aggregateType: "asset-library",
     aggregateId: library.id,
     payload: {
       accountId: library.accountId,
@@ -159,8 +159,8 @@ export async function addWikiBetaLibraryField(
   await libraryRepository.createField(input.accountId, field);
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "wiki_beta.library.field_added",
-    aggregateType: "wiki-library",
+    eventName: "asset.library_field_added",
+    aggregateType: "asset-library",
     aggregateId: input.libraryId,
     payload: {
       accountId: input.accountId,
@@ -201,8 +201,8 @@ export async function createWikiBetaLibraryRow(
   await libraryRepository.createRow(input.accountId, row);
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "wiki_beta.library.row_created",
-    aggregateType: "wiki-library",
+    eventName: "asset.library_row_created",
+    aggregateType: "asset-library",
     aggregateId: input.libraryId,
     payload: {
       accountId: input.accountId,
