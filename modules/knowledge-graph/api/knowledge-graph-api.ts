@@ -5,15 +5,17 @@
  *          adapters and exposes the knowledge-graph surface needed by
  *          consumers (e.g. system.ts composition root, debug pages).
  *
- * Bootstraps the LinkExtractorService and registers it on the shared event
- * bus so the knowledge-graph module reacts to content changes automatically.
+ * Bootstraps the AutoLinkUseCase and registers it on the shared event
+ * bus so the knowledge-graph module reacts to content changes automatically:
+ *   - content.page_created → upserts GraphNode (+ hierarchy Link if parented)
+ *   - content.block-updated → extracts [[WikiLink]] → explicit Links
  */
 
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
 import type { GraphNode } from "../domain/entities/graph-node";
 import type { Link } from "../domain/entities/link";
-import { LinkExtractorService } from "../application/link-extractor.service";
+import { AutoLinkUseCase } from "../application/use-cases/auto-link.use-case";
 import { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
 
 /** Shape of the graph payload returned to consumers */
@@ -24,12 +26,12 @@ export interface GraphDataDTO {
 
 export class KnowledgeGraphApi {
   private readonly graphRepo: InMemoryGraphRepository;
-  readonly linkExtractor: LinkExtractorService;
+  readonly autoLink: AutoLinkUseCase;
 
   constructor(eventBus: SimpleEventBus) {
     this.graphRepo = new InMemoryGraphRepository();
-    this.linkExtractor = new LinkExtractorService(this.graphRepo);
-    this.linkExtractor.registerOn(eventBus);
+    this.autoLink = new AutoLinkUseCase(this.graphRepo);
+    this.autoLink.registerOn(eventBus);
   }
 
   /** Return all nodes currently in the graph. */
@@ -62,3 +64,4 @@ export class KnowledgeGraphApi {
     };
   }
 }
+

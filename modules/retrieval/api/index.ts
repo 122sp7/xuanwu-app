@@ -33,6 +33,19 @@ export type {
   RagGenerationRepository,
 } from "../domain/repositories/RagGenerationRepository";
 
+// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
+export type {
+  RagQueryFeedback,
+  RagFeedbackRating,
+  SubmitRagQueryFeedbackInput,
+} from "../domain/entities/RagQueryFeedback";
+
+export type { RagQueryFeedbackRepository } from "../domain/repositories/RagQueryFeedbackRepository";
+
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
+
 // ── WikiBeta RAG types (transitional — owned by retrieval domain) ─────────────
 export type {
   WikiBetaCitation,

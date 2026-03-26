@@ -354,7 +354,8 @@ account   ──owns──────────► workspace
 
 | 缺口 | 建議位置 | 優先級 |
 |------|---------|--------|
-| Auto-link 觸發管道 | `knowledge-graph/application/use-cases/auto-link.use-case.ts` | 🔴 高 |
+| ~~Auto-link 觸發管道~~ ✅ | ~~`knowledge-graph/application/use-cases/auto-link.use-case.ts`~~ | ~~🔴 高~~ **已完成** |
+| ~~RAG Feedback Loop~~ ✅ | ~~`retrieval/domain/entities/RagQueryFeedback.ts`~~ | ~~🔴 高~~ **已完成** |
 | Global Search 後端 | `modules/search/` 或 Firestore 複合索引 adapter | 🟡 中 |
 | Notion-style Database | `content/domain/entities/ContentDatabase.ts` | 🟡 中 |
 | Collaboration（即時協作） | `modules/collaboration/` (Firebase Realtime DB / CRDT) | 🟢 低 |

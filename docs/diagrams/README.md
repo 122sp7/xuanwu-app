@@ -7,7 +7,7 @@
 - `xuanwu_architecture.mermaid`
 	- 合併系統總覽、模組層次、多工作區結構
 - `rag-enterprise-e2e.mermaid`
-	- 合併 RAG ingestion、query、API/data flow、core logic
+	- 合併 RAG ingestion、query、API/data flow、core logic、**feedback loop**（`ragQueryFeedback` Firestore 集合）
 - `workspace-interaction-flow.mermaid`
 	- 合併 workspace 階層、App Router slices、互動流程、主要 Firestore 路徑
 - `erd-model.mermaid`
@@ -22,6 +22,8 @@
 	- 指揮代理與子代理協作拓樸
 - `domain-id-api-boundary-template.mermaid`
 	- Domain-ID 領域模板：各領域自有邊界、跨領域僅透過 `api/` 交互
+- `onboarding-flow.mermaid`
+	- **新增**：新組織 / 使用者從註冊到第一次 RAG 查詢的 onboarding sequence diagram
 
 ## 建議內容
 
