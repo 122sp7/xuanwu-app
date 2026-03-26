@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
-import type { WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {

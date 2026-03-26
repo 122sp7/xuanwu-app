@@ -12,9 +12,6 @@ import type {
   WikiBetaRagQueryResult,
   WikiBetaReindexInput,
 } from "../../domain/entities/WikiBetaRagTypes";
-import { FirebaseWikiBetaContentRepository } from "../../infrastructure/firebase/FirebaseWikiBetaContentRepository";
-
-const defaultContentRepository: WikiBetaContentRepository = new FirebaseWikiBetaContentRepository();
 
 export async function runWikiBetaRagQuery(
   query: string,
@@ -26,14 +23,14 @@ export async function runWikiBetaRagQuery(
     maxAgeDays?: number;
     requireReady?: boolean;
   } = {},
-  repository: WikiBetaContentRepository = defaultContentRepository,
+  repository: WikiBetaContentRepository,
 ): Promise<WikiBetaRagQueryResult> {
   return repository.runRagQuery(query, accountId, workspaceId, topK, options);
 }
 
 export async function reindexWikiBetaDocument(
   input: WikiBetaReindexInput,
-  repository: WikiBetaContentRepository = defaultContentRepository,
+  repository: WikiBetaContentRepository,
 ): Promise<void> {
   await repository.reindexDocument(input);
 }
@@ -41,7 +38,7 @@ export async function reindexWikiBetaDocument(
 export async function listWikiBetaParsedDocuments(
   accountId: string,
   limitCount = 20,
-  repository: WikiBetaContentRepository = defaultContentRepository,
+  repository: WikiBetaContentRepository,
 ): Promise<WikiBetaParsedDocument[]> {
   return repository.listParsedDocuments(accountId, limitCount);
 }

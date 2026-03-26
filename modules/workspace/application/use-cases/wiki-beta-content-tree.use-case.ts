@@ -12,9 +12,6 @@ import type {
   WikiBetaWorkspaceContentNode,
 } from "../../domain/entities/WikiBetaContentTree";
 import type { WikiBetaWorkspaceRepository } from "../../domain/repositories/WikiBetaWorkspaceRepository";
-import { FirebaseWikiBetaWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
-
-const defaultWorkspaceRepository: WikiBetaWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
 
 function buildContentBaseItems(workspaceId: string): WikiBetaContentItemNode[] {
   return [
@@ -39,7 +36,7 @@ function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiBet
 
 export async function buildWikiBetaContentTree(
   seeds: WikiBetaAccountSeed[],
-  workspaceRepository: WikiBetaWorkspaceRepository = defaultWorkspaceRepository,
+  workspaceRepository: WikiBetaWorkspaceRepository,
 ): Promise<WikiBetaAccountContentNode[]> {
   const accountNodes = await Promise.all(
     seeds.map(async (seed) => {

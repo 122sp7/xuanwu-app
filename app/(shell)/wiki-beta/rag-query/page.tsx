@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/retrieval/api";
+import { RagQueryView } from "@/modules/retrieval";
 
 export default function WikiBetaRagQueryPage() {
   const searchParams = useSearchParams();

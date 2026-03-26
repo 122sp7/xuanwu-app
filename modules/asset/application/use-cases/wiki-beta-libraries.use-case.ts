@@ -23,9 +23,6 @@ import type {
   WikiBetaLibraryRow,
 } from "../../domain/entities/wiki-beta-library.types";
 import type { WikiBetaLibraryRepository } from "../../domain/repositories/WikiBetaLibraryRepository";
-import { InMemoryWikiBetaLibraryRepository } from "../../infrastructure/repositories/in-memory-wiki-beta-library.repository";
-
-const defaultLibraryRepository: WikiBetaLibraryRepository = new InMemoryWikiBetaLibraryRepository();
 const defaultEventPublisher = new PublishDomainEventUseCase(
   new InMemoryEventStoreRepository(),
   new NoopEventBusRepository(),
@@ -76,8 +73,8 @@ function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiBetaLibrary[])
 
 export async function listWikiBetaLibraries(
   accountId: string,
-  workspaceId?: string,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+  workspaceId: string | undefined,
+  libraryRepository: WikiBetaLibraryRepository,
 ): Promise<WikiBetaLibrary[]> {
   if (!accountId) {
     throw new Error("accountId is required");
@@ -93,7 +90,7 @@ export async function listWikiBetaLibraries(
 
 export async function createWikiBetaLibrary(
   input: CreateWikiBetaLibraryInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+  libraryRepository: WikiBetaLibraryRepository,
 ): Promise<WikiBetaLibrary> {
   if (!input.accountId) {
     throw new Error("accountId is required");
@@ -134,7 +131,7 @@ export async function createWikiBetaLibrary(
 
 export async function addWikiBetaLibraryField(
   input: AddWikiBetaLibraryFieldInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+  libraryRepository: WikiBetaLibraryRepository,
 ): Promise<WikiBetaLibraryField> {
   const library = await libraryRepository.findById(input.accountId, input.libraryId);
   if (!library) {
@@ -177,7 +174,7 @@ export async function addWikiBetaLibraryField(
 
 export async function createWikiBetaLibraryRow(
   input: CreateWikiBetaLibraryRowInput,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+  libraryRepository: WikiBetaLibraryRepository,
 ): Promise<WikiBetaLibraryRow> {
   const library = await libraryRepository.findById(input.accountId, input.libraryId);
   if (!library) {
@@ -226,7 +223,7 @@ export interface WikiBetaLibrarySnapshot {
 export async function getWikiBetaLibrarySnapshot(
   accountId: string,
   libraryId: string,
-  libraryRepository: WikiBetaLibraryRepository = defaultLibraryRepository,
+  libraryRepository: WikiBetaLibraryRepository,
 ): Promise<WikiBetaLibrarySnapshot> {
   const library = await libraryRepository.findById(accountId, libraryId);
   if (!library) {

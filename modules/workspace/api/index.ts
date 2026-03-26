@@ -33,10 +33,24 @@ export type {
 
 // ─── WikiBeta content-tree use-case (transitional) ────────────────────────────
 
-export { buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";
+import { FirebaseWikiBetaWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
+import { buildWikiBetaContentTree as _buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";
+import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "../domain/entities/WikiBetaContentTree";
+
+const _defaultWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
+
+export function buildWikiBetaContentTree(seeds: WikiBetaAccountSeed[]): Promise<WikiBetaAccountContentNode[]> {
+  return _buildWikiBetaContentTree(seeds, _defaultWorkspaceRepository);
+}
+
 // ─── Server actions (client-callable via Next.js action proxy) ──────────────
 
 export { createWorkspace } from "../interfaces/_actions/workspace.actions";
+
+// ─── UI components (cross-module public) ─────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
 
 // ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
 

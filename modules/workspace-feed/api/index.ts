@@ -5,3 +5,7 @@ export type {
   RepostWorkspaceFeedPostParams,
   WorkspaceFeedInteractionParams,
 } from "./workspace-feed.facade";
+
+// ── UI components (cross-module public) ──────────────────────────────────────
+export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
+export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";

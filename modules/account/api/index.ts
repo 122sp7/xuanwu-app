@@ -32,3 +32,11 @@ export {
   getAccountPolicies,
   getActiveAccountPolicies,
 } from "../interfaces/queries/account.queries";
+
+// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
+
+export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
+
+// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
+
+export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";

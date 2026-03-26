@@ -1,7 +1,7 @@
 "use client";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedAccountView } from "@/modules/workspace-feed";
+import { WorkspaceFeedAccountView } from "@/modules/workspace-feed/api";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationDailyPage() {

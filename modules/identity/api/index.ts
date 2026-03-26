@@ -32,3 +32,28 @@ export const identityApi = {
     await emitUseCase.execute(input.accountId, input.reason, input.traceId);
   },
 } as const;
+
+// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
+
+export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
+export {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "../application/use-cases/identity.use-cases";
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  signIn,
+  signInAnonymously,
+  register,
+  sendPasswordResetEmail,
+  signOut,
+} from "../interfaces/_actions/identity.actions";
+
+// ─── Client-only hook (import only from "use client" files) ──────────────────
+
+export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";

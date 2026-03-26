@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit";
-import { getWorkspacesForAccount } from "@/modules/workspace";
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
