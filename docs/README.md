@@ -15,7 +15,7 @@ This docs skeleton is based on the Diataxis documentation framework as retrieved
 - guides/explanation/: concept-oriented reasoning and trade-offs
 - reference/: exact facts and reference material
 - reference/specification/: specification documents
-- architecture/: architecture docs and ADR collection
+- architecture/: architecture docs, DDD reference, ADR collection
 - development/: development process and implementation guides
 - diagrams/: architecture and flow diagrams
 - templates/: one template per purpose
