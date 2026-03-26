@@ -54,7 +54,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
     status: "🚧",
   },
   Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🚧" },
+  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
   Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
   Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
   Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
