@@ -59,3 +59,36 @@ export const organizationApi = {
     }));
   },
 } as const;
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "../interfaces/_actions/organization.actions";
+
+// ─── Query Functions ──────────────────────────────────────────────────────────
+
+export {
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  getOrganizationTeams,
+  subscribeToOrganizationTeams,
+  getPartnerInvites,
+  getOrgPolicies,
+} from "../interfaces/queries/organization.queries";

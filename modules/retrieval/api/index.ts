@@ -46,11 +46,37 @@ export type {
 } from "../domain/entities/WikiBetaRagTypes";
 
 // ── WikiBeta RAG use-cases (transitional) ─────────────────────────────────────
-export {
-  runWikiBetaRagQuery,
-  reindexWikiBetaDocument,
-  listWikiBetaParsedDocuments,
+import { FirebaseWikiBetaContentRepository } from "../infrastructure/firebase/FirebaseWikiBetaContentRepository";
+import {
+  runWikiBetaRagQuery as _runWikiBetaRagQuery,
+  reindexWikiBetaDocument as _reindexWikiBetaDocument,
+  listWikiBetaParsedDocuments as _listWikiBetaParsedDocuments,
 } from "../application/use-cases/wiki-beta-rag.use-case";
+import type {
+  WikiBetaParsedDocument,
+  WikiBetaRagQueryResult,
+  WikiBetaReindexInput,
+} from "../domain/entities/WikiBetaRagTypes";
+
+const _defaultContentRepository = new FirebaseWikiBetaContentRepository();
+
+export function runWikiBetaRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<WikiBetaRagQueryResult> {
+  return _runWikiBetaRagQuery(query, accountId, workspaceId, topK, options, _defaultContentRepository);
+}
+
+export function reindexWikiBetaDocument(input: WikiBetaReindexInput): Promise<void> {
+  return _reindexWikiBetaDocument(input, _defaultContentRepository);
+}
+
+export function listWikiBetaParsedDocuments(accountId: string, limitCount = 20): Promise<WikiBetaParsedDocument[]> {
+  return _listWikiBetaParsedDocuments(accountId, limitCount, _defaultContentRepository);
+}
 
 // ── UI components ─────────────────────────────────────────────────────────────
 export { RagQueryView } from "../interfaces/components/RagQueryView";

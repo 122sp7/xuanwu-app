@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getWorkspacesForAccount } from "@/modules/workspace";
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {

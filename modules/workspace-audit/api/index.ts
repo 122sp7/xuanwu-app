@@ -28,3 +28,4 @@ export {
 } from "../interfaces/queries/audit.queries";
 
 export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
+export { AuditStream } from "../interfaces/components/AuditStream";

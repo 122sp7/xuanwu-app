@@ -23,9 +23,6 @@ import type {
   WikiBetaPageTreeNode,
 } from "../../domain/entities/wiki-beta-page.types";
 import type { WikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
-import { FirebaseWikiBetaPageRepository } from "../../infrastructure/repositories/firebase-wiki-beta-page.repository";
-
-const defaultPageRepository: WikiBetaPageRepository = new FirebaseWikiBetaPageRepository();
 const defaultEventPublisher = new PublishDomainEventUseCase(
   new InMemoryEventStoreRepository(),
   new NoopEventBusRepository(),
@@ -131,8 +128,8 @@ function assertNoCycle(pages: WikiBetaPage[], pageId: string, targetParentPageId
 
 export async function listWikiBetaPagesTree(
   accountId: string,
-  workspaceId?: string,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+  workspaceId: string | undefined,
+  pageRepository: WikiBetaPageRepository,
 ): Promise<WikiBetaPageTreeNode[]> {
   if (!accountId) {
     throw new Error("accountId is required");
@@ -145,7 +142,7 @@ export async function listWikiBetaPagesTree(
 
 export async function createWikiBetaPage(
   input: CreateWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+  pageRepository: WikiBetaPageRepository,
 ): Promise<WikiBetaPage> {
   if (!input.accountId) {
     throw new Error("accountId is required");
@@ -201,7 +198,7 @@ export async function createWikiBetaPage(
 
 export async function renameWikiBetaPage(
   input: RenameWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+  pageRepository: WikiBetaPageRepository,
 ): Promise<WikiBetaPage> {
   const title = normalizeTitle(input.title);
   const existing = await pageRepository.findById(input.accountId, input.pageId);
@@ -239,7 +236,7 @@ export async function renameWikiBetaPage(
 
 export async function moveWikiBetaPage(
   input: MoveWikiBetaPageInput,
-  pageRepository: WikiBetaPageRepository = defaultPageRepository,
+  pageRepository: WikiBetaPageRepository,
 ): Promise<WikiBetaPage> {
   const existing = await pageRepository.findById(input.accountId, input.pageId);
   if (!existing) {

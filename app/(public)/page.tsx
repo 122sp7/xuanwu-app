@@ -18,8 +18,8 @@ import {
   SignInAnonymouslyUseCase,
   RegisterUseCase,
   SendPasswordResetEmailUseCase,
-} from "@/modules/identity";
-import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account";
+} from "@/modules/identity/api";
+import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
 import {
   createDevDemoUser,
   isDevDemoCredential,

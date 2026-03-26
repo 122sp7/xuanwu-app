@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationTeams } from "@/modules/organization";
+import { getOrganizationTeams } from "@/modules/organization/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,

@@ -18,3 +18,4 @@ export type {
 } from "./schema";
 
 export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
+export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";

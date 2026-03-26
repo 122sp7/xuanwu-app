@@ -27,12 +27,38 @@ export type {
 } from "../domain/entities/wiki-beta-page.types";
 
 // ── WikiBeta page use-cases (transitional) ────────────────────────────────────
-export {
-  createWikiBetaPage,
-  listWikiBetaPagesTree,
-  moveWikiBetaPage,
-  renameWikiBetaPage,
+import { FirebaseWikiBetaPageRepository } from "../infrastructure/repositories/firebase-wiki-beta-page.repository";
+import {
+  createWikiBetaPage as _createWikiBetaPage,
+  listWikiBetaPagesTree as _listWikiBetaPagesTree,
+  moveWikiBetaPage as _moveWikiBetaPage,
+  renameWikiBetaPage as _renameWikiBetaPage,
 } from "../application/use-cases/wiki-beta-pages.use-case";
+import type {
+  CreateWikiBetaPageInput,
+  MoveWikiBetaPageInput,
+  RenameWikiBetaPageInput,
+  WikiBetaPage,
+  WikiBetaPageTreeNode,
+} from "../domain/entities/wiki-beta-page.types";
+
+const _defaultPageRepository = new FirebaseWikiBetaPageRepository();
+
+export function createWikiBetaPage(input: CreateWikiBetaPageInput): Promise<WikiBetaPage> {
+  return _createWikiBetaPage(input, _defaultPageRepository);
+}
+
+export function listWikiBetaPagesTree(accountId: string, workspaceId?: string): Promise<WikiBetaPageTreeNode[]> {
+  return _listWikiBetaPagesTree(accountId, workspaceId, _defaultPageRepository);
+}
+
+export function moveWikiBetaPage(input: MoveWikiBetaPageInput): Promise<WikiBetaPage> {
+  return _moveWikiBetaPage(input, _defaultPageRepository);
+}
+
+export function renameWikiBetaPage(input: RenameWikiBetaPageInput): Promise<WikiBetaPage> {
+  return _renameWikiBetaPage(input, _defaultPageRepository);
+}
 
 export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";

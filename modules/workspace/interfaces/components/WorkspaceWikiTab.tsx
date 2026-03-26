@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { WorkspaceWikiBetaView } from "./WorkspaceWikiBetaView";
 
 interface WorkspaceWikiTabProps {

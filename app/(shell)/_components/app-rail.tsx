@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization";
+import { createOrganization } from "@/modules/organization/api";
 import {
   createWorkspace,
   type WorkspaceEntity,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useApp } from "@/app/providers/app-provider";
-import { AccountSchedulingView } from "@/modules/workspace-scheduling";
+import { AccountSchedulingView } from "@/modules/workspace-scheduling/api";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationSchedulePage() {
