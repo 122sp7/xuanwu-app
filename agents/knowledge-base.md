@@ -136,29 +136,13 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 
 ### 已知邊界警告（待修復）
 
-以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，117 warnings 基準）：
+以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
 
-**`no-restricted-imports`（模組 root barrel 而非 `/api`）**
-
-| 違規檔案 | 違規 import |
-|---------|------------|
-| `app/(public)/page.tsx` | `@/modules/identity`、`@/modules/account` |
-| `app/(shell)/_components/*.tsx` | `@/modules/organization`、`@/modules/identity` |
-| `app/(shell)/organization/*.tsx` | `@/modules/workspace`、`@/modules/workspace-audit`、`@/modules/workspace-feed`、`@/modules/workspace-scheduling`、`@/modules/organization` |
-| `app/(shell)/workspace/*.tsx` | `@/modules/workspace` |
-| `modules/workspace/interfaces/components/*.tsx` | `@/modules/workspace`（self）、`@/modules/workspace-feed` |
-| `modules/workspace-scheduling/interfaces/*.tsx` | `@/modules/workspace` |
-
-**`boundaries/dependencies`（application → infrastructure 跨層）**
-
-| 違規檔案 | 說明 |
-|---------|------|
-| `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` | application 直接引用 infrastructure |
-| `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` | application 直接引用 infrastructure |
-| `modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts` | application 直接引用 infrastructure |
-| `modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts` | application 直接引用 infrastructure |
+目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
 
 > **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
+
+> **已修復（2026-03）：** `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` 與 `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
 
 ## Tech Stack
 

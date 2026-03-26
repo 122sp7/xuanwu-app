@@ -182,8 +182,8 @@ export async function createWikiBetaPage(
 
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "wiki_beta.page.created",
-    aggregateType: "wiki-page",
+    eventName: "content.page_created",
+    aggregateType: "content-page",
     aggregateId: created.id,
     payload: {
       accountId: created.accountId,
@@ -221,8 +221,8 @@ export async function renameWikiBetaPage(
 
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "wiki_beta.page.renamed",
-    aggregateType: "wiki-page",
+    eventName: "content.page_renamed",
+    aggregateType: "content-page",
     aggregateId: updated.id,
     payload: {
       accountId: updated.accountId,
@@ -268,8 +268,8 @@ export async function moveWikiBetaPage(
 
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "wiki_beta.page.moved",
-    aggregateType: "wiki-page",
+    eventName: "content.page_moved",
+    aggregateType: "content-page",
     aggregateId: moved.id,
     payload: {
       accountId: moved.accountId,
