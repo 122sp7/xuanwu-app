@@ -77,7 +77,3 @@ export function reindexWikiBetaDocument(input: WikiBetaReindexInput): Promise<vo
 export function listWikiBetaParsedDocuments(accountId: string, limitCount = 20): Promise<WikiBetaParsedDocument[]> {
   return _listWikiBetaParsedDocuments(accountId, limitCount, _defaultContentRepository);
 }
-
-// ── UI components ─────────────────────────────────────────────────────────────
-export { RagQueryView } from "../interfaces/components/RagQueryView";
-export { RagView } from "../interfaces/components/RagView";
