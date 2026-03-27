@@ -1,8 +1,10 @@
 # 讀模型 / CQRS（Read Model）
 
+<!-- change: Add content Database ↔ workspace-flow read-only sync explanation; PR-NUM -->
+
 本文件說明 Xuanwu App 中的 CQRS（Command Query Responsibility Segregation）讀寫分離設計，包含 Query 函式的位置、訂閱模式，以及與 Write-side（Use Cases）的分工。
 
-> **相關文件：** [`use-cases.md`](./use-cases.md) · [`repository-pattern.md`](./repository-pattern.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md)
+> **相關文件：** [`use-cases.md`](./use-cases.md) · [`repository-pattern.md`](./repository-pattern.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -228,6 +230,56 @@ useEffect(() => {
 | **驗證** | 輸入完整驗證 | 僅正規化 ID（trim/非空） |
 | **副作用** | 有（Firestore 寫入、事件發佈） | 無（純讀取） |
 | **快取** | 不快取 | 可快取（Next.js `cache()` / TanStack Query） |
+
+---
+
+## `content` Database ↔ `workspace-flow` 跨模組唯讀同步
+
+`content` 模組的 Database Block（計畫中）可透過 Read Model 嵌入 `workspace-flow` 的任務與發票狀態，提供統一的視圖介面。此同步**必須**是單向唯讀的，任何對 Task/Invoice 狀態的變更都必須透過 `workspace-flow/api` 的 Server Action。
+
+### 查詢路徑
+
+```typescript
+// content Database Block 渲染時，透過 workspace-flow/api 的 Query 函式取得任務列表
+// modules/content/interfaces/components/DatabaseBlock.tsx（計畫中）
+
+import { getWorkspaceFlowTasks } from "@/modules/workspace-flow/api";
+
+// Server Component 中一次性查詢
+const tasks = await getWorkspaceFlowTasks(workspaceId);
+
+// 或 Client Component 中即時訂閱
+const tasks = useWorkspaceFlowTasksSubscription(workspaceId);
+```
+
+### 即時同步策略（onSnapshot）
+
+若 Database Block 需要即時更新 Task 狀態，可透過 `workspace-flow` 的訂閱 Hook：
+
+```typescript
+// 計畫中 Query 函式（workspace-flow 模組）
+export function subscribeToWorkspaceFlowTasks(
+  workspaceId: string,
+  onUpdate: (tasks: TaskEntity[]) => void,
+): Unsubscribe {
+  // Firestore onSnapshot 監聽 workspaces/{workspaceId}/tasks
+  return onSnapshot(tasksCollection(workspaceId), (snapshot) => {
+    onUpdate(snapshot.docs.map(docToTaskEntity));
+  });
+}
+```
+
+### Firestore Indexing（查詢效能）
+
+`content` Database Block 展示 Task 時常用的查詢模式需要 Compound Index：
+
+| 查詢模式 | 需要的 Index |
+|---------|------------|
+| 依 `workspaceId` + `status` 過濾任務 | `workspaceId ASC, status ASC` |
+| 依 `workspaceId` + `sourceReference.id` 過濾（溯源查詢） | `workspaceId ASC, sourceReference.id ASC` |
+| 依 `workspaceId` + `createdAt` 排序 | `workspaceId ASC, createdAtISO DESC` |
+
+**注意：** `sourceReference.id` 的查詢索引特別重要，因為 `content` Database Block 需要根據 ContentPage ID 過濾出由同一份合約頁面派生的所有任務。
 
 ---
 

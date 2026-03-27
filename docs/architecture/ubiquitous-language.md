@@ -1,5 +1,7 @@
 # 通用語言（Ubiquitous Language）
 
+<!-- change: Add ContentPageApproved, MaterializedTask, sourceReference, causationId term definitions; PR-NUM -->
+
 本文件為 Xuanwu App 的**通用語言字典**，定義所有有界上下文中使用的術語，確保開發者、產品、設計之間使用一致的命名。
 
 > **使用方式：** 在討論需求、設計 API、命名實體或撰寫文件時，優先對照本表查找規範術語。新術語在使用前應先更新本文件。
@@ -158,6 +160,18 @@
 | **發票** | Invoice | 工作計費文件，含 InvoiceItems；有審批狀態機 | `workspace-flow` | `modules/workspace-flow/domain/entities/Invoice.ts` |
 | **發票項目** | InvoiceItem | 發票中的單項費用（description、amount） | `workspace-flow` | `modules/workspace-flow/domain/entities/InvoiceItem.ts` |
 | **發票狀態** | InvoiceStatus | Invoice 的審批流程狀態機 | `workspace-flow` | `InvoiceStatus.ts` |
+| **實體化任務** | MaterializedTask | 由 `content.page_approved` 事件派生建立的 Task，帶有 `sourceReference` 指回原始 ContentPage | `workspace-flow` | `modules/workspace-flow/domain/entities/Task.ts`（計畫中欄位） |
+| **來源參照** | sourceReference | 記錄業務實體（Task/Invoice）由哪個 ContentPage 派生而來的值物件（type, id, causationId, correlationId） | `workspace-flow` | `modules/workspace-flow/domain/value-objects/SourceReference.ts`（計畫中） |
+
+### content ↔ workspace-flow 整合術語
+
+| 術語 | 英文 | 定義 | 所在模組 |
+|------|------|------|---------|
+| **頁面核准事件** | ContentPageApproved | `content.page_approved` 領域事件；使用者在審閱 AI 草稿後核准頁面時觸發；攜帶 `extractedTasks[]`、`extractedInvoices[]`、`actorId`、`causationId`、`correlationId` | `content` |
+| **因果 ID** | causationId | 記錄「哪個命令觸發了此事件」的 UUID；用於 Event Store 追蹤與稽核回溯；`ApproveContentPageUseCase` 執行時生成 | `shared`（EventMetadata） |
+| **關聯 ID** | correlationId | 記錄「整個業務流程（合約攝入 → 審閱 → 核准 → 任務建立）」的追蹤 UUID；在合約上傳時生成並一路傳遞 | `shared`（EventMetadata） |
+| **緩衝區** | Buffer Zone | `content` 模組在 AI 攝入與業務實體化之間扮演的「草稿暫存與人工審閱」角色；AI 解析結果先寫入此區，人工確認後再派生 `workspace-flow` 實體 | `content` |
+| **物化流程管理器** | contentToWorkflowMaterializer | 訂閱 `content.page_approved`、協調 `CreateTaskUseCase` / `CreateInvoiceUseCase` 的 Process Manager；位於 `workspace-flow/application/process-managers/`（計畫中） | `workspace-flow` |
 
 ### 排程
 

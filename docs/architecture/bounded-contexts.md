@@ -1,8 +1,10 @@
 # 界限上下文（Bounded Contexts）
 
+<!-- change: Strengthen content Buffer Zone and workspace-flow Source of Truth descriptions; PR-NUM -->
+
 本文件定義 Xuanwu App 的 **界限上下文（Bounded Contexts）** 全貌。每個上下文對應 `modules/` 下的一個目錄，是一個自治的業務能力單元。
 
-> **閱讀建議：** 若需要術語定義，請先閱讀 [`ubiquitous-language.md`](./ubiquitous-language.md)。架構決策請參考 [`adr/`](./adr/)。
+> **閱讀建議：** 若需要術語定義，請先閱讀 [`ubiquitous-language.md`](./ubiquitous-language.md)。架構決策請參考 [`adr/`](./adr/)，content ↔ workspace-flow 邊界決策請見 [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)。
 
 ---
 
@@ -143,7 +145,7 @@ Platform Foundation Layer
 
 ### 7. `content` — 內容上下文（Notion Layer）
 
-**職責：** Block 編輯器的核心業務，管理 Page、Block、ContentVersion 的 CRUD 與版本歷程。作為非結構化資料與 AI 解析結果的緩衝區與人機協作（Human-in-the-loop）審閱介面。
+**職責：** Block 編輯器的核心業務，管理 Page、Block、ContentVersion 的 CRUD 與版本歷程。作為 AI 解析結果與人機協作（Human-in-the-loop）的**草稿緩衝區（Buffer Zone）**：AI 攝入管線將合約解析結果寫入 ContentPage 與 Database Blocks，提供審閱視圖，使用者確認後透過 `content.page_approved` 事件觸發 `workspace-flow` 的實體化流程。
 
 | 元素 | 名稱 | 說明 |
 |------|------|------|
@@ -276,7 +278,7 @@ Platform Foundation Layer
 
 ### 14. `workspace-flow` — 工作流程上下文
 
-**職責：** Task（任務）、Issue（問題回報）、Invoice（發票）三種工作流程的 XState 狀態機管理。作為業務實體的單一真相來源，不直接接收 AI 原始輸出，必須由合約/頁面核准事件（Event-Driven）派生而來。
+**職責：** Task（任務）、Issue（問題回報）、Invoice（發票）三種工作流程的 XState 狀態機管理。作為業務實體的**單一真相來源（Single Source of Truth）**：不直接接收 AI 原始輸出，所有業務實體**必須**由 `content.page_approved` 事件派生而來（透過 `contentToWorkflowMaterializer` Process Manager）。派生的 Task / Invoice 必須包含 `sourceReference`，指回原始 ContentPage 以支援稽核與溯源。
 
 | 元素 | 名稱 | 說明 |
 |------|------|------|

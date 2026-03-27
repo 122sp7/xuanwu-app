@@ -1,5 +1,7 @@
 # Workspace UI Gap Analysis
 
+<!-- change: Prioritize content→workspace-flow confirmation flow in Tasks Tab UI steps; PR-NUM -->
+
 **Date:** 2026-03-26  
 **Scope:** Features that have complete backend implementation but are not yet exposed in the workspace UI.
 
@@ -112,10 +114,25 @@ Invoices（8 個）:
 
 ## 建議實作順序
 
-### Phase 1 — Tasks 頁籤（最高優先）
+### Phase 0 — content → workspace-flow 確認流程（最高優先，v1.1 新增）
+
+依據 [ADR-001](./adr/ADR-001-content-to-workflow-boundary.md)，在實作 Tasks Tab 之前，須先確保 content 層有「審閱 → 批准 → 實體化」的 UI 入口。
+
+1. 在 `content` 的 Wiki 頁面介面新增「核准此頁面（Approve Page）」按鈕
+   - 位置：`modules/content/interfaces/components/ContentPageToolbar.tsx`（或 WikiPage 頭部操作列）
+   - 呼叫：`approveContentPageAction(pageId, { extractedTasks, extractedInvoices, actorId })`
+2. 實作 `approveContentPageAction` Server Action
+   - 位置：`modules/content/interfaces/_actions/content.actions.ts`
+   - 委派：`ApproveContentPageUseCase`
+3. 實作 `ApproveContentPageUseCase`（觸發 `content.page_approved` 事件）
+4. 實作 `contentToWorkflowMaterializer` Process Manager（或 Cloud Function Trigger）
+5. Tasks Tab 顯示由 content 派生的任務（帶 sourceReference 標記）
+
+### Phase 1 — Tasks 頁籤（後端完整，只差 UI）
 工作流核心，後端 100% 完整，只差 UI。
 
 1. 建立 `modules/workspace-flow/interfaces/components/WorkspaceTasksTab.tsx`
+   - 展示任務列表，標記來源（若 `task.sourceReference` 存在，顯示「來自合約：{ContentPage title}」）
 2. 建立 `modules/workspace-flow/interfaces/components/WorkspaceIssuesTab.tsx`
 3. 在 `modules/workspace-flow/api/index.ts` 匯出上述元件
 4. 在 `WorkspaceDetailScreen` 加入 `case "Projects":` 實際渲染

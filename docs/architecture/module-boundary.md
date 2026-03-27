@@ -1,8 +1,10 @@
 # Module Boundary（模組邊界）
 
+<!-- change: Add content/api/events.ts and workspace-flow/api/listeners.ts public interface examples; PR-NUM -->
+
 本文件說明 Xuanwu App 的 MDDD 模組邊界規則、API 邊界設計，以及 import 規範的強制機制。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`context-map.md`](./context-map.md)
+> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`context-map.md`](./context-map.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -193,6 +195,72 @@ rules: {
 | 14 | `workspace-feed` | Platform Foundation | 動態牆 |
 | 15 | `workspace-flow` | Platform Foundation | Task/Issue/Invoice 工作流 |
 | 16 | `workspace-scheduling` | Platform Foundation | 排程需求 |
+
+---
+
+## 跨模組 API 邊界範例：content ↔ workspace-flow 事件整合
+
+`content` 與 `workspace-flow` 之間的事件驅動整合必須透過各自的 `api/` 公開邊界，以下為公開介面範例：
+
+### `modules/content/api/events.ts`（計畫中）
+
+```typescript
+// modules/content/api/events.ts
+// 匯出 content 模組的公開事件契約，供其他模組（如 workspace-flow）訂閱
+
+export type {
+  ContentPageApprovedEvent,
+  ContentPageCreatedEvent,
+  ContentBlockUpdatedEvent,
+} from "../domain/events/content.events";
+
+// 事件類型常數（供訂閱者 switch/case 使用）
+export const CONTENT_EVENT_TYPES = {
+  PAGE_APPROVED: "content.page_approved",
+  PAGE_CREATED: "content.page_created",
+  BLOCK_UPDATED: "content.block_updated",
+} as const;
+```
+
+### `modules/workspace-flow/api/listeners.ts`（計畫中）
+
+```typescript
+// modules/workspace-flow/api/listeners.ts
+// 定義 workspace-flow 模組對外暴露的事件監聽介面
+// 供 Process Manager、Cloud Functions Trigger 或 Event Bus 使用
+
+import type { ContentPageApprovedEvent } from "@/modules/content/api/events";
+import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
+
+/**
+ * 處理 content.page_approved 事件
+ * 觸發點：Cloud Functions Firestore Trigger 或 Event Bus Consumer
+ */
+export async function handleContentPageApproved(
+  event: ContentPageApprovedEvent,
+): Promise<void> {
+  const materializer = new ContentToWorkflowMaterializer(
+    new FirebaseTaskRepository(),
+    new FirebaseInvoiceRepository(),
+    new FirebaseEventStoreRepository(),
+  );
+  await materializer.handle(event);
+}
+
+// 監聽器描述（供 Event Bus 註冊使用）
+export const WORKSPACE_FLOW_EVENT_LISTENERS = [
+  {
+    eventType: "content.page_approved",
+    handler: handleContentPageApproved,
+    description: "Materializes Task and Invoice from approved ContentPage",
+  },
+] as const;
+```
+
+**使用規則：**
+- `workspace-flow` 只能從 `@/modules/content/api/events` import 事件型別，**不得**直接 import `content/domain/`。
+- `content` 不得直接呼叫 `workspace-flow` 的 Use Case，只能透過 Event Bus 解耦。
+- `listeners.ts` 是 `workspace-flow/api` 的一部分，供外部（Cloud Functions、Trigger、tests）安全呼叫。
 
 ---
 

@@ -1,8 +1,10 @@
 # Infrastructure Strategy（基礎設施策略）
 
+<!-- change: Add Event Bus recommendation and ingestion pipeline to content detail; PR-NUM -->
+
 本文件說明 Xuanwu App 的基礎設施技術選擇、各服務的職責分工，以及 Next.js 與 Python Worker 的 runtime 邊界。
 
-> **相關文件：** [`repository-pattern.md`](./repository-pattern.md) · [`ai-domain.md`](./ai-domain.md)
+> **相關文件：** [`repository-pattern.md`](./repository-pattern.md) · [`ai-domain.md`](./ai-domain.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -185,6 +187,74 @@ User:   "User query: {question}\n\nRetrieved context:\n{chunks}"
 | `GENKIT_MODEL` | 覆蓋預設 LLM 模型 | `.env.local` |
 | `GOOGLE_API_KEY` | Genkit Google AI 認證 | `.env.local` |
 | Firebase 設定 | Firebase SDK 初始化 | `packages/integration-firebase/` |
+
+---
+
+## Event Bus 建議策略（content → workspace-flow 整合）
+
+`content.page_approved` 事件需要跨模組非同步傳遞，以下為技術選項評估：
+
+### 選項比較
+
+| 選項 | 技術 | 延遲 | 複雜度 | 適用場景 |
+|------|------|------|--------|---------|
+| **A（現有，推薦 v1.1）** | Firestore Trigger（Cloud Functions） | 低（<1s） | 低 | 已有 Firebase 基礎設施，無需額外服務 |
+| **B（未來擴展）** | Upstash QStash Queue | 低（<1s） | 中 | 需要重試、延遲投遞、DLQ 管理的生產場景 |
+| **C（重量級）** | Google Cloud Pub/Sub | 極低（<200ms） | 高 | 高吞吐量（>1000 msg/s）的企業級場景 |
+
+**v1.1 建議選項 A：Firestore Trigger via Cloud Functions**
+
+```text
+[ApproveContentPageUseCase]
+    │  寫入 EventRecord (Firestore)
+    ▼
+[Firestore Document Trigger: shared/eventStore/{docId}]
+    │  監聽 eventName = "content.page_approved"
+    ▼
+[Cloud Function: contentToWorkflowMaterializer]
+    │  呼叫 CreateTaskUseCase / CreateInvoiceUseCase
+    ▼
+[workspace-flow: Task / Invoice（帶 sourceReference）]
+```
+
+**實作位置：**
+- Firestore Trigger Cloud Function：`py_fn/functions/content_workflow_materializer.py` 或 Next.js App Router Route Handler
+- Process Manager：`modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts`
+
+### AI 攝入管線的原始檔案連結保留
+
+`py_fn/` 攝入管線在解析合約並將結果寫入 `content` 時，必須保留原始檔案的連結，以支援後續的稽核與溯源：
+
+```text
+[py_fn] 合約 PDF 攝入流程（擴充後）
+
+上傳 PDF → Storage
+    │
+    ▼  RegisterUploadedRagDocumentUseCase（Next.js）
+建立 IngestionJob (status: uploaded)
+    │
+    ▼  Firestore Trigger (py_fn)
+Parse → MarkItDown → Markdown
+    │
+    ├── 向量攝入管線（既有）：
+    │     Clean → Taxonomy → Chunk → Embed → Persist to Firestore vector
+    │
+    └── content 草稿建立（新增）：
+          │  呼叫 Next.js Server Action / HTTP API
+          ▼
+        ContentPage（title = 合約名稱, status = "active"）
+          ├── ContentBlock（摘要）
+          ├── ContentBlock（Database Block：AI 提取的任務列表）
+          └── ContentBlock（Database Block：AI 提取的發票項目）
+          │
+          └── IngestionJob.contentPageId = ContentPage.id   ← 原始檔案連結
+              IngestionJob.sourceFileUrl = Storage URL       ← 原始 PDF 連結
+```
+
+**連結型態：**
+- `IngestionJob.contentPageId`：攝入作業 → ContentPage（雙向溯源）
+- `ContentPage`（metadata）：`sourceDocumentId = IngestionJob.docId`
+- `Task.sourceReference.id = ContentPage.id`：Task → ContentPage → IngestionJob → PDF
 
 ---
 

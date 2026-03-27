@@ -1,5 +1,7 @@
 # Architecture
 
+<!-- change: Add ADR-001 to index and AI reading path; PR-NUM -->
+
 此資料夾放系統架構說明與設計原則。
 
 ## 文件索引
@@ -31,7 +33,9 @@
 | 文件 | 說明 |
 |------|------|
 | [`domain-implementation-target.md`](./domain-implementation-target.md) | 模組實現數量目標與 wiki-beta 分解記錄 |
+| [`workspace-ui-gap-analysis.md`](./workspace-ui-gap-analysis.md) | Workspace UI 缺口分析：後端完整但 UI 缺失的功能清單 |
 | [`adr/`](./adr/) | 架構決策記錄（ADR） |
+| [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md) | **ADR-001**：content ↔ workspace-flow 邊界與事件驅動整合（Buffer Zone / Materialization） |
 
 ## 閱讀路徑建議
 
@@ -44,6 +48,7 @@
 
 AI 功能開發:
   ai-domain.md → infrastructure-strategy.md → domain-events.md
+  → adr/ADR-001-content-to-workflow-boundary.md  ← content→workspace-flow 事件驅動設計
 
 架構合規:
   module-boundary.md → bounded-contexts.md

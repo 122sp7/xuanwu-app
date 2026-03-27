@@ -1,8 +1,10 @@
 # 領域模型（Domain Model）
 
+<!-- change: Add sourceReference / readonly view reference between ContentPage and workspace-flow entities; PR-NUM -->
+
 本文件描述 Xuanwu App 各有界上下文的聚合根（Aggregate Root）、實體（Entity）與值物件（Value Object）設計。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`domain-events.md`](./domain-events.md) · [`repository-pattern.md`](./repository-pattern.md)
+> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`domain-events.md`](./domain-events.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -398,7 +400,8 @@
 │   → draft → in_progress → qa → acceptance → accepted → archived
 ├── assigneeId?: string
 ├── dueDateISO?: string
-└── acceptedAtISO?: string
+├── acceptedAtISO?: string
+└── sourceReference?: SourceReference  // 由 content.page_approved 派生時必填
 
 聚合根: Issue
 ├── id: string
@@ -414,7 +417,8 @@
 ├── workspaceId: string
 ├── status: InvoiceStatus
 │   → draft → submitted → reviewed → approved → paid → closed
-└── items: InvoiceItem[]
+├── items: InvoiceItem[]
+└── sourceReference?: SourceReference  // 由 content.page_approved 派生時必填
 
 實體: InvoiceItem
 ├── id: string
@@ -422,9 +426,68 @@
 ├── taskId: string
 ├── amount: number
 └── description: string
+
+值物件: SourceReference
+├── type: "ContentPage"
+├── id: string                // ContentPage.id（溯源）
+├── causationId: string       // 事件的 causationId
+└── correlationId: string     // 整個業務流程的追蹤 ID
 ```
 
 **代碼位置：** `modules/workspace-flow/domain/entities/`
+
+---
+
+### `content` ↔ `workspace-flow` 跨模組引用型態說明
+
+`workspace-flow` 的 Task / Invoice 聚合根在由事件派生時，攜帶一個**唯讀溯源參照**（`sourceReference`），不允許透過此欄位直接操作 `content` 層：
+
+```typescript
+// 值物件：SourceReference（位於 modules/workspace-flow/domain/value-objects/）
+interface SourceReference {
+  readonly type: "ContentPage";          // 目前僅支援 ContentPage 作為來源
+  readonly id: string;                   // ContentPage.id
+  readonly causationId: string;          // content.page_approved 事件的 causationId
+  readonly correlationId: string;        // 整個業務流程的追蹤 ID
+}
+
+// 擴充後的 Task 聚合根（由 content.page_approved 派生時必填）
+interface Task {
+  // ... 現有欄位 ...
+  readonly sourceReference?: SourceReference;  // 由事件派生時必填；手動建立時為 undefined
+}
+
+// 擴充後的 Invoice 聚合根（由 content.page_approved 派生時必填）
+interface Invoice {
+  // ... 現有欄位 ...
+  readonly sourceReference?: SourceReference;  // 由事件派生時必填；手動建立時為 undefined
+}
+```
+
+**ContentPage（content 層）與 WorkspaceFlow 實體（workspace-flow 層）的引用關係：**
+
+```
+ContentPage (content)
+  │
+  │  觸發 content.page_approved（核准事件）
+  ▼
+contentToWorkflowMaterializer（Process Manager）
+  │
+  ├──► Task（workspace-flow）
+  │      └── sourceReference.id = ContentPage.id  [唯讀參照]
+  │
+  └──► Invoice（workspace-flow）
+         └── sourceReference.id = ContentPage.id  [唯讀參照]
+
+content Database Block（計畫中）
+  │
+  └──► 透過 Read Model 嵌入 Task 狀態         [唯讀視圖，禁止反向寫入]
+```
+
+**禁止的引用模式：**
+- ❌ `workspace-flow` 直接 import `content/domain/`（違反 API 邊界規則）
+- ❌ `content` 直接寫入 `workspace-flow` Firestore 集合（違反狀態機保護）
+- ❌ Task/Invoice 的狀態轉換由 `content` 直接觸發（須透過 `workspace-flow/api` Server Action）
 
 ---
 

@@ -1,8 +1,10 @@
 # Use Cases / Application Layer（應用層）
 
+<!-- change: Add ApproveContentPageUseCase and MaterializeTasksFromContentUseCase; PR-NUM -->
+
 本文件列出 Xuanwu App 所有有界上下文的 Use Cases，說明其職責、輸入/輸出契約，以及在 Application Layer 中的角色。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`repository-pattern.md`](./repository-pattern.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -98,12 +100,36 @@ export class VerbNounUseCase {
 | `RenameContentPageUseCase` | 重新命名頁面 | `ContentPageRepository` |
 | `MoveContentPageUseCase` | 移動頁面（變更父節點） | `ContentPageRepository` |
 | `ArchiveContentPageUseCase` | 歸檔頁面 | `ContentPageRepository` |
+| `ApproveContentPageUseCase` | 核准 AI 草稿頁面，觸發 `content.page_approved` 事件（計畫中，v1.1） | `ContentPageRepository`, `IEventStoreRepository`, `IEventBusRepository` |
 | `AddContentBlockUseCase` | 新增區塊 | `ContentBlockRepository` |
 | `UpdateContentBlockUseCase` | 更新區塊內容 | `ContentBlockRepository` |
 | `DeleteContentBlockUseCase` | 刪除區塊 | `ContentBlockRepository` |
 | `CreateContentVersionUseCase` | 建立版本快照 | `ContentVersionRepository` |
 | `ListContentVersionsUseCase` | 列出版本歷程 | `ContentVersionRepository` |
 | `GetWikiBetaPagesUseCase` | 取得 Wiki Pages | `WikiBetaPageRepository` |
+
+### `ApproveContentPageUseCase` 詳解（計畫中）
+
+```
+輸入: ApproveContentPageInput
+  pageId: string            // 必填：要核准的 ContentPage ID
+  workspaceId: string       // 必填：所屬工作區
+  actorId: string           // 必填：執行核准的使用者 ID
+  extractedTasks: Array<{ title, dueDate?, description? }>
+  extractedInvoices: Array<{ amount, description, currency? }>
+  correlationId?: string    // 選填：整個業務流程的追蹤 ID（若無則自動生成）
+
+流程:
+  1. 驗證 pageId 存在且 status = "active"（非 archived）
+  2. 驗證 actorId 有權限核准（對應工作區的成員）
+  3. ContentPageRepository.update(pageId, { approvalState: "approved", approvedAtISO })
+  4. PublishDomainEventUseCase.execute({ eventName: "content.page_approved", ... })
+     └── causationId = 此次執行的 requestId（UUID）
+     └── correlationId = input.correlationId ?? generateId()
+  5. 返回 CommandResult { success: true, aggregateId: pageId }
+
+代碼位置（計畫中）: modules/content/application/use-cases/approve-content-page.use-case.ts
+```
 
 **代碼位置：** `modules/content/application/use-cases/`
 
@@ -190,6 +216,26 @@ export class VerbNounUseCase {
 | `PassTaskQaUseCase` | QA 通過 → `acceptance` | `evaluateTaskTransition` + `hasNoOpenIssues` |
 | `ApproveTaskAcceptanceUseCase` | 驗收核准 → `accepted` | `evaluateTaskTransition` |
 | `ArchiveTaskUseCase` | 歸檔 → `archived` | `evaluateTaskTransition` + `invoiceAllowsArchive` |
+| `MaterializeTasksFromContentUseCase` | 由 `content.page_approved` 事件批量建立 Task，攜帶 `sourceReference`（計畫中，v1.1） | — |
+
+### `MaterializeTasksFromContentUseCase` 詳解（計畫中）
+
+```
+輸入: MaterializeTasksFromContentInput
+  pageId: string                    // content.page_approved 事件的 pageId
+  workspaceId: string               // 對應工作區
+  extractedTasks: Array<{ title, dueDate?, description? }>
+  sourceReference: SourceReference  // { type, id, causationId, correlationId }
+
+流程:
+  1. 依 extractedTasks 批量呼叫 TaskRepository.save()
+  2. 每個 Task 的 status 初始化為 "draft"
+  3. 每個 Task 均攜帶 sourceReference（指回 ContentPage）
+  4. 冪等性保護：若已存在相同 sourceReference.causationId 的 Task，跳過建立
+  5. 返回 CommandResult { success: true, aggregateId: pageId }
+
+代碼位置（計畫中）: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
+```
 
 ### Issue Use Cases
 
@@ -218,6 +264,7 @@ export class VerbNounUseCase {
 | `RejectInvoiceUseCase` | 拒絕 |
 | `PayInvoiceUseCase` | 付款完成（paid） |
 | `CloseInvoiceUseCase` | 關閉（closed） |
+| `MaterializeInvoicesFromContentUseCase` | 由 `content.page_approved` 事件批量建立 Invoice，攜帶 `sourceReference`（計畫中，v1.1） | — |
 
 **代碼位置：** `modules/workspace-flow/application/use-cases/`
 
