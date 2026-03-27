@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -251,9 +251,6 @@ export function AppRail({
       icon: <FlaskConical className="size-[18px]" />,
     },
   ];
-
-  /** Settings is pinned above the avatar, separate from main nav */
-  const settingsHref = "/settings";
 
   const visibleRailItems = railItems.filter((item) => item.show !== false);
 
@@ -496,29 +493,6 @@ export function AppRail({
 
         {/* ── Spacer ────────────────────────────────────────────────── */}
         <div className="flex-1" />
-
-        {/* ── Settings (pinned above avatar) ────────────────────────── */}
-        <div className="mb-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href={settingsHref}
-                aria-current={isActive(settingsHref) ? "page" : undefined}
-                aria-label="個人設定"
-                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                  isActive(settingsHref)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <Settings className="size-[18px]" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs">個人設定</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
 
         {/* ── User avatar / sign-out ────────────────────────────────── */}
         <DropdownMenu>

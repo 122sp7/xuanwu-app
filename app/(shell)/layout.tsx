@@ -25,7 +25,6 @@ import { HeaderUserAvatar } from "./_components/header-user-avatar";
 import { ShellGuard } from "./_components/shell-guard";
 
 const routeTitles: Record<string, string> = {
-  "/dashboard": "儀表板",
   "/organization": "組織治理",
   "/organization/daily": "Account · 每日",
   "/organization/schedule": "Account · 排程",
@@ -36,15 +35,12 @@ const routeTitles: Record<string, string> = {
   "/wiki-beta/rag-query": "Account Wiki-Beta · RAG 查詢",
   "/wiki-beta/documents": "Account Wiki-Beta · 文件",
   "/ai-chat": "AI 對話",
-  "/settings": "個人設定",
   "/dev-tools": "開發工具",
 };
 
 /** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
 const mobileNavItems = [
-  { href: "/dashboard", label: "儀表板" },
   { href: "/workspace", label: "工作區" },
-  { href: "/settings", label: "個人設定" },
 ];
 
 const organizationManagementItems = [
@@ -74,12 +70,8 @@ function resolveShellRouteForAccount(
   const nextAccountIsOrganization =
     nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
 
-  if (pathname === "/settings" && nextAccountIsOrganization) {
-    return "/organization";
-  }
-
   if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/settings";
+    return "/workspace";
   }
 
   return null;
