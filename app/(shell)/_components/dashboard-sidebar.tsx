@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -121,15 +121,14 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
 
 // ── Section helpers ──────────────────────────────────────────────────────────
 
-type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "account" | "organization" | "settings" | "other";
+type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "account" | "organization" | "other";
 
 function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace") || pathname.startsWith("/dashboard")) return "workspace";
+  if (pathname.startsWith("/workspace")) return "workspace";
   if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
   if (pathname.startsWith("/organization")) return "organization";
-  if (pathname.startsWith("/settings")) return "settings";
   return "other";
 }
 
@@ -141,7 +140,6 @@ const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode 
   "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
   account: { label: "Account", icon: <UserRound className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
-  settings: { label: "設定", icon: <Settings className="size-3" /> },
   other: { label: "導覽", icon: null },
 };
 
@@ -928,36 +926,6 @@ export function DashboardSidebar({
               </nav>
             )}
 
-            {section === "settings" && (
-              <nav className="space-y-0.5" aria-label="Settings navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  個人設定
-                </p>
-                {(
-                  [
-                    { href: "/settings/profile", label: "個人資料" },
-                    { href: "/settings/general", label: "一般" },
-                    { href: "/settings/notifications", label: "推播通知" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
           </div>
         </>
     </aside>

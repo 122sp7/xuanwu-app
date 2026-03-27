@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
 const SEGMENT_LABELS: Record<string, string> = {
-  "dashboard": "儀表板",
   "organization": "組織",
   "workspace": "工作區",
   "wiki-beta": "Wiki-Beta",
@@ -16,7 +15,6 @@ const SEGMENT_LABELS: Record<string, string> = {
   "pages-dnd": "頁面 (DnD)",
   "block-editor": "區塊編輯器",
   "rag-reindex": "RAG 重新索引",
-  "settings": "設定",
   "ai-chat": "AI 對話",
   "dev-tools": "開發工具",
   "namespaces": "命名空間",

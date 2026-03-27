@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Layout, Settings } from "lucide-react";
+import { FileText, Layout } from "lucide-react";
 
 import {
   CommandDialog,
@@ -15,20 +15,17 @@ import {
 } from "@ui-shadcn/ui/command";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "儀表板", group: "導覽" },
   { href: "/wiki-beta", label: "Account Wiki-Beta", group: "導覽" },
   { href: "/wiki-beta/block-editor", label: "區塊編輯器", group: "Wiki-Beta" },
   { href: "/wiki-beta/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki-Beta" },
   { href: "/wiki-beta/libraries", label: "Libraries 表格", group: "Wiki-Beta" },
   { href: "/wiki-beta/rag-query", label: "RAG 查詢", group: "Wiki-Beta" },
   { href: "/wiki-beta/documents", label: "文件管理", group: "Wiki-Beta" },
-  { href: "/settings", label: "個人設定", group: "設定" },
 ] as const;
 
 const GROUP_ICONS: Record<string, React.ReactNode> = {
   "導覽": <Layout className="size-4 mr-2 opacity-60" />,
   "Wiki-Beta": <FileText className="size-4 mr-2 opacity-60" />,
-  "設定": <Settings className="size-4 mr-2 opacity-60" />,
 };
 
 interface GlobalSearchDialogProps {

@@ -7,8 +7,7 @@
  * Constraints: keep header interaction lightweight and presentation-oriented.
  */
 
-import Link from "next/link";
-import { LogOut, Settings, SlidersHorizontal } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import {
@@ -59,19 +58,6 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
             <p className="text-xs text-muted-foreground">{email}</p>
           </div>
         </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/settings" className="flex items-center gap-2">
-            <Settings className="size-4 shrink-0" />
-            <span>設定</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings?tab=preferences" className="flex items-center gap-2">
-            <SlidersHorizontal className="size-4 shrink-0" />
-            <span>偏好設定</span>
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
