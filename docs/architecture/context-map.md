@@ -106,6 +106,12 @@ content ──embeds chunks→ knowledge (RAG ingestion)
 
 workspace ──hosts→ asset (Files & Libraries)
   └── asset.File 以 workspaceId 歸屬
+
+content ──page approved events→ workspace-flow (Materialization)
+  └── content.page_approved → 生成 Task / Invoice 並帶入 causationId
+
+content (Database View) ──reads→ workspace-flow
+  └── 透過 ID 參照動態嵌入任務與發票狀態，單向讀取。
 ```
 
 ---
@@ -136,6 +142,7 @@ asset ──RAG document→ knowledge
 | `workspace` | `workspace-flow/feed/audit` | **Open Host Service** | workspace 提供標準化 workspaceId 鍵 |
 | `content` | `knowledge-graph` | **Event-driven** | 透過 ContentUpdatedEvent 解耦 |
 | `content` | `knowledge` | **Event-driven** | 透過 py_fn 攝入管線解耦 |
+| `content` | `workspace-flow` | **Event-driven / Customer-Supplier** | 透過 `content.page_approved` 派生任務，並透過 ID 關聯視圖 |
 | `knowledge` | `retrieval` | **Shared Kernel** | 共享 chunk schema（Firestore 文件結構） |
 | `retrieval` | `agent` | **Customer/Supplier** | agent 呼叫 retrieval/api 執行 RAG |
 | `asset` | `knowledge` | **Customer/Supplier** | 上傳後觸發 IngestionJob |

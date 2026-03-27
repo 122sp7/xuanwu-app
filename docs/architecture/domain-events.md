@@ -39,6 +39,7 @@ interface SomethingHappenedEvent {
 | `content.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle` |
 | `content.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId` |
 | `content.page_archived` | 頁面歸檔 | `pageId`, `accountId` |
+| `content.page_approved` | 使用者核准 AI 生成的草稿頁面/資料庫 | `pageId`, `extractedTasks[]`, `extractedInvoices[]` |
 | `content.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText` |
 | `content.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText` |
 | `content.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId` |
@@ -51,6 +52,7 @@ type ContentDomainEvent =
   | ContentPageRenamedEvent
   | ContentPageMovedEvent
   | ContentPageArchivedEvent
+  | ContentPageApprovedEvent
   | ContentBlockAddedEvent
   | ContentBlockUpdatedEvent
   | ContentBlockDeletedEvent
@@ -150,6 +152,10 @@ interface ContentUpdatedEvent extends DomainEvent {
 content.page_created
   │
   └─► knowledge-graph: LinkExtractor（Auto-link 觸發管道，計畫中）
+
+content.page_approved
+  │
+  └─► workspace-flow: 實體化為實際的 Task 與 Invoice
 
 content.block_updated / content.block-updated
   │
