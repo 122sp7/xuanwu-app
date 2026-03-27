@@ -236,26 +236,10 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
                 onSelectOrganization={handleSelectOrganization}
                 onOrganizationCreated={handleOrganizationCreated}
               />
-
-              {showAccountManagement && (
-                <nav aria-label="Organization management" className="flex gap-2 overflow-auto">
-                  {organizationManagementItems.map((item) => {
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="whitespace-nowrap rounded-lg border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted"
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              )}
             </div>
 
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
+              {(showAccountManagement ? organizationManagementItems : mobileNavItems).map((item) => {
                 const isActive = isActiveRoute(item.href);
                 return (
                   <Link
