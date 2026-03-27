@@ -73,3 +73,7 @@ export {
   getWorkspaceFlowInvoices,
   getWorkspaceFlowInvoiceItems,
 } from "../interfaces/queries/workspace-flow.queries";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";

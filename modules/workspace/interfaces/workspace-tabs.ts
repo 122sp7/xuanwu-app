@@ -26,6 +26,7 @@ export const WORKSPACE_TAB_VALUES = [
   "Wiki",
   "Schedule",
   "Audit",
+  "Tasks",
   "Trash",
 ] as const;
 
@@ -72,6 +73,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   },
   Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
   Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
   Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
 };
 
@@ -80,7 +82,7 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
   spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
   databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
   library: ["Files", "Tags", "Templates", "Members", "Trash"],
-  modules: ["Daily", "Schedule", "Audit"],
+  modules: ["Daily", "Schedule", "Audit", "Tasks"],
 };
 
 const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
