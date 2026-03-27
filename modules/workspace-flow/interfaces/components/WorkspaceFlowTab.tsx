@@ -228,7 +228,7 @@ export function WorkspaceFlowTab({ workspaceId }: WorkspaceFlowTabProps) {
                       )}
                       {task.assigneeId && (
                         <p className="text-xs text-muted-foreground">
-                          指派給：{task.assigneeId}
+                          指派 (ID)：{task.assigneeId}
                         </p>
                       )}
                     </div>
