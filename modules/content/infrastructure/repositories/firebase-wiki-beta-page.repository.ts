@@ -9,11 +9,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function toDateOrNow(value: unknown): Date {
   if (isRecord(value)) {
-    const maybeToDate = value.toDate;
-    if (typeof maybeToDate === "function") {
-      const converted = maybeToDate();
-      if (converted instanceof Date) {
-        return converted;
+    if (typeof value.toDate === "function") {
+      try {
+        const converted = (value.toDate as () => unknown)();
+        if (converted instanceof Date) {
+          return converted;
+        }
+      } catch {
+        // fall through
       }
     }
   }
