@@ -513,7 +513,7 @@ export function WorkspaceDetailScreen({
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} />;
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
       default:
         return renderWorkspacePlaceholderTab(tab);
     }
