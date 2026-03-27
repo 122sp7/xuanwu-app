@@ -33,5 +33,8 @@ Create or refactor a route slice in `app/` that composes one feature block and k
 - Validation run
 - Any remaining route-state or boundary risks
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill app-router-parallel-routes
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices

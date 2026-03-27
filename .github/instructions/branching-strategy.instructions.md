@@ -16,5 +16,5 @@ applyTo: '**/*'
 - Run relevant lint/build/test commands for touched runtime.
 - Document what changed and why.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp

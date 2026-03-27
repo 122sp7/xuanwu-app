@@ -30,5 +30,7 @@ applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
 - Re-check changed imports for `@/modules/` to confirm API-only access.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries

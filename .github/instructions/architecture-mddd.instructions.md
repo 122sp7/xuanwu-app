@@ -30,5 +30,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - Keep module dependency flow acyclic unless an explicit event contract documents the exception.
 - Do not reverse dependency direction for convenience during refactors.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries

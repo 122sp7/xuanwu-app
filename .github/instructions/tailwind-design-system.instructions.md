@@ -11,5 +11,7 @@ applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
 - Keep spacing and typography scales consistent.
 - Avoid ad-hoc one-off style patterns without rationale.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill web-design-guidelines
+#use skill shadcn

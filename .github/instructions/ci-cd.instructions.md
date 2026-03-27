@@ -17,5 +17,5 @@ applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt
 - Do not skip failing mandatory checks.
 - Report unrelated baseline failures separately.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp

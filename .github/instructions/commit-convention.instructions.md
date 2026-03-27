@@ -16,5 +16,5 @@ applyTo: '**/*'
 - Mixed unrelated changes in one commit.
 - Vague subjects with no functional signal.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp

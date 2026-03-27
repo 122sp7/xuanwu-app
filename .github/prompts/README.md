@@ -43,5 +43,6 @@ Decomposed prompt set from `.github/prompts/old`.
 - [write-tests.prompt.md](write-tests.prompt.md)
 - [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface

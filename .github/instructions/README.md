@@ -72,5 +72,7 @@ Use these condensed rules for customization files outside runtime/business archi
 
 Keep these files concise, avoid duplicating repository-global policy, and prefer linking canonical references over copying long handbooks.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries

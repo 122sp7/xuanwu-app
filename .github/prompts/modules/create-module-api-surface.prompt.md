@@ -33,5 +33,7 @@ Create or refactor the public surface of a module so the app layer and other mod
 - Validation run
 - Residual boundary or consumer migration risks
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
