@@ -16,7 +16,6 @@ import {
   getDocs,
   getFirestore,
   increment,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -92,10 +91,10 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
       query(
         this.invoiceCollectionRef,
         where("workspaceId", "==", workspaceId),
-        orderBy("createdAtISO", "desc"),
       ),
     );
-    return snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
+    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
   }
 
   async transitionStatus(

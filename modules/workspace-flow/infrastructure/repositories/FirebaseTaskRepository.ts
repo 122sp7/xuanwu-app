@@ -15,7 +15,6 @@ import {
   getDoc,
   getDocs,
   getFirestore,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -106,10 +105,10 @@ export class FirebaseTaskRepository implements TaskRepository {
       query(
         this.collectionRef,
         where("workspaceId", "==", workspaceId),
-        orderBy("updatedAtISO", "desc"),
       ),
     );
-    return snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
+    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
   }
 
   async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
