@@ -9,6 +9,9 @@
  * ContentApi uses InMemory repos so it can run without any external service.
  */
 
+import {
+  createContentPageCreatedEvent,
+} from "../../shared/domain/events/content-page-created.event";
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
 import type { ContentBlock } from "../domain/entities/content-block.entity";
@@ -23,20 +26,43 @@ export class ContentApi {
   private readonly pageRepo: InMemoryContentPageRepository;
   private readonly blockRepo: InMemoryContentBlockRepository;
   private readonly blockService: BlockService;
+  private readonly eventBus: SimpleEventBus;
 
   constructor(eventBus: SimpleEventBus) {
     this.pageRepo = new InMemoryContentPageRepository();
     this.blockRepo = new InMemoryContentBlockRepository();
     this.blockService = new BlockService(this.blockRepo, eventBus);
+    this.eventBus = eventBus;
   }
 
-  /** Create a new page in the in-memory store. */
+  /**
+   * Create a new page in the in-memory store and publish a
+   * `ContentPageCreatedEvent` so the knowledge-graph module can
+   * automatically register a GraphNode for the new page.
+   */
   async createPage(
     accountId: string,
     title: string,
     createdByUserId = "system",
+    options?: { workspaceId?: string; parentPageId?: string | null },
   ): Promise<ContentPage> {
-    return this.pageRepo.create({ accountId, title, createdByUserId });
+    const page = await this.pageRepo.create({
+      accountId,
+      title,
+      createdByUserId,
+      parentPageId: options?.parentPageId ?? null,
+    });
+
+    const event = createContentPageCreatedEvent(
+      page.id,
+      page.title,
+      accountId,
+      createdByUserId,
+      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
+    );
+    await this.eventBus.publish(event);
+
+    return page;
   }
 
   /** Add a block to an existing page and return the new block. */
@@ -77,3 +103,4 @@ export class ContentApi {
     return { page, blocks };
   }
 }
+

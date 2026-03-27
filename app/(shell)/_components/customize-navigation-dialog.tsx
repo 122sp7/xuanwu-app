@@ -88,6 +88,7 @@ const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }
   { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
   { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
   { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
+  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
 ];
 
 const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [

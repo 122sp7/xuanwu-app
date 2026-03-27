@@ -11,6 +11,11 @@ export {
   CONTENT_UPDATED_EVENT_TYPE,
   createContentUpdatedEvent,
 } from "../domain/events/content-updated.event";
+export type { ContentPageCreatedEvent } from "../domain/events/content-page-created.event";
+export {
+  CONTENT_PAGE_CREATED_EVENT_TYPE,
+  createContentPageCreatedEvent,
+} from "../domain/events/content-page-created.event";
 export { SimpleEventBus } from "../infrastructure/SimpleEventBus";
 export type { EventHandler } from "../infrastructure/SimpleEventBus";
 
