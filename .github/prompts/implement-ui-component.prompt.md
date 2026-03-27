@@ -14,12 +14,9 @@ argument-hint: Provide component goal, route scope, and interaction states.
 3. Implement states: loading, empty, error, success.
 4. Validate accessibility and interaction behavior.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
+#use skill shadcn
+#use skill web-design-guidelines
+#use skill vercel-react-best-practices
+#use skill next-devtools-mcp

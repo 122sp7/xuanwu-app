@@ -14,12 +14,8 @@ argument-hint: Provide action intent, input schema, and target use case.
 - Delegate business logic to module use cases.
 - Return stable command-result shape.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+#use skill modules-mddd-api-surface
