@@ -65,3 +65,34 @@ export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
 export type { Block } from "../interfaces/store/block-editor.store";
 export { PagesView } from "../interfaces/components/PagesView";
 export { PagesDnDView } from "../interfaces/components/PagesDnDView";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createContentPage,
+  renameContentPage,
+  moveContentPage,
+  archiveContentPage,
+  reorderContentPageBlocks,
+  addContentBlock,
+  updateContentBlock,
+  deleteContentBlock,
+  publishContentVersion,
+  approveContentPage,
+} from "../interfaces/_actions/content.actions";
+
+export type { ApproveContentPageDto } from "../application/dto/content.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  CONTENT_EVENT_TYPES,
+} from "./events";
+
+export type {
+  ContentPageApprovedEvent,
+  ContentDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  ContentEventType,
+} from "./events";

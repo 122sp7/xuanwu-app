@@ -9,6 +9,12 @@ import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-
 import type { ContentPage, ContentPageTreeNode } from "../../domain/entities/content-page.entity";
 import type { ContentPageRepository } from "../../domain/repositories/content.repositories";
 import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import {
   CreateContentPageSchema,
   type CreateContentPageDto,
   RenameContentPageSchema,
@@ -19,6 +25,8 @@ import {
   type ArchiveContentPageDto,
   ReorderContentPageBlocksSchema,
   type ReorderContentPageBlocksDto,
+  ApproveContentPageSchema,
+  type ApproveContentPageDto,
 } from "../dto/content.dto";
 
 export function buildContentPageTree(pages: ContentPage[]): ContentPageTreeNode[] {
@@ -163,5 +171,70 @@ export class GetContentPageTreeUseCase {
     if (!accountId.trim()) return [];
     const pages = await this.repo.listByAccountId(accountId);
     return buildContentPageTree(pages);
+  }
+}
+
+export class ApproveContentPageUseCase {
+  constructor(
+    private readonly repo: ContentPageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveContentPageDto): Promise<CommandResult> {
+    const parsed = ApproveContentPageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) {
+      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    }
+    if (page.status === "archived") {
+      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    }
+    if (page.approvalState === "approved") {
+      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+    }
+
+    const nowISO = new Date().toISOString();
+    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
+    if (!approved) {
+      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
+    }
+
+    const causationId = generateId();
+    const correlationId = inputCorrelationId ?? generateId();
+
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "content.page_approved",
+      aggregateType: "ContentPage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
   }
 }

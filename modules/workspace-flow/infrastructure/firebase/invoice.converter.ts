@@ -9,9 +9,18 @@
 
 import type { Invoice } from "../../domain/entities/Invoice";
 import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
 
 const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
 const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+function toSourceReference(raw: unknown): SourceReference | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  if (r.type !== "ContentPage") return undefined;
+  if (typeof r.id !== "string" || typeof r.causationId !== "string" || typeof r.correlationId !== "string") return undefined;
+  return { type: "ContentPage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
+}
 
 /**
  * Converts a raw Firestore document data map into a typed Invoice entity.
@@ -30,6 +39,7 @@ export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
     approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
     paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
     closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };

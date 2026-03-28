@@ -5,8 +5,10 @@
  */
 
 export type ContentPageStatus = "active" | "archived";
+export type ContentPageApprovalState = "pending" | "approved";
 
 export const CONTENT_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly ContentPageStatus[];
+export const CONTENT_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly ContentPageApprovalState[];
 
 export interface ContentPage {
   readonly id: string;
@@ -18,6 +20,12 @@ export interface ContentPage {
   readonly order: number;
   readonly blockIds: readonly string[];
   readonly status: ContentPageStatus;
+  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
+  readonly approvalState?: ContentPageApprovalState;
+  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
+  readonly approvedAtISO?: string;
+  /** Actor who approved the page. */
+  readonly approvedByUserId?: string;
   readonly createdByUserId: string;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
@@ -56,4 +64,11 @@ export interface ReorderContentPageBlocksInput {
 export interface ArchiveContentPageInput {
   readonly accountId: string;
   readonly pageId: string;
+}
+
+export interface ApproveContentPageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly approvedByUserId: string;
+  readonly approvedAtISO: string;
 }

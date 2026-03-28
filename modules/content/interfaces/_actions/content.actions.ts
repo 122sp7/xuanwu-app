@@ -14,6 +14,7 @@ import {
   MoveContentPageUseCase,
   ArchiveContentPageUseCase,
   ReorderContentPageBlocksUseCase,
+  ApproveContentPageUseCase,
 } from "../../application/use-cases/content-page.use-cases";
 import {
   AddContentBlockUseCase,
@@ -22,6 +23,7 @@ import {
 } from "../../application/use-cases/content-block.use-cases";
 import { FirebaseContentPageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
 import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
 import type {
   CreateContentPageDto,
   RenameContentPageDto,
@@ -32,6 +34,7 @@ import type {
   UpdateContentBlockDto,
   DeleteContentBlockDto,
   CreateContentVersionDto,
+  ApproveContentPageDto,
 } from "../../application/dto/content.dto";
 
 function makePageRepo() {
@@ -139,4 +142,19 @@ export async function publishContentVersion(
     "CONTENT_VERSION_NOT_IMPLEMENTED",
     "Version persistence is not yet implemented.",
   );
+}
+
+export async function approveContentPage(input: ApproveContentPageDto): Promise<CommandResult> {
+  try {
+    return await new ApproveContentPageUseCase(
+      makePageRepo(),
+      new InMemoryEventStoreRepository(),
+      new NoopEventBusRepository(),
+    ).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_APPROVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
 }

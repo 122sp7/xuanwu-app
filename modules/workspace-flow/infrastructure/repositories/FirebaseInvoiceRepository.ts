@@ -52,7 +52,7 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
 
   async create(input: CreateInvoiceInput): Promise<Invoice> {
     const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.invoiceCollectionRef, {
+    const docData: Record<string, unknown> = {
       workspaceId: input.workspaceId,
       status: DEFAULT_STATUS,
       totalAmount: 0,
@@ -64,13 +64,19 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
       updatedAtISO: nowISO,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.invoiceCollectionRef, docData);
 
     return {
       id: docRef.id,
       workspaceId: input.workspaceId,
       status: DEFAULT_STATUS,
       totalAmount: 0,
+      sourceReference: input.sourceReference,
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
     };

@@ -39,6 +39,38 @@ export interface ContentPageArchivedEvent {
   readonly occurredAtISO: string;
 }
 
+// ── Extracted-task shape (used inside ContentPageApprovedEvent) ───────────────
+
+export interface ExtractedTask {
+  readonly title: string;
+  readonly dueDate?: string;
+  readonly description?: string;
+}
+
+export interface ExtractedInvoice {
+  readonly amount: number;
+  readonly description: string;
+  readonly currency?: string;
+}
+
+export interface ContentPageApprovedEvent {
+  readonly type: "content.page_approved";
+  /** ContentPage aggregate ID (also the Firestore document id). */
+  readonly aggregateId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly extractedTasks: ReadonlyArray<ExtractedTask>;
+  readonly extractedInvoices: ReadonlyArray<ExtractedInvoice>;
+  /** Actor who triggered the approval. */
+  readonly actorId: string;
+  /** ID of the command (ApproveContentPageUseCase execution) that caused this event. */
+  readonly causationId: string;
+  /** Business-process correlation ID tracing the whole ingestion → approval → materialization flow. */
+  readonly correlationId: string;
+  readonly occurredAtISO: string;
+}
+
 export interface ContentBlockAddedEvent {
   readonly type: "content.block_added";
   readonly blockId: string;
@@ -80,6 +112,7 @@ export type ContentDomainEvent =
   | ContentPageRenamedEvent
   | ContentPageMovedEvent
   | ContentPageArchivedEvent
+  | ContentPageApprovedEvent
   | ContentBlockAddedEvent
   | ContentBlockUpdatedEvent
   | ContentBlockDeletedEvent

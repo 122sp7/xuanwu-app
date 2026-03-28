@@ -32,6 +32,10 @@ export { ISSUE_STAGES } from "../domain/value-objects/IssueStage";
 export type { InvoiceStatus } from "../domain/value-objects/InvoiceStatus";
 export { INVOICE_STATUSES } from "../domain/value-objects/InvoiceStatus";
 
+// ── Source reference (content → workspace-flow provenance) ────────────────────
+
+export type { SourceReference, SourceReferenceType } from "../domain/value-objects/SourceReference";
+
 // ── Summary projections ───────────────────────────────────────────────────────
 
 export type {
