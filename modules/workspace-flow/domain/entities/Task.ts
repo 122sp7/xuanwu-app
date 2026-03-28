@@ -8,6 +8,7 @@
  */
 
 import type { TaskStatus } from "../value-objects/TaskStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
 
 // ── Aggregate ─────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,11 @@ export interface Task {
   readonly dueDateISO?: string;
   readonly acceptedAtISO?: string;
   readonly archivedAtISO?: string;
+  /**
+   * Present when this Task was materialized from a ContentPage via the
+   * `content.page_approved` event.  Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
 }
@@ -33,6 +39,7 @@ export interface CreateTaskInput {
   readonly description?: string;
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
+  readonly sourceReference?: SourceReference;
 }
 
 export interface UpdateTaskInput {

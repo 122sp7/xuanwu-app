@@ -24,11 +24,11 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
 import { Textarea } from "@ui-shadcn/ui/textarea";
-import { runWikiBetaRagQuery, type WikiBetaCitation } from "../../api";
-import type { AssetLiveDocument as WikiBetaLiveDocument } from "@/modules/asset/api";
+import { runWikiRagQuery, type WikiCitation } from "../../api";
+import type { AssetLiveDocument as WikiLiveDocument } from "@/modules/asset/api";
 import { useDocumentsSnapshot } from "@/modules/asset/api";
 
-interface WikiBetaRagViewProps {
+interface WikiRagViewProps {
   readonly onBack: () => void;
   readonly mode?: "all" | "query" | "reindex" | "documents";
   readonly workspaceId?: string;
@@ -132,7 +132,7 @@ export function RagView({
   mode = "all",
   workspaceId,
   showBackButton = true,
-}: WikiBetaRagViewProps) {
+}: WikiRagViewProps) {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";
@@ -145,7 +145,7 @@ export function RagView({
   const [topK, setTopK] = useState("4");
   const [loadingAnswer, setLoadingAnswer] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
+  const [citations, setCitations] = useState<WikiCitation[]>([]);
   const [cacheMode, setCacheMode] = useState<"hit" | "miss">("miss");
   const [vectorHits, setVectorHits] = useState(0);
   const [searchHits, setSearchHits] = useState(0);
@@ -196,13 +196,13 @@ export function RagView({
       }
       const parsedTopK = Number(topK);
       const safeTopK = Number.isFinite(parsedTopK) && parsedTopK > 0 ? parsedTopK : 4;
-      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
+      let result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
         requireReady: true,
       });
 
       if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
         appendLog("主要查詢無可用引用，啟用相容模式重試 (require_ready=false, max_age_days=3650)");
-        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
+        result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, safeTopK, {
           requireReady: false,
           maxAgeDays: 3650,
         });
@@ -291,7 +291,7 @@ export function RagView({
     }
   }
 
-  async function handleDelete(doc: WikiBetaLiveDocument) {
+  async function handleDelete(doc: WikiLiveDocument) {
     if (!activeAccountId) return;
     if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
 
@@ -325,7 +325,7 @@ export function RagView({
     }
   }
 
-  async function handleRename(doc: WikiBetaLiveDocument) {
+  async function handleRename(doc: WikiLiveDocument) {
     if (!activeAccountId) { toast.error("目前沒有 active account，無法更名"); return; }
     const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
     if (!nextName || nextName === doc.filename) return;
@@ -350,7 +350,7 @@ export function RagView({
     }
   }
 
-  async function handleViewOriginal(doc: WikiBetaLiveDocument) {
+  async function handleViewOriginal(doc: WikiLiveDocument) {
     if (!doc.sourceGcsUri) return;
     try {
       const storage = getFirebaseStorage(UPLOAD_BUCKET);
@@ -387,7 +387,7 @@ export function RagView({
     <div className="space-y-4">
       {showBackButton ? (
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={onBack}>返回 Account Wiki-Beta</Button>
+          <Button variant="outline" onClick={onBack}>返回 Account Wiki</Button>
         </div>
       ) : null}
 

@@ -8,6 +8,7 @@
  */
 
 import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
 
 // ── Aggregate ─────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,11 @@ export interface Invoice {
   readonly approvedAtISO?: string;
   readonly paidAtISO?: string;
   readonly closedAtISO?: string;
+  /**
+   * Present when this Invoice was materialized from a ContentPage via the
+   * `content.page_approved` event.  Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
 }
@@ -28,4 +34,5 @@ export interface Invoice {
 
 export interface CreateInvoiceInput {
   readonly workspaceId: string;
+  readonly sourceReference?: SourceReference;
 }

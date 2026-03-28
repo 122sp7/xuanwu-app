@@ -1,8 +1,10 @@
 # Repository Pattern（儲存抽象）
 
+<!-- change: Add Event Store / causation metadata relationship notes for content↔workspace-flow; PR-NUM -->
+
 本文件說明 Xuanwu App 的 Repository Pattern 設計，包含 domain 層介面定義、Firebase 基礎設施實作，以及 Port（跨切關注點抽象）的使用方式。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -63,7 +65,7 @@ infrastructure/firebase/ (concrete)
 |------|------|------|
 | `WorkspaceRepository` | `findById()`, `findAllByAccountId()`, `create()`, `update()`, `addMember()`, `removeMember()` | 工作區 CRUD |
 | `WorkspaceQueryRepository` | `subscribeToWorkspacesForAccount()` | 實時訂閱 |
-| `WikiBetaWorkspaceRepository` | `getContentTree()` | 頁面樹查詢 |
+| `WikiWorkspaceRepository` | `getContentTree()` | 頁面樹查詢 |
 
 ---
 
@@ -106,7 +108,7 @@ interface ContentVersionRepository {
 |------|------|------|
 | `FileRepository` | `create()`, `findById()`, `listByWorkspaceId()` | 檔案 CRUD |
 | `RagDocumentRepository` | `register()`, `findById()`, `updateStatus()` | RAG 文件狀態管理 |
-| `WikiBetaLibraryRepository` | `create()`, `findById()`, `listByWorkspaceId()` | Wiki Library CRUD |
+| `WikiLibraryRepository` | `create()`, `findById()`, `listByWorkspaceId()` | Wiki Library CRUD |
 
 ---
 
@@ -151,10 +153,10 @@ interface RagGenerationRepository {
   generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
 }
 
-// modules/retrieval/domain/repositories/WikiBetaContentRepository.ts
+// modules/retrieval/domain/repositories/WikiContentRepository.ts
 
-interface WikiBetaContentRepository {
-  getPages(workspaceId: string): Promise<WikiBetaPage[]>;
+interface WikiContentRepository {
+  getPages(workspaceId: string): Promise<WikiPage[]>;
   getDocuments(workspaceId: string): Promise<RagDocument[]>;
 }
 ```
@@ -260,6 +262,73 @@ interface IVectorStore {
 | `NotificationRepository` | `FirebaseNotificationRepository` | `notifications/{notificationId}` |
 | `IEventStoreRepository` | `InMemoryEventStoreRepository` | （記憶體，測試用）|
 | `IEventBusRepository` | `NoopEventBusRepository` | （無操作，測試用）|
+
+---
+
+## Repository 與 Event Store 的關係
+
+在 `content.page_approved` 事件驅動整合中，Repository 與 Event Store 的協作遵循以下規則：
+
+### 寫入順序規則
+
+```text
+content 側（ApproveContentPageUseCase）:
+  1. ContentPageRepository.update(pageId, { status: "approved" })   ← 先寫聚合狀態
+  2. IEventStoreRepository.save(ContentPageApprovedEvent)            ← 再持久化事件
+  3. IEventBusRepository.publish(event)                              ← 最後非同步派發
+
+workspace-flow 側（contentToWorkflowMaterializer）:
+  1. 消費 content.page_approved 事件
+  2. TaskRepository.save(task with sourceReference)                  ← 由事件派生建立 Task
+  3. InvoiceRepository.save(invoice with sourceReference)            ← 由事件派生建立 Invoice
+```
+
+**重要：** content repository 先寫入 ContentPage 聚合狀態，workspace-flow repository 由事件驅動建立 Task/Invoice；兩側均不允許直接讀取對方的 repository。
+
+### Event Store Metadata 規範
+
+`IEventStoreRepository.save()` 的 `EventRecord` 在 content ↔ workspace-flow 整合中必須包含完整的因果與關聯元資料：
+
+```typescript
+// 呼叫 PublishDomainEventUseCase 時的 metadata 範例
+await publishEvent.execute({
+  eventName: "content.page_approved",
+  aggregateType: "ContentPage",
+  aggregateId: pageId,
+  payload: {
+    pageId,
+    extractedTasks,
+    extractedInvoices,
+    actorId,
+  },
+  metadata: {
+    actorId,          // 執行核准的使用者 ID
+    causationId,      // 觸發此事件的命令 ID（ApproveContentPageUseCase 的執行 requestId）
+    correlationId,    // 整個業務流程（合約攝入 → 核准 → 任務建立）的追蹤 ID
+    traceId,          // 分散式追蹤 ID（可選，用於日誌關聯）
+  },
+});
+```
+
+**Metadata 欄位說明：**
+
+| 欄位 | 用途 | 填充時機 |
+|------|------|---------|
+| `causationId` | 記錄「哪個命令觸發了此事件」，用於稽核回溯 | `ApproveContentPageUseCase` 執行時生成 UUID |
+| `correlationId` | 記錄「整個業務流程 ID」，串連合約攝入 → 審閱 → 核准 → 任務建立全程 | 合約上傳時生成，並一路傳遞 |
+| `actorId` | 執行操作的使用者 | 從 Server Action 的 session 中取得 |
+
+**Task/Invoice 的 sourceReference 必須使用 Event 的 causationId：**
+
+```typescript
+// 在 contentToWorkflowMaterializer 中
+const sourceReference = {
+  type: "ContentPage" as const,
+  id: event.pageId,
+  causationId: event.causationId,    // 對應 EventStore 中的 EventRecord
+  correlationId: event.correlationId,
+};
+```
 
 ---
 

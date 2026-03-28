@@ -29,6 +29,7 @@ import type {
   RenameContentPageInput,
   MoveContentPageInput,
   ReorderContentPageBlocksInput,
+  ApproveContentPageInput,
 } from "../../domain/entities/content-page.entity";
 import type { ContentPageRepository } from "../../domain/repositories/content.repositories";
 
@@ -53,6 +54,9 @@ function toContentPage(id: string, data: Record<string, unknown>): ContentPage {
       ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
       : [],
     status: data.status === "archived" ? "archived" : "active",
+    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
     createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
@@ -166,6 +170,28 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
     const nowISO = new Date().toISOString();
     await updateDoc(ref, {
       status: "archived",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toContentPage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async approve(input: ApproveContentPageInput): Promise<ContentPage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    if (data.status === "archived") return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
       updatedAtISO: nowISO,
       updatedAt: serverTimestamp(),
     });

@@ -77,3 +77,13 @@ export {
 // ── UI components ─────────────────────────────────────────────────────────────
 
 export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
+
+// ── Event listeners (content → workspace-flow integration) ───────────────────
+
+export {
+  createContentToWorkflowListener,
+} from "./listeners";
+
+export type {
+  ContentPageApprovedHandler,
+} from "./listeners";

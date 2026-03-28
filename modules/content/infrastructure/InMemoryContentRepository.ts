@@ -19,6 +19,7 @@ import type {
   RenameContentPageInput,
   MoveContentPageInput,
   ReorderContentPageBlocksInput,
+  ApproveContentPageInput,
 } from "../domain/entities/content-page.entity";
 import type {
   ContentBlockRepository,
@@ -107,6 +108,21 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
       updatedAtISO: new Date().toISOString(),
     };
     this.pages.set(pageId, updated);
+    return updated;
+  }
+
+  async approve(input: ApproveContentPageInput): Promise<ContentPage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    if (page.status === "archived") return null;
+    const updated: ContentPage = {
+      ...page,
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
     return updated;
   }
 

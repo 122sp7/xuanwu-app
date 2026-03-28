@@ -45,7 +45,7 @@ import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiBetaView } from "./WorkspaceWikiBetaView";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 import {
   getWorkspaceTabLabel,
@@ -501,7 +501,7 @@ export function WorkspaceDetailScreen({
       case "Files":
         return <WorkspaceFilesTab workspace={workspace} />;
       case "Wiki":
-        return <WorkspaceWikiBetaView workspace={workspace} />;
+        return <WorkspaceWikiView workspace={workspace} />;
       case "Schedule":
         return (
           <WorkspaceSchedulingTab

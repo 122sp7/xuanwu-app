@@ -109,7 +109,7 @@ Upstash Redis         ← 快取（RAG query cache）
 
 ```
 accounts/{accountId}/
-├── documents/{documentId}     ← 文件（Wiki-Beta）
+├── documents/{documentId}     ← 文件（Wiki）
 ├── pages/{pageId}             ← 頁面（Pages）
 ├── databases/{databaseId}     ← 資料庫（Libraries）
 ├── workspaces/{workspaceId}   ← 工作區（Workspace）
@@ -142,15 +142,15 @@ Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account ro
 | `account` | 用戶帳號、成員角色、帳號策略 |
 | `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
 | `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
-| `content` | Block 編輯器頁面、WikiBetaPage、版本歷程 |
+| `content` | Block 編輯器頁面、WikiPage、版本歷程 |
 | `identity` | 身份認證、Token 刷新 |
 | `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
 | `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
 | `notification` | 通知推送 |
 | `organization` | 組織（租戶）管理、策略 |
-| `retrieval` | RAG 查詢、WikiBeta RAG 類型、向量檢索 |
+| `retrieval` | RAG 查詢、Wiki RAG 類型、向量檢索 |
 | `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
-| `workspace` | 工作區管理、成員管理、WikiBetaContentTree |
+| `workspace` | 工作區管理、成員管理、WikiContentTree |
 | `workspace-audit` | 不可變稽核記錄 |
 | `workspace-feed` | 工作區動態摘要 |
 | `workspace-flow` | 工作區任務與流程管理 |

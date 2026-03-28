@@ -9,6 +9,7 @@
 
 import type { Task } from "../../domain/entities/Task";
 import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toSourceReference } from "./sourceReference.converter";
 
 const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
 const DEFAULT_STATUS: TaskStatus = "draft";
@@ -31,6 +32,7 @@ export function toTask(id: string, data: Record<string, unknown>): Task {
     dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
     acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
     archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };

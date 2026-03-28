@@ -9,6 +9,7 @@
 
 import type { Invoice } from "../../domain/entities/Invoice";
 import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toSourceReference } from "./sourceReference.converter";
 
 const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
 const DEFAULT_STATUS: InvoiceStatus = "draft";
@@ -30,6 +31,7 @@ export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
     approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
     paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
     closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };

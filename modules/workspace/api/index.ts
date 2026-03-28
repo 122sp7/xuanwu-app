@@ -20,27 +20,27 @@ export {
   subscribeToWorkspacesForAccount,
 } from "../interfaces/queries/workspace.queries";
 
-// ─── WikiBeta content-tree types (transitional — workspace-owned) ─────────────
+// ─── Wiki content-tree types (transitional — workspace-owned) ─────────────
 
 export type {
-  WikiBetaAccountContentNode,
-  WikiBetaAccountSeed,
-  WikiBetaAccountType,
-  WikiBetaContentItemNode,
-  WikiBetaWorkspaceContentNode,
-  WikiBetaWorkspaceRef,
-} from "../domain/entities/WikiBetaContentTree";
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
 
-// ─── WikiBeta content-tree use-case (transitional) ────────────────────────────
+// ─── Wiki content-tree use-case (transitional) ────────────────────────────
 
-import { FirebaseWikiBetaWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository";
-import { buildWikiBetaContentTree as _buildWikiBetaContentTree } from "../application/use-cases/wiki-beta-content-tree.use-case";
-import type { WikiBetaAccountContentNode, WikiBetaAccountSeed } from "../domain/entities/WikiBetaContentTree";
+import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
+import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
 
-const _defaultWorkspaceRepository = new FirebaseWikiBetaWorkspaceRepository();
+const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
 
-export function buildWikiBetaContentTree(seeds: WikiBetaAccountSeed[]): Promise<WikiBetaAccountContentNode[]> {
-  return _buildWikiBetaContentTree(seeds, _defaultWorkspaceRepository);
+export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
 }
 
 // ─── Server actions (client-callable via Next.js action proxy) ──────────────

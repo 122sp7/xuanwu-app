@@ -31,9 +31,9 @@ const routeTitles: Record<string, string> = {
   "/organization/schedule/dispatcher": "Account · 調度台",
   "/organization/audit": "Account · 稽核",
   "/workspace": "工作區中心",
-  "/wiki-beta": "Account Wiki-Beta",
-  "/wiki-beta/rag-query": "Account Wiki-Beta · RAG 查詢",
-  "/wiki-beta/documents": "Account Wiki-Beta · 文件",
+  "/wiki": "Wiki",
+  "/wiki/rag-query": "Account Wiki · RAG 查詢",
+  "/wiki/documents": "Account Wiki · 文件",
   "/ai-chat": "AI 對話",
   "/dev-tools": "開發工具",
 };

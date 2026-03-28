@@ -10,6 +10,7 @@ import type {
   RenameContentPageInput,
   MoveContentPageInput,
   ReorderContentPageBlocksInput,
+  ApproveContentPageInput,
 } from "../entities/content-page.entity";
 import type {
   ContentBlock,
@@ -27,6 +28,8 @@ export interface ContentPageRepository {
   move(input: MoveContentPageInput): Promise<ContentPage | null>;
   reorderBlocks(input: ReorderContentPageBlocksInput): Promise<ContentPage | null>;
   archive(accountId: string, pageId: string): Promise<ContentPage | null>;
+  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
+  approve(input: ApproveContentPageInput): Promise<ContentPage | null>;
   findById(accountId: string, pageId: string): Promise<ContentPage | null>;
   listByAccountId(accountId: string): Promise<ContentPage[]>;
   listByWorkspaceId(accountId: string, workspaceId: string): Promise<ContentPage[]>;

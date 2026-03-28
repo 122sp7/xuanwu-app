@@ -1,8 +1,10 @@
 # 界限上下文（Bounded Contexts）
 
+<!-- change: Strengthen content Buffer Zone and workspace-flow Source of Truth descriptions; PR-NUM -->
+
 本文件定義 Xuanwu App 的 **界限上下文（Bounded Contexts）** 全貌。每個上下文對應 `modules/` 下的一個目錄，是一個自治的業務能力單元。
 
-> **閱讀建議：** 若需要術語定義，請先閱讀 [`ubiquitous-language.md`](./ubiquitous-language.md)。架構決策請參考 [`adr/`](./adr/)。
+> **閱讀建議：** 若需要術語定義，請先閱讀 [`ubiquitous-language.md`](./ubiquitous-language.md)。架構決策請參考 [`adr/`](./adr/)，content ↔ workspace-flow 邊界決策請見 [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)。
 
 ---
 
@@ -103,7 +105,7 @@ Platform Foundation Layer
 |------|------|------|
 | Entity | `WorkspaceEntity` | 工作區聚合根（id、name、lifecycleState、visibility、grants） |
 | Entity | `WorkspaceMember` | 工作區成員（userId、role） |
-| Entity | `WikiBetaContentTree` | 頁面樹視圖（pageId 層級結構） |
+| Entity | `WikiContentTree` | 頁面樹視圖（pageId 層級結構） |
 | Value Object | `WorkspaceLifecycleState` | `"preparatory" \| "active" \| "stopped"` |
 | Value Object | `WorkspaceVisibility` | `"visible" \| "hidden"` |
 | Value Object | `WorkspaceGrant` | 工作區存取授權（userId/teamId、role） |
@@ -143,7 +145,7 @@ Platform Foundation Layer
 
 ### 7. `content` — 內容上下文（Notion Layer）
 
-**職責：** Block 編輯器的核心業務，管理 Page、Block、ContentVersion 的 CRUD 與版本歷程。作為非結構化資料與 AI 解析結果的緩衝區與人機協作（Human-in-the-loop）審閱介面。
+**職責：** Block 編輯器的核心業務，管理 Page、Block、ContentVersion 的 CRUD 與版本歷程。作為 AI 解析結果與人機協作（Human-in-the-loop）的**草稿緩衝區（Buffer Zone）**：AI 攝入管線將合約解析結果寫入 ContentPage 與 Database Blocks，提供審閱視圖，使用者確認後透過 `content.page_approved` 事件觸發 `workspace-flow` 的實體化流程。
 
 | 元素 | 名稱 | 說明 |
 |------|------|------|
@@ -175,7 +177,7 @@ Platform Foundation Layer
 |------|------|------|
 | Entity | `File` | 檔案聚合根（id、name、url、mimeType、size） |
 | Entity | `FileVersion` | 檔案版本（fileId、version、uploadedAt） |
-| Entity | `WikiBetaLibrary` | Wiki Library 聚合根（id、name、workspaceId、documents） |
+| Entity | `WikiLibrary` | Wiki Library 聚合根（id、name、workspaceId、documents） |
 | Value Object | `AuditRecord` | 存取稽核記錄 |
 | Value Object | `PermissionSnapshot` | 存取快照 |
 | Value Object | `RetentionPolicy` | 保留政策 |
@@ -238,7 +240,7 @@ Platform Foundation Layer
 | Port | `VectorStorePort` | 向量存儲的抽象埠（similarity search） |
 | Repository | `RagGenerationRepository` | AI 生成端（Genkit） |
 | Repository | `RagRetrievalRepository` | 向量檢索端（Firestore） |
-| Repository | `WikiBetaContentRepository` | Wiki 內容倉儲（RAG 用） |
+| Repository | `WikiContentRepository` | Wiki 內容倉儲（RAG 用） |
 
 **邊界規則：** `retrieval/api` 由 `"use server"` 代碼 import，**禁止**在 `api/index.ts` 匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 `modules/retrieval`（root barrel）import。
 
@@ -276,7 +278,7 @@ Platform Foundation Layer
 
 ### 14. `workspace-flow` — 工作流程上下文
 
-**職責：** Task（任務）、Issue（問題回報）、Invoice（發票）三種工作流程的 XState 狀態機管理。作為業務實體的單一真相來源，不直接接收 AI 原始輸出，必須由合約/頁面核准事件（Event-Driven）派生而來。
+**職責：** Task（任務）、Issue（問題回報）、Invoice（發票）三種工作流程的 XState 狀態機管理。作為業務實體的**單一真相來源（Single Source of Truth）**：不直接接收 AI 原始輸出，所有業務實體**必須**由 `content.page_approved` 事件派生而來（透過 `contentToWorkflowMaterializer` Process Manager）。派生的 Task / Invoice 必須包含 `sourceReference`，指回原始 ContentPage 以支援稽核與溯源。
 
 | 元素 | 名稱 | 說明 |
 |------|------|------|
@@ -324,7 +326,7 @@ workspace    ──hosts──────► workspace-feed
 workspace    ──hosts──────► workspace-flow
 workspace    ──hosts──────► workspace-scheduling
 workspace    ──hosts──────► workspace-audit
-workspace    ──hosts──────► content (via WikiBetaContentTree)
+workspace    ──hosts──────► content (via WikiContentTree)
 workspace    ──hosts──────► asset (Files & Libraries)
 
 content   ──page link events──► knowledge-graph (auto-link, planned)

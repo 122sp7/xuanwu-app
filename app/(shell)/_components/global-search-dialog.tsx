@@ -15,17 +15,17 @@ import {
 } from "@ui-shadcn/ui/command";
 
 const NAV_ITEMS = [
-  { href: "/wiki-beta", label: "Account Wiki-Beta", group: "導覽" },
-  { href: "/wiki-beta/block-editor", label: "區塊編輯器", group: "Wiki-Beta" },
-  { href: "/wiki-beta/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki-Beta" },
-  { href: "/wiki-beta/libraries", label: "Libraries 表格", group: "Wiki-Beta" },
-  { href: "/wiki-beta/rag-query", label: "RAG 查詢", group: "Wiki-Beta" },
-  { href: "/wiki-beta/documents", label: "文件管理", group: "Wiki-Beta" },
+  { href: "/wiki", label: "Wiki", group: "導覽" },
+  { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
+  { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
+  { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
+  { href: "/wiki/rag-query", label: "RAG 查詢", group: "Wiki" },
+  { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
 ] as const;
 
 const GROUP_ICONS: Record<string, React.ReactNode> = {
   "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Wiki-Beta": <FileText className="size-4 mr-2 opacity-60" />,
+  "Wiki": <FileText className="size-4 mr-2 opacity-60" />,
 };
 
 interface GlobalSearchDialogProps {

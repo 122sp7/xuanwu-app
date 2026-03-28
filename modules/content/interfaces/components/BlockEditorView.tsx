@@ -20,7 +20,7 @@ import { useBlockEditorStore } from "../store/block-editor.store";
  * - Backspace (empty block): delete current and focus previous
  * - Drag handle: reorder blocks via pragmatic-drag-and-drop
  *
- * Moved from modules/wiki-beta as part of wiki-beta domain decomposition.
+ * Moved from modules/wiki as part of wiki domain decomposition.
  */
 export function BlockEditorView() {
   const { blocks, addBlock, updateBlock, deleteBlock, moveBlock, init } = useBlockEditorStore();

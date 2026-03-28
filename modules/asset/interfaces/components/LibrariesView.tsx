@@ -4,28 +4,28 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import {
-  addWikiBetaLibraryField,
-  createWikiBetaLibrary,
-  createWikiBetaLibraryRow,
-  getWikiBetaLibrarySnapshot,
-  listWikiBetaLibraries,
-  type WikiBetaLibrary,
-  type WikiBetaLibraryFieldType,
-  type WikiBetaLibraryRow,
+  addWikiLibraryField,
+  createWikiLibrary,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+  listWikiLibraries,
+  type WikiLibrary,
+  type WikiLibraryFieldType,
+  type WikiLibraryRow,
 } from "../../api";
 
-interface WikiBetaLibrariesViewProps {
+interface WikiLibrariesViewProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
 
-const FIELD_TYPES: WikiBetaLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
+const FIELD_TYPES: WikiLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function parseFieldType(value: string): WikiBetaLibraryFieldType {
+function parseFieldType(value: string): WikiLibraryFieldType {
   if (value === "title") return "title";
   if (value === "text") return "text";
   if (value === "number") return "number";
@@ -34,19 +34,19 @@ function parseFieldType(value: string): WikiBetaLibraryFieldType {
   return "text";
 }
 
-export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewProps) {
+export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [libraries, setLibraries] = useState<WikiBetaLibrary[]>([]);
+  const [libraries, setLibraries] = useState<WikiLibrary[]>([]);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
   const [fieldsPreview, setFieldsPreview] = useState<{ key: string; label: string; type: string }[]>([]);
-  const [rowsPreview, setRowsPreview] = useState<WikiBetaLibraryRow[]>([]);
+  const [rowsPreview, setRowsPreview] = useState<WikiLibraryRow[]>([]);
 
   const [libraryName, setLibraryName] = useState("");
   const [fieldKey, setFieldKey] = useState("");
   const [fieldLabel, setFieldLabel] = useState("");
-  const [fieldType, setFieldType] = useState<WikiBetaLibraryFieldType>("text");
+  const [fieldType, setFieldType] = useState<WikiLibraryFieldType>("text");
   const [rowJson, setRowJson] = useState('{"title":"New record"}');
 
   const selectedLibrary = useMemo(
@@ -58,7 +58,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewP
     setLoading(true);
     setError(null);
     try {
-      const result = await listWikiBetaLibraries(accountId, workspaceId);
+      const result = await listWikiLibraries(accountId, workspaceId);
       setLibraries(result);
       if (!selectedLibraryId && result.length > 0) {
         setSelectedLibraryId(result[0].id);
@@ -81,7 +81,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewP
     }
 
     try {
-      const snapshot = await getWikiBetaLibrarySnapshot(accountId, selectedLibraryId);
+      const snapshot = await getWikiLibrarySnapshot(accountId, selectedLibraryId);
       setFieldsPreview(snapshot.fields.map((field) => ({ key: field.key, label: field.label, type: field.type })));
       setRowsPreview(snapshot.rows);
     } catch (e) {
@@ -99,7 +99,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewP
 
   const handleCreateLibrary = useCallback(async () => {
     try {
-      await createWikiBetaLibrary({ accountId, workspaceId, name: libraryName });
+      await createWikiLibrary({ accountId, workspaceId, name: libraryName });
       setLibraryName("");
       await refreshLibraries();
     } catch (e) {
@@ -110,7 +110,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewP
   const handleAddField = useCallback(async () => {
     if (!selectedLibraryId) return;
     try {
-      await addWikiBetaLibraryField({
+      await addWikiLibraryField({
         accountId,
         libraryId: selectedLibraryId,
         key: fieldKey,
@@ -133,7 +133,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiBetaLibrariesViewP
         throw new Error("row JSON must be an object");
       }
       const values = parsed;
-      await createWikiBetaLibraryRow({
+      await createWikiLibraryRow({
         accountId,
         libraryId: selectedLibraryId,
         values,

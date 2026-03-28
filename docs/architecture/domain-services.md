@@ -1,8 +1,10 @@
 # 領域服務（Domain Services）
 
+<!-- change: Add contentToWorkflowMaterializer Process Manager / Saga design; PR-NUM -->
+
 本文件說明 Xuanwu App 各有界上下文中實作的 Domain Services，包含狀態機轉換策略（Transition Policy）、業務守衛（Guards）、以及跨聚合的純函式服務。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`use-cases.md`](./use-cases.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`use-cases.md`](./use-cases.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -161,6 +163,76 @@ export function isValidSlug(slug: string): boolean;
 職責：分析頁面 ContentBlock 文字，自動識別 `[[頁面標題]]` 或 `[[page-slug]]` 格式的隱式連結，建立 `LinkType = "implicit"` 的有向邊。
 
 **計畫觸發方式：** 監聽 `content.block-updated` 事件後自動執行。
+
+---
+
+## Process Manager / Saga（跨模組協調）
+
+Process Manager 負責協調**跨越多個有界上下文的長時間業務流程**，不含業務規則，僅負責訂閱事件 → 觸發命令的有序協調。
+
+### `contentToWorkflowMaterializer`（計畫中，v1.1）
+
+**職責：** 監聽 `content.page_approved` 事件，並協調 `workspace-flow` 模組將 AI 解析的草稿實體化為正式的 Task / Invoice。
+
+**建議位置選項：**
+
+| 選項 | 路徑 | 適用場景 |
+|------|------|---------|
+| **A（推薦）** | `modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts` | 若 Process Manager 主要驅動 workspace-flow 業務邏輯（推薦：職責集中） |
+| **B** | `modules/shared/application/sagas/content-to-workflow-materializer.ts` | 若未來有更多跨模組 Saga 需要統一管理 |
+
+**設計草案（選項 A）：**
+
+```typescript
+// modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
+export class ContentToWorkflowMaterializer {
+  constructor(
+    private readonly taskRepo: ITaskRepository,
+    private readonly invoiceRepo: IInvoiceRepository,
+    private readonly eventStore: IEventStoreRepository,
+  ) {}
+
+  /**
+   * 處理 content.page_approved 事件
+   * 根據 extractedTasks 建立 Task，根據 extractedInvoices 建立 Invoice
+   * 每個實體均帶有 sourceReference 指回 ContentPage
+   */
+  async handle(event: ContentPageApprovedEvent): Promise<void> {
+    const sourceReference = {
+      type: "ContentPage" as const,
+      id: event.pageId,
+      causationId: event.causationId,
+      correlationId: event.correlationId,
+    };
+
+    for (const extracted of event.extractedTasks) {
+      await this.taskRepo.save({
+        id: generateId(),
+        workspaceId: /* 從 ContentPage 關聯的 workspaceId 取得 */,
+        title: extracted.title,
+        description: extracted.description ?? "",
+        status: "draft",
+        sourceReference,
+      });
+    }
+
+    for (const extracted of event.extractedInvoices) {
+      await this.invoiceRepo.save({
+        id: generateId(),
+        workspaceId: /* 從 ContentPage 關聯的 workspaceId 取得 */,
+        status: "draft",
+        items: [{ amount: extracted.amount, description: extracted.description }],
+        sourceReference,
+      });
+    }
+  }
+}
+```
+
+**注意事項：**
+- Process Manager 不是 Domain Service（有副作用，依賴 Repository），歸類為 `application/process-managers/`。
+- 觸發方式視 Event Bus 實作而定（Firebase Cloud Functions trigger / Upstash Queue worker）。
+- 必須實作冪等性（idempotency）：若相同 `causationId` 已處理，則跳過重複建立。
 
 ---
 

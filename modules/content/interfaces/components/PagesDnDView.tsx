@@ -9,22 +9,22 @@ import {
   monitorForElements,
 } from "@lib-dragdrop";
 
-import { listWikiBetaPagesTree, moveWikiBetaPage, type WikiBetaPageTreeNode } from "../../api";
+import { listWikiPagesTree, moveWikiPage, type WikiPageTreeNode } from "../../api";
 
-interface WikiBetaPagesDnDViewProps {
+interface WikiPagesDnDViewProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
 
 /**
- * WikiBetaPagesDnDView
+ * WikiPagesDnDView
  *
  * Flat-list DnD reorder of top-level pages.
- * Dragging a page onto another triggers moveWikiBetaPage to update parent.
+ * Dragging a page onto another triggers moveWikiPage to update parent.
  * No over-engineering: single-level DnD with minimal state.
  */
-export function PagesDnDView({ accountId, workspaceId }: WikiBetaPagesDnDViewProps) {
-  const [pages, setPages] = useState<WikiBetaPageTreeNode[]>([]);
+export function PagesDnDView({ accountId, workspaceId }: WikiPagesDnDViewProps) {
+  const [pages, setPages] = useState<WikiPageTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export function PagesDnDView({ accountId, workspaceId }: WikiBetaPagesDnDViewPro
     setLoading(true);
     setError(null);
     try {
-      const tree = await listWikiBetaPagesTree(accountId, workspaceId);
+      const tree = await listWikiPagesTree(accountId, workspaceId);
       setPages(tree);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to load pages");
@@ -68,7 +68,7 @@ export function PagesDnDView({ accountId, workspaceId }: WikiBetaPagesDnDViewPro
         });
 
         // Persist: move dragged page under target as parent
-        void moveWikiBetaPage({
+        void moveWikiPage({
           accountId,
           pageId: draggedId,
           targetParentPageId: targetId,
@@ -119,7 +119,7 @@ export function PagesDnDView({ accountId, workspaceId }: WikiBetaPagesDnDViewPro
 }
 
 interface DraggablePageProps {
-  readonly page: WikiBetaPageTreeNode;
+  readonly page: WikiPageTreeNode;
 }
 
 function DraggablePage({ page }: DraggablePageProps) {

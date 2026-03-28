@@ -40,13 +40,13 @@ const data: unknown = fetchData();
 | 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
 | 函式 | `camelCase` | `uploadDocument` |
 | 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
-| React 元件 | `PascalCase` | `WikiBetaDocumentsView` |
+| React 元件 | `PascalCase` | `WikiDocumentsView` |
 | 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
 | 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
 | 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
 | 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
 | 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
-| 檔案：React 元件 | `PascalCase.tsx` | `WikiBetaDocumentsView.tsx` |
+| 檔案：React 元件 | `PascalCase.tsx` | `WikiDocumentsView.tsx` |
 
 ### 1.3 函式宣告風格
 
@@ -60,7 +60,7 @@ export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandRes
 const items = list.map((item) => item.id);
 
 // ✅ 元件使用 function 宣告
-export function WikiBetaDocumentsView() {
+export function WikiDocumentsView() {
   // ...
 }
 
@@ -186,7 +186,7 @@ config: Record<string, unknown>; // 避免
 ```typescript
 // ✅ 頁面預設為 Server Component（無 "use client"）
 export default async function DocumentsPage() {
-  return <WikiBetaDocumentsView />;
+  return <WikiDocumentsView />;
 }
 
 // ✅ 只在需要時才加 "use client"
@@ -360,7 +360,7 @@ npm run lint -- --fix
 ### 7.1 什麼時候要調整 `eslint.config.mjs`
 
 - **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
-- **新增隔離上下文**：需要像 wiki / wiki-beta 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
+- **新增隔離上下文**：需要像 wiki / wiki 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
 - **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
 - **同步文件**：調整規則時一併更新
   - `agents/knowledge-base.md` 中的 ESLint 邊界表格

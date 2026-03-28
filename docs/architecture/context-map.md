@@ -1,8 +1,10 @@
 # Context Map（上下文關係圖）
 
+<!-- change: Add content→workspace-flow Customer/Supplier event-driven section and DDD table row; PR-NUM -->
+
 本文件描述 Xuanwu App 16 個有界上下文之間的關係與互動模式。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`module-boundary.md`](./module-boundary.md)
+> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`module-boundary.md`](./module-boundary.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -95,8 +97,8 @@ workspace-flow.task.created ──event→ workspace-audit
 ### Content Layer 關係
 
 ```
-workspace ──hosts→ content (via WikiBetaContentTree)
-  └── workspace.domain.entities.WikiBetaContentTree 持有頁面 ID 層級結構
+workspace ──hosts→ content (via WikiContentTree)
+  └── workspace.domain.entities.WikiContentTree 持有頁面 ID 層級結構
 
 content ──page link events→ knowledge-graph (Auto-link, 計畫中)
   └── content.block-updated → LinkExtractor → knowledge-graph.addLink()
@@ -109,9 +111,31 @@ workspace ──hosts→ asset (Files & Libraries)
 
 content ──page approved events→ workspace-flow (Materialization)
   └── content.page_approved → 生成 Task / Invoice 並帶入 causationId
+  └── content 作為 Buffer Zone：AI 解析結果先寫入 ContentPage，
+      使用者審閱後核准，派發 ContentPageApprovedEvent
+  └── workspace-flow 消費事件，生成帶有 sourceReference 的 Task / Invoice
+  └── 事件欄位：pageId, extractedTasks[], extractedInvoices[],
+                actorId, causationId, correlationId
 
 content (Database View) ──reads→ workspace-flow
   └── 透過 ID 參照動態嵌入任務與發票狀態，單向讀取。
+  └── 查詢路徑：modules/workspace-flow/api → getWorkspaceFlowTasks()
+  └── 禁止 content 直接覆寫 workspace-flow 的狀態機
+```
+
+**因果流程（Causality Flow）：**
+
+```
+[AI py_fn] 解析合約
+    │ 寫入草稿
+    ▼
+[content: ContentPage + Database Blocks]
+    │ 使用者審閱 / 修改
+    ▼ ApproveContentPageUseCase
+[content.page_approved Event]
+    │ causationId + correlationId
+    ▼ contentToWorkflowMaterializer
+[workspace-flow: Task / Invoice（帶 sourceReference）]
 ```
 
 ---

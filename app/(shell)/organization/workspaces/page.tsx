@@ -111,7 +111,7 @@ export default function OrganizationWorkspacesPage() {
                       <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki-Beta</Link>
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
                     </Button>
                   </div>
                 </div>

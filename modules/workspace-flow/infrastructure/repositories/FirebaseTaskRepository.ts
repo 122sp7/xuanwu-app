@@ -42,7 +42,7 @@ export class FirebaseTaskRepository implements TaskRepository {
 
   async create(input: CreateTaskInput): Promise<Task> {
     const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.collectionRef, {
+    const docData: Record<string, unknown> = {
       workspaceId: input.workspaceId,
       title: input.title,
       description: input.description ?? "",
@@ -55,7 +55,12 @@ export class FirebaseTaskRepository implements TaskRepository {
       updatedAtISO: nowISO,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.collectionRef, docData);
 
     return {
       id: docRef.id,
@@ -65,6 +70,7 @@ export class FirebaseTaskRepository implements TaskRepository {
       status: DEFAULT_STATUS,
       assigneeId: input.assigneeId,
       dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
     };

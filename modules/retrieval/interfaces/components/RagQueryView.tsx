@@ -12,8 +12,8 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 import {
-  runWikiBetaRagQuery,
-  type WikiBetaCitation,
+  runWikiRagQuery,
+  type WikiCitation,
 } from "../../api";
 
 interface RagQueryViewProps {
@@ -30,7 +30,7 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<WikiBetaCitation[]>([]);
+  const [citations, setCitations] = useState<WikiCitation[]>([]);
   const [queried, setQueried] = useState(false);
 
   async function handleSubmit() {
@@ -54,12 +54,12 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 
     setLoading(true);
     try {
-      let result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
+      let result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
         requireReady: true,
       });
       // Compatibility fallback for older vectors without ready status.
       if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runWikiBetaRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
+        result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
           requireReady: false,
           maxAgeDays: 3650,
         });

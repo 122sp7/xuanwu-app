@@ -7,7 +7,7 @@ import { ChevronRight } from "lucide-react";
 const SEGMENT_LABELS: Record<string, string> = {
   "organization": "組織",
   "workspace": "工作區",
-  "wiki-beta": "Wiki-Beta",
+  "wiki": "Wiki",
   "rag-query": "RAG 查詢",
   "documents": "文件",
   "libraries": "Libraries",

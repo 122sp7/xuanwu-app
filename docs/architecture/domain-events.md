@@ -1,8 +1,10 @@
 # 領域事件（Domain Events）
 
+<!-- change: Complete content.page_approved definition with actorId/causationId/correlationId fields and process flow; PR-NUM -->
+
 本文件記錄 Xuanwu App 各有界上下文中已定義的所有領域事件（Domain Events）。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`bounded-contexts.md`](./bounded-contexts.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`bounded-contexts.md`](./bounded-contexts.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
 
 ---
 
@@ -39,11 +41,42 @@ interface SomethingHappenedEvent {
 | `content.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle` |
 | `content.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId` |
 | `content.page_archived` | 頁面歸檔 | `pageId`, `accountId` |
-| `content.page_approved` | 使用者核准 AI 生成的草稿頁面/資料庫 | `pageId`, `extractedTasks[]`, `extractedInvoices[]` |
+| `content.page_approved` | 使用者核准 AI 生成的草稿頁面/資料庫 | `pageId`, `extractedTasks[]`, `extractedInvoices[]`, `actorId`, `causationId`, `correlationId` |
 | `content.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText` |
 | `content.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText` |
 | `content.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId` |
 | `content.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId` |
+
+**`content.page_approved` 完整介面定義：**
+
+```typescript
+// 代碼位置：modules/content/domain/events/content.events.ts
+interface ContentPageApprovedEvent {
+  readonly type: "content.page_approved";
+  readonly aggregateId: string;       // ContentPage ID（聚合根 ID）
+  readonly occurredAtISO: string;     // ISO 8601 核准時間戳
+  readonly pageId: string;            // ContentPage ID
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;       // 預設 "TWD"
+  }>;
+  readonly actorId: string;           // 執行核准操作的使用者 ID
+  readonly causationId: string;       // 觸發此事件的命令 ID（ApproveContentPageUseCase 執行 ID）
+  readonly correlationId: string;     // 整個業務流程（合約 → 任務）的追蹤 ID
+}
+```
+
+**`content.page_approved` 消費者：**
+
+| 消費者 | 行動 |
+|--------|------|
+| `workspace-flow` | 由 `contentToWorkflowMaterializer` Process Manager 監聽，根據 `extractedTasks[]` 建立 Task，根據 `extractedInvoices[]` 建立 Invoice，並在每個實體中記錄 `sourceReference`（指向 `pageId` 與 `causationId`） |
 
 ```typescript
 // 聯合型別
@@ -154,8 +187,11 @@ content.page_created
   └─► knowledge-graph: LinkExtractor（Auto-link 觸發管道，計畫中）
 
 content.page_approved
+  │  （欄位：pageId, extractedTasks[], extractedInvoices[], actorId, causationId, correlationId）
   │
-  └─► workspace-flow: 實體化為實際的 Task 與 Invoice
+  └─► workspace-flow: contentToWorkflowMaterializer（Process Manager）
+        ├── 依 extractedTasks[]  建立 Task（含 sourceReference → ContentPage）
+        └── 依 extractedInvoices[] 建立 Invoice（含 sourceReference → ContentPage）
 
 content.block_updated / content.block-updated
   │
