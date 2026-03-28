@@ -17,9 +17,9 @@ import {
 } from "@lib-dragdrop";
 
 import {
-  getWikiBetaLibrarySnapshot,
-  listWikiBetaLibraries,
-  type WikiBetaLibraryRow,
+  getWikiLibrarySnapshot,
+  listWikiLibraries,
+  type WikiLibraryRow,
 } from "../../api";
 
 interface LibraryTableViewProps {
@@ -27,12 +27,12 @@ interface LibraryTableViewProps {
   readonly workspaceId?: string;
 }
 
-type RowData = WikiBetaLibraryRow & { _values: Record<string, unknown> };
+type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 
 const columnHelper = createColumnHelper<RowData>();
 
 /**
- * WikiBetaLibraryTableView
+ * WikiLibraryTableView
  *
  * TanStack Table rendering library rows with:
  * - Column-level text filter (global filter input)
@@ -51,7 +51,7 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
   useEffect(() => {
     void (async () => {
       try {
-        const result = await listWikiBetaLibraries(accountId, workspaceId);
+        const result = await listWikiLibraries(accountId, workspaceId);
         setLibraries(result.map((l) => ({ id: l.id, name: l.name })));
         if (result.length > 0 && result[0]) {
           setSelectedId(result[0].id);
@@ -70,7 +70,7 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
     void (async () => {
       setLoading(true);
       try {
-        const snap = await getWikiBetaLibrarySnapshot(accountId, selectedId);
+        const snap = await getWikiLibrarySnapshot(accountId, selectedId);
         const keys = snap.fields.map((f) => f.key);
         setFieldKeys(keys);
         setRows(

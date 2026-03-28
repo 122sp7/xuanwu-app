@@ -121,11 +121,11 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
 
 // ── Section helpers ──────────────────────────────────────────────────────────
 
-type NavSection = "workspace" | "wiki-beta" | "ai-chat" | "account" | "organization" | "other";
+type NavSection = "workspace" | "wiki" | "ai-chat" | "account" | "organization" | "other";
 
 function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/wiki-beta")) return "wiki-beta";
+  if (pathname.startsWith("/wiki")) return "wiki";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
   if (pathname.startsWith("/organization")) return "organization";
@@ -136,7 +136,7 @@ function resolveNavSection(pathname: string): NavSection {
 
 const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki-beta": { label: "Account Wiki-Beta", icon: <BookOpen className="size-3" /> },
+  "wiki": { label: "Wiki", icon: <BookOpen className="size-3" /> },
   "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
   account: { label: "Account", icon: <UserRound className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
@@ -164,8 +164,8 @@ export function DashboardSidebar({
   onSelectWorkspace,
 }: DashboardSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);
-  const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);
+  const [isWikiWorkspacesExpanded, setIsWikiWorkspacesExpanded] = useState(false);
+  const [wikiQuickCreateOpen, setWikiQuickCreateOpen] = useState(false);
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
   const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
@@ -233,7 +233,7 @@ export function DashboardSidebar({
       return;
     }
 
-    if (typeof window === "undefined" || !pathname.startsWith("/wiki-beta")) {
+    if (typeof window === "undefined" || !pathname.startsWith("/wiki")) {
       return;
     }
 
@@ -260,8 +260,8 @@ export function DashboardSidebar({
 
   const buildWorkspaceContextHref = useCallback(
     (workspaceId: string): string => {
-      if (pathname.startsWith("/wiki-beta")) {
-        const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+      if (pathname.startsWith("/wiki")) {
+        const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
         return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
       }
       return `/workspace/${workspaceId}`;
@@ -298,7 +298,7 @@ export function DashboardSidebar({
   function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
     if (tab === "Wiki") {
       const status = getWorkspaceTabStatus(tab);
-      return `${status} WorkSpace Wiki-Beta`;
+      return `${status} WorkSpace Wiki`;
     }
     const status = getWorkspaceTabStatus(tab);
     return `${status} ${tWorkspaceTab(tab, fallback)}`;
@@ -360,7 +360,7 @@ export function DashboardSidebar({
     };
   }, []);
 
-  async function handleWikiBetaQuickCreate(kind: "page" | "database") {
+  async function handleWikiQuickCreate(kind: "page" | "database") {
     const accountId = activeAccount?.id ?? "";
     if (!accountId) {
       toast.error("目前沒有 active account，無法建立");
@@ -399,7 +399,7 @@ export function DashboardSidebar({
       );
 
       toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
-      setWikiBetaQuickCreateOpen(false);
+      setWikiQuickCreateOpen(false);
     } catch (error) {
       console.error(error);
       toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
@@ -747,17 +747,17 @@ export function DashboardSidebar({
               </>
             )}
 
-            {section === "wiki-beta" && (
-              <nav className="space-y-0.5" aria-label="Account Wiki-Beta navigation">
+            {section === "wiki" && (
+              <nav className="space-y-0.5" aria-label="Account Wiki navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Account Wiki-Beta
+                  Account Wiki
                 </p>
                 {(
                   [
-                    { href: "/wiki-beta", label: "知識總覽" },
-                    { href: "/wiki-beta/block-editor", label: "區塊編輯器" },
-                    { href: "/wiki-beta/pages-dnd", label: "頁面 (DnD)" },
-                    { href: "/wiki-beta/rag-query", label: "RAG Query" },
+                    { href: "/wiki", label: "知識總覽" },
+                    { href: "/wiki/block-editor", label: "區塊編輯器" },
+                    { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
+                    { href: "/wiki/rag-query", label: "RAG Query" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -779,10 +779,10 @@ export function DashboardSidebar({
 
                 <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
                   <Link
-                    href="/wiki-beta/documents"
-                    aria-current={isActiveRoute("/wiki-beta/documents") ? "page" : undefined}
+                    href="/wiki/documents"
+                    aria-current={isActiveRoute("/wiki/documents") ? "page" : undefined}
                     className={`flex-1 ${
-                      isActiveRoute("/wiki-beta/documents")
+                      isActiveRoute("/wiki/documents")
                         ? "text-primary"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
@@ -794,7 +794,7 @@ export function DashboardSidebar({
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
-                      setWikiBetaQuickCreateOpen((prev) => !prev);
+                      setWikiQuickCreateOpen((prev) => !prev);
                     }}
                     className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
                     aria-label="快速新增頁面或資料庫"
@@ -803,11 +803,11 @@ export function DashboardSidebar({
                     <Plus className="size-3.5" />
                   </button>
 
-                  {wikiBetaQuickCreateOpen ? (
+                  {wikiQuickCreateOpen ? (
                     <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
                       <button
                         type="button"
-                        onClick={() => void handleWikiBetaQuickCreate("page")}
+                        onClick={() => void handleWikiQuickCreate("page")}
                         disabled={creatingKind !== null}
                         className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
                       >
@@ -815,7 +815,7 @@ export function DashboardSidebar({
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleWikiBetaQuickCreate("database")}
+                        onClick={() => void handleWikiQuickCreate("database")}
                         disabled={creatingKind !== null}
                         className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
                       >
@@ -827,9 +827,9 @@ export function DashboardSidebar({
 
                 {(
                   [
-                    { href: "/wiki-beta/pages", label: "Pages" },
-                    { href: "/wiki-beta/libraries", label: "Libraries" },
-                    { href: "/wiki-beta/rag-reindex", label: "RAG Reindex" },
+                    { href: "/wiki/pages", label: "Pages" },
+                    { href: "/wiki/libraries", label: "Libraries" },
+                    { href: "/wiki/rag-reindex", label: "RAG Reindex" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -854,16 +854,16 @@ export function DashboardSidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    setIsWikiBetaWorkspacesExpanded((prev) => !prev);
+                    setIsWikiWorkspacesExpanded((prev) => !prev);
                   }}
                   className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isWikiBetaWorkspacesExpanded}
+                  aria-expanded={isWikiWorkspacesExpanded}
                 >
                   <span>Workspaces</span>
-                  {isWikiBetaWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                  {isWikiWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                 </button>
 
-                {isWikiBetaWorkspacesExpanded && (
+                {isWikiWorkspacesExpanded && (
                   <div className="space-y-0.5 pl-2">
                     {!workspacesHydrated ? (
                       <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>

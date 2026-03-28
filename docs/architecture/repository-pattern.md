@@ -65,7 +65,7 @@ infrastructure/firebase/ (concrete)
 |------|------|------|
 | `WorkspaceRepository` | `findById()`, `findAllByAccountId()`, `create()`, `update()`, `addMember()`, `removeMember()` | 工作區 CRUD |
 | `WorkspaceQueryRepository` | `subscribeToWorkspacesForAccount()` | 實時訂閱 |
-| `WikiBetaWorkspaceRepository` | `getContentTree()` | 頁面樹查詢 |
+| `WikiWorkspaceRepository` | `getContentTree()` | 頁面樹查詢 |
 
 ---
 
@@ -108,7 +108,7 @@ interface ContentVersionRepository {
 |------|------|------|
 | `FileRepository` | `create()`, `findById()`, `listByWorkspaceId()` | 檔案 CRUD |
 | `RagDocumentRepository` | `register()`, `findById()`, `updateStatus()` | RAG 文件狀態管理 |
-| `WikiBetaLibraryRepository` | `create()`, `findById()`, `listByWorkspaceId()` | Wiki Library CRUD |
+| `WikiLibraryRepository` | `create()`, `findById()`, `listByWorkspaceId()` | Wiki Library CRUD |
 
 ---
 
@@ -153,10 +153,10 @@ interface RagGenerationRepository {
   generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
 }
 
-// modules/retrieval/domain/repositories/WikiBetaContentRepository.ts
+// modules/retrieval/domain/repositories/WikiContentRepository.ts
 
-interface WikiBetaContentRepository {
-  getPages(workspaceId: string): Promise<WikiBetaPage[]>;
+interface WikiContentRepository {
+  getPages(workspaceId: string): Promise<WikiPage[]>;
   getDocuments(workspaceId: string): Promise<RagDocument[]>;
 }
 ```

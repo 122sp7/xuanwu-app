@@ -16,48 +16,48 @@ export type {
 
 export { ContentApi } from "./content-api";
 
-// ── WikiBeta page types (transitional — owned by content domain) ──────────────
+// ── Wiki page types (transitional — owned by content domain) ──────────────
 export type {
-  WikiBetaPage,
-  WikiBetaPageStatus,
-  WikiBetaPageTreeNode,
-  CreateWikiBetaPageInput,
-  RenameWikiBetaPageInput,
-  MoveWikiBetaPageInput,
-} from "../domain/entities/wiki-beta-page.types";
+  WikiPage,
+  WikiPageStatus,
+  WikiPageTreeNode,
+  CreateWikiPageInput,
+  RenameWikiPageInput,
+  MoveWikiPageInput,
+} from "../domain/entities/wiki-page.types";
 
-// ── WikiBeta page use-cases (transitional) ────────────────────────────────────
-import { FirebaseWikiBetaPageRepository } from "../infrastructure/repositories/firebase-wiki-beta-page.repository";
+// ── Wiki page use-cases (transitional) ────────────────────────────────────
+import { FirebaseWikiPageRepository } from "../infrastructure/repositories/firebase-wiki-page.repository";
 import {
-  createWikiBetaPage as _createWikiBetaPage,
-  listWikiBetaPagesTree as _listWikiBetaPagesTree,
-  moveWikiBetaPage as _moveWikiBetaPage,
-  renameWikiBetaPage as _renameWikiBetaPage,
-} from "../application/use-cases/wiki-beta-pages.use-case";
+  createWikiPage as _createWikiPage,
+  listWikiPagesTree as _listWikiPagesTree,
+  moveWikiPage as _moveWikiPage,
+  renameWikiPage as _renameWikiPage,
+} from "../application/use-cases/wiki-pages.use-case";
 import type {
-  CreateWikiBetaPageInput,
-  MoveWikiBetaPageInput,
-  RenameWikiBetaPageInput,
-  WikiBetaPage,
-  WikiBetaPageTreeNode,
-} from "../domain/entities/wiki-beta-page.types";
+  CreateWikiPageInput,
+  MoveWikiPageInput,
+  RenameWikiPageInput,
+  WikiPage,
+  WikiPageTreeNode,
+} from "../domain/entities/wiki-page.types";
 
-const _defaultPageRepository = new FirebaseWikiBetaPageRepository();
+const _defaultPageRepository = new FirebaseWikiPageRepository();
 
-export function createWikiBetaPage(input: CreateWikiBetaPageInput): Promise<WikiBetaPage> {
-  return _createWikiBetaPage(input, _defaultPageRepository);
+export function createWikiPage(input: CreateWikiPageInput): Promise<WikiPage> {
+  return _createWikiPage(input, _defaultPageRepository);
 }
 
-export function listWikiBetaPagesTree(accountId: string, workspaceId?: string): Promise<WikiBetaPageTreeNode[]> {
-  return _listWikiBetaPagesTree(accountId, workspaceId, _defaultPageRepository);
+export function listWikiPagesTree(accountId: string, workspaceId?: string): Promise<WikiPageTreeNode[]> {
+  return _listWikiPagesTree(accountId, workspaceId, _defaultPageRepository);
 }
 
-export function moveWikiBetaPage(input: MoveWikiBetaPageInput): Promise<WikiBetaPage> {
-  return _moveWikiBetaPage(input, _defaultPageRepository);
+export function moveWikiPage(input: MoveWikiPageInput): Promise<WikiPage> {
+  return _moveWikiPage(input, _defaultPageRepository);
 }
 
-export function renameWikiBetaPage(input: RenameWikiBetaPageInput): Promise<WikiBetaPage> {
-  return _renameWikiBetaPage(input, _defaultPageRepository);
+export function renameWikiPage(input: RenameWikiPageInput): Promise<WikiPage> {
+  return _renameWikiPage(input, _defaultPageRepository);
 }
 
 export { BlockEditorView } from "../interfaces/components/BlockEditorView";

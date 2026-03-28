@@ -12,61 +12,61 @@
 export type { File, FileStatus } from "../domain/entities/File";
 export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
 
-// --- WikiBeta library entity types (transitional — owned by asset domain) ----
+// --- Wiki library entity types (transitional — owned by asset domain) ----
 
 export type {
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryFieldType,
-  WikiBetaLibraryRow,
-  WikiBetaLibraryStatus,
-  AddWikiBetaLibraryFieldInput,
-  CreateWikiBetaLibraryInput,
-  CreateWikiBetaLibraryRowInput,
-} from "../domain/entities/wiki-beta-library.types";
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/wiki-library.types";
 
-// --- WikiBeta library use-cases (transitional) --------------------------------
+// --- Wiki library use-cases (transitional) --------------------------------
 
-import { InMemoryWikiBetaLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-beta-library.repository";
+import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
 import {
-  addWikiBetaLibraryField as _addWikiBetaLibraryField,
-  createWikiBetaLibrary as _createWikiBetaLibrary,
-  createWikiBetaLibraryRow as _createWikiBetaLibraryRow,
-  getWikiBetaLibrarySnapshot as _getWikiBetaLibrarySnapshot,
-  listWikiBetaLibraries as _listWikiBetaLibraries,
-} from "../application/use-cases/wiki-beta-libraries.use-case";
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
 import type {
-  AddWikiBetaLibraryFieldInput,
-  CreateWikiBetaLibraryInput,
-  CreateWikiBetaLibraryRowInput,
-  WikiBetaLibrary,
-  WikiBetaLibraryField,
-  WikiBetaLibraryRow,
-} from "../domain/entities/wiki-beta-library.types";
-import type { WikiBetaLibrarySnapshot } from "../application/use-cases/wiki-beta-libraries.use-case";
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
 
-export type { WikiBetaLibrarySnapshot };
+export type { WikiLibrarySnapshot };
 
-const _defaultLibraryRepository = new InMemoryWikiBetaLibraryRepository();
+const _defaultLibraryRepository = new InMemoryWikiLibraryRepository();
 
-export function addWikiBetaLibraryField(input: AddWikiBetaLibraryFieldInput): Promise<WikiBetaLibraryField> {
-  return _addWikiBetaLibraryField(input, _defaultLibraryRepository);
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, _defaultLibraryRepository);
 }
 
-export function createWikiBetaLibrary(input: CreateWikiBetaLibraryInput): Promise<WikiBetaLibrary> {
-  return _createWikiBetaLibrary(input, _defaultLibraryRepository);
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, _defaultLibraryRepository);
 }
 
-export function createWikiBetaLibraryRow(input: CreateWikiBetaLibraryRowInput): Promise<WikiBetaLibraryRow> {
-  return _createWikiBetaLibraryRow(input, _defaultLibraryRepository);
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, _defaultLibraryRepository);
 }
 
-export function getWikiBetaLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiBetaLibrarySnapshot> {
-  return _getWikiBetaLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
 }
 
-export function listWikiBetaLibraries(accountId: string, workspaceId?: string): Promise<WikiBetaLibrary[]> {
-  return _listWikiBetaLibraries(accountId, workspaceId, _defaultLibraryRepository);
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
 }
 
 // --- Document snapshot types (owned by asset) --------------------------------

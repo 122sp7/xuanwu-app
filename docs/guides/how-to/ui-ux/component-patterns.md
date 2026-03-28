@@ -300,8 +300,8 @@ Drop Zone 的可近用性規格：
 
 ```tsx
 // ✅ 正確：薄協調層
-export default async function WikiBetaDocumentsPage() {
-  return <WikiBetaDocumentsView />;
+export default async function WikiDocumentsPage() {
+  return <WikiDocumentsView />;
 }
 
 // ✅ 正確：有少量 Server-side data fetch
@@ -339,11 +339,11 @@ export default async function DocumentsPage() {
 
 | 元件類型 | 命名格式 | 範例 |
 |---|---|---|
-| Feature 元件 | `{Module}{Feature}View` | `WikiBetaDocumentsView` |
+| Feature 元件 | `{Module}{Feature}View` | `WikiDocumentsView` |
 | 子元件（列表項） | `{Feature}Row` / `{Feature}Card` | `DocumentRow` |
 | 表單元件 | `{Action}{Resource}Form` | `UploadDocumentForm` |
 | Dialog 元件 | `{Action}{Resource}Dialog` | `CreateWorkspaceDialog` |
-| 頁面 Shell 元件 | `{Module}Shell` | `WikiBetaShell` |
+| 頁面 Shell 元件 | `{Module}Shell` | `WikiShell` |
 
 ---
 

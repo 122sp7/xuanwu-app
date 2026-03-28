@@ -36,12 +36,12 @@
 
 ---
 
-## 2. Wiki-Beta 功能區
+## 2. Wiki 功能區
 
-### 2.1 `/wiki-beta`（知識總覽）
+### 2.1 `/wiki`（知識總覽）
 
 ```
-+--App Rail--+--Wiki-Beta Nav--+------Main Content------+
++--App Rail--+--Wiki Nav--+------Main Content------+
 |            | 知識總覽 ●      | [← 返回]               |
 |            | RAG Query       |                        |
 |            | RAG Reindex     | Wiki Beta              |
@@ -56,13 +56,13 @@
 |            |                 | 帳號統計               |
 |            |                 | 文件：N  Ready：M      |
 |            |                 | 工作區：K              |
-+--App Rail--+--Wiki-Beta Nav--+------Main Content------+
++--App Rail--+--Wiki Nav--+------Main Content------+
 ```
 
-### 2.2 `/wiki-beta/documents`（主操作頁）
+### 2.2 `/wiki/documents`（主操作頁）
 
 ```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 |            | 知識總覽        | Wiki Beta · Documents       |
 |            | RAG Query       | account 全覽 / ws: {id} ×  |
 |            | RAG Reindex     | ─────────────────────────── |
@@ -84,7 +84,7 @@
 |            |                 | │scan.tiff │⏳ proc │⏳ pend│|
 |            |                 | │error.pdf │✗ error │ —    │|
 |            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 ```
 
 **Documents [+] 快捷選單（Popover）**：
@@ -99,10 +99,10 @@ Documents [+]
      └─────────────────┘
 ```
 
-### 2.3 `/wiki-beta/rag-query`
+### 2.3 `/wiki/rag-query`
 
 ```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 |            | 知識總覽        | Wiki Beta · RAG Query       |
 |            | RAG Query ●     | ─────────────────────────── |
 |            | RAG Reindex     |                             |
@@ -126,13 +126,13 @@ Documents [+]
 |            |                 | │    "...引用片段..."        │|
 |            |                 | │ 2. scan.tiff — 第1頁      │|
 |            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 ```
 
-### 2.4 `/wiki-beta/pages`（Pages 頁面管理）
+### 2.4 `/wiki/pages`（Pages 頁面管理）
 
 ```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 |            | 知識總覽        | Wiki Beta · Pages           |
 |            | RAG Query       | ─────────────────────────── |
 |            | RAG Reindex     |                  [新增頁面]  |
@@ -144,13 +144,13 @@ Documents [+]
 |            |                 | │   > 里程碑│ 2026-03-21│ > │|
 |            |                 | │ 技術規格  │ 2026-03-22│ > │|
 |            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 ```
 
-### 2.5 `/wiki-beta/libraries`（Libraries 資料庫管理）
+### 2.5 `/wiki/libraries`（Libraries 資料庫管理）
 
 ```
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 |            | 知識總覽        | Wiki Beta · Libraries       |
 |            | RAG Query       | ─────────────────────────── |
 |            | RAG Reindex     |              [新增資料庫]    |
@@ -161,7 +161,7 @@ Documents [+]
 |            |                 | │ 任務追蹤  │ 5欄位  │ 20列 │|
 |            |                 | │ 聯絡人    │ 3欄位  │ 8列  │|
 |            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki-Beta Nav--+--------Main Content---------+
++--App Rail--+--Wiki Nav--+--------Main Content---------+
 ```
 
 ---
@@ -334,4 +334,4 @@ Documents 列表載入中：
 - 設計系統：色彩、字型規範
 - UX 原則：互動規則、可近用性
 - 資訊架構：全站路由地圖
-- 規格索引：Wiki-Beta 與其他功能規格入口
+- 規格索引：Wiki 與其他功能規格入口

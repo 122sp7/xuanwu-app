@@ -72,8 +72,8 @@ modules/
 ### Step 2：設計 Domain 層（entity / value object / repository interface）
 
 ```typescript
-// modules/content/domain/entities/wiki-beta-page.types.ts
-export interface WikiBetaPage {
+// modules/content/domain/entities/wiki-page.types.ts
+export interface WikiPage {
   readonly id: string;
   readonly title: string;
   readonly accountId: string;
@@ -92,10 +92,10 @@ export interface WikiBetaPage {
 ### Step 3：實作 Application Use Case
 
 ```typescript
-// modules/content/application/use-cases/wiki-beta-pages.use-case.ts
-export async function createWikiBetaPage(
-  input: CreateWikiBetaPageInput,
-  repo: IWikiBetaPageRepository
+// modules/content/application/use-cases/wiki-pages.use-case.ts
+export async function createWikiPage(
+  input: CreateWikiPageInput,
+  repo: IWikiPageRepository
 ): Promise<CommandResult<string>> {
   // 業務邏輯在此
   const page = buildPageEntity(input);
@@ -106,9 +106,9 @@ export async function createWikiBetaPage(
 ### Step 4：實作 Infrastructure Adapter
 
 ```typescript
-// modules/content/infrastructure/repositories/firebase-wiki-beta-page.repository.ts
-export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
-  async save(page: WikiBetaPage): Promise<CommandResult<string>> {
+// modules/content/infrastructure/repositories/firebase-wiki-page.repository.ts
+export class FirebaseWikiPageRepository implements IWikiPageRepository {
+  async save(page: WikiPage): Promise<CommandResult<string>> {
     const ref = await addDoc(
       collection(db, `accounts/${page.accountId}/pages`),
       pageToFirestore(page)
@@ -121,21 +121,21 @@ export class FirebaseWikiBetaPageRepository implements IWikiBetaPageRepository {
 ### Step 5：建立 Server Action（接口層）
 
 ```typescript
-// modules/content/interfaces/_actions/wiki-beta-page.actions.ts
+// modules/content/interfaces/_actions/wiki-page.actions.ts
 "use server";
 
 export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
-  return createWikiBetaPage(input, new FirebaseWikiBetaPageRepository());
+  return createWikiPage(input, new FirebaseWikiPageRepository());
 }
 ```
 
 ### Step 6：實作 React 元件
 
 ```tsx
-// modules/content/interfaces/components/WikiBetaPagesView.tsx
+// modules/content/interfaces/components/WikiPagesView.tsx
 "use client";
 
-export function WikiBetaPagesView() {
+export function WikiPagesView() {
   const [isCreating, setIsCreating] = useState(false);
 
   async function handleCreate() {
@@ -143,7 +143,7 @@ export function WikiBetaPagesView() {
     const result = await createPageAction({ title: "新頁面", accountId });
     if (result.success) {
       toast.success("已建立頁面");
-      router.push(`/wiki-beta/pages/${result.data}`);
+      router.push(`/wiki/pages/${result.data}`);
     } else {
       toast.error(`建立失敗：${result.error.message}`);
     }
@@ -158,8 +158,8 @@ export function WikiBetaPagesView() {
 
 ```typescript
 // modules/content/index.ts
-export { WikiBetaPagesView } from "./interfaces/components/WikiBetaPagesView";
-export type { WikiBetaPage } from "./domain/entities/wiki-beta-page.types";
+export { WikiPagesView } from "./interfaces/components/WikiPagesView";
+export type { WikiPage } from "./domain/entities/wiki-page.types";
 ```
 
 ---

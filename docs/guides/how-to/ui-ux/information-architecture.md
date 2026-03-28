@@ -17,13 +17,13 @@ Xuanwu App
     ├── /workspace                    ← 工作區中心
     │   └── /workspace/[workspaceId]  ← 單一工作區
     │
-    ├── /wiki-beta                    ← 知識庫（Wiki-Beta）
-    │   ├── /wiki-beta（知識總覽）
-    │   ├── /wiki-beta/documents      ← 主操作頁
-    │   ├── /wiki-beta/rag-query      ← AI 問答
-    │   ├── /wiki-beta/rag-reindex    ← RAG 重整
-    │   ├── /wiki-beta/pages          ← 頁面管理
-    │   └── /wiki-beta/libraries      ← 資料庫管理
+    ├── /wiki                    ← 知識庫（Wiki）
+    │   ├── /wiki（知識總覽）
+    │   ├── /wiki/documents      ← 主操作頁
+    │   ├── /wiki/rag-query      ← AI 問答
+    │   ├── /wiki/rag-reindex    ← RAG 重整
+    │   ├── /wiki/pages          ← 頁面管理
+    │   └── /wiki/libraries      ← 資料庫管理
     │
     ├── /ai-chat                      ← AI 對話介面
     │
@@ -63,7 +63,7 @@ App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
 | 圖示 | 路由 | 標籤 |
 |---|---|---|
 | `Building2` | `/workspace` | 工作區中心 |
-| `BookOpen` | `/wiki-beta` | Account Wiki-Beta |
+| `BookOpen` | `/wiki` | Account Wiki |
 | `Bot` | `/ai-chat` | AI 對話 |
 | `Users` | `/organization` | 組織管理 |
 | `FlaskConical` | `/dev-tools`（開發環境） | 開發工具 |
@@ -84,16 +84,16 @@ App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
 | Library | Files、Documents |
 | Modules | Issues、Tasks、Schedule、Daily |
 
-**Wiki-Beta（/wiki-beta）子導覽**：
+**Wiki（/wiki）子導覽**：
 
 | 項目 | 路由 | 狀態 |
 |---|---|---|
-| 知識總覽 | `/wiki-beta` | ✅ 現有 |
-| RAG Query | `/wiki-beta/rag-query` | ✅ 現有 |
-| RAG Reindex | `/wiki-beta/rag-reindex` | ✅ 現有 |
-| Documents [+] | `/wiki-beta/documents` | ✅ 現有 |
-| Pages | `/wiki-beta/pages` | ✅ 現有 |
-| Libraries | `/wiki-beta/libraries` | ✅ 現有 |
+| 知識總覽 | `/wiki` | ✅ 現有 |
+| RAG Query | `/wiki/rag-query` | ✅ 現有 |
+| RAG Reindex | `/wiki/rag-reindex` | ✅ 現有 |
+| Documents [+] | `/wiki/documents` | ✅ 現有 |
+| Pages | `/wiki/pages` | ✅ 現有 |
+| Libraries | `/wiki/libraries` | ✅ 現有 |
 | Workspaces | — | ✅ 現有（可摺疊） |
 
 **組織管理（/organization）子導覽**：
@@ -116,9 +116,9 @@ App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
 
 | 類型 | 格式 | 範例 |
 |---|---|---|
-| 資源列表 | `/resource` | `/wiki-beta/documents` |
+| 資源列表 | `/resource` | `/wiki/documents` |
 | 資源詳情 | `/resource/[id]` | `/workspace/[workspaceId]` |
-| 功能子頁 | `/context/function` | `/wiki-beta/rag-query` |
+| 功能子頁 | `/context/function` | `/wiki/rag-query` |
 | 設定頁 | `/resource/settings` | `/workspace/[id]/settings` |
 
 ### 3.2 路由群組（Route Groups）
@@ -176,7 +176,7 @@ System
 - 空狀態（Empty State）+ 引導行動
 - 每列的操作按鈕
 
-**範例**：`/wiki-beta/documents`、`/wiki-beta/pages`
+**範例**：`/wiki/documents`、`/wiki/pages`
 
 ### 5.2 詳情頁（Detail Page）
 
@@ -200,7 +200,7 @@ System
 - 結果顯示區
 - 錯誤 / 空狀態處理
 
-**範例**：`/wiki-beta/rag-query`、`/wiki-beta/rag-reindex`
+**範例**：`/wiki/rag-query`、`/wiki/rag-reindex`
 
 ### 5.4 總覽頁（Overview / Dashboard Page）
 
@@ -211,7 +211,7 @@ System
 - 統計摘要（Counters / Metrics）
 - 最近活動或重要提示
 
-**範例**：`/wiki-beta`（知識總覽）
+**範例**：`/wiki`（知識總覽）
 
 ---
 

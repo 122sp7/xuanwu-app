@@ -1,7 +1,7 @@
 "use client";
 
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { WorkspaceWikiBetaView } from "./WorkspaceWikiBetaView";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
 
 interface WorkspaceWikiTabProps {
   readonly workspace: WorkspaceEntity;
@@ -11,5 +11,5 @@ interface WorkspaceWikiTabProps {
  * Workspace tab entrypoint delegates rendering to workspace owned view.
  */
 export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
-  return <WorkspaceWikiBetaView workspace={workspace} />;
+  return <WorkspaceWikiView workspace={workspace} />;
 }

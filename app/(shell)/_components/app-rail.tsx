@@ -194,8 +194,8 @@ export function AppRail({
       icon: <Building2 className="size-[18px]" />,
     },
     {
-      href: "/wiki-beta",
-      label: "Account Wiki-Beta",
+      href: "/wiki",
+      label: "Wiki",
       icon: <BookOpen className="size-[18px]" />,
     },
     {
@@ -259,12 +259,12 @@ export function AppRail({
     [workspaces],
   );
 
-  function buildWikiBetaWorkspaceHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki-beta")) {
-      const targetPath = pathname === "/wiki-beta" ? "/wiki-beta/documents" : pathname;
+  function buildWikiWorkspaceHref(workspaceId: string): string {
+    if (pathname.startsWith("/wiki")) {
+      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
       return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
     }
-    return `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
+    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
   }
 
   const accountName = activeAccount?.name ?? user?.name ?? "—";
@@ -407,7 +407,7 @@ export function AppRail({
               );
             }
 
-            if (item.href === "/wiki-beta") {
+            if (item.href === "/wiki") {
               return (
                 <DropdownMenu key={item.href}>
                   <Tooltip>
@@ -416,7 +416,7 @@ export function AppRail({
                         <button
                           type="button"
                           aria-current={active ? "page" : undefined}
-                          aria-label="Account Wiki-Beta: 切換工作區"
+                          aria-label="Account Wiki: 切換工作區"
                           className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                             active
                               ? "bg-primary/10 text-primary"
@@ -428,7 +428,7 @@ export function AppRail({
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p className="text-xs">Account Wiki-Beta: 切換工作區</p>
+                      <p className="text-xs">Account Wiki: 切換工作區</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -437,11 +437,11 @@ export function AppRail({
                     <DropdownMenuItem
                       onClick={() => {
                         onSelectWorkspace(null);
-                        router.push("/wiki-beta");
+                        router.push("/wiki");
                       }}
                       className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
                     >
-                      Account Wiki-Beta 首頁
+                      Account Wiki 首頁
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {!workspacesHydrated ? (
@@ -454,7 +454,7 @@ export function AppRail({
                           key={workspace.id}
                           onClick={() => {
                             onSelectWorkspace(workspace.id);
-                            router.push(buildWikiBetaWorkspaceHref(workspace.id));
+                            router.push(buildWikiWorkspaceHref(workspace.id));
                           }}
                           className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
                         >

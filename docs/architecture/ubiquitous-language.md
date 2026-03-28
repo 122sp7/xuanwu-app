@@ -90,7 +90,7 @@
 |------|------|------|---------|---------|
 | **檔案** | File | 上傳至 Firebase Storage 的資產聚合根 | `asset` | `modules/asset/domain/entities/File.ts` |
 | **檔案版本** | FileVersion | 檔案的歷史版本記錄 | `asset` | `modules/asset/domain/entities/FileVersion.ts` |
-| **Wiki Library** | WikiBetaLibrary | 工作區下的結構化文件庫聚合根 | `asset` | `modules/asset/domain/entities/wiki-beta-library.types.ts` |
+| **Wiki Library** | WikiLibrary | 工作區下的結構化文件庫聚合根 | `asset` | `modules/asset/domain/entities/wiki-library.types.ts` |
 | **RAG 文件** | RagDocument | 已上傳並準備攝入 RAG 管線的文件 | `asset` | `modules/asset/domain/repositories/RagDocumentRepository.ts` |
 | **文件狀態** | DocumentStatus | `uploaded → processing → ready → failed → archived` | `asset` | `FirebaseRagDocumentRepository.ts` |
 | **稽核記錄** | AuditRecord | 資產存取的稽核日誌條目（操作者、動作、時間） | `asset` | `modules/asset/domain/entities/AuditRecord.ts` |

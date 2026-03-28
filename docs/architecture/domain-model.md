@@ -130,7 +130,7 @@
 ├── userId: string
 └── role: string
 
-實體: WikiBetaContentTree             // 頁面樹視圖
+實體: WikiContentTree             // 頁面樹視圖
 └── workspaceId: string
 └── nodes: ContentTreeNode[]
 
@@ -258,7 +258,7 @@
 ├── version: number
 └── uploadedAt: string
 
-聚合根: WikiBetaLibrary
+聚合根: WikiLibrary
 ├── id: string
 ├── name: string
 ├── workspaceId: string

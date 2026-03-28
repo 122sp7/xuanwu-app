@@ -66,7 +66,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
   Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
   Wiki: {
-    label: "WorkSpace Wiki-Beta",
+    label: "Wiki",
     prefId: "wiki",
     group: "spaces",
     status: "🏗️",

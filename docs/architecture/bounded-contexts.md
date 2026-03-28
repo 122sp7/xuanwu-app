@@ -105,7 +105,7 @@ Platform Foundation Layer
 |------|------|------|
 | Entity | `WorkspaceEntity` | 工作區聚合根（id、name、lifecycleState、visibility、grants） |
 | Entity | `WorkspaceMember` | 工作區成員（userId、role） |
-| Entity | `WikiBetaContentTree` | 頁面樹視圖（pageId 層級結構） |
+| Entity | `WikiContentTree` | 頁面樹視圖（pageId 層級結構） |
 | Value Object | `WorkspaceLifecycleState` | `"preparatory" \| "active" \| "stopped"` |
 | Value Object | `WorkspaceVisibility` | `"visible" \| "hidden"` |
 | Value Object | `WorkspaceGrant` | 工作區存取授權（userId/teamId、role） |
@@ -177,7 +177,7 @@ Platform Foundation Layer
 |------|------|------|
 | Entity | `File` | 檔案聚合根（id、name、url、mimeType、size） |
 | Entity | `FileVersion` | 檔案版本（fileId、version、uploadedAt） |
-| Entity | `WikiBetaLibrary` | Wiki Library 聚合根（id、name、workspaceId、documents） |
+| Entity | `WikiLibrary` | Wiki Library 聚合根（id、name、workspaceId、documents） |
 | Value Object | `AuditRecord` | 存取稽核記錄 |
 | Value Object | `PermissionSnapshot` | 存取快照 |
 | Value Object | `RetentionPolicy` | 保留政策 |
@@ -240,7 +240,7 @@ Platform Foundation Layer
 | Port | `VectorStorePort` | 向量存儲的抽象埠（similarity search） |
 | Repository | `RagGenerationRepository` | AI 生成端（Genkit） |
 | Repository | `RagRetrievalRepository` | 向量檢索端（Firestore） |
-| Repository | `WikiBetaContentRepository` | Wiki 內容倉儲（RAG 用） |
+| Repository | `WikiContentRepository` | Wiki 內容倉儲（RAG 用） |
 
 **邊界規則：** `retrieval/api` 由 `"use server"` 代碼 import，**禁止**在 `api/index.ts` 匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 `modules/retrieval`（root barrel）import。
 
@@ -326,7 +326,7 @@ workspace    ──hosts──────► workspace-feed
 workspace    ──hosts──────► workspace-flow
 workspace    ──hosts──────► workspace-scheduling
 workspace    ──hosts──────► workspace-audit
-workspace    ──hosts──────► content (via WikiBetaContentTree)
+workspace    ──hosts──────► content (via WikiContentTree)
 workspace    ──hosts──────► asset (Files & Libraries)
 
 content   ──page link events──► knowledge-graph (auto-link, planned)

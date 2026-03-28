@@ -86,7 +86,7 @@ export class VerbNounUseCase {
 | `UpdateWorkspaceSettingsUseCase` | 更新工作區設定 | `WorkspaceRepository` |
 | `AddWorkspaceMemberUseCase` | 新增工作區成員 | `WorkspaceRepository` |
 | `RemoveWorkspaceMemberUseCase` | 移除工作區成員 | `WorkspaceRepository` |
-| `GetWikiBetaContentTreeUseCase` | 取得頁面樹結構 | `WikiBetaWorkspaceRepository` |
+| `GetWikiContentTreeUseCase` | 取得頁面樹結構 | `WikiWorkspaceRepository` |
 
 **代碼位置：** `modules/workspace/application/use-cases/`
 
@@ -106,7 +106,7 @@ export class VerbNounUseCase {
 | `DeleteContentBlockUseCase` | 刪除區塊 | `ContentBlockRepository` |
 | `CreateContentVersionUseCase` | 建立版本快照 | `ContentVersionRepository` |
 | `ListContentVersionsUseCase` | 列出版本歷程 | `ContentVersionRepository` |
-| `GetWikiBetaPagesUseCase` | 取得 Wiki Pages | `WikiBetaPageRepository` |
+| `GetWikiPagesUseCase` | 取得 Wiki Pages | `WikiPageRepository` |
 
 ### `ApproveContentPageUseCase` 詳解（計畫中）
 
@@ -143,8 +143,8 @@ export class VerbNounUseCase {
 | `UploadCompleteFileUseCase` | 完成上傳、更新 metadata | `FileRepository` |
 | `ListWorkspaceFilesUseCase` | 列出工作區檔案 | `FileRepository` |
 | `RegisterUploadedRagDocumentUseCase` | 將上傳文件登錄至 RAG 管線 | `RagDocumentRepository` |
-| `CreateWikiBetaLibraryUseCase` | 建立 Wiki Library | `WikiBetaLibraryRepository` |
-| `ListWikiBetaLibrariesUseCase` | 列出 Wiki Libraries | `WikiBetaLibraryRepository` |
+| `CreateWikiLibraryUseCase` | 建立 Wiki Library | `WikiLibraryRepository` |
+| `ListWikiLibrariesUseCase` | 列出 Wiki Libraries | `WikiLibraryRepository` |
 
 **代碼位置：** `modules/asset/application/use-cases/`
 
@@ -166,7 +166,7 @@ export class VerbNounUseCase {
 | Use Case | 動作 | Repository |
 |---------|------|------------|
 | `AnswerRagQueryUseCase` | 執行 RAG 查詢並返回答案 + 引用 | `RagRetrievalRepository`, `RagGenerationRepository` |
-| `GetWikiBetaRagChunksUseCase` | 取得 Wiki RAG 分塊結果 | `WikiBetaContentRepository` |
+| `GetWikiRagChunksUseCase` | 取得 Wiki RAG 分塊結果 | `WikiContentRepository` |
 
 **代碼位置：** `modules/retrieval/application/use-cases/`
 

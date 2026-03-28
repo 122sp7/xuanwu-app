@@ -69,7 +69,7 @@ Current module directories under `modules/` represent bounded contexts. Treat na
 
 `account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
 
-> **Removed modules:** `wiki-beta` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
+> **Removed modules:** `wiki` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
 
 ## Package System (21 Packages)
 
@@ -142,7 +142,7 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 
 > **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
 
-> **已修復（2026-03）：** `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` 與 `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
+> **已修復（2026-03）：** `modules/content/application/use-cases/wiki-pages.use-case.ts` 與 `modules/asset/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
 
 ## Tech Stack
 
@@ -201,12 +201,12 @@ Domain events within a module follow the discriminated-union pattern: `type: "mo
 Inside a module, files use **relative imports** (not the module's own barrel export):
 
 ```typescript
-// ✅ Inside modules/content/application/use-cases/wiki-beta-pages.use-case.ts
-import { WikiBetaPage } from "../../domain/entities/wiki-beta-page.types";
-import type { IWikiBetaPageRepository } from "../../domain/repositories/WikiBetaPageRepository";
+// ✅ Inside modules/content/application/use-cases/wiki-pages.use-case.ts
+import { WikiPage } from "../../domain/entities/wiki-page.types";
+import type { IWikiPageRepository } from "../../domain/repositories/WikiPageRepository";
 
 // ❌ Do NOT self-import via the barrel
-import { WikiBetaPage } from "@/modules/content";
+import { WikiPage } from "@/modules/content";
 ```
 
 ### Cross-Module Imports

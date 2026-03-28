@@ -17,7 +17,7 @@
 專案目前已實現 **16 個有界上下文**（bounded contexts），對應 `modules/` 下的 16 個目錄。
 
 **已完成的模組整合：**
-- `modules/wiki-beta` — 已分解完畢，職責已遷移至各目標領域（見下表）。
+- `modules/wiki` — 已分解完畢，職責已遷移至各目標領域（見下表）。
 - `modules/namespace` — 已刪除；Slug 工具遷移至 `modules/shared/domain/slug-utils.ts`。
 - `modules/event` — 已刪除；Event-store 原語遷移至 `modules/shared`（`EventRecord`、`PublishDomainEventUseCase` 等）。
 
@@ -44,23 +44,23 @@
 15. workspace-flow
 16. workspace-scheduling
 
-## wiki-beta 分解完成對照
+## wiki 分解完成對照
 
-`modules/wiki-beta` 已完成分解，各職責的最終歸屬：
+`modules/wiki` 已完成分解，各職責的最終歸屬：
 
-| 原 wiki-beta 職責 | 分解目標模組 | 實現位置 |
+| 原 wiki 職責 | 分解目標模組 | 實現位置 |
 | --- | --- | --- |
-| WikiBetaPage（頁面實體） | `content` | `modules/content/domain/entities/wiki-beta-page.types.ts` |
-| WikiBetaLibrary（資料庫實體） | `asset` | `modules/asset/domain/entities/wiki-beta-library.types.ts` |
-| WikiBetaContentTree（工作區視圖） | `workspace` | `modules/workspace/domain/entities/WikiBetaContentTree.ts` |
-| wiki-beta-pages.use-case | `content` | `modules/content/application/use-cases/wiki-beta-pages.use-case.ts` |
-| wiki-beta-libraries.use-case | `asset` | `modules/asset/application/use-cases/wiki-beta-libraries.use-case.ts` |
-| wiki-beta-rag.use-case | `retrieval` | `modules/retrieval/application/use-cases/wiki-beta-rag.use-case.ts` |
-| wiki-beta-content-tree.use-case | `workspace` | `modules/workspace/application/use-cases/wiki-beta-content-tree.use-case.ts` |
-| WikiBetaRagTypes | `retrieval` | `modules/retrieval/domain/entities/WikiBetaRagTypes.ts` |
+| WikiPage（頁面實體） | `content` | `modules/content/domain/entities/wiki-page.types.ts` |
+| WikiLibrary（資料庫實體） | `asset` | `modules/asset/domain/entities/wiki-library.types.ts` |
+| WikiContentTree（工作區視圖） | `workspace` | `modules/workspace/domain/entities/WikiContentTree.ts` |
+| wiki-pages.use-case | `content` | `modules/content/application/use-cases/wiki-pages.use-case.ts` |
+| wiki-libraries.use-case | `asset` | `modules/asset/application/use-cases/wiki-libraries.use-case.ts` |
+| wiki-rag.use-case | `retrieval` | `modules/retrieval/application/use-cases/wiki-rag.use-case.ts` |
+| wiki-content-tree.use-case | `workspace` | `modules/workspace/application/use-cases/wiki-content-tree.use-case.ts` |
+| WikiRagTypes | `retrieval` | `modules/retrieval/domain/entities/WikiRagTypes.ts` |
 | Firebase repositories | `content`, `asset`, `retrieval` | 各模組 `infrastructure/repositories/` 或 `infrastructure/firebase/` |
 
-UI 路由 `app/(shell)/wiki-beta/*` 仍維持原路徑不變（使用者可見路徑），但其 Server Action 與資料依賴皆透過目標模組的 `api/` 邊界取用。
+UI 路由 `app/(shell)/wiki/*` 仍維持原路徑不變（使用者可見路徑），但其 Server Action 與資料依賴皆透過目標模組的 `api/` 邊界取用。
 
 ## namespace / event 遷移對照
 

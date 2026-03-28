@@ -20,7 +20,7 @@ flowchart TB
         WorkspaceDetail["/workspace/:workspaceId"]
         Dashboard["/dashboard"]
         AiChat["/ai-chat"]
-        WikiBeta["/wiki-beta/*"]
+        Wiki["/wiki/*"]
         Organization["/organization/*"]
         Settings["/settings/*"]
     end
@@ -72,7 +72,7 @@ flowchart TB
 
     Shell --> Dashboard
     Shell --> AiChat
-    Shell --> WikiBeta
+    Shell --> Wiki
     Shell --> Organization
     Shell --> Settings
 
@@ -94,6 +94,6 @@ flowchart TB
     classDef data fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
 
     class Account,WA,WB,WC root;
-    class PublicRoot,Dashboard,WorkspaceHub,WorkspaceDetail,AiChat,WikiBeta,Organization,Settings route;
+    class PublicRoot,Dashboard,WorkspaceHub,WorkspaceDetail,AiChat,Wiki,Organization,Settings route;
     class Start,Auth,SelectWorkspace,Membership,Shell,Intent,PageFlow,DatabaseFlow,FileFlow,SearchFlow,AdminFlow flow;
     class Accounts,Organizations,Workspaces,WorkspaceTasks,WorkspaceIssues,Notifications,AuditLogs,TokenSignals,Finance,FileDocuments data;

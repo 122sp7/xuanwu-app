@@ -16,7 +16,7 @@
 | 查看稽核記錄 | `/organization/audit` | Admin |
 | 設定排程 | `/organization/schedule` | Admin |
 | 每日摘要 | `/organization/daily` | Admin / Member |
-| 手動觸發 RAG 重整 | `/wiki-beta/rag-reindex` | Member+ |
+| 手動觸發 RAG 重整 | `/wiki/rag-reindex` | Member+ |
 
 ---
 
@@ -154,7 +154,7 @@
 
 ### 7.1 監控文件處理狀態
 
-進入 `/wiki-beta/documents`，查看組織下所有文件的解析狀態：
+進入 `/wiki/documents`，查看組織下所有文件的解析狀態：
 
 - `⏳ processing`：正常，等待解析完成
 - `✓ ready`：解析完成，可進行 RAG
@@ -166,7 +166,7 @@
 
 當 RAG 索引異常或文件更新後：
 
-1. 進入 `/wiki-beta/rag-reindex`。
+1. 進入 `/wiki/rag-reindex`。
 2. 找到目標文件（`status: ready`，`rag status: error` 或 `pending`）。
 3. 點選 **「手動重整」**。
 4. ✅ 觸發成功，`rag status` 更新。

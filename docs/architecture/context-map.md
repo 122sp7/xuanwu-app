@@ -97,8 +97,8 @@ workspace-flow.task.created ──event→ workspace-audit
 ### Content Layer 關係
 
 ```
-workspace ──hosts→ content (via WikiBetaContentTree)
-  └── workspace.domain.entities.WikiBetaContentTree 持有頁面 ID 層級結構
+workspace ──hosts→ content (via WikiContentTree)
+  └── workspace.domain.entities.WikiContentTree 持有頁面 ID 層級結構
 
 content ──page link events→ knowledge-graph (Auto-link, 計畫中)
   └── content.block-updated → LinkExtractor → knowledge-graph.addLink()

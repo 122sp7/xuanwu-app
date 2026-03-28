@@ -32,7 +32,7 @@
 
 | 文件 | 說明 |
 |------|------|
-| [`domain-implementation-target.md`](./domain-implementation-target.md) | 模組實現數量目標與 wiki-beta 分解記錄 |
+| [`domain-implementation-target.md`](./domain-implementation-target.md) | 模組實現數量目標與 wiki 分解記錄 |
 | [`workspace-ui-gap-analysis.md`](./workspace-ui-gap-analysis.md) | Workspace UI 缺口分析：後端完整但 UI 缺失的功能清單 |
 | [`adr/`](./adr/) | 架構決策記錄（ADR） |
 | [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md) | **ADR-001**：content ↔ workspace-flow 邊界與事件驅動整合（Buffer Zone / Materialization） |

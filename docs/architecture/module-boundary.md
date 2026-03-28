@@ -68,7 +68,7 @@ export { contentFacade } from "./facade";
 |------|---------|
 | `retrieval/api` | **禁止**匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 root barrel `modules/retrieval` 匯出 |
 | `identity/api` | **禁止**匯出 `"use client"` hooks/components，因 `account/application` 在 Server 端 import identity/api |
-| `workspace/infrastructure` | `FirebaseWikiBetaWorkspaceRepository` **禁止** import `@/modules/workspace/api`（循環依賴），改用 relative import `FirebaseWorkspaceRepository` |
+| `workspace/infrastructure` | `FirebaseWikiWorkspaceRepository` **禁止** import `@/modules/workspace/api`（循環依賴），改用 relative import `FirebaseWorkspaceRepository` |
 
 ---
 
@@ -270,7 +270,7 @@ export const WORKSPACE_FLOW_EVENT_LISTENERS = [
 
 | 位置 | 例外 | 原因 |
 |------|------|------|
-| `workspace/infrastructure/FirebaseWikiBetaWorkspaceRepository.ts` | 使用相對 import 而非 `workspace/api` | 避免循環依賴 |
+| `workspace/infrastructure/FirebaseWikiWorkspaceRepository.ts` | 使用相對 import 而非 `workspace/api` | 避免循環依賴 |
 | `retrieval/index.ts` (root barrel) | 匯出 `"use client"` 元件 | 供 Client 端使用的根 barrel，非 api/ |
 | `knowledge/domain/entities/graph-node.ts` | 標記 `@deprecated`，指向 knowledge-graph | 模組重構過渡期暫留 |
 

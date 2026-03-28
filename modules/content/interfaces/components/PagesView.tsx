@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import {
-  createWikiBetaPage,
-  listWikiBetaPagesTree,
-  moveWikiBetaPage,
-  renameWikiBetaPage,
-  type WikiBetaPageTreeNode,
+  createWikiPage,
+  listWikiPagesTree,
+  moveWikiPage,
+  renameWikiPage,
+  type WikiPageTreeNode,
 } from "../../api";
 
-interface WikiBetaPagesViewProps {
+interface WikiPagesViewProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -21,7 +21,7 @@ interface FlatPageOption {
   label: string;
 }
 
-function flattenPages(nodes: WikiBetaPageTreeNode[], depth = 0): FlatPageOption[] {
+function flattenPages(nodes: WikiPageTreeNode[], depth = 0): FlatPageOption[] {
   const out: FlatPageOption[] = [];
   for (const node of nodes) {
     out.push({ id: node.id, label: `${"  ".repeat(depth)}${node.title}` });
@@ -36,7 +36,7 @@ function PageTreeNode({
   onRename,
   onMove,
 }: {
-  readonly node: WikiBetaPageTreeNode;
+  readonly node: WikiPageTreeNode;
   readonly onCreateChild: (pageId: string) => void;
   readonly onRename: (pageId: string, currentTitle: string) => void;
   readonly onMove: (pageId: string, currentParentId: string | null) => void;
@@ -91,10 +91,10 @@ function PageTreeNode({
   );
 }
 
-export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
+export function PagesView({ accountId, workspaceId }: WikiPagesViewProps) {
   const [title, setTitle] = useState("");
   const [parentPageId, setParentPageId] = useState<string>("");
-  const [tree, setTree] = useState<WikiBetaPageTreeNode[]>([]);
+  const [tree, setTree] = useState<WikiPageTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +104,7 @@ export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await listWikiBetaPagesTree(accountId, workspaceId);
+      const result = await listWikiPagesTree(accountId, workspaceId);
       setTree(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -130,7 +130,7 @@ export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
         return;
       }
       try {
-        await createWikiBetaPage({
+        await createWikiPage({
           accountId,
           workspaceId,
           title: finalTitle,
@@ -155,7 +155,7 @@ export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
         return;
       }
       try {
-        await renameWikiBetaPage({ accountId, pageId, title: nextTitle });
+        await renameWikiPage({ accountId, pageId, title: nextTitle });
         await refresh();
       } catch (e) {
         const message = e instanceof Error ? e.message : "rename page failed";
@@ -175,7 +175,7 @@ export function PagesView({ accountId, workspaceId }: WikiBetaPagesViewProps) {
         return;
       }
       try {
-        await moveWikiBetaPage({
+        await moveWikiPage({
           accountId,
           pageId,
           targetParentPageId: raw.trim() ? raw.trim() : null,
