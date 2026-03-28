@@ -11,8 +11,10 @@
  * ## Idempotency
  * The process manager tracks processed `causationId` values to prevent
  * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; a production implementation should
- * persist it to Firestore (e.g. `workspaces/{wid}/materializedEvents/{causationId}`).
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
  *
  * ## Placement
  * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or

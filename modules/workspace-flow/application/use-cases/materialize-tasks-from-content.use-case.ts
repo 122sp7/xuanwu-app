@@ -49,11 +49,15 @@ export class MaterializeTasksFromContentUseCase {
         workspaceId: dto.workspaceId,
         sourceReference: dto.sourceReference,
       });
-      // Add the extracted item to the invoice
+      // Add the extracted item to the invoice.
+      // taskId is empty here because the invoice was generated from AI-extracted data
+      // before any Tasks are created; the association is completed manually by the
+      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
+      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
       await this.invoiceRepository.addItem({
         invoiceId: invoice.id,
         amount: item.amount,
-        taskId: "",  // Not yet linked to a specific task; association happens during workflow
+        taskId: "",
       });
       invoiceIds.push(invoice.id);
     }

@@ -9,18 +9,10 @@
 
 import type { Task } from "../../domain/entities/Task";
 import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
+import { toSourceReference } from "./sourceReference.converter";
 
 const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
 const DEFAULT_STATUS: TaskStatus = "draft";
-
-function toSourceReference(raw: unknown): SourceReference | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const r = raw as Record<string, unknown>;
-  if (r.type !== "ContentPage") return undefined;
-  if (typeof r.id !== "string" || typeof r.causationId !== "string" || typeof r.correlationId !== "string") return undefined;
-  return { type: "ContentPage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
-}
 
 /**
  * Converts a raw Firestore document data map into a typed Task entity.

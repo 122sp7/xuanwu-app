@@ -191,11 +191,15 @@ export class ApproveContentPageUseCase {
       accountId,
       pageId,
       actorId,
+      causationId: inputCausationId,
       extractedTasks,
       extractedInvoices,
       correlationId: inputCorrelationId,
       workspaceId,
     } = parsed.data;
+
+    // causationId is set by the Server Action layer; generateId() is a safe fallback.
+    const causationId = inputCausationId ?? generateId();
 
     const page = await this.repo.findById(accountId, pageId);
     if (!page) {
@@ -214,7 +218,6 @@ export class ApproveContentPageUseCase {
       return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
     }
 
-    const causationId = generateId();
     const correlationId = inputCorrelationId ?? generateId();
 
     await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
@@ -229,7 +232,7 @@ export class ApproveContentPageUseCase {
         extractedTasks,
         extractedInvoices,
         actorId,
-        causationId,
+        causationId: inputCausationId,
         correlationId,
       },
       metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },

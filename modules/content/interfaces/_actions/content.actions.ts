@@ -24,6 +24,7 @@ import {
 import { FirebaseContentPageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
 import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
 import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
 import type {
   CreateContentPageDto,
   RenameContentPageDto,
@@ -146,11 +147,14 @@ export async function publishContentVersion(
 
 export async function approveContentPage(input: ApproveContentPageDto): Promise<CommandResult> {
   try {
+    // causationId is generated at the action layer (command origin) to ensure
+    // proper command-event causality tracing as described in ADR-001.
+    const causationId = input.causationId ?? generateId();
     return await new ApproveContentPageUseCase(
       makePageRepo(),
       new InMemoryEventStoreRepository(),
       new NoopEventBusRepository(),
-    ).execute(input);
+    ).execute({ ...input, causationId });
   } catch (err) {
     return commandFailureFrom(
       "CONTENT_PAGE_APPROVE_FAILED",
