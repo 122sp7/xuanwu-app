@@ -51,6 +51,8 @@ import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
   isWorkspaceTabValue,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
   type WorkspaceTabValue,
 } from "../workspace-tabs";
 
@@ -176,6 +178,15 @@ export function WorkspaceDetailScreen({
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+  const [selectedTab, setSelectedTab] = useState<WorkspaceTabValue>(() =>
+    initialTab && isWorkspaceTabValue(initialTab) ? initialTab : "Overview",
+  );
+
+  useEffect(() => {
+    const tabParam =
+      selectedTab !== "Overview" ? `?tab=${encodeURIComponent(selectedTab)}` : "";
+    router.replace(`/workspace/${workspaceId}${tabParam}`, { scroll: false });
+  }, [selectedTab, router, workspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -607,9 +618,9 @@ export function WorkspaceDetailScreen({
     }
   }
 
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
+  const activeTabs = WORKSPACE_TAB_VALUES.filter(
+    (tab) => WORKSPACE_TAB_META[tab].status !== "🚧",
+  );
 
   return (
     <div className="space-y-6">
@@ -649,10 +660,21 @@ export function WorkspaceDetailScreen({
 
       {workspace && (
         <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
+            {activeTabs.map((tab) => (
+              <Button
+                key={tab}
+                type="button"
+                variant={selectedTab === tab ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedTab(tab)}
+                className="flex-shrink-0 whitespace-nowrap"
+              >
+                {getWorkspaceTabLabel(tab)}
+              </Button>
+            ))}
           </div>
-          {renderTabContent(resolvedTab)}
+          {renderTabContent(selectedTab)}
         </div>
       )}
 
