@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, Building2Icon, FolderKanbanIcon } from "lucide-react";
+import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import type { WikiPageTreeNode } from "@/modules/content/api";
+import { listWikiPagesTree } from "@/modules/content/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -17,51 +20,136 @@ interface WorkspaceWikiViewProps {
   readonly workspace: WorkspaceEntity;
 }
 
+/** Base left-padding (rem) for depth-0 tree items. */
+const TREE_INDENT_BASE_REM = 0.5;
+/** Additional left-padding (rem) per nesting level. */
+const TREE_INDENT_STEP_REM = 1.25;
+
+function flattenTree(nodes: WikiPageTreeNode[], depth = 0): Array<{ node: WikiPageTreeNode; depth: number }> {
+  const out: Array<{ node: WikiPageTreeNode; depth: number }> = [];
+  for (const node of nodes) {
+    out.push({ node, depth });
+    out.push(...flattenTree(node.children, depth + 1));
+  }
+  return out;
+}
+
 export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
+  const [pages, setPages] = useState<WikiPageTreeNode[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPages() {
+      setLoadState("loading");
+      try {
+        const result = await listWikiPagesTree(workspace.accountId, workspace.id);
+        if (!cancelled) {
+          setPages(result);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) setLoadState("error");
+      }
+    }
+
+    void loadPages();
+
+    return () => { cancelled = true; };
+  }, [workspace.accountId, workspace.id]);
+
+  const flatPages = flattenTree(pages);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card className="border-border/60 bg-card/80">
-        <CardHeader className="gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <BookOpenIcon className="size-5 text-primary" />
-              {workspace.name} WorkSpace Wiki
+        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpenIcon className="size-4 shrink-0 text-primary" />
+              <span className="truncate">Wiki · {workspace.name}</span>
             </CardTitle>
-            <CardDescription>
-              這是 workspace-scoped 的 Wiki。所有資料與操作都約束在目前 Account 與 Workspace。
+            <CardDescription className="mt-0.5">
+              此工作區的 Wiki 頁面
             </CardDescription>
           </div>
-
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-xl border border-border/60 px-3 py-2 text-sm">
-              <p className="text-xs text-muted-foreground">Account Scope</p>
-              <p className="mt-1 flex items-center gap-2 font-medium text-foreground">
-                <Building2Icon className="size-4 text-primary" />
-                {workspace.accountId}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 px-3 py-2 text-sm">
-              <p className="text-xs text-muted-foreground">Workspace Scope</p>
-              <p className="mt-1 flex items-center gap-2 font-medium text-foreground">
-                <FolderKanbanIcon className="size-4 text-primary" />
-                {workspace.id}
-              </p>
-            </div>
-          </div>
+          <Button asChild size="sm" className="shrink-0 gap-1.5">
+            <Link
+              href={`/wiki/pages?workspaceId=${workspace.id}`}
+            >
+              <PlusIcon className="size-3.5" />
+              <span className="hidden sm:inline">新增頁面</span>
+              <span className="sm:hidden">新增</span>
+            </Link>
+          </Button>
         </CardHeader>
 
-        <CardContent className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/wiki">前往 Account Wiki</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/wiki/pages">查看 Account 頁面總覽</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/wiki/rag-query">前往 RAG Query</Link>
-          </Button>
+        <CardContent className="pb-4">
+          {loadState === "loading" && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          )}
+
+          {loadState === "error" && (
+            <p className="py-4 text-center text-sm text-destructive">
+              無法載入頁面，請稍後再試。
+            </p>
+          )}
+
+          {loadState === "loaded" && flatPages.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                <BookOpenIcon className="size-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  建立第一頁來開始記錄工作區知識。
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link href={`/wiki/pages?workspaceId=${workspace.id}`}>
+                  <PlusIcon className="size-3.5" />
+                  建立第一頁
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          {loadState === "loaded" && flatPages.length > 0 && (
+            <ul className="divide-y divide-border/50">
+              {flatPages.map(({ node, depth }) => (
+                <li key={node.id}>
+                  <Link
+                    href={`/wiki/pages?pageId=${node.id}`}
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
+                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
+                  >
+                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      {node.title}
+                    </span>
+                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {node.slug}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/wiki">前往 Account Wiki</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/wiki/rag-query">RAG 知識查詢</Link>
+        </Button>
+      </div>
     </div>
   );
 }
