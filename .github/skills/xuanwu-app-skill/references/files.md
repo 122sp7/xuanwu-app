@@ -10415,102 +10415,6 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Remove repeated conceptual background that exists elsewhere.
 `````
 
-## File: .github/terminology-glossary.md
-`````markdown
----
-title: Terminology Glossary
-description: Xuanwu terminology for token/prompt/context efficiency, system performance, optimization, and AI/RAG systems.
----
-
-# Terminology Glossary
-
-Reference for Xuanwu project terminology across token efficiency, system performance, and knowledge engineering.
-
-## Token / Prompt / Context Efficiency
-
-- **Token Efficiency** (Token 效率)
-- **Context Efficiency** (上下文效率)
-- **Prompt Efficiency** (提示詞效率)
-- **Compression Efficiency** (壓縮效率)
-- **Summarization Efficiency** (摘要效率)
-- **Retrieval Efficiency** (檢索效率)
-- **Embedding Efficiency** (向量化效率)
-
-## System / Computational Efficiency
-
-- **Computational Efficiency** (計算效率)
-- **Algorithmic Efficiency** (演算法效率)
-- **Memory Efficiency** (記憶體效率)
-- **Storage Efficiency** (儲存效率)
-- **Network Efficiency** (網路效率)
-- **Cache Efficiency** (快取效率)
-- **Rendering Efficiency** (渲染效率)
-- **Build Efficiency** (建置效率)
-
-## Optimization Terms
-
-- **Efficiency Optimization** (效率優化)
-- **Throughput Optimization** (吞吐量優化)
-- **Latency Optimization** (延遲優化)
-- **Cost Optimization** (成本優化)
-- **Performance Optimization** (效能優化)
-- **Query Optimization** (查詢優化)
-- **Pipeline Optimization** (管線優化)
-
-## Performance Metrics
-
-- **Throughput** (吞吐量)
-- **Latency** (延遲)
-- **Response Time** (回應時間)
-- **Execution Time** (執行時間)
-- **Memory Usage** (記憶體使用)
-- **CPU Utilization** (CPU 使用率)
-- **Cache Hit Rate** (快取命中率)
-- **Token Cost** (Token 成本)
-
-## AI / RAG / Knowledge System
-
-- **Retrieval Performance** (檢索效能)
-- **Context Window Utilization** (上下文窗口利用率)
-- **Document Compression** (文件壓縮)
-- **Context Packing** (上下文打包)
-- **Token Budgeting** (Token 預算控制)
-- **Context Pruning** (上下文剪枝)
-- **Deduplication** (去重)
-- **Canonicalization** (正規化)
-
-## Token / Prompt / Context Operations
-
-- **Token Packing** — 將零散資訊壓縮到最少 token
-- **Token Pruning** — 去掉無用 token
-- **Context Assembly** — 將相關 chunks 組合成可用上下文
-- **Context Chunking** — 把大文檔切成適合檢索的塊
-- **Prompt Refactoring** — 優化 prompt 結構與邏輯
-- **Context Deduplication** — 防止重複 token
-
-## Retrieval / RAG
-
-- **Chunk Efficiency** — 每個 chunk 使用的 token 是否有效
-- **Retrieval Compression** — 檢索結果只保留核心資訊
-- **Context Relevance** — token 是否提供有用訊息
-- **Embedding Optimization** — 降低向量索引 token 消耗
-
-## Documentation Engineering
-
-- **Knowledge Compression** (知識壓縮)
-- **Knowledge Refactoring** (知識重構)
-- **Documentation Chunking** (文件分塊)
-- **Documentation Deduplication** (文件去重)
-- **Documentation Normalization** (文件正規化)
-
-## Core Metrics
-
-- **Token Utilization Rate** (Token 利用率)
-- **Useful Token Ratio** — 只計算有用資訊的 token
-- **Token Footprint** (Token 佔用量)
-- **Token Overhead** (Token 開銷)
-`````
-
 ## File: .gitignore
 `````
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
@@ -12500,131 +12404,6 @@ package-lock.json
 ## File: .tmp-eslint.json
 `````json
 [{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\.github\\skills\\llamaparse\\scripts\\example.ts","messages":[{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'parseFileText' is defined but never used. Allowed unused vars must match /^_/u.","line":12,"column":16,"nodeType":"Identifier","messageId":"unusedVar","endLine":12,"endColumn":29},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'parseFileMarkdown' is defined but never used. Allowed unused vars must match /^_/u.","line":40,"column":16,"nodeType":"Identifier","messageId":"unusedVar","endLine":40,"endColumn":33},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'parseFileJson' is defined but never used. Allowed unused vars must match /^_/u.","line":68,"column":16,"nodeType":"Identifier","messageId":"unusedVar","endLine":68,"endColumn":29},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'parseFileWithOptions' is defined but never used. Allowed unused vars must match /^_/u.","line":100,"column":16,"nodeType":"Identifier","messageId":"unusedVar","endLine":100,"endColumn":36}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":4,"fixableErrorCount":0,"fixableWarningCount":0,"source":"#!/usr/bin/env node\r\n\r\nimport LlamaCloud from \"@llamaindex/llama-cloud\";\r\nimport { readFile, writeFile } from \"fs/promises\";\r\nimport { basename } from \"path\";\r\n\r\n// Define a client\r\nconst client = new LlamaCloud({\r\n  apiKey: process.env[\"LLAMA_CLOUD_API_KEY\"], // This is the default and can be omitted\r\n});\r\n\r\nasync function parseFileText(filePath: string): Promise<string> {\r\n  // 1. Convert the file path into a File object\r\n  const buffer = await readFile(filePath);\r\n  const fileName = basename(filePath);\r\n  const file = new File([buffer], fileName);\r\n  // 2. Upload the file to the cloud\r\n  const fileObj = await client.files.create({\r\n    file: file,\r\n    purpose: \"parse\",\r\n  });\r\n  // 3. Get the file ID\r\n  const fileId = fileObj.id;\r\n  // 4. Use the file ID to parse the file\r\n  const result = await client.parsing.parse({\r\n    tier: \"agentic\", // allowed values: fast,cost_effective,agentic,agentic_plus\r\n    version: \"latest\",\r\n    file_id: fileId,\r\n    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,\r\n    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,\r\n    // output_pdf_content_metadata, images_content_metadata. Metadata fields include\r\n    // presigned URLs.\r\n    expand: [\"text_full\"],\r\n  });\r\n\r\n  // 5. Retrieve the text result (could be None if there was an error)\r\n  return result.text_full ?? \"\";\r\n}\r\n\r\nasync function parseFileMarkdown(filePath: string): Promise<string> {\r\n  // 1. Convert the file path into a File object\r\n  const buffer = await readFile(filePath);\r\n  const fileName = basename(filePath);\r\n  const file = new File([buffer], fileName);\r\n  // 2. Upload the file to the cloud\r\n  const fileObj = await client.files.create({\r\n    file: file,\r\n    purpose: \"parse\",\r\n  });\r\n  // 3. Get the file ID\r\n  const fileId = fileObj.id;\r\n  // 4. Use the file ID to parse the file\r\n  const result = await client.parsing.parse({\r\n    tier: \"agentic\", // allowed values: fast,cost_effective,agentic,agentic_plus\r\n    version: \"latest\",\r\n    file_id: fileId,\r\n    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,\r\n    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,\r\n    // output_pdf_content_metadata, images_content_metadata. Metadata fields include\r\n    // presigned URLs.\r\n    expand: [\"markdown_full\"],\r\n  });\r\n\r\n  // 5. Retrieve the markdown result (could be None if there was an error)\r\n  return result.markdown_full ?? \"\";\r\n}\r\n\r\nasync function parseFileJson(filePath: string): Promise<void> {\r\n  // 1. Convert the file path into a File object\r\n  const buffer = await readFile(filePath);\r\n  const fileName = basename(filePath);\r\n  const file = new File([buffer], fileName);\r\n  // 2. Upload the file to the cloud\r\n  const fileObj = await client.files.create({\r\n    file: file,\r\n    purpose: \"parse\",\r\n  });\r\n  // 3. Get the file ID\r\n  const fileId = fileObj.id;\r\n  // 4. Use the file ID to parse the file\r\n  const result = await client.parsing.parse({\r\n    tier: \"agentic\", // allowed values: fast,cost_effective,agentic,agentic_plus\r\n    version: \"latest\",\r\n    file_id: fileId,\r\n    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,\r\n    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,\r\n    // output_pdf_content_metadata, images_content_metadata. Metadata fields include\r\n    // presigned URLs.\r\n    expand: [\"items\"],\r\n  });\r\n\r\n  // 5. Retrieve the result as a JSON array of items (could be None if there was an error)\r\n  if (result.items) {\r\n    for (const page of result.items.pages) {\r\n      console.log(JSON.stringify(page));\r\n    }\r\n  }\r\n}\r\n\r\nasync function parseFileWithOptions(filePath: string): Promise<void> {\r\n  // 1. Convert the file path into a File object\r\n  const buffer = await readFile(filePath);\r\n  const fileName = basename(filePath);\r\n  const file = new File([buffer], fileName);\r\n  // 2. Upload the file to the cloud\r\n  const fileObj = await client.files.create({\r\n    file: file,\r\n    purpose: \"parse\",\r\n  });\r\n  // 3. Get the file ID\r\n  const fileId = fileObj.id;\r\n  // 4. Use the file ID to parse the file\r\n  const result = await client.parsing.parse({\r\n    tier: \"agentic\", // allowed values: fast,cost_effective,agentic,agentic_plus\r\n    version: \"latest\",\r\n    file_id: fileId,\r\n    input_options: {\r\n      presentation: {\r\n        skip_embedded_data: false,\r\n      },\r\n    },\r\n    output_options: {\r\n      images_to_save: [\"screenshot\"],\r\n      markdown: {\r\n        tables: { output_tables_as_markdown: true },\r\n        annotate_links: true,\r\n      },\r\n    },\r\n    processing_options: {\r\n      specialized_chart_parsing: \"agentic\",\r\n      ocr_parameters: { languages: [\"de\", \"en\"] },\r\n    },\r\n    agentic_options: {\r\n      custom_prompt:\r\n        \"Extract text from the provided file and translate it from German to English.\",\r\n    },\r\n    // IMPORTANT: always include the `expand` parameter. Allowed: text, markdown, items, text_content_metadata,\r\n    // markdown_content_metadata, items_content_metadata, xlsx_content_metadata,\r\n    // output_pdf_content_metadata, images_content_metadata. Metadata fields include\r\n    // presigned URLs.\r\n    expand: [\r\n      \"markdown_full\",\r\n      \"images_content_metadata\",\r\n      \"markdown_content_metadata\",\r\n    ],\r\n  });\r\n  // 5. Retrieve and save the images from the result (since we requested images)\r\n  if (result.images_content_metadata) {\r\n    for (const image of result.images_content_metadata.images) {\r\n      if (image.presigned_url) {\r\n        const response = await fetch(image.presigned_url, {\r\n          headers: {\r\n            Authorization: `Bearer ${process.env[\"LLAMA_CLOUD_API_KEY\"]}`,\r\n          },\r\n        });\r\n        if (response.ok) {\r\n          const content = await response.bytes();\r\n          await writeFile(image.filename, content);\r\n        }\r\n      }\r\n    }\r\n  }\r\n  // 6. Print the full-text result\r\n  console.log(result.markdown_full ?? \"No full content\");\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(public)\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/identity' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":15,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":21,"endColumn":29},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/account' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":22,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":22,"endColumn":89}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * app/(public)/page.tsx\r\n * Public landing page with top-right auth entry and inline auth panel.\r\n * Uses identity module use cases directly on the client so Firebase auth state\r\n * actually updates AuthProvider via onAuthStateChanged.\r\n */\r\n\r\nimport { useState, useEffect, useMemo } from \"react\";\r\nimport { useRouter } from \"next/navigation\";\r\nimport { Loader2, ShieldCheck } from \"lucide-react\";\r\n\r\nimport { useAuth } from \"@/app/providers/auth-provider\";\r\nimport {\r\n  FirebaseIdentityRepository,\r\n  SignInUseCase,\r\n  SignInAnonymouslyUseCase,\r\n  RegisterUseCase,\r\n  SendPasswordResetEmailUseCase,\r\n} from \"@/modules/identity\";\r\nimport { CreateUserAccountUseCase, FirebaseAccountRepository } from \"@/modules/account\";\r\nimport {\r\n  createDevDemoUser,\r\n  isDevDemoCredential,\r\n  isLocalDevDemoAllowed,\r\n  writeDevDemoSession,\r\n} from \"@/app/providers/dev-demo-auth\";\r\n\r\ntype Tab = \"login\" | \"register\";\r\n\r\nexport default function PublicPage() {\r\n  const { state, dispatch } = useAuth();\r\n  const router = useRouter();\r\n\r\n  const [tab, setTab] = useState<Tab>(\"login\");\r\n  const [email, setEmail] = useState(\"\");\r\n  const [password, setPassword] = useState(\"\");\r\n  const [name, setName] = useState(\"\");\r\n  const [isLoading, setIsLoading] = useState(false);\r\n  const [error, setError] = useState<string | null>(null);\r\n  const [resetSent, setResetSent] = useState(false);\r\n  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);\r\n\r\n  const {\r\n    signInUseCase,\r\n    signInAnonymouslyUseCase,\r\n    registerUseCase,\r\n    sendPasswordResetEmailUseCase,\r\n    createUserAccountUseCase,\r\n  } =\r\n    useMemo(() => {\r\n      const identityRepo = new FirebaseIdentityRepository();\r\n      const accountRepo = new FirebaseAccountRepository();\r\n      return {\r\n        signInUseCase: new SignInUseCase(identityRepo),\r\n        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),\r\n        registerUseCase: new RegisterUseCase(identityRepo),\r\n        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),\r\n        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),\r\n      };\r\n    }, []);\r\n\r\n  useEffect(() => {\r\n    if (state.status === \"authenticated\") {\r\n      router.replace(\"/dashboard\");\r\n    }\r\n  }, [state.status, router]);\r\n\r\n  async function handleSubmit(e: React.FormEvent) {\r\n    e.preventDefault();\r\n    setError(null);\r\n    setIsLoading(true);\r\n    try {\r\n      if (isLocalDevDemoAllowed() && tab === \"login\" && isDevDemoCredential(email, password)) {\r\n        writeDevDemoSession(createDevDemoUser());\r\n        window.location.assign(\"/dashboard\");\r\n        return;\r\n      }\r\n\r\n      const result =\r\n        tab === \"login\"\r\n          ? await signInUseCase.execute({ email, password })\r\n          : await registerUseCase.execute({ email, password, name });\r\n\r\n      if (!result.success) {\r\n        setError(result.error.message);\r\n        return;\r\n      }\r\n\r\n      if (tab === \"register\") {\r\n        const accountResult = await createUserAccountUseCase.execute(\r\n          result.aggregateId,\r\n          name,\r\n          email,\r\n        );\r\n        if (!accountResult.success) {\r\n          setError(accountResult.error.message);\r\n        }\r\n      }\r\n    } finally {\r\n      setIsLoading(false);\r\n    }\r\n  }\r\n\r\n  async function handleGuestAccess() {\r\n    setError(null);\r\n    setIsLoading(true);\r\n    try {\r\n      const result = await signInAnonymouslyUseCase.execute();\r\n      if (!result.success) {\r\n        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network\r\n        // blocked in sandboxes), create a local guest session so the shell can be tested.\r\n        if (isLocalDevDemoAllowed()) {\r\n          const guestUser = createDevDemoUser();\r\n          writeDevDemoSession(guestUser);\r\n          dispatch({ type: \"SET_AUTH_STATE\", payload: { user: guestUser, status: \"authenticated\" } });\r\n        } else {\r\n          setError(result.error.message);\r\n        }\r\n      }\r\n    } finally {\r\n      setIsLoading(false);\r\n    }\r\n  }\r\n\r\n  async function handlePasswordReset() {\r\n    if (!email) {\r\n      setError(\"Enter your email address first.\");\r\n      return;\r\n    }\r\n\r\n    setIsLoading(true);\r\n    try {\r\n      const result = await sendPasswordResetEmailUseCase.execute(email);\r\n      if (result.success) {\r\n        setResetSent(true);\r\n        setError(null);\r\n      } else {\r\n        setError(result.error.message);\r\n      }\r\n    } finally {\r\n      setIsLoading(false);\r\n    }\r\n  }\r\n\r\n  if (state.status === \"initializing\") {\r\n    return (\r\n      <div className=\"flex h-screen items-center justify-center\">\r\n        <Loader2 className=\"h-8 w-8 animate-spin text-primary\" />\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <main className=\"min-h-screen bg-background\">\r\n      <header className=\"mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5\">\r\n        <button\r\n          type=\"button\"\r\n          onClick={() => {\r\n            setError(null);\r\n            setResetSent(false);\r\n            setIsAuthPanelOpen((prev) => !prev);\r\n          }}\r\n          className=\"rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted\"\r\n        >\r\n          {isAuthPanelOpen ? \"Close\" : \"Sign In\"}\r\n        </button>\r\n      </header>\r\n\r\n      <section className=\"mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start\">\r\n        <div className=\"rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm\">\r\n          <h1 className=\"text-3xl font-bold tracking-tight md:text-4xl\">Xuanwu App</h1>\r\n          <p className=\"mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base\">\r\n            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.\r\n            Use the top-right sign in button to access your dashboard.\r\n          </p>\r\n        </div>\r\n\r\n        {isAuthPanelOpen && (\r\n          <div className=\"w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30\">\r\n            <div className=\"flex flex-col items-center pb-4 pt-8\">\r\n              <div className=\"flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20\">\r\n                <ShieldCheck className=\"h-7 w-7 text-primary/90\" />\r\n              </div>\r\n            </div>\r\n\r\n            <div className=\"px-6\">\r\n              <div className=\"mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1\">\r\n                {([\"login\", \"register\"] as Tab[]).map((t) => (\r\n                  <button\r\n                    key={t}\r\n                    type=\"button\"\r\n                    onClick={() => {\r\n                      setTab(t);\r\n                      setError(null);\r\n                    }}\r\n                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${\r\n                      tab === t\r\n                        ? \"bg-background text-foreground shadow-sm\"\r\n                        : \"text-muted-foreground hover:text-foreground\"\r\n                    }`}\r\n                  >\r\n                    {t === \"login\" ? \"Sign In\" : \"Register\"}\r\n                  </button>\r\n                ))}\r\n              </div>\r\n\r\n              <form onSubmit={handleSubmit} className=\"flex flex-col gap-4\">\r\n                {tab === \"register\" && (\r\n                  <div className=\"flex flex-col gap-1\">\r\n                    <label className=\"text-xs font-semibold text-muted-foreground\">Name</label>\r\n                    <input\r\n                      type=\"text\"\r\n                      value={name}\r\n                      onChange={(e) => setName(e.target.value)}\r\n                      placeholder=\"Your display name\"\r\n                      required\r\n                      className=\"h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40\"\r\n                    />\r\n                  </div>\r\n                )}\r\n\r\n                <div className=\"flex flex-col gap-1\">\r\n                  <label className=\"text-xs font-semibold text-muted-foreground\">Email</label>\r\n                  <input\r\n                    type=\"email\"\r\n                    value={email}\r\n                    onChange={(e) => setEmail(e.target.value)}\r\n                    placeholder=\"email@example.com\"\r\n                    autoComplete=\"email\"\r\n                    required\r\n                    className=\"h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40\"\r\n                  />\r\n                </div>\r\n\r\n                <div className=\"flex flex-col gap-1\">\r\n                  <div className=\"flex items-center justify-between\">\r\n                    <label className=\"text-xs font-semibold text-muted-foreground\">Password</label>\r\n                    {tab === \"login\" && (\r\n                      <button\r\n                        type=\"button\"\r\n                        onClick={handlePasswordReset}\r\n                        className=\"text-xs text-primary/70 hover:text-primary\"\r\n                      >\r\n                        {resetSent ? \"Email sent!\" : \"Forgot password?\"}\r\n                      </button>\r\n                    )}\r\n                  </div>\r\n                  <input\r\n                    type=\"password\"\r\n                    value={password}\r\n                    onChange={(e) => setPassword(e.target.value)}\r\n                    placeholder=\"••••••••\"\r\n                    autoComplete={tab === \"login\" ? \"current-password\" : \"new-password\"}\r\n                    required\r\n                    className=\"h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40\"\r\n                  />\r\n                </div>\r\n\r\n                {error && (\r\n                  <p className=\"rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive\">\r\n                    {error}\r\n                  </p>\r\n                )}\r\n\r\n                <button\r\n                  type=\"submit\"\r\n                  disabled={isLoading}\r\n                  className=\"mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60\"\r\n                >\r\n                  {isLoading ? (\r\n                    <Loader2 className=\"h-4 w-4 animate-spin\" />\r\n                  ) : tab === \"login\" ? (\r\n                    \"Enter Dimension\"\r\n                  ) : (\r\n                    \"Create Account\"\r\n                  )}\r\n                </button>\r\n              </form>\r\n            </div>\r\n\r\n            <div className=\"mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5\">\r\n              <button\r\n                type=\"button\"\r\n                onClick={handleGuestAccess}\r\n                disabled={isLoading}\r\n                className=\"flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60\"\r\n              >\r\n                {isLoading ? <Loader2 className=\"h-4 w-4 animate-spin\" /> : \"Continue as Guest\"}\r\n              </button>\r\n            </div>\r\n          </div>\r\n        )}\r\n      </section>\r\n    </main>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\account-switcher.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/organization' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":9,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":9,"endColumn":61}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { type FormEvent, useState } from \"react\";\r\nimport { useRouter } from \"next/navigation\";\r\n\r\nimport type { AuthUser } from \"@/app/providers/auth-context\";\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport type { AccountEntity } from \"@/modules/account/api\";\r\nimport { createOrganization } from \"@/modules/organization\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Dialog,\r\n  DialogContent,\r\n  DialogDescription,\r\n  DialogFooter,\r\n  DialogHeader,\r\n  DialogTitle,\r\n} from \"@ui-shadcn/ui/dialog\";\r\nimport { Input } from \"@ui-shadcn/ui/input\";\r\n\r\ninterface AccountSwitcherProps {\r\n  personalAccount: AuthUser | null;\r\n  organizationAccounts: AccountEntity[];\r\n  activeAccountId: string | null;\r\n  onSelectPersonal: () => void;\r\n  onSelectOrganization: (account: AccountEntity) => void;\r\n  onOrganizationCreated?: (account: AccountEntity) => void;\r\n}\r\n\r\nexport function AccountSwitcher({\r\n  personalAccount,\r\n  organizationAccounts,\r\n  activeAccountId,\r\n  onSelectPersonal,\r\n  onSelectOrganization,\r\n  onOrganizationCreated,\r\n}: AccountSwitcherProps) {\r\n  const router = useRouter();\r\n  const {\r\n    state: { accountsHydrated, bootstrapPhase },\r\n  } = useApp();\r\n  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);\r\n  const [organizationName, setOrganizationName] = useState(\"\");\r\n  const [organizationError, setOrganizationError] = useState<string | null>(null);\r\n  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);\r\n\r\n  function resetCreateOrganizationDialog() {\r\n    setOrganizationName(\"\");\r\n    setOrganizationError(null);\r\n    setIsCreatingOrganization(false);\r\n  }\r\n\r\n  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {\r\n    event.preventDefault();\r\n\r\n    if (!personalAccount) {\r\n      setOrganizationError(\"帳號資訊已失效，請重新登入後再建立組織。\");\r\n      return;\r\n    }\r\n\r\n    const nextOrganizationName = organizationName.trim();\r\n    if (!nextOrganizationName) {\r\n      setOrganizationError(\"請輸入組織名稱。\");\r\n      return;\r\n    }\r\n\r\n    setIsCreatingOrganization(true);\r\n    setOrganizationError(null);\r\n\r\n    const result = await createOrganization({\r\n      organizationName: nextOrganizationName,\r\n      ownerId: personalAccount.id,\r\n      ownerName: personalAccount.name,\r\n      ownerEmail: personalAccount.email,\r\n    });\r\n\r\n    if (!result.success) {\r\n      setOrganizationError(result.error.message);\r\n      setIsCreatingOrganization(false);\r\n      return;\r\n    }\r\n\r\n    onOrganizationCreated?.({\r\n      id: result.aggregateId,\r\n      name: nextOrganizationName,\r\n      accountType: \"organization\",\r\n      ownerId: personalAccount.id,\r\n    });\r\n\r\n    resetCreateOrganizationDialog();\r\n    setIsCreateOrganizationOpen(false);\r\n    router.push(\"/organization\");\r\n  }\r\n\r\n  return (\r\n    <>\r\n      <div className=\"space-y-2\">\r\n        <p className=\"text-xs font-semibold uppercase tracking-widest text-muted-foreground\">\r\n          帳號情境\r\n        </p>\r\n        <select\r\n          aria-label=\"切換帳號情境\"\r\n          value={activeAccountId ?? \"\"}\r\n          onChange={(event) => {\r\n            const nextId = event.target.value;\r\n            if (nextId === \"__create_organization__\") {\r\n              setIsCreateOrganizationOpen(true);\r\n              return;\r\n            }\r\n\r\n            if (!nextId || nextId === personalAccount?.id) {\r\n              onSelectPersonal();\r\n              return;\r\n            }\r\n\r\n            const nextAccount = organizationAccounts.find((account) => account.id === nextId);\r\n            if (nextAccount) {\r\n              onSelectOrganization(nextAccount);\r\n            }\r\n          }}\r\n          className=\"w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground\"\r\n        >\r\n          {personalAccount && (\r\n            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>\r\n          )}\r\n          {organizationAccounts.map((account) => (\r\n            <option key={account.id} value={account.id}>\r\n              {account.name}（組織）\r\n            </option>\r\n          ))}\r\n          <option value=\"__create_organization__\">+建立組織</option>\r\n        </select>\r\n        {!accountsHydrated && (\r\n          <p className=\"text-xs text-muted-foreground\">\r\n            {bootstrapPhase === \"seeded\" ? \"正在同步組織上下文…\" : \"正在載入帳號上下文…\"}\r\n          </p>\r\n        )}\r\n      </div>\r\n\r\n      <Dialog\r\n        open={isCreateOrganizationOpen}\r\n        onOpenChange={(open) => {\r\n          setIsCreateOrganizationOpen(open);\r\n          if (!open) {\r\n            resetCreateOrganizationDialog();\r\n          }\r\n        }}\r\n      >\r\n        <DialogContent aria-describedby=\"create-organization-description\">\r\n          <DialogHeader>\r\n            <DialogTitle>建立新組織</DialogTitle>\r\n            <DialogDescription id=\"create-organization-description\">\r\n              輸入名稱後會直接建立組織並切換到新的組織內容。\r\n            </DialogDescription>\r\n          </DialogHeader>\r\n\r\n          <form className=\"space-y-4\" onSubmit={handleCreateOrganization}>\r\n            <div className=\"space-y-2\">\r\n              <label className=\"text-sm font-medium text-foreground\" htmlFor=\"organization-name\">\r\n                組織名稱\r\n              </label>\r\n              <Input\r\n                id=\"organization-name\"\r\n                value={organizationName}\r\n                onChange={(event) => {\r\n                  setOrganizationName(event.target.value);\r\n                  if (organizationError) {\r\n                    setOrganizationError(null);\r\n                  }\r\n                }}\r\n                placeholder=\"例如：Gig Team\"\r\n                autoFocus\r\n                disabled={isCreatingOrganization}\r\n                maxLength={80}\r\n              />\r\n              {organizationError && <p className=\"text-sm text-destructive\">{organizationError}</p>}\r\n            </div>\r\n\r\n            <DialogFooter>\r\n              <Button\r\n                type=\"button\"\r\n                variant=\"outline\"\r\n                onClick={() => {\r\n                  resetCreateOrganizationDialog();\r\n                  setIsCreateOrganizationOpen(false);\r\n                }}\r\n                disabled={isCreatingOrganization}\r\n              >\r\n                取消\r\n              </Button>\r\n              <Button type=\"submit\" disabled={isCreatingOrganization || !personalAccount}>\r\n                {isCreatingOrganization ? \"建立中…\" : \"直接建立\"}\r\n              </Button>\r\n            </DialogFooter>\r\n          </form>\r\n        </DialogContent>\r\n      </Dialog>\r\n    </>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\app-breadcrumbs.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\app-rail.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/organization' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":20,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":20,"endColumn":61},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":21,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":21,"endColumn":55}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * Module: app-rail.tsx\r\n * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.\r\n * Responsibilities: app logo, account context switcher, top-level section icon nav with\r\n *   tooltips, and quick sign-out via user avatar dropdown at the bottom.\r\n * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.\r\n *   `h-full` ensures it fills the parent `h-screen` container.\r\n */\r\n\r\nimport Link from \"next/link\";\r\nimport { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, Settings, SlidersHorizontal, UserRound, Users } from \"lucide-react\";\r\nimport { type FormEvent, useMemo, useState } from \"react\";\r\nimport { useRouter } from \"next/navigation\";\r\n\r\nimport type { AuthUser } from \"@/app/providers/auth-context\";\r\nimport type { ActiveAccount } from \"@/app/providers/app-context\";\r\nimport type { AccountEntity } from \"@/modules/account/api\";\r\nimport { createOrganization } from \"@/modules/organization\";\r\nimport { createWorkspace } from \"@/modules/workspace\";\r\nimport type { WorkspaceEntity } from \"@/modules/workspace/api\";\r\nimport { Avatar, AvatarFallback } from \"@ui-shadcn/ui/avatar\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Dialog,\r\n  DialogContent,\r\n  DialogDescription,\r\n  DialogFooter,\r\n  DialogHeader,\r\n  DialogTitle,\r\n} from \"@ui-shadcn/ui/dialog\";\r\nimport {\r\n  DropdownMenu,\r\n  DropdownMenuContent,\r\n  DropdownMenuItem,\r\n  DropdownMenuLabel,\r\n  DropdownMenuSeparator,\r\n  DropdownMenuTrigger,\r\n} from \"@ui-shadcn/ui/dropdown-menu\";\r\nimport { Input } from \"@ui-shadcn/ui/input\";\r\nimport {\r\n  Tooltip,\r\n  TooltipContent,\r\n  TooltipProvider,\r\n  TooltipTrigger,\r\n} from \"@ui-shadcn/ui/tooltip\";\r\n\r\ninterface AppRailProps {\r\n  readonly pathname: string;\r\n  readonly user: AuthUser | null;\r\n  readonly activeAccount: ActiveAccount | null;\r\n  readonly organizationAccounts: AccountEntity[];\r\n  readonly workspaces: WorkspaceEntity[];\r\n  readonly workspacesHydrated: boolean;\r\n  readonly isOrganizationAccount: boolean;\r\n  readonly onSelectPersonal: () => void;\r\n  readonly onSelectOrganization: (account: AccountEntity) => void;\r\n  readonly activeWorkspaceId: string | null;\r\n  readonly onSelectWorkspace: (workspaceId: string | null) => void;\r\n  readonly onOrganizationCreated?: (account: AccountEntity) => void;\r\n  readonly onSignOut: () => void;\r\n}\r\n\r\ninterface RailItem {\r\n  href: string;\r\n  label: string;\r\n  icon: React.ReactNode;\r\n  /** When false the item is hidden; defaults to true */\r\n  show?: boolean;\r\n  isActive?: (pathname: string) => boolean;\r\n}\r\n\r\nfunction isExactOrChildPath(targetPath: string, pathname: string) {\r\n  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);\r\n}\r\n\r\nfunction getInitial(name: string | undefined | null): string {\r\n  return name?.trim().charAt(0).toUpperCase() || \"U\";\r\n}\r\n\r\nexport function AppRail({\r\n  pathname,\r\n  user,\r\n  activeAccount,\r\n  organizationAccounts,\r\n  workspaces,\r\n  workspacesHydrated,\r\n  isOrganizationAccount,\r\n  onSelectPersonal,\r\n  onSelectOrganization,\r\n  activeWorkspaceId,\r\n  onSelectWorkspace,\r\n  onOrganizationCreated,\r\n  onSignOut,\r\n}: AppRailProps) {\r\n  const router = useRouter();\r\n  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);\r\n  const [orgName, setOrgName] = useState(\"\");\r\n  const [orgError, setOrgError] = useState<string | null>(null);\r\n  const [isCreating, setIsCreating] = useState(false);\r\n\r\n  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);\r\n  const [workspaceName, setWorkspaceName] = useState(\"\");\r\n  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);\r\n  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);\r\n\r\n  function resetDialog() {\r\n    setOrgName(\"\");\r\n    setOrgError(null);\r\n    setIsCreating(false);\r\n  }\r\n\r\n  function resetWorkspaceDialog() {\r\n    setWorkspaceName(\"\");\r\n    setWorkspaceCreateError(null);\r\n    setIsCreatingWorkspace(false);\r\n  }\r\n\r\n  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {\r\n    event.preventDefault();\r\n    const name = workspaceName.trim();\r\n    if (!name) {\r\n      setWorkspaceCreateError(\"請輸入工作區名稱。\");\r\n      return;\r\n    }\r\n    if (!activeAccount) {\r\n      setWorkspaceCreateError(\"帳號資訊已失效，請重新登入後再建立工作區。\");\r\n      return;\r\n    }\r\n    setIsCreatingWorkspace(true);\r\n    setWorkspaceCreateError(null);\r\n    const result = await createWorkspace({\r\n      name,\r\n      accountId: activeAccount.id,\r\n      accountType: isOrganizationAccount ? \"organization\" : \"user\",\r\n    });\r\n    if (!result.success) {\r\n      setWorkspaceCreateError(result.error.message);\r\n      setIsCreatingWorkspace(false);\r\n      return;\r\n    }\r\n    resetWorkspaceDialog();\r\n    setIsCreateWorkspaceOpen(false);\r\n    router.push(\"/workspace\");\r\n  }\r\n\r\n  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {\r\n    event.preventDefault();\r\n    if (!user) {\r\n      setOrgError(\"帳號資訊已失效，請重新登入後再建立組織。\");\r\n      return;\r\n    }\r\n    const name = orgName.trim();\r\n    if (!name) {\r\n      setOrgError(\"請輸入組織名稱。\");\r\n      return;\r\n    }\r\n    setIsCreating(true);\r\n    setOrgError(null);\r\n    const result = await createOrganization({\r\n      organizationName: name,\r\n      ownerId: user.id,\r\n      ownerName: user.name,\r\n      ownerEmail: user.email,\r\n    });\r\n    if (!result.success) {\r\n      setOrgError(result.error.message);\r\n      setIsCreating(false);\r\n      return;\r\n    }\r\n    const newAccount: AccountEntity = {\r\n      id: result.aggregateId,\r\n      name,\r\n      accountType: \"organization\",\r\n      ownerId: user.id,\r\n    };\r\n    onOrganizationCreated?.(newAccount);\r\n    resetDialog();\r\n    setIsCreateOrgOpen(false);\r\n    router.push(\"/organization\");\r\n  }\r\n\r\n  function isActive(href: string) {\r\n    return pathname === href || pathname.startsWith(`${href}/`);\r\n  }\r\n\r\n  const railItems: RailItem[] = [\r\n    {\r\n      href: \"/workspace\",\r\n      label: \"工作區中心\",\r\n      icon: <Building2 className=\"size-[18px]\" />,\r\n    },\r\n    {\r\n      href: \"/wiki-beta\",\r\n      label: \"Account Wiki-Beta\",\r\n      icon: <BookOpen className=\"size-[18px]\" />,\r\n    },\r\n    {\r\n      href: \"/ai-chat\",\r\n      label: \"AI 對話\",\r\n      icon: <Bot className=\"size-[18px]\" />,\r\n    },\r\n    {\r\n      href: \"/organization/members\",\r\n      label: \"成員\",\r\n      icon: <UserRound className=\"size-[18px]\" />,\r\n      show: isOrganizationAccount,\r\n      isActive: (currentPathname) => isExactOrChildPath(\"/organization/members\", currentPathname),\r\n    },\r\n    {\r\n      href: \"/organization/teams\",\r\n      label: \"團隊\",\r\n      icon: <Users className=\"size-[18px]\" />,\r\n      show: isOrganizationAccount,\r\n      isActive: (currentPathname) => isExactOrChildPath(\"/organization/teams\", currentPathname),\r\n    },\r\n    {\r\n      href: \"/organization/permissions\",\r\n      label: \"權限\",\r\n      icon: <SlidersHorizontal className=\"size-[18px]\" />,\r\n      show: isOrganizationAccount,\r\n      isActive: (currentPathname) => isExactOrChildPath(\"/organization/permissions\", currentPathname),\r\n    },\r\n    {\r\n      href: \"/organization/daily\",\r\n      label: \"每日\",\r\n      icon: <NotebookText className=\"size-[18px]\" />,\r\n      show: isOrganizationAccount,\r\n      isActive: (currentPathname) => isExactOrChildPath(\"/organization/daily\", currentPathname),\r\n    },\r\n    {\r\n      href: \"/organization/schedule\",\r\n      label: \"排程\",\r\n      icon: <CalendarDays className=\"size-[18px]\" />,\r\n      show: isOrganizationAccount,\r\n      isActive: (currentPathname) => isExactOrChildPath(\"/organization/schedule\", currentPathname),\r\n    },\r\n    {\r\n      href: \"/organization/audit\",\r\n      label: \"稽核\",\r\n      icon: <ClipboardList className=\"size-[18px]\" />,\r\n      show: isOrganizationAccount,\r\n      isActive: (currentPathname) => isExactOrChildPath(\"/organization/audit\", currentPathname),\r\n    },\r\n    {\r\n      href: \"/dev-tools\",\r\n      label: \"開發工具\",\r\n      icon: <FlaskConical className=\"size-[18px]\" />,\r\n    },\r\n  ];\r\n\r\n  /** Settings is pinned above the avatar, separate from main nav */\r\n  const settingsHref = \"/settings\";\r\n\r\n  const visibleRailItems = railItems.filter((item) => item.show !== false);\r\n\r\n  const sortedWorkspaces = useMemo(\r\n    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, \"zh-Hant\")),\r\n    [workspaces],\r\n  );\r\n\r\n  function buildWikiBetaWorkspaceHref(workspaceId: string): string {\r\n    if (pathname.startsWith(\"/wiki-beta\")) {\r\n      const targetPath = pathname === \"/wiki-beta\" ? \"/wiki-beta/documents\" : pathname;\r\n      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;\r\n    }\r\n    return `/wiki-beta/documents?workspaceId=${encodeURIComponent(workspaceId)}`;\r\n  }\r\n\r\n  const accountName = activeAccount?.name ?? user?.name ?? \"—\";\r\n\r\n  return (\r\n    <TooltipProvider delayDuration={400}>\r\n      <aside\r\n        aria-label=\"App navigation rail\"\r\n        className=\"hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex\"\r\n      >\r\n        {/* ── Workspace / account logo tile ─────────────────────────── */}\r\n        <DropdownMenu>\r\n          <Tooltip>\r\n            <TooltipTrigger asChild>\r\n              <DropdownMenuTrigger asChild>\r\n                <button\r\n                  type=\"button\"\r\n                  aria-label=\"切換帳號情境\"\r\n                  className=\"mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary\"\r\n                >\r\n                  {getInitial(accountName)}\r\n                </button>\r\n              </DropdownMenuTrigger>\r\n            </TooltipTrigger>\r\n            <TooltipContent side=\"right\" className=\"max-w-[180px]\">\r\n              <p className=\"text-xs font-medium\">{accountName}</p>\r\n              <p className=\"text-[10px] text-muted-foreground\">\r\n                {isOrganizationAccount ? \"組織帳號\" : \"個人帳號\"}\r\n              </p>\r\n            </TooltipContent>\r\n          </Tooltip>\r\n\r\n          <DropdownMenuContent side=\"right\" align=\"start\" className=\"w-52\">\r\n            <DropdownMenuLabel className=\"text-xs text-muted-foreground\">切換帳號</DropdownMenuLabel>\r\n            {user && (\r\n              <DropdownMenuItem\r\n                onClick={onSelectPersonal}\r\n                className={activeAccount?.id === user.id ? \"bg-primary/10 text-primary\" : \"\"}\r\n              >\r\n                <span className=\"truncate\">{user.name} (Personal)</span>\r\n              </DropdownMenuItem>\r\n            )}\r\n            {organizationAccounts.map((account) => (\r\n              <DropdownMenuItem\r\n                key={account.id}\r\n                onClick={() => {\r\n                  onSelectOrganization(account);\r\n                }}\r\n                className={activeAccount?.id === account.id ? \"bg-primary/10 text-primary\" : \"\"}\r\n              >\r\n                <span className=\"truncate\">{account.name}</span>\r\n              </DropdownMenuItem>\r\n            ))}\r\n            <DropdownMenuSeparator />\r\n            <DropdownMenuItem\r\n              onClick={() => {\r\n                setIsCreateOrgOpen(true);\r\n              }}\r\n              className=\"gap-2 text-primary\"\r\n            >\r\n              <Plus className=\"size-3.5 shrink-0\" />\r\n              <span>建立組織</span>\r\n            </DropdownMenuItem>\r\n          </DropdownMenuContent>\r\n        </DropdownMenu>\r\n\r\n        <div className=\"my-2 h-px w-7 bg-border/50\" />\r\n\r\n        {/* ── Section nav icons ─────────────────────────────────────── */}\r\n        <nav className=\"flex flex-col items-center gap-0.5\" aria-label=\"主要導覽\">\r\n          {visibleRailItems.map((item) => {\r\n            const active = item.isActive?.(pathname) ?? isActive(item.href);\r\n\r\n            if (item.href === \"/workspace\") {\r\n              return (\r\n                <DropdownMenu key={item.href}>\r\n                  <Tooltip>\r\n                    <TooltipTrigger asChild>\r\n                      <DropdownMenuTrigger asChild>\r\n                        <button\r\n                          type=\"button\"\r\n                          aria-current={active ? \"page\" : undefined}\r\n                          aria-label=\"工作區中心：切換工作區\"\r\n                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${\r\n                            active\r\n                              ? \"bg-primary/10 text-primary\"\r\n                              : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                          }`}\r\n                        >\r\n                          {item.icon}\r\n                        </button>\r\n                      </DropdownMenuTrigger>\r\n                    </TooltipTrigger>\r\n                    <TooltipContent side=\"right\">\r\n                      <p className=\"text-xs\">工作區中心：切換工作區</p>\r\n                    </TooltipContent>\r\n                  </Tooltip>\r\n\r\n                  <DropdownMenuContent side=\"right\" align=\"start\" className=\"w-56\">\r\n                    <DropdownMenuLabel className=\"text-xs text-muted-foreground\">工作區</DropdownMenuLabel>\r\n                    <DropdownMenuItem\r\n                      onClick={() => {\r\n                        router.push(\"/workspace\");\r\n                      }}\r\n                      className={pathname === \"/workspace\" ? \"bg-primary/10 text-primary\" : \"\"}\r\n                    >\r\n                      工作區中心\r\n                    </DropdownMenuItem>\r\n                    <DropdownMenuSeparator />\r\n                    {!workspacesHydrated ? (\r\n                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>\r\n                    ) : sortedWorkspaces.length === 0 ? (\r\n                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>\r\n                    ) : (\r\n                      sortedWorkspaces.map((workspace) => (\r\n                        <DropdownMenuItem\r\n                          key={workspace.id}\r\n                          onClick={() => {\r\n                            onSelectWorkspace(workspace.id);\r\n                            router.push(`/workspace/${workspace.id}`);\r\n                          }}\r\n                          className={activeWorkspaceId === workspace.id ? \"bg-primary/10 text-primary\" : \"\"}\r\n                        >\r\n                          <span className=\"truncate\">{workspace.name}</span>\r\n                        </DropdownMenuItem>\r\n                      ))\r\n                    )}\r\n                    <DropdownMenuSeparator />\r\n                    <DropdownMenuItem\r\n                      onClick={() => {\r\n                        setIsCreateWorkspaceOpen(true);\r\n                      }}\r\n                      className=\"gap-2 text-primary\"\r\n                    >\r\n                      <Plus className=\"size-3.5 shrink-0\" />\r\n                      <span>建立工作區</span>\r\n                    </DropdownMenuItem>\r\n                  </DropdownMenuContent>\r\n                </DropdownMenu>\r\n              );\r\n            }\r\n\r\n            if (item.href === \"/wiki-beta\") {\r\n              return (\r\n                <DropdownMenu key={item.href}>\r\n                  <Tooltip>\r\n                    <TooltipTrigger asChild>\r\n                      <DropdownMenuTrigger asChild>\r\n                        <button\r\n                          type=\"button\"\r\n                          aria-current={active ? \"page\" : undefined}\r\n                          aria-label=\"Account Wiki-Beta: 切換工作區\"\r\n                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${\r\n                            active\r\n                              ? \"bg-primary/10 text-primary\"\r\n                              : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                          }`}\r\n                        >\r\n                          {item.icon}\r\n                        </button>\r\n                      </DropdownMenuTrigger>\r\n                    </TooltipTrigger>\r\n                    <TooltipContent side=\"right\">\r\n                      <p className=\"text-xs\">Account Wiki-Beta: 切換工作區</p>\r\n                    </TooltipContent>\r\n                  </Tooltip>\r\n\r\n                  <DropdownMenuContent side=\"right\" align=\"start\" className=\"w-56\">\r\n                    <DropdownMenuLabel className=\"text-xs text-muted-foreground\">選擇工作區</DropdownMenuLabel>\r\n                    <DropdownMenuItem\r\n                      onClick={() => {\r\n                        onSelectWorkspace(null);\r\n                        router.push(\"/wiki-beta\");\r\n                      }}\r\n                      className={!activeWorkspaceId ? \"bg-primary/10 text-primary\" : \"\"}\r\n                    >\r\n                      Account Wiki-Beta 首頁\r\n                    </DropdownMenuItem>\r\n                    <DropdownMenuSeparator />\r\n                    {!workspacesHydrated ? (\r\n                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>\r\n                    ) : sortedWorkspaces.length === 0 ? (\r\n                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>\r\n                    ) : (\r\n                      sortedWorkspaces.map((workspace) => (\r\n                        <DropdownMenuItem\r\n                          key={workspace.id}\r\n                          onClick={() => {\r\n                            onSelectWorkspace(workspace.id);\r\n                            router.push(buildWikiBetaWorkspaceHref(workspace.id));\r\n                          }}\r\n                          className={activeWorkspaceId === workspace.id ? \"bg-primary/10 text-primary\" : \"\"}\r\n                        >\r\n                          <span className=\"truncate\">{workspace.name}</span>\r\n                        </DropdownMenuItem>\r\n                      ))\r\n                    )}\r\n                  </DropdownMenuContent>\r\n                </DropdownMenu>\r\n              );\r\n            }\r\n\r\n            return (\r\n              <Tooltip key={item.href}>\r\n                <TooltipTrigger asChild>\r\n                  <Link\r\n                    href={item.href}\r\n                    aria-current={active ? \"page\" : undefined}\r\n                    aria-label={item.label}\r\n                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${\r\n                      active\r\n                        ? \"bg-primary/10 text-primary\"\r\n                        : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                    }`}\r\n                  >\r\n                    {item.icon}\r\n                  </Link>\r\n                </TooltipTrigger>\r\n                <TooltipContent side=\"right\">\r\n                  <p className=\"text-xs\">{item.label}</p>\r\n                </TooltipContent>\r\n              </Tooltip>\r\n            );\r\n          })}\r\n        </nav>\r\n\r\n        {/* ── Spacer ────────────────────────────────────────────────── */}\r\n        <div className=\"flex-1\" />\r\n\r\n        {/* ── Settings (pinned above avatar) ────────────────────────── */}\r\n        <div className=\"mb-1\">\r\n          <Tooltip>\r\n            <TooltipTrigger asChild>\r\n              <Link\r\n                href={settingsHref}\r\n                aria-current={isActive(settingsHref) ? \"page\" : undefined}\r\n                aria-label=\"個人設定\"\r\n                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${\r\n                  isActive(settingsHref)\r\n                    ? \"bg-primary/10 text-primary\"\r\n                    : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                }`}\r\n              >\r\n                <Settings className=\"size-[18px]\" />\r\n              </Link>\r\n            </TooltipTrigger>\r\n            <TooltipContent side=\"right\">\r\n              <p className=\"text-xs\">個人設定</p>\r\n            </TooltipContent>\r\n          </Tooltip>\r\n        </div>\r\n\r\n        {/* ── User avatar / sign-out ────────────────────────────────── */}\r\n        <DropdownMenu>\r\n          <Tooltip>\r\n            <TooltipTrigger asChild>\r\n              <DropdownMenuTrigger asChild>\r\n                <button\r\n                  type=\"button\"\r\n                  aria-label=\"開啟使用者選單\"\r\n                  className=\"rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2\"\r\n                >\r\n                  <Avatar size=\"sm\">\r\n                    <AvatarFallback className=\"bg-primary/10 text-xs font-semibold text-primary\">\r\n                      {getInitial(user?.name)}\r\n                    </AvatarFallback>\r\n                  </Avatar>\r\n                </button>\r\n              </DropdownMenuTrigger>\r\n            </TooltipTrigger>\r\n            <TooltipContent side=\"right\">\r\n              <p className=\"text-xs font-medium\">{user?.name ?? \"—\"}</p>\r\n              <p className=\"text-[10px] text-muted-foreground\">{user?.email ?? \"—\"}</p>\r\n            </TooltipContent>\r\n          </Tooltip>\r\n\r\n          <DropdownMenuContent side=\"right\" align=\"end\" className=\"w-48\">\r\n            <DropdownMenuLabel className=\"space-y-0.5\">\r\n              <p className=\"truncate text-sm font-medium\">{user?.name ?? \"—\"}</p>\r\n              <p className=\"truncate text-xs text-muted-foreground\">{user?.email ?? \"—\"}</p>\r\n            </DropdownMenuLabel>\r\n            <DropdownMenuSeparator />\r\n            <DropdownMenuItem variant=\"destructive\" onClick={onSignOut}>\r\n              登出\r\n            </DropdownMenuItem>\r\n          </DropdownMenuContent>\r\n        </DropdownMenu>\r\n\r\n        <div className=\"h-1\" />\r\n      </aside>\r\n\r\n      {/* ── Create organization dialog ─────────────────────────────── */}\r\n      <Dialog\r\n        open={isCreateOrgOpen}\r\n        onOpenChange={(open) => {\r\n          setIsCreateOrgOpen(open);\r\n          if (!open) resetDialog();\r\n        }}\r\n      >\r\n        <DialogContent aria-describedby=\"rail-create-org-description\">\r\n          <DialogHeader>\r\n            <DialogTitle>建立新組織</DialogTitle>\r\n            <DialogDescription id=\"rail-create-org-description\">\r\n              輸入名稱後會直接建立組織並切換到新的組織內容。\r\n            </DialogDescription>\r\n          </DialogHeader>\r\n          <form className=\"space-y-4\" onSubmit={handleCreateOrg}>\r\n            <div className=\"space-y-2\">\r\n              <label className=\"text-sm font-medium text-foreground\" htmlFor=\"rail-organization-name\">\r\n                組織名稱\r\n              </label>\r\n              <Input\r\n                id=\"rail-organization-name\"\r\n                value={orgName}\r\n                onChange={(e) => {\r\n                  setOrgName(e.target.value);\r\n                  if (orgError) setOrgError(null);\r\n                }}\r\n                placeholder=\"例如：Gig Team\"\r\n                autoFocus\r\n                disabled={isCreating}\r\n                maxLength={80}\r\n              />\r\n              {orgError && <p className=\"text-sm text-destructive\">{orgError}</p>}\r\n            </div>\r\n            <DialogFooter>\r\n              <Button\r\n                type=\"button\"\r\n                variant=\"outline\"\r\n                onClick={() => {\r\n                  resetDialog();\r\n                  setIsCreateOrgOpen(false);\r\n                }}\r\n                disabled={isCreating}\r\n              >\r\n                取消\r\n              </Button>\r\n              <Button type=\"submit\" disabled={isCreating || !user}>\r\n                {isCreating ? \"建立中…\" : \"直接建立\"}\r\n              </Button>\r\n            </DialogFooter>\r\n          </form>\r\n        </DialogContent>\r\n      </Dialog>\r\n\r\n      {/* ── Create workspace dialog ────────────────────────────────── */}\r\n      <Dialog\r\n        open={isCreateWorkspaceOpen}\r\n        onOpenChange={(open) => {\r\n          setIsCreateWorkspaceOpen(open);\r\n          if (!open) resetWorkspaceDialog();\r\n        }}\r\n      >\r\n        <DialogContent aria-describedby=\"rail-create-workspace-description\">\r\n          <DialogHeader>\r\n            <DialogTitle>建立新工作區</DialogTitle>\r\n            <DialogDescription id=\"rail-create-workspace-description\">\r\n              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。\r\n            </DialogDescription>\r\n          </DialogHeader>\r\n          <form className=\"space-y-4\" onSubmit={handleCreateWorkspace}>\r\n            <div className=\"space-y-2\">\r\n              <label className=\"text-sm font-medium text-foreground\" htmlFor=\"rail-workspace-name\">\r\n                工作區名稱\r\n              </label>\r\n              <Input\r\n                id=\"rail-workspace-name\"\r\n                value={workspaceName}\r\n                onChange={(e) => {\r\n                  setWorkspaceName(e.target.value);\r\n                  if (workspaceCreateError) setWorkspaceCreateError(null);\r\n                }}\r\n                placeholder=\"例如：Project Alpha\"\r\n                autoFocus\r\n                disabled={isCreatingWorkspace}\r\n                maxLength={80}\r\n              />\r\n              {workspaceCreateError && <p className=\"text-sm text-destructive\">{workspaceCreateError}</p>}\r\n            </div>\r\n            <DialogFooter>\r\n              <Button\r\n                type=\"button\"\r\n                variant=\"outline\"\r\n                onClick={() => {\r\n                  resetWorkspaceDialog();\r\n                  setIsCreateWorkspaceOpen(false);\r\n                }}\r\n                disabled={isCreatingWorkspace}\r\n              >\r\n                取消\r\n              </Button>\r\n              <Button type=\"submit\" disabled={isCreatingWorkspace || !activeAccount}>\r\n                {isCreatingWorkspace ? \"建立中…\" : \"直接建立\"}\r\n              </Button>\r\n            </DialogFooter>\r\n          </form>\r\n        </DialogContent>\r\n      </Dialog>\r\n    </TooltipProvider>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\customize-navigation-dialog.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\dashboard-sidebar.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":19,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":27,"endColumn":30}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * Module: dashboard-sidebar.tsx\r\n * Purpose: render the secondary navigation panel of the authenticated shell.\r\n * Responsibilities: account switcher, search hint, org management sub-nav, and\r\n *   recent workspace quick-access list.  Top-level section navigation is in AppRail.\r\n * Constraints: UI-only; workspace data sourced from module interfaces.\r\n */\r\n\r\nimport Link from \"next/link\";\r\nimport { useSearchParams } from \"next/navigation\";\r\nimport { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, Settings, SlidersHorizontal, UserRound, Users } from \"lucide-react\";\r\nimport { useCallback, useEffect, useMemo, useState } from \"react\";\r\nimport { toast } from \"sonner\";\r\n\r\nimport type { ActiveAccount } from \"@/app/providers/app-context\";\r\nimport type { AccountEntity } from \"@/modules/account/api\";\r\nimport {\r\n  getWorkspaceTabLabel,\r\n  getWorkspaceTabPrefId,\r\n  getWorkspaceTabStatus,\r\n  getWorkspaceTabsByGroup,\r\n  isWorkspaceTabValue,\r\n  type WorkspaceTabGroup,\r\n  type WorkspaceTabValue,\r\n} from \"@/modules/workspace\";\r\nimport type { WorkspaceEntity } from \"@/modules/workspace/api\";\r\nimport { getFirebaseFirestore, firestoreApi } from \"@integration-firebase/firestore\";\r\nimport {\r\n  CustomizeNavigationDialog,\r\n  readNavPreferences,\r\n  type NavPreferences,\r\n} from \"./customize-navigation-dialog\";\r\n\r\ninterface DashboardSidebarProps {\r\n  readonly pathname: string;\r\n  readonly activeAccount: ActiveAccount | null;\r\n  readonly workspaces: WorkspaceEntity[];\r\n  readonly workspacesHydrated: boolean;\r\n  readonly activeWorkspaceId: string | null;\r\n  readonly collapsed: boolean;\r\n  readonly onToggleCollapsed: () => void;\r\n  readonly onSelectWorkspace: (workspaceId: string | null) => void;\r\n}\r\n\r\nconst ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];\r\n\r\nconst ACCOUNT_NAV_ITEMS = [\r\n  { id: \"schedule\", label: \"排程\", href: \"/organization/schedule\" },\r\n  { id: \"dispatcher\", label: \"調度台\", href: \"/organization/schedule/dispatcher\" },\r\n  { id: \"daily\", label: \"每日\", href: \"/organization/daily\" },\r\n  { id: \"audit\", label: \"稽核\", href: \"/organization/audit\" },\r\n] as const;\r\n\r\nconst ACCOUNT_SECTION_MATCHERS = [\r\n  \"/organization/daily\",\r\n  \"/organization/schedule\",\r\n  \"/organization/audit\",\r\n] as const;\r\n\r\nconst MAX_VISIBLE_RECENT_WORKSPACES = 10;\r\nconst RECENT_WORKSPACES_STORAGE_PREFIX = \"xuanwu:recent-workspaces:\";\r\n\r\nfunction createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {\r\n  return getWorkspaceTabsByGroup(group).map((value) => ({\r\n    value,\r\n    label: getWorkspaceTabLabel(value),\r\n  }));\r\n}\r\n\r\nconst WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems(\"primary\");\r\nconst WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems(\"spaces\");\r\nconst WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems(\"databases\");\r\nconst WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems(\"library\");\r\nconst WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems(\"modules\");\r\n\r\ninterface SidebarLocaleBundle {\r\n  workspace?: {\r\n    groups?: Record<string, string>;\r\n    tabLabels?: Record<string, string>;\r\n  };\r\n}\r\n\r\nfunction getStorageKey(accountId: string) {\r\n  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;\r\n}\r\n\r\nfunction readRecentWorkspaceIds(accountId: string): string[] {\r\n  if (typeof window === \"undefined\") return [];\r\n  try {\r\n    const raw = window.localStorage.getItem(getStorageKey(accountId));\r\n    if (!raw) return [];\r\n    const parsed = JSON.parse(raw);\r\n    if (!Array.isArray(parsed)) return [];\r\n    return parsed.filter((item): item is string => typeof item === \"string\" && item.length > 0);\r\n  } catch {\r\n    return [];\r\n  }\r\n}\r\n\r\nfunction persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {\r\n  if (typeof window === \"undefined\") return;\r\n  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));\r\n}\r\n\r\nfunction trackWorkspaceFromPath(pathname: string, accountId: string) {\r\n  const match = pathname.match(/^\\/workspace\\/([^/]+)/);\r\n  if (!match) return;\r\n  const workspaceId = decodeURIComponent(match[1]);\r\n  const recentIds = readRecentWorkspaceIds(accountId);\r\n  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);\r\n  persistRecentWorkspaceIds(accountId, deduped);\r\n}\r\n\r\nfunction getWorkspaceIdFromPath(pathname: string): string | null {\r\n  const match = pathname.match(/^\\/workspace\\/([^/]+)/);\r\n  if (!match) return null;\r\n  return decodeURIComponent(match[1]);\r\n}\r\n\r\n// ── Section helpers ──────────────────────────────────────────────────────────\r\n\r\ntype NavSection = \"workspace\" | \"wiki-beta\" | \"ai-chat\" | \"account\" | \"organization\" | \"settings\" | \"other\";\r\n\r\nfunction resolveNavSection(pathname: string): NavSection {\r\n  if (pathname.startsWith(\"/workspace\") || pathname.startsWith(\"/dashboard\")) return \"workspace\";\r\n  if (pathname.startsWith(\"/wiki-beta\")) return \"wiki-beta\";\r\n  if (pathname.startsWith(\"/ai-chat\")) return \"ai-chat\";\r\n  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return \"account\";\r\n  if (pathname.startsWith(\"/organization\")) return \"organization\";\r\n  if (pathname.startsWith(\"/settings\")) return \"settings\";\r\n  return \"other\";\r\n}\r\n\r\n// ── Section icon labels for the title bar ────────────────────────────────────\r\n\r\nconst SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {\r\n  workspace: { label: \"工作區\", icon: <Building2 className=\"size-3\" /> },\r\n  \"wiki-beta\": { label: \"Account Wiki-Beta\", icon: <BookOpen className=\"size-3\" /> },\r\n  \"ai-chat\": { label: \"AI Chat\", icon: <Bot className=\"size-3\" /> },\r\n  account: { label: \"Account\", icon: <UserRound className=\"size-3\" /> },\r\n  organization: { label: \"組織\", icon: <Users className=\"size-3\" /> },\r\n  settings: { label: \"設定\", icon: <Settings className=\"size-3\" /> },\r\n  other: { label: \"導覽\", icon: null },\r\n};\r\n\r\nfunction isActiveOrganizationAccount(\r\n  activeAccount: ActiveAccount | null,\r\n): activeAccount is AccountEntity & { accountType: \"organization\" } {\r\n  return (\r\n    activeAccount != null &&\r\n    \"accountType\" in activeAccount &&\r\n    activeAccount.accountType === \"organization\"\r\n  );\r\n}\r\n\r\nexport function DashboardSidebar({\r\n  pathname,\r\n  activeAccount,\r\n  workspaces,\r\n  workspacesHydrated,\r\n  activeWorkspaceId,\r\n  collapsed,\r\n  onToggleCollapsed,\r\n  onSelectWorkspace,\r\n}: DashboardSidebarProps) {\r\n  const [isExpanded, setIsExpanded] = useState(false);\r\n  const [isWikiBetaWorkspacesExpanded, setIsWikiBetaWorkspacesExpanded] = useState(false);\r\n  const [wikiBetaQuickCreateOpen, setWikiBetaQuickCreateOpen] = useState(false);\r\n  const [creatingKind, setCreatingKind] = useState<\"page\" | \"database\" | null>(null);\r\n  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);\r\n  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);\r\n  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);\r\n  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());\r\n  const [customizeOpen, setCustomizeOpen] = useState(false);\r\n  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);\r\n  const searchParams = useSearchParams();\r\n\r\n  function toggleCollapsed() {\r\n    onToggleCollapsed();\r\n  }\r\n\r\n  const showAccountManagement = isActiveOrganizationAccount(activeAccount);\r\n\r\n  const visibleOrganizationManagementItems = useMemo(() => {\r\n    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>\r\n      navPrefs.pinnedWorkspace.includes(item.id),\r\n    );\r\n  }, [navPrefs.pinnedWorkspace]);\r\n\r\n  const visibleAccountItems = useMemo(() => {\r\n    return ACCOUNT_NAV_ITEMS.filter((item) =>\r\n      navPrefs.pinnedWorkspace.includes(item.id),\r\n    );\r\n  }, [navPrefs.pinnedWorkspace]);\r\n\r\n  // Whether to show recent workspaces section (controlled by personal prefs)\r\n  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes(\"recent-workspaces\");\r\n\r\n  // Max workspaces to show (apply user preference)\r\n  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces\r\n    ? navPrefs.maxWorkspaces\r\n    : MAX_VISIBLE_RECENT_WORKSPACES;\r\n\r\n  function isActiveRoute(href: string) {\r\n    return pathname === href || pathname.startsWith(`${href}/`);\r\n  }\r\n\r\n  // Track recently visited workspaces in localStorage\r\n  useEffect(() => {\r\n    const accountId = activeAccount?.id;\r\n    if (!accountId) return;\r\n    trackWorkspaceFromPath(pathname, accountId);\r\n  }, [activeAccount?.id, pathname]);\r\n\r\n  const workspacesById = useMemo(\r\n    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),\r\n    [workspaces],\r\n  );\r\n\r\n  const recentWorkspaceIds = useMemo(() => {\r\n    const accountId = activeAccount?.id;\r\n    if (!accountId) return [] as string[];\r\n    const stored = readRecentWorkspaceIds(accountId);\r\n    const currentId = getWorkspaceIdFromPath(pathname);\r\n    if (!currentId) return stored;\r\n    return [currentId, ...stored.filter((id) => id !== currentId)];\r\n  }, [activeAccount?.id, pathname]);\r\n\r\n  useEffect(() => {\r\n    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);\r\n    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {\r\n      onSelectWorkspace(pathWorkspaceId);\r\n      return;\r\n    }\r\n\r\n    if (typeof window === \"undefined\" || !pathname.startsWith(\"/wiki-beta\")) {\r\n      return;\r\n    }\r\n\r\n    const searchWorkspaceId = new URLSearchParams(window.location.search).get(\"workspaceId\")?.trim() || \"\";\r\n    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {\r\n      onSelectWorkspace(searchWorkspaceId);\r\n    }\r\n  }, [pathname, activeWorkspaceId, onSelectWorkspace]);\r\n\r\n  const recentWorkspaceLinks = useMemo(() => {\r\n    return recentWorkspaceIds\r\n      .map((workspaceId) => {\r\n        const ws = workspacesById[workspaceId];\r\n        if (!ws) return null;\r\n        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };\r\n      })\r\n      .filter((item): item is { id: string; name: string; href: string } => item !== null);\r\n  }, [recentWorkspaceIds, workspacesById]);\r\n\r\n  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;\r\n  const visibleRecentWorkspaceLinks = isExpanded\r\n    ? recentWorkspaceLinks\r\n    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);\r\n\r\n  const buildWorkspaceContextHref = useCallback(\r\n    (workspaceId: string): string => {\r\n      if (pathname.startsWith(\"/wiki-beta\")) {\r\n        const targetPath = pathname === \"/wiki-beta\" ? \"/wiki-beta/documents\" : pathname;\r\n        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;\r\n      }\r\n      return `/workspace/${workspaceId}`;\r\n    },\r\n    [pathname],\r\n  );\r\n\r\n  const allWorkspaceLinks = useMemo(() => {\r\n    return Object.values(workspacesById)\r\n      .map((workspace) => ({\r\n        id: workspace.id,\r\n        name: workspace.name,\r\n        href: buildWorkspaceContextHref(workspace.id),\r\n      }))\r\n      .sort((a, b) => a.name.localeCompare(b.name, \"zh-Hant\"));\r\n  }, [workspacesById, buildWorkspaceContextHref]);\r\n\r\n  const section = resolveNavSection(pathname);\r\n  const sectionMeta = SECTION_TITLES[section];\r\n  const workspacePathId = getWorkspaceIdFromPath(pathname);\r\n  const rawWorkspaceTab = searchParams.get(\"tab\") ?? \"Overview\";\r\n  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)\r\n    ? rawWorkspaceTab\r\n    : \"Overview\";\r\n\r\n  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {\r\n    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;\r\n  }\r\n\r\n  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {\r\n    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;\r\n  }\r\n\r\n  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {\r\n    if (tab === \"Wiki\") {\r\n      const status = getWorkspaceTabStatus(tab);\r\n      return `${status} WorkSpace Wiki-Beta`;\r\n    }\r\n    const status = getWorkspaceTabStatus(tab);\r\n    return `${status} ${tWorkspaceTab(tab, fallback)}`;\r\n  }\r\n\r\n  function tWorkspaceGroup(groupKey: string, fallback: string) {\r\n    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;\r\n  }\r\n\r\n  function getWorkspacePrefId(tabValue: string) {\r\n    if (isWorkspaceTabValue(tabValue)) {\r\n      return getWorkspaceTabPrefId(tabValue);\r\n    }\r\n    return tabValue.toLowerCase().replace(/\\s+/g, \"-\");\r\n  }\r\n\r\n  function isWorkspaceItemEnabled(prefId: string) {\r\n    return navPrefs.pinnedWorkspace.includes(prefId);\r\n  }\r\n\r\n  function getWorkspaceItemOrder(prefId: string) {\r\n    const index = navPrefs.workspaceOrder.indexOf(prefId);\r\n    return index === -1 ? Number.MAX_SAFE_INTEGER : index;\r\n  }\r\n\r\n  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {\r\n    return [...items].sort(\r\n      (left, right) =>\r\n        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -\r\n        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),\r\n    );\r\n  }\r\n\r\n  useEffect(() => {\r\n    let cancelled = false;\r\n\r\n    async function loadSidebarLocale() {\r\n      const isZhHant =\r\n        typeof navigator !== \"undefined\" &&\r\n        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);\r\n      const localeFile = isZhHant ? \"zh-TW.json\" : \"en.json\";\r\n\r\n      try {\r\n        const response = await fetch(`/localized-files/${localeFile}`, { cache: \"no-store\" });\r\n        if (!response.ok) return;\r\n        const data = (await response.json()) as SidebarLocaleBundle;\r\n        if (!cancelled) {\r\n          setLocaleBundle(data);\r\n        }\r\n      } catch {\r\n        // Keep fallback labels when localization files are unavailable.\r\n      }\r\n    }\r\n\r\n    void loadSidebarLocale();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, []);\r\n\r\n  async function handleWikiBetaQuickCreate(kind: \"page\" | \"database\") {\r\n    const accountId = activeAccount?.id ?? \"\";\r\n    if (!accountId) {\r\n      toast.error(\"目前沒有 active account，無法建立\");\r\n      return;\r\n    }\r\n\r\n    setCreatingKind(kind);\r\n    try {\r\n      const db = getFirebaseFirestore();\r\n      const collectionName = kind === \"page\" ? \"pages\" : \"databases\";\r\n      const baseTitle = kind === \"page\" ? \"未命名頁面\" : \"未命名資料庫\";\r\n\r\n      const payload: Record<string, unknown> = {\r\n        title: baseTitle,\r\n        kind,\r\n        accountId,\r\n        createdAt: firestoreApi.serverTimestamp(),\r\n        updatedAt: firestoreApi.serverTimestamp(),\r\n      };\r\n\r\n      if (activeWorkspaceId) {\r\n        payload.spaceId = activeWorkspaceId;\r\n      }\r\n\r\n      if (kind === \"database\") {\r\n        payload.template = \"task-governance\";\r\n        payload.metadata = {\r\n          model: [\"tasks\", \"task_dependencies\", \"skills\", \"task_skill_thresholds\"],\r\n          description: \"任務依賴與技能門檻分類模板\",\r\n        };\r\n      }\r\n\r\n      await firestoreApi.addDoc(\r\n        firestoreApi.collection(db, \"accounts\", accountId, collectionName),\r\n        payload,\r\n      );\r\n\r\n      toast.success(kind === \"page\" ? \"已建立頁面\" : \"已建立資料庫\");\r\n      setWikiBetaQuickCreateOpen(false);\r\n    } catch (error) {\r\n      console.error(error);\r\n      toast.error(kind === \"page\" ? \"建立頁面失敗\" : \"建立資料庫失敗\");\r\n    } finally {\r\n      setCreatingKind(null);\r\n    }\r\n  }\r\n\r\n  return (\r\n    <>\r\n    <aside\r\n      aria-label=\"Secondary navigation\"\r\n      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${\r\n        collapsed ? \"w-0\" : \"w-52 border-r border-border/50 bg-card/30\"\r\n      }`}\r\n    >\r\n      <>\r\n          {/* ── Sidebar title bar ──────────────────────────────────── */}\r\n          <div className=\"flex shrink-0 items-center border-b border-border/40 px-2 py-1.5\">\r\n            {/* Section label */}\r\n            <span className=\"flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n              {sectionMeta.icon}\r\n              {sectionMeta.label}\r\n            </span>\r\n            {/* Customize + collapse buttons grouped on the right */}\r\n            <div className=\"flex items-center gap-0.5\">\r\n              <button\r\n                type=\"button\"\r\n                title=\"設定\"\r\n                aria-label=\"設定\"\r\n                onClick={() => {\r\n                  setCustomizeOpen(true);\r\n                }}\r\n                className=\"flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground\"\r\n              >\r\n                <SlidersHorizontal className=\"size-3.5\" />\r\n              </button>\r\n              <button\r\n                type=\"button\"\r\n                onClick={toggleCollapsed}\r\n                aria-label=\"收起側欄\"\r\n                title=\"收起側欄\"\r\n                className=\"flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground\"\r\n              >\r\n                <PanelLeftClose className=\"size-3.5\" />\r\n              </button>\r\n            </div>\r\n          </div>\r\n\r\n          {/* ── Scrollable nav body ── section-specific ───────────── */}\r\n          <div className=\"flex-1 overflow-y-auto px-3 py-3\">\r\n            {section === \"account\" && (\r\n              <>\r\n                {showAccountManagement && visibleAccountItems.length > 0 && (\r\n                  <nav className=\"space-y-0.5\" aria-label=\"Account navigation\">\r\n                    <p className=\"mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n                      Account\r\n                    </p>\r\n                    {visibleAccountItems.map((item) => {\r\n                      const active = isActiveRoute(item.href);\r\n                      return (\r\n                        <Link\r\n                          key={item.href}\r\n                          href={item.href}\r\n                          aria-current={active ? \"page\" : undefined}\r\n                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                            active\r\n                              ? \"bg-primary/10 text-primary\"\r\n                              : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                          }`}\r\n                        >\r\n                          {item.label}\r\n                        </Link>\r\n                      );\r\n                    })}\r\n                  </nav>\r\n                )}\r\n                {!showAccountManagement && (\r\n                  <p className=\"px-2 py-4 text-[11px] text-muted-foreground\">\r\n                    請切換到組織帳號以查看 Account 選項。\r\n                  </p>\r\n                )}\r\n              </>\r\n            )}\r\n\r\n            {section === \"organization\" && (\r\n              <>\r\n                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (\r\n                  <nav className=\"space-y-0.5\" aria-label=\"Organization management\">\r\n                    <p className=\"mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n                      組織管理\r\n                    </p>\r\n                    {visibleOrganizationManagementItems.map((item) => {\r\n                      const active = isActiveRoute(item.href);\r\n                      return (\r\n                        <Link\r\n                          key={item.href}\r\n                          href={item.href}\r\n                          aria-current={active ? \"page\" : undefined}\r\n                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                            active\r\n                              ? \"bg-primary/10 text-primary\"\r\n                              : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                          }`}\r\n                        >\r\n                          {item.label}\r\n                        </Link>\r\n                      );\r\n                    })}\r\n                  </nav>\r\n                )}\r\n                {!showAccountManagement && (\r\n                  <p className=\"px-2 py-4 text-[11px] text-muted-foreground\">\r\n                    請切換到組織帳號以查看管理選項。\r\n                  </p>\r\n                )}\r\n              </>\r\n            )}\r\n\r\n            {section === \"workspace\" && (\r\n              <>\r\n                {workspacePathId ? (\r\n                  <nav className=\"space-y-3\" aria-label=\"Workspace navigation\">\r\n                    <div className=\"space-y-0.5\">\r\n                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)\r\n                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))\r\n                        .map((item) => {\r\n                        const isActive = activeWorkspaceTab === item.value;\r\n                        return (\r\n                          <Link\r\n                            key={item.value}\r\n                            href={buildWorkspaceTabHref(workspacePathId, item.value)}\r\n                            aria-current={isActive ? \"page\" : undefined}\r\n                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                              isActive\r\n                                ? \"bg-primary/10 text-primary\"\r\n                                : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                            }`}\r\n                          >\r\n                            {tWorkspaceTabWithDevStatus(item.value, item.label)}\r\n                          </Link>\r\n                        );\r\n                      })}\r\n                    </div>\r\n\r\n                    {isWorkspaceItemEnabled(\"workspace-modules\") && (\r\n                      <div className=\"my-1.5 border-t border-border/40\" />\r\n                    )}\r\n\r\n                    <div className=\"space-y-0.5\">\r\n                      {isWorkspaceItemEnabled(\"workspace-modules\") && (\r\n                        <>\r\n                          <button\r\n                            type=\"button\"\r\n                            onClick={() => {\r\n                              setIsWorkspaceModulesExpanded((prev) => !prev);\r\n                            }}\r\n                            className=\"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground\"\r\n                            aria-expanded={isWorkspaceModulesExpanded}\r\n                          >\r\n                            <span>{tWorkspaceGroup(\"workspaceModules\", \"Workspace Modules\")}</span>\r\n                            {isWorkspaceModulesExpanded ? <ChevronDown className=\"size-3.5\" /> : <ChevronRight className=\"size-3.5\" />}\r\n                          </button>\r\n\r\n                          {isWorkspaceModulesExpanded && (\r\n                            <div className=\"space-y-0.5 pl-2\">\r\n                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)\r\n                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))\r\n                                .map((item) => {\r\n                                const isActive = activeWorkspaceTab === item.value;\r\n                                return (\r\n                                  <Link\r\n                                    key={item.value}\r\n                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}\r\n                                    aria-current={isActive ? \"page\" : undefined}\r\n                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                                      isActive\r\n                                        ? \"bg-primary/10 text-primary\"\r\n                                        : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                                    }`}\r\n                                  >\r\n                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}\r\n                                  </Link>\r\n                                );\r\n                              })}\r\n                            </div>\r\n                          )}\r\n                        </>\r\n                      )}\r\n                    </div>\r\n\r\n                    <div className=\"space-y-0.5\">\r\n                      {isWorkspaceItemEnabled(\"spaces\") && (\r\n                        <>\r\n                          <button\r\n                            type=\"button\"\r\n                            onClick={() => {\r\n                              setIsWorkspaceSpacesExpanded((prev) => !prev);\r\n                            }}\r\n                            className=\"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground\"\r\n                            aria-expanded={isWorkspaceSpacesExpanded}\r\n                          >\r\n                            <span>{tWorkspaceGroup(\"spaces\", \"Spaces\")}</span>\r\n                            {isWorkspaceSpacesExpanded ? <ChevronDown className=\"size-3.5\" /> : <ChevronRight className=\"size-3.5\" />}\r\n                          </button>\r\n\r\n                          {isWorkspaceSpacesExpanded && (\r\n                            <div className=\"space-y-0.5 pl-2\">\r\n                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)\r\n                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))\r\n                                    .map((item) => {\r\n                                const isActive = activeWorkspaceTab === item.value;\r\n                                return (\r\n                                  <Link\r\n                                    key={item.value}\r\n                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}\r\n                                    aria-current={isActive ? \"page\" : undefined}\r\n                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                                      isActive\r\n                                        ? \"bg-primary/10 text-primary\"\r\n                                        : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                                    }`}\r\n                                  >\r\n                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}\r\n                                  </Link>\r\n                                );\r\n                              })}\r\n                            </div>\r\n                          )}\r\n                        </>\r\n                      )}\r\n                    </div>\r\n\r\n                    <div className=\"space-y-0.5\">\r\n                      {isWorkspaceItemEnabled(\"databases\") && (\r\n                        <>\r\n                          <button\r\n                            type=\"button\"\r\n                            onClick={() => {\r\n                              setIsWorkspaceDatabasesExpanded((prev) => !prev);\r\n                            }}\r\n                            className=\"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground\"\r\n                            aria-expanded={isWorkspaceDatabasesExpanded}\r\n                          >\r\n                            <span>{tWorkspaceGroup(\"databases\", \"Databases\")}</span>\r\n                            {isWorkspaceDatabasesExpanded ? <ChevronDown className=\"size-3.5\" /> : <ChevronRight className=\"size-3.5\" />}\r\n                          </button>\r\n\r\n                          {isWorkspaceDatabasesExpanded && (\r\n                            <div className=\"space-y-0.5 pl-2\">\r\n                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)\r\n                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))\r\n                                .map((item) => {\r\n                                const isActive = activeWorkspaceTab === item.value;\r\n                                return (\r\n                                  <Link\r\n                                    key={item.value}\r\n                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}\r\n                                    aria-current={isActive ? \"page\" : undefined}\r\n                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                                      isActive\r\n                                        ? \"bg-primary/10 text-primary\"\r\n                                        : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                                    }`}\r\n                                  >\r\n                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}\r\n                                  </Link>\r\n                                );\r\n                              })}\r\n                            </div>\r\n                          )}\r\n                        </>\r\n                      )}\r\n                    </div>\r\n\r\n                    <div className=\"space-y-0.5\">\r\n                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)\r\n                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))\r\n                        .map((item) => {\r\n                        const isActive = activeWorkspaceTab === item.value;\r\n                        return (\r\n                          <Link\r\n                            key={item.value}\r\n                            href={buildWorkspaceTabHref(workspacePathId, item.value)}\r\n                            aria-current={isActive ? \"page\" : undefined}\r\n                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                              isActive\r\n                                ? \"bg-primary/10 text-primary\"\r\n                                : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                            }`}\r\n                          >\r\n                            {tWorkspaceTabWithDevStatus(item.value, item.label)}\r\n                          </Link>\r\n                        );\r\n                      })}\r\n                    </div>\r\n\r\n                  </nav>\r\n                ) : (\r\n                  // ── Workspace hub: show recent workspaces ──────────────\r\n                  <>\r\n                    {showRecentWorkspaces && (\r\n                      <div className=\"space-y-0.5\">\r\n                        <p className=\"mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n                          最近工作區\r\n                        </p>\r\n                        {visibleRecentWorkspaceLinks.length === 0 ? (\r\n                          <p className=\"px-2 py-2 text-[11px] text-muted-foreground\">\r\n                            尚無最近開啟的工作區。\r\n                          </p>\r\n                        ) : (\r\n                          visibleRecentWorkspaceLinks.map((ws) => (\r\n                            <Link\r\n                              key={ws.id}\r\n                              href={ws.href}\r\n                              onClick={() => {\r\n                                onSelectWorkspace(ws.id);\r\n                              }}\r\n                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)\r\n                                  ? \"bg-primary/10 text-primary\"\r\n                                  : \"text-foreground/80 hover:bg-muted hover:text-foreground\"\r\n                              }`}\r\n                              title={ws.name}\r\n                            >\r\n                              <span className=\"truncate\">{ws.name}</span>\r\n                            </Link>\r\n                          ))\r\n                        )}\r\n                        {hasOverflow && (\r\n                          <button\r\n                            type=\"button\"\r\n                            onClick={() => {\r\n                              setIsExpanded((prev) => !prev);\r\n                            }}\r\n                            className=\"px-2 py-1 text-[11px] font-medium text-primary hover:underline\"\r\n                          >\r\n                            {isExpanded ? \"收起\" : \"顯示更多\"}\r\n                          </button>\r\n                        )}\r\n                      </div>\r\n                    )}\r\n                  </>\r\n                )}\r\n              </>\r\n            )}\r\n\r\n            {section === \"wiki-beta\" && (\r\n              <nav className=\"space-y-0.5\" aria-label=\"Account Wiki-Beta navigation\">\r\n                <p className=\"mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n                  Account Wiki-Beta\r\n                </p>\r\n                {(\r\n                  [\r\n                    { href: \"/wiki-beta\", label: \"知識總覽\" },\r\n                    { href: \"/wiki-beta/block-editor\", label: \"區塊編輯器\" },\r\n                    { href: \"/wiki-beta/pages-dnd\", label: \"頁面 (DnD)\" },\r\n                    { href: \"/wiki-beta/rag-query\", label: \"RAG Query\" },\r\n                  ] as const\r\n                ).map((item) => {\r\n                  const active = isActiveRoute(item.href);\r\n                  return (\r\n                    <Link\r\n                      key={item.href}\r\n                      href={item.href}\r\n                      aria-current={active ? \"page\" : undefined}\r\n                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                        active\r\n                          ? \"bg-primary/10 text-primary\"\r\n                          : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                      }`}\r\n                    >\r\n                      {item.label}\r\n                    </Link>\r\n                  );\r\n                })}\r\n\r\n                <div className=\"relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground\">\r\n                  <Link\r\n                    href=\"/wiki-beta/documents\"\r\n                    aria-current={isActiveRoute(\"/wiki-beta/documents\") ? \"page\" : undefined}\r\n                    className={`flex-1 ${\r\n                      isActiveRoute(\"/wiki-beta/documents\")\r\n                        ? \"text-primary\"\r\n                        : \"text-muted-foreground hover:text-foreground\"\r\n                    }`}\r\n                  >\r\n                    Documents\r\n                  </Link>\r\n                  <button\r\n                    type=\"button\"\r\n                    onClick={(event) => {\r\n                      event.preventDefault();\r\n                      event.stopPropagation();\r\n                      setWikiBetaQuickCreateOpen((prev) => !prev);\r\n                    }}\r\n                    className=\"ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15\"\r\n                    aria-label=\"快速新增頁面或資料庫\"\r\n                    title=\"快速新增\"\r\n                  >\r\n                    <Plus className=\"size-3.5\" />\r\n                  </button>\r\n\r\n                  {wikiBetaQuickCreateOpen ? (\r\n                    <div className=\"absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md\">\r\n                      <button\r\n                        type=\"button\"\r\n                        onClick={() => void handleWikiBetaQuickCreate(\"page\")}\r\n                        disabled={creatingKind !== null}\r\n                        className=\"flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50\"\r\n                      >\r\n                        {creatingKind === \"page\" ? \"建立中...\" : \"新增頁面\"}\r\n                      </button>\r\n                      <button\r\n                        type=\"button\"\r\n                        onClick={() => void handleWikiBetaQuickCreate(\"database\")}\r\n                        disabled={creatingKind !== null}\r\n                        className=\"flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50\"\r\n                      >\r\n                        {creatingKind === \"database\" ? \"建立中...\" : \"新增資料庫\"}\r\n                      </button>\r\n                    </div>\r\n                  ) : null}\r\n                </div>\r\n\r\n                {(\r\n                  [\r\n                    { href: \"/wiki-beta/pages\", label: \"Pages\" },\r\n                    { href: \"/wiki-beta/libraries\", label: \"Libraries\" },\r\n                    { href: \"/wiki-beta/rag-reindex\", label: \"RAG Reindex\" },\r\n                  ] as const\r\n                ).map((item) => {\r\n                  const active = isActiveRoute(item.href);\r\n                  return (\r\n                    <Link\r\n                      key={item.href}\r\n                      href={item.href}\r\n                      aria-current={active ? \"page\" : undefined}\r\n                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                        active\r\n                          ? \"bg-primary/10 text-primary\"\r\n                          : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                      }`}\r\n                    >\r\n                      {item.label}\r\n                    </Link>\r\n                  );\r\n                })}\r\n\r\n                <div className=\"my-1.5 border-t border-border/40\" />\r\n\r\n                <button\r\n                  type=\"button\"\r\n                  onClick={() => {\r\n                    setIsWikiBetaWorkspacesExpanded((prev) => !prev);\r\n                  }}\r\n                  className=\"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground\"\r\n                  aria-expanded={isWikiBetaWorkspacesExpanded}\r\n                >\r\n                  <span>Workspaces</span>\r\n                  {isWikiBetaWorkspacesExpanded ? <ChevronDown className=\"size-3.5\" /> : <ChevronRight className=\"size-3.5\" />}\r\n                </button>\r\n\r\n                {isWikiBetaWorkspacesExpanded && (\r\n                  <div className=\"space-y-0.5 pl-2\">\r\n                    {!workspacesHydrated ? (\r\n                      <p className=\"px-2 py-1.5 text-[11px] text-muted-foreground\">工作區載入中...</p>\r\n                    ) : allWorkspaceLinks.length === 0 ? (\r\n                      <p className=\"px-2 py-1.5 text-[11px] text-muted-foreground\">目前帳號沒有工作區</p>\r\n                    ) : (\r\n                      allWorkspaceLinks.map((workspace) => {\r\n                        const active = activeWorkspaceId === workspace.id;\r\n                        return (\r\n                          <Link\r\n                            key={workspace.id}\r\n                            href={workspace.href}\r\n                            onClick={() => {\r\n                              onSelectWorkspace(workspace.id);\r\n                            }}\r\n                            aria-current={active ? \"page\" : undefined}\r\n                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                              active\r\n                                ? \"bg-primary/10 text-primary\"\r\n                                : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                            }`}\r\n                            title={workspace.name}\r\n                          >\r\n                            <span className=\"truncate\">{workspace.name}</span>\r\n                          </Link>\r\n                        );\r\n                      })\r\n                    )}\r\n                  </div>\r\n                )}\r\n              </nav>\r\n            )}\r\n\r\n            {section === \"ai-chat\" && (\r\n              <nav className=\"space-y-0.5\" aria-label=\"AI Chat navigation\">\r\n                <p className=\"mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n                  AI Chat\r\n                </p>\r\n                {(\r\n                  [\r\n                    { href: \"/ai-chat\", label: \"對話紀錄\" },\r\n                  ] as const\r\n                ).map((item) => {\r\n                  const active = isActiveRoute(item.href);\r\n                  return (\r\n                    <Link\r\n                      key={item.href}\r\n                      href={item.href}\r\n                      aria-current={active ? \"page\" : undefined}\r\n                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                        active\r\n                          ? \"bg-primary/10 text-primary\"\r\n                          : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                      }`}\r\n                    >\r\n                      {item.label}\r\n                    </Link>\r\n                  );\r\n                })}\r\n              </nav>\r\n            )}\r\n\r\n            {section === \"settings\" && (\r\n              <nav className=\"space-y-0.5\" aria-label=\"Settings navigation\">\r\n                <p className=\"mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70\">\r\n                  個人設定\r\n                </p>\r\n                {(\r\n                  [\r\n                    { href: \"/settings/profile\", label: \"個人資料\" },\r\n                    { href: \"/settings/general\", label: \"一般\" },\r\n                    { href: \"/settings/notifications\", label: \"推播通知\" },\r\n                  ] as const\r\n                ).map((item) => {\r\n                  const active = isActiveRoute(item.href);\r\n                  return (\r\n                    <Link\r\n                      key={item.href}\r\n                      href={item.href}\r\n                      aria-current={active ? \"page\" : undefined}\r\n                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${\r\n                        active\r\n                          ? \"bg-primary/10 text-primary\"\r\n                          : \"text-muted-foreground hover:bg-muted hover:text-foreground\"\r\n                      }`}\r\n                    >\r\n                      {item.label}\r\n                    </Link>\r\n                  );\r\n                })}\r\n              </nav>\r\n            )}\r\n          </div>\r\n        </>\r\n    </aside>\r\n\r\n    <CustomizeNavigationDialog\r\n      open={customizeOpen}\r\n      onOpenChange={setCustomizeOpen}\r\n      onPreferencesChange={setNavPrefs}\r\n    />\r\n    </>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\global-search-dialog.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\header-controls.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/notification' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":14,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":19,"endColumn":33}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * Module: header-controls.tsx\r\n * Purpose: compose shell header utility controls.\r\n * Responsibilities: language switch, theme toggle, and notification entry.\r\n * Constraints: presentation-only, no domain orchestration.\r\n */\r\n\r\nimport { Bell, Moon, Sun } from \"lucide-react\";\r\nimport { useCallback, useEffect, useMemo, useState } from \"react\";\r\n\r\nimport { useAuth } from \"@/app/providers/auth-provider\";\r\nimport {\r\n  type NotificationEntity,\r\n  markAllNotificationsRead,\r\n  markNotificationRead,\r\n  getNotificationsForRecipient,\r\n} from \"@/modules/notification\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from \"@ui-shadcn/ui/dropdown-menu\";\r\nimport { TranslationSwitcher } from \"./translation-switcher\";\r\n\r\nconst THEME_KEY = \"xuanwu_theme\";\r\nconst NOTIFICATION_LIMIT = 20;\r\n\r\nfunction formatNotificationTime(timestamp: number) {\r\n  return new Intl.DateTimeFormat(\"zh-TW\", {\r\n    month: \"2-digit\",\r\n    day: \"2-digit\",\r\n    hour: \"2-digit\",\r\n    minute: \"2-digit\",\r\n  }).format(new Date(timestamp));\r\n}\r\n\r\nexport function HeaderControls() {\r\n  const { state: authState } = useAuth();\r\n  const [theme, setTheme] = useState<\"light\" | \"dark\">(() => {\r\n    if (typeof window === \"undefined\") return \"light\";\r\n    const storedTheme = window.localStorage.getItem(THEME_KEY);\r\n    if (storedTheme === \"light\" || storedTheme === \"dark\") return storedTheme;\r\n    return document.documentElement.classList.contains(\"dark\") ? \"dark\" : \"light\";\r\n  });\r\n  const [isNotificationOpen, setIsNotificationOpen] = useState(false);\r\n  const [isNotificationLoading, setIsNotificationLoading] = useState(false);\r\n  const [isNotificationMutating, setIsNotificationMutating] = useState(false);\r\n  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);\r\n\r\n  const recipientId = authState.user?.id ?? \"\";\r\n  const unreadCount = useMemo(\r\n    () => notifications.reduce((count, notification) => count + (notification.read ? 0 : 1), 0),\r\n    [notifications],\r\n  );\r\n\r\n  const loadNotifications = useCallback(async () => {\r\n    if (!recipientId) {\r\n      setNotifications([]);\r\n      return;\r\n    }\r\n    setIsNotificationLoading(true);\r\n    try {\r\n      const nextNotifications = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);\r\n      setNotifications(nextNotifications);\r\n    } finally {\r\n      setIsNotificationLoading(false);\r\n    }\r\n  }, [recipientId]);\r\n\r\n  useEffect(() => {\r\n    document.documentElement.classList.toggle(\"dark\", theme === \"dark\");\r\n    window.localStorage.setItem(THEME_KEY, theme);\r\n  }, [theme]);\r\n\r\n  useEffect(() => {\r\n    void loadNotifications();\r\n  }, [loadNotifications]);\r\n\r\n  function toggleTheme() {\r\n    setTheme((current) => (current === \"light\" ? \"dark\" : \"light\"));\r\n  }\r\n\r\n  async function handleNotificationOpenChange(nextOpen: boolean) {\r\n    setIsNotificationOpen(nextOpen);\r\n    if (nextOpen) {\r\n      await loadNotifications();\r\n    }\r\n  }\r\n\r\n  async function handleMarkOneRead(notificationId: string) {\r\n    if (!recipientId) return;\r\n    setIsNotificationMutating(true);\r\n    const previous = notifications;\r\n    setNotifications((current) =>\r\n      current.map((notification) =>\r\n        notification.id === notificationId ? { ...notification, read: true } : notification,\r\n      ),\r\n    );\r\n    try {\r\n      const result = await markNotificationRead(notificationId, recipientId);\r\n      if (!result.success) {\r\n        setNotifications(previous);\r\n      }\r\n    } finally {\r\n      setIsNotificationMutating(false);\r\n    }\r\n  }\r\n\r\n  async function handleMarkAllRead() {\r\n    if (!recipientId || unreadCount === 0) return;\r\n    setIsNotificationMutating(true);\r\n    const previous = notifications;\r\n    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));\r\n    try {\r\n      const result = await markAllNotificationsRead(recipientId);\r\n      if (!result.success) {\r\n        setNotifications(previous);\r\n      }\r\n    } finally {\r\n      setIsNotificationMutating(false);\r\n    }\r\n  }\r\n\r\n  return (\r\n    <div className=\"flex items-center gap-2\">\r\n      <TranslationSwitcher />\r\n\r\n      <Button\r\n        type=\"button\"\r\n        variant=\"outline\"\r\n        size=\"icon-sm\"\r\n        onClick={toggleTheme}\r\n        aria-label=\"Toggle theme\"\r\n        className=\"text-muted-foreground\"\r\n      >\r\n        {theme === \"light\" ? <Moon className=\"h-4 w-4\" /> : <Sun className=\"h-4 w-4\" />}\r\n      </Button>\r\n\r\n      <DropdownMenu open={isNotificationOpen} onOpenChange={handleNotificationOpenChange}>\r\n        <DropdownMenuTrigger asChild>\r\n          <Button\r\n            type=\"button\"\r\n            variant=\"outline\"\r\n            size=\"icon-sm\"\r\n            aria-label=\"Open notifications\"\r\n            className=\"relative text-muted-foreground\"\r\n          >\r\n            <Bell className=\"h-4 w-4\" />\r\n            <span className=\"absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground\">\r\n              {unreadCount > 99 ? \"99+\" : unreadCount}\r\n            </span>\r\n          </Button>\r\n        </DropdownMenuTrigger>\r\n        <DropdownMenuContent align=\"end\" className=\"w-80 p-0\">\r\n          <div className=\"flex items-center justify-between px-3 py-2\">\r\n            <p className=\"text-sm font-semibold\">Notifications</p>\r\n            <Button\r\n              type=\"button\"\r\n              variant=\"ghost\"\r\n              size=\"sm\"\r\n              className=\"h-7 px-2 text-xs\"\r\n              disabled={isNotificationMutating || unreadCount === 0}\r\n              onClick={handleMarkAllRead}\r\n            >\r\n              Mark all read\r\n            </Button>\r\n          </div>\r\n          <DropdownMenuSeparator />\r\n          <div className=\"max-h-80 overflow-y-auto\">\r\n            {isNotificationLoading ? (\r\n              <p className=\"px-3 py-6 text-center text-sm text-muted-foreground\">Loading...</p>\r\n            ) : notifications.length === 0 ? (\r\n              <p className=\"px-3 py-6 text-center text-sm text-muted-foreground\">No notifications</p>\r\n            ) : (\r\n              notifications.map((notification) => (\r\n                <button\r\n                  key={notification.id}\r\n                  type=\"button\"\r\n                  onClick={() => void handleMarkOneRead(notification.id)}\r\n                  disabled={isNotificationMutating}\r\n                  className=\"block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70\"\r\n                >\r\n                  <div className=\"flex items-start justify-between gap-2\">\r\n                    <p className=\"text-sm font-medium\">{notification.title}</p>\r\n                    {!notification.read ? (\r\n                      <span className=\"mt-1 h-2 w-2 shrink-0 rounded-full bg-primary\" aria-hidden=\"true\" />\r\n                    ) : null}\r\n                  </div>\r\n                  <p className=\"mt-1 line-clamp-2 text-xs text-muted-foreground\">\r\n                    {notification.message}\r\n                  </p>\r\n                  <p className=\"mt-1 text-[11px] text-muted-foreground\">\r\n                    {formatNotificationTime(notification.timestamp)}\r\n                  </p>\r\n                </button>\r\n              ))\r\n            )}\r\n          </div>\r\n        </DropdownMenuContent>\r\n      </DropdownMenu>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\header-user-avatar.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\nav-user.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\shell-guard.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/identity' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":17,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":17,"endColumn":62}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * shell-guard.tsx\r\n * Client-side auth guard for the authenticated shell.\r\n *\r\n * Responsibilities:\r\n *  1. Redirect to `/` (public auth page) when auth status is \"unauthenticated\"\r\n *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)\r\n *  3. Show a loading state while auth is initializing\r\n */\r\n\r\nimport { useEffect, type ReactNode } from \"react\";\r\nimport { useRouter } from \"next/navigation\";\r\n\r\nimport { useAuth } from \"@/app/providers/auth-provider\";\r\nimport { useTokenRefreshListener } from \"@/modules/identity\";\r\n\r\ninterface ShellGuardProps {\r\n  children: ReactNode;\r\n}\r\n\r\nexport function ShellGuard({ children }: ShellGuardProps) {\r\n  const { state } = useAuth();\r\n  const { user, status } = state;\r\n  const router = useRouter();\r\n\r\n  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted\r\n  useTokenRefreshListener(user?.id ?? null);\r\n\r\n  useEffect(() => {\r\n    if (status === \"unauthenticated\") {\r\n      router.replace(\"/\");\r\n    }\r\n  }, [status, router]);\r\n\r\n  if (status === \"initializing\") {\r\n    return (\r\n      <div className=\"flex h-screen items-center justify-center bg-background\">\r\n        <div className=\"h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent\" />\r\n      </div>\r\n    );\r\n  }\r\n\r\n  if (status === \"unauthenticated\") {\r\n    return null;\r\n  }\r\n\r\n  return <>{children}</>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\_components\\translation-switcher.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\ai-chat\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\dashboard\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\dev-tools\\page.tsx","messages":[{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'_' is defined but never used.","line":387,"column":14,"nodeType":"Identifier","messageId":"unusedVar","endLine":387,"endColumn":15},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'_' is defined but never used.","line":445,"column":93,"nodeType":"Identifier","messageId":"unusedVar","endLine":445,"endColumn":94},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'_' is defined but never used.","line":449,"column":98,"nodeType":"Identifier","messageId":"unusedVar","endLine":449,"endColumn":99}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":3,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * Module: dev-tools page — /dev-tools\r\n * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。\r\n * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態\r\n * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。\r\n */\r\n\r\nimport { useRef, useState, useEffect } from \"react\";\r\nimport {\r\n  FlaskConical,\r\n  FileUp,\r\n  Loader2,\r\n  CheckCircle2,\r\n  XCircle,\r\n  AlertCircle,\r\n  FileText,\r\n  Trash2,\r\n  Code2,\r\n  ExternalLink,\r\n} from \"lucide-react\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { getFirebaseStorage, storageApi } from \"@integration-firebase/storage\";\r\nimport { getFirebaseFirestore, firestoreApi } from \"@integration-firebase/firestore\";\r\nimport { getFirebaseFunctions, functionsApi } from \"@integration-firebase/functions\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\n\r\n// ── 型別 ─────────────────────────────────────────────────────────────────────\r\n\r\ninterface ParseResult {\r\n  doc_id: string;\r\n  status: \"processing\" | \"completed\" | \"error\";\r\n  page_count?: number;\r\n  json_gcs_uri?: string;\r\n  error_message?: string;\r\n}\r\n\r\ninterface DocRecord {\r\n  id: string;\r\n  status: \"processing\" | \"completed\" | \"error\" | string;\r\n  filename: string;\r\n  gcs_uri: string;\r\n  uploaded_at: Date | null;\r\n  page_count?: number;\r\n  json_gcs_uri?: string;\r\n  error_message?: string;\r\n  rag_status?: string;\r\n  rag_chunk_count?: number;\r\n  rag_vector_count?: number;\r\n  rag_raw_chars?: number;\r\n  rag_normalized_chars?: number;\r\n  rag_normalization_version?: string;\r\n  rag_language_hint?: string;\r\n  rag_error?: string;\r\n}\r\n\r\ntype Status = \"idle\" | \"uploading\" | \"waiting\" | \"done\" | \"error\";\r\n\r\n// ── 常數 ─────────────────────────────────────────────────────────────────────\r\n\r\nconst UPLOAD_BUCKET = \"xuanwu-i-00708880-4e2d8.firebasestorage.app\";\r\nconst WATCH_PATH = \"uploads/\";\r\nconst ACCEPTED_MIME: Record<string, string> = {\r\n  \"application/pdf\": \".pdf\",\r\n  \"image/tiff\": \".tif / .tiff\",\r\n  \"image/png\": \".png\",\r\n  \"image/jpeg\": \".jpg / .jpeg\",\r\n};\r\n\r\nconst ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(\", \");\r\n\r\nfunction formatDateTime(value: Date | null): string {\r\n  if (!value) return \"—\";\r\n  return value.toLocaleString(\"zh-TW\", { hour12: false });\r\n}\r\n\r\nfunction deriveJsonUri(gcsUri: string): string {\r\n  if (!gcsUri.startsWith(\"gs://\")) return \"\";\r\n  const withoutPrefix = gcsUri.slice(5);\r\n  const firstSlash = withoutPrefix.indexOf(\"/\");\r\n  if (firstSlash < 0) return \"\";\r\n\r\n  const bucket = withoutPrefix.slice(0, firstSlash);\r\n  const objectPath = withoutPrefix.slice(firstSlash + 1);\r\n  if (!objectPath.startsWith(\"uploads/\")) return \"\";\r\n\r\n  const relativePath = objectPath.slice(\"uploads/\".length);\r\n  const dotIndex = relativePath.lastIndexOf(\".\");\r\n  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;\r\n  return `gs://${bucket}/files/${stem}.json`;\r\n}\r\n\r\nfunction asRecord(value: unknown): Record<string, unknown> {\r\n  return value && typeof value === \"object\" ? (value as Record<string, unknown>) : {};\r\n}\r\n\r\nfunction asString(value: unknown, fallback = \"\"): string {\r\n  return typeof value === \"string\" ? value : fallback;\r\n}\r\n\r\nfunction asNumber(value: unknown): number | undefined {\r\n  return typeof value === \"number\" ? value : undefined;\r\n}\r\n\r\nfunction asDate(value: unknown): Date | null {\r\n  if (value instanceof Date) {\r\n    return value;\r\n  }\r\n  if (value && typeof value === \"object\" && \"toDate\" in value) {\r\n    const candidate = (value as { toDate?: unknown }).toDate;\r\n    if (typeof candidate === \"function\") {\r\n      const converted = candidate();\r\n      return converted instanceof Date ? converted : null;\r\n    }\r\n  }\r\n  return null;\r\n}\r\n\r\nfunction mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {\r\n  const data = asRecord(doc.data());\r\n  const source = asRecord(data.source);\r\n  const parsed = asRecord(data.parsed);\r\n  const rag = asRecord(data.rag);\r\n  const err = asRecord(data.error);\r\n\r\n  return {\r\n    id: doc.id,\r\n    status: asString(data.status, \"unknown\"),\r\n    filename: asString(source.filename, doc.id),\r\n    gcs_uri: asString(source.gcs_uri),\r\n    uploaded_at: asDate(source.uploaded_at),\r\n    page_count: asNumber(parsed.page_count),\r\n    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),\r\n    error_message: asString(err.message) || undefined,\r\n    rag_status: asString(rag.status) || undefined,\r\n    rag_chunk_count: asNumber(rag.chunk_count),\r\n    rag_vector_count: asNumber(rag.vector_count),\r\n    rag_raw_chars: asNumber(rag.raw_chars),\r\n    rag_normalized_chars: asNumber(rag.normalized_chars),\r\n    rag_normalization_version: asString(rag.normalization_version) || undefined,\r\n    rag_language_hint: asString(rag.language_hint) || undefined,\r\n    rag_error: asString(rag.error) || undefined,\r\n  };\r\n}\r\n\r\nfunction StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {\r\n  if (status === \"completed\") {\r\n    return (\r\n      <span className=\"inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600\">\r\n        <CheckCircle2 className=\"size-3\" /> 完成\r\n      </span>\r\n    );\r\n  }\r\n  if (status === \"processing\") {\r\n    return (\r\n      <span className=\"inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600\">\r\n        <Loader2 className=\"size-3 animate-spin\" /> 處理中\r\n      </span>\r\n    );\r\n  }\r\n  if (status === \"error\") {\r\n    return (\r\n      <span\r\n        className=\"inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive\"\r\n        title={errorMessage}\r\n      >\r\n        <XCircle className=\"size-3\" /> 錯誤\r\n      </span>\r\n    );\r\n  }\r\n  return <span className=\"text-xs text-muted-foreground\">{status || \"—\"}</span>;\r\n}\r\n\r\nfunction RagBadge({ status, error }: { status?: string; error?: string }) {\r\n  if (status === \"ready\") {\r\n    return (\r\n      <span className=\"inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600\">\r\n        <CheckCircle2 className=\"size-3\" /> RAG Ready\r\n      </span>\r\n    );\r\n  }\r\n  if (status === \"error\") {\r\n    return (\r\n      <span\r\n        className=\"inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive\"\r\n        title={error}\r\n      >\r\n        <XCircle className=\"size-3\" /> RAG Error\r\n      </span>\r\n    );\r\n  }\r\n  if (status) {\r\n    return (\r\n      <span className=\"inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600\">\r\n        <Loader2 className=\"size-3 animate-spin\" /> {status}\r\n      </span>\r\n    );\r\n  }\r\n  return <span className=\"text-xs text-muted-foreground\">—</span>;\r\n}\r\n\r\n// ── Page component ─────────────────────────────────────────────────────────\r\n\r\nexport default function DevToolsPage() {\r\n  const { state: appState } = useApp();\r\n  const activeAccountId = appState.activeAccount?.id ?? \"\";\r\n\r\n  const fileInputRef = useRef<HTMLInputElement>(null);\r\n  const [selectedFile, setSelectedFile] = useState<File | null>(null);\r\n  const [status, setStatus] = useState<Status>(\"idle\");\r\n  const [result, setResult] = useState<ParseResult | null>(null);\r\n  const [errorMsg, setErrorMsg] = useState<string | null>(null);\r\n  const [logs, setLogs] = useState<string[]>([]);\r\n  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);\r\n  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);\r\n  const [jsonContent, setJsonContent] = useState<string | null>(null);\r\n  const [jsonLoading, setJsonLoading] = useState(false);\r\n  const [deletingId, setDeletingId] = useState<string | null>(null);\r\n  const [reindexingId, setReindexingId] = useState<string | null>(null);\r\n\r\n  // Firestore 監聽器 unsubscribe 函數\r\n  const unsubscribeRef = useRef<(() => void) | null>(null);\r\n  const unsubscribeListRef = useRef<(() => void) | null>(null);\r\n\r\n  function closeJsonPreview() {\r\n    setSelectedDocId(null);\r\n    setJsonContent(null);\r\n  }\r\n\r\n  function appendLog(msg: string) {\r\n    setLogs((prev) => [...prev, `[${new Date().toISOString().split(\"T\")[1]?.slice(0, 8)}] ${msg}`]);\r\n  }\r\n\r\n  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {\r\n    const file = e.target.files?.[0] ?? null;\r\n    setSelectedFile(file);\r\n    setResult(null);\r\n    setErrorMsg(null);\r\n    setStatus(\"idle\");\r\n    setLogs([]);\r\n    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);\r\n  }\r\n\r\n  function buildUuidUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {\r\n    const ext = file.name.includes(\".\") ? `.${file.name.split(\".\").pop()}` : \"\";\r\n    const docId = crypto.randomUUID();\r\n    return {\r\n      uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`,\r\n      docId,\r\n    };\r\n  }\r\n\r\n  // 監聽 Firestore 文件狀態變化\r\n  function watchDocument(docId: string) {\r\n    if (!activeAccountId) {\r\n      appendLog(\"❌ 缺少 active account，無法監聽文件狀態\");\r\n      return;\r\n    }\r\n    try {\r\n      const db = getFirebaseFirestore();\r\n      const docRef = firestoreApi.doc(db, \"accounts\", activeAccountId, \"documents\", docId);\r\n\r\n      if (unsubscribeRef.current) {\r\n        unsubscribeRef.current();\r\n      }\r\n\r\n      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {\r\n        if (!snapshot.exists()) {\r\n          appendLog(\"等待 Firestore 初始化…\");\r\n          return;\r\n        }\r\n\r\n        const data = asRecord(snapshot.data());\r\n        const docStatus = asString(data.status, \"unknown\");\r\n\r\n        appendLog(`Firestore update: status=${docStatus}`);\r\n\r\n        if (docStatus === \"completed\") {\r\n          const parsed = asRecord(data.parsed);\r\n          const result: ParseResult = {\r\n            doc_id: docId,\r\n            status: \"completed\",\r\n            page_count: asNumber(parsed.page_count) ?? 0,\r\n            json_gcs_uri: asString(parsed.json_gcs_uri),\r\n          };\r\n          setResult(result);\r\n          setStatus(\"done\");\r\n          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);\r\n\r\n          // 取消監聽\r\n          if (unsubscribeRef.current) {\r\n            unsubscribeRef.current();\r\n            unsubscribeRef.current = null;\r\n          }\r\n        } else if (docStatus === \"error\") {\r\n          const error = asRecord(data.error);\r\n          const msg = asString(error.message, \"未知錯誤\");\r\n          setErrorMsg(msg);\r\n          setStatus(\"error\");\r\n          appendLog(`❌ 錯誤：${msg}`);\r\n\r\n          // 取消監聽\r\n          if (unsubscribeRef.current) {\r\n            unsubscribeRef.current();\r\n            unsubscribeRef.current = null;\r\n          }\r\n        }\r\n      });\r\n    } catch (err: unknown) {\r\n      const msg = err instanceof Error ? err.message : String(err);\r\n      appendLog(`❌ 監聽失敗：${msg}`);\r\n      setErrorMsg(msg);\r\n      setStatus(\"error\");\r\n    }\r\n  }\r\n\r\n  async function handleUploadAndParse() {\r\n    if (!selectedFile) return;\r\n    if (!activeAccountId) {\r\n      setErrorMsg(\"缺少 active account，無法上傳與解析\");\r\n      setStatus(\"error\");\r\n      return;\r\n    }\r\n\r\n    setStatus(\"uploading\");\r\n    setResult(null);\r\n    setErrorMsg(null);\r\n    appendLog(\"📤 上傳檔案到 Cloud Storage…\");\r\n\r\n    try {\r\n      // ── Step 1: Upload to GCS ────────────────────────────────────────\r\n      const storage = getFirebaseStorage(UPLOAD_BUCKET);\r\n      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);\r\n      const fileRef = storageApi.ref(storage, uploadPath);\r\n\r\n      appendLog(`GCS path: gs://${UPLOAD_BUCKET}/${uploadPath}`);\r\n      appendLog(`doc_id(uuid): ${docId}`);\r\n\r\n      await storageApi.uploadBytes(fileRef, selectedFile);\r\n      appendLog(`✅ 上傳完成`);\r\n\r\n      // ── Step 2: Watch Firestore for status updates ──────────────────\r\n      setStatus(\"waiting\");\r\n      appendLog(\"🔍 已觸發 Storage pipeline，開始監聽 Firestore…\");\r\n      watchDocument(docId);\r\n    } catch (err: unknown) {\r\n      const msg = err instanceof Error ? err.message : String(err);\r\n      appendLog(`❌ 錯誤：${msg}`);\r\n      setErrorMsg(msg);\r\n      setStatus(\"error\");\r\n    }\r\n  }\r\n\r\n  function reset() {\r\n    // 取消 Firestore 監聽\r\n    if (unsubscribeRef.current) {\r\n      unsubscribeRef.current();\r\n      unsubscribeRef.current = null;\r\n    }\r\n\r\n    setSelectedFile(null);\r\n    setResult(null);\r\n    setErrorMsg(null);\r\n    setStatus(\"idle\");\r\n    setLogs([]);\r\n    if (fileInputRef.current) fileInputRef.current.value = \"\";\r\n  }\r\n\r\n  // 監聽所有已上傳文件列表\r\n  useEffect(() => {\r\n    if (!activeAccountId) {\r\n      setAllDocs([]);\r\n      return;\r\n    }\r\n\r\n    try {\r\n      const db = getFirebaseFirestore();\r\n      const colRef = firestoreApi.collection(db, \"accounts\", activeAccountId, \"documents\");\r\n      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {\r\n        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);\r\n        // 最新上傳在最上面\r\n        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));\r\n        setAllDocs(docs);\r\n      });\r\n    } catch (_) {}\r\n    return () => {\r\n      unsubscribeListRef.current?.();\r\n    };\r\n  }, [activeAccountId]);\r\n\r\n  // Cleanup on unmount\r\n  useEffect(() => {\r\n    return () => {\r\n      if (unsubscribeRef.current) {\r\n        unsubscribeRef.current();\r\n      }\r\n    };\r\n  }, []);\r\n\r\n  async function handleViewOriginal(doc: DocRecord) {\r\n    if (!doc.gcs_uri) return;\r\n    try {\r\n      const storage = getFirebaseStorage(UPLOAD_BUCKET);\r\n      const fileRef = storageApi.ref(storage, doc.gcs_uri);\r\n      const url = await storageApi.getDownloadURL(fileRef);\r\n      window.open(url, \"_blank\", \"noopener,noreferrer\");\r\n    } catch (err: unknown) {\r\n      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);\r\n    }\r\n  }\r\n\r\n  async function handleViewJson(doc: DocRecord) {\r\n    if (!doc.json_gcs_uri) return;\r\n    if (selectedDocId === doc.id && jsonContent !== null) {\r\n      closeJsonPreview();\r\n      return;\r\n    }\r\n    setSelectedDocId(doc.id);\r\n    setJsonContent(null);\r\n    setJsonLoading(true);\r\n    try {\r\n      const storage = getFirebaseStorage(UPLOAD_BUCKET);\r\n      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);\r\n      const url = await storageApi.getDownloadURL(jsonRef);\r\n      const res = await fetch(url);\r\n      const text = await res.text();\r\n      setJsonContent(text);\r\n    } catch (err: unknown) {\r\n      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);\r\n    } finally {\r\n      setJsonLoading(false);\r\n    }\r\n  }\r\n\r\n  async function handleDeleteDoc(doc: DocRecord) {\r\n    if (!window.confirm(`確定刪除「${doc.filename}」？\\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`)) return;\r\n    setDeletingId(doc.id);\r\n    try {\r\n      const storage = getFirebaseStorage(UPLOAD_BUCKET);\r\n      const db = getFirebaseFirestore();\r\n      // 刪除 GCS 原始檔案\r\n      if (doc.gcs_uri) {\r\n        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_) {}\r\n      }\r\n      // 刪除 GCS JSON\r\n      if (doc.json_gcs_uri) {\r\n        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_) {}\r\n      }\r\n      // 刪除 Firestore 記錄\r\n      if (!activeAccountId) {\r\n        throw new Error(\"缺少 active account\");\r\n      }\r\n      await firestoreApi.deleteDoc(firestoreApi.doc(db, \"accounts\", activeAccountId, \"documents\", doc.id));\r\n      // 若正在預覽此文件，清除預覽\r\n      if (selectedDocId === doc.id) {\r\n        closeJsonPreview();\r\n      }\r\n    } catch (err: unknown) {\r\n      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);\r\n    } finally {\r\n      setDeletingId(null);\r\n    }\r\n  }\r\n\r\n  async function handleManualProcess(doc: DocRecord) {\r\n    if (!doc.json_gcs_uri) return;\r\n    if (!activeAccountId) {\r\n      alert(\"缺少 active account，無法手動整理\");\r\n      return;\r\n    }\r\n    setReindexingId(doc.id);\r\n    appendLog(`🧹 手動整理開始：${doc.id}`);\r\n    try {\r\n      const functions = getFirebaseFunctions(\"asia-southeast1\");\r\n      const callable = functionsApi.httpsCallable(functions, \"rag_reindex_document\");\r\n      await callable({\r\n        account_id: activeAccountId,\r\n        doc_id: doc.id,\r\n        json_gcs_uri: doc.json_gcs_uri,\r\n        source_gcs_uri: doc.gcs_uri,\r\n        filename: doc.filename,\r\n        page_count: doc.page_count ?? 0,\r\n      });\r\n      appendLog(`✅ 手動整理完成：${doc.id}`);\r\n    } catch (err: unknown) {\r\n      const msg = err instanceof Error ? err.message : String(err);\r\n      appendLog(`❌ 手動整理失敗：${msg}`);\r\n      alert(`手動整理失敗：${msg}`);\r\n    } finally {\r\n      setReindexingId(null);\r\n    }\r\n  }\r\n\r\n  const isLoading = status === \"uploading\" || status === \"waiting\";\r\n  const parsedDocs = allDocs.filter((doc) => doc.status === \"completed\");\r\n  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === \"ready\").length;\r\n  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === \"error\").length;\r\n\r\n  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : null;\r\n\r\n  function formatNormalizationRatio(doc: DocRecord): string {\r\n    const raw = doc.rag_raw_chars ?? 0;\r\n    const normalized = doc.rag_normalized_chars ?? 0;\r\n    if (raw <= 0 || normalized <= 0) return \"—\";\r\n    const ratio = (normalized / raw) * 100;\r\n    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;\r\n  }\r\n\r\n  return (\r\n    <div className=\"mx-auto max-w-2xl space-y-8\">\r\n      {/* ── Header ─────────────────────────────────────────────────── */}\r\n      <div className=\"flex items-center gap-3\">\r\n        <div className=\"flex size-10 items-center justify-center rounded-xl bg-amber-500/10\">\r\n          <FlaskConical className=\"size-5 text-amber-500\" />\r\n        </div>\r\n        <div>\r\n          <h1 className=\"text-xl font-bold tracking-tight\">Dev Tools</h1>\r\n          <p className=\"text-xs text-muted-foreground\">\r\n            py_fn · parse_document · Document AI · Firestore 實時監聽\r\n          </p>\r\n        </div>\r\n      </div>\r\n\r\n      <section className=\"grid grid-cols-2 gap-3 sm:grid-cols-4\">\r\n        <div className=\"rounded-xl border border-border/60 bg-card px-3 py-2\">\r\n          <p className=\"text-[11px] text-muted-foreground\">全部文件</p>\r\n          <p className=\"text-lg font-semibold tracking-tight\">{allDocs.length}</p>\r\n        </div>\r\n        <div className=\"rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2\">\r\n          <p className=\"text-[11px] text-emerald-700\">解析完成</p>\r\n          <p className=\"text-lg font-semibold tracking-tight text-emerald-700\">{parsedDocs.length}</p>\r\n        </div>\r\n        <div className=\"rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2\">\r\n          <p className=\"text-[11px] text-blue-700\">RAG Ready</p>\r\n          <p className=\"text-lg font-semibold tracking-tight text-blue-700\">{ragReadyCount}</p>\r\n        </div>\r\n        <div className=\"rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2\">\r\n          <p className=\"text-[11px] text-destructive\">RAG Error</p>\r\n          <p className=\"text-lg font-semibold tracking-tight text-destructive\">{ragErrorCount}</p>\r\n        </div>\r\n      </section>\r\n\r\n      {/* ── File picker ────────────────────────────────────────────── */}\r\n      <section className=\"space-y-3\">\r\n        <h2 className=\"text-sm font-semibold uppercase tracking-widest text-muted-foreground\">\r\n          1. 選擇檔案\r\n        </h2>\r\n        <label\r\n          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition\r\n            ${selectedFile ? \"border-primary/40 bg-primary/5\" : \"border-border hover:border-primary/40 hover:bg-muted/30\"}`}\r\n        >\r\n          <FileUp className=\"size-8 text-muted-foreground\" />\r\n          <div className=\"text-center\">\r\n            <p className=\"text-sm font-medium\">\r\n              {selectedFile ? selectedFile.name : \"點擊或拖曳上傳\"}\r\n            </p>\r\n            <p className=\"mt-0.5 text-xs text-muted-foreground\">支援：{ACCEPTED_EXTS}</p>\r\n          </div>\r\n          <input\r\n            ref={fileInputRef}\r\n            type=\"file\"\r\n            accept={Object.keys(ACCEPTED_MIME).join(\",\")}\r\n            className=\"sr-only\"\r\n            onChange={handleFileChange}\r\n          />\r\n        </label>\r\n      </section>\r\n\r\n      {/* ── Actions ────────────────────────────────────────────────── */}\r\n      <section className=\"space-y-3\">\r\n        <h2 className=\"text-sm font-semibold uppercase tracking-widest text-muted-foreground\">\r\n          2. 執行上傳 & 解析\r\n        </h2>\r\n        <div className=\"flex gap-3\">\r\n          <Button\r\n            onClick={handleUploadAndParse}\r\n            disabled={!selectedFile || isLoading}\r\n            className=\"gap-2\"\r\n          >\r\n            {isLoading ? (\r\n              <Loader2 className=\"size-4 animate-spin\" />\r\n            ) : (\r\n              <FlaskConical className=\"size-4\" />\r\n            )}\r\n            {status === \"uploading\" ? \"上傳中…\" : status === \"waiting\" ? \"等待中…\" : \"開始\"}\r\n          </Button>\r\n          <Button variant=\"outline\" onClick={reset} disabled={isLoading}>\r\n            重置\r\n          </Button>\r\n        </div>\r\n      </section>\r\n\r\n      {/* ── Result ─────────────────────────────────────────────────── */}\r\n      {(status === \"done\" || status === \"error\") && (\r\n        <section className=\"space-y-3\">\r\n          <h2 className=\"text-sm font-semibold uppercase tracking-widest text-muted-foreground\">\r\n            3. 結果\r\n          </h2>\r\n          {status === \"done\" && result && (\r\n            <div className=\"rounded-xl border border-border/60 bg-card p-5 space-y-4\">\r\n              <div className=\"flex items-center gap-2 text-emerald-600\">\r\n                <CheckCircle2 className=\"size-4 shrink-0\" />\r\n                <span className=\"text-sm font-medium\">解析成功</span>\r\n              </div>\r\n              <dl className=\"grid grid-cols-2 gap-x-4 gap-y-2 text-sm\">\r\n                <dt className=\"text-muted-foreground\">doc_id</dt>\r\n                <dd className=\"font-mono text-xs\">{result.doc_id}</dd>\r\n                <dt className=\"text-muted-foreground\">page_count</dt>\r\n                <dd className=\"font-bold\">{result.page_count}</dd>\r\n                <dt className=\"text-muted-foreground\">JSON 位置</dt>\r\n                <dd className=\"font-mono text-xs break-all\">{result.json_gcs_uri || \"—\"}</dd>\r\n              </dl>\r\n            </div>\r\n          )}\r\n          {status === \"error\" && (\r\n            <div className=\"flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive\">\r\n              <XCircle className=\"mt-0.5 size-4 shrink-0\" />\r\n              <span>{errorMsg}</span>\r\n            </div>\r\n          )}\r\n        </section>\r\n      )}\r\n\r\n      {status === \"waiting\" && (\r\n        <section className=\"space-y-3\">\r\n          <div className=\"flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600\">\r\n            <AlertCircle className=\"mt-0.5 size-4 shrink-0 animate-pulse\" />\r\n            <div>\r\n              <p className=\"font-medium\">處理中…</p>\r\n              <p className=\"mt-1 text-xs opacity-75\">Document AI 正在解析檔案，請稍候</p>\r\n            </div>\r\n          </div>\r\n        </section>\r\n      )}\r\n\r\n      {/* ── 已上傳檔案列表 ──────────────────────────────────────────── */}\r\n      <section className=\"space-y-3\">\r\n        <div className=\"flex items-center gap-2\">\r\n          <FileText className=\"size-4 text-muted-foreground\" />\r\n          <h2 className=\"text-sm font-semibold uppercase tracking-widest text-muted-foreground\">\r\n            已上傳檔案（{allDocs.length}）\r\n          </h2>\r\n        </div>\r\n        {allDocs.length === 0 ? (\r\n          <p className=\"rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground\">\r\n            尚無上傳記錄\r\n          </p>\r\n        ) : (\r\n          <div className=\"space-y-0 overflow-hidden rounded-xl border border-border/60\">\r\n            <div className=\"overflow-x-auto\">\r\n              <table className=\"w-full min-w-[760px] text-sm\">\r\n              <thead>\r\n                <tr className=\"border-b border-border/60 bg-muted/40\">\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">檔名</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">狀態</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">RAG</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">頁數</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">上傳時間</th>\r\n                  <th className=\"px-4 py-2 text-right text-xs font-medium text-muted-foreground\">操作</th>\r\n                </tr>\r\n              </thead>\r\n              <tbody>\r\n                {allDocs.map((doc, i) => (\r\n                  <tr\r\n                    key={doc.id}\r\n                    className={`border-b border-border/40 last:border-0 transition-colors ${\r\n                      selectedDocId === doc.id\r\n                        ? \"bg-primary/8 ring-1 ring-inset ring-primary/20\"\r\n                        : i % 2 === 0 ? \"bg-background\" : \"bg-muted/20\"\r\n                    }`}\r\n                  >\r\n                    <td className=\"px-4 py-2.5 font-mono text-xs max-w-[180px] truncate\" title={doc.filename}>\r\n                      {doc.filename}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5\">\r\n                      <StatusBadge status={doc.status} errorMessage={doc.error_message} />\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5\">\r\n                      <RagBadge status={doc.rag_status} error={doc.rag_error} />\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs\">\r\n                      {doc.page_count != null ? doc.page_count : \"—\"}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap\">\r\n                      {formatDateTime(doc.uploaded_at)}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5\">\r\n                      <div className=\"flex items-center justify-end gap-1\">\r\n                        {/* 查看原始檔案 */}\r\n                        <button\r\n                          onClick={() => handleViewOriginal(doc)}\r\n                          disabled={!doc.gcs_uri}\r\n                          title=\"查看原始檔案\"\r\n                          className=\"inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30\"\r\n                        >\r\n                          <ExternalLink className=\"size-3.5\" />\r\n                        </button>\r\n                        {/* 查看 JSON */}\r\n                        <button\r\n                          onClick={() => handleViewJson(doc)}\r\n                          disabled={doc.status !== \"completed\" || !doc.json_gcs_uri}\r\n                          title=\"查看 JSON 解析結果\"\r\n                          className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${\r\n                            selectedDocId === doc.id ? \"text-primary\" : \"text-muted-foreground hover:text-foreground\"\r\n                          }`}\r\n                        >\r\n                          <Code2 className=\"size-3.5\" />\r\n                        </button>\r\n                        {/* 刪除 */}\r\n                        <button\r\n                          onClick={() => handleDeleteDoc(doc)}\r\n                          disabled={deletingId === doc.id}\r\n                          title=\"刪除\"\r\n                          className=\"inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30\"\r\n                        >\r\n                          {deletingId === doc.id\r\n                            ? <Loader2 className=\"size-3.5 animate-spin\" />\r\n                            : <Trash2 className=\"size-3.5\" />}\r\n                        </button>\r\n                      </div>\r\n                    </td>\r\n                  </tr>\r\n                ))}\r\n              </tbody>\r\n              </table>\r\n            </div>\r\n\r\n            {/* ── JSON 預覽面板 ──────────────────────────────────── */}\r\n            {selectedDocId && (\r\n              <div className=\"border-t border-border/60 bg-[#0d1117]\">\r\n                <div className=\"flex items-center justify-between px-4 py-2 border-b border-white/5\">\r\n                  <div className=\"flex items-center gap-2 text-xs text-green-400\">\r\n                    <Code2 className=\"size-3.5\" />\r\n                    <span className=\"font-mono\">\r\n                      {selectedDoc?.filename ?? selectedDocId} — JSON\r\n                    </span>\r\n                  </div>\r\n                  <button\r\n                    onClick={closeJsonPreview}\r\n                    className=\"text-white/30 hover:text-white/70 transition text-xs\"\r\n                  >\r\n                    ✕ 關閉\r\n                  </button>\r\n                </div>\r\n                {selectedDoc?.rag_status === \"error\" && (\r\n                  <div className=\"border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive\">\r\n                    RAG 失敗：{selectedDoc.rag_error || \"未知錯誤\"}\r\n                  </div>\r\n                )}\r\n                <div className=\"max-h-80 overflow-y-auto p-4\">\r\n                  {jsonLoading ? (\r\n                    <div className=\"flex items-center gap-2 text-green-400/60 text-xs\">\r\n                      <Loader2 className=\"size-3.5 animate-spin\" /> 載入中…\r\n                    </div>\r\n                  ) : (\r\n                    <pre className=\"font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words\">\r\n                      {jsonContent}\r\n                    </pre>\r\n                  )}\r\n                </div>\r\n              </div>\r\n            )}\r\n          </div>\r\n        )}\r\n      </section>\r\n\r\n      {/* ── 已解析檔案列表（status=completed）──────────────────────── */}\r\n      <section className=\"space-y-3\">\r\n        <div className=\"flex items-center gap-2\">\r\n          <CheckCircle2 className=\"size-4 text-emerald-600\" />\r\n          <h2 className=\"text-sm font-semibold uppercase tracking-widest text-muted-foreground\">\r\n            已解析檔案（{parsedDocs.length}）\r\n          </h2>\r\n        </div>\r\n        {parsedDocs.length === 0 ? (\r\n          <p className=\"rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground\">\r\n            尚無解析完成檔案\r\n          </p>\r\n        ) : (\r\n          <div className=\"overflow-hidden rounded-xl border border-emerald-500/20\">\r\n            <div className=\"overflow-x-auto\">\r\n              <table className=\"w-full min-w-[1100px] text-sm\">\r\n              <thead>\r\n                <tr className=\"border-b border-emerald-500/10 bg-emerald-500/5\">\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">檔名</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">頁數</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">RAG</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">Chunks / Vectors</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">Normalization</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">版本 / 語系</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">JSON</th>\r\n                  <th className=\"px-4 py-2 text-left text-xs font-medium text-muted-foreground\">完成時間</th>\r\n                </tr>\r\n              </thead>\r\n              <tbody>\r\n                {parsedDocs.map((doc, i) => (\r\n                  <tr key={`parsed-${doc.id}`} className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? \"bg-background\" : \"bg-muted/20\"}`}>\r\n                    <td className=\"px-4 py-2.5 font-mono text-xs max-w-[220px] truncate\" title={doc.filename}>\r\n                      {doc.filename}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs font-medium\">{doc.page_count ?? \"—\"}</td>\r\n                    <td className=\"px-4 py-2.5 text-xs\">\r\n                      <RagBadge status={doc.rag_status} error={doc.rag_error} />\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs font-mono\">\r\n                      {(doc.rag_chunk_count ?? 0).toLocaleString()} / {(doc.rag_vector_count ?? 0).toLocaleString()}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs font-mono\">\r\n                      {formatNormalizationRatio(doc)}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs font-mono\">\r\n                      {(doc.rag_normalization_version || \"—\").toUpperCase()} / {(doc.rag_language_hint || \"—\").toUpperCase()}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs max-w-[320px]\">\r\n                      {doc.json_gcs_uri ? (\r\n                        <div className=\"flex items-center gap-2\">\r\n                          <button\r\n                            onClick={() => handleViewJson(doc)}\r\n                            className=\"font-mono text-left truncate text-primary hover:underline\"\r\n                            title={doc.json_gcs_uri}\r\n                          >\r\n                            {doc.json_gcs_uri}\r\n                          </button>\r\n                          <button\r\n                            onClick={() => handleManualProcess(doc)}\r\n                            disabled={reindexingId === doc.id}\r\n                            title=\"手動整理（Normalization + RAG）\"\r\n                            className=\"inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50\"\r\n                          >\r\n                            {reindexingId === doc.id ? (\r\n                              <Loader2 className=\"size-3 animate-spin\" />\r\n                            ) : (\r\n                              <FlaskConical className=\"size-3\" />\r\n                            )}\r\n                            手動整理\r\n                          </button>\r\n                        </div>\r\n                      ) : (\r\n                        <span className=\"text-muted-foreground\">—</span>\r\n                      )}\r\n                    </td>\r\n                    <td className=\"px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap\">\r\n                      {formatDateTime(doc.uploaded_at)}\r\n                    </td>\r\n                  </tr>\r\n                ))}\r\n              </tbody>\r\n              </table>\r\n            </div>\r\n          </div>\r\n        )}\r\n      </section>\r\n\r\n      {/* ── Console log ────────────────────────────────────────────── */}\r\n      {logs.length > 0 && (\r\n        <section className=\"space-y-2\">\r\n          <h2 className=\"text-sm font-semibold uppercase tracking-widest text-muted-foreground\">\r\n            Console\r\n          </h2>\r\n          <div className=\"max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4\">\r\n            {logs.map((line, i) => (\r\n              <p key={i} className=\"font-mono text-xs leading-relaxed text-green-400\">\r\n                {line}\r\n              </p>\r\n            ))}\r\n          </div>\r\n        </section>\r\n      )}\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\layout.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\_utils.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\audit\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace-audit' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":83},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":7,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":7,"endColumn":63}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useEffect, useMemo, useState } from \"react\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { AuditStream, getOrganizationAuditLogs } from \"@/modules/workspace-audit\";\r\nimport { getWorkspacesForAccount } from \"@/modules/workspace\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { formatDateTime, isOrganizationAccount } from \"../_utils\";\r\n\r\nconst MAX_DISPLAYED_AUDIT_LOGS = 50;\r\n\r\nexport default function OrganizationAuditPage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;\r\n\r\n  const [workspaces, setWorkspaces] = useState<\r\n    Awaited<ReturnType<typeof getWorkspacesForAccount>>\r\n  >([]);\r\n  const [auditLogs, setAuditLogs] = useState<\r\n    Awaited<ReturnType<typeof getOrganizationAuditLogs>>\r\n  >([]);\r\n  const [loadState, setLoadState] = useState<\"idle\" | \"loading\" | \"loaded\" | \"error\">(\"idle\");\r\n\r\n  useEffect(() => {\r\n    if (!activeOrganizationId) return;\r\n    let cancelled = false;\r\n    const organizationId = activeOrganizationId;\r\n\r\n    async function load() {\r\n      setLoadState(\"loading\");\r\n      try {\r\n        const nextWorkspaces = await getWorkspacesForAccount(organizationId);\r\n        const workspaceIds = nextWorkspaces.map((w) => w.id);\r\n        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);\r\n        if (!cancelled) {\r\n          setWorkspaces(nextWorkspaces);\r\n          setAuditLogs(logs);\r\n          setLoadState(\"loaded\");\r\n        }\r\n      } catch {\r\n        if (!cancelled) {\r\n          setWorkspaces([]);\r\n          setAuditLogs([]);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n    void load();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [activeOrganizationId]);\r\n\r\n  const workspaceNameById = useMemo(\r\n    () => new Map(workspaces.map((w) => [w.id, w.name])),\r\n    [workspaces],\r\n  );\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-8\">\r\n      <div>\r\n        <h1 className=\"text-2xl font-bold tracking-tight\">稽核</h1>\r\n        <p className=\"mt-1 text-sm text-muted-foreground\">組織下所有工作區的 audit log 彙整。</p>\r\n      </div>\r\n\r\n      <Card className=\"border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>Audit</CardTitle>\r\n          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          {loadState === \"loading\" && (\r\n            <p className=\"text-sm text-muted-foreground\">載入稽核資料中…</p>\r\n          )}\r\n          {loadState === \"error\" && (\r\n            <p className=\"text-sm text-destructive\">讀取稽核資料失敗，請稍後重新整理頁面。</p>\r\n          )}\r\n          {loadState === \"loaded\" && auditLogs.length === 0 && (\r\n            <p className=\"text-sm text-muted-foreground\">目前沒有可顯示的 audit logs。</p>\r\n          )}\r\n          {loadState === \"loaded\" &&\r\n            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (\r\n              <div key={log.id} className=\"rounded-lg border border-border/40 px-3 py-2\">\r\n                <div className=\"flex flex-wrap items-center gap-2\">\r\n                  <p className=\"text-sm font-medium\">{log.action}</p>\r\n                  <Badge variant=\"outline\">{log.source}</Badge>\r\n                  <Badge variant=\"secondary\">\r\n                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}\r\n                  </Badge>\r\n                </div>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">{log.detail || \"—\"}</p>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">\r\n                  {formatDateTime(log.occurredAtISO)}\r\n                </p>\r\n              </div>\r\n            ))}\r\n        </CardContent>\r\n      </Card>\r\n\r\n      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}\r\n      <Card className=\"border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>稽核時間軸</CardTitle>\r\n          <CardDescription>\r\n            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。\r\n          </CardDescription>\r\n        </CardHeader>\r\n        <CardContent>\r\n          <AuditStream logs={auditLogs} height={500} />\r\n        </CardContent>\r\n      </Card>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\content\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\daily\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace-feed' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":4,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":4,"endColumn":69}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { WorkspaceFeedAccountView } from \"@/modules/workspace-feed\";\r\nimport { isOrganizationAccount } from \"../_utils\";\r\n\r\nexport default function OrganizationDailyPage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"flex items-center justify-center py-24\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <section className=\"mx-auto max-w-4xl space-y-6\">\r\n      <header className=\"rounded-3xl border border-border/60 bg-card/50 p-6\">\r\n        <div className=\"flex items-center justify-between gap-4\">\r\n          <div>\r\n            <p className=\"text-sm font-semibold\">Account Workspace Feed</p>\r\n            <p className=\"mt-1 text-sm text-muted-foreground\">\r\n              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。\r\n            </p>\r\n          </div>\r\n          <div className=\"rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300\">\r\n            live\r\n          </div>\r\n        </div>\r\n      </header>\r\n\r\n      <WorkspaceFeedAccountView accountId={activeOrganizationId} />\r\n    </section>\r\n  );\r\n}\r\n\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\members\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/organization' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":65}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useEffect, useState } from \"react\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { getOrganizationMembers } from \"@/modules/organization\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { isOrganizationAccount } from \"../_utils\";\r\n\r\nexport default function OrganizationMembersPage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;\r\n\r\n  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);\r\n  const [loadState, setLoadState] = useState<\"idle\" | \"loading\" | \"loaded\" | \"error\">(\"idle\");\r\n\r\n  useEffect(() => {\r\n    if (!activeOrganizationId) return;\r\n    const organizationId: string = activeOrganizationId;\r\n    let cancelled = false;\r\n\r\n    async function load() {\r\n      setLoadState(\"loading\");\r\n      try {\r\n        const data = await getOrganizationMembers(organizationId);\r\n        if (!cancelled) {\r\n          setMembers(data);\r\n          setLoadState(\"loaded\");\r\n        }\r\n      } catch {\r\n        if (!cancelled) {\r\n          setMembers([]);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n    void load();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [activeOrganizationId]);\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-8\">\r\n      <div>\r\n        <h1 className=\"text-2xl font-bold tracking-tight\">成員</h1>\r\n        <p className=\"mt-1 text-sm text-muted-foreground\">組織成員清單與目前角色。</p>\r\n      </div>\r\n\r\n      <Card className=\"border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>Members</CardTitle>\r\n          <CardDescription>組織成員清單與目前角色。</CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          {loadState === \"loading\" && (\r\n            <p className=\"text-sm text-muted-foreground\">載入成員資料中…</p>\r\n          )}\r\n          {loadState === \"error\" && (\r\n            <p className=\"text-sm text-destructive\">讀取成員資料失敗，請稍後重新整理頁面。</p>\r\n          )}\r\n          {loadState === \"loaded\" && members.length === 0 && (\r\n            <p className=\"text-sm text-muted-foreground\">目前沒有可顯示的成員資料。</p>\r\n          )}\r\n          {loadState === \"loaded\" &&\r\n            members.map((member) => (\r\n              <div\r\n                key={member.id}\r\n                className=\"flex items-center justify-between rounded-lg border border-border/40 px-3 py-2\"\r\n              >\r\n                <div>\r\n                  <p className=\"text-sm font-medium\">{member.name}</p>\r\n                  <p className=\"text-xs text-muted-foreground\">{member.email}</p>\r\n                </div>\r\n                <div className=\"flex items-center gap-2\">\r\n                  <Badge variant=\"outline\">{member.role}</Badge>\r\n                  <Badge variant=\"secondary\">{member.presence}</Badge>\r\n                </div>\r\n              </div>\r\n            ))}\r\n        </CardContent>\r\n      </Card>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\permissions\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/organization' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":57}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useEffect, useState } from \"react\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { getOrgPolicies } from \"@/modules/organization\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { isOrganizationAccount } from \"../_utils\";\r\n\r\nexport default function OrganizationPermissionsPage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;\r\n\r\n  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);\r\n  const [loadState, setLoadState] = useState<\"idle\" | \"loading\" | \"loaded\" | \"error\">(\"idle\");\r\n\r\n  useEffect(() => {\r\n    if (!activeOrganizationId) return;\r\n    const organizationId: string = activeOrganizationId;\r\n    let cancelled = false;\r\n\r\n    async function load() {\r\n      setLoadState(\"loading\");\r\n      try {\r\n        const data = await getOrgPolicies(organizationId);\r\n        if (!cancelled) {\r\n          setPolicies(data);\r\n          setLoadState(\"loaded\");\r\n        }\r\n      } catch {\r\n        if (!cancelled) {\r\n          setPolicies([]);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n    void load();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [activeOrganizationId]);\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-8\">\r\n      <div>\r\n        <h1 className=\"text-2xl font-bold tracking-tight\">權限</h1>\r\n        <p className=\"mt-1 text-sm text-muted-foreground\">組織層級政策規則與 scope。</p>\r\n      </div>\r\n\r\n      <Card className=\"border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>Permissions</CardTitle>\r\n          <CardDescription>組織層級政策規則與 scope。</CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          {loadState === \"loading\" && (\r\n            <p className=\"text-sm text-muted-foreground\">載入政策資料中…</p>\r\n          )}\r\n          {loadState === \"error\" && (\r\n            <p className=\"text-sm text-destructive\">讀取政策資料失敗，請稍後重新整理頁面。</p>\r\n          )}\r\n          {loadState === \"loaded\" && policies.length === 0 && (\r\n            <p className=\"text-sm text-muted-foreground\">目前沒有可顯示的政策資料。</p>\r\n          )}\r\n          {loadState === \"loaded\" &&\r\n            policies.map((policy) => (\r\n              <div key={policy.id} className=\"rounded-lg border border-border/40 px-3 py-2\">\r\n                <div className=\"flex flex-wrap items-center gap-2\">\r\n                  <p className=\"text-sm font-medium\">{policy.name}</p>\r\n                  <Badge variant=\"outline\">{policy.scope}</Badge>\r\n                  <Badge variant={policy.isActive ? \"default\" : \"secondary\"}>\r\n                    {policy.isActive ? \"active\" : \"inactive\"}\r\n                  </Badge>\r\n                </div>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">{policy.description}</p>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">Rules: {policy.rules.length}</p>\r\n              </div>\r\n            ))}\r\n        </CardContent>\r\n      </Card>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\schedule\\dispatcher\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\schedule\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace-scheduling' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":4,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":4,"endColumn":72}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { AccountSchedulingView } from \"@/modules/workspace-scheduling\";\r\nimport { isOrganizationAccount } from \"../_utils\";\r\n\r\nexport default function OrganizationSchedulePage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount)\r\n    ? activeAccount.id\r\n    : null;\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"flex items-center justify-center py-16\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <section className=\"flex flex-col gap-6 px-4 py-6\">\r\n      <header className=\"space-y-1\">\r\n        <p className=\"text-xs font-semibold uppercase tracking-[0.28em] text-primary\">\r\n          Account Scheduling\r\n        </p>\r\n        <h1 className=\"text-2xl font-semibold tracking-tight text-foreground\">\r\n          工作需求總覽\r\n        </h1>\r\n      </header>\r\n\r\n      <AccountSchedulingView\r\n        accountId={activeOrganizationId}\r\n        currentUserId={activeOrganizationId}\r\n      />\r\n    </section>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\teams\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/organization' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":63}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useEffect, useState } from \"react\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { getOrganizationTeams } from \"@/modules/organization\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { isOrganizationAccount } from \"../_utils\";\r\n\r\nexport default function OrganizationTeamsPage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;\r\n\r\n  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);\r\n  const [loadState, setLoadState] = useState<\"idle\" | \"loading\" | \"loaded\" | \"error\">(\"idle\");\r\n\r\n  useEffect(() => {\r\n    if (!activeOrganizationId) return;\r\n    const organizationId: string = activeOrganizationId;\r\n    let cancelled = false;\r\n\r\n    async function load() {\r\n      setLoadState(\"loading\");\r\n      try {\r\n        const data = await getOrganizationTeams(organizationId);\r\n        if (!cancelled) {\r\n          setTeams(data);\r\n          setLoadState(\"loaded\");\r\n        }\r\n      } catch {\r\n        if (!cancelled) {\r\n          setTeams([]);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n    void load();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [activeOrganizationId]);\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-8\">\r\n      <div>\r\n        <h1 className=\"text-2xl font-bold tracking-tight\">團隊</h1>\r\n        <p className=\"mt-1 text-sm text-muted-foreground\">組織團隊與成員關聯。</p>\r\n      </div>\r\n\r\n      <Card className=\"border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>Teams</CardTitle>\r\n          <CardDescription>組織團隊與成員關聯。</CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          {loadState === \"loading\" && (\r\n            <p className=\"text-sm text-muted-foreground\">載入團隊資料中…</p>\r\n          )}\r\n          {loadState === \"error\" && (\r\n            <p className=\"text-sm text-destructive\">讀取團隊資料失敗，請稍後重新整理頁面。</p>\r\n          )}\r\n          {loadState === \"loaded\" && teams.length === 0 && (\r\n            <p className=\"text-sm text-muted-foreground\">目前沒有可顯示的團隊資料。</p>\r\n          )}\r\n          {loadState === \"loaded\" &&\r\n            teams.map((team) => (\r\n              <div key={team.id} className=\"rounded-lg border border-border/40 px-3 py-2\">\r\n                <div className=\"flex items-center justify-between\">\r\n                  <p className=\"text-sm font-medium\">{team.name}</p>\r\n                  <Badge variant=\"outline\">{team.type}</Badge>\r\n                </div>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">{team.description || \"—\"}</p>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">\r\n                  Members: {team.memberIds.length}\r\n                </p>\r\n              </div>\r\n            ))}\r\n        </CardContent>\r\n      </Card>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\organization\\workspaces\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":7,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":7,"endColumn":63}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport Link from \"next/link\";\r\nimport { useEffect, useState } from \"react\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { getWorkspacesForAccount } from \"@/modules/workspace\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { isOrganizationAccount } from \"../_utils\";\r\n\r\nexport default function OrganizationWorkspacesPage() {\r\n  const { state: appState } = useApp();\r\n  const { activeAccount } = appState;\r\n  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;\r\n\r\n  const [workspaces, setWorkspaces] = useState<\r\n    Awaited<ReturnType<typeof getWorkspacesForAccount>>\r\n  >([]);\r\n  const [loadState, setLoadState] = useState<\"idle\" | \"loading\" | \"loaded\" | \"error\">(\"idle\");\r\n\r\n  useEffect(() => {\r\n    if (!activeOrganizationId) return;\r\n    const organizationId: string = activeOrganizationId;\r\n    let cancelled = false;\r\n\r\n    async function load() {\r\n      setLoadState(\"loading\");\r\n      try {\r\n        const data = await getWorkspacesForAccount(organizationId);\r\n        if (!cancelled) {\r\n          setWorkspaces(data);\r\n          setLoadState(\"loaded\");\r\n        }\r\n      } catch {\r\n        if (!cancelled) {\r\n          setWorkspaces([]);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n    void load();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [activeOrganizationId]);\r\n\r\n  if (!activeOrganizationId) {\r\n    return (\r\n      <div className=\"\">\r\n        <p className=\"text-sm text-muted-foreground\">請先切換到組織帳戶。</p>\r\n      </div>\r\n    );\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-8\">\r\n      <div>\r\n        <h1 className=\"text-2xl font-bold tracking-tight\">工作區</h1>\r\n        <p className=\"mt-1 text-sm text-muted-foreground\">\r\n          組織下所有工作區清單，含 lifecycle 狀態與快速連結。\r\n        </p>\r\n      </div>\r\n\r\n      <Card className=\"border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>Workspaces</CardTitle>\r\n          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          {loadState === \"loading\" && (\r\n            <p className=\"text-sm text-muted-foreground\">工作區載入中…</p>\r\n          )}\r\n          {loadState === \"error\" && (\r\n            <p className=\"text-sm text-destructive\">無法載入工作區資料，請稍後再試。</p>\r\n          )}\r\n          {loadState === \"loaded\" && workspaces.length === 0 && (\r\n            <p className=\"text-sm text-muted-foreground\">目前沒有可顯示的工作區。</p>\r\n          )}\r\n          {loadState === \"loaded\" &&\r\n            workspaces.map((workspace) => (\r\n              <div key={workspace.id} className=\"rounded-lg border border-border/40 px-3 py-3\">\r\n                <div className=\"flex flex-wrap items-center justify-between gap-2\">\r\n                  <div className=\"flex flex-wrap items-center gap-2\">\r\n                    <Button asChild variant=\"link\" className=\"h-auto p-0 text-sm font-medium\">\r\n                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>\r\n                    </Button>\r\n                    <Badge\r\n                      variant={\r\n                        workspace.lifecycleState === \"active\"\r\n                          ? \"default\"\r\n                          : workspace.lifecycleState === \"preparatory\"\r\n                            ? \"secondary\"\r\n                            : \"outline\"\r\n                      }\r\n                    >\r\n                      {workspace.lifecycleState}\r\n                    </Badge>\r\n                    <Badge variant=\"outline\">{workspace.visibility}</Badge>\r\n                  </div>\r\n                  <div className=\"flex flex-wrap items-center gap-2\">\r\n                    <Button asChild variant=\"outline\" size=\"sm\" className=\"h-6 text-xs\">\r\n                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>\r\n                    </Button>\r\n                    <Button asChild variant=\"outline\" size=\"sm\" className=\"h-6 text-xs\">\r\n                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki-Beta</Link>\r\n                    </Button>\r\n                  </div>\r\n                </div>\r\n                <p className=\"mt-1 text-xs text-muted-foreground\">{workspace.id}</p>\r\n              </div>\r\n            ))}\r\n        </CardContent>\r\n      </Card>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\settings\\general\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\settings\\notifications\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\settings\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\settings\\profile\\page.tsx","messages":[],"suppressedMessages":[{"ruleId":"@next/next/no-img-element","severity":1,"message":"Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element","line":48,"column":15,"nodeType":"JSXOpeningElement","endLine":48,"endColumn":82,"suppressions":[{"kind":"directive","justification":""}]}],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\block-editor\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\documents\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\libraries\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\namespaces\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\pages-dnd\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\pages\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\rag-query\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\wiki-beta\\rag-reindex\\page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\workspace\\[workspaceId]\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":61}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useParams, useSearchParams } from \"next/navigation\";\r\n\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { WorkspaceDetailScreen } from \"@/modules/workspace\";\r\n\r\nexport default function WorkspaceDetailPage() {\r\n  const params = useParams<{ workspaceId: string }>();\r\n  const searchParams = useSearchParams();\r\n  const workspaceId = typeof params.workspaceId === \"string\" ? params.workspaceId : \"\";\r\n  const initialTab = searchParams.get(\"tab\") ?? undefined;\r\n  const {\r\n    state: { activeAccount, accountsHydrated },\r\n  } = useApp();\r\n\r\n  return (\r\n    <WorkspaceDetailScreen\r\n      workspaceId={workspaceId}\r\n      accountId={activeAccount?.id}\r\n      accountsHydrated={accountsHydrated}\r\n      initialTab={initialTab}\r\n    />\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\(shell)\\workspace\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":7,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":7,"endColumn":58}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useSearchParams } from \"next/navigation\";\r\n\r\nimport type { ActiveAccount } from \"@/app/providers/app-context\";\r\nimport { useApp } from \"@/app/providers/app-provider\";\r\nimport { WorkspaceHubScreen } from \"@/modules/workspace\";\r\n\r\nfunction isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: \"organization\" } {\r\n  return Boolean(activeAccount && \"accountType\" in activeAccount && activeAccount.accountType === \"organization\");\r\n}\r\n\r\nfunction getActiveAccountType(activeAccount: ActiveAccount | null) {\r\n  return isOrganizationAccount(activeAccount) ? \"organization\" : \"user\";\r\n}\r\n\r\nexport default function WorkspacePage() {\r\n  const searchParams = useSearchParams();\r\n  const {\r\n    state: { activeAccount, accountsHydrated, bootstrapPhase },\r\n  } = useApp();\r\n  const context = searchParams.get(\"context\");\r\n\r\n  return (\r\n    <div className=\"space-y-4\">\r\n      {context === \"unavailable\" && (\r\n        <div className=\"rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground\">\r\n          目前帳戶無法存取該工作區，已返回工作區清單。\r\n        </div>\r\n      )}\r\n\r\n      <WorkspaceHubScreen\r\n        accountId={activeAccount?.id}\r\n        accountName={activeAccount?.name}\r\n        accountType={getActiveAccountType(activeAccount)}\r\n        accountsHydrated={accountsHydrated}\r\n        isBootstrapSeeded={bootstrapPhase === \"seeded\"}\r\n      />\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\debug\\arch-demo\\page.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/interfaces/_actions/demo.actions' import is restricted from being used by a pattern. Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.","line":18,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":22,"endColumn":53}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * app/debug/arch-demo/page.tsx\r\n *\r\n * Architecture Phase 3 — Debug Page\r\n *\r\n * Server Component that demonstrates the full Content → EventBus → Knowledge loop.\r\n * - Creates a page via createPageAction.\r\n * - Adds / updates a block with [[WikiLinks]] via addBlockAction / updateBlockAction.\r\n * - Renders a JSON dump of the knowledge graph to verify the loop is working.\r\n *\r\n * Constraints (MDDD & Occam's Razor):\r\n *   - Reads data directly from the module-level singletons in modules/system.ts.\r\n *   - Mutations go through Server Actions in modules/interfaces/_actions/demo.actions.ts.\r\n *   - UI is minimal raw HTML + Tailwind; no complex shared components.\r\n */\r\n\r\nimport { contentApi, knowledgeApi, DEMO_ACCOUNT_ID } from \"@/modules/system\";\r\nimport {\r\n  createPageAction,\r\n  addBlockAction,\r\n  updateBlockAction,\r\n} from \"@/modules/interfaces/_actions/demo.actions\";\r\n\r\nexport const metadata = { title: \"Arch Demo — Phase 3\" };\r\n\r\nexport default async function ArchDemoPage() {\r\n  // ── Read current state from in-memory singletons ──────────────────────────\r\n  const pages = await contentApi.listPages(DEMO_ACCOUNT_ID);\r\n  const graphData = await knowledgeApi.getGraphData();\r\n\r\n  return (\r\n    <main className=\"min-h-screen bg-gray-50 p-8 font-mono text-sm\">\r\n      <h1 className=\"mb-6 text-2xl font-bold text-gray-900\">\r\n        🏗️ Architecture Phase 3 — Interface Wiring Demo\r\n      </h1>\r\n\r\n      {/* ── Section 1: Create Page ────────────────────────────────────────── */}\r\n      <section className=\"mb-8 rounded border border-gray-200 bg-white p-4\">\r\n        <h2 className=\"mb-3 text-lg font-semibold text-gray-700\">1. Create Page</h2>\r\n        <form action={createPageAction} className=\"flex gap-2\">\r\n          <input\r\n            name=\"title\"\r\n            type=\"text\"\r\n            defaultValue=\"My Demo Page\"\r\n            className=\"flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm\"\r\n            placeholder=\"Page title\"\r\n          />\r\n          <button\r\n            type=\"submit\"\r\n            className=\"rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700\"\r\n          >\r\n            Create Page\r\n          </button>\r\n        </form>\r\n      </section>\r\n\r\n      {/* ── Section 2: Add Block ──────────────────────────────────────────── */}\r\n      <section className=\"mb-8 rounded border border-gray-200 bg-white p-4\">\r\n        <h2 className=\"mb-3 text-lg font-semibold text-gray-700\">2. Add Block to Page</h2>\r\n        {pages.length === 0 ? (\r\n          <p className=\"text-gray-400\">No pages yet — create one first.</p>\r\n        ) : (\r\n          <form action={addBlockAction} className=\"flex flex-col gap-2\">\r\n            <select\r\n              name=\"pageId\"\r\n              className=\"rounded border border-gray-300 px-3 py-1.5 text-sm\"\r\n            >\r\n              {pages.map((p) => (\r\n                <option key={p.id} value={p.id}>\r\n                  {p.title} ({p.id.slice(0, 8)}…)\r\n                </option>\r\n              ))}\r\n            </select>\r\n            <div className=\"flex gap-2\">\r\n              <input\r\n                name=\"text\"\r\n                type=\"text\"\r\n                defaultValue=\"Hello [[World]]\"\r\n                className=\"flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm\"\r\n                placeholder=\"Block text (use [[WikiLinks]])\"\r\n              />\r\n              <button\r\n                type=\"submit\"\r\n                className=\"rounded bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700\"\r\n              >\r\n                Add Block\r\n              </button>\r\n            </div>\r\n          </form>\r\n        )}\r\n      </section>\r\n\r\n      {/* ── Section 3: Update Block ───────────────────────────────────────── */}\r\n      <section className=\"mb-8 rounded border border-gray-200 bg-white p-4\">\r\n        <h2 className=\"mb-3 text-lg font-semibold text-gray-700\">\r\n          3. Update Block (triggers Event → Knowledge)\r\n        </h2>\r\n        {pages.length === 0 ? (\r\n          <p className=\"text-gray-400\">No pages yet.</p>\r\n        ) : (\r\n          <form action={updateBlockAction} className=\"flex flex-col gap-2\">\r\n            <input\r\n              name=\"blockId\"\r\n              type=\"text\"\r\n              className=\"rounded border border-gray-300 px-3 py-1.5 text-sm\"\r\n              placeholder=\"Block ID (copy from below)\"\r\n            />\r\n            <div className=\"flex gap-2\">\r\n              <input\r\n                name=\"text\"\r\n                type=\"text\"\r\n                defaultValue=\"Updated text [[AnotherLink]]\"\r\n                className=\"flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm\"\r\n                placeholder=\"New block text (use [[WikiLinks]] to grow the graph)\"\r\n              />\r\n              <button\r\n                type=\"submit\"\r\n                className=\"rounded bg-purple-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-purple-700\"\r\n              >\r\n                Update Block\r\n              </button>\r\n            </div>\r\n          </form>\r\n        )}\r\n      </section>\r\n\r\n      {/* ── Section 4: Current Pages ──────────────────────────────────────── */}\r\n      <section className=\"mb-8 rounded border border-gray-200 bg-white p-4\">\r\n        <h2 className=\"mb-3 text-lg font-semibold text-gray-700\">\r\n          Current Pages ({pages.length})\r\n        </h2>\r\n        {pages.length === 0 ? (\r\n          <p className=\"text-gray-400\">No pages yet.</p>\r\n        ) : (\r\n          <ul className=\"space-y-1\">\r\n            {pages.map((p) => (\r\n              <li key={p.id} className=\"rounded bg-gray-50 px-3 py-1.5\">\r\n                <span className=\"font-medium\">{p.title}</span>{\" \"}\r\n                <span className=\"text-gray-400\">id={p.id}</span>\r\n              </li>\r\n            ))}\r\n          </ul>\r\n        )}\r\n      </section>\r\n\r\n      {/* ── Section 5: Knowledge Graph (JSON dump) ────────────────────────── */}\r\n      <section className=\"rounded border border-gray-200 bg-white p-4\">\r\n        <h2 className=\"mb-3 text-lg font-semibold text-gray-700\">\r\n          Knowledge Graph ({graphData.nodes.length} nodes, {graphData.edges.length} edges)\r\n        </h2>\r\n        <p className=\"mb-2 text-xs text-gray-500\">\r\n          Add a block with <code className=\"bg-gray-100 px-1\">[[WikiLink]]</code> syntax and the\r\n          graph will update automatically via the event bus.\r\n        </p>\r\n        <pre className=\"max-h-96 overflow-auto rounded bg-gray-900 p-4 text-xs text-green-400\">\r\n          {JSON.stringify(graphData, null, 2)}\r\n        </pre>\r\n      </section>\r\n    </main>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\layout.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\providers\\app-context.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\providers\\app-provider.tsx","messages":[],"suppressedMessages":[{"ruleId":"react-hooks/exhaustive-deps","severity":1,"message":"React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array.","line":168,"column":6,"nodeType":"ArrayExpression","endLine":168,"endColumn":24,"suggestions":[{"desc":"Update the dependencies array to be: [status, user, user.id]","fix":{"range":[5327,5345],"text":"[status, user, user.id]"}}],"suppressions":[{"kind":"directive","justification":""}]}],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\providers\\auth-context.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\providers\\auth-provider.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\providers\\dev-demo-auth.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\app\\providers\\providers.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\docs\\decision-architecture\\index.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\docs\\development-reference\\index.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\docs\\diagrams-events-explanations\\index.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\docs\\how-to-user\\index.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\docs\\index.js","messages":[],"suppressedMessages":[{"ruleId":"@typescript-eslint/no-require-imports","severity":2,"message":"A `require()` style import is forbidden.","line":2,"column":30,"nodeType":"CallExpression","messageId":"noRequireImports","endLine":2,"endColumn":64,"suppressions":[{"kind":"directive","justification":""}]},{"ruleId":"@typescript-eslint/no-require-imports","severity":2,"message":"A `require()` style import is forbidden.","line":3,"column":30,"nodeType":"CallExpression","messageId":"noRequireImports","endLine":3,"endColumn":64,"suppressions":[{"kind":"directive","justification":""}]},{"ruleId":"@typescript-eslint/no-require-imports","severity":2,"message":"A `require()` style import is forbidden.","line":4,"column":36,"nodeType":"CallExpression","messageId":"noRequireImports","endLine":4,"endColumn":77,"suppressions":[{"kind":"directive","justification":""}]},{"ruleId":"@typescript-eslint/no-require-imports","severity":2,"message":"A `require()` style import is forbidden.","line":5,"column":19,"nodeType":"CallExpression","messageId":"noRequireImports","endLine":5,"endColumn":43,"suppressions":[{"kind":"directive","justification":""}]}],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\eslint.config.mjs","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\application\\use-cases\\account-policy.use-cases.ts","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/identity' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":8,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":8,"endColumn":66},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'TokenRefreshRepository' is defined but never used. Allowed unused vars must match /^_/u.","line":8,"column":15,"nodeType":"Identifier","messageId":"unusedVar","endLine":8,"endColumn":37,"suggestions":[{"messageId":"removeUnusedImportDeclaration","data":{"varName":"TokenRefreshRepository"},"fix":{"range":[296,363],"text":""},"desc":"Remove unused import declaration."}]}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * Account Policy Use Cases — pure business workflows.\r\n * Per [S6]: account policy changes trigger CUSTOM_CLAIMS refresh (via TOKEN_REFRESH_SIGNAL).\r\n * No React, no Firebase, no UI framework.\r\n */\r\n\r\nimport { commandSuccess, commandFailureFrom, type CommandResult } from \"@shared-types\";\r\nimport type { TokenRefreshRepository } from \"@/modules/identity\";\r\nimport type { AccountPolicyRepository } from \"../../domain/repositories/AccountPolicyRepository\";\r\nimport type { CreatePolicyInput, UpdatePolicyInput } from \"../../domain/entities/AccountPolicy\";\r\nimport { identityApi } from \"@/modules/identity/api\";\r\n\r\n// ─── Create Account Policy ────────────────────────────────────────────────────\r\n\r\nexport class CreateAccountPolicyUseCase {\r\n  constructor(\r\n    private readonly policyRepo: AccountPolicyRepository,\r\n  ) {}\r\n\r\n  async execute(input: CreatePolicyInput): Promise<CommandResult> {\r\n    try {\r\n      const policy = await this.policyRepo.create(input);\r\n      // [S6] Emit token refresh signal after policy change so frontend refreshes claims.\r\n      await identityApi.emitTokenRefreshSignal({\r\n        accountId: input.accountId,\r\n        reason: \"policy:changed\",\r\n        ...(input.traceId ? { traceId: input.traceId } : {}),\r\n      });\r\n      return commandSuccess(policy.id, Date.now());\r\n    } catch (err) {\r\n      return commandFailureFrom(\r\n        \"CREATE_ACCOUNT_POLICY_FAILED\",\r\n        err instanceof Error ? err.message : \"Failed to create account policy\",\r\n      );\r\n    }\r\n  }\r\n}\r\n\r\n// ─── Update Account Policy ────────────────────────────────────────────────────\r\n\r\nexport class UpdateAccountPolicyUseCase {\r\n  constructor(\r\n    private readonly policyRepo: AccountPolicyRepository,\r\n  ) {}\r\n\r\n  async execute(\r\n    policyId: string,\r\n    accountId: string,\r\n    data: UpdatePolicyInput,\r\n  ): Promise<CommandResult> {\r\n    try {\r\n      const existing = await this.policyRepo.findById(policyId);\r\n      if (!existing) {\r\n        return commandFailureFrom(\"ACCOUNT_POLICY_NOT_FOUND\", `Policy ${policyId} not found`);\r\n      }\r\n      await this.policyRepo.update(policyId, data);\r\n      // [S6] Emit refresh signal after policy change.\r\n      await identityApi.emitTokenRefreshSignal({\r\n        accountId,\r\n        reason: \"policy:changed\",\r\n      });\r\n      return commandSuccess(policyId, Date.now());\r\n    } catch (err) {\r\n      return commandFailureFrom(\r\n        \"UPDATE_ACCOUNT_POLICY_FAILED\",\r\n        err instanceof Error ? err.message : \"Failed to update account policy\",\r\n      );\r\n    }\r\n  }\r\n}\r\n\r\n// ─── Delete Account Policy ────────────────────────────────────────────────────\r\n\r\nexport class DeleteAccountPolicyUseCase {\r\n  constructor(\r\n    private readonly policyRepo: AccountPolicyRepository,\r\n  ) {}\r\n\r\n  async execute(policyId: string, accountId: string): Promise<CommandResult> {\r\n    try {\r\n      const existing = await this.policyRepo.findById(policyId);\r\n      if (!existing) {\r\n        return commandFailureFrom(\"ACCOUNT_POLICY_NOT_FOUND\", `Policy ${policyId} not found`);\r\n      }\r\n      await this.policyRepo.delete(policyId);\r\n      // [S6] Emit refresh signal after policy deletion.\r\n      await identityApi.emitTokenRefreshSignal({\r\n        accountId,\r\n        reason: \"policy:changed\",\r\n      });\r\n      return commandSuccess(policyId, Date.now());\r\n    } catch (err) {\r\n      return commandFailureFrom(\r\n        \"DELETE_ACCOUNT_POLICY_FAILED\",\r\n        err instanceof Error ? err.message : \"Failed to delete account policy\",\r\n      );\r\n    }\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\application\\use-cases\\account.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\domain\\entities\\Account.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\domain\\entities\\AccountPolicy.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\domain\\repositories\\AccountPolicyRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\domain\\repositories\\AccountQueryRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\domain\\repositories\\AccountRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\infrastructure\\firebase\\FirebaseAccountPolicyRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\infrastructure\\firebase\\FirebaseAccountQueryRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\infrastructure\\firebase\\FirebaseAccountRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\interfaces\\_actions\\account-policy.actions.ts","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/identity' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":8,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":8,"endColumn":69},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'FirebaseTokenRefreshRepository' is defined but never used. Allowed unused vars must match /^_/u.","line":8,"column":10,"nodeType":"Identifier","messageId":"unusedVar","endLine":8,"endColumn":40,"suggestions":[{"messageId":"removeUnusedImportDeclaration","data":{"varName":"FirebaseTokenRefreshRepository"},"fix":{"range":[200,270],"text":""},"desc":"Remove unused import declaration."}]}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use server\";\r\n\r\n/**\r\n * Account Policy Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.\r\n */\r\n\r\nimport { commandFailureFrom, type CommandResult } from \"@shared-types\";\r\nimport { FirebaseTokenRefreshRepository } from \"@/modules/identity\";\r\nimport {\r\n  CreateAccountPolicyUseCase,\r\n  UpdateAccountPolicyUseCase,\r\n  DeleteAccountPolicyUseCase,\r\n} from \"../../application/use-cases/account-policy.use-cases\";\r\nimport { FirebaseAccountPolicyRepository } from \"../../infrastructure/firebase/FirebaseAccountPolicyRepository\";\r\nimport type { CreatePolicyInput, UpdatePolicyInput } from \"../../domain/entities/AccountPolicy\";\r\n\r\nconst policyRepo = new FirebaseAccountPolicyRepository();\r\n\r\nexport async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {\r\n  try {\r\n    return await new CreateAccountPolicyUseCase(policyRepo).execute(input);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"CREATE_ACCOUNT_POLICY_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function updateAccountPolicy(\r\n  policyId: string,\r\n  accountId: string,\r\n  data: UpdatePolicyInput,\r\n): Promise<CommandResult> {\r\n  try {\r\n    return await new UpdateAccountPolicyUseCase(policyRepo).execute(policyId, accountId, data);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"UPDATE_ACCOUNT_POLICY_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function deleteAccountPolicy(\r\n  policyId: string,\r\n  accountId: string,\r\n): Promise<CommandResult> {\r\n  try {\r\n    return await new DeleteAccountPolicyUseCase(policyRepo).execute(policyId, accountId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"DELETE_ACCOUNT_POLICY_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\interfaces\\_actions\\account.actions.ts","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/identity' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":8,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":8,"endColumn":69},{"ruleId":"@typescript-eslint/no-unused-vars","severity":1,"message":"'FirebaseTokenRefreshRepository' is defined but never used. Allowed unused vars must match /^_/u.","line":8,"column":10,"nodeType":"Identifier","messageId":"unusedVar","endLine":8,"endColumn":40,"suggestions":[{"messageId":"removeUnusedImportDeclaration","data":{"varName":"FirebaseTokenRefreshRepository"},"fix":{"range":[193,263],"text":""},"desc":"Remove unused import declaration."}]}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use server\";\r\n\r\n/**\r\n * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.\r\n */\r\n\r\nimport { commandFailureFrom, type CommandResult } from \"@shared-types\";\r\nimport { FirebaseTokenRefreshRepository } from \"@/modules/identity\";\r\nimport {\r\n  CreateUserAccountUseCase,\r\n  UpdateUserProfileUseCase,\r\n  CreditWalletUseCase,\r\n  DebitWalletUseCase,\r\n  AssignAccountRoleUseCase,\r\n  RevokeAccountRoleUseCase,\r\n} from \"../../application/use-cases/account.use-cases\";\r\nimport { FirebaseAccountRepository } from \"../../infrastructure/firebase/FirebaseAccountRepository\";\r\nimport type { UpdateProfileInput, OrganizationRole } from \"../../domain/entities/Account\";\r\n\r\nconst accountRepo = new FirebaseAccountRepository();\r\n\r\nexport async function createUserAccount(\r\n  userId: string,\r\n  name: string,\r\n  email: string,\r\n): Promise<CommandResult> {\r\n  try {\r\n    return await new CreateUserAccountUseCase(accountRepo).execute(userId, name, email);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"CREATE_USER_ACCOUNT_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function updateUserProfile(\r\n  userId: string,\r\n  data: UpdateProfileInput,\r\n): Promise<CommandResult> {\r\n  try {\r\n    return await new UpdateUserProfileUseCase(accountRepo).execute(userId, data);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"UPDATE_USER_PROFILE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function creditWallet(\r\n  accountId: string,\r\n  amount: number,\r\n  description: string,\r\n): Promise<CommandResult> {\r\n  try {\r\n    return await new CreditWalletUseCase(accountRepo).execute(accountId, amount, description);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WALLET_CREDIT_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function debitWallet(\r\n  accountId: string,\r\n  amount: number,\r\n  description: string,\r\n): Promise<CommandResult> {\r\n  try {\r\n    return await new DebitWalletUseCase(accountRepo).execute(accountId, amount, description);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WALLET_DEBIT_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function assignAccountRole(\r\n  accountId: string,\r\n  role: OrganizationRole,\r\n  grantedBy: string,\r\n  traceId?: string,\r\n): Promise<CommandResult> {\r\n  try {\r\n    // TOKEN_REFRESH_SIGNAL is emitted inside AssignAccountRoleUseCase after role change [S6].\r\n    return await new AssignAccountRoleUseCase(accountRepo).execute(\r\n      accountId,\r\n      role,\r\n      grantedBy,\r\n      traceId,\r\n    );\r\n  } catch (err) {\r\n    return commandFailureFrom(\"ASSIGN_ROLE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function revokeAccountRole(accountId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new RevokeAccountRoleUseCase(accountRepo).execute(accountId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"REVOKE_ROLE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\account\\interfaces\\queries\\account.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\application\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\application\\use-cases\\answer-rag-query.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\application\\use-cases\\generate-ai-response.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\entities\\AIGeneration.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\entities\\RagQuery.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\entities\\message.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\entities\\thread.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\repositories\\AIRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\repositories\\RagGenerationRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\domain\\repositories\\RagRetrievalRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\firebase\\FirebaseRagRetrievalRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\firebase\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\genkit\\GenkitAIRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\genkit\\GenkitRagGenerationRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\genkit\\client.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\genkit\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\interfaces\\_actions\\ai.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\ai\\interfaces\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\api\\content-api.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\api\\content-facade.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\application\\block-service.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\application\\dto\\content.dto.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\application\\use-cases\\content-block.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\application\\use-cases\\content-page.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\application\\use-cases\\content-version.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\entities\\block.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\entities\\content-block.entity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\entities\\content-page.entity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\entities\\content-version.entity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\entities\\page.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\events\\content.events.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\repositories\\content.repositories.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\domain\\value-objects\\block-content.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\infrastructure\\InMemoryContentRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\infrastructure\\firebase\\FirebaseContentBlockRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\infrastructure\\firebase\\FirebaseContentPageRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\interfaces\\_actions\\content.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\interfaces\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\content\\interfaces\\queries\\content.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\application\\use-cases\\list-events-by-aggregate.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\application\\use-cases\\publish-domain-event.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\domain\\entities\\domain-event.entity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\domain\\repositories\\ievent-bus.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\domain\\repositories\\ievent-store.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\domain\\services\\dispatch-policy.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\domain\\value-objects\\event-metadata.vo.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\infrastructure\\repositories\\in-memory-event-store.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\infrastructure\\repositories\\noop-event-bus.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\event\\interfaces\\api\\event.controller.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\dto\\file.dto.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\dto\\rag-document.dto.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\use-cases\\list-workspace-files.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\use-cases\\register-uploaded-rag-document.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\use-cases\\upload-complete-file.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\application\\use-cases\\upload-init-file.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\entities\\AuditRecord.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\entities\\File.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\entities\\FileVersion.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\entities\\PermissionSnapshot.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\entities\\RetentionPolicy.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\ports\\ActorContextPort.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\ports\\OrganizationPolicyPort.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\ports\\WorkspaceGrantPort.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\repositories\\FileRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\repositories\\RagDocumentRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\services\\complete-upload-file.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\domain\\services\\resolve-file-organization-id.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\infrastructure\\firebase\\FirebaseFileRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\infrastructure\\firebase\\FirebaseRagDocumentRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\interfaces\\_actions\\file.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\interfaces\\components\\WorkspaceFilesTab.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":60}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useCallback, useEffect, useMemo, useState } from \"react\";\r\nimport { getDownloadURL, ref, uploadBytes } from \"firebase/storage\";\r\n\r\nimport type { WorkspaceEntity } from \"@/modules/workspace\";\r\nimport type { WorkspaceFileListItemDto } from \"../../application/dto/file.dto\";\r\nimport { getWorkspaceFiles } from \"../queries/file.queries\";\r\nimport { resolveFileOrganizationId } from \"../../domain/services/resolve-file-organization-id\";\r\nimport { uploadCompleteFile, uploadInitFile } from \"../_actions/file.actions\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { Input } from \"@ui-shadcn/ui/input\";\r\nimport { Label } from \"@ui-shadcn/ui/label\";\r\nimport { getFirebaseStorage } from \"@integration-firebase\";\r\n\r\ninterface WorkspaceFilesTabProps {\r\n  readonly workspace: WorkspaceEntity;\r\n}\r\n\r\nexport function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {\r\n  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);\r\n  const [loadState, setLoadState] = useState<\"loading\" | \"loaded\" | \"error\">(\"loading\");\r\n  const [uploadState, setUploadState] = useState<\"idle\" | \"uploading\" | \"success\" | \"error\">(\"idle\");\r\n  const [uploadMessage, setUploadMessage] = useState<string | null>(null);\r\n\r\n  const reloadFiles = useCallback(async () => {\r\n    setLoadState(\"loading\");\r\n\r\n    try {\r\n      const nextAssets = await getWorkspaceFiles(workspace);\r\n      setAssets(nextAssets);\r\n      setLoadState(\"loaded\");\r\n    } catch (error) {\r\n      if (process.env.NODE_ENV !== \"production\") {\r\n        console.warn(\r\n          \"[WorkspaceFilesTab] Failed to load file metadata:\",\r\n          error instanceof Error ? error.message : \"unknown error\",\r\n        );\r\n      }\r\n\r\n      setAssets([]);\r\n      setLoadState(\"error\");\r\n    }\r\n  }, [workspace]);\r\n\r\n  useEffect(() => {\r\n    let cancelled = false;\r\n\r\n    async function loadFiles() {\r\n      await reloadFiles();\r\n      if (cancelled) {\r\n        return;\r\n      }\r\n    }\r\n\r\n    void loadFiles();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [reloadFiles]);\r\n\r\n  async function handleUploadFile(file: File) {\r\n    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);\r\n    setUploadState(\"uploading\");\r\n    setUploadMessage(null);\r\n\r\n    try {\r\n      const initResult = await uploadInitFile({\r\n        workspaceId: workspace.id,\r\n        organizationId,\r\n        actorAccountId: workspace.accountId,\r\n        fileName: file.name,\r\n        mimeType: file.type || \"application/octet-stream\",\r\n        sizeBytes: file.size,\r\n      });\r\n\r\n      if (!initResult.ok) {\r\n        setUploadState(\"error\");\r\n        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);\r\n        return;\r\n      }\r\n\r\n      const storage = getFirebaseStorage();\r\n      const storageRef = ref(storage, initResult.data.uploadPath);\r\n      await uploadBytes(storageRef, file, {\r\n        contentType: file.type || \"application/octet-stream\",\r\n      });\r\n      await getDownloadURL(storageRef);\r\n\r\n      const completeResult = await uploadCompleteFile({\r\n        workspaceId: workspace.id,\r\n        organizationId,\r\n        actorAccountId: workspace.accountId,\r\n        fileId: initResult.data.fileId,\r\n        versionId: initResult.data.versionId,\r\n      });\r\n\r\n      if (!completeResult.ok) {\r\n        setUploadState(\"error\");\r\n        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);\r\n        return;\r\n      }\r\n\r\n      setUploadState(\"success\");\r\n      setUploadMessage(\r\n        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,\r\n      );\r\n\r\n      await reloadFiles();\r\n    } catch (error) {\r\n      if (process.env.NODE_ENV !== \"production\") {\r\n        console.warn(\"[WorkspaceFilesTab] Upload flow failed:\", error);\r\n      }\r\n      setUploadState(\"error\");\r\n      setUploadMessage(\r\n        error instanceof Error\r\n          ? `Storage upload failed: ${error.message}`\r\n          : \"Storage upload failed unexpectedly.\",\r\n      );\r\n    }\r\n  }\r\n\r\n  const availableCount = useMemo(\r\n    () => assets.filter((asset) => asset.status === \"active\").length,\r\n    [assets],\r\n  );\r\n\r\n  return (\r\n    <Card className=\"border border-border/50\">\r\n      <CardHeader>\r\n        <CardTitle>Files</CardTitle>\r\n        <CardDescription>\r\n          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。\r\n        </CardDescription>\r\n      </CardHeader>\r\n      <CardContent className=\"space-y-4\">\r\n        <div className=\"rounded-xl border border-border/40 px-4 py-4\">\r\n          <div className=\"flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between\">\r\n            <div className=\"space-y-1\">\r\n              <Label htmlFor=\"workspace-file-upload\" className=\"text-sm font-semibold text-foreground\">\r\n                Upload file\r\n              </Label>\r\n              <p className=\"text-xs text-muted-foreground\">\r\n                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.\r\n              </p>\r\n            </div>\r\n            <Input\r\n              id=\"workspace-file-upload\"\r\n              type=\"file\"\r\n              className=\"max-w-xs\"\r\n              disabled={uploadState === \"uploading\"}\r\n              onChange={(event) => {\r\n                const nextFile = event.target.files?.[0];\r\n                if (!nextFile) {\r\n                  return;\r\n                }\r\n\r\n                void handleUploadFile(nextFile);\r\n                event.currentTarget.value = \"\";\r\n              }}\r\n            />\r\n          </div>\r\n          {uploadMessage && (\r\n            <p\r\n              className={`mt-3 text-xs ${\r\n                uploadState === \"error\" ? \"text-destructive\" : \"text-emerald-600\"\r\n              }`}\r\n            >\r\n              {uploadMessage}\r\n            </p>\r\n          )}\r\n          {uploadState === \"uploading\" && (\r\n            <p className=\"mt-3 text-xs text-muted-foreground\">Uploading and persisting metadata…</p>\r\n          )}\r\n        </div>\r\n\r\n        {loadState === \"loading\" && (\r\n          <p className=\"text-sm text-muted-foreground\">Loading file metadata…</p>\r\n        )}\r\n\r\n        {loadState === \"error\" && (\r\n          <p className=\"text-sm text-destructive\">\r\n            無法載入已持久化的檔案資料，請稍後再試。\r\n          </p>\r\n        )}\r\n\r\n        <div className=\"grid gap-3 sm:grid-cols-3\">\r\n          <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n            <p className=\"text-xs text-muted-foreground\">Registered assets</p>\r\n            <p className=\"mt-1 text-xl font-semibold\">{assets.length}</p>\r\n          </div>\r\n          <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n            <p className=\"text-xs text-muted-foreground\">Directly available</p>\r\n            <p className=\"mt-1 text-xl font-semibold\">{availableCount}</p>\r\n          </div>\r\n          <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n            <p className=\"text-xs text-muted-foreground\">Derived manifests</p>\r\n            <p className=\"mt-1 text-xl font-semibold\">{assets.length - availableCount}</p>\r\n          </div>\r\n        </div>\r\n\r\n        <div className=\"space-y-3\">\r\n          {loadState === \"loaded\" && assets.length === 0 && (\r\n            <div className=\"rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground\">\r\n              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。\r\n            </div>\r\n          )}\r\n\r\n          {assets.map((asset) => (\r\n            <div key={asset.id} className=\"rounded-xl border border-border/40 px-4 py-4\">\r\n              <div className=\"flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between\">\r\n                <div className=\"space-y-1\">\r\n                  <div className=\"flex flex-wrap items-center gap-2\">\r\n                    <p className=\"text-sm font-semibold text-foreground\">{asset.name}</p>\r\n                    <Badge variant={asset.status === \"active\" ? \"secondary\" : \"outline\"}>\r\n                      {asset.status}\r\n                    </Badge>\r\n                    <Badge variant=\"outline\">{asset.kind}</Badge>\r\n                  </div>\r\n                  <p className=\"text-sm text-muted-foreground\">{asset.detail}</p>\r\n                </div>\r\n                <div className=\"text-xs text-muted-foreground sm:text-right\">\r\n                  <p>Source: {asset.source}</p>\r\n                  {asset.href && (\r\n                    <Button asChild variant=\"link\" className=\"mt-1 inline-flex h-auto p-0 text-xs\">\r\n                      <a href={asset.href} target=\"_blank\" rel=\"noreferrer\">\r\n                        Open asset\r\n                      </a>\r\n                    </Button>\r\n                  )}\r\n                </div>\r\n              </div>\r\n            </div>\r\n          ))}\r\n        </div>\r\n      </CardContent>\r\n    </Card>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\interfaces\\contracts\\file-command-result.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\interfaces\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\file\\interfaces\\queries\\file.queries.ts","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":1,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":1,"endColumn":60}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"import type { WorkspaceEntity } from \"@/modules/workspace\";\r\n\r\nimport { resolveFileOrganizationId } from \"../../domain/services/resolve-file-organization-id\";\r\nimport type { WorkspaceFileListItemDto } from \"../../application/dto/file.dto\";\r\nimport { ListWorkspaceFilesUseCase } from \"../../application/use-cases/list-workspace-files.use-case\";\r\nimport { FirebaseFileRepository } from \"../../infrastructure/firebase/FirebaseFileRepository\";\r\nimport { FirebaseRagDocumentRepository } from \"../../infrastructure/firebase/FirebaseRagDocumentRepository\";\r\nimport type { RagDocumentRecord } from \"../../domain/repositories/RagDocumentRepository\";\r\n\r\nexport async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {\r\n  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());\r\n  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);\r\n\r\n  return listWorkspaceFilesUseCase.execute({\r\n    workspaceId: workspace.id,\r\n    organizationId,\r\n    actorAccountId: workspace.accountId,\r\n  });\r\n}\r\n\r\nexport async function getWorkspaceRagDocuments(\r\n  workspace: WorkspaceEntity,\r\n): Promise<readonly RagDocumentRecord[]> {\r\n  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);\r\n  const repo = new FirebaseRagDocumentRepository();\r\n\r\n  return repo.findByWorkspace({\r\n    organizationId,\r\n    workspaceId: workspace.id,\r\n  });\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\graph\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\graph\\domain\\entities\\view-config.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\application\\identity-error-message.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\application\\use-cases\\identity.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\application\\use-cases\\token-refresh.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\domain\\entities\\Identity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\domain\\entities\\TokenRefreshSignal.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\domain\\repositories\\IdentityRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\domain\\repositories\\TokenRefreshRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\infrastructure\\firebase\\FirebaseIdentityRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\infrastructure\\firebase\\FirebaseTokenRefreshRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\interfaces\\_actions\\identity.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\identity\\interfaces\\hooks\\useTokenRefreshListener.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\interfaces\\_actions\\demo.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\api\\knowledge-api.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\application\\link-extractor.service.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\domain\\entities\\graph-node.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\domain\\entities\\link.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\domain\\repositories\\GraphRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\knowledge\\infrastructure\\InMemoryGraphRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\application\\use-cases\\list-namespaces-by-organization.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\application\\use-cases\\register-namespace.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\application\\use-cases\\resolve-namespace.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\domain\\entities\\namespace.entity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\domain\\repositories\\inamespace.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\domain\\services\\slug-policy.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\domain\\value-objects\\namespace-slug.vo.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\infrastructure\\repositories\\in-memory-namespace.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\interfaces\\api\\namespace.controller.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\interfaces\\components\\NamespacePrototypeView.tsx","messages":[{"ruleId":"react-hooks/exhaustive-deps","severity":1,"message":"React Hook useEffect has a missing dependency: 'refreshRows'. Either include it or remove the dependency array.","line":63,"column":6,"nodeType":"ArrayExpression","endLine":63,"endColumn":22,"suggestions":[{"desc":"Update the dependencies array to be: [organizationId, refreshRows]","fix":{"range":[2316,2332],"text":"[organizationId, refreshRows]"}}]}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\"\r\n\r\nimport { useEffect, useMemo, useRef, useState } from \"react\"\r\n\r\nimport { Button } from \"@ui-shadcn/ui/button\"\r\nimport { Card, CardContent, CardDescription, CardHeader, CardTitle } from \"@ui-shadcn/ui/card\"\r\nimport { Input } from \"@ui-shadcn/ui/input\"\r\nimport type { NamespaceKind } from \"../../domain/entities/namespace.entity\"\r\nimport { deriveSlugCandidate } from \"../../domain/services/slug-policy\"\r\nimport { ListNamespacesByOrganizationUseCase } from \"../../application/use-cases/list-namespaces-by-organization.use-case\"\r\nimport { RegisterNamespaceUseCase } from \"../../application/use-cases/register-namespace.use-case\"\r\nimport { InMemoryNamespaceRepository } from \"../../infrastructure/repositories/in-memory-namespace.repository\"\r\n\r\ninterface NamespacePrototypeViewProps {\r\n  readonly organizationId: string\r\n  readonly ownerAccountId: string\r\n}\r\n\r\ninterface NamespaceRow {\r\n  id: string\r\n  slug: string\r\n  kind: NamespaceKind\r\n  status: string\r\n}\r\n\r\nfunction createNamespaceId(): string {\r\n  return `ns_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`\r\n}\r\n\r\nexport function NamespacePrototypeView({ organizationId, ownerAccountId }: NamespacePrototypeViewProps) {\r\n  const repositoryRef = useRef<InMemoryNamespaceRepository | null>(null)\r\n  if (!repositoryRef.current) {\r\n    repositoryRef.current = new InMemoryNamespaceRepository()\r\n  }\r\n\r\n  const registerNamespace = useMemo(() => new RegisterNamespaceUseCase(repositoryRef.current!), [])\r\n  const listNamespaces = useMemo(\r\n    () => new ListNamespacesByOrganizationUseCase(repositoryRef.current!),\r\n    [],\r\n  )\r\n\r\n  const [displayName, setDisplayName] = useState(\"\")\r\n  const [kind, setKind] = useState<NamespaceKind>(\"workspace\")\r\n  const [rows, setRows] = useState<NamespaceRow[]>([])\r\n  const [errorMessage, setErrorMessage] = useState<string | null>(null)\r\n  const [creating, setCreating] = useState(false)\r\n\r\n  async function refreshRows() {\r\n    const list = await listNamespaces.execute({ organizationId })\r\n    const mapped = list\r\n      .map((item) => ({\r\n        id: item.id,\r\n        slug: item.slug.value,\r\n        kind: item.kind,\r\n        status: item.status,\r\n      }))\r\n      .sort((a, b) => a.slug.localeCompare(b.slug, \"zh-Hant\"))\r\n    setRows(mapped)\r\n  }\r\n\r\n  useEffect(() => {\r\n    void refreshRows()\r\n  }, [organizationId])\r\n\r\n  async function handleCreateNamespace() {\r\n    const trimmedName = displayName.trim()\r\n    if (!trimmedName) {\r\n      setErrorMessage(\"請先輸入名稱\")\r\n      return\r\n    }\r\n\r\n    const slug = deriveSlugCandidate(trimmedName)\r\n    if (!slug) {\r\n      setErrorMessage(\"名稱無法產生有效 slug，請改用英文或數字\")\r\n      return\r\n    }\r\n\r\n    setErrorMessage(null)\r\n    setCreating(true)\r\n    try {\r\n      await registerNamespace.execute({\r\n        id: createNamespaceId(),\r\n        slug,\r\n        kind,\r\n        ownerAccountId,\r\n        organizationId,\r\n      })\r\n      setDisplayName(\"\")\r\n      await refreshRows()\r\n    } catch (error) {\r\n      setErrorMessage(error instanceof Error ? error.message : \"建立 namespace 失敗\")\r\n    } finally {\r\n      setCreating(false)\r\n    }\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-4\">\r\n      <Card>\r\n        <CardHeader>\r\n          <CardTitle>Namespace Prototype</CardTitle>\r\n          <CardDescription>\r\n            最小雛型：建立 namespace slug 並以 organization scope 列表檢視，供後續 pages tree 掛載使用。\r\n          </CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          <div className=\"grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto]\">\r\n            <Input\r\n              value={displayName}\r\n              onChange={(event) => setDisplayName(event.target.value)}\r\n              placeholder=\"例如：Product Wiki\"\r\n            />\r\n            <select\r\n              value={kind}\r\n              onChange={(event) => setKind(event.target.value as NamespaceKind)}\r\n              className=\"h-9 rounded-md border border-input bg-background px-3 text-sm\"\r\n            >\r\n              <option value=\"workspace\">workspace</option>\r\n              <option value=\"organization\">organization</option>\r\n            </select>\r\n            <Button onClick={() => void handleCreateNamespace()} disabled={creating}>\r\n              {creating ? \"建立中...\" : \"建立 Namespace\"}\r\n            </Button>\r\n          </div>\r\n\r\n          <div className=\"rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground\">\r\n            slug preview: <span className=\"font-mono text-foreground\">{deriveSlugCandidate(displayName || \"sample-namespace\") || \"-\"}</span>\r\n          </div>\r\n\r\n          {errorMessage ? (\r\n            <p className=\"rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive\">\r\n              {errorMessage}\r\n            </p>\r\n          ) : null}\r\n        </CardContent>\r\n      </Card>\r\n\r\n      <Card>\r\n        <CardHeader>\r\n          <CardTitle>Organization Namespaces</CardTitle>\r\n          <CardDescription>\r\n            organizationId: <span className=\"font-mono\">{organizationId}</span>\r\n          </CardDescription>\r\n        </CardHeader>\r\n        <CardContent>\r\n          {rows.length === 0 ? (\r\n            <p className=\"text-sm text-muted-foreground\">目前尚無 namespace，先建立第一筆。</p>\r\n          ) : (\r\n            <div className=\"space-y-2\">\r\n              {rows.map((row) => (\r\n                <div key={row.id} className=\"flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 p-3\">\r\n                  <div className=\"min-w-0 flex-1\">\r\n                    <p className=\"truncate text-sm font-medium text-foreground\">{row.slug}</p>\r\n                    <p className=\"text-xs text-muted-foreground\">id={row.id}</p>\r\n                  </div>\r\n                  <div className=\"flex items-center gap-2 text-xs\">\r\n                    <span className=\"rounded-full border border-border/60 px-2 py-1\">{row.kind}</span>\r\n                    <span className=\"rounded-full border border-border/60 px-2 py-1\">{row.status}</span>\r\n                  </div>\r\n                </div>\r\n              ))}\r\n            </div>\r\n          )}\r\n        </CardContent>\r\n      </Card>\r\n    </div>\r\n  )\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\namespace\\interfaces\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\application\\use-cases\\notification.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\domain\\entities\\Notification.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\domain\\repositories\\NotificationRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\infrastructure\\firebase\\FirebaseNotificationRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\interfaces\\_actions\\notification.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\notification\\interfaces\\queries\\notification.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\application\\use-cases\\organization-policy.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\application\\use-cases\\organization.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\domain\\entities\\Organization.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\domain\\repositories\\OrganizationRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\infrastructure\\firebase\\FirebaseOrganizationRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\interfaces\\_actions\\organization.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\organization\\interfaces\\queries\\organization.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\search\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\search\\domain\\ports\\vector-store.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\shared\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\shared\\domain\\events.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\shared\\domain\\events\\content-updated.event.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\shared\\domain\\types.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\shared\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\shared\\infrastructure\\SimpleEventBus.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\system.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\application\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\application\\use-cases\\wiki-beta-content-tree.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\application\\use-cases\\wiki-beta-libraries.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\application\\use-cases\\wiki-beta-pages.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\application\\use-cases\\wiki-beta-rag.use-case.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\domain\\entities\\wiki-beta-library.types.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\domain\\entities\\wiki-beta-page.types.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\domain\\entities\\wiki-beta.types.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\domain\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\domain\\repositories\\wiki-beta.repositories.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\infrastructure\\repositories\\firebase-wiki-beta-page.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\infrastructure\\repositories\\firebase-wiki-beta.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\infrastructure\\repositories\\in-memory-wiki-beta-library.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\infrastructure\\repositories\\in-memory-wiki-beta-page.repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaBlockEditorView.tsx","messages":[],"suppressedMessages":[{"ruleId":"react-hooks/exhaustive-deps","severity":1,"message":"React Hook useEffect has a missing dependency: 'init'. Either include it or remove the dependency array.","line":39,"column":6,"nodeType":"ArrayExpression","endLine":39,"endColumn":8,"suggestions":[{"desc":"Update the dependencies array to be: [init]","fix":{"range":[1383,1385],"text":"[init]"}}],"suppressions":[{"kind":"directive","justification":""}]}],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaDocumentsView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaLibrariesView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaLibraryTableView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaOverviewView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaPagesDnDView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaPagesView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaRagQueryView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaRagView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\components\\WikiBetaWorkspaceView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\hooks\\useDocumentsSnapshot.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\wiki-beta\\interfaces\\store\\block-editor.store.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\application\\use-cases\\audit.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\domain\\entities\\AuditLog.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\domain\\repositories\\AuditRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\domain\\schema.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\infrastructure\\firebase\\FirebaseAuditRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\interfaces\\components\\AuditStream.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\interfaces\\components\\WorkspaceAuditTab.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-audit\\interfaces\\queries\\audit.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\api\\workspace-feed.facade.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\application\\dto\\workspace-feed.dto.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\application\\use-cases\\workspace-feed.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\domain\\entities\\workspace-feed-post.entity.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\domain\\events\\workspace-feed.events.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\domain\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\domain\\repositories\\workspace-feed.repositories.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\infrastructure\\firebase\\FirebaseWorkspaceFeedInteractionRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\infrastructure\\firebase\\FirebaseWorkspaceFeedPostRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\infrastructure\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\interfaces\\_actions\\workspace-feed.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\interfaces\\components\\WorkspaceFeedAccountView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\interfaces\\components\\WorkspaceFeedWorkspaceView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\interfaces\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-feed\\interfaces\\queries\\workspace-feed.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\api\\contracts.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":11,"column":1,"nodeType":"Block","endLine":11,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/api\r\n * @file contracts.ts\r\n * @description Public contracts exposed through the workspace-flow module boundary.\r\n *\r\n * All types, DTOs, and projection helpers that external consumers need are\r\n * re-exported from this single file.  XState internals (canTransition*, nextStatus,\r\n * isTerminal*) are intentionally NOT exposed here — status machines are internal.\r\n *\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\n// ── Entity types ──────────────────────────────────────────────────────────────\r\n\r\nexport type { Task } from \"../domain/entities/Task\";\r\nexport type { Issue } from \"../domain/entities/Issue\";\r\nexport type { Invoice } from \"../domain/entities/Invoice\";\r\nexport type { InvoiceItem } from \"../domain/entities/InvoiceItem\";\r\n\r\n// ── Value objects (enum / list only — no transition helpers) ──────────────────\r\n\r\nexport type { TaskStatus } from \"../domain/value-objects/TaskStatus\";\r\nexport { TASK_STATUSES } from \"../domain/value-objects/TaskStatus\";\r\n\r\nexport type { IssueStatus } from \"../domain/value-objects/IssueStatus\";\r\nexport { ISSUE_STATUSES } from \"../domain/value-objects/IssueStatus\";\r\n\r\nexport type { IssueStage } from \"../domain/value-objects/IssueStage\";\r\nexport { ISSUE_STAGES } from \"../domain/value-objects/IssueStage\";\r\n\r\nexport type { InvoiceStatus } from \"../domain/value-objects/InvoiceStatus\";\r\nexport { INVOICE_STATUSES } from \"../domain/value-objects/InvoiceStatus\";\r\n\r\n// ── Summary projections ───────────────────────────────────────────────────────\r\n\r\nexport type {\r\n  TaskSummary,\r\n  IssueSummary,\r\n  InvoiceSummary,\r\n  InvoiceItemSummary,\r\n} from \"../interfaces/contracts/workspace-flow.contract\";\r\n\r\nexport {\r\n  toTaskSummary,\r\n  toIssueSummary,\r\n  toInvoiceSummary,\r\n  toInvoiceItemSummary,\r\n} from \"../interfaces/contracts/workspace-flow.contract\";\r\n\r\n// ── CRUD / command DTOs ───────────────────────────────────────────────────────\r\n\r\nexport type { CreateTaskDto } from \"../application/dto/create-task.dto\";\r\nexport type { UpdateTaskDto } from \"../application/dto/update-task.dto\";\r\n\r\nexport type { OpenIssueDto } from \"../application/dto/open-issue.dto\";\r\nexport type { ResolveIssueDto } from \"../application/dto/resolve-issue.dto\";\r\n\r\nexport type { AddInvoiceItemDto } from \"../application/dto/add-invoice-item.dto\";\r\nexport type { UpdateInvoiceItemDto } from \"../application/dto/update-invoice-item.dto\";\r\nexport type { RemoveInvoiceItemDto } from \"../application/dto/remove-invoice-item.dto\";\r\n\r\n// ── Query / pagination DTOs ───────────────────────────────────────────────────\r\n\r\nexport type { TaskQueryDto } from \"../application/dto/task-query.dto\";\r\nexport type { IssueQueryDto } from \"../application/dto/issue-query.dto\";\r\nexport type { InvoiceQueryDto } from \"../application/dto/invoice-query.dto\";\r\nexport type { PaginationDto, PagedResult } from \"../application/dto/pagination.dto\";\r\n\r\n// ── Command / operation result ────────────────────────────────────────────────\r\n\r\nexport type { CommandResult } from \"@shared-types\";\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\api\\index.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":11,"column":1,"nodeType":"Block","endLine":11,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/api\r\n * @file index.ts\r\n * @description Public cross-module boundary for workspace-flow.\r\n *\r\n * External consumers MUST import only from this path:\r\n *   @/modules/workspace-flow/api\r\n *\r\n * Never import from domain/, application/, infrastructure/, or interfaces/ directly.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\n// ── Facade (write + summary-read surface) ────────────────────────────────────\r\n\r\nexport { WorkspaceFlowFacade } from \"./workspace-flow.facade\";\r\n\r\n// ── Public contracts ──────────────────────────────────────────────────────────\r\n\r\nexport type {\r\n  // Entities\r\n  Task,\r\n  Issue,\r\n  Invoice,\r\n  InvoiceItem,\r\n  // Value objects\r\n  TaskStatus,\r\n  IssueStatus,\r\n  IssueStage,\r\n  InvoiceStatus,\r\n  // Summary projections\r\n  TaskSummary,\r\n  IssueSummary,\r\n  InvoiceSummary,\r\n  InvoiceItemSummary,\r\n  // CRUD / command DTOs\r\n  CreateTaskDto,\r\n  UpdateTaskDto,\r\n  OpenIssueDto,\r\n  ResolveIssueDto,\r\n  AddInvoiceItemDto,\r\n  UpdateInvoiceItemDto,\r\n  RemoveInvoiceItemDto,\r\n  // Query / pagination DTOs\r\n  TaskQueryDto,\r\n  IssueQueryDto,\r\n  InvoiceQueryDto,\r\n  PaginationDto,\r\n  PagedResult,\r\n  // Command result\r\n  CommandResult,\r\n} from \"./contracts\";\r\n\r\nexport {\r\n  // Value object lists (enum arrays)\r\n  TASK_STATUSES,\r\n  ISSUE_STATUSES,\r\n  ISSUE_STAGES,\r\n  INVOICE_STATUSES,\r\n  // Summary projection helpers\r\n  toTaskSummary,\r\n  toIssueSummary,\r\n  toInvoiceSummary,\r\n  toInvoiceItemSummary,\r\n} from \"./contracts\";\r\n\r\n// ── Read queries (server-side) ────────────────────────────────────────────────\r\n\r\nexport {\r\n  getWorkspaceFlowTasks,\r\n  getWorkspaceFlowTask,\r\n  getWorkspaceFlowIssues,\r\n  getWorkspaceFlowInvoices,\r\n  getWorkspaceFlowInvoiceItems,\r\n} from \"../interfaces/queries/workspace-flow.queries\";\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\api\\workspace-flow.facade.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":11,"column":1,"nodeType":"Block","endLine":11,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/api\r\n * @file workspace-flow.facade.ts\r\n * @description Public facade for executing workspace-flow operations from external consumers.\r\n *\r\n * All CRUD and workflow write operations are exposed exclusively through this class.\r\n * List operations return {@link PagedResult} for uniform pagination.\r\n * Scalar-get summary operations return the appropriate {@link *Summary} projection.\r\n *\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nimport type { TaskRepository } from \"../domain/repositories/TaskRepository\";\r\nimport type { IssueRepository } from \"../domain/repositories/IssueRepository\";\r\nimport type { InvoiceRepository } from \"../domain/repositories/InvoiceRepository\";\r\n\r\nimport { CreateTaskUseCase } from \"../application/use-cases/create-task.use-case\";\r\nimport { UpdateTaskUseCase } from \"../application/use-cases/update-task.use-case\";\r\nimport { AssignTaskUseCase } from \"../application/use-cases/assign-task.use-case\";\r\nimport { SubmitTaskToQaUseCase } from \"../application/use-cases/submit-task-to-qa.use-case\";\r\nimport { PassTaskQaUseCase } from \"../application/use-cases/pass-task-qa.use-case\";\r\nimport { ApproveTaskAcceptanceUseCase } from \"../application/use-cases/approve-task-acceptance.use-case\";\r\nimport { ArchiveTaskUseCase } from \"../application/use-cases/archive-task.use-case\";\r\n\r\nimport { OpenIssueUseCase } from \"../application/use-cases/open-issue.use-case\";\r\nimport { StartIssueUseCase } from \"../application/use-cases/start-issue.use-case\";\r\nimport { FixIssueUseCase } from \"../application/use-cases/fix-issue.use-case\";\r\nimport { SubmitIssueRetestUseCase } from \"../application/use-cases/submit-issue-retest.use-case\";\r\nimport { PassIssueRetestUseCase } from \"../application/use-cases/pass-issue-retest.use-case\";\r\nimport { FailIssueRetestUseCase } from \"../application/use-cases/fail-issue-retest.use-case\";\r\nimport { ResolveIssueUseCase } from \"../application/use-cases/resolve-issue.use-case\";\r\nimport { CloseIssueUseCase } from \"../application/use-cases/close-issue.use-case\";\r\n\r\nimport { CreateInvoiceUseCase } from \"../application/use-cases/create-invoice.use-case\";\r\nimport { AddInvoiceItemUseCase } from \"../application/use-cases/add-invoice-item.use-case\";\r\nimport { UpdateInvoiceItemUseCase } from \"../application/use-cases/update-invoice-item.use-case\";\r\nimport { RemoveInvoiceItemUseCase } from \"../application/use-cases/remove-invoice-item.use-case\";\r\nimport { SubmitInvoiceUseCase } from \"../application/use-cases/submit-invoice.use-case\";\r\nimport { ReviewInvoiceUseCase } from \"../application/use-cases/review-invoice.use-case\";\r\nimport { ApproveInvoiceUseCase } from \"../application/use-cases/approve-invoice.use-case\";\r\nimport { RejectInvoiceUseCase } from \"../application/use-cases/reject-invoice.use-case\";\r\nimport { PayInvoiceUseCase } from \"../application/use-cases/pay-invoice.use-case\";\r\nimport { CloseInvoiceUseCase } from \"../application/use-cases/close-invoice.use-case\";\r\n\r\nimport type { CreateTaskDto } from \"../application/dto/create-task.dto\";\r\nimport type { UpdateTaskDto } from \"../application/dto/update-task.dto\";\r\nimport type { OpenIssueDto } from \"../application/dto/open-issue.dto\";\r\nimport type { ResolveIssueDto } from \"../application/dto/resolve-issue.dto\";\r\nimport type { AddInvoiceItemDto } from \"../application/dto/add-invoice-item.dto\";\r\nimport type { UpdateInvoiceItemDto } from \"../application/dto/update-invoice-item.dto\";\r\nimport type { RemoveInvoiceItemDto } from \"../application/dto/remove-invoice-item.dto\";\r\nimport type { TaskQueryDto } from \"../application/dto/task-query.dto\";\r\nimport type { IssueQueryDto } from \"../application/dto/issue-query.dto\";\r\nimport type { InvoiceQueryDto } from \"../application/dto/invoice-query.dto\";\r\nimport type { PaginationDto, PagedResult } from \"../application/dto/pagination.dto\";\r\n\r\nimport type {\r\n  TaskSummary,\r\n  IssueSummary,\r\n  InvoiceSummary,\r\n} from \"../interfaces/contracts/workspace-flow.contract\";\r\nimport {\r\n  toTaskSummary,\r\n  toIssueSummary,\r\n  toInvoiceSummary,\r\n} from \"../interfaces/contracts/workspace-flow.contract\";\r\n\r\nimport type { CommandResult } from \"@shared-types\";\r\n\r\n// ── Pagination helper ─────────────────────────────────────────────────────────\r\n\r\nfunction toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {\r\n  const page = pagination?.page ?? 1;\r\n  const pageSize = pagination?.pageSize ?? (items.length || 20);\r\n  const start = (page - 1) * pageSize;\r\n  const paged = items.slice(start, start + pageSize);\r\n  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };\r\n}\r\n\r\n/**\r\n * WorkspaceFlowFacade\r\n *\r\n * Single entry point for all workspace-flow write and read-summary operations.\r\n * External consumers must construct this with concrete repository implementations.\r\n *\r\n * @example\r\n * ```ts\r\n * const facade = new WorkspaceFlowFacade(\r\n *   new FirebaseTaskRepository(),\r\n *   new FirebaseIssueRepository(),\r\n *   new FirebaseInvoiceRepository(),\r\n * );\r\n * await facade.createTask({ workspaceId, title: \"My task\" });\r\n * ```\r\n */\r\nexport class WorkspaceFlowFacade {\r\n  constructor(\r\n    private readonly taskRepository: TaskRepository,\r\n    private readonly issueRepository: IssueRepository,\r\n    private readonly invoiceRepository: InvoiceRepository,\r\n  ) {}\r\n\r\n  // ── Task write operations ────────────────────────────────────────────────────\r\n\r\n  async createTask(dto: CreateTaskDto): Promise<CommandResult> {\r\n    return new CreateTaskUseCase(this.taskRepository).execute(dto);\r\n  }\r\n\r\n  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {\r\n    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);\r\n  }\r\n\r\n  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {\r\n    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);\r\n  }\r\n\r\n  async submitTaskToQa(taskId: string): Promise<CommandResult> {\r\n    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);\r\n  }\r\n\r\n  async passTaskQa(taskId: string): Promise<CommandResult> {\r\n    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);\r\n  }\r\n\r\n  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {\r\n    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);\r\n  }\r\n\r\n  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {\r\n    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);\r\n  }\r\n\r\n  // ── Task read operations ─────────────────────────────────────────────────────\r\n\r\n  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {\r\n    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);\r\n    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;\r\n    const assigneeFiltered = query.assigneeId\r\n      ? filtered.filter((t) => t.assigneeId === query.assigneeId)\r\n      : filtered;\r\n    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);\r\n  }\r\n\r\n  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {\r\n    const task = await this.taskRepository.findById(taskId);\r\n    return task ? toTaskSummary(task) : null;\r\n  }\r\n\r\n  // ── Issue write operations ───────────────────────────────────────────────────\r\n\r\n  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {\r\n    return new OpenIssueUseCase(this.issueRepository).execute(dto);\r\n  }\r\n\r\n  async startIssue(issueId: string): Promise<CommandResult> {\r\n    return new StartIssueUseCase(this.issueRepository).execute(issueId);\r\n  }\r\n\r\n  async fixIssue(issueId: string): Promise<CommandResult> {\r\n    return new FixIssueUseCase(this.issueRepository).execute(issueId);\r\n  }\r\n\r\n  async submitIssueRetest(issueId: string): Promise<CommandResult> {\r\n    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);\r\n  }\r\n\r\n  async passIssueRetest(issueId: string): Promise<CommandResult> {\r\n    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);\r\n  }\r\n\r\n  async failIssueRetest(issueId: string): Promise<CommandResult> {\r\n    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);\r\n  }\r\n\r\n  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {\r\n    return new ResolveIssueUseCase(this.issueRepository).execute(dto);\r\n  }\r\n\r\n  async closeIssue(issueId: string): Promise<CommandResult> {\r\n    return new CloseIssueUseCase(this.issueRepository).execute(issueId);\r\n  }\r\n\r\n  // ── Issue read operations ────────────────────────────────────────────────────\r\n\r\n  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {\r\n    const all = await this.issueRepository.findByTaskId(query.taskId);\r\n    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;\r\n    return toPagedResult(filtered.map(toIssueSummary), pagination);\r\n  }\r\n\r\n  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    return issue ? toIssueSummary(issue) : null;\r\n  }\r\n\r\n  // ── Invoice write operations ─────────────────────────────────────────────────\r\n\r\n  async createInvoice(workspaceId: string): Promise<CommandResult> {\r\n    return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);\r\n  }\r\n\r\n  async addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {\r\n    return new AddInvoiceItemUseCase(this.invoiceRepository).execute(dto);\r\n  }\r\n\r\n  async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {\r\n    return new UpdateInvoiceItemUseCase(this.invoiceRepository).execute(invoiceItemId, dto);\r\n  }\r\n\r\n  async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {\r\n    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(dto.invoiceId, dto.invoiceItemId);\r\n  }\r\n\r\n  async submitInvoice(invoiceId: string): Promise<CommandResult> {\r\n    return new SubmitInvoiceUseCase(this.invoiceRepository).execute(invoiceId);\r\n  }\r\n\r\n  async reviewInvoice(invoiceId: string): Promise<CommandResult> {\r\n    return new ReviewInvoiceUseCase(this.invoiceRepository).execute(invoiceId);\r\n  }\r\n\r\n  async approveInvoice(invoiceId: string): Promise<CommandResult> {\r\n    return new ApproveInvoiceUseCase(this.invoiceRepository).execute(invoiceId);\r\n  }\r\n\r\n  async rejectInvoice(invoiceId: string): Promise<CommandResult> {\r\n    return new RejectInvoiceUseCase(this.invoiceRepository).execute(invoiceId);\r\n  }\r\n\r\n  async payInvoice(invoiceId: string): Promise<CommandResult> {\r\n    return new PayInvoiceUseCase(this.invoiceRepository).execute(invoiceId);\r\n  }\r\n\r\n  async closeInvoice(invoiceId: string): Promise<CommandResult> {\r\n    return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);\r\n  }\r\n\r\n  // ── Invoice read operations ──────────────────────────────────────────────────\r\n\r\n  async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {\r\n    const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);\r\n    const filtered = query.status ? all.filter((inv) => inv.status === query.status) : all;\r\n    return toPagedResult(filtered.map(toInvoiceSummary), pagination);\r\n  }\r\n\r\n  async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    return invoice ? toInvoiceSummary(invoice) : null;\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\add-invoice-item.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file add-invoice-item.dto.ts\r\n * @description Command DTO for adding an item to an invoice.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add Zod schema when validation layer is wired in\r\n */\r\n\r\nexport interface AddInvoiceItemDto {\r\n  readonly invoiceId: string;\r\n  readonly taskId: string;\r\n  readonly amount: number;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\create-task.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file create-task.dto.ts\r\n * @description Command DTO for creating a new task.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add Zod schema when validation layer is wired in\r\n */\r\n\r\nexport interface CreateTaskDto {\r\n  readonly workspaceId: string;\r\n  readonly title: string;\r\n  readonly description?: string;\r\n  readonly assigneeId?: string;\r\n  readonly dueDateISO?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\invoice-query.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file invoice-query.dto.ts\r\n * @description Query parameters DTO for listing invoices.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add pagination support when invoice lists grow large\r\n */\r\n\r\nexport interface InvoiceQueryDto {\r\n  /** Filter invoices by workspace. Required for scoped queries. */\r\n  readonly workspaceId: string;\r\n  /** Optional status filter. */\r\n  readonly status?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\issue-query.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file issue-query.dto.ts\r\n * @description Query parameters DTO for listing issues.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add pagination support when issue lists grow large\r\n */\r\n\r\nexport interface IssueQueryDto {\r\n  /** Filter issues by task. */\r\n  readonly taskId: string;\r\n  /** Optional status filter. */\r\n  readonly status?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\open-issue.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file open-issue.dto.ts\r\n * @description Command DTO for opening a new issue against a task.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add Zod schema when validation layer is wired in\r\n */\r\n\r\nimport type { IssueStage } from \"../../domain/value-objects/IssueStage\";\r\n\r\nexport interface OpenIssueDto {\r\n  readonly taskId: string;\r\n  readonly stage: IssueStage;\r\n  readonly title: string;\r\n  readonly description?: string;\r\n  readonly createdBy: string;\r\n  readonly assignedTo?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\pagination.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file pagination.dto.ts\r\n * @description Shared pagination request / response DTOs for workspace-flow list queries.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nexport interface PaginationDto {\r\n  /** 1-based page number. Defaults to 1. */\r\n  readonly page?: number;\r\n  /** Items per page. Defaults to 20. */\r\n  readonly pageSize?: number;\r\n}\r\n\r\nexport interface PagedResult<T> {\r\n  readonly items: T[];\r\n  readonly total: number;\r\n  readonly page: number;\r\n  readonly pageSize: number;\r\n  readonly hasMore: boolean;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\remove-invoice-item.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file remove-invoice-item.dto.ts\r\n * @description Command DTO for removing an item from an invoice.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nexport interface RemoveInvoiceItemDto {\r\n  readonly invoiceId: string;\r\n  readonly invoiceItemId: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\resolve-issue.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file resolve-issue.dto.ts\r\n * @description Command DTO for resolving an issue (retest passed → resolved).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nexport interface ResolveIssueDto {\r\n  readonly issueId: string;\r\n  readonly resolutionNote?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\task-query.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file task-query.dto.ts\r\n * @description Query parameters DTO for listing tasks.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add pagination support when task lists grow large\r\n */\r\n\r\nexport interface TaskQueryDto {\r\n  /** Filter tasks by workspace. Required for scoped queries. */\r\n  readonly workspaceId: string;\r\n  /** Optional status filter. */\r\n  readonly status?: string;\r\n  /** Optional assignee filter. */\r\n  readonly assigneeId?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\update-invoice-item.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file update-invoice-item.dto.ts\r\n * @description Command DTO for updating the amount of an existing invoice item.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nexport interface UpdateInvoiceItemDto {\r\n  /** Updated billing amount (must be > 0). */\r\n  readonly amount: number;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\dto\\update-task.dto.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/dto\r\n * @file update-task.dto.ts\r\n * @description Command DTO for updating mutable fields on an existing task.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nexport interface UpdateTaskDto {\r\n  readonly title?: string;\r\n  readonly description?: string;\r\n  readonly assigneeId?: string;\r\n  readonly dueDateISO?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\ports\\InvoiceService.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/ports\r\n * @file InvoiceService.ts\r\n * @description Application port interface for Invoice operations.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Wire use cases and implement concrete adapters\r\n */\r\n\r\nimport type { Invoice } from \"../../domain/entities/Invoice\";\r\nimport type { InvoiceItem } from \"../../domain/entities/InvoiceItem\";\r\nimport type { InvoiceStatus } from \"../../domain/value-objects/InvoiceStatus\";\r\nimport type { AddInvoiceItemDto } from \"../dto/add-invoice-item.dto\";\r\nimport type { InvoiceQueryDto } from \"../dto/invoice-query.dto\";\r\n\r\nexport interface InvoiceService {\r\n  createInvoice(workspaceId: string): Promise<Invoice>;\r\n  addItem(dto: AddInvoiceItemDto): Promise<InvoiceItem>;\r\n  removeItem(invoiceItemId: string): Promise<void>;\r\n  transitionStatus(invoiceId: string, to: InvoiceStatus): Promise<Invoice>;\r\n  listInvoices(query: InvoiceQueryDto): Promise<Invoice[]>;\r\n  getInvoice(invoiceId: string): Promise<Invoice | null>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\ports\\IssueService.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/ports\r\n * @file IssueService.ts\r\n * @description Application port interface for Issue operations.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Wire use cases and implement concrete adapters\r\n */\r\n\r\nimport type { Issue } from \"../../domain/entities/Issue\";\r\nimport type { IssueStatus } from \"../../domain/value-objects/IssueStatus\";\r\nimport type { OpenIssueDto } from \"../dto/open-issue.dto\";\r\nimport type { IssueQueryDto } from \"../dto/issue-query.dto\";\r\n\r\nexport interface IssueService {\r\n  openIssue(dto: OpenIssueDto): Promise<Issue>;\r\n  transitionStatus(issueId: string, to: IssueStatus): Promise<Issue>;\r\n  listIssues(query: IssueQueryDto): Promise<Issue[]>;\r\n  getIssue(issueId: string): Promise<Issue | null>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\ports\\TaskService.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/ports\r\n * @file TaskService.ts\r\n * @description Application port interface for Task operations.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Wire use cases and implement concrete adapters\r\n */\r\n\r\nimport type { Task } from \"../../domain/entities/Task\";\r\nimport type { TaskStatus } from \"../../domain/value-objects/TaskStatus\";\r\nimport type { CreateTaskDto } from \"../dto/create-task.dto\";\r\nimport type { TaskQueryDto } from \"../dto/task-query.dto\";\r\n\r\nexport interface TaskService {\r\n  createTask(dto: CreateTaskDto): Promise<Task>;\r\n  assignTask(taskId: string, assigneeId: string): Promise<Task>;\r\n  transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;\r\n  listTasks(query: TaskQueryDto): Promise<Task[]>;\r\n  getTask(taskId: string): Promise<Task | null>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\add-invoice-item.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file add-invoice-item.use-case.ts\r\n * @description Use case: Add an item to a draft invoice.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceItemAddedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { invoiceIsEditable } from \"../../domain/services/invoice-guards\";\r\nimport type { AddInvoiceItemDto } from \"../dto/add-invoice-item.dto\";\r\n\r\nexport class AddInvoiceItemUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(dto: AddInvoiceItemDto): Promise<CommandResult> {\r\n    if (!dto.invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n    if (!dto.taskId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_TASK_REQUIRED\", \"Task id is required.\");\r\n    }\r\n    if (dto.amount <= 0) {\r\n      return commandFailureFrom(\"WF_INVOICE_AMOUNT_INVALID\", \"Amount must be greater than zero.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(dto.invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n    if (!invoiceIsEditable(invoice.status)) {\r\n      return commandFailureFrom(\r\n        \"WF_INVOICE_NOT_EDITABLE\",\r\n        \"Items can only be added to draft invoices.\",\r\n      );\r\n    }\r\n\r\n    const item = await this.invoiceRepository.addItem(dto);\r\n    return commandSuccess(item.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\approve-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file approve-invoice.use-case.ts\r\n * @description Use case: Approve an invoice in finance review (finance_review → approved).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceApprovedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { evaluateInvoiceTransition } from \"../../domain/services/invoice-transition-policy\";\r\n\r\nexport class ApproveInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n\r\n    const guard = evaluateInvoiceTransition(invoice.status, \"approved\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_INVOICE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.invoiceRepository.transitionStatus(invoiceId, \"approved\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\approve-task-acceptance.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file approve-task-acceptance.use-case.ts\r\n * @description Use case: Approve a task at acceptance stage (acceptance → accepted). Requires no open issues.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit TaskAcceptanceApprovedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateTaskTransition } from \"../../domain/services/task-transition-policy\";\r\nimport { hasNoOpenIssues } from \"../../domain/services/task-guards\";\r\n\r\nexport class ApproveTaskAcceptanceUseCase {\r\n  constructor(\r\n    private readonly taskRepository: TaskRepository,\r\n    private readonly issueRepository: IssueRepository,\r\n  ) {}\r\n\r\n  async execute(taskId: string): Promise<CommandResult> {\r\n    if (!taskId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ID_REQUIRED\", \"Task id is required.\");\r\n    }\r\n\r\n    const task = await this.taskRepository.findById(taskId);\r\n    if (!task) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found.\");\r\n    }\r\n\r\n    const guard = evaluateTaskTransition(task.status, \"accepted\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_TASK_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const openIssues = await this.issueRepository.countOpenByTaskId(taskId);\r\n    if (!hasNoOpenIssues(openIssues)) {\r\n      return commandFailureFrom(\r\n        \"WF_TASK_HAS_OPEN_ISSUES\",\r\n        \"Task cannot be accepted: there are open issues that must be resolved first.\",\r\n      );\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.taskRepository.transitionStatus(taskId, \"accepted\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\archive-task.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file archive-task.use-case.ts\r\n * @description Use case: Archive a task (accepted → archived). Requires invoice closed or none.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit TaskArchivedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport { evaluateTaskTransition } from \"../../domain/services/task-transition-policy\";\r\nimport { invoiceAllowsArchive } from \"../../domain/services/task-guards\";\r\n\r\nexport class ArchiveTaskUseCase {\r\n  constructor(private readonly taskRepository: TaskRepository) {}\r\n\r\n  /**\r\n   * @param taskId       - ID of the task to archive\r\n   * @param invoiceStatus - Status of the linked invoice, or undefined if none\r\n   */\r\n  async execute(taskId: string, invoiceStatus?: string): Promise<CommandResult> {\r\n    if (!taskId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ID_REQUIRED\", \"Task id is required.\");\r\n    }\r\n\r\n    const task = await this.taskRepository.findById(taskId);\r\n    if (!task) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found.\");\r\n    }\r\n\r\n    const guard = evaluateTaskTransition(task.status, \"archived\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_TASK_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    if (!invoiceAllowsArchive(invoiceStatus)) {\r\n      return commandFailureFrom(\r\n        \"WF_TASK_INVOICE_NOT_CLOSED\",\r\n        \"Task cannot be archived: the linked invoice must be closed first.\",\r\n      );\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.taskRepository.transitionStatus(taskId, \"archived\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\assign-task.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file assign-task.use-case.ts\r\n * @description Use case: Assign a task to a user and transition status to in_progress.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add permission check for assignee\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport { evaluateTaskTransition } from \"../../domain/services/task-transition-policy\";\r\n\r\nexport class AssignTaskUseCase {\r\n  constructor(private readonly taskRepository: TaskRepository) {}\r\n\r\n  async execute(taskId: string, assigneeId: string): Promise<CommandResult> {\r\n    if (!taskId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ID_REQUIRED\", \"Task id is required.\");\r\n    }\r\n    if (!assigneeId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ASSIGNEE_REQUIRED\", \"Assignee id is required.\");\r\n    }\r\n\r\n    const task = await this.taskRepository.findById(taskId);\r\n    if (!task) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found.\");\r\n    }\r\n\r\n    const guard = evaluateTaskTransition(task.status, \"in_progress\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_TASK_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    // Persist the assignee before transitioning status\r\n    await this.taskRepository.update(taskId, { assigneeId: assigneeId.trim() });\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.taskRepository.transitionStatus(taskId, \"in_progress\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\close-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file close-invoice.use-case.ts\r\n * @description Use case: Close a paid invoice (paid → closed).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceClosedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { evaluateInvoiceTransition } from \"../../domain/services/invoice-transition-policy\";\r\n\r\nexport class CloseInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n\r\n    const guard = evaluateInvoiceTransition(invoice.status, \"closed\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_INVOICE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.invoiceRepository.transitionStatus(invoiceId, \"closed\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\close-issue.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file close-issue.use-case.ts\r\n * @description Use case: Close a resolved issue (resolved → closed).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueClosedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\n\r\nexport class CloseIssueUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(issueId: string): Promise<CommandResult> {\r\n    if (!issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"closed\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(issueId, \"closed\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\create-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file create-invoice.use-case.ts\r\n * @description Use case: Create a new invoice for a workspace.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceCreatedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\n\r\nexport class CreateInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(workspaceId: string): Promise<CommandResult> {\r\n    if (!workspaceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_WORKSPACE_REQUIRED\", \"Workspace is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.create({ workspaceId: workspaceId.trim() });\r\n    return commandSuccess(invoice.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\create-task.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file create-task.use-case.ts\r\n * @description Use case: Create a new task in the workspace-flow context.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add input validation with Zod schema\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport type { CreateTaskDto } from \"../dto/create-task.dto\";\r\n\r\nexport class CreateTaskUseCase {\r\n  constructor(private readonly taskRepository: TaskRepository) {}\r\n\r\n  async execute(dto: CreateTaskDto): Promise<CommandResult> {\r\n    const workspaceId = dto.workspaceId.trim();\r\n    const title = dto.title.trim();\r\n\r\n    if (!workspaceId) {\r\n      return commandFailureFrom(\"WF_TASK_WORKSPACE_REQUIRED\", \"Workspace is required.\");\r\n    }\r\n    if (!title) {\r\n      return commandFailureFrom(\"WF_TASK_TITLE_REQUIRED\", \"Task title is required.\");\r\n    }\r\n\r\n    const task = await this.taskRepository.create({ ...dto, workspaceId, title });\r\n    return commandSuccess(task.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\fail-issue-retest.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file fail-issue-retest.use-case.ts\r\n * @description Use case: Fail an issue's retest (retest → fixing).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueRetestFailedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\n\r\nexport class FailIssueRetestUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(issueId: string): Promise<CommandResult> {\r\n    if (!issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"fixing\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(issueId, \"fixing\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\fix-issue.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file fix-issue.use-case.ts\r\n * @description Use case: Mark an issue as being fixed (investigating → fixing).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueFixedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\n\r\nexport class FixIssueUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(issueId: string): Promise<CommandResult> {\r\n    if (!issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"fixing\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(issueId, \"fixing\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\open-issue.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file open-issue.use-case.ts\r\n * @description Use case: Open a new issue against a task.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueOpenedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport type { OpenIssueDto } from \"../dto/open-issue.dto\";\r\n\r\nexport class OpenIssueUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(dto: OpenIssueDto): Promise<CommandResult> {\r\n    if (!dto.taskId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_TASK_REQUIRED\", \"Task id is required.\");\r\n    }\r\n    if (!dto.title.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_TITLE_REQUIRED\", \"Issue title is required.\");\r\n    }\r\n    if (!dto.createdBy.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_CREATED_BY_REQUIRED\", \"Creator id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.create({\r\n      ...dto,\r\n      taskId: dto.taskId.trim(),\r\n      title: dto.title.trim(),\r\n    });\r\n    return commandSuccess(issue.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\pass-issue-retest.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file pass-issue-retest.use-case.ts\r\n * @description Use case: Pass an issue's retest (retest → resolved).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueRetestPassedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\n\r\nexport class PassIssueRetestUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(issueId: string): Promise<CommandResult> {\r\n    if (!issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"resolved\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(issueId, \"resolved\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\pass-task-qa.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file pass-task-qa.use-case.ts\r\n * @description Use case: Pass a task's QA review (qa → acceptance). Requires no open issues.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit TaskQaPassedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateTaskTransition } from \"../../domain/services/task-transition-policy\";\r\nimport { hasNoOpenIssues } from \"../../domain/services/task-guards\";\r\n\r\nexport class PassTaskQaUseCase {\r\n  constructor(\r\n    private readonly taskRepository: TaskRepository,\r\n    private readonly issueRepository: IssueRepository,\r\n  ) {}\r\n\r\n  async execute(taskId: string): Promise<CommandResult> {\r\n    if (!taskId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ID_REQUIRED\", \"Task id is required.\");\r\n    }\r\n\r\n    const task = await this.taskRepository.findById(taskId);\r\n    if (!task) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found.\");\r\n    }\r\n\r\n    const guard = evaluateTaskTransition(task.status, \"acceptance\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_TASK_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const openIssues = await this.issueRepository.countOpenByTaskId(taskId);\r\n    if (!hasNoOpenIssues(openIssues)) {\r\n      return commandFailureFrom(\r\n        \"WF_TASK_HAS_OPEN_ISSUES\",\r\n        \"Task cannot advance: there are open issues that must be resolved first.\",\r\n      );\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.taskRepository.transitionStatus(taskId, \"acceptance\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\pay-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file pay-invoice.use-case.ts\r\n * @description Use case: Mark an approved invoice as paid (approved → paid).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoicePaidEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { evaluateInvoiceTransition } from \"../../domain/services/invoice-transition-policy\";\r\n\r\nexport class PayInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n\r\n    const guard = evaluateInvoiceTransition(invoice.status, \"paid\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_INVOICE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.invoiceRepository.transitionStatus(invoiceId, \"paid\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\reject-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file reject-invoice.use-case.ts\r\n * @description Use case: Reject an invoice back to submitted (finance_review → submitted).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceRejectedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { evaluateInvoiceTransition } from \"../../domain/services/invoice-transition-policy\";\r\n\r\nexport class RejectInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n\r\n    const guard = evaluateInvoiceTransition(invoice.status, \"submitted\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_INVOICE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.invoiceRepository.transitionStatus(invoiceId, \"submitted\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\remove-invoice-item.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file remove-invoice-item.use-case.ts\r\n * @description Use case: Remove an item from a draft invoice.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceItemRemovedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { invoiceIsEditable } from \"../../domain/services/invoice-guards\";\r\n\r\nexport class RemoveInvoiceItemUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string, invoiceItemId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n    if (!invoiceItemId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ITEM_ID_REQUIRED\", \"Invoice item id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n    if (!invoiceIsEditable(invoice.status)) {\r\n      return commandFailureFrom(\r\n        \"WF_INVOICE_NOT_EDITABLE\",\r\n        \"Items can only be removed from draft invoices.\",\r\n      );\r\n    }\r\n\r\n    await this.invoiceRepository.removeItem(invoiceItemId);\r\n    return commandSuccess(invoiceItemId, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\resolve-issue.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file resolve-issue.use-case.ts\r\n * @description Use case: Resolve an issue (retest-pending → resolved).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\nimport type { ResolveIssueDto } from \"../dto/resolve-issue.dto\";\r\n\r\nexport class ResolveIssueUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(dto: ResolveIssueDto): Promise<CommandResult> {\r\n    if (!dto.issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(dto.issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"resolved\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(dto.issueId, \"resolved\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\review-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file review-invoice.use-case.ts\r\n * @description Use case: Move an invoice into finance review (submitted → finance_review).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceReviewedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { evaluateInvoiceTransition } from \"../../domain/services/invoice-transition-policy\";\r\n\r\nexport class ReviewInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n\r\n    const guard = evaluateInvoiceTransition(invoice.status, \"finance_review\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_INVOICE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.invoiceRepository.transitionStatus(invoiceId, \"finance_review\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\start-issue.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file start-issue.use-case.ts\r\n * @description Use case: Start investigating an issue (open → investigating).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueStartedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\n\r\nexport class StartIssueUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(issueId: string): Promise<CommandResult> {\r\n    if (!issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"investigating\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(issueId, \"investigating\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\submit-invoice.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file submit-invoice.use-case.ts\r\n * @description Use case: Submit an invoice for review (draft → submitted). Requires at least one item.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit InvoiceSubmittedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { evaluateInvoiceTransition } from \"../../domain/services/invoice-transition-policy\";\r\nimport { invoiceHasItems } from \"../../domain/services/invoice-guards\";\r\n\r\nexport class SubmitInvoiceUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceId: string): Promise<CommandResult> {\r\n    if (!invoiceId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ID_REQUIRED\", \"Invoice id is required.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n\r\n    const guard = evaluateInvoiceTransition(invoice.status, \"submitted\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_INVOICE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const items = await this.invoiceRepository.listItems(invoiceId);\r\n    if (!invoiceHasItems(items.length)) {\r\n      return commandFailureFrom(\r\n        \"WF_INVOICE_NO_ITEMS\",\r\n        \"Invoice cannot be submitted: at least one item is required.\",\r\n      );\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.invoiceRepository.transitionStatus(invoiceId, \"submitted\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\submit-issue-retest.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file submit-issue-retest.use-case.ts\r\n * @description Use case: Submit an issue for retest (fixing → retest).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Emit IssueRetestSubmittedEvent to event bus\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { evaluateIssueTransition } from \"../../domain/services/issue-transition-policy\";\r\n\r\nexport class SubmitIssueRetestUseCase {\r\n  constructor(private readonly issueRepository: IssueRepository) {}\r\n\r\n  async execute(issueId: string): Promise<CommandResult> {\r\n    if (!issueId.trim()) {\r\n      return commandFailureFrom(\"WF_ISSUE_ID_REQUIRED\", \"Issue id is required.\");\r\n    }\r\n\r\n    const issue = await this.issueRepository.findById(issueId);\r\n    if (!issue) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found.\");\r\n    }\r\n\r\n    const guard = evaluateIssueTransition(issue.status, \"retest\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_ISSUE_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.issueRepository.transitionStatus(issueId, \"retest\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_ISSUE_NOT_FOUND\", \"Issue not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\submit-task-to-qa.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file submit-task-to-qa.use-case.ts\r\n * @description Use case: Submit a task for QA review (in_progress → qa).\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add pre-submission checks (e.g. assignee present)\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport { evaluateTaskTransition } from \"../../domain/services/task-transition-policy\";\r\n\r\nexport class SubmitTaskToQaUseCase {\r\n  constructor(private readonly taskRepository: TaskRepository) {}\r\n\r\n  async execute(taskId: string): Promise<CommandResult> {\r\n    if (!taskId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ID_REQUIRED\", \"Task id is required.\");\r\n    }\r\n\r\n    const task = await this.taskRepository.findById(taskId);\r\n    if (!task) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found.\");\r\n    }\r\n\r\n    const guard = evaluateTaskTransition(task.status, \"qa\");\r\n    if (!guard.allowed) {\r\n      return commandFailureFrom(\"WF_TASK_INVALID_TRANSITION\", guard.reason);\r\n    }\r\n\r\n    const nowISO = new Date().toISOString();\r\n    const updated = await this.taskRepository.transitionStatus(taskId, \"qa\", nowISO);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found after transition.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\update-invoice-item.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file update-invoice-item.use-case.ts\r\n * @description Use case: Update the amount of an existing invoice item on a draft invoice.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { invoiceIsEditable } from \"../../domain/services/invoice-guards\";\r\nimport type { UpdateInvoiceItemDto } from \"../dto/update-invoice-item.dto\";\r\n\r\nexport class UpdateInvoiceItemUseCase {\r\n  constructor(private readonly invoiceRepository: InvoiceRepository) {}\r\n\r\n  async execute(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {\r\n    if (!invoiceItemId.trim()) {\r\n      return commandFailureFrom(\"WF_INVOICE_ITEM_ID_REQUIRED\", \"Invoice item id is required.\");\r\n    }\r\n    if (dto.amount <= 0) {\r\n      return commandFailureFrom(\"WF_INVOICE_AMOUNT_INVALID\", \"Amount must be greater than zero.\");\r\n    }\r\n\r\n    const item = await this.invoiceRepository.findItemById(invoiceItemId);\r\n    if (!item) {\r\n      return commandFailureFrom(\"WF_INVOICE_ITEM_NOT_FOUND\", \"Invoice item not found.\");\r\n    }\r\n\r\n    const invoice = await this.invoiceRepository.findById(item.invoiceId);\r\n    if (!invoice) {\r\n      return commandFailureFrom(\"WF_INVOICE_NOT_FOUND\", \"Invoice not found.\");\r\n    }\r\n    if (!invoiceIsEditable(invoice.status)) {\r\n      return commandFailureFrom(\r\n        \"WF_INVOICE_NOT_EDITABLE\",\r\n        \"Items can only be updated on draft invoices.\",\r\n      );\r\n    }\r\n\r\n    const updated = await this.invoiceRepository.updateItem(invoiceItemId, dto.amount);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_INVOICE_ITEM_NOT_FOUND\", \"Invoice item not found after update.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\application\\use-cases\\update-task.use-case.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/application/use-cases\r\n * @file update-task.use-case.ts\r\n * @description Use case: Update mutable fields on an existing task.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nimport { commandFailureFrom, commandSuccess, type CommandResult } from \"@shared-types\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport type { UpdateTaskDto } from \"../dto/update-task.dto\";\r\n\r\nexport class UpdateTaskUseCase {\r\n  constructor(private readonly taskRepository: TaskRepository) {}\r\n\r\n  async execute(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {\r\n    if (!taskId.trim()) {\r\n      return commandFailureFrom(\"WF_TASK_ID_REQUIRED\", \"Task id is required.\");\r\n    }\r\n\r\n    const existing = await this.taskRepository.findById(taskId);\r\n    if (!existing) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found.\");\r\n    }\r\n\r\n    const updated = await this.taskRepository.update(taskId, dto);\r\n    if (!updated) {\r\n      return commandFailureFrom(\"WF_TASK_NOT_FOUND\", \"Task not found after update.\");\r\n    }\r\n    return commandSuccess(updated.id, Date.now());\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\entities\\Invoice.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/entities\r\n * @file Invoice.ts\r\n * @description Invoice aggregate entity representing a billing record for accepted tasks.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add domain validation methods as billing rules expand\r\n */\r\n\r\nimport type { InvoiceStatus } from \"../value-objects/InvoiceStatus\";\r\n\r\n// ── Aggregate ─────────────────────────────────────────────────────────────────\r\n\r\nexport interface Invoice {\r\n  readonly id: string;\r\n  readonly workspaceId: string;\r\n  readonly status: InvoiceStatus;\r\n  readonly totalAmount: number;\r\n  readonly submittedAtISO?: string;\r\n  readonly approvedAtISO?: string;\r\n  readonly paidAtISO?: string;\r\n  readonly closedAtISO?: string;\r\n  readonly createdAtISO: string;\r\n  readonly updatedAtISO: string;\r\n}\r\n\r\n// ── Inputs ────────────────────────────────────────────────────────────────────\r\n\r\nexport interface CreateInvoiceInput {\r\n  readonly workspaceId: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\entities\\InvoiceItem.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/entities\r\n * @file InvoiceItem.ts\r\n * @description InvoiceItem entity linking a task to an invoice with an amount.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add domain validation methods as billing rules expand\r\n */\r\n\r\n// ── Entity ────────────────────────────────────────────────────────────────────\r\n\r\nexport interface InvoiceItem {\r\n  readonly id: string;\r\n  readonly invoiceId: string;\r\n  readonly taskId: string;\r\n  readonly amount: number;\r\n  readonly createdAtISO: string;\r\n  readonly updatedAtISO: string;\r\n}\r\n\r\n// ── Inputs ────────────────────────────────────────────────────────────────────\r\n\r\nexport interface AddInvoiceItemInput {\r\n  readonly invoiceId: string;\r\n  readonly taskId: string;\r\n  readonly amount: number;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\entities\\Issue.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/entities\r\n * @file Issue.ts\r\n * @description Issue aggregate entity representing a defect or anomaly raised during workflow.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add domain validation methods as business rules expand\r\n */\r\n\r\nimport type { IssueStatus } from \"../value-objects/IssueStatus\";\r\nimport type { IssueStage } from \"../value-objects/IssueStage\";\r\n\r\n// ── Aggregate ─────────────────────────────────────────────────────────────────\r\n\r\nexport interface Issue {\r\n  readonly id: string;\r\n  readonly taskId: string;\r\n  /** Which stage of the task workflow this issue was raised in. */\r\n  readonly stage: IssueStage;\r\n  readonly title: string;\r\n  readonly description: string;\r\n  readonly status: IssueStatus;\r\n  readonly createdBy: string;\r\n  readonly assignedTo?: string;\r\n  readonly resolvedAtISO?: string;\r\n  readonly createdAtISO: string;\r\n  readonly updatedAtISO: string;\r\n}\r\n\r\n// ── Inputs ────────────────────────────────────────────────────────────────────\r\n\r\nexport interface OpenIssueInput {\r\n  readonly taskId: string;\r\n  readonly stage: IssueStage;\r\n  readonly title: string;\r\n  readonly description?: string;\r\n  readonly createdBy: string;\r\n  readonly assignedTo?: string;\r\n}\r\n\r\nexport interface UpdateIssueInput {\r\n  readonly title?: string;\r\n  readonly description?: string;\r\n  readonly assignedTo?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\entities\\Task.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/entities\r\n * @file Task.ts\r\n * @description Task aggregate entity representing a work unit and its lifecycle.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add domain validation methods as business rules expand\r\n */\r\n\r\nimport type { TaskStatus } from \"../value-objects/TaskStatus\";\r\n\r\n// ── Aggregate ─────────────────────────────────────────────────────────────────\r\n\r\nexport interface Task {\r\n  readonly id: string;\r\n  readonly workspaceId: string;\r\n  readonly title: string;\r\n  readonly description: string;\r\n  readonly status: TaskStatus;\r\n  readonly assigneeId?: string;\r\n  readonly dueDateISO?: string;\r\n  readonly acceptedAtISO?: string;\r\n  readonly archivedAtISO?: string;\r\n  readonly createdAtISO: string;\r\n  readonly updatedAtISO: string;\r\n}\r\n\r\n// ── Inputs ────────────────────────────────────────────────────────────────────\r\n\r\nexport interface CreateTaskInput {\r\n  readonly workspaceId: string;\r\n  readonly title: string;\r\n  readonly description?: string;\r\n  readonly assigneeId?: string;\r\n  readonly dueDateISO?: string;\r\n}\r\n\r\nexport interface UpdateTaskInput {\r\n  readonly title?: string;\r\n  readonly description?: string;\r\n  readonly assigneeId?: string;\r\n  readonly dueDateISO?: string;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\events\\InvoiceEvent.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/events\r\n * @file InvoiceEvent.ts\r\n * @description Discriminated-union event types emitted by the Invoice aggregate.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Wire to event bus via @/modules/event IEventBusRepository\r\n */\r\n\r\nimport type { InvoiceStatus } from \"../value-objects/InvoiceStatus\";\r\n\r\n// ── Individual event shapes ───────────────────────────────────────────────────\r\n\r\nexport interface InvoiceCreatedEvent {\r\n  readonly type: \"workspace-flow.invoice.created\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceItemAddedEvent {\r\n  readonly type: \"workspace-flow.invoice.item_added\";\r\n  readonly invoiceId: string;\r\n  readonly invoiceItemId: string;\r\n  readonly taskId: string;\r\n  readonly amount: number;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceItemRemovedEvent {\r\n  readonly type: \"workspace-flow.invoice.item_removed\";\r\n  readonly invoiceId: string;\r\n  readonly invoiceItemId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceSubmittedEvent {\r\n  readonly type: \"workspace-flow.invoice.submitted\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly submittedAtISO: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceReviewedEvent {\r\n  readonly type: \"workspace-flow.invoice.reviewed\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceApprovedEvent {\r\n  readonly type: \"workspace-flow.invoice.approved\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly approvedAtISO: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceRejectedEvent {\r\n  readonly type: \"workspace-flow.invoice.rejected\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoicePaidEvent {\r\n  readonly type: \"workspace-flow.invoice.paid\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly paidAtISO: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceClosedEvent {\r\n  readonly type: \"workspace-flow.invoice.closed\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly closedAtISO: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface InvoiceStatusChangedEvent {\r\n  readonly type: \"workspace-flow.invoice.status_changed\";\r\n  readonly invoiceId: string;\r\n  readonly workspaceId: string;\r\n  readonly from: InvoiceStatus;\r\n  readonly to: InvoiceStatus;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\n// ── Discriminated union ───────────────────────────────────────────────────────\r\n\r\nexport type InvoiceEvent =\r\n  | InvoiceCreatedEvent\r\n  | InvoiceItemAddedEvent\r\n  | InvoiceItemRemovedEvent\r\n  | InvoiceSubmittedEvent\r\n  | InvoiceReviewedEvent\r\n  | InvoiceApprovedEvent\r\n  | InvoiceRejectedEvent\r\n  | InvoicePaidEvent\r\n  | InvoiceClosedEvent\r\n  | InvoiceStatusChangedEvent;\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\events\\IssueEvent.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/events\r\n * @file IssueEvent.ts\r\n * @description Discriminated-union event types emitted by the Issue aggregate.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Wire to event bus via @/modules/event IEventBusRepository\r\n */\r\n\r\nimport type { IssueStatus } from \"../value-objects/IssueStatus\";\r\nimport type { IssueStage } from \"../value-objects/IssueStage\";\r\n\r\n// ── Individual event shapes ───────────────────────────────────────────────────\r\n\r\nexport interface IssueOpenedEvent {\r\n  readonly type: \"workspace-flow.issue.opened\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly stage: IssueStage;\r\n  readonly createdBy: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueStartedEvent {\r\n  readonly type: \"workspace-flow.issue.started\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueFixedEvent {\r\n  readonly type: \"workspace-flow.issue.fixed\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueRetestSubmittedEvent {\r\n  readonly type: \"workspace-flow.issue.retest_submitted\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueRetestPassedEvent {\r\n  readonly type: \"workspace-flow.issue.retest_passed\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly stage: IssueStage;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueRetestFailedEvent {\r\n  readonly type: \"workspace-flow.issue.retest_failed\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueClosedEvent {\r\n  readonly type: \"workspace-flow.issue.closed\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface IssueStatusChangedEvent {\r\n  readonly type: \"workspace-flow.issue.status_changed\";\r\n  readonly issueId: string;\r\n  readonly taskId: string;\r\n  readonly from: IssueStatus;\r\n  readonly to: IssueStatus;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\n// ── Discriminated union ───────────────────────────────────────────────────────\r\n\r\nexport type IssueEvent =\r\n  | IssueOpenedEvent\r\n  | IssueStartedEvent\r\n  | IssueFixedEvent\r\n  | IssueRetestSubmittedEvent\r\n  | IssueRetestPassedEvent\r\n  | IssueRetestFailedEvent\r\n  | IssueClosedEvent\r\n  | IssueStatusChangedEvent;\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\events\\TaskEvent.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/events\r\n * @file TaskEvent.ts\r\n * @description Discriminated-union event types emitted by the Task aggregate.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Wire to event bus via @/modules/event IEventBusRepository\r\n */\r\n\r\nimport type { TaskStatus } from \"../value-objects/TaskStatus\";\r\n\r\n// ── Individual event shapes ───────────────────────────────────────────────────\r\n\r\nexport interface TaskCreatedEvent {\r\n  readonly type: \"workspace-flow.task.created\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly title: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface TaskAssignedEvent {\r\n  readonly type: \"workspace-flow.task.assigned\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly assigneeId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface TaskSubmittedToQaEvent {\r\n  readonly type: \"workspace-flow.task.submitted_to_qa\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface TaskQaPassedEvent {\r\n  readonly type: \"workspace-flow.task.qa_passed\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface TaskAcceptanceApprovedEvent {\r\n  readonly type: \"workspace-flow.task.acceptance_approved\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly acceptedAtISO: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface TaskArchivedEvent {\r\n  readonly type: \"workspace-flow.task.archived\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly archivedAtISO: string;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\nexport interface TaskStatusChangedEvent {\r\n  readonly type: \"workspace-flow.task.status_changed\";\r\n  readonly taskId: string;\r\n  readonly workspaceId: string;\r\n  readonly from: TaskStatus;\r\n  readonly to: TaskStatus;\r\n  readonly occurredAtISO: string;\r\n}\r\n\r\n// ── Discriminated union ───────────────────────────────────────────────────────\r\n\r\nexport type TaskEvent =\r\n  | TaskCreatedEvent\r\n  | TaskAssignedEvent\r\n  | TaskSubmittedToQaEvent\r\n  | TaskQaPassedEvent\r\n  | TaskAcceptanceApprovedEvent\r\n  | TaskArchivedEvent\r\n  | TaskStatusChangedEvent;\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\repositories\\InvoiceRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/repositories\r\n * @file InvoiceRepository.ts\r\n * @description Repository port interface for Invoice persistence.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Implement in infrastructure/repositories/FirebaseInvoiceRepository\r\n */\r\n\r\nimport type { Invoice, CreateInvoiceInput } from \"../entities/Invoice\";\r\nimport type { InvoiceItem, AddInvoiceItemInput } from \"../entities/InvoiceItem\";\r\nimport type { InvoiceStatus } from \"../value-objects/InvoiceStatus\";\r\n\r\nexport interface InvoiceRepository {\r\n  /** Persist a new invoice and return the created aggregate. */\r\n  create(input: CreateInvoiceInput): Promise<Invoice>;\r\n  /** Hard-delete an invoice by id. */\r\n  delete(invoiceId: string): Promise<void>;\r\n  /** Retrieve an invoice by its id. Returns null if not found. */\r\n  findById(invoiceId: string): Promise<Invoice | null>;\r\n  /** List all invoices for a given workspace. */\r\n  findByWorkspaceId(workspaceId: string): Promise<Invoice[]>;\r\n  /** Persist a lifecycle status transition and stamp relevant timestamp. */\r\n  transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<Invoice | null>;\r\n  /** Add an item to an invoice and recalculate totalAmount. */\r\n  addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>;\r\n  /** Retrieve a single invoice item by its id. Returns null if not found. */\r\n  findItemById(invoiceItemId: string): Promise<InvoiceItem | null>;\r\n  /** Update the amount of an existing item and recalculate totalAmount. Returns null if not found. */\r\n  updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>;\r\n  /** Remove an item from an invoice and recalculate totalAmount. */\r\n  removeItem(invoiceItemId: string): Promise<void>;\r\n  /** List all items for an invoice. */\r\n  listItems(invoiceId: string): Promise<InvoiceItem[]>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\repositories\\IssueRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/repositories\r\n * @file IssueRepository.ts\r\n * @description Repository port interface for Issue persistence.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Implement in infrastructure/repositories/FirebaseIssueRepository\r\n */\r\n\r\nimport type { Issue, OpenIssueInput, UpdateIssueInput } from \"../entities/Issue\";\r\nimport type { IssueStatus } from \"../value-objects/IssueStatus\";\r\n\r\nexport interface IssueRepository {\r\n  /** Persist a new issue and return the created aggregate. */\r\n  create(input: OpenIssueInput): Promise<Issue>;\r\n  /** Update mutable fields on an existing issue. Returns null if not found. */\r\n  update(issueId: string, input: UpdateIssueInput): Promise<Issue | null>;\r\n  /** Hard-delete an issue by id. */\r\n  delete(issueId: string): Promise<void>;\r\n  /** Retrieve an issue by its id. Returns null if not found. */\r\n  findById(issueId: string): Promise<Issue | null>;\r\n  /** List all issues for a given task. */\r\n  findByTaskId(taskId: string): Promise<Issue[]>;\r\n  /** Count open issues for a given task (used in guard conditions). */\r\n  countOpenByTaskId(taskId: string): Promise<number>;\r\n  /** Persist a lifecycle status transition and stamp resolvedAtISO if to===\"resolved\". */\r\n  transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\repositories\\TaskRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/repositories\r\n * @file TaskRepository.ts\r\n * @description Repository port interface for Task persistence.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Implement in infrastructure/repositories/FirebaseTaskRepository\r\n */\r\n\r\nimport type { Task, CreateTaskInput, UpdateTaskInput } from \"../entities/Task\";\r\nimport type { TaskStatus } from \"../value-objects/TaskStatus\";\r\n\r\nexport interface TaskRepository {\r\n  /** Persist a new task and return the created aggregate. */\r\n  create(input: CreateTaskInput): Promise<Task>;\r\n  /** Update mutable fields on an existing task. Returns null if not found. */\r\n  update(taskId: string, input: UpdateTaskInput): Promise<Task | null>;\r\n  /** Hard-delete a task by id. */\r\n  delete(taskId: string): Promise<void>;\r\n  /** Retrieve a task by its id. Returns null if not found. */\r\n  findById(taskId: string): Promise<Task | null>;\r\n  /** List all tasks belonging to a workspace, ordered by updatedAtISO desc. */\r\n  findByWorkspaceId(workspaceId: string): Promise<Task[]>;\r\n  /** Persist a lifecycle status transition and stamp acceptedAtISO / archivedAtISO as appropriate. */\r\n  transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\services\\invoice-guards.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/services\r\n * @file invoice-guards.ts\r\n * @description Pure domain guards for invoice lifecycle invariants.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add guards for additional billing invariants as rules evolve\r\n */\r\n\r\n// ── Guard: item count > 0 before submit ───────────────────────────────────────\r\n\r\n/**\r\n * Asserts that an invoice has at least one item before allowing submission.\r\n *\r\n * @param itemCount - Number of items currently on the invoice\r\n * @returns true if the invoice may be submitted; false if it has no items\r\n */\r\nexport function invoiceHasItems(itemCount: number): boolean {\r\n  return itemCount > 0;\r\n}\r\n\r\n// ── Guard: invoice is in draft before item mutation ───────────────────────────\r\n\r\n/**\r\n * Asserts that an invoice is in draft status before allowing item add/remove.\r\n *\r\n * @param status - Current invoice status\r\n * @returns true if items may be mutated; false otherwise\r\n */\r\nexport function invoiceIsEditable(status: string): boolean {\r\n  return status === \"draft\";\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\services\\invoice-transition-policy.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/services\r\n * @file invoice-transition-policy.ts\r\n * @description Pure domain service encapsulating allowed Invoice status transitions.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Expand with additional guard conditions as billing rules evolve\r\n */\r\n\r\nimport { canTransitionInvoiceStatus, type InvoiceStatus } from \"../value-objects/InvoiceStatus\";\r\n\r\nexport type InvoiceTransitionResult =\r\n  | { allowed: true }\r\n  | { allowed: false; reason: string };\r\n\r\n/**\r\n * Evaluates whether an invoice lifecycle transition is permitted.\r\n *\r\n * @param from - Current invoice status\r\n * @param to   - Requested next status\r\n * @returns InvoiceTransitionResult indicating whether the transition is allowed\r\n */\r\nexport function evaluateInvoiceTransition(\r\n  from: InvoiceStatus,\r\n  to: InvoiceStatus,\r\n): InvoiceTransitionResult {\r\n  if (!canTransitionInvoiceStatus(from, to)) {\r\n    return {\r\n      allowed: false,\r\n      reason: `Invoice transition from \"${from}\" to \"${to}\" is not permitted.`,\r\n    };\r\n  }\r\n  return { allowed: true };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\services\\issue-transition-policy.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/services\r\n * @file issue-transition-policy.ts\r\n * @description Pure domain service encapsulating allowed Issue status transitions.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Expand with additional guard conditions as business rules evolve\r\n */\r\n\r\nimport { canTransitionIssueStatus, type IssueStatus } from \"../value-objects/IssueStatus\";\r\n\r\nexport type IssueTransitionResult =\r\n  | { allowed: true }\r\n  | { allowed: false; reason: string };\r\n\r\n/**\r\n * Evaluates whether an issue lifecycle transition is permitted.\r\n *\r\n * @param from - Current issue status\r\n * @param to   - Requested next status\r\n * @returns IssueTransitionResult indicating whether the transition is allowed\r\n */\r\nexport function evaluateIssueTransition(\r\n  from: IssueStatus,\r\n  to: IssueStatus,\r\n): IssueTransitionResult {\r\n  if (!canTransitionIssueStatus(from, to)) {\r\n    return {\r\n      allowed: false,\r\n      reason: `Issue transition from \"${from}\" to \"${to}\" is not permitted.`,\r\n    };\r\n  }\r\n  return { allowed: true };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\services\\task-guards.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/services\r\n * @file task-guards.ts\r\n * @description Pure domain guards for task lifecycle invariants.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add guards for additional business invariants as rules evolve\r\n */\r\n\r\n// ── Guard: no open issues ─────────────────────────────────────────────────────\r\n\r\n/**\r\n * Asserts that a task has no open issues before allowing QA-pass or acceptance-approve.\r\n *\r\n * @param openIssueCount - The number of open issues currently linked to the task\r\n * @returns true if the task may proceed; false if blocked by open issues\r\n */\r\nexport function hasNoOpenIssues(openIssueCount: number): boolean {\r\n  return openIssueCount === 0;\r\n}\r\n\r\n// ── Guard: invoice closed or none ─────────────────────────────────────────────\r\n\r\n/**\r\n * Asserts that any linked invoice is closed (or none exists) before allowing archive.\r\n *\r\n * @param invoiceStatus - The status of the linked invoice, or undefined if none\r\n * @returns true if the task may be archived; false if blocked by an active invoice\r\n */\r\nexport function invoiceAllowsArchive(\r\n  invoiceStatus: string | undefined,\r\n): boolean {\r\n  if (invoiceStatus === undefined) return true;\r\n  return invoiceStatus === \"closed\";\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\services\\task-transition-policy.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/services\r\n * @file task-transition-policy.ts\r\n * @description Pure domain service encapsulating allowed Task status transitions.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Expand with multi-branch transitions if workflow rules evolve\r\n */\r\n\r\nimport { canTransitionTaskStatus, type TaskStatus } from \"../value-objects/TaskStatus\";\r\n\r\nexport type TaskTransitionResult =\r\n  | { allowed: true }\r\n  | { allowed: false; reason: string };\r\n\r\n/**\r\n * Evaluates whether a task lifecycle transition is permitted.\r\n *\r\n * @param from - Current task status\r\n * @param to   - Requested next status\r\n * @returns TaskTransitionResult indicating whether the transition is allowed\r\n */\r\nexport function evaluateTaskTransition(\r\n  from: TaskStatus,\r\n  to: TaskStatus,\r\n): TaskTransitionResult {\r\n  if (!canTransitionTaskStatus(from, to)) {\r\n    return {\r\n      allowed: false,\r\n      reason: `Task transition from \"${from}\" to \"${to}\" is not permitted.`,\r\n    };\r\n  }\r\n  return { allowed: true };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\InvoiceId.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1},{"ruleId":"@typescript-eslint/naming-convention","severity":1,"message":"Variable name `__invoiceIdBrand` trimmed as `_invoiceIdBrand` must match one of the following formats: camelCase, PascalCase, UPPER_CASE","line":10,"column":15,"nodeType":"Identifier","messageId":"doesNotMatchFormatTrimmed","endLine":10,"endColumn":46}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file InvoiceId.ts\r\n * @description Branded string value object for Invoice identifiers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Consider using a stronger opaque type if ID generation logic is added\r\n */\r\n\r\ndeclare const __invoiceIdBrand: unique symbol;\r\n\r\n/** Branded string that prevents mixing Invoice IDs with other string IDs. */\r\nexport type InvoiceId = string & { readonly [__invoiceIdBrand]: void };\r\n\r\n/** Creates an InvoiceId from a plain string (e.g. a Firestore document ID). */\r\nexport function invoiceId(raw: string): InvoiceId {\r\n  return raw as InvoiceId;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\InvoiceItemId.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1},{"ruleId":"@typescript-eslint/naming-convention","severity":1,"message":"Variable name `__invoiceItemIdBrand` trimmed as `_invoiceItemIdBrand` must match one of the following formats: camelCase, PascalCase, UPPER_CASE","line":10,"column":15,"nodeType":"Identifier","messageId":"doesNotMatchFormatTrimmed","endLine":10,"endColumn":50}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file InvoiceItemId.ts\r\n * @description Branded string value object for InvoiceItem identifiers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Consider using a stronger opaque type if ID generation logic is added\r\n */\r\n\r\ndeclare const __invoiceItemIdBrand: unique symbol;\r\n\r\n/** Branded string that prevents mixing InvoiceItem IDs with other string IDs. */\r\nexport type InvoiceItemId = string & { readonly [__invoiceItemIdBrand]: void };\r\n\r\n/** Creates an InvoiceItemId from a plain string (e.g. a Firestore document ID). */\r\nexport function invoiceItemId(raw: string): InvoiceItemId {\r\n  return raw as InvoiceItemId;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\InvoiceStatus.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file InvoiceStatus.ts\r\n * @description Invoice lifecycle status union, transition table, and helpers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add additional transition guards as billing rules evolve\r\n */\r\n\r\n// ── Status ─────────────────────────────────────────────────────────────────────\r\n\r\nexport type InvoiceStatus =\r\n  | \"draft\"\r\n  | \"submitted\"\r\n  | \"finance_review\"\r\n  | \"approved\"\r\n  | \"paid\"\r\n  | \"closed\";\r\n\r\nexport const INVOICE_STATUSES = [\r\n  \"draft\",\r\n  \"submitted\",\r\n  \"finance_review\",\r\n  \"approved\",\r\n  \"paid\",\r\n  \"closed\",\r\n] as const satisfies readonly InvoiceStatus[];\r\n\r\n// ── Transition table ──────────────────────────────────────────────────────────\r\n\r\n/**\r\n * Multi-successor transition map for invoice lifecycle.\r\n *\r\n * draft → submitted (SUBMIT / item_count > 0)\r\n * submitted → finance_review (REVIEW)\r\n * finance_review → approved (APPROVE)\r\n * finance_review → submitted (REJECT — back to submitted for resubmission)\r\n * approved → paid (PAY)\r\n * paid → closed (CLOSE)\r\n */\r\nconst INVOICE_NEXT: Readonly<Record<InvoiceStatus, readonly InvoiceStatus[]>> = {\r\n  draft: [\"submitted\"],\r\n  submitted: [\"finance_review\"],\r\n  finance_review: [\"approved\", \"submitted\"],\r\n  approved: [\"paid\"],\r\n  paid: [\"closed\"],\r\n  closed: [],\r\n};\r\n\r\n/** Returns true if moving from `from` to `to` is a valid transition. */\r\nexport function canTransitionInvoiceStatus(from: InvoiceStatus, to: InvoiceStatus): boolean {\r\n  return INVOICE_NEXT[from].includes(to);\r\n}\r\n\r\n/** Returns true when the invoice has reached a terminal state and cannot progress. */\r\nexport function isTerminalInvoiceStatus(status: InvoiceStatus): boolean {\r\n  return INVOICE_NEXT[status].length === 0;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\IssueId.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1},{"ruleId":"@typescript-eslint/naming-convention","severity":1,"message":"Variable name `__issueIdBrand` trimmed as `_issueIdBrand` must match one of the following formats: camelCase, PascalCase, UPPER_CASE","line":10,"column":15,"nodeType":"Identifier","messageId":"doesNotMatchFormatTrimmed","endLine":10,"endColumn":44}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file IssueId.ts\r\n * @description Branded string value object for Issue identifiers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Consider using a stronger opaque type if ID generation logic is added\r\n */\r\n\r\ndeclare const __issueIdBrand: unique symbol;\r\n\r\n/** Branded string that prevents mixing Issue IDs with other string IDs. */\r\nexport type IssueId = string & { readonly [__issueIdBrand]: void };\r\n\r\n/** Creates an IssueId from a plain string (e.g. a Firestore document ID). */\r\nexport function issueId(raw: string): IssueId {\r\n  return raw as IssueId;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\IssueStage.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file IssueStage.ts\r\n * @description Cross-domain stage reference indicating at which task-flow stage an issue was raised.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Extend stage list if workflow introduces additional stages\r\n */\r\n\r\n// ── IssueStage ─────────────────────────────────────────────────────────────────\r\n\r\n/**\r\n * Indicates which stage of the task workflow this issue was raised in.\r\n * Used to route issue resolution back to the originating workflow step.\r\n */\r\nexport type IssueStage = \"task\" | \"qa\" | \"acceptance\";\r\n\r\nexport const ISSUE_STAGES = [\r\n  \"task\",\r\n  \"qa\",\r\n  \"acceptance\",\r\n] as const satisfies readonly IssueStage[];\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\IssueStatus.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file IssueStatus.ts\r\n * @description Issue lifecycle status union, multi-successor transition table, and helpers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add additional transition guards as business rules evolve\r\n */\r\n\r\n// ── Status ─────────────────────────────────────────────────────────────────────\r\n\r\nexport type IssueStatus =\r\n  | \"open\"\r\n  | \"investigating\"\r\n  | \"fixing\"\r\n  | \"retest\"\r\n  | \"resolved\"\r\n  | \"closed\";\r\n\r\nexport const ISSUE_STATUSES = [\r\n  \"open\",\r\n  \"investigating\",\r\n  \"fixing\",\r\n  \"retest\",\r\n  \"resolved\",\r\n  \"closed\",\r\n] as const satisfies readonly IssueStatus[];\r\n\r\n// ── Transition table ──────────────────────────────────────────────────────────\r\n\r\n/**\r\n * Multi-successor transition map for issue lifecycle.\r\n *\r\n * open → investigating (START)\r\n * investigating → fixing (FIX)\r\n * fixing → retest (SUBMIT_RETEST)\r\n * retest → resolved (PASS_RETEST)\r\n * retest → fixing (FAIL_RETEST — back-edge within the Issue fix cycle)\r\n * resolved → closed (CLOSE)\r\n */\r\nconst ISSUE_NEXT: Readonly<Record<IssueStatus, readonly IssueStatus[]>> = {\r\n  open: [\"investigating\"],\r\n  investigating: [\"fixing\"],\r\n  fixing: [\"retest\"],\r\n  retest: [\"resolved\", \"fixing\"],\r\n  resolved: [\"closed\"],\r\n  closed: [],\r\n};\r\n\r\n/** Returns true if moving from `from` to `to` is a valid transition. */\r\nexport function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): boolean {\r\n  return ISSUE_NEXT[from].includes(to);\r\n}\r\n\r\n/** Returns true when the issue has reached a terminal state and cannot progress. */\r\nexport function isTerminalIssueStatus(status: IssueStatus): boolean {\r\n  return ISSUE_NEXT[status].length === 0;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\TaskId.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1},{"ruleId":"@typescript-eslint/naming-convention","severity":1,"message":"Variable name `__taskIdBrand` trimmed as `_taskIdBrand` must match one of the following formats: camelCase, PascalCase, UPPER_CASE","line":10,"column":15,"nodeType":"Identifier","messageId":"doesNotMatchFormatTrimmed","endLine":10,"endColumn":43}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file TaskId.ts\r\n * @description Branded string value object for Task identifiers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Consider using a stronger opaque type if ID generation logic is added\r\n */\r\n\r\ndeclare const __taskIdBrand: unique symbol;\r\n\r\n/** Branded string that prevents mixing Task IDs with other string IDs. */\r\nexport type TaskId = string & { readonly [__taskIdBrand]: void };\r\n\r\n/** Creates a TaskId from a plain string (e.g. a Firestore document ID). */\r\nexport function taskId(raw: string): TaskId {\r\n  return raw as TaskId;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\TaskStatus.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file TaskStatus.ts\r\n * @description Task lifecycle status union, transition table, and pure helper functions.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add additional transition guards as business rules evolve\r\n */\r\n\r\n// ── Status ─────────────────────────────────────────────────────────────────────\r\n\r\nexport type TaskStatus =\r\n  | \"draft\"\r\n  | \"in_progress\"\r\n  | \"qa\"\r\n  | \"acceptance\"\r\n  | \"accepted\"\r\n  | \"archived\";\r\n\r\n/** Ordered tuple used by Zod schemas (z.enum needs a const tuple). */\r\nexport const TASK_STATUSES = [\r\n  \"draft\",\r\n  \"in_progress\",\r\n  \"qa\",\r\n  \"acceptance\",\r\n  \"accepted\",\r\n  \"archived\",\r\n] as const satisfies readonly TaskStatus[];\r\n\r\n// ── Transition table ──────────────────────────────────────────────────────────\r\n\r\n/**\r\n * Maps each status to its single valid successor (null = terminal).\r\n *\r\n * The flow is intentionally forward-only.\r\n * draft → in_progress (ASSIGN)\r\n * in_progress → qa (SUBMIT_QA)\r\n * qa → acceptance (PASS_QA)\r\n * acceptance → accepted (APPROVE_ACCEPTANCE)\r\n * accepted → archived (ARCHIVE)\r\n */\r\nconst TASK_NEXT: Readonly<Record<TaskStatus, TaskStatus | null>> = {\r\n  draft: \"in_progress\",\r\n  in_progress: \"qa\",\r\n  qa: \"acceptance\",\r\n  acceptance: \"accepted\",\r\n  accepted: \"archived\",\r\n  archived: null,\r\n};\r\n\r\n/** Returns true if moving from `from` to `to` is a valid forward transition. */\r\nexport function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean {\r\n  return TASK_NEXT[from] === to;\r\n}\r\n\r\n/** Returns the next status in the main flow, or null if already terminal. */\r\nexport function nextTaskStatus(current: TaskStatus): TaskStatus | null {\r\n  return TASK_NEXT[current];\r\n}\r\n\r\n/** Returns true when the task has reached a terminal state and cannot progress. */\r\nexport function isTerminalTaskStatus(status: TaskStatus): boolean {\r\n  return TASK_NEXT[status] === null;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\domain\\value-objects\\UserId.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1},{"ruleId":"@typescript-eslint/naming-convention","severity":1,"message":"Variable name `__userIdBrand` trimmed as `_userIdBrand` must match one of the following formats: camelCase, PascalCase, UPPER_CASE","line":10,"column":15,"nodeType":"Identifier","messageId":"doesNotMatchFormatTrimmed","endLine":10,"endColumn":43}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/domain/value-objects\r\n * @file UserId.ts\r\n * @description Branded string value object for User identifiers.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Consider using a stronger opaque type if ID generation logic is added\r\n */\r\n\r\ndeclare const __userIdBrand: unique symbol;\r\n\r\n/** Branded string that prevents mixing User IDs with other string IDs. */\r\nexport type UserId = string & { readonly [__userIdBrand]: void };\r\n\r\n/** Creates a UserId from a plain string (e.g. a Firebase Auth UID). */\r\nexport function userId(raw: string): UserId {\r\n  return raw as UserId;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\index.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":10,"column":1,"nodeType":"Block","endLine":10,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow\r\n * @file index.ts\r\n * @description Local module barrel for workspace-flow.\r\n *\r\n * This file is for same-module convenience only.\r\n * Cross-module consumers MUST import from @/modules/workspace-flow/api instead.\r\n *\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\n// ── Domain: entities ──────────────────────────────────────────────────────────\r\nexport type { Task, CreateTaskInput, UpdateTaskInput } from \"./domain/entities/Task\";\r\nexport type { Issue, OpenIssueInput, UpdateIssueInput } from \"./domain/entities/Issue\";\r\nexport type { Invoice, CreateInvoiceInput } from \"./domain/entities/Invoice\";\r\nexport type { InvoiceItem, AddInvoiceItemInput } from \"./domain/entities/InvoiceItem\";\r\n\r\n// ── Domain: value objects (enum lists only — no XState helpers) ───────────────\r\nexport type { TaskStatus } from \"./domain/value-objects/TaskStatus\";\r\nexport { TASK_STATUSES } from \"./domain/value-objects/TaskStatus\";\r\n\r\nexport type { IssueStatus } from \"./domain/value-objects/IssueStatus\";\r\nexport { ISSUE_STATUSES } from \"./domain/value-objects/IssueStatus\";\r\n\r\nexport type { IssueStage } from \"./domain/value-objects/IssueStage\";\r\nexport { ISSUE_STAGES } from \"./domain/value-objects/IssueStage\";\r\n\r\nexport type { InvoiceStatus } from \"./domain/value-objects/InvoiceStatus\";\r\nexport { INVOICE_STATUSES } from \"./domain/value-objects/InvoiceStatus\";\r\n\r\n// ── Domain: repository interfaces ─────────────────────────────────────────────\r\nexport type { TaskRepository } from \"./domain/repositories/TaskRepository\";\r\nexport type { IssueRepository } from \"./domain/repositories/IssueRepository\";\r\nexport type { InvoiceRepository } from \"./domain/repositories/InvoiceRepository\";\r\n\r\n// ── Domain: events ────────────────────────────────────────────────────────────\r\nexport type { TaskEvent } from \"./domain/events/TaskEvent\";\r\nexport type { IssueEvent } from \"./domain/events/IssueEvent\";\r\nexport type { InvoiceEvent } from \"./domain/events/InvoiceEvent\";\r\n\r\n// ── Application: DTOs ─────────────────────────────────────────────────────────\r\nexport type { CreateTaskDto } from \"./application/dto/create-task.dto\";\r\nexport type { UpdateTaskDto } from \"./application/dto/update-task.dto\";\r\nexport type { OpenIssueDto } from \"./application/dto/open-issue.dto\";\r\nexport type { ResolveIssueDto } from \"./application/dto/resolve-issue.dto\";\r\nexport type { AddInvoiceItemDto } from \"./application/dto/add-invoice-item.dto\";\r\nexport type { UpdateInvoiceItemDto } from \"./application/dto/update-invoice-item.dto\";\r\nexport type { RemoveInvoiceItemDto } from \"./application/dto/remove-invoice-item.dto\";\r\nexport type { TaskQueryDto } from \"./application/dto/task-query.dto\";\r\nexport type { IssueQueryDto } from \"./application/dto/issue-query.dto\";\r\nexport type { InvoiceQueryDto } from \"./application/dto/invoice-query.dto\";\r\nexport type { PaginationDto, PagedResult } from \"./application/dto/pagination.dto\";\r\n\r\n// ── API: Facade ───────────────────────────────────────────────────────────────\r\nexport { WorkspaceFlowFacade } from \"./api/workspace-flow.facade\";\r\n\r\n// ── Infrastructure: repositories ──────────────────────────────────────────────\r\nexport { FirebaseTaskRepository } from \"./infrastructure/repositories/FirebaseTaskRepository\";\r\nexport { FirebaseIssueRepository } from \"./infrastructure/repositories/FirebaseIssueRepository\";\r\nexport { FirebaseInvoiceRepository } from \"./infrastructure/repositories/FirebaseInvoiceRepository\";\r\nexport { FirebaseInvoiceItemRepository } from \"./infrastructure/repositories/FirebaseInvoiceItemRepository\";\r\n\r\n// ── Interfaces: Server Actions ────────────────────────────────────────────────\r\nexport {\r\n  wfCreateTask,\r\n  wfUpdateTask,\r\n  wfAssignTask,\r\n  wfSubmitTaskToQa,\r\n  wfPassTaskQa,\r\n  wfApproveTaskAcceptance,\r\n  wfArchiveTask,\r\n  wfOpenIssue,\r\n  wfResolveIssue,\r\n  wfStartIssue,\r\n  wfFixIssue,\r\n  wfSubmitIssueRetest,\r\n  wfPassIssueRetest,\r\n  wfFailIssueRetest,\r\n  wfCloseIssue,\r\n  wfCreateInvoice,\r\n  wfAddInvoiceItem,\r\n  wfUpdateInvoiceItem,\r\n  wfRemoveInvoiceItem,\r\n  wfSubmitInvoice,\r\n  wfReviewInvoice,\r\n  wfApproveInvoice,\r\n  wfRejectInvoice,\r\n  wfPayInvoice,\r\n  wfCloseInvoice,\r\n} from \"./interfaces/_actions/workspace-flow.actions\";\r\n\r\n// ── Interfaces: Queries ───────────────────────────────────────────────────────\r\nexport {\r\n  getWorkspaceFlowTasks,\r\n  getWorkspaceFlowTask,\r\n  getWorkspaceFlowIssues,\r\n  getWorkspaceFlowInvoices,\r\n  getWorkspaceFlowInvoiceItems,\r\n} from \"./interfaces/queries/workspace-flow.queries\";\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\firebase\\invoice-item.converter.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/firebase\r\n * @file invoice-item.converter.ts\r\n * @description Firestore document-to-entity converter for InvoiceItem.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Harden unknown field handling with stricter runtime validation\r\n */\r\n\r\nimport type { InvoiceItem } from \"../../domain/entities/InvoiceItem\";\r\n\r\n/**\r\n * Converts a raw Firestore document data map into a typed InvoiceItem entity.\r\n *\r\n * @param id   - Firestore document ID\r\n * @param data - Raw document fields from Firestore\r\n */\r\nexport function toInvoiceItem(id: string, data: Record<string, unknown>): InvoiceItem {\r\n  return {\r\n    id,\r\n    invoiceId: typeof data.invoiceId === \"string\" ? data.invoiceId : \"\",\r\n    taskId: typeof data.taskId === \"string\" ? data.taskId : \"\",\r\n    amount: typeof data.amount === \"number\" ? data.amount : 0,\r\n    createdAtISO: typeof data.createdAtISO === \"string\" ? data.createdAtISO : \"\",\r\n    updatedAtISO: typeof data.updatedAtISO === \"string\" ? data.updatedAtISO : \"\",\r\n  };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\firebase\\invoice.converter.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/firebase\r\n * @file invoice.converter.ts\r\n * @description Firestore document-to-entity converter for Invoice.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Harden unknown field handling with stricter runtime validation\r\n */\r\n\r\nimport type { Invoice } from \"../../domain/entities/Invoice\";\r\nimport { INVOICE_STATUSES, type InvoiceStatus } from \"../../domain/value-objects/InvoiceStatus\";\r\n\r\nconst VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);\r\nconst DEFAULT_STATUS: InvoiceStatus = \"draft\";\r\n\r\n/**\r\n * Converts a raw Firestore document data map into a typed Invoice entity.\r\n *\r\n * @param id   - Firestore document ID\r\n * @param data - Raw document fields from Firestore\r\n */\r\nexport function toInvoice(id: string, data: Record<string, unknown>): Invoice {\r\n  const rawStatus = data.status as InvoiceStatus;\r\n  return {\r\n    id,\r\n    workspaceId: typeof data.workspaceId === \"string\" ? data.workspaceId : \"\",\r\n    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,\r\n    totalAmount: typeof data.totalAmount === \"number\" ? data.totalAmount : 0,\r\n    submittedAtISO: typeof data.submittedAtISO === \"string\" ? data.submittedAtISO : undefined,\r\n    approvedAtISO: typeof data.approvedAtISO === \"string\" ? data.approvedAtISO : undefined,\r\n    paidAtISO: typeof data.paidAtISO === \"string\" ? data.paidAtISO : undefined,\r\n    closedAtISO: typeof data.closedAtISO === \"string\" ? data.closedAtISO : undefined,\r\n    createdAtISO: typeof data.createdAtISO === \"string\" ? data.createdAtISO : \"\",\r\n    updatedAtISO: typeof data.updatedAtISO === \"string\" ? data.updatedAtISO : \"\",\r\n  };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\firebase\\issue.converter.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/firebase\r\n * @file issue.converter.ts\r\n * @description Firestore document-to-entity converter for Issue.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Harden unknown field handling with stricter runtime validation\r\n */\r\n\r\nimport type { Issue } from \"../../domain/entities/Issue\";\r\nimport { ISSUE_STATUSES, type IssueStatus } from \"../../domain/value-objects/IssueStatus\";\r\nimport { ISSUE_STAGES, type IssueStage } from \"../../domain/value-objects/IssueStage\";\r\n\r\nconst VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);\r\nconst VALID_STAGES = new Set<IssueStage>(ISSUE_STAGES);\r\nconst DEFAULT_STATUS: IssueStatus = \"open\";\r\nconst DEFAULT_STAGE: IssueStage = \"task\";\r\n\r\n/**\r\n * Converts a raw Firestore document data map into a typed Issue entity.\r\n *\r\n * @param id   - Firestore document ID\r\n * @param data - Raw document fields from Firestore\r\n */\r\nexport function toIssue(id: string, data: Record<string, unknown>): Issue {\r\n  const rawStatus = data.status as IssueStatus;\r\n  const rawStage = data.stage as IssueStage;\r\n  return {\r\n    id,\r\n    taskId: typeof data.taskId === \"string\" ? data.taskId : \"\",\r\n    stage: VALID_STAGES.has(rawStage) ? rawStage : DEFAULT_STAGE,\r\n    title: typeof data.title === \"string\" ? data.title : \"\",\r\n    description: typeof data.description === \"string\" ? data.description : \"\",\r\n    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,\r\n    createdBy: typeof data.createdBy === \"string\" ? data.createdBy : \"\",\r\n    assignedTo: typeof data.assignedTo === \"string\" ? data.assignedTo : undefined,\r\n    resolvedAtISO: typeof data.resolvedAtISO === \"string\" ? data.resolvedAtISO : undefined,\r\n    createdAtISO: typeof data.createdAtISO === \"string\" ? data.createdAtISO : \"\",\r\n    updatedAtISO: typeof data.updatedAtISO === \"string\" ? data.updatedAtISO : \"\",\r\n  };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\firebase\\task.converter.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/firebase\r\n * @file task.converter.ts\r\n * @description Firestore document-to-entity converter for Task.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Harden unknown field handling with stricter runtime validation\r\n */\r\n\r\nimport type { Task } from \"../../domain/entities/Task\";\r\nimport { TASK_STATUSES, type TaskStatus } from \"../../domain/value-objects/TaskStatus\";\r\n\r\nconst VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);\r\nconst DEFAULT_STATUS: TaskStatus = \"draft\";\r\n\r\n/**\r\n * Converts a raw Firestore document data map into a typed Task entity.\r\n *\r\n * @param id   - Firestore document ID\r\n * @param data - Raw document fields from Firestore\r\n */\r\nexport function toTask(id: string, data: Record<string, unknown>): Task {\r\n  const rawStatus = data.status as TaskStatus;\r\n  return {\r\n    id,\r\n    workspaceId: typeof data.workspaceId === \"string\" ? data.workspaceId : \"\",\r\n    title: typeof data.title === \"string\" ? data.title : \"\",\r\n    description: typeof data.description === \"string\" ? data.description : \"\",\r\n    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,\r\n    assigneeId: typeof data.assigneeId === \"string\" ? data.assigneeId : undefined,\r\n    dueDateISO: typeof data.dueDateISO === \"string\" ? data.dueDateISO : undefined,\r\n    acceptedAtISO: typeof data.acceptedAtISO === \"string\" ? data.acceptedAtISO : undefined,\r\n    archivedAtISO: typeof data.archivedAtISO === \"string\" ? data.archivedAtISO : undefined,\r\n    createdAtISO: typeof data.createdAtISO === \"string\" ? data.createdAtISO : \"\",\r\n    updatedAtISO: typeof data.updatedAtISO === \"string\" ? data.updatedAtISO : \"\",\r\n  };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\firebase\\workspace-flow.collections.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/firebase\r\n * @file workspace-flow.collections.ts\r\n * @description Firestore collection path constants for the workspace-flow module.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Update collection names to match production Firestore schema\r\n */\r\n\r\n/** Top-level Firestore collection for workspace-flow tasks. */\r\nexport const WF_TASKS_COLLECTION = \"workspaceFlowTasks\" as const;\r\n\r\n/** Top-level Firestore collection for workspace-flow issues. */\r\nexport const WF_ISSUES_COLLECTION = \"workspaceFlowIssues\" as const;\r\n\r\n/** Top-level Firestore collection for workspace-flow invoices. */\r\nexport const WF_INVOICES_COLLECTION = \"workspaceFlowInvoices\" as const;\r\n\r\n/** Top-level Firestore collection for workspace-flow invoice items. */\r\nexport const WF_INVOICE_ITEMS_COLLECTION = \"workspaceFlowInvoiceItems\" as const;\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\repositories\\FirebaseInvoiceItemRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/repositories\r\n * @file FirebaseInvoiceItemRepository.ts\r\n * @description Firebase Firestore repository for InvoiceItem CRUD operations.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add query pagination support\r\n */\r\n\r\nimport {\r\n  collection,\r\n  deleteDoc,\r\n  doc,\r\n  getDoc,\r\n  getDocs,\r\n  getFirestore,\r\n  query,\r\n  where,\r\n} from \"firebase/firestore\";\r\n\r\nimport { firebaseClientApp } from \"@integration-firebase/client\";\r\nimport type { InvoiceItem } from \"../../domain/entities/InvoiceItem\";\r\nimport { toInvoiceItem } from \"../firebase/invoice-item.converter\";\r\nimport { WF_INVOICE_ITEMS_COLLECTION } from \"../firebase/workspace-flow.collections\";\r\n\r\nexport class FirebaseInvoiceItemRepository {\r\n  private get db() {\r\n    return getFirestore(firebaseClientApp);\r\n  }\r\n\r\n  private get collectionRef() {\r\n    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);\r\n  }\r\n\r\n  async findById(itemId: string): Promise<InvoiceItem | null> {\r\n    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));\r\n    if (!snap.exists()) return null;\r\n    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {\r\n    const snaps = await getDocs(\r\n      query(this.collectionRef, where(\"invoiceId\", \"==\", invoiceId)),\r\n    );\r\n    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));\r\n  }\r\n\r\n  async delete(itemId: string): Promise<void> {\r\n    await deleteDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\repositories\\FirebaseInvoiceRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/repositories\r\n * @file FirebaseInvoiceRepository.ts\r\n * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add query pagination support and composite indexes\r\n */\r\n\r\nimport {\r\n  addDoc,\r\n  collection,\r\n  deleteDoc,\r\n  doc,\r\n  getDoc,\r\n  getDocs,\r\n  getFirestore,\r\n  increment,\r\n  orderBy,\r\n  query,\r\n  serverTimestamp,\r\n  updateDoc,\r\n  where,\r\n} from \"firebase/firestore\";\r\n\r\nimport { firebaseClientApp } from \"@integration-firebase/client\";\r\nimport type { Invoice, CreateInvoiceInput } from \"../../domain/entities/Invoice\";\r\nimport type { InvoiceItem, AddInvoiceItemInput } from \"../../domain/entities/InvoiceItem\";\r\nimport type { InvoiceRepository } from \"../../domain/repositories/InvoiceRepository\";\r\nimport { INVOICE_STATUSES, type InvoiceStatus } from \"../../domain/value-objects/InvoiceStatus\";\r\nimport { toInvoice } from \"../firebase/invoice.converter\";\r\nimport { toInvoiceItem } from \"../firebase/invoice-item.converter\";\r\nimport {\r\n  WF_INVOICES_COLLECTION,\r\n  WF_INVOICE_ITEMS_COLLECTION,\r\n} from \"../firebase/workspace-flow.collections\";\r\n\r\nconst VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);\r\nconst DEFAULT_STATUS: InvoiceStatus = \"draft\";\r\n\r\nexport class FirebaseInvoiceRepository implements InvoiceRepository {\r\n  private get db() {\r\n    return getFirestore(firebaseClientApp);\r\n  }\r\n\r\n  private get invoiceCollectionRef() {\r\n    return collection(this.db, WF_INVOICES_COLLECTION);\r\n  }\r\n\r\n  private get itemCollectionRef() {\r\n    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);\r\n  }\r\n\r\n  async create(input: CreateInvoiceInput): Promise<Invoice> {\r\n    const nowISO = new Date().toISOString();\r\n    const docRef = await addDoc(this.invoiceCollectionRef, {\r\n      workspaceId: input.workspaceId,\r\n      status: DEFAULT_STATUS,\r\n      totalAmount: 0,\r\n      submittedAtISO: null,\r\n      approvedAtISO: null,\r\n      paidAtISO: null,\r\n      closedAtISO: null,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n      createdAt: serverTimestamp(),\r\n      updatedAt: serverTimestamp(),\r\n    });\r\n\r\n    return {\r\n      id: docRef.id,\r\n      workspaceId: input.workspaceId,\r\n      status: DEFAULT_STATUS,\r\n      totalAmount: 0,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n    };\r\n  }\r\n\r\n  async delete(invoiceId: string): Promise<void> {\r\n    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));\r\n  }\r\n\r\n  async findById(invoiceId: string): Promise<Invoice | null> {\r\n    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));\r\n    if (!snap.exists()) return null;\r\n    return toInvoice(snap.id, snap.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {\r\n    const snaps = await getDocs(\r\n      query(\r\n        this.invoiceCollectionRef,\r\n        where(\"workspaceId\", \"==\", workspaceId),\r\n        orderBy(\"createdAtISO\", \"desc\"),\r\n      ),\r\n    );\r\n    return snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));\r\n  }\r\n\r\n  async transitionStatus(\r\n    invoiceId: string,\r\n    to: InvoiceStatus,\r\n    nowISO: string,\r\n  ): Promise<Invoice | null> {\r\n    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);\r\n    const snap = await getDoc(invoiceRef);\r\n    if (!snap.exists()) return null;\r\n\r\n    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;\r\n    const patch: Record<string, unknown> = {\r\n      status: validTo,\r\n      updatedAtISO: nowISO,\r\n      updatedAt: serverTimestamp(),\r\n    };\r\n    if (validTo === \"submitted\") patch.submittedAtISO = nowISO;\r\n    if (validTo === \"approved\") patch.approvedAtISO = nowISO;\r\n    if (validTo === \"paid\") patch.paidAtISO = nowISO;\r\n    if (validTo === \"closed\") patch.closedAtISO = nowISO;\r\n\r\n    await updateDoc(invoiceRef, patch);\r\n    const updated = await getDoc(invoiceRef);\r\n    if (!updated.exists()) return null;\r\n    return toInvoice(updated.id, updated.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {\r\n    const nowISO = new Date().toISOString();\r\n    const docRef = await addDoc(this.itemCollectionRef, {\r\n      invoiceId: input.invoiceId,\r\n      taskId: input.taskId,\r\n      amount: input.amount,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n      createdAt: serverTimestamp(),\r\n      updatedAt: serverTimestamp(),\r\n    });\r\n\r\n    // Update invoice totalAmount\r\n    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {\r\n      totalAmount: increment(input.amount),\r\n      updatedAtISO: nowISO,\r\n      updatedAt: serverTimestamp(),\r\n    });\r\n\r\n    return {\r\n      id: docRef.id,\r\n      invoiceId: input.invoiceId,\r\n      taskId: input.taskId,\r\n      amount: input.amount,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n    };\r\n  }\r\n\r\n  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {\r\n    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));\r\n    if (!snap.exists()) return null;\r\n    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {\r\n    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);\r\n    const snap = await getDoc(itemRef);\r\n    if (!snap.exists()) return null;\r\n\r\n    const data = snap.data() as Record<string, unknown>;\r\n    const oldAmount = typeof data.amount === \"number\" ? data.amount : 0;\r\n    const invoiceId = typeof data.invoiceId === \"string\" ? data.invoiceId : \"\";\r\n    const nowISO = new Date().toISOString();\r\n\r\n    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });\r\n\r\n    if (invoiceId) {\r\n      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {\r\n        totalAmount: increment(amount - oldAmount),\r\n        updatedAtISO: nowISO,\r\n        updatedAt: serverTimestamp(),\r\n      });\r\n    }\r\n\r\n    const updated = await getDoc(itemRef);\r\n    if (!updated.exists()) return null;\r\n    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async removeItem(invoiceItemId: string): Promise<void> {\r\n    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);\r\n    const snap = await getDoc(itemRef);\r\n    if (!snap.exists()) return;\r\n\r\n    const data = snap.data() as Record<string, unknown>;\r\n    const amount = typeof data.amount === \"number\" ? data.amount : 0;\r\n    const invoiceId = typeof data.invoiceId === \"string\" ? data.invoiceId : \"\";\r\n\r\n    await deleteDoc(itemRef);\r\n\r\n    if (invoiceId) {\r\n      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {\r\n        totalAmount: increment(-amount),\r\n        updatedAtISO: new Date().toISOString(),\r\n        updatedAt: serverTimestamp(),\r\n      });\r\n    }\r\n  }\r\n\r\n  async listItems(invoiceId: string): Promise<InvoiceItem[]> {\r\n    const snaps = await getDocs(\r\n      query(this.itemCollectionRef, where(\"invoiceId\", \"==\", invoiceId)),\r\n    );\r\n    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\repositories\\FirebaseIssueRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/repositories\r\n * @file FirebaseIssueRepository.ts\r\n * @description Firebase Firestore implementation of IssueRepository for workspace-flow.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add query pagination support and composite indexes\r\n */\r\n\r\nimport {\r\n  addDoc,\r\n  collection,\r\n  deleteDoc,\r\n  doc,\r\n  getDoc,\r\n  getDocs,\r\n  getFirestore,\r\n  orderBy,\r\n  query,\r\n  serverTimestamp,\r\n  updateDoc,\r\n  where,\r\n} from \"firebase/firestore\";\r\n\r\nimport { firebaseClientApp } from \"@integration-firebase/client\";\r\nimport type { Issue, OpenIssueInput, UpdateIssueInput } from \"../../domain/entities/Issue\";\r\nimport type { IssueRepository } from \"../../domain/repositories/IssueRepository\";\r\nimport { ISSUE_STATUSES, type IssueStatus } from \"../../domain/value-objects/IssueStatus\";\r\nimport { toIssue } from \"../firebase/issue.converter\";\r\nimport { WF_ISSUES_COLLECTION } from \"../firebase/workspace-flow.collections\";\r\n\r\nconst VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);\r\nconst DEFAULT_STATUS: IssueStatus = \"open\";\r\nconst OPEN_STATUSES: IssueStatus[] = [\"open\", \"investigating\", \"fixing\", \"retest\"];\r\n\r\nexport class FirebaseIssueRepository implements IssueRepository {\r\n  private get db() {\r\n    return getFirestore(firebaseClientApp);\r\n  }\r\n\r\n  private get collectionRef() {\r\n    return collection(this.db, WF_ISSUES_COLLECTION);\r\n  }\r\n\r\n  async create(input: OpenIssueInput): Promise<Issue> {\r\n    const nowISO = new Date().toISOString();\r\n    const docRef = await addDoc(this.collectionRef, {\r\n      taskId: input.taskId,\r\n      stage: input.stage,\r\n      title: input.title,\r\n      description: input.description ?? \"\",\r\n      status: DEFAULT_STATUS,\r\n      createdBy: input.createdBy,\r\n      assignedTo: input.assignedTo ?? null,\r\n      resolvedAtISO: null,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n      createdAt: serverTimestamp(),\r\n      updatedAt: serverTimestamp(),\r\n    });\r\n\r\n    return {\r\n      id: docRef.id,\r\n      taskId: input.taskId,\r\n      stage: input.stage,\r\n      title: input.title,\r\n      description: input.description ?? \"\",\r\n      status: DEFAULT_STATUS,\r\n      createdBy: input.createdBy,\r\n      assignedTo: input.assignedTo,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n    };\r\n  }\r\n\r\n  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {\r\n    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);\r\n    const snap = await getDoc(issueRef);\r\n    if (!snap.exists()) return null;\r\n\r\n    const patch: Record<string, unknown> = {\r\n      updatedAtISO: new Date().toISOString(),\r\n      updatedAt: serverTimestamp(),\r\n    };\r\n    if (typeof input.title === \"string\") patch.title = input.title;\r\n    if (typeof input.description === \"string\") patch.description = input.description;\r\n    if (typeof input.assignedTo === \"string\") patch.assignedTo = input.assignedTo;\r\n\r\n    await updateDoc(issueRef, patch);\r\n    const updated = await getDoc(issueRef);\r\n    if (!updated.exists()) return null;\r\n    return toIssue(updated.id, updated.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async delete(issueId: string): Promise<void> {\r\n    await deleteDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));\r\n  }\r\n\r\n  async findById(issueId: string): Promise<Issue | null> {\r\n    const snap = await getDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));\r\n    if (!snap.exists()) return null;\r\n    return toIssue(snap.id, snap.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async findByTaskId(taskId: string): Promise<Issue[]> {\r\n    const snaps = await getDocs(\r\n      query(\r\n        this.collectionRef,\r\n        where(\"taskId\", \"==\", taskId),\r\n        orderBy(\"createdAtISO\", \"desc\"),\r\n      ),\r\n    );\r\n    return snaps.docs.map((d) => toIssue(d.id, d.data() as Record<string, unknown>));\r\n  }\r\n\r\n  async countOpenByTaskId(taskId: string): Promise<number> {\r\n    const snaps = await getDocs(\r\n      query(\r\n        this.collectionRef,\r\n        where(\"taskId\", \"==\", taskId),\r\n        where(\"status\", \"in\", OPEN_STATUSES),\r\n      ),\r\n    );\r\n    return snaps.size;\r\n  }\r\n\r\n  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {\r\n    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);\r\n    const snap = await getDoc(issueRef);\r\n    if (!snap.exists()) return null;\r\n\r\n    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;\r\n    const patch: Record<string, unknown> = {\r\n      status: validTo,\r\n      updatedAtISO: nowISO,\r\n      updatedAt: serverTimestamp(),\r\n    };\r\n    if (validTo === \"resolved\") patch.resolvedAtISO = nowISO;\r\n\r\n    await updateDoc(issueRef, patch);\r\n    const updated = await getDoc(issueRef);\r\n    if (!updated.exists()) return null;\r\n    return toIssue(updated.id, updated.data() as Record<string, unknown>);\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\infrastructure\\repositories\\FirebaseTaskRepository.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/infrastructure/repositories\r\n * @file FirebaseTaskRepository.ts\r\n * @description Firebase Firestore implementation of TaskRepository for workspace-flow.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add query pagination support and composite indexes\r\n */\r\n\r\nimport {\r\n  addDoc,\r\n  collection,\r\n  deleteDoc,\r\n  doc,\r\n  getDoc,\r\n  getDocs,\r\n  getFirestore,\r\n  orderBy,\r\n  query,\r\n  serverTimestamp,\r\n  updateDoc,\r\n  where,\r\n} from \"firebase/firestore\";\r\n\r\nimport { firebaseClientApp } from \"@integration-firebase/client\";\r\nimport type { Task, CreateTaskInput, UpdateTaskInput } from \"../../domain/entities/Task\";\r\nimport type { TaskRepository } from \"../../domain/repositories/TaskRepository\";\r\nimport { TASK_STATUSES, type TaskStatus } from \"../../domain/value-objects/TaskStatus\";\r\nimport { toTask } from \"../firebase/task.converter\";\r\nimport { WF_TASKS_COLLECTION } from \"../firebase/workspace-flow.collections\";\r\n\r\nconst VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);\r\nconst DEFAULT_STATUS: TaskStatus = \"draft\";\r\n\r\nexport class FirebaseTaskRepository implements TaskRepository {\r\n  private get db() {\r\n    return getFirestore(firebaseClientApp);\r\n  }\r\n\r\n  private get collectionRef() {\r\n    return collection(this.db, WF_TASKS_COLLECTION);\r\n  }\r\n\r\n  async create(input: CreateTaskInput): Promise<Task> {\r\n    const nowISO = new Date().toISOString();\r\n    const docRef = await addDoc(this.collectionRef, {\r\n      workspaceId: input.workspaceId,\r\n      title: input.title,\r\n      description: input.description ?? \"\",\r\n      status: DEFAULT_STATUS,\r\n      assigneeId: input.assigneeId ?? null,\r\n      dueDateISO: input.dueDateISO ?? null,\r\n      acceptedAtISO: null,\r\n      archivedAtISO: null,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n      createdAt: serverTimestamp(),\r\n      updatedAt: serverTimestamp(),\r\n    });\r\n\r\n    return {\r\n      id: docRef.id,\r\n      workspaceId: input.workspaceId,\r\n      title: input.title,\r\n      description: input.description ?? \"\",\r\n      status: DEFAULT_STATUS,\r\n      assigneeId: input.assigneeId,\r\n      dueDateISO: input.dueDateISO,\r\n      createdAtISO: nowISO,\r\n      updatedAtISO: nowISO,\r\n    };\r\n  }\r\n\r\n  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {\r\n    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);\r\n    const snap = await getDoc(taskRef);\r\n    if (!snap.exists()) return null;\r\n\r\n    const patch: Record<string, unknown> = {\r\n      updatedAtISO: new Date().toISOString(),\r\n      updatedAt: serverTimestamp(),\r\n    };\r\n    if (typeof input.title === \"string\") patch.title = input.title;\r\n    if (typeof input.description === \"string\") patch.description = input.description;\r\n    if (typeof input.assigneeId === \"string\") patch.assigneeId = input.assigneeId;\r\n    if (typeof input.dueDateISO === \"string\") patch.dueDateISO = input.dueDateISO;\r\n\r\n    await updateDoc(taskRef, patch);\r\n    const updated = await getDoc(taskRef);\r\n    if (!updated.exists()) return null;\r\n    return toTask(updated.id, updated.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async delete(taskId: string): Promise<void> {\r\n    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));\r\n  }\r\n\r\n  async findById(taskId: string): Promise<Task | null> {\r\n    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));\r\n    if (!snap.exists()) return null;\r\n    return toTask(snap.id, snap.data() as Record<string, unknown>);\r\n  }\r\n\r\n  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {\r\n    const snaps = await getDocs(\r\n      query(\r\n        this.collectionRef,\r\n        where(\"workspaceId\", \"==\", workspaceId),\r\n        orderBy(\"updatedAtISO\", \"desc\"),\r\n      ),\r\n    );\r\n    return snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));\r\n  }\r\n\r\n  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {\r\n    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);\r\n    const snap = await getDoc(taskRef);\r\n    if (!snap.exists()) return null;\r\n\r\n    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;\r\n    const patch: Record<string, unknown> = {\r\n      status: validTo,\r\n      updatedAtISO: nowISO,\r\n      updatedAt: serverTimestamp(),\r\n    };\r\n    if (validTo === \"accepted\") patch.acceptedAtISO = nowISO;\r\n    if (validTo === \"archived\") patch.archivedAtISO = nowISO;\r\n\r\n    await updateDoc(taskRef, patch);\r\n    const updated = await getDoc(taskRef);\r\n    if (!updated.exists()) return null;\r\n    return toTask(updated.id, updated.data() as Record<string, unknown>);\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\interfaces\\_actions\\workspace-flow.actions.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":8,"column":1,"nodeType":"Block","endLine":8,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use server\";\r\n\r\n/**\r\n * @module workspace-flow/interfaces/_actions\r\n * @file workspace-flow.actions.ts\r\n * @description Server Actions for workspace-flow write operations.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n */\r\n\r\nimport { commandFailureFrom, type CommandResult } from \"@shared-types\";\r\nimport type { CreateTaskDto } from \"../../application/dto/create-task.dto\";\r\nimport type { UpdateTaskDto } from \"../../application/dto/update-task.dto\";\r\nimport type { OpenIssueDto } from \"../../application/dto/open-issue.dto\";\r\nimport type { ResolveIssueDto } from \"../../application/dto/resolve-issue.dto\";\r\nimport type { AddInvoiceItemDto } from \"../../application/dto/add-invoice-item.dto\";\r\nimport type { UpdateInvoiceItemDto } from \"../../application/dto/update-invoice-item.dto\";\r\nimport type { RemoveInvoiceItemDto } from \"../../application/dto/remove-invoice-item.dto\";\r\nimport { CreateTaskUseCase } from \"../../application/use-cases/create-task.use-case\";\r\nimport { UpdateTaskUseCase } from \"../../application/use-cases/update-task.use-case\";\r\nimport { AssignTaskUseCase } from \"../../application/use-cases/assign-task.use-case\";\r\nimport { SubmitTaskToQaUseCase } from \"../../application/use-cases/submit-task-to-qa.use-case\";\r\nimport { PassTaskQaUseCase } from \"../../application/use-cases/pass-task-qa.use-case\";\r\nimport { ApproveTaskAcceptanceUseCase } from \"../../application/use-cases/approve-task-acceptance.use-case\";\r\nimport { ArchiveTaskUseCase } from \"../../application/use-cases/archive-task.use-case\";\r\nimport { OpenIssueUseCase } from \"../../application/use-cases/open-issue.use-case\";\r\nimport { StartIssueUseCase } from \"../../application/use-cases/start-issue.use-case\";\r\nimport { FixIssueUseCase } from \"../../application/use-cases/fix-issue.use-case\";\r\nimport { SubmitIssueRetestUseCase } from \"../../application/use-cases/submit-issue-retest.use-case\";\r\nimport { PassIssueRetestUseCase } from \"../../application/use-cases/pass-issue-retest.use-case\";\r\nimport { FailIssueRetestUseCase } from \"../../application/use-cases/fail-issue-retest.use-case\";\r\nimport { ResolveIssueUseCase } from \"../../application/use-cases/resolve-issue.use-case\";\r\nimport { CloseIssueUseCase } from \"../../application/use-cases/close-issue.use-case\";\r\nimport { CreateInvoiceUseCase } from \"../../application/use-cases/create-invoice.use-case\";\r\nimport { AddInvoiceItemUseCase } from \"../../application/use-cases/add-invoice-item.use-case\";\r\nimport { UpdateInvoiceItemUseCase } from \"../../application/use-cases/update-invoice-item.use-case\";\r\nimport { RemoveInvoiceItemUseCase } from \"../../application/use-cases/remove-invoice-item.use-case\";\r\nimport { SubmitInvoiceUseCase } from \"../../application/use-cases/submit-invoice.use-case\";\r\nimport { ReviewInvoiceUseCase } from \"../../application/use-cases/review-invoice.use-case\";\r\nimport { ApproveInvoiceUseCase } from \"../../application/use-cases/approve-invoice.use-case\";\r\nimport { RejectInvoiceUseCase } from \"../../application/use-cases/reject-invoice.use-case\";\r\nimport { PayInvoiceUseCase } from \"../../application/use-cases/pay-invoice.use-case\";\r\nimport { CloseInvoiceUseCase } from \"../../application/use-cases/close-invoice.use-case\";\r\nimport { FirebaseTaskRepository } from \"../../infrastructure/repositories/FirebaseTaskRepository\";\r\nimport { FirebaseIssueRepository } from \"../../infrastructure/repositories/FirebaseIssueRepository\";\r\nimport { FirebaseInvoiceRepository } from \"../../infrastructure/repositories/FirebaseInvoiceRepository\";\r\n\r\n// ── Repository factories ──────────────────────────────────────────────────────\r\n\r\nfunction makeTaskRepo() { return new FirebaseTaskRepository(); }\r\nfunction makeIssueRepo() { return new FirebaseIssueRepository(); }\r\nfunction makeInvoiceRepo() { return new FirebaseInvoiceRepository(); }\r\n\r\n// ── Task actions ──────────────────────────────────────────────────────────────\r\n\r\nexport async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {\r\n  try {\r\n    return await new CreateTaskUseCase(makeTaskRepo()).execute(dto);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_CREATE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {\r\n  try {\r\n    return await new UpdateTaskUseCase(makeTaskRepo()).execute(taskId, dto);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_UPDATE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new AssignTaskUseCase(makeTaskRepo()).execute(taskId, assigneeId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_ASSIGN_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new SubmitTaskToQaUseCase(makeTaskRepo()).execute(taskId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_SUBMIT_QA_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfPassTaskQa(taskId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new PassTaskQaUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_PASS_QA_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new ApproveTaskAcceptanceUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_APPROVE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {\r\n  try {\r\n    return await new ArchiveTaskUseCase(makeTaskRepo()).execute(taskId, invoiceStatus);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_TASK_ARCHIVE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\n// ── Issue actions ─────────────────────────────────────────────────────────────\r\n\r\nexport async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {\r\n  try {\r\n    return await new OpenIssueUseCase(makeIssueRepo()).execute(dto);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_OPEN_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfStartIssue(issueId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new StartIssueUseCase(makeIssueRepo()).execute(issueId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_START_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfFixIssue(issueId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new FixIssueUseCase(makeIssueRepo()).execute(issueId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_FIX_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new SubmitIssueRetestUseCase(makeIssueRepo()).execute(issueId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_RETEST_SUBMIT_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new PassIssueRetestUseCase(makeIssueRepo()).execute(issueId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_RETEST_PASS_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new FailIssueRetestUseCase(makeIssueRepo()).execute(issueId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_RETEST_FAIL_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {\r\n  try {\r\n    return await new ResolveIssueUseCase(makeIssueRepo()).execute(dto);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_RESOLVE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfCloseIssue(issueId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new CloseIssueUseCase(makeIssueRepo()).execute(issueId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_ISSUE_CLOSE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\n// ── Invoice actions ───────────────────────────────────────────────────────────\r\n\r\nexport async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new CreateInvoiceUseCase(makeInvoiceRepo()).execute(workspaceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_CREATE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {\r\n  try {\r\n    return await new AddInvoiceItemUseCase(makeInvoiceRepo()).execute(dto);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_ADD_ITEM_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {\r\n  try {\r\n    return await new UpdateInvoiceItemUseCase(makeInvoiceRepo()).execute(invoiceItemId, dto);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_UPDATE_ITEM_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {\r\n  try {\r\n    return await new RemoveInvoiceItemUseCase(makeInvoiceRepo()).execute(dto.invoiceId, dto.invoiceItemId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_REMOVE_ITEM_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new SubmitInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_SUBMIT_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new ReviewInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_REVIEW_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new ApproveInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_APPROVE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new RejectInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_REJECT_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new PayInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_PAY_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n\r\nexport async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {\r\n  try {\r\n    return await new CloseInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);\r\n  } catch (err) {\r\n    return commandFailureFrom(\"WF_INVOICE_CLOSE_FAILED\", err instanceof Error ? err.message : \"Unexpected error\");\r\n  }\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\interfaces\\contracts\\workspace-flow.contract.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/interfaces/contracts\r\n * @file workspace-flow.contract.ts\r\n * @description Module-local interface contracts for workspace-flow UI adapters.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Expand with view-model contracts as UI adapters are added\r\n */\r\n\r\nimport type { Task } from \"../../domain/entities/Task\";\r\nimport type { Issue } from \"../../domain/entities/Issue\";\r\nimport type { Invoice } from \"../../domain/entities/Invoice\";\r\nimport type { InvoiceItem } from \"../../domain/entities/InvoiceItem\";\r\n\r\n// ── Summary read models (lean projections for UI) ─────────────────────────────\r\n\r\nexport interface TaskSummary {\r\n  readonly id: string;\r\n  readonly workspaceId: string;\r\n  readonly title: string;\r\n  readonly status: Task[\"status\"];\r\n  readonly assigneeId?: string;\r\n}\r\n\r\nexport interface IssueSummary {\r\n  readonly id: string;\r\n  readonly taskId: string;\r\n  readonly title: string;\r\n  readonly status: Issue[\"status\"];\r\n  readonly stage: Issue[\"stage\"];\r\n}\r\n\r\nexport interface InvoiceSummary {\r\n  readonly id: string;\r\n  readonly workspaceId: string;\r\n  readonly status: Invoice[\"status\"];\r\n  readonly totalAmount: number;\r\n}\r\n\r\nexport interface InvoiceItemSummary {\r\n  readonly id: string;\r\n  readonly invoiceId: string;\r\n  readonly taskId: string;\r\n  readonly amount: InvoiceItem[\"amount\"];\r\n}\r\n\r\n// ── Projection helpers ────────────────────────────────────────────────────────\r\n\r\nexport function toTaskSummary(task: Task): TaskSummary {\r\n  return {\r\n    id: task.id,\r\n    workspaceId: task.workspaceId,\r\n    title: task.title,\r\n    status: task.status,\r\n    assigneeId: task.assigneeId,\r\n  };\r\n}\r\n\r\nexport function toIssueSummary(issue: Issue): IssueSummary {\r\n  return {\r\n    id: issue.id,\r\n    taskId: issue.taskId,\r\n    title: issue.title,\r\n    status: issue.status,\r\n    stage: issue.stage,\r\n  };\r\n}\r\n\r\nexport function toInvoiceSummary(invoice: Invoice): InvoiceSummary {\r\n  return {\r\n    id: invoice.id,\r\n    workspaceId: invoice.workspaceId,\r\n    status: invoice.status,\r\n    totalAmount: invoice.totalAmount,\r\n  };\r\n}\r\n\r\nexport function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {\r\n  return {\r\n    id: item.id,\r\n    invoiceId: item.invoiceId,\r\n    taskId: item.taskId,\r\n    amount: item.amount,\r\n  };\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-flow\\interfaces\\queries\\workspace-flow.queries.ts","messages":[{"ruleId":"jsdoc/check-tag-names","severity":1,"message":"Invalid JSDoc tag name \"created\".","line":6,"column":1,"nodeType":"Block","endLine":6,"endColumn":1}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"/**\r\n * @module workspace-flow/interfaces/queries\r\n * @file workspace-flow.queries.ts\r\n * @description Server-side read queries for workspace-flow entities.\r\n * @author workspace-flow\r\n * @created 2026-03-24\r\n * @todo Add pagination support and caching layer\r\n */\r\n\r\nimport type { Task } from \"../../domain/entities/Task\";\r\nimport type { Issue } from \"../../domain/entities/Issue\";\r\nimport type { Invoice } from \"../../domain/entities/Invoice\";\r\nimport type { InvoiceItem } from \"../../domain/entities/InvoiceItem\";\r\nimport { FirebaseTaskRepository } from \"../../infrastructure/repositories/FirebaseTaskRepository\";\r\nimport { FirebaseIssueRepository } from \"../../infrastructure/repositories/FirebaseIssueRepository\";\r\nimport { FirebaseInvoiceRepository } from \"../../infrastructure/repositories/FirebaseInvoiceRepository\";\r\n\r\nfunction makeTaskRepo() {\r\n  return new FirebaseTaskRepository();\r\n}\r\n\r\nfunction makeIssueRepo() {\r\n  return new FirebaseIssueRepository();\r\n}\r\n\r\nfunction makeInvoiceRepo() {\r\n  return new FirebaseInvoiceRepository();\r\n}\r\n\r\n/**\r\n * List all tasks for a workspace.\r\n *\r\n * @param workspaceId - The workspace to query\r\n */\r\nexport async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {\r\n  return makeTaskRepo().findByWorkspaceId(workspaceId);\r\n}\r\n\r\n/**\r\n * Get a single task by id.\r\n *\r\n * @param taskId - The task identifier\r\n */\r\nexport async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {\r\n  return makeTaskRepo().findById(taskId);\r\n}\r\n\r\n/**\r\n * List all issues for a task.\r\n *\r\n * @param taskId - The task identifier\r\n */\r\nexport async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {\r\n  return makeIssueRepo().findByTaskId(taskId);\r\n}\r\n\r\n/**\r\n * List all invoices for a workspace.\r\n *\r\n * @param workspaceId - The workspace to query\r\n */\r\nexport async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {\r\n  return makeInvoiceRepo().findByWorkspaceId(workspaceId);\r\n}\r\n\r\n/**\r\n * Get items for an invoice.\r\n *\r\n * @param invoiceId - The invoice identifier\r\n */\r\nexport async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {\r\n  return makeInvoiceRepo().listItems(invoiceId);\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\api\\schema.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\application\\work-demand.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\domain\\repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\domain\\types.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\infrastructure\\firebase\\FirebaseDemandRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\infrastructure\\mock-demand-repository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\interfaces\\AccountSchedulingView.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\interfaces\\WorkspaceSchedulingTab.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":25,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":25,"endColumn":60}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\n/**\r\n * Module: workspace-scheduling\r\n * Layer: interfaces\r\n * Purpose: Workspace (tenant) view — submit demands, view own schedule.\r\n *\r\n * Occam's Razor: calendar + quick-capture form only.\r\n * No complex state machines — useState + server actions.\r\n */\r\n\r\nimport { useCallback, useEffect, useState } from \"react\";\r\n\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { Plus } from \"lucide-react\";\r\n\r\nimport type { WorkspaceEntity } from \"@/modules/workspace\";\r\n\r\nimport type { WorkDemand } from \"../domain/types\";\r\nimport { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from \"../domain/types\";\r\nimport { submitWorkDemand } from \"./_actions/work-demand.actions\";\r\nimport { getWorkspaceDemands } from \"./queries/work-demand.queries\";\r\nimport { CalendarWidget } from \"./components/CalendarWidget\";\r\nimport { CreateDemandForm } from \"./components/CreateDemandForm\";\r\nimport type { CreateDemandFormValues } from \"./components/CreateDemandForm\";\r\n\r\n// ── Status badge variant ──────────────────────────────────────────────────────\r\n\r\nconst STATUS_VARIANT: Record<WorkDemand[\"status\"], \"default\" | \"secondary\" | \"outline\" | \"destructive\"> = {\r\n  draft: \"outline\",\r\n  open: \"secondary\",\r\n  in_progress: \"default\",\r\n  completed: \"default\",\r\n};\r\n\r\nconst PRIORITY_CLASS: Record<WorkDemand[\"priority\"], string> = {\r\n  low: \"text-muted-foreground\",\r\n  medium: \"text-amber-600\",\r\n  high: \"text-red-600\",\r\n};\r\n\r\n// ── Props ─────────────────────────────────────────────────────────────────────\r\n\r\ninterface WorkspaceSchedulingTabProps {\r\n  readonly workspace: WorkspaceEntity;\r\n  /** Account ID for scoping demands. */\r\n  readonly accountId: string;\r\n  /** ID of the current user (requesterId). */\r\n  readonly currentUserId: string;\r\n}\r\n\r\n// ── Component ─────────────────────────────────────────────────────────────────\r\n\r\nexport function WorkspaceSchedulingTab({\r\n  workspace,\r\n  accountId,\r\n  currentUserId,\r\n}: WorkspaceSchedulingTabProps) {\r\n  const [demands, setDemands] = useState<WorkDemand[]>([]);\r\n  const [loadState, setLoadState] = useState<\"loading\" | \"loaded\" | \"error\">(\"loading\");\r\n  const [formOpen, setFormOpen] = useState(false);\r\n  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);\r\n  const [actionError, setActionError] = useState<string | null>(null);\r\n\r\n  const loadDemands = useCallback(async () => {\r\n    setLoadState(\"loading\");\r\n    try {\r\n      const data = await getWorkspaceDemands(workspace.id);\r\n      setDemands(data);\r\n      setLoadState(\"loaded\");\r\n    } catch {\r\n      setLoadState(\"error\");\r\n    }\r\n  }, [workspace.id]);\r\n\r\n  useEffect(() => {\r\n    let cancelled = false;\r\n    void (async () => {\r\n      if (!cancelled) await loadDemands();\r\n    })();\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [loadDemands]);\r\n\r\n  function handleDayClick(date: Date) {\r\n    setSelectedDate(date);\r\n    setFormOpen(true);\r\n  }\r\n\r\n  function handleNewDemand() {\r\n    setSelectedDate(undefined);\r\n    setFormOpen(true);\r\n  }\r\n\r\n  async function handleSubmit(values: CreateDemandFormValues) {\r\n    setActionError(null);\r\n    const result = await submitWorkDemand({\r\n      workspaceId: workspace.id,\r\n      accountId,\r\n      requesterId: currentUserId,\r\n      title: values.title,\r\n      description: values.description,\r\n      priority: values.priority,\r\n      scheduledAt: values.scheduledAt,\r\n    });\r\n    if (!result.success) {\r\n      throw new Error(result.error.message);\r\n    }\r\n    await loadDemands();\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-6\">\r\n      {/* ── Header ─────────────────────────────────────────────────────── */}\r\n      <div className=\"flex items-center justify-between\">\r\n        <div>\r\n          <h2 className=\"text-lg font-semibold\">{workspace.name} — 工作規劃</h2>\r\n          <p className=\"text-sm text-muted-foreground\">\r\n            點擊日期或「新增需求」快速建立工作需求。\r\n          </p>\r\n        </div>\r\n        <Button size=\"sm\" onClick={handleNewDemand}>\r\n          <Plus className=\"mr-1.5 h-4 w-4\" />\r\n          新增需求\r\n        </Button>\r\n      </div>\r\n\r\n      {actionError && (\r\n        <p role=\"alert\" className=\"text-sm text-destructive\">\r\n          {actionError}\r\n        </p>\r\n      )}\r\n\r\n      {/* ── Calendar ───────────────────────────────────────────────────── */}\r\n      <Card>\r\n        <CardHeader className=\"pb-2\">\r\n          <CardTitle className=\"text-sm font-medium\">排程日曆</CardTitle>\r\n          <CardDescription className=\"text-xs\">\r\n            點擊日期快速排程新需求\r\n          </CardDescription>\r\n        </CardHeader>\r\n        <CardContent>\r\n          {loadState === \"loading\" ? (\r\n            <div className=\"flex h-48 items-center justify-center text-sm text-muted-foreground\">\r\n              載入中…\r\n            </div>\r\n          ) : (\r\n            <CalendarWidget demands={demands} onDayClick={handleDayClick} />\r\n          )}\r\n        </CardContent>\r\n      </Card>\r\n\r\n      {/* ── Demand list ────────────────────────────────────────────────── */}\r\n      <div className=\"space-y-2\">\r\n        <h3 className=\"text-sm font-medium text-muted-foreground uppercase tracking-wide\">\r\n          需求列表 ({demands.length})\r\n        </h3>\r\n\r\n        {loadState === \"error\" && (\r\n          <p className=\"text-sm text-destructive\">載入失敗，請重新整理。</p>\r\n        )}\r\n\r\n        {loadState === \"loaded\" && demands.length === 0 && (\r\n          <div className=\"rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground\">\r\n            目前尚無需求。點擊日曆日期或「新增需求」開始排程。\r\n          </div>\r\n        )}\r\n\r\n        {demands.map((demand) => (\r\n          <div\r\n            key={demand.id}\r\n            className=\"flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3\"\r\n          >\r\n            <div className=\"min-w-0 flex-1\">\r\n              <p className=\"truncate font-medium text-sm\">{demand.title}</p>\r\n              {demand.description && (\r\n                <p className=\"mt-0.5 truncate text-xs text-muted-foreground\">\r\n                  {demand.description}\r\n                </p>\r\n              )}\r\n              <p className=\"mt-1 text-xs text-muted-foreground\">\r\n                排程日期：{demand.scheduledAt}\r\n              </p>\r\n            </div>\r\n            <div className=\"ml-4 flex shrink-0 flex-col items-end gap-1.5\">\r\n              <Badge variant={STATUS_VARIANT[demand.status]}>\r\n                {DEMAND_STATUS_LABELS[demand.status]}\r\n              </Badge>\r\n              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>\r\n                {DEMAND_PRIORITY_LABELS[demand.priority]}優先\r\n              </span>\r\n              {demand.assignedUserId && (\r\n                <span className=\"text-xs text-muted-foreground\">已指派</span>\r\n              )}\r\n            </div>\r\n          </div>\r\n        ))}\r\n      </div>\r\n\r\n      {/* ── Create form dialog ─────────────────────────────────────────── */}\r\n      <CreateDemandForm\r\n        open={formOpen}\r\n        initialDate={selectedDate}\r\n        onClose={() => setFormOpen(false)}\r\n        onSubmit={handleSubmit}\r\n      />\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\interfaces\\_actions\\work-demand.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\interfaces\\components\\CalendarWidget.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\interfaces\\components\\CreateDemandForm.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace-scheduling\\interfaces\\queries\\work-demand.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\api\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\application\\use-cases\\workspace-member.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\application\\use-cases\\workspace.use-cases.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\domain\\entities\\Workspace.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\domain\\entities\\WorkspaceMember.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\domain\\repositories\\WorkspaceQueryRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\domain\\repositories\\WorkspaceRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\infrastructure\\firebase\\FirebaseWorkspaceQueryRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\infrastructure\\firebase\\FirebaseWorkspaceRepository.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\_actions\\workspace.actions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\components\\WorkspaceDailyTab.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":3,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":3,"endColumn":60},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace-feed' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":4,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":4,"endColumn":71}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport type { WorkspaceEntity } from \"@/modules/workspace\";\r\nimport { WorkspaceFeedWorkspaceView } from \"@/modules/workspace-feed\";\r\n\r\ninterface WorkspaceDailyTabProps {\r\n  readonly workspace: WorkspaceEntity;\r\n}\r\n\r\nexport function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {\r\n  return (\r\n    <WorkspaceFeedWorkspaceView\r\n      accountId={workspace.accountId}\r\n      workspaceId={workspace.id}\r\n      workspaceName={workspace.name}\r\n    />\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\components\\WorkspaceDetailScreen.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":7,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":7,"endColumn":76},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace-audit' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":40,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":40,"endColumn":63},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/file' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":41,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":41,"endColumn":52},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/wiki-beta' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":42,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":42,"endColumn":61},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace-scheduling' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":43,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":43,"endColumn":73}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":5,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport Link from \"next/link\";\r\nimport { useRouter } from \"next/navigation\";\r\nimport { type FormEvent, useEffect, useMemo, useState } from \"react\";\r\n\r\nimport type { WorkspaceEntity, WorkspaceGrant } from \"@/modules/workspace\";\r\nimport { formatDate } from \"@shared-utils\";\r\nimport {\r\n  Avatar,\r\n  AvatarFallback,\r\n  AvatarImage,\r\n} from \"@ui-shadcn/ui/avatar\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport {\r\n  Dialog,\r\n  DialogContent,\r\n  DialogDescription,\r\n  DialogFooter,\r\n  DialogHeader,\r\n  DialogTitle,\r\n} from \"@ui-shadcn/ui/dialog\";\r\nimport { Input } from \"@ui-shadcn/ui/input\";\r\nimport {\r\n  Select,\r\n  SelectContent,\r\n  SelectItem,\r\n  SelectTrigger,\r\n  SelectValue,\r\n} from \"@ui-shadcn/ui/select\";\r\nimport { Separator } from \"@ui-shadcn/ui/separator\";\r\nimport { WorkspaceAuditTab } from \"@/modules/workspace-audit\";\r\nimport { WorkspaceFilesTab } from \"@/modules/file\";\r\nimport { WikiBetaWorkspaceView } from \"@/modules/wiki-beta\";\r\nimport { WorkspaceSchedulingTab } from \"@/modules/workspace-scheduling\";\r\n\r\nimport { updateWorkspaceSettings } from \"../_actions/workspace.actions\";\r\nimport { WorkspaceDailyTab } from \"./WorkspaceDailyTab\";\r\nimport { WorkspaceMembersTab } from \"./WorkspaceMembersTab\";\r\nimport { getWorkspaceByIdForAccount } from \"../queries/workspace.queries\";\r\nimport {\r\n  getWorkspaceTabLabel,\r\n  getWorkspaceTabStatus,\r\n  isWorkspaceTabValue,\r\n  type WorkspaceTabValue,\r\n} from \"../workspace-tabs\";\r\n\r\nconst lifecycleBadgeVariant: Record<\r\n  WorkspaceEntity[\"lifecycleState\"],\r\n  \"default\" | \"secondary\" | \"outline\"\r\n> = {\r\n  active: \"default\",\r\n  preparatory: \"secondary\",\r\n  stopped: \"outline\",\r\n};\r\n\r\nfunction getWorkspaceInitials(name: string) {\r\n  const tokens = name\r\n    .trim()\r\n    .split(/\\s+/)\r\n    .filter(Boolean)\r\n    .slice(0, 2);\r\n\r\n  if (tokens.length === 0) {\r\n    return \"WS\";\r\n  }\r\n\r\n  return tokens.map((token) => token[0]?.toUpperCase() ?? \"\").join(\"\");\r\n}\r\n\r\nfunction formatTimestamp(timestamp: WorkspaceEntity[\"createdAt\"] | undefined) {\r\n  if (!timestamp) {\r\n    return \"—\";\r\n  }\r\n\r\n  try {\r\n    return formatDate(timestamp.toDate());\r\n  } catch {\r\n    return \"—\";\r\n  }\r\n}\r\n\r\nfunction describeGrant(grant: WorkspaceGrant) {\r\n  if (grant.teamId) {\r\n    return \"Team grant\";\r\n  }\r\n\r\n  if (grant.userId) {\r\n    return \"User grant\";\r\n  }\r\n\r\n  return \"Unscoped grant\";\r\n}\r\n\r\ninterface WorkspaceSettingsDraft {\r\n  readonly name: string;\r\n  readonly visibility: WorkspaceEntity[\"visibility\"];\r\n  readonly lifecycleState: WorkspaceEntity[\"lifecycleState\"];\r\n  readonly street: string;\r\n  readonly city: string;\r\n  readonly state: string;\r\n  readonly postalCode: string;\r\n  readonly country: string;\r\n  readonly details: string;\r\n  readonly managerId: string;\r\n  readonly supervisorId: string;\r\n  readonly safetyOfficerId: string;\r\n}\r\n\r\nfunction createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft {\r\n  return {\r\n    name: workspace.name,\r\n    visibility: workspace.visibility,\r\n    lifecycleState: workspace.lifecycleState,\r\n    street: workspace.address?.street ?? \"\",\r\n    city: workspace.address?.city ?? \"\",\r\n    state: workspace.address?.state ?? \"\",\r\n    postalCode: workspace.address?.postalCode ?? \"\",\r\n    country: workspace.address?.country ?? \"\",\r\n    details: workspace.address?.details ?? \"\",\r\n    managerId: workspace.personnel?.managerId ?? \"\",\r\n    supervisorId: workspace.personnel?.supervisorId ?? \"\",\r\n    safetyOfficerId: workspace.personnel?.safetyOfficerId ?? \"\",\r\n  };\r\n}\r\n\r\nfunction trimOrUndefined(value: string) {\r\n  const trimmed = value.trim();\r\n  return trimmed || undefined;\r\n}\r\n\r\ninterface WorkspaceDetailScreenProps {\r\n  readonly workspaceId: string;\r\n  readonly accountId: string | null | undefined;\r\n  readonly accountsHydrated: boolean;\r\n  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */\r\n  readonly initialTab?: string;\r\n}\r\n\r\nfunction renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {\r\n  const status = getWorkspaceTabStatus(tab);\r\n  return (\r\n    <Card className=\"border border-border/50\">\r\n      <CardHeader>\r\n        <CardTitle>{status} {getWorkspaceTabLabel(tab)}</CardTitle>\r\n        <CardDescription>\r\n          此分頁尚在開發中，功能將逐步開放。\r\n        </CardDescription>\r\n      </CardHeader>\r\n      <CardContent className=\"text-sm text-muted-foreground\">\r\n        目前僅提供基礎導覽，敬請期待後續版本。\r\n      </CardContent>\r\n    </Card>\r\n  );\r\n}\r\n\r\nexport function WorkspaceDetailScreen({\r\n  workspaceId,\r\n  accountId,\r\n  accountsHydrated,\r\n  initialTab,\r\n}: WorkspaceDetailScreenProps) {\r\n  const router = useRouter();\r\n  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);\r\n  const [loadState, setLoadState] = useState<\"loading\" | \"loaded\" | \"error\">(\"loading\");\r\n  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);\r\n  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);\r\n  const [saveError, setSaveError] = useState<string | null>(null);\r\n  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);\r\n\r\n  useEffect(() => {\r\n    let cancelled = false;\r\n\r\n    async function loadWorkspace() {\r\n      if (!workspaceId) {\r\n        setLoadState(\"error\");\r\n        return;\r\n      }\r\n\r\n      if (!accountId || !accountsHydrated) {\r\n        setWorkspace(null);\r\n        setLoadState(\"loading\");\r\n        return;\r\n      }\r\n\r\n      setLoadState(\"loading\");\r\n      try {\r\n        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);\r\n        if (cancelled) return;\r\n        if (!detail) {\r\n          router.replace(\"/workspace?context=unavailable\");\r\n          return;\r\n        }\r\n        setWorkspace(detail);\r\n        setLoadState(\"loaded\");\r\n      } catch (error) {\r\n        if (process.env.NODE_ENV !== \"production\") {\r\n          console.warn(\"[WorkspaceDetailScreen] Failed to load workspace:\", error);\r\n        }\r\n        if (!cancelled) {\r\n          setWorkspace(null);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n\r\n    void loadWorkspace();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [accountId, accountsHydrated, router, workspaceId]);\r\n  const personnelEntries = useMemo(() => {\r\n    if (!workspace?.personnel) {\r\n      return [];\r\n    }\r\n\r\n    return [\r\n      { label: \"Manager\", value: workspace.personnel.managerId },\r\n      { label: \"Supervisor\", value: workspace.personnel.supervisorId },\r\n      { label: \"Safety officer\", value: workspace.personnel.safetyOfficerId },\r\n    ].filter((entry) => Boolean(entry.value));\r\n  }, [workspace]);\r\n\r\n  const addressLines = useMemo(() => {\r\n    if (!workspace?.address) {\r\n      return [];\r\n    }\r\n\r\n    const { street, city, state, postalCode, country, details } = workspace.address;\r\n\r\n    return [\r\n      street,\r\n      [city, state, postalCode].filter(Boolean).join(\", \"),\r\n      country,\r\n      details,\r\n    ].filter(Boolean);\r\n  }, [workspace]);\r\n\r\n  function renderTabContent(tab: WorkspaceTabValue) {\r\n    if (!workspace) {\r\n      return null;\r\n    }\r\n\r\n    switch (tab) {\r\n      case \"Overview\":\r\n        return (\r\n          <>\r\n            <Card className=\"border border-border/50\">\r\n              <CardContent className=\"flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between\">\r\n                <div className=\"flex items-start gap-4\">\r\n                  <Avatar size=\"lg\">\r\n                    <AvatarImage src={workspace.photoURL} alt={workspace.name} />\r\n                    <AvatarFallback>{getWorkspaceInitials(workspace.name)}</AvatarFallback>\r\n                  </Avatar>\r\n\r\n                  <div className=\"space-y-3\">\r\n                    <div className=\"space-y-1\">\r\n                      <p className=\"text-2xl font-semibold tracking-tight\">{workspace.name}</p>\r\n                      <p className=\"text-sm text-muted-foreground\">\r\n                        {workspace.accountType === \"organization\" ? \"Organization\" : \"Personal\"} workspace ·\r\n                        account {workspace.accountId}\r\n                      </p>\r\n                    </div>\r\n\r\n                    <div className=\"flex flex-wrap items-center gap-2\">\r\n                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>\r\n                        {workspace.lifecycleState}\r\n                      </Badge>\r\n                      <Badge variant=\"outline\">{workspace.visibility}</Badge>\r\n                      <Badge variant=\"outline\">Created {formatTimestamp(workspace.createdAt)}</Badge>\r\n                    </div>\r\n\r\n                    <Button\r\n                      type=\"button\"\r\n                      variant=\"outline\"\r\n                      size=\"sm\"\r\n                      onClick={() => {\r\n                        setSettingsDraft(createSettingsDraft(workspace));\r\n                        setSaveError(null);\r\n                        setIsEditWorkspaceOpen(true);\r\n                      }}\r\n                    >\r\n                      編輯工作區\r\n                    </Button>\r\n                  </div>\r\n                </div>\r\n\r\n                <div className=\"grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[20rem]\">\r\n                  <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n                    <p className=\"text-xs text-muted-foreground\">Capabilities</p>\r\n                    <p className=\"mt-1 text-xl font-semibold\">{workspace.capabilities.length}</p>\r\n                  </div>\r\n                  <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n                    <p className=\"text-xs text-muted-foreground\">Teams</p>\r\n                    <p className=\"mt-1 text-xl font-semibold\">{workspace.teamIds.length}</p>\r\n                  </div>\r\n                  <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n                    <p className=\"text-xs text-muted-foreground\">Locations</p>\r\n                    <p className=\"mt-1 text-xl font-semibold\">{workspace.locations?.length ?? 0}</p>\r\n                  </div>\r\n                  <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n                    <p className=\"text-xs text-muted-foreground\">Grants</p>\r\n                    <p className=\"mt-1 text-xl font-semibold\">{workspace.grants.length}</p>\r\n                  </div>\r\n                </div>\r\n              </CardContent>\r\n            </Card>\r\n\r\n            <div className=\"grid gap-4 xl:grid-cols-[1.2fr_0.8fr]\">\r\n              <Card className=\"border border-border/50\">\r\n                <CardHeader>\r\n                  <CardTitle>Capabilities</CardTitle>\r\n                  <CardDescription>\r\n                    Runtime features currently mounted on this workspace.\r\n                  </CardDescription>\r\n                </CardHeader>\r\n                <CardContent className=\"space-y-3\">\r\n                  {workspace.capabilities.length === 0 ? (\r\n                    <p className=\"text-sm text-muted-foreground\">\r\n                      No capability bindings have been added yet.\r\n                    </p>\r\n                  ) : (\r\n                    workspace.capabilities.map((capability) => (\r\n                      <div\r\n                        key={capability.id}\r\n                        className=\"rounded-xl border border-border/40 px-4 py-4\"\r\n                      >\r\n                        <div className=\"flex flex-wrap items-center gap-2\">\r\n                          <p className=\"text-sm font-semibold text-foreground\">\r\n                            {capability.name}\r\n                          </p>\r\n                          <Badge variant=\"outline\">{capability.type}</Badge>\r\n                          <Badge\r\n                            variant={capability.status === \"stable\" ? \"secondary\" : \"outline\"}\r\n                          >\r\n                            {capability.status}\r\n                          </Badge>\r\n                        </div>\r\n                        <p className=\"mt-2 text-sm text-muted-foreground\">\r\n                          {capability.description}\r\n                        </p>\r\n                      </div>\r\n                    ))\r\n                  )}\r\n                </CardContent>\r\n              </Card>\r\n\r\n              <Card className=\"border border-border/50\">\r\n                <CardHeader>\r\n                  <CardTitle>Access Model</CardTitle>\r\n                  <CardDescription>\r\n                    Team scopes and direct grants applied to this workspace.\r\n                  </CardDescription>\r\n                </CardHeader>\r\n                <CardContent className=\"space-y-4\">\r\n                  <div className=\"space-y-2\">\r\n                    <p className=\"text-sm font-medium text-foreground\">Team access</p>\r\n                    {workspace.teamIds.length === 0 ? (\r\n                      <p className=\"text-sm text-muted-foreground\">No team access assigned.</p>\r\n                    ) : (\r\n                      <div className=\"flex flex-wrap gap-2\">\r\n                        {workspace.teamIds.map((teamId) => (\r\n                          <Badge key={teamId} variant=\"secondary\">\r\n                            {teamId}\r\n                          </Badge>\r\n                        ))}\r\n                      </div>\r\n                    )}\r\n                  </div>\r\n\r\n                  <Separator />\r\n\r\n                  <div className=\"space-y-2\">\r\n                    <p className=\"text-sm font-medium text-foreground\">Direct grants</p>\r\n                    {workspace.grants.length === 0 ? (\r\n                      <p className=\"text-sm text-muted-foreground\">No direct grants recorded.</p>\r\n                    ) : (\r\n                      workspace.grants.map((grant, index) => (\r\n                        <div\r\n                          key={`grant-${grant.role}-${grant.teamId ?? \"none\"}-${grant.userId ?? \"none\"}-${grant.protocol ?? \"none\"}-${index}`}\r\n                          className=\"rounded-xl border border-border/40 px-4 py-3\"\r\n                        >\r\n                          <p className=\"text-sm font-medium text-foreground\">\r\n                            {describeGrant(grant)}\r\n                          </p>\r\n                          <p className=\"mt-1 text-xs text-muted-foreground\">\r\n                            Role: {grant.role}\r\n                            {grant.teamId ? ` · Team: ${grant.teamId}` : \"\"}\r\n                            {grant.userId ? ` · User: ${grant.userId}` : \"\"}\r\n                            {grant.protocol ? ` · Protocol: ${grant.protocol}` : \"\"}\r\n                          </p>\r\n                        </div>\r\n                      ))\r\n                    )}\r\n                  </div>\r\n                </CardContent>\r\n              </Card>\r\n            </div>\r\n\r\n            <div className=\"grid gap-4 xl:grid-cols-2\">\r\n              <Card className=\"border border-border/50\">\r\n                <CardHeader>\r\n                  <CardTitle>Locations</CardTitle>\r\n                  <CardDescription>\r\n                    Physical or logical locations linked to the workspace.\r\n                  </CardDescription>\r\n                </CardHeader>\r\n                <CardContent className=\"space-y-3\">\r\n                  {workspace.locations == null || workspace.locations.length === 0 ? (\r\n                    <p className=\"text-sm text-muted-foreground\">\r\n                      No locations have been configured yet.\r\n                    </p>\r\n                  ) : (\r\n                    workspace.locations.map((location) => (\r\n                      <div\r\n                        key={location.locationId}\r\n                        className=\"rounded-xl border border-border/40 px-4 py-4\"\r\n                      >\r\n                        <div className=\"flex flex-wrap items-center gap-2\">\r\n                          <p className=\"text-sm font-semibold text-foreground\">\r\n                            {location.label}\r\n                          </p>\r\n                          <Badge variant=\"outline\">{location.locationId}</Badge>\r\n                        </div>\r\n                        {location.description && (\r\n                          <p className=\"mt-2 text-sm text-muted-foreground\">\r\n                            {location.description}\r\n                          </p>\r\n                        )}\r\n                        <p className=\"mt-2 text-xs text-muted-foreground\">\r\n                          Capacity: {location.capacity ?? \"—\"}\r\n                        </p>\r\n                      </div>\r\n                    ))\r\n                  )}\r\n                </CardContent>\r\n              </Card>\r\n\r\n              <Card className=\"border border-border/50\">\r\n                <CardHeader>\r\n                  <CardTitle>Workspace Profile</CardTitle>\r\n                  <CardDescription>\r\n                    Operational contacts and registered workspace address.\r\n                  </CardDescription>\r\n                </CardHeader>\r\n                <CardContent className=\"space-y-4\">\r\n                  <div className=\"space-y-2\">\r\n                    <p className=\"text-sm font-medium text-foreground\">Personnel</p>\r\n                    {personnelEntries.length === 0 ? (\r\n                      <p className=\"text-sm text-muted-foreground\">\r\n                        No personnel roles assigned.\r\n                      </p>\r\n                    ) : (\r\n                      personnelEntries.map((entry) => (\r\n                        <div\r\n                          key={entry.label}\r\n                          className=\"flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm\"\r\n                        >\r\n                          <span className=\"text-muted-foreground\">{entry.label}</span>\r\n                          <span className=\"font-medium text-foreground\">{entry.value}</span>\r\n                        </div>\r\n                      ))\r\n                    )}\r\n                  </div>\r\n\r\n                  <Separator />\r\n\r\n                  <div className=\"space-y-2\">\r\n                    <p className=\"text-sm font-medium text-foreground\">Address</p>\r\n                    {addressLines.length === 0 ? (\r\n                      <p className=\"text-sm text-muted-foreground\">\r\n                        No address information has been provided.\r\n                      </p>\r\n                    ) : (\r\n                      <div className=\"rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground\">\r\n                        {addressLines.map((line, index) => (\r\n                          <p key={`${line}-${index}`}>{line}</p>\r\n                        ))}\r\n                      </div>\r\n                    )}\r\n                  </div>\r\n                </CardContent>\r\n              </Card>\r\n            </div>\r\n          </>\r\n        );\r\n      case \"Members\":\r\n        return <WorkspaceMembersTab workspace={workspace} />;\r\n      case \"Daily\":\r\n        return <WorkspaceDailyTab workspace={workspace} />;\r\n      case \"Files\":\r\n        return <WorkspaceFilesTab workspace={workspace} />;\r\n      case \"Wiki\":\r\n        return <WikiBetaWorkspaceView workspace={workspace} />;\r\n      case \"Schedule\":\r\n        return (\r\n          <WorkspaceSchedulingTab\r\n            workspace={workspace}\r\n            accountId={accountId ?? workspace.accountId}\r\n            currentUserId={accountId ?? \"anonymous\"}\r\n          />\r\n        );\r\n      case \"Audit\":\r\n        return <WorkspaceAuditTab workspaceId={workspace.id} />;\r\n      default:\r\n        return renderWorkspacePlaceholderTab(tab);\r\n    }\r\n  }\r\n\r\n  async function handleSaveWorkspaceSettings(event: FormEvent<HTMLFormElement>) {\r\n    event.preventDefault();\r\n\r\n    if (!workspace || !settingsDraft) {\r\n      return;\r\n    }\r\n\r\n    if (!accountId) {\r\n      setSaveError(\"帳號上下文尚未完成同步，請稍候再試。\");\r\n      return;\r\n    }\r\n\r\n    const nextWorkspaceName = settingsDraft.name.trim();\r\n    if (!nextWorkspaceName) {\r\n      setSaveError(\"請輸入工作區名稱。\");\r\n      return;\r\n    }\r\n\r\n    setIsSavingWorkspace(true);\r\n    setSaveError(null);\r\n\r\n    const hasAddressContent = Boolean(\r\n      settingsDraft.street.trim() ||\r\n        settingsDraft.city.trim() ||\r\n        settingsDraft.state.trim() ||\r\n        settingsDraft.postalCode.trim() ||\r\n        settingsDraft.country.trim() ||\r\n        settingsDraft.details.trim(),\r\n    );\r\n    const hasPersonnelContent = Boolean(\r\n      settingsDraft.managerId.trim() ||\r\n        settingsDraft.supervisorId.trim() ||\r\n        settingsDraft.safetyOfficerId.trim(),\r\n    );\r\n\r\n    const result = await updateWorkspaceSettings({\r\n      workspaceId: workspace.id,\r\n      accountId,\r\n      name: nextWorkspaceName,\r\n      visibility: settingsDraft.visibility,\r\n      lifecycleState: settingsDraft.lifecycleState,\r\n      address:\r\n        workspace.address != null || hasAddressContent\r\n          ? {\r\n              street: settingsDraft.street.trim(),\r\n              city: settingsDraft.city.trim(),\r\n              state: settingsDraft.state.trim(),\r\n              postalCode: settingsDraft.postalCode.trim(),\r\n              country: settingsDraft.country.trim(),\r\n              details: trimOrUndefined(settingsDraft.details),\r\n            }\r\n          : undefined,\r\n      personnel:\r\n        workspace.personnel != null || hasPersonnelContent\r\n          ? {\r\n              managerId: trimOrUndefined(settingsDraft.managerId),\r\n              supervisorId: trimOrUndefined(settingsDraft.supervisorId),\r\n              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),\r\n            }\r\n          : undefined,\r\n    });\r\n\r\n    if (!result.success) {\r\n      setSaveError(result.error.message);\r\n      setIsSavingWorkspace(false);\r\n      return;\r\n    }\r\n\r\n    try {\r\n      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);\r\n      if (!detail) {\r\n        router.replace(\"/workspace?context=unavailable\");\r\n        return;\r\n      }\r\n      setWorkspace(detail);\r\n      setLoadState(\"loaded\");\r\n      setSettingsDraft(detail ? createSettingsDraft(detail) : null);\r\n      setIsEditWorkspaceOpen(false);\r\n    } catch (error) {\r\n      if (process.env.NODE_ENV !== \"production\") {\r\n        console.warn(\"[WorkspaceDetailScreen] Failed to refresh workspace after save:\", error);\r\n      }\r\n      setSaveError(\"工作區已更新，但重新整理資料失敗。請稍後再試。\");\r\n    } finally {\r\n      setIsSavingWorkspace(false);\r\n    }\r\n  }\r\n\r\n  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)\r\n    ? initialTab\r\n    : \"Overview\";\r\n\r\n  return (\r\n    <div className=\"space-y-6\">\r\n      <Link href=\"/workspace\" className=\"inline-flex text-sm font-medium text-primary hover:underline md:hidden\">\r\n        ← 返回 Workspace Hub\r\n      </Link>\r\n\r\n      {!accountsHydrated && (\r\n        <div className=\"rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground\">\r\n          正在同步帳號內容…\r\n        </div>\r\n      )}\r\n\r\n      {loadState === \"loading\" && (\r\n        <Card className=\"border border-border/50\">\r\n          <CardContent className=\"px-6 py-5 text-sm text-muted-foreground\">\r\n            Loading workspace detail…\r\n          </CardContent>\r\n        </Card>\r\n      )}\r\n\r\n      {loadState === \"error\" && (\r\n        <Card className=\"border border-destructive/30\">\r\n          <CardContent className=\"px-6 py-5 text-sm text-destructive\">\r\n            無法載入工作區資料，請返回清單後重試。\r\n          </CardContent>\r\n        </Card>\r\n      )}\r\n\r\n      {loadState === \"loaded\" && !workspace && (\r\n        <Card className=\"border border-border/50\">\r\n          <CardContent className=\"px-6 py-5 text-sm text-muted-foreground\">\r\n            找不到此工作區。\r\n          </CardContent>\r\n        </Card>\r\n      )}\r\n\r\n      {workspace && (\r\n        <div className=\"space-y-6\">\r\n          <div className=\"flex items-center gap-2\">\r\n            <Badge variant=\"outline\">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>\r\n          </div>\r\n          {renderTabContent(resolvedTab)}\r\n        </div>\r\n      )}\r\n\r\n      <Dialog\r\n        open={isEditWorkspaceOpen}\r\n        onOpenChange={(open) => {\r\n          setIsEditWorkspaceOpen(open);\r\n          if (!open) {\r\n            setSaveError(null);\r\n            if (workspace) {\r\n              setSettingsDraft(createSettingsDraft(workspace));\r\n            }\r\n          }\r\n        }}\r\n      >\r\n        <DialogContent className=\"max-h-[85vh] overflow-y-auto sm:max-w-2xl\">\r\n          <DialogHeader>\r\n            <DialogTitle>編輯工作區設定</DialogTitle>\r\n            <DialogDescription>\r\n              更新工作區基本資料、地址與聯絡角色，讓個人與組織工作區都能直接在內頁維護。\r\n            </DialogDescription>\r\n          </DialogHeader>\r\n\r\n          {settingsDraft && (\r\n            <form className=\"space-y-6\" onSubmit={handleSaveWorkspaceSettings}>\r\n              <div className=\"grid gap-4 sm:grid-cols-2\">\r\n                <div className=\"space-y-2 sm:col-span-2\">\r\n                  <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-detail-name\">\r\n                    工作區名稱\r\n                  </label>\r\n                  <Input\r\n                    id=\"workspace-detail-name\"\r\n                    value={settingsDraft.name}\r\n                    onChange={(event) =>\r\n                      setSettingsDraft((current) =>\r\n                        current ? { ...current, name: event.target.value } : current,\r\n                      )\r\n                    }\r\n                    disabled={isSavingWorkspace}\r\n                    maxLength={80}\r\n                  />\r\n                </div>\r\n\r\n                <div className=\"space-y-2\">\r\n                  <label className=\"text-sm font-medium text-foreground\">可見性</label>\r\n                  <Select\r\n                    value={settingsDraft.visibility}\r\n                    onValueChange={(value: WorkspaceEntity[\"visibility\"]) =>\r\n                      setSettingsDraft((current) =>\r\n                        current ? { ...current, visibility: value } : current,\r\n                      )\r\n                    }\r\n                    disabled={isSavingWorkspace}\r\n                  >\r\n                    <SelectTrigger>\r\n                      <SelectValue />\r\n                    </SelectTrigger>\r\n                    <SelectContent>\r\n                      <SelectItem value=\"visible\">visible</SelectItem>\r\n                      <SelectItem value=\"hidden\">hidden</SelectItem>\r\n                    </SelectContent>\r\n                  </Select>\r\n                </div>\r\n\r\n                <div className=\"space-y-2\">\r\n                  <label className=\"text-sm font-medium text-foreground\">生命週期</label>\r\n                  <Select\r\n                    value={settingsDraft.lifecycleState}\r\n                    onValueChange={(value: WorkspaceEntity[\"lifecycleState\"]) =>\r\n                      setSettingsDraft((current) =>\r\n                        current ? { ...current, lifecycleState: value } : current,\r\n                      )\r\n                    }\r\n                    disabled={isSavingWorkspace}\r\n                  >\r\n                    <SelectTrigger>\r\n                      <SelectValue />\r\n                    </SelectTrigger>\r\n                    <SelectContent>\r\n                      <SelectItem value=\"preparatory\">preparatory</SelectItem>\r\n                      <SelectItem value=\"active\">active</SelectItem>\r\n                      <SelectItem value=\"stopped\">stopped</SelectItem>\r\n                    </SelectContent>\r\n                  </Select>\r\n                </div>\r\n              </div>\r\n\r\n              <div className=\"space-y-4\">\r\n                <div>\r\n                  <p className=\"text-sm font-medium text-foreground\">聯絡角色</p>\r\n                  <p className=\"text-xs text-muted-foreground\">\r\n                    個人與組織工作區都共用同一組工作區聯絡人欄位。\r\n                  </p>\r\n                </div>\r\n                <div className=\"grid gap-4 sm:grid-cols-3\">\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-manager-id\">\r\n                      Manager\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-manager-id\"\r\n                      value={settingsDraft.managerId}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, managerId: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-supervisor-id\">\r\n                      Supervisor\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-supervisor-id\"\r\n                      value={settingsDraft.supervisorId}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, supervisorId: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-safety-officer-id\">\r\n                      Safety officer\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-safety-officer-id\"\r\n                      value={settingsDraft.safetyOfficerId}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, safetyOfficerId: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                </div>\r\n              </div>\r\n\r\n              <div className=\"space-y-4\">\r\n                <div>\r\n                  <p className=\"text-sm font-medium text-foreground\">地址資訊</p>\r\n                  <p className=\"text-xs text-muted-foreground\">\r\n                    用於個人據點與組織營運工作區的基礎地址資料。\r\n                  </p>\r\n                </div>\r\n                <div className=\"grid gap-4 sm:grid-cols-2\">\r\n                  <div className=\"space-y-2 sm:col-span-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-address-street\">\r\n                      Street\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-address-street\"\r\n                      value={settingsDraft.street}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, street: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-address-city\">\r\n                      City\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-address-city\"\r\n                      value={settingsDraft.city}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, city: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-address-state\">\r\n                      State\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-address-state\"\r\n                      value={settingsDraft.state}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, state: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-address-postal-code\">\r\n                      Postal code\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-address-postal-code\"\r\n                      value={settingsDraft.postalCode}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, postalCode: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-address-country\">\r\n                      Country\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-address-country\"\r\n                      value={settingsDraft.country}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, country: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                  <div className=\"space-y-2 sm:col-span-2\">\r\n                    <label className=\"text-sm font-medium text-foreground\" htmlFor=\"workspace-address-details\">\r\n                      Details\r\n                    </label>\r\n                    <Input\r\n                      id=\"workspace-address-details\"\r\n                      value={settingsDraft.details}\r\n                      onChange={(event) =>\r\n                        setSettingsDraft((current) =>\r\n                          current ? { ...current, details: event.target.value } : current,\r\n                        )\r\n                      }\r\n                      disabled={isSavingWorkspace}\r\n                    />\r\n                  </div>\r\n                </div>\r\n              </div>\r\n\r\n              {saveError && <p className=\"text-sm text-destructive\">{saveError}</p>}\r\n\r\n              <DialogFooter>\r\n                <Button\r\n                  type=\"button\"\r\n                  variant=\"outline\"\r\n                  onClick={() => setIsEditWorkspaceOpen(false)}\r\n                  disabled={isSavingWorkspace}\r\n                >\r\n                  取消\r\n                </Button>\r\n                <Button type=\"submit\" disabled={isSavingWorkspace}>\r\n                  {isSavingWorkspace ? \"儲存中…\" : \"儲存設定\"}\r\n                </Button>\r\n              </DialogFooter>\r\n            </form>\r\n          )}\r\n        </DialogContent>\r\n      </Dialog>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\components\\WorkspaceHubScreen.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":6,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":6,"endColumn":60}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport Link from \"next/link\";\r\nimport { type FormEvent, useState } from \"react\";\r\n\r\nimport type { WorkspaceEntity } from \"@/modules/workspace\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport { Button } from \"@ui-shadcn/ui/button\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport {\r\n  Dialog,\r\n  DialogContent,\r\n  DialogDescription,\r\n  DialogFooter,\r\n  DialogHeader,\r\n  DialogTitle,\r\n} from \"@ui-shadcn/ui/dialog\";\r\nimport { Input } from \"@ui-shadcn/ui/input\";\r\n\r\nimport { useWorkspaceHub } from \"../hooks/useWorkspaceHub\";\r\n\r\nconst lifecycleBadgeVariant: Record<\r\n  WorkspaceEntity[\"lifecycleState\"],\r\n  \"default\" | \"secondary\" | \"outline\"\r\n> = {\r\n  active: \"default\",\r\n  preparatory: \"secondary\",\r\n  stopped: \"outline\",\r\n};\r\n\r\ninterface WorkspaceHubScreenProps {\r\n  readonly accountId: string | null | undefined;\r\n  readonly accountName: string | null | undefined;\r\n  readonly accountType: \"user\" | \"organization\";\r\n  readonly accountsHydrated: boolean;\r\n  readonly isBootstrapSeeded: boolean;\r\n}\r\n\r\nexport function WorkspaceHubScreen({\r\n  accountId,\r\n  accountName,\r\n  accountType,\r\n  accountsHydrated,\r\n  isBootstrapSeeded,\r\n}: WorkspaceHubScreenProps) {\r\n  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);\r\n  const [workspaceName, setWorkspaceName] = useState(\"\");\r\n\r\n  const {\r\n    createError,\r\n    clearCreateError,\r\n    createWorkspaceForAccount,\r\n    errorMessage,\r\n    isCreatingWorkspace,\r\n    loadState,\r\n    workspaceStats,\r\n    workspaces,\r\n  } = useWorkspaceHub({\r\n    accountId,\r\n    accountType,\r\n  });\r\n\r\n  function resetCreateWorkspaceDialog() {\r\n    setWorkspaceName(\"\");\r\n    clearCreateError();\r\n  }\r\n\r\n  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {\r\n    event.preventDefault();\r\n\r\n    const result = await createWorkspaceForAccount(workspaceName);\r\n\r\n    if (!result.success) {\r\n      return;\r\n    }\r\n\r\n    resetCreateWorkspaceDialog();\r\n    setIsCreateWorkspaceOpen(false);\r\n  }\r\n\r\n  return (\r\n    <div className=\"space-y-6\">\r\n      <div className=\"flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between\">\r\n        <div className=\"flex flex-col gap-2\">\r\n          <h1 className=\"text-2xl font-bold tracking-tight\">Workspace Hub</h1>\r\n          <p className=\"text-sm text-muted-foreground\">\r\n            Review the workspaces connected to{\" \"}\r\n            <span className=\"font-medium text-foreground\">\r\n              {accountName ?? \"the active account\"}\r\n            </span>\r\n            .\r\n          </p>\r\n        </div>\r\n\r\n        <Button\r\n          onClick={() => setIsCreateWorkspaceOpen(true)}\r\n          disabled={!accountsHydrated || !accountId}\r\n        >\r\n          {!accountsHydrated ? \"同步帳號中…\" : \"建立工作區\"}\r\n        </Button>\r\n      </div>\r\n\r\n      {!accountsHydrated && (\r\n        <div\r\n          className=\"rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground\"\r\n          aria-live=\"polite\"\r\n          role=\"status\"\r\n        >\r\n          {isBootstrapSeeded\r\n            ? \"正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。\"\r\n            : \"正在載入帳號與工作區內容…\"}\r\n        </div>\r\n      )}\r\n\r\n      <div className=\"grid gap-4 sm:grid-cols-3\">\r\n        <Card className=\"border border-border/50\">\r\n          <CardHeader>\r\n            <CardDescription>Total Workspaces</CardDescription>\r\n            <CardTitle className=\"text-3xl\">{workspaceStats.total}</CardTitle>\r\n          </CardHeader>\r\n        </Card>\r\n        <Card className=\"border border-border/50\">\r\n          <CardHeader>\r\n            <CardDescription>Active</CardDescription>\r\n            <CardTitle className=\"text-3xl\">{workspaceStats.active}</CardTitle>\r\n          </CardHeader>\r\n        </Card>\r\n        <Card className=\"border border-border/50\">\r\n          <CardHeader>\r\n            <CardDescription>Preparatory</CardDescription>\r\n            <CardTitle className=\"text-3xl\">{workspaceStats.preparatory}</CardTitle>\r\n          </CardHeader>\r\n        </Card>\r\n      </div>\r\n\r\n      <Card className=\"border border-border/50\">\r\n        <CardHeader>\r\n          <CardTitle>Workspace Records</CardTitle>\r\n          <CardDescription>\r\n            Lifecycle, capabilities, locations, and grant counts come directly\r\n            from the workspace module.\r\n          </CardDescription>\r\n        </CardHeader>\r\n        <CardContent className=\"space-y-3\">\r\n          {loadState === \"loading\" && (\r\n            <div className=\"rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground\">\r\n              Loading workspace records…\r\n            </div>\r\n          )}\r\n\r\n          {loadState === \"error\" && errorMessage && (\r\n            <div className=\"rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive\">\r\n              {errorMessage}\r\n            </div>\r\n          )}\r\n\r\n          {loadState === \"loaded\" && workspaces.length === 0 && (\r\n            <div className=\"rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground\">\r\n              No workspace records are linked to this account yet. You can keep\r\n              shaping the account context from{\" \"}\r\n              <Link\r\n                href=\"/organization\"\r\n                className=\"font-medium text-primary hover:underline\"\r\n              >\r\n                organization\r\n              </Link>{\" \"}\r\n              or{\" \"}\r\n              <Link\r\n                href=\"/settings\"\r\n                className=\"font-medium text-primary hover:underline\"\r\n              >\r\n                account settings\r\n              </Link>\r\n              .\r\n            </div>\r\n          )}\r\n\r\n          {workspaces.map((workspace) => (\r\n            <Link\r\n              key={workspace.id}\r\n              href={`/workspace/${workspace.id}`}\r\n              className=\"block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70\"\r\n            >\r\n              <div className=\"flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between\">\r\n                <div className=\"space-y-2\">\r\n                  <div className=\"flex flex-wrap items-center gap-2\">\r\n                    <p className=\"text-sm font-semibold text-foreground\">\r\n                      {workspace.name}\r\n                    </p>\r\n                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>\r\n                      {workspace.lifecycleState}\r\n                    </Badge>\r\n                    <Badge variant=\"outline\">{workspace.visibility}</Badge>\r\n                  </div>\r\n                  <p className=\"text-xs text-muted-foreground\">\r\n                    Account scope: {workspace.accountType}\r\n                  </p>\r\n                  <p className=\"text-xs font-medium text-primary\">點擊進入工作區</p>\r\n                </div>\r\n\r\n                <div className=\"grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right\">\r\n                  <span>Capabilities: {workspace.capabilities.length}</span>\r\n                  <span>Teams: {workspace.teamIds.length}</span>\r\n                  <span>Locations: {workspace.locations?.length ?? 0}</span>\r\n                  <span>Grants: {workspace.grants.length}</span>\r\n                </div>\r\n              </div>\r\n            </Link>\r\n          ))}\r\n        </CardContent>\r\n      </Card>\r\n\r\n      <Dialog\r\n        open={isCreateWorkspaceOpen}\r\n        onOpenChange={(open) => {\r\n          setIsCreateWorkspaceOpen(open);\r\n          if (!open) {\r\n            resetCreateWorkspaceDialog();\r\n          }\r\n        }}\r\n      >\r\n        <DialogContent aria-describedby=\"create-workspace-description\">\r\n          <DialogHeader>\r\n            <DialogTitle>建立工作區</DialogTitle>\r\n            <DialogDescription id=\"create-workspace-description\">\r\n              建立後會直接出現在目前帳號的工作區清單中。\r\n            </DialogDescription>\r\n          </DialogHeader>\r\n\r\n          <form className=\"space-y-4\" onSubmit={handleCreateWorkspace}>\r\n            <div className=\"space-y-2\">\r\n              <label\r\n                className=\"text-sm font-medium text-foreground\"\r\n                htmlFor=\"workspace-name\"\r\n              >\r\n                工作區名稱\r\n              </label>\r\n              <Input\r\n                id=\"workspace-name\"\r\n                value={workspaceName}\r\n                onChange={(event) => {\r\n                  setWorkspaceName(event.target.value);\r\n                  if (createError) {\r\n                    clearCreateError();\r\n                  }\r\n                }}\r\n                placeholder=\"例如：北區營運中心\"\r\n                autoFocus\r\n                disabled={isCreatingWorkspace}\r\n                maxLength={80}\r\n              />\r\n              {createError && (\r\n                <p className=\"text-sm text-destructive\">{createError}</p>\r\n              )}\r\n            </div>\r\n\r\n            <DialogFooter>\r\n              <Button\r\n                type=\"button\"\r\n                variant=\"outline\"\r\n                onClick={() => {\r\n                  resetCreateWorkspaceDialog();\r\n                  setIsCreateWorkspaceOpen(false);\r\n                }}\r\n                disabled={isCreatingWorkspace}\r\n              >\r\n                取消\r\n              </Button>\r\n              <Button type=\"submit\" disabled={isCreatingWorkspace || !accountId}>\r\n                {isCreatingWorkspace ? \"建立中…\" : \"直接建立\"}\r\n              </Button>\r\n            </DialogFooter>\r\n          </form>\r\n        </DialogContent>\r\n      </Dialog>\r\n    </div>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\components\\WorkspaceMembersTab.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":5,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":5,"endColumn":60}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport { useEffect, useMemo, useState } from \"react\";\r\n\r\nimport type { WorkspaceEntity } from \"@/modules/workspace\";\r\nimport type { WorkspaceMemberView } from \"../../domain/entities/WorkspaceMember\";\r\nimport { Avatar, AvatarFallback } from \"@ui-shadcn/ui/avatar\";\r\nimport { Badge } from \"@ui-shadcn/ui/badge\";\r\nimport {\r\n  Card,\r\n  CardContent,\r\n  CardDescription,\r\n  CardHeader,\r\n  CardTitle,\r\n} from \"@ui-shadcn/ui/card\";\r\nimport { getWorkspaceMembers } from \"../queries/workspace-member.queries\";\r\n\r\nfunction getMemberInitials(name: string) {\r\n  const trimmed = name.trim();\r\n  if (!trimmed) {\r\n    return \"??\";\r\n  }\r\n\r\n  const tokens = trimmed.split(/\\s+/).slice(0, 2);\r\n  return tokens.map((token) => token[0]?.toUpperCase() ?? \"\").join(\"\");\r\n}\r\n\r\nfunction getAccessChannelKey(memberId: string, channel: WorkspaceMemberView[\"accessChannels\"][number], index: number) {\r\n  return [\r\n    memberId,\r\n    channel.source,\r\n    channel.label,\r\n    channel.role ?? \"\",\r\n    channel.protocol ?? \"\",\r\n    channel.teamId ?? \"\",\r\n    String(index),\r\n  ].join(\"::\");\r\n}\r\n\r\nconst presenceLabelMap = {\r\n  active: \"Active\",\r\n  away: \"Away\",\r\n  offline: \"Offline\",\r\n  unknown: \"Unknown\",\r\n} as const;\r\n\r\nconst sourceLabelMap = {\r\n  owner: \"Owner\",\r\n  direct: \"Direct\",\r\n  team: \"Team\",\r\n  personnel: \"Personnel\",\r\n} as const;\r\n\r\ninterface WorkspaceMembersTabProps {\r\n  readonly workspace: WorkspaceEntity;\r\n}\r\n\r\nexport function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {\r\n  const [members, setMembers] = useState<WorkspaceMemberView[]>([]);\r\n  const [loadState, setLoadState] = useState<\"loading\" | \"loaded\" | \"error\">(\"loading\");\r\n\r\n  useEffect(() => {\r\n    let cancelled = false;\r\n\r\n    async function loadMembers() {\r\n      setLoadState(\"loading\");\r\n\r\n      try {\r\n        const nextMembers = await getWorkspaceMembers(workspace.id);\r\n        if (cancelled) {\r\n          return;\r\n        }\r\n\r\n        setMembers(nextMembers);\r\n        setLoadState(\"loaded\");\r\n      } catch (error) {\r\n        if (process.env.NODE_ENV !== \"production\") {\r\n          console.warn(\"[WorkspaceMembersTab] Failed to load members:\", error);\r\n        }\r\n\r\n        if (!cancelled) {\r\n          setMembers([]);\r\n          setLoadState(\"error\");\r\n        }\r\n      }\r\n    }\r\n\r\n    void loadMembers();\r\n\r\n    return () => {\r\n      cancelled = true;\r\n    };\r\n  }, [workspace.id]);\r\n\r\n  const directCount = useMemo(\r\n    () =>\r\n      members.filter((member) =>\r\n        member.accessChannels.some((channel) => channel.source === \"direct\"),\r\n      ).length,\r\n    [members],\r\n  );\r\n\r\n  const teamCount = useMemo(\r\n    () =>\r\n      members.filter((member) =>\r\n        member.accessChannels.some((channel) => channel.source === \"team\"),\r\n      ).length,\r\n    [members],\r\n  );\r\n\r\n  return (\r\n    <Card className=\"border border-border/50\">\r\n      <CardHeader>\r\n        <CardTitle>Members</CardTitle>\r\n        <CardDescription>\r\n          {workspace.accountType === \"organization\"\r\n            ? \"組織成員與工作區授權來源的整合檢視。\"\r\n            : \"個人工作區目前的共享與聯絡角色摘要。\"}\r\n        </CardDescription>\r\n      </CardHeader>\r\n      <CardContent className=\"space-y-4\">\r\n        <div className=\"grid gap-3 sm:grid-cols-3\">\r\n          <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n            <p className=\"text-xs text-muted-foreground\">Visible members</p>\r\n            <p className=\"mt-1 text-xl font-semibold\">{members.length}</p>\r\n          </div>\r\n          <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n            <p className=\"text-xs text-muted-foreground\">Direct access</p>\r\n            <p className=\"mt-1 text-xl font-semibold\">{directCount}</p>\r\n          </div>\r\n          <div className=\"rounded-xl border border-border/40 px-4 py-3\">\r\n            <p className=\"text-xs text-muted-foreground\">Team access</p>\r\n            <p className=\"mt-1 text-xl font-semibold\">{teamCount}</p>\r\n          </div>\r\n        </div>\r\n\r\n        {loadState === \"loading\" && (\r\n          <p className=\"text-sm text-muted-foreground\">Loading workspace members…</p>\r\n        )}\r\n\r\n        {loadState === \"error\" && (\r\n          <p className=\"text-sm text-destructive\">\r\n            無法載入成員資料，請重新整理頁面或稍後再試。\r\n          </p>\r\n        )}\r\n\r\n        {loadState === \"loaded\" && members.length === 0 && (\r\n          <p className=\"text-sm text-muted-foreground\">\r\n            目前尚未整理出任何工作區成員或授權來源，之後可在這裡持續擴充成員維護流程。\r\n          </p>\r\n        )}\r\n\r\n        {loadState === \"loaded\" && members.length > 0 && (\r\n          <div className=\"space-y-3\">\r\n            {members.map((member) => (\r\n              <div\r\n                key={member.id}\r\n                className=\"rounded-xl border border-border/40 px-4 py-4\"\r\n              >\r\n                <div className=\"flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between\">\r\n                  <div className=\"flex items-start gap-3\">\r\n                    <Avatar>\r\n                      <AvatarFallback>{getMemberInitials(member.displayName)}</AvatarFallback>\r\n                    </Avatar>\r\n                    <div className=\"space-y-1\">\r\n                      <div className=\"flex flex-wrap items-center gap-2\">\r\n                        <p className=\"text-sm font-semibold text-foreground\">\r\n                          {member.displayName}\r\n                        </p>\r\n                        <Badge variant=\"outline\">{presenceLabelMap[member.presence]}</Badge>\r\n                        {member.organizationRole && (\r\n                          <Badge variant=\"secondary\">{member.organizationRole}</Badge>\r\n                        )}\r\n                        {member.isExternal && <Badge variant=\"outline\">External</Badge>}\r\n                      </div>\r\n                      <p className=\"text-xs text-muted-foreground\">\r\n                        {member.email ?? member.id}\r\n                      </p>\r\n                    </div>\r\n                  </div>\r\n\r\n                  <div className=\"flex flex-wrap gap-2\">\r\n                    {member.accessChannels.map((channel, index) => (\r\n                      <Badge\r\n                        key={getAccessChannelKey(member.id, channel, index)}\r\n                        variant=\"outline\"\r\n                      >\r\n                        {sourceLabelMap[channel.source]} · {channel.label}\r\n                        {channel.role ? ` · ${channel.role}` : \"\"}\r\n                      </Badge>\r\n                    ))}\r\n                  </div>\r\n                </div>\r\n              </div>\r\n            ))}\r\n          </div>\r\n        )}\r\n      </CardContent>\r\n    </Card>\r\n  );\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\components\\WorkspaceWikiTab.tsx","messages":[{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/workspace' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":3,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":3,"endColumn":60},{"ruleId":"no-restricted-imports","severity":1,"message":"'@/modules/wiki-beta' import is restricted from being used by a pattern. Module imports must use `@/modules/<module>/api` only (except approved system facade).","line":4,"column":1,"nodeType":"ImportDeclaration","messageId":"patternWithCustomMessage","endLine":4,"endColumn":61}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":2,"fixableErrorCount":0,"fixableWarningCount":0,"source":"\"use client\";\r\n\r\nimport type { WorkspaceEntity } from \"@/modules/workspace\";\r\nimport { WikiBetaWorkspaceView } from \"@/modules/wiki-beta\";\r\n\r\ninterface WorkspaceWikiTabProps {\r\n  readonly workspace: WorkspaceEntity;\r\n}\r\n\r\n/**\r\n * Workspace tab entrypoint delegates rendering to wiki-beta owned view.\r\n */\r\nexport function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {\r\n  return <WikiBetaWorkspaceView workspace={workspace} />;\r\n}\r\n","usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\hooks\\useWorkspaceHub.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\queries\\workspace-member.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\queries\\workspace.queries.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\modules\\workspace\\interfaces\\workspace-tabs.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\next.config.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\api-contracts\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\admin.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\analytics.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\appcheck.ts","messages":[],"suppressedMessages":[{"ruleId":"@typescript-eslint/no-explicit-any","severity":2,"message":"Unexpected any. Specify a different type.","line":33,"column":14,"nodeType":"TSAnyKeyword","messageId":"unexpectedAny","endLine":33,"endColumn":17,"suggestions":[{"messageId":"suggestUnknown","fix":{"range":[1082,1085],"text":"unknown"},"desc":"Use `unknown` instead, this will force you to explicitly, and safely assert the type is correct."},{"messageId":"suggestNever","fix":{"range":[1082,1085],"text":"never"},"desc":"Use `never` instead, this is useful when instantiating generic type parameters that you don't need to know the type of."}],"suppressions":[{"kind":"directive","justification":""}]}],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\auth.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\client.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\database.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\firestore.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\functions.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\messaging.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\performance.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\remote-config.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-firebase\\storage.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\integration-http\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-date-fns\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-dragdrop\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-react-markdown\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-remark-gfm\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-superjson\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-tanstack\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-uuid\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-vis\\data.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-vis\\graph3d.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-vis\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-vis\\network.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-vis\\timeline.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-xstate\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-zod\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\lib-zustand\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\shared-constants\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\shared-hooks\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\shared-types\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\shared-utils\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\shared-validators\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\hooks\\use-mobile.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\hooks\\use-toast.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\accordion.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\alert-dialog.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\alert.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\aspect-ratio.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\avatar.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\badge.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\breadcrumb.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\button.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\calendar.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\card.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\carousel.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\chart.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\checkbox.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\collapsible.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\command.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\context-menu.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\dialog.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\drawer.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\dropdown-menu.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\hover-card.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\input-group.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\input-otp.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\input.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\kbd.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\label.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\menubar.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\navigation-menu.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\pagination.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\popover.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\progress.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\radio-group.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\scroll-area.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\select.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\separator.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\sheet.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\sidebar.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\skeleton.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\slider.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\sonner.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\spinner.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\switch.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\table.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\tabs.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\textarea.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\toggle-group.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\toggle.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\ui\\tooltip.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-shadcn\\utils.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-vis\\index.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-vis\\network.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-vis\\react-graph-vis.d.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\packages\\ui-vis\\timeline.tsx","messages":[],"suppressedMessages":[{"ruleId":"@typescript-eslint/no-explicit-any","severity":2,"message":"Unexpected any. Specify a different type.","line":89,"column":45,"nodeType":"TSAnyKeyword","messageId":"unexpectedAny","endLine":89,"endColumn":48,"suggestions":[{"messageId":"suggestUnknown","fix":{"range":[1964,1967],"text":"unknown"},"desc":"Use `unknown` instead, this will force you to explicitly, and safely assert the type is correct."},{"messageId":"suggestNever","fix":{"range":[1964,1967],"text":"never"},"desc":"Use `never` instead, this is useful when instantiating generic type parameters that you don't need to know the type of."}],"suppressions":[{"kind":"directive","justification":""}]},{"ruleId":"@typescript-eslint/no-explicit-any","severity":2,"message":"Unexpected any. Specify a different type.","line":98,"column":55,"nodeType":"TSAnyKeyword","messageId":"unexpectedAny","endLine":98,"endColumn":58,"suggestions":[{"messageId":"suggestUnknown","fix":{"range":[2362,2365],"text":"unknown"},"desc":"Use `unknown` instead, this will force you to explicitly, and safely assert the type is correct."},{"messageId":"suggestNever","fix":{"range":[2362,2365],"text":"never"},"desc":"Use `never` instead, this is useful when instantiating generic type parameters that you don't need to know the type of."}],"suppressions":[{"kind":"directive","justification":""}]},{"ruleId":"@typescript-eslint/no-explicit-any","severity":2,"message":"Unexpected any. Specify a different type.","line":112,"column":55,"nodeType":"TSAnyKeyword","messageId":"unexpectedAny","endLine":112,"endColumn":58,"suggestions":[{"messageId":"suggestUnknown","fix":{"range":[2786,2789],"text":"unknown"},"desc":"Use `unknown` instead, this will force you to explicitly, and safely assert the type is correct."},{"messageId":"suggestNever","fix":{"range":[2786,2789],"text":"never"},"desc":"Use `never` instead, this is useful when instantiating generic type parameters that you don't need to know the type of."}],"suppressions":[{"kind":"directive","justification":""}]}],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\postcss.config.mjs","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\py_fn\\venv\\Lib\\site-packages\\urllib3\\contrib\\emscripten\\emscripten_fetch_worker.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\py_fn\\venv\\Lib\\site-packages\\werkzeug\\debug\\shared\\debugger.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\scripts\\demo-flow.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"D:\\GitHub\\122sp7\\xuanwu-app\\tailwind.config.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]}]
-`````
-
-## File: AGENTS.md
-`````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`agents/README.md`](agents/README.md) — rules index and overview
-2. Read [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`agents/commands.md`](agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`agents/rules/`](agents/rules/) for the complete set of architecture, quality, data, API, and CI rules.
 `````
 
 ## File: agents/agents
@@ -15157,6 +14936,11 @@ For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 - Plan first with [`docs/how-to-user/how-to/start-feature-delivery.md`](docs/how-to-user/how-to/start-feature-delivery.md)
 - Use the implementation plan as the execution contract for implementation, review, and QA
 - Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
+`````
+
+## File: docs/development/README.md
+`````markdown
+
 `````
 
 ## File: docs/reference/README.md
@@ -47040,94 +46824,6 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()
 `````
 
-## File: README.md
-`````markdown
-# Xuanwu App
-
-A Next.js 16 knowledge-management and AI-assisted workspace platform built on Firebase, following the **Module-Driven Domain Design (MDDD)** architecture.
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
-| Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
-| AI / RAG | Google Genkit, Document AI, Upstash Vector |
-| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
-| Realtime | Upstash Redis, QStash |
-
-## Project Structure
-
-```
-xuanwu-app/
-├── app/              # Next.js App Router pages, layouts, route handlers
-├── modules/          # 19 MDDD business modules (bounded contexts)
-├── packages/         # Stable shared packages with TypeScript aliases
-├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
-├── agents/           # AI agent knowledge base and rules
-└── docs/             # Architecture docs, ADRs, design documents
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Install
-
-```bash
-npm install
-```
-
-### Development
-
-```bash
-npm run dev        # Start Next.js dev server (port 3000)
-npm run build      # Production build (includes TypeScript type-check)
-npm run lint       # Run ESLint
-```
-
-### Firebase Deployment
-
-```bash
-npm run deploy:firebase              # Deploy all Firebase resources
-npm run deploy:functions:py-fn        # Deploy Python Cloud Functions only
-npm run deploy:rules                 # Deploy Firestore + Storage rules
-```
-
-See [`agents/commands.md`](agents/commands.md) for the full command reference.
-
-## Architecture
-
-This project follows **Module-Driven Domain Design (MDDD)**:
-
-- Each business capability is a self-contained module under `modules/`.
-- Each `modules/<module-name>/` is an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `UI → Application → Domain ← Infrastructure`.
-- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
-- Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
-
-See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## AI Delivery Workflow
-
-This repository includes a formal Copilot delivery workflow for non-trivial changes.
-
-- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
-- Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
-
-## Code of Conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
-`````
-
 ## File: repomix.config.json
 `````json
 {
@@ -47853,6 +47549,95 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
+## File: .github/agents/domain-architect.agent.md
+`````markdown
+---
+name: Domain Architect
+description: IDDD 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合 Vaughn Vernon《Implementing Domain-Driven Design》規範。
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+target: vscode
+handoffs:
+  - label: 審查模組邊界
+    agent: MDDD Architect
+    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
+  - label: 更新通用語言術語
+    agent: KB Architect
+    prompt: 將本次領域建模新增或變更的術語同步更新至 terminology-glossary.md 與知識庫文件。
+  - label: 品質審查
+    agent: Quality Lead
+    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 IDDD 規範。
+
+---
+
+# Domain Architect
+
+## 目標範圍 (Target Scope)
+
+- `modules/**/domain/**`
+- `modules/**/application/use-cases/**`
+- `modules/**/application/machines/**`
+- `terminology-glossary.md`
+- `.github/instructions/ubiquitous-language.instructions.md`
+- `.github/instructions/bounded-context-rules.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
+
+## 使命 (Mission)
+
+確保所有領域模型設計符合《Implementing Domain-Driven Design》(Vaughn Vernon) 的戰略（Strategic）與戰術（Tactical）設計原則，維護聚合完整性、通用語言一致性與事件驅動架構品質。
+
+## IDDD 審查清單
+
+### 通用語言 (Ubiquitous Language)
+
+- [ ] 新命名是否已查閱 `terminology-glossary.md`？
+- [ ] 是否有違反通用語言的同義詞替換？
+- [ ] 領域事件命名是否使用過去式？
+- [ ] 類別、方法名稱是否反映領域概念而非技術概念？
+
+### 限界上下文 (Bounded Context)
+
+- [ ] 程式碼是否屬於正確的限界上下文（模組）？
+- [ ] 是否有直接存取其他模組的 `domain/`、`application/` 或 `infrastructure/` 內部？
+- [ ] 跨模組整合是否透過 `api/` 合約或領域事件進行？
+- [ ] 外部系統整合是否透過防腐層（Anti-Corruption Layer）隔離？
+
+### 聚合設計 (Aggregate Design)
+
+- [ ] 聚合根是否保護所有業務不變數？
+- [ ] 狀態修改是否透過封裝的命令方法進行？
+- [ ] 是否存在貧血領域模型（只有 Getter/Setter，無業務邏輯）？
+- [ ] 聚合邊界是否合理（不過大、不過小）？
+- [ ] `pullDomainEvents()` 是否正確清空事件陣列？
+
+### 值對象 (Value Object)
+
+- [ ] 是否使用 Zod 品牌型別確保型別安全？
+- [ ] 值對象是否不可變（Immutable）？
+- [ ] 識別碼是否使用品牌型別保護？
+
+### 領域事件 (Domain Event)
+
+- [ ] 每次狀態變更是否產生對應的領域事件？
+- [ ] `occurredAt` 是否使用 ISO string（與 `shared/domain/events.ts` 一致）？
+- [ ] 事件 Payload 是否以 Zod Schema 嚴格定義？
+- [ ] 事件 `type` discriminant 是否為 `<module>.<action>` 格式？
+- [ ] 事件是否在聚合持久化成功後才發布？
+
+## 輸出格式
+
+1. **IDDD 合規性評估**：通過 / 需修正
+2. **問題項目清單**：每項附檔案路徑與具體說明
+3. **修正建議**：附程式碼範例
+4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
 ## File: .github/agents/domain-lead.agent.md
 `````markdown
 ---
@@ -48538,81 +48323,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
-## File: .github/agents/README.md
-`````markdown
-# Xuanwu Agents
-
-This folder contains the active workspace custom agents for VS Code Copilot.
-
-## Official Frontmatter
-
-Context7 confirms these `.agent.md` frontmatter fields are supported by VS Code custom agents:
-
-| Property | Importance | Official meaning | Xuanwu convention |
-| --- | --- | --- | --- |
-| `name` | Required in practice | Agent display name | Keep unique, stable, and human-readable |
-| `description` | Critical | Discovery text and chat placeholder | Use strong trigger phrases so routing works reliably |
-| `tools` | Critical | Allowed built-in, MCP, or extension tools | Keep smallest effective tool set; remove duplicates |
-| `target` | Important | Target environment: `vscode` or `github-copilot` | Use `vscode` for workspace agents in this repo |
-| `handoffs` | Important | Suggested next-agent transitions | Use 2 to 3 clear workflow handoffs per agent |
-
-## Xuanwu Agent Structure
-
-Each agent file should follow this pattern:
-
-1. YAML frontmatter with `name`, `description`, `tools`, `model`, `target`, and `handoffs`
-2. A `# Agent Name` heading
-3. A `## Target Scope` section for the folders or workspace areas the agent is responsible for
-4. Role-specific workflow, guardrails, and output rules
-
-## Target Scope Rule
-
-Official `target` does not mean folder ownership. It only sets the environment target.
-
-In this repository, folder responsibility is documented in each agent body under `## Target Scope`.
-
-## Handoff Rule
-
-- Handoffs should point to the visible target agent name, such as `Quality Lead` or `Server Action Writer`
-- Labels should describe the next action, not repeat the target name mechanically
-- Prompts should be short and task-forward so the next agent can start immediately
-
-## Source-to-Target Mapping
-
-| Legacy source | Current target agents |
-| --- | --- |
-| `serena.agent.md` | `serena-strategist.agent.md` |
-| `commander.agent.md` | `tool-caller.agent.md`, `support-architect.agent.md` |
-| `modules-architect.agent.md` | `mddd-architect.agent.md`, `billing-architect.agent.md` |
-| `modules-boundary-steward.agent.md` | `domain-lead.agent.md` |
-| `modules-api-surface-steward.agent.md` | `ts-interface-writer.agent.md`, `firestore-schema.agent.md` |
-| `app-router.agent.md` | `app-router.agent.md`, `server-action-writer.agent.md` |
-| `app-router-composer.agent.md` | `parallel-routes.agent.md`, `frontend-lead.agent.md` |
-| `component.agent.md` | `shadcn-composer.agent.md` |
-| `rag-vector.agent.md` | `rag-lead.agent.md`, `doc-ingest.agent.md`, `chunk-strategist.agent.md`, `embedding-writer.agent.md`, `genkit-flow.agent.md`, `ai-genkit-lead.agent.md` |
-| `e2e-qa.agent.md` | `e2e-qa.agent.md`, `test-scenario-writer.agent.md` |
-| `reviewer.agent.md` and `qa.agent.md` | `quality-lead.agent.md`, `lint-rule-enforcer.agent.md` |
-| `planner-docs.agent.md` and `md-writer.agent.md` | `kb-architect.agent.md`, `prompt-engineer.agent.md` |
-| `repo-architect.agent.md` | `repo-architect.agent.md`, `cicd-deploy.agent.md`, `schema-migration.agent.md` |
-
-## Maintenance Rules
-
-- Keep agent names unique. Duplicate visible names create routing and handoff ambiguity.
-- Keep agent bodies concise. Put repository-global policy in `.github/copilot-instructions.md` or scoped `.instructions.md` files.
-- Update handoffs when agent responsibilities move.
-- Update Serena memory after non-trivial agent-configuration changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
-#use skill slavingia-skills-company-values
-#use skill slavingia-skills-find-community
-#use skill slavingia-skills-first-customers
-#use skill slavingia-skills-grow-sustainably
-#use skill slavingia-skills-minimalist-review
-#use skill slavingia-skills-mvp
-#use skill slavingia-skills-pricing
-#use skill slavingia-skills-validate-idea
-`````
-
 ## File: .github/agents/repo-architect.agent.md
 `````markdown
 ---
@@ -49131,6 +48841,490 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-validate-idea
 `````
 
+## File: .github/instructions/bounded-context-rules.instructions.md
+`````markdown
+---
+description: '限界上下文邊界與模組依賴方向規範，遵循 Vaughn Vernon IDDD 戰略設計原則。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# 限界上下文規則 (Bounded Context Rules)
+
+## 核心原則
+
+每個 `modules/<context>/` 是一個**獨立的限界上下文**，擁有自己的通用語言與領域模型。同一術語在不同限界上下文中可能有不同含義，須以各自的模型為準。
+
+## 邊界規則
+
+1. **跨模組存取**只能透過目標模組的 `api/` 公開合約進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
+2. **限界上下文間的通訊**只能透過以下方式：
+   - 發布與訂閱**領域事件** (Domain Events)
+   - 呼叫目標模組的 `api/` 公開 Facade 或合約
+3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
+
+## 依賴方向
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `domain/` 必須保持框架無關（不能匯入 Firebase SDK、React、HTTP 客戶端等）。
+- `infrastructure/` 實作 `domain/` 定義的 Repository 介面，只向下依賴。
+- `application/` 協調 Use Cases，只依賴 `domain/` 的抽象。
+- `interfaces/` 處理 UI、路由處理器、API 傳輸與 Server Action 接線。
+
+## 上下文地圖 (Context Map)
+
+本專案的限界上下文依功能職責劃分：
+
+| 限界上下文 | 模組路徑 | 核心職責 |
+|------------|---------|---------|
+| 帳戶管理 | `modules/account` | 帳戶政策、RBAC、訂閱方案 |
+| AI 代理人 | `modules/agent` | Genkit 流程、AI 回應生成 |
+| 資產管理 | `modules/asset` | 文件資產、函式庫管理 |
+| 內容管理 | `modules/content` | Wiki 頁面、文件內容 |
+| 識別驗證 | `modules/identity` | 身分認證、Token 刷新 |
+| 知識庫 | `modules/knowledge` | 知識整合 |
+| 知識圖譜 | `modules/knowledge-graph` | 圖形資料結構 |
+| 通知 | `modules/notification` | 系統通知發送 |
+| 組織管理 | `modules/organization` | 多租戶組織架構 |
+| 知識檢索 | `modules/retrieval` | RAG 查詢與向量搜尋 |
+| 共用模組 | `modules/shared` | 跨模組共用基礎設施 |
+| 工作空間 | `modules/workspace` | 工作空間核心功能 |
+| 稽核記錄 | `modules/workspace-audit` | 操作稽核日誌 |
+| 動態消息 | `modules/workspace-feed` | 工作空間動態 |
+| 工作流程 | `modules/workspace-flow` | 任務、問題、發票流程 |
+| 排程管理 | `modules/workspace-scheduling` | 行程與排程 |
+
+## 防腐層 (Anti-Corruption Layer)
+
+- 整合外部系統（Firebase、Genkit、Upstash）時，必須在 `infrastructure/` 層建立適配器。
+- 防止外部概念與命名污染領域模型的類別與介面。
+- 在適配器中負責翻譯外部模型與領域模型之間的概念差異。
+
+## 禁止模式
+
+- ❌ `import { X } from '@/modules/other-context/domain/...'`
+- ❌ `import { X } from '@/modules/other-context/application/...'`
+- ❌ `import { X } from '@/modules/other-context/infrastructure/...'`
+- ✅ `import { X } from '@/modules/other-context/api'`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
+## File: .github/instructions/domain-modeling.instructions.md
+`````markdown
+---
+description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 IDDD 戰術設計原則。'
+applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+---
+
+# 領域模型設計規範 (Domain Modeling)
+
+## 聚合根 (Aggregate Root)
+
+- 每個聚合必須有**唯一識別碼**（使用 Zod 品牌型別 `z.string().uuid().brand('...')`）。
+- 使用**私有建構函式**加靜態工廠方法 `create()` 與 `reconstitute()`。
+- 所有狀態修改必須透過**封裝的命令方法**，不允許直接修改屬性。
+- **業務規則（不變數）**只在聚合內部執行，違規時拋出帶有描述的 `Error`。
+- 每次狀態修改必須產生對應的**領域事件**並存入 `_domainEvents` 私有陣列。
+- 使用 `pullDomainEvents()` 方法提取並清空待發布事件。
+- `getSnapshot()` 回傳 `Readonly<State>`，防止外部直接修改狀態。
+
+```typescript
+// 聚合根標準結構
+export class MyAggregate {
+  private readonly _id: MyId;
+  private _state: MyState;
+  private _domainEvents: DomainEvent[] = [];
+
+  private constructor(id: MyId, state: MyState) {
+    this._id = id;
+    this._state = state;
+  }
+
+  // 工廠方法：新建
+  public static create(id: MyId, /* ...inputs */): MyAggregate {
+    const aggregate = new MyAggregate(id, { /* 初始狀態 */ });
+    aggregate._domainEvents.push({ /* MyAggregateCreated 事件 */ });
+    return aggregate;
+  }
+
+  // 工廠方法：從持久化資料重建
+  public static reconstitute(snapshot: MySnapshot): MyAggregate {
+    return new MyAggregate(snapshot.id as MyId, snapshot);
+  }
+
+  // 業務方法
+  public doSomething(input: string): void {
+    // 1. 驗證不變數
+    if (this._state.status === 'archived') {
+      throw new Error('Cannot modify an archived aggregate.');
+    }
+    // 2. 更新狀態
+    this._state = { ...this._state, field: input };
+    // 3. 記錄領域事件
+    this._domainEvents.push({ type: 'my-context.something-done', /* ... */ });
+  }
+
+  public get id(): MyId { return this._id; }
+
+  public getSnapshot(): Readonly<MyState> {
+    return Object.freeze({ ...this._state });
+  }
+
+  public pullDomainEvents(): DomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents = [];
+    return events;
+  }
+}
+```
+
+## 值對象 (Value Object)
+
+- 使用 **Zod Schema** 定義並驗證，並使用 `z.brand()` 確保型別安全。
+- 值對象必須是**不可變的**（Immutable）。
+- 相等性以**值內容**判斷，不以物件參考判斷。
+- 不應包含識別碼欄位。
+
+```typescript
+// 值對象：品牌型別模式
+import { z } from 'zod';
+
+export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
+export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
+
+export const WorkspaceNameSchema = z.string().min(1).max(100).trim().brand('WorkspaceName');
+export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
+```
+
+## 實體 (Entity)
+
+- 具有唯一識別碼，以識別碼判斷相等性。
+- 狀態可變，但修改應透過方法封裝。
+- 不要設計成只有 Getter/Setter 的**貧血模型**（Anemic Domain Model）。
+- 識別碼使用品牌型別值對象保護型別安全。
+
+## Zod 驗證規範
+
+- 所有 Domain 物件的 Schema 定義必須放在 `domain/` 層（不依賴外部框架）。
+- 使用 `z.infer<typeof Schema>` 產生 TypeScript 型別，避免型別重複定義。
+- 在聚合的工廠方法或命令方法中執行輸入驗證。
+- `CommandResult` 使用 `@shared-types` 的共用型別。
+
+## 禁止模式 (Anti-Patterns)
+
+- ❌ **貧血領域模型**：只有資料屬性（`id`, `name`, `status`），無業務邏輯。
+- ❌ **直接暴露可變狀態**：`public state: MyState`。
+- ❌ **在 `domain/` 層匯入外部框架**：Firebase、HTTP 客戶端、React。
+- ❌ **跨聚合直接操作**：在聚合 A 中直接修改聚合 B 的狀態。
+- ❌ **過大聚合**：聚合包含過多子實體，應重新評估邊界。
+
+## 目錄結構
+
+```
+modules/<context>/domain/
+├── aggregates/        # 聚合根類別
+├── entities/          # 子實體類別與型別定義
+├── value-objects/     # 值對象（品牌型別）
+├── events/            # 領域事件定義（Zod Schema）
+├── repositories/      # 儲存庫介面（只有介面，無實作）
+└── services/          # 領域服務（無狀態業務邏輯）
+```
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
+## File: .github/instructions/event-driven-state.instructions.md
+`````markdown
+---
+description: 'XState 狀態機與領域事件互動規範，包含 SuperJSON 序列化處理，遵循 IDDD 事件驅動架構原則。'
+applyTo: 'modules/**/*.{ts,tsx}'
+---
+
+# 事件驅動狀態規範 (Event-Driven State)
+
+## 領域事件 (Domain Events)
+
+- 所有**狀態變更**都必須產生一個對應的領域事件，捕捉業務因果關係。
+- 領域事件命名必須是**過去式**，格式為 `<Entity><Action>`，例如 `WorkspaceCreated`、`KnowledgeIngested`。
+- 事件 `type` 的 discriminant 格式為 `<module-name>.<action>`，例如 `workspace.created`。
+- 使用 **Zod Schema** 嚴格定義事件 Payload。
+- 事件必須包含 `eventId`（UUID）與 `occurredAt`（**ISO string**）欄位，遵循 `modules/shared/domain/events.ts` 的 `DomainEvent` 基礎介面。
+
+```typescript
+// 領域事件定義範例
+import { z } from 'zod';
+
+export const WorkspaceCreatedEventSchema = z.object({
+  type: z.literal('workspace.created'),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),   // ISO 8601 字串，非 Date 物件
+  payload: z.object({
+    workspaceId: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    name: z.string(),
+    ownerId: z.string(),
+  }),
+});
+export type WorkspaceCreatedEvent = z.infer<typeof WorkspaceCreatedEventSchema>;
+```
+
+## SuperJSON 序列化
+
+- 跨越 Server/Client 邊界傳遞事件或包含 `Date`、`Map`、`Set` 等型別時，使用 **SuperJSON** 進行序列化。
+- 確保 Server Action 或 API 回應中的複雜型別能正確序列化與還原。
+- 在 Next.js Server Action 的輸出端序列化，在 Client 端使用 SuperJSON 還原。
+
+## XState 狀態機整合
+
+- 前端複雜的多步驟狀態流轉（如表單精靈、多階段審批）使用 **XState** 管理。
+- Machine 定義放在 `modules/<context>/application/machines/` 目錄。
+- XState Machine 的 `actions` 應觸發對應的 Server Action，並將結果映射回 Machine 的事件。
+- Machine 的事件型別應與對應的領域事件保持語意一致。
+
+```typescript
+// XState Machine 與 Server Action 整合範例
+import { createMachine, assign } from 'xstate';
+
+export const workspaceMachine = createMachine({
+  id: 'workspace',
+  initial: 'idle',
+  context: { workspaceId: null as string | null, error: null as string | null },
+  states: {
+    idle: {
+      on: { CREATE: 'creating' },
+    },
+    creating: {
+      invoke: {
+        src: 'createWorkspaceAction',  // 對應 Server Action
+        onDone: {
+          target: 'ready',
+          actions: assign({ workspaceId: ({ event }) => event.output.aggregateId }),
+        },
+        onError: {
+          target: 'failed',
+          actions: assign({ error: ({ event }) => String(event.error) }),
+        },
+      },
+    },
+    ready: {},
+    failed: { on: { RETRY: 'idle' } },
+  },
+});
+```
+
+## 事件發布流程
+
+1. 聚合根透過業務方法產生領域事件，存入 `_domainEvents` 陣列。
+2. Use Case（Application Service）在聚合**持久化成功後**，呼叫 `pullDomainEvents()` 提取事件。
+3. Use Case 負責將事件發布到 QStash 或事件匯流排（At-Least-Once 語意）。
+4. 不可在聚合持久化**之前**發布事件（確保一致性）。
+
+```typescript
+// Use Case 中的事件發布流程
+export class CreateWorkspaceUseCase {
+  async execute(input: CreateWorkspaceInput): Promise<CommandResult> {
+    const workspace = Workspace.create(generateId(), input);
+    await this.workspaceRepository.save(workspace);  // 1. 先持久化
+    const events = workspace.pullDomainEvents();      // 2. 提取事件
+    await this.eventPublisher.publishAll(events);     // 3. 再發布
+    return { success: true, aggregateId: workspace.id };
+  }
+}
+```
+
+## 驗證
+
+- `occurredAt` 必須使用 ISO string，不得使用 `Date` 物件（與 `shared/domain/events.ts` 一致）。
+- 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
+## File: .github/instructions/ubiquitous-language.instructions.md
+`````markdown
+---
+description: '強制查閱 terminology-glossary.md 並使用通用語言進行命名，遵循 IDDD 通用語言規範。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
+---
+
+# 通用語言規範 (Ubiquitous Language)
+
+## 核心規則
+
+1. 在命名任何 Class、Interface、Type、Variable 或 Domain Event 之前，**必須**先查閱 `terminology-glossary.md`。
+2. 嚴禁使用同義詞替換：若術語表定義使用者為 `Tenant`，不得命名為 `User`、`Client` 或 `Customer`。
+3. 領域事件命名必須使用**過去式**，例如：`KnowledgeIngested`、`WorkspaceCreated`、`MemberInvited`。
+4. 限界上下文的名稱必須與 `modules/<context>/` 資料夾名稱保持一致。
+5. 若發現術語表缺少必要術語，應先更新 `terminology-glossary.md` 再繼續實作。
+
+## 通用語言術語對照表
+
+| 英文術語 | 繁體中文 | 說明 |
+|----------|----------|------|
+| Aggregate Root | 聚合根 | 聚合的唯一入口，負責保護不變數 |
+| Bounded Context | 限界上下文 | 每個 `modules/<context>/` 是一個限界上下文 |
+| Domain Event | 領域事件 | 捕捉領域中已發生的業務事實，命名用過去式 |
+| Entity | 實體 | 具有唯一識別碼的領域物件 |
+| Value Object | 值對象 | 無識別碼、以值相等判斷的不可變物件 |
+| Repository | 儲存庫 | 聚合的持久化抽象介面 |
+| Domain Service | 領域服務 | 不屬於任何實體的無狀態業務邏輯 |
+| Use Case | 使用案例 | `application/` 層的單一業務操作 |
+| Ubiquitous Language | 通用語言 | 領域專家與開發者共用的詞彙體系 |
+| Anti-Corruption Layer | 防腐層 | 防止外部概念污染領域模型的轉換層 |
+| Context Map | 上下文地圖 | 限界上下文間關係的可視化模型 |
+
+## 命名規範
+
+- **聚合根**：`PascalCase` 名詞，例如 `Workspace`、`KnowledgeBase`。
+- **值對象**：`PascalCase` 名詞，通常以用途或含義命名，例如 `WorkspaceName`、`TenantId`。
+- **領域事件**：`PascalCase` 過去式，例如 `WorkspaceCreated`、`MemberRemoved`。
+- **事件 discriminant**：`kebab-case` 格式 `<module>.<action>`，例如 `workspace.created`。
+- **使用案例檔案**：`verb-noun.use-case.ts`，例如 `create-workspace.use-case.ts`。
+- **儲存庫介面**：`PascalCaseRepository`，例如 `WorkspaceRepository`。
+- **儲存庫實作**：`TechnologyPascalCaseRepository`，例如 `FirebaseWorkspaceRepository`。
+
+## 驗證
+
+- 提交前確認新增命名符合術語表定義。
+- 若使用新術語，同步更新 `terminology-glossary.md` 的「DDD 戰術設計術語」章節。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill xuanwu-mddd-boundaries
+`````
+
+## File: .github/prompts/generate-aggregate.prompt.md
+`````markdown
+---
+name: generate-aggregate
+description: 根據業務需求生成符合 IDDD 規範的 TypeScript 聚合根骨架，包含值對象、領域事件與 Zod Schema。
+agent: Domain Architect
+argument-hint: 提供聚合名稱、所屬限界上下文（模組）、核心業務規則與狀態欄位。
+---
+
+# 生成聚合根 (Generate Aggregate Root)
+
+## 輸入
+
+- **聚合名稱**：例如 `Workspace`、`KnowledgeBase`
+- **所屬模組**：例如 `workspace`、`knowledge`
+- **核心業務規則（不變數）**：列出需要保護的業務規則
+- **狀態欄位**：列出聚合的主要屬性與型別
+- **主要業務操作**：列出需要封裝的命令方法
+
+## 工作流程
+
+1. 查閱 `terminology-glossary.md` 確認命名符合通用語言規範。
+2. 查閱 `.github/instructions/domain-modeling.instructions.md` 確認設計模式。
+3. 在 `modules/<context>/domain/` 建立以下檔案：
+   - `value-objects/<AggregateName>Id.ts` — 識別碼品牌型別
+   - `aggregates/<AggregateName>.ts` — 聚合根類別
+   - `events/<AggregateName>Created.ts` — 建立領域事件
+4. 聚合根必須包含：
+   - 私有建構函式 + 靜態工廠方法 `create()` 與 `reconstitute()`
+   - Zod Schema 嚴格定義狀態型別
+   - `_domainEvents: DomainEvent[]` 私有陣列
+   - `pullDomainEvents()` 提取並清空事件的方法
+   - `getSnapshot(): Readonly<State>` 唯讀快照方法
+5. 每個業務方法必須：
+   - 驗證不變數，違規時拋出帶有描述性訊息的 `Error`
+   - 更新內部狀態
+   - 將對應的領域事件推入 `_domainEvents`
+
+## 輸出合約
+
+- 識別碼值對象檔案（品牌 Zod Schema）
+- 聚合根 TypeScript 類別（完整實作，含所有業務方法）
+- 至少一個領域事件定義（Zod Schema + 推導型別）
+- 更新 `modules/<context>/domain/aggregates/index.ts`（若存在）
+
+## 驗證
+
+- `npm run lint` — 確認無邊界違規與型別錯誤
+- `npm run build` — 確認型別一致性
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
+## File: .github/prompts/generate-domain-event.prompt.md
+`````markdown
+---
+name: generate-domain-event
+description: 根據業務操作生成符合 IDDD 規範的 TypeScript 領域事件定義，包含 Zod Schema、型別推導與聚合整合。
+agent: Domain Architect
+argument-hint: 提供觸發事件的業務操作名稱、所屬聚合、Payload 欄位與所屬模組。
+---
+
+# 生成領域事件 (Generate Domain Event)
+
+## 輸入
+
+- **觸發業務操作**：例如「使用者建立工作空間」
+- **事件名稱（過去式）**：例如 `WorkspaceCreated`
+- **所屬聚合**：例如 `Workspace`
+- **所屬模組**：例如 `workspace`
+- **Payload 欄位**：列出事件需攜帶的資料與其型別
+
+## 工作流程
+
+1. 確認事件名稱符合**過去式**命名規範（查閱 `ubiquitous-language.instructions.md`）。
+2. 確認 `discriminant` 格式為 `<module-name>.<action>`，例如 `workspace.created`。
+3. 確認 `occurredAt` 使用 ISO string，遵循 `modules/shared/domain/events.ts` 的 `DomainEvent` 介面。
+4. 在 `modules/<context>/domain/events/<EventName>.ts` 建立事件定義。
+5. 在對應聚合根的業務方法中加入事件推入邏輯：`this._domainEvents.push({ ... })`。
+6. 若需要，更新 `modules/<context>/domain/events/index.ts` 匯出。
+
+## 事件定義模板
+
+```typescript
+import { z } from 'zod';
+
+export const {EventName}Schema = z.object({
+  type: z.literal('{module}.{action}'),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),   // ISO 8601，非 Date 物件
+  payload: z.object({
+    // 在此定義業務相關的 Payload 欄位
+  }),
+});
+
+export type {EventName} = z.infer<typeof {EventName}Schema>;
+```
+
+## 輸出合約
+
+- 領域事件 Zod Schema（完整定義）
+- 推導出的 TypeScript 型別
+- 更新對應聚合根，在業務方法中推入事件
+- 更新 `modules/<context>/domain/events/index.ts` 匯出（若適用）
+
+## 驗證
+
+- 確認事件的 `occurredAt` 使用 ISO string 而非 `Date` 物件（與 `shared/domain/events.ts` 一致）。
+- 確認事件 `type` discriminant 格式為 `<module>.<action>`，與模組命名一致。
+- `npm run lint` — 確認無邊界違規。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
 ## File: .github/rules/api-contracts.md
 `````markdown
 ---
@@ -49585,6 +49779,157 @@ run uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 - If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
 - Keep memory names consistent (`workflow/<phase>-<task-id>`).
 - Keep guidance concise; avoid duplicating repository-global policy text.
+`````
+
+## File: AGENTS.md
+`````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`agents/README.md`](agents/README.md) — rules index and overview
+2. Read [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`agents/commands.md`](agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`agents/rules/`](agents/rules/) for the complete set of architecture, quality, data, API, and CI rules.
 `````
 
 ## File: app/(public)/page.tsx
@@ -52227,9 +52572,173 @@ py_fn 攝入管線
 | 跨模組 AI 事件 | 🟢 低優先 | `content.block-updated` → 自動重新索引 |
 `````
 
-## File: docs/development/README.md
+## File: docs/development/modules-implementation-guide.md
 `````markdown
+# Modules Implementation Guide
 
+本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件的設計方向。
+
+- 上位概念架構文件：回答「為什麼」與「系統如何分層」。
+- 本文件：回答「在 repository 內如何落地」。
+
+---
+
+## 1. 與概念架構文件的對位關係
+
+上位概念架構文件定義三層融合：
+
+1. Content / UI Layer
+2. Knowledge Graph Layer
+3. AI / RAG Layer
+
+在本專案中的實作對位：
+
+| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
+| --- | --- | --- |
+| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
+| Knowledge Graph Layer | `modules/knowledge`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
+| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
+
+> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
+
+---
+
+## 2. module 標準結構（MDDD）
+
+```text
+<domain-id>/
+│
+├── api/
+│   └── index.ts
+│
+├── domain/
+│   ├── entities/
+│   ├── value-objects/
+│   ├── repositories/
+│   ├── services/
+│   └── events/
+│
+├── application/
+│   ├── use-cases/
+│   └── dto/
+│
+├── infrastructure/
+│   ├── firebase/
+│   ├── persistence/
+│   ├── external/
+│   └── repositories/
+│
+├── interfaces/
+│   ├── _actions/
+│   ├── api/
+│   ├── queries/
+│   ├── hooks/
+│   └── components/
+│
+```
+
+說明：
+
+1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
+2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
+3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
+
+---
+
+## 3. 依賴方向與邊界
+
+全域依賴方向：
+
+```text
+interfaces -> application -> domain <- infrastructure
+```
+
+邊界規則：
+
+1. `domain/` 不得依賴 framework 與外部 SDK。
+2. `application/` 負責流程編排，不直接綁定具體外部實作。
+3. `infrastructure/` 實作 domain 介面，不主導業務流程。
+4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
+
+---
+
+## 4. 與 packages 的關係
+
+模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
+
+```text
+modules/*
+  -> packages/* (stable public boundary)
+```
+
+這個原則與上位概念架構文件的三層融合不衝突：
+
+- 融合的是產品能力（編輯 + 關聯 + AI）
+- 隔離的是程式邊界（module `api/` boundary + package boundary）
+
+---
+
+## 5. Next.js 路由與融合介面
+
+上位概念架構文件的基礎平行路由示意：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+```
+
+實作可依需求擴充，例如：
+
+```text
+/workspace
+    /@editor
+    /@graph
+    /@chat
+    /@database
+    /@collab
+    /@workflow
+```
+
+擴充原則：
+
+1. 新 slot 必須能回對到既有 module ownership。
+2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
+
+---
+
+## 6. 目標對齊聲明
+
+本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
+
+1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
+2. 明確化「融合體驗」與「邊界隔離」可同時成立。
+3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
+
+---
+
+## 7. 以上位概念架構文件為準的落地限制
+
+上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
+
+因此本文件只保留與概念模型一致的落地限制：
+
+1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
+2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
+4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
+
+## 8. 實作規劃時的最小檢查點
+
+若要把三層模型落到實際模組，至少先確認：
+
+1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
+3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
+4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
+5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 `````
 
 ## File: docs/diagrams/agent-architecture-commander-subagents.mermaid
@@ -58941,6 +59450,103 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 `````
 
+## File: README.md
+`````markdown
+# Xuanwu App
+
+A Next.js 16 knowledge-management and AI-assisted workspace platform built on Firebase, following the **Module-Driven Domain Design (MDDD)** architecture.
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS, shadcn/ui |
+| Backend | Firebase (Firestore, Storage, Auth, App Hosting) |
+| AI / RAG | Google Genkit, Document AI, Upstash Vector |
+| Workers | Python 3.11 Cloud Functions (`py_fn/`) |
+| Realtime | Upstash Redis, QStash |
+
+## Project Structure
+
+```
+xuanwu-app/
+├── app/              # Next.js App Router pages, layouts, route handlers
+├── modules/          # 19 MDDD business modules (bounded contexts)
+├── packages/         # Stable shared packages with TypeScript aliases
+├── py_fn/ # Firebase Python worker runtime (ingestion, parsing, embedding)
+├── agents/           # AI agent knowledge base and rules
+└── docs/             # Architecture docs, ADRs, design documents
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Install
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+npm run dev        # Start Next.js dev server (port 3000)
+npm run build      # Production build (includes TypeScript type-check)
+npm run lint       # Run ESLint
+```
+
+### Firebase Deployment
+
+```bash
+npm run deploy:firebase              # Deploy all Firebase resources
+npm run deploy:functions:py-fn        # Deploy Python Cloud Functions only
+npm run deploy:rules                 # Deploy Firestore + Storage rules
+```
+
+See [`agents/commands.md`](agents/commands.md) for the full command reference.
+
+## Architecture
+
+This project follows **Module-Driven Domain Design (MDDD)** with **Implementing Domain-Driven Design (IDDD)** principles by Vaughn Vernon:
+
+- Each business capability is a self-contained module under `modules/`.
+- Each `modules/<module-name>/` is an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `UI → Application → Domain ← Infrastructure`.
+- Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
+- Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
+
+### IDDD 規範
+
+本專案已導入 IDDD 開發規範，確保 Copilot 協作開發遵循通用語言（Ubiquitous Language）、限界上下文（Bounded Contexts）與事件驅動（Event-Driven）架構：
+
+- **通用語言**：所有命名必須查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md)。
+- **聚合根設計**：使用 Zod 品牌型別、不可變狀態與 `pullDomainEvents()` 模式。
+- **領域事件**：過去式命名，包含 `eventId` 與 `occurredAt`（ISO string）欄位。
+- **DDD 審查 Agent**：[Domain Architect](.github/agents/domain-architect.agent.md) 負責 IDDD 合規性審查。
+
+See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## AI Delivery Workflow
+
+This repository includes a formal Copilot delivery workflow for non-trivial changes.
+
+- Start here: [docs/how-to-user/how-to/start-feature-delivery.md](docs/how-to-user/how-to/start-feature-delivery.md)
+- Customizations index: [docs/development-reference/reference/ai/customizations-index.md](docs/development-reference/reference/ai/customizations-index.md)
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+`````
+
 ## File: .github/agents/ai-genkit-lead.agent.md
 `````markdown
 ---
@@ -59030,6 +59636,87 @@ handoffs:
 
 - Keep flow contracts explicit.
 - Avoid leaking worker-only logic into app orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+#use skill slavingia-skills-company-values
+#use skill slavingia-skills-find-community
+#use skill slavingia-skills-first-customers
+#use skill slavingia-skills-grow-sustainably
+#use skill slavingia-skills-minimalist-review
+#use skill slavingia-skills-mvp
+#use skill slavingia-skills-pricing
+#use skill slavingia-skills-validate-idea
+`````
+
+## File: .github/agents/README.md
+`````markdown
+# Xuanwu Agents
+
+This folder contains the active workspace custom agents for VS Code Copilot.
+
+## Official Frontmatter
+
+Context7 confirms these `.agent.md` frontmatter fields are supported by VS Code custom agents:
+
+| Property | Importance | Official meaning | Xuanwu convention |
+| --- | --- | --- | --- |
+| `name` | Required in practice | Agent display name | Keep unique, stable, and human-readable |
+| `description` | Critical | Discovery text and chat placeholder | Use strong trigger phrases so routing works reliably |
+| `tools` | Critical | Allowed built-in, MCP, or extension tools | Keep smallest effective tool set; remove duplicates |
+| `target` | Important | Target environment: `vscode` or `github-copilot` | Use `vscode` for workspace agents in this repo |
+| `handoffs` | Important | Suggested next-agent transitions | Use 2 to 3 clear workflow handoffs per agent |
+
+## Xuanwu Agent Structure
+
+Each agent file should follow this pattern:
+
+1. YAML frontmatter with `name`, `description`, `tools`, `model`, `target`, and `handoffs`
+2. A `# Agent Name` heading
+3. A `## Target Scope` section for the folders or workspace areas the agent is responsible for
+4. Role-specific workflow, guardrails, and output rules
+
+## Target Scope Rule
+
+Official `target` does not mean folder ownership. It only sets the environment target.
+
+In this repository, folder responsibility is documented in each agent body under `## Target Scope`.
+
+## Handoff Rule
+
+- Handoffs should point to the visible target agent name, such as `Quality Lead` or `Server Action Writer`
+- Labels should describe the next action, not repeat the target name mechanically
+- Prompts should be short and task-forward so the next agent can start immediately
+
+## IDDD DDD 審查 Agents
+
+| Agent | 檔案 | 職責 |
+| --- | --- | --- |
+| Domain Architect | `domain-architect.agent.md` | IDDD 領域架構審查：聚合根、限界上下文、通用語言、領域事件 |
+
+## Source-to-Target Mapping
+
+| Legacy source | Current target agents |
+| --- | --- |
+| `serena.agent.md` | `serena-strategist.agent.md` |
+| `commander.agent.md` | `tool-caller.agent.md`, `support-architect.agent.md` |
+| `modules-architect.agent.md` | `mddd-architect.agent.md`, `billing-architect.agent.md` |
+| `modules-boundary-steward.agent.md` | `domain-lead.agent.md` |
+| `modules-api-surface-steward.agent.md` | `ts-interface-writer.agent.md`, `firestore-schema.agent.md` |
+| `app-router.agent.md` | `app-router.agent.md`, `server-action-writer.agent.md` |
+| `app-router-composer.agent.md` | `parallel-routes.agent.md`, `frontend-lead.agent.md` |
+| `component.agent.md` | `shadcn-composer.agent.md` |
+| `rag-vector.agent.md` | `rag-lead.agent.md`, `doc-ingest.agent.md`, `chunk-strategist.agent.md`, `embedding-writer.agent.md`, `genkit-flow.agent.md`, `ai-genkit-lead.agent.md` |
+| `e2e-qa.agent.md` | `e2e-qa.agent.md`, `test-scenario-writer.agent.md` |
+| `reviewer.agent.md` and `qa.agent.md` | `quality-lead.agent.md`, `lint-rule-enforcer.agent.md` |
+| `planner-docs.agent.md` and `md-writer.agent.md` | `kb-architect.agent.md`, `prompt-engineer.agent.md` |
+| `repo-architect.agent.md` | `repo-architect.agent.md`, `cicd-deploy.agent.md`, `schema-migration.agent.md` |
+
+## Maintenance Rules
+
+- Keep agent names unique. Duplicate visible names create routing and handoff ambiguity.
+- Keep agent bodies concise. Put repository-global policy in `.github/copilot-instructions.md` or scoped `.instructions.md` files.
+- Update handoffs when agent responsibilities move.
+- Update Serena memory after non-trivial agent-configuration changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
 #use skill slavingia-skills-company-values
@@ -59340,6 +60027,129 @@ AI| genkit
 
 «shadcn = UI Lego
 不是 UI framework»
+`````
+
+## File: .github/terminology-glossary.md
+`````markdown
+---
+title: Terminology Glossary
+description: Xuanwu terminology for token/prompt/context efficiency, system performance, optimization, and AI/RAG systems.
+---
+
+# Terminology Glossary
+
+Reference for Xuanwu project terminology across token efficiency, system performance, and knowledge engineering.
+
+## Token / Prompt / Context Efficiency
+
+- **Token Efficiency** (Token 效率)
+- **Context Efficiency** (上下文效率)
+- **Prompt Efficiency** (提示詞效率)
+- **Compression Efficiency** (壓縮效率)
+- **Summarization Efficiency** (摘要效率)
+- **Retrieval Efficiency** (檢索效率)
+- **Embedding Efficiency** (向量化效率)
+
+## System / Computational Efficiency
+
+- **Computational Efficiency** (計算效率)
+- **Algorithmic Efficiency** (演算法效率)
+- **Memory Efficiency** (記憶體效率)
+- **Storage Efficiency** (儲存效率)
+- **Network Efficiency** (網路效率)
+- **Cache Efficiency** (快取效率)
+- **Rendering Efficiency** (渲染效率)
+- **Build Efficiency** (建置效率)
+
+## Optimization Terms
+
+- **Efficiency Optimization** (效率優化)
+- **Throughput Optimization** (吞吐量優化)
+- **Latency Optimization** (延遲優化)
+- **Cost Optimization** (成本優化)
+- **Performance Optimization** (效能優化)
+- **Query Optimization** (查詢優化)
+- **Pipeline Optimization** (管線優化)
+
+## Performance Metrics
+
+- **Throughput** (吞吐量)
+- **Latency** (延遲)
+- **Response Time** (回應時間)
+- **Execution Time** (執行時間)
+- **Memory Usage** (記憶體使用)
+- **CPU Utilization** (CPU 使用率)
+- **Cache Hit Rate** (快取命中率)
+- **Token Cost** (Token 成本)
+
+## AI / RAG / Knowledge System
+
+- **Retrieval Performance** (檢索效能)
+- **Context Window Utilization** (上下文窗口利用率)
+- **Document Compression** (文件壓縮)
+- **Context Packing** (上下文打包)
+- **Token Budgeting** (Token 預算控制)
+- **Context Pruning** (上下文剪枝)
+- **Deduplication** (去重)
+- **Canonicalization** (正規化)
+
+## Token / Prompt / Context Operations
+
+- **Token Packing** — 將零散資訊壓縮到最少 token
+- **Token Pruning** — 去掉無用 token
+- **Context Assembly** — 將相關 chunks 組合成可用上下文
+- **Context Chunking** — 把大文檔切成適合檢索的塊
+- **Prompt Refactoring** — 優化 prompt 結構與邏輯
+- **Context Deduplication** — 防止重複 token
+
+## Retrieval / RAG
+
+- **Chunk Efficiency** — 每個 chunk 使用的 token 是否有效
+- **Retrieval Compression** — 檢索結果只保留核心資訊
+- **Context Relevance** — token 是否提供有用訊息
+- **Embedding Optimization** — 降低向量索引 token 消耗
+
+## Documentation Engineering
+
+- **Knowledge Compression** (知識壓縮)
+- **Knowledge Refactoring** (知識重構)
+- **Documentation Chunking** (文件分塊)
+- **Documentation Deduplication** (文件去重)
+- **Documentation Normalization** (文件正規化)
+
+## Core Metrics
+
+- **Token Utilization Rate** (Token 利用率)
+- **Useful Token Ratio** — 只計算有用資訊的 token
+- **Token Footprint** (Token 佔用量)
+- **Token Overhead** (Token 開銷)
+
+## DDD 戰略設計術語 (Strategic Design)
+
+本節術語遵循 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範。Copilot 生成程式碼時必須查閱並遵守。
+
+- **Ubiquitous Language** (通用語言) — 領域專家與開發者共用的詞彙體系，所有命名必須以此為準。
+- **Bounded Context** (限界上下文) — 每個 `modules/<context>/` 資料夾代表一個獨立的限界上下文，擁有自己的通用語言。
+- **Context Map** (上下文地圖) — 描述各限界上下文之間關係的可視化模型。
+- **Anti-Corruption Layer** (防腐層) — 防止外部系統概念污染領域模型的轉換介面，放置於 `infrastructure/` 層。
+- **Shared Kernel** (共用核心) — 多個限界上下文共用的領域知識，本專案使用 `modules/shared/` 承載。
+- **Open Host Service** (開放主機服務) — 透過公開的 `api/` 合約提供服務給其他限界上下文。
+- **Published Language** (發布語言) — 模組 `api/` 層定義的公開合約型別（DTOs、Facade 介面）。
+
+## DDD 戰術設計術語 (Tactical Design)
+
+- **Aggregate Root** (聚合根) — 聚合的唯一入口點，負責保護業務不變數，持有 `_domainEvents` 陣列並提供 `pullDomainEvents()` 方法。
+- **Aggregate** (聚合) — 由聚合根管理的一組相關領域物件，保證資料一致性的邊界。
+- **Entity** (實體) — 具有唯一識別碼的領域物件，以識別碼判斷相等性。
+- **Value Object** (值對象) — 無識別碼、不可變、以值內容判斷相等性的領域物件，使用 Zod 品牌型別實作。
+- **Domain Event** (領域事件) — 捕捉領域中已發生的業務事實，命名使用**過去式**，包含 `eventId` 與 `occurredAt`（ISO 8601 string）欄位。
+- **Repository** (儲存庫) — 聚合的持久化抽象介面，定義在 `domain/repositories/`，實作在 `infrastructure/`。
+- **Domain Service** (領域服務) — 不屬於任何實體或值對象的無狀態業務邏輯，放置於 `domain/services/`。
+- **Use Case** (使用案例) — `application/use-cases/` 層的單一業務操作，協調領域物件完成業務目標。
+- **Application Service** (應用服務) — 等同於 Use Case，協調聚合、儲存庫與事件發布。
+- **Factory Method** (工廠方法) — 聚合根的靜態 `create()` 方法，封裝建立邏輯並產生初始領域事件。
+- **Invariant** (不變數) — 聚合必須在任何時候都保護的業務規則，違規時拋出 `Error`。
+- **Anemic Domain Model** (貧血領域模型) — 反模式，只有資料屬性無業務邏輯的類別，應避免。
 `````
 
 ## File: app/(shell)/_components/app-breadcrumbs.tsx
@@ -61439,6 +62249,663 @@ Invoices（8 個）:
 | `modules/workspace-flow/api/index.ts` | 匯出新元件 |
 | `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` | 新增 case "Projects" 實作 |
 | `modules/workspace/interfaces/workspace-tabs.ts` | Projects: 🚧→🏗️；新增 Tasks/Issues/Invoices 定義 |
+`````
+
+## File: docs/development/code-style.md
+`````markdown
+# 程式碼風格指南（Code Style Guide）
+
+> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
+> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
+
+---
+
+## 1. TypeScript
+
+### 1.1 型別宣告原則
+
+```typescript
+// ✅ 優先使用 interface 定義物件形狀
+interface UserProfile {
+  readonly id: string;
+  name: string;
+  email: string;
+}
+
+// ✅ 使用 type 定義聯合型別、交叉型別、別名
+type DocumentStatus = "processing" | "ready" | "error";
+type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
+
+// ✅ 從 @shared-types 匯入跨模組共用型別
+import type { CommandResult, DomainError } from "@shared-types";
+
+// ❌ 避免 any
+const data: any = fetchData(); // 禁止
+
+// ✅ 使用 unknown 代替 any
+const data: unknown = fetchData();
+```
+
+### 1.2 命名規範
+
+| 類型 | 格式 | 範例 |
+|---|---|---|
+| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
+| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
+| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
+| 函式 | `camelCase` | `uploadDocument` |
+| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
+| React 元件 | `PascalCase` | `WikiDocumentsView` |
+| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
+| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
+| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
+| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
+| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
+| 檔案：React 元件 | `PascalCase.tsx` | `WikiDocumentsView.tsx` |
+
+### 1.3 函式宣告風格
+
+```typescript
+// ✅ 匯出函式使用 function 宣告（可讀性較佳）
+export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
+  // ...
+}
+
+// ✅ 回呼、lambda 使用 arrow function
+const items = list.map((item) => item.id);
+
+// ✅ 元件使用 function 宣告
+export function WikiDocumentsView() {
+  // ...
+}
+
+// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
+export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
+```
+
+### 1.4 非同步處理
+
+```typescript
+// ✅ 使用 async/await，避免 Promise chain
+async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
+  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
+  return snapshot.docs.map(docToEntity);
+}
+
+// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
+export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
+  try {
+    await triggerReindex(input);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: toDomainError(error) };
+  }
+}
+
+// ❌ 不在元件內 catch 後靜默吞錯誤
+try {
+  await doSomething();
+} catch {
+  // 靜默失敗 — 禁止
+}
+```
+
+---
+
+## 2. React 元件規範
+
+### 2.1 元件結構順序
+
+```tsx
+"use client"; // 若需要（置頂）
+
+import React, { useState, useEffect, useCallback } from "react";
+// 外部函式庫
+import { toast } from "sonner";
+import { Loader2, Plus } from "lucide-react";
+
+// 內部 alias imports
+import { Button } from "@ui-shadcn/ui/button";
+import { cn } from "@shared-utils";
+
+// 同模組 relative imports
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
+
+// 型別定義
+interface DocumentCardProps {
+  readonly document: RagDocumentRecord;
+  readonly onReindex: (docId: string) => Promise<void>;
+}
+
+// 元件主體
+export function DocumentCard({ document, onReindex }: DocumentCardProps) {
+  // 1. Hooks（useState、useEffect、custom hooks）
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 2. Derived state / memoized values
+  const canReindex = document.status === "ready";
+
+  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
+  const handleReindex = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await onReindex(document.id);
+      toast.success("已觸發重整");
+    } catch (err) {
+      toast.error(`重整失敗：${String(err)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [document.id, onReindex]);
+
+  // 4. Render
+  return (
+    <div className="flex items-center gap-4 rounded-lg border p-4">
+      <span className="flex-1">{document.filename}</span>
+      <Button
+        size="sm"
+        disabled={!canReindex || isLoading}
+        onClick={handleReindex}
+        aria-disabled={!canReindex || isLoading}
+      >
+        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
+      </Button>
+    </div>
+  );
+}
+```
+
+### 2.2 Props 設計規則
+
+```typescript
+// ✅ 使用 readonly 標記不可變 props
+interface MyProps {
+  readonly id: string;
+  readonly onAction: () => void;
+  className?: string; // 可選 className 用於樣式擴展
+}
+
+// ✅ 事件 handler 命名使用 on 前綴
+onSubmit, onChange, onDelete, onSelect
+
+// ✅ Boolean props 命名使用 is/has/can 前綴
+isLoading, hasError, canEdit, isCollapsed
+
+// ❌ 避免過於泛用的 props
+data: any;          // 禁止
+config: Record<string, unknown>; // 避免
+```
+
+### 2.3 Server Component vs Client Component
+
+```typescript
+// ✅ 頁面預設為 Server Component（無 "use client"）
+export default async function DocumentsPage() {
+  return <WikiDocumentsView />;
+}
+
+// ✅ 只在需要時才加 "use client"
+// 需要: useState, useEffect, onClick, onChange, browser APIs
+"use client";
+export function InteractiveUploader() {
+  const [isDragOver, setIsDragOver] = useState(false);
+  // ...
+}
+
+// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
+```
+
+---
+
+## 3. 匯入規範
+
+### 3.1 匯入順序
+
+```typescript
+// 1. React（若使用 JSX 元素需明確匯入）
+import React from "react";
+
+// 2. Next.js 核心
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+// 3. 第三方函式庫
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+
+// 5. @/ 模組匯入（app/ 和 modules/）
+import type { WorkspaceEntity } from "@/modules/workspace";
+import { createWorkspace } from "@/modules/workspace";
+
+// 6. 相對路徑（同模組內部）
+import type { DocumentEntity } from "../../domain/entities/document.entity";
+import { useDocuments } from "../hooks/use-documents";
+```
+
+### 3.2 禁止使用的 Legacy 路徑
+
+| 禁止 | 替代方案 |
+|---|---|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` 對應套件 |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+---
+
+## 4. CSS 與 Tailwind 規範
+
+### 4.1 Class 排列順序
+
+遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
+
+```tsx
+// Layout → Position → Spacing → Sizing → Typography → Visual
+<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
+```
+
+建議安裝 `prettier-plugin-tailwindcss` 自動排列。
+
+### 4.2 條件 Class 使用 cn()
+
+```tsx
+import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
+
+<div
+  className={cn(
+    "rounded-lg border-2 border-dashed p-8",
+    isDragOver && "border-primary bg-primary/5",
+    isError && "border-destructive",
+    className // 允許外部覆蓋
+  )}
+/>
+```
+
+### 4.3 避免 CSS 反模式
+
+```tsx
+// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
+<div style={{ backgroundColor: "#f00" }} />
+
+// ✅ 使用 Tailwind 語義色
+<div className="bg-destructive" />
+
+// ❌ 避免 @apply（Tailwind 不推薦用於元件）
+// @apply flex items-center;
+
+// ✅ 使用元件封裝重用樣式
+```
+
+---
+
+## 5. JSDoc 規範
+
+函式與類別加 JSDoc 的時機：
+
+```typescript
+// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
+/**
+ * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
+ * @param input - 包含 file、accountId 與選填的 workspaceId。
+ * @returns CommandResult，成功時包含 documentId。
+ */
+export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
+  // ...
+}
+
+// ✅ 複雜業務邏輯加說明
+// ❌ 簡單 getter / setter 無需 JSDoc
+```
+
+---
+
+## 6. 測試風格
+
+### 6.1 測試檔案命名
+
+| 類型 | 格式 |
+|---|---|
+| Unit test | `*.test.ts` / `*.test.tsx` |
+| Integration test | `*.integration.test.ts` |
+| E2E test | `*.e2e.ts`（Playwright） |
+
+### 6.2 測試命名
+
+```typescript
+describe("uploadDocument use case", () => {
+  it("should return success with documentId when file is valid", async () => {
+    // ...
+  });
+
+  it("should return error when accountId is missing", async () => {
+    // ...
+  });
+});
+```
+
+---
+
+## 7. ESLint 執行
+
+```bash
+# 執行 lint（必須 0 errors）
+npm run lint
+
+# 自動修復可修正的問題
+npm run lint -- --fix
+```
+
+**常見 ESLint 規則**（`eslint.config.mjs`）：
+
+- `no-unused-vars` — 未使用的變數
+- `@typescript-eslint/no-explicit-any` — 禁止 any
+- `jsdoc/*` — JSDoc 格式檢查
+- `@typescript-eslint/naming-convention` — 命名規範
+- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
+- 匯入路徑邊界（legacy path 封鎖）
+
+### 7.1 什麼時候要調整 `eslint.config.mjs`
+
+- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
+- **新增隔離上下文**：需要像 wiki / wiki 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
+- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
+- **同步文件**：調整規則時一併更新
+  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
+  - 本節清單（如新增/刪除常見規則）
+- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
+`````
+
+## File: docs/development/development-process.md
+`````markdown
+# 開發流程（Development Process）
+
+> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
+
+---
+
+## 1. 流程總覽
+
+```
+需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
+```
+
+---
+
+## 2. 開發前準備
+
+### 2.1 環境設置
+
+```bash
+# 1. 安裝相依套件
+npm install
+
+# 2. 啟動開發伺服器
+npm run dev      # http://localhost:3000
+```
+
+> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
+
+### 2.2 必讀文件
+
+在開始任何功能開發前，請先確認：
+
+- [ ] [`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
+- [ ] [`agents/README.md`](../../agents/README.md) — 架構規則索引
+- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀目前維護中的契約總覽文件
+
+### 2.3 建立分支
+
+```bash
+# 從 main 建立功能分支
+git checkout main
+git pull origin main
+git checkout -b feature/your-feature-name
+```
+
+分支命名規則見分支策略文件。
+
+---
+
+## 3. MDDD 開發七步驟
+
+針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
+
+### Step 1：確認模組歸屬
+
+找出你的功能屬於哪個模組（`modules/*/`）：
+
+```
+modules/
+├── content/      ← 頁面、區塊、版本歷程
+├── asset/        ← Library、文件資產
+├── workspace/    ← 工作區管理
+├── account/      ← 帳號管理
+├── organization/ ← 組織管理
+├── retrieval/    ← RAG 查詢、向量檢索
+├── knowledge/    ← 文件攝入、Embedding
+...（16 個模組）
+```
+
+若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
+
+### Step 2：設計 Domain 層（entity / value object / repository interface）
+
+```typescript
+// modules/content/domain/entities/wiki-page.types.ts
+export interface WikiPage {
+  readonly id: string;
+  readonly title: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly status: "active" | "archived";
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+```
+
+> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
+
+### Step 3：實作 Application Use Case
+
+```typescript
+// modules/content/application/use-cases/wiki-pages.use-case.ts
+export async function createWikiPage(
+  input: CreateWikiPageInput,
+  repo: IWikiPageRepository
+): Promise<CommandResult<string>> {
+  // 業務邏輯在此
+  const page = buildPageEntity(input);
+  return repo.save(page);
+}
+```
+
+### Step 4：實作 Infrastructure Adapter
+
+```typescript
+// modules/content/infrastructure/repositories/firebase-wiki-page.repository.ts
+export class FirebaseWikiPageRepository implements IWikiPageRepository {
+  async save(page: WikiPage): Promise<CommandResult<string>> {
+    const ref = await addDoc(
+      collection(db, `accounts/${page.accountId}/pages`),
+      pageToFirestore(page)
+    );
+    return { success: true, data: ref.id };
+  }
+}
+```
+
+### Step 5：建立 Server Action（接口層）
+
+```typescript
+// modules/content/interfaces/_actions/wiki-page.actions.ts
+"use server";
+
+export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
+  return createWikiPage(input, new FirebaseWikiPageRepository());
+}
+```
+
+### Step 6：實作 React 元件
+
+```tsx
+// modules/content/interfaces/components/WikiPagesView.tsx
+"use client";
+
+export function WikiPagesView() {
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function handleCreate() {
+    setIsCreating(true);
+    const result = await createPageAction({ title: "新頁面", accountId });
+    if (result.success) {
+      toast.success("已建立頁面");
+      router.push(`/wiki/pages/${result.data}`);
+    } else {
+      toast.error(`建立失敗：${result.error.message}`);
+    }
+    setIsCreating(false);
+  }
+
+  return (/* ... */);
+}
+```
+
+### Step 7：更新 index.ts 公開 API
+
+```typescript
+// modules/content/index.ts
+export { WikiPagesView } from "./interfaces/components/WikiPagesView";
+export type { WikiPage } from "./domain/entities/wiki-page.types";
+```
+
+---
+
+## 4. 本地驗證清單
+
+每次提交前，確保通過以下驗證：
+
+```bash
+# 1. ESLint — 必須 0 errors
+npm run lint
+
+# 2. TypeScript + 生產建置
+npm run build
+
+# 3. Python Worker（若有變更）
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+**手動驗證**（依功能範圍）：
+
+- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
+- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
+- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
+- [ ] 確認 Loading 狀態正常（spinner + 禁用）
+- [ ] 空狀態 / 載入狀態正確顯示
+
+---
+
+## 5. PR 建立與 Review
+
+### 5.1 建立 PR
+
+```bash
+git push origin feature/your-feature-name
+# 在 GitHub 建立 PR → main
+```
+
+PR 描述需包含：
+- 目的（一句話說明）
+- `Closes #N`（若有 issue）
+- 變更內容清單
+- 測試方式說明
+
+### 5.2 Review 標準
+
+Review 者確認：
+
+| 項目 | 標準 |
+|---|---|
+| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
+| 型別安全 | 無 `any`；使用正確型別 |
+| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
+| 可近用性 | `aria-label`、鍵盤可操作 |
+| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
+| 測試 | lint + build 通過 |
+
+---
+
+## 6. 特殊情境流程
+
+### 6.1 跨 runtime 變更（Next.js + py_fn）
+
+若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
+
+1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
+2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
+3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
+
+### 6.2 資料模型變更
+
+修改 Firestore schema 時：
+
+1. 評估**向後相容性**：舊資料是否需要 migration？
+2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
+3. 更新 **Security Rules**（`firestore.rules`）。
+4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
+
+### 6.3 文件變更
+
+文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
+
+```bash
+git checkout -b docs/update-ui-ux-wireframes
+git commit -m "docs(ui-ux): add wireframes for content pages"
+```
+
+---
+
+## 7. AI 輔助開發流程
+
+本專案整合 GitHub Copilot Agent 輔助開發：
+
+### 7.1 使用 Planner Agent（規劃階段）
+
+對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
+
+```
+在 Copilot Chat 輸入：
+「使用 @planner 規劃 content pages CRUD 功能」
+```
+
+計畫格式見 AI implementation plan template 文件。
+
+### 7.2 使用 Implementer Agent（實作階段）
+
+計畫審核後，交由 Implementer Agent 執行：
+
+```
+在 Copilot Chat 輸入：
+「使用 @implementer 按照計畫實作步驟 1-3」
+```
+
+### 7.3 Delivery Chain
+
+完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
+
+詳細說明見 AI handoff matrix 文件。
 `````
 
 ## File: docs/diagrams/architecture.mermaid
@@ -66141,88 +67608,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill liteparse
 `````
 
-## File: .github/instructions/README.md
-`````markdown
-# Instructions Index
-
-Repository instruction index for `applyTo`-scoped Copilot rules.
-
-## Architecture
-
-- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
-- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
-- [architecture-modules.instructions.md](architecture-modules.instructions.md)
-- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
-
-## Delivery Process
-
-- [branching-strategy.instructions.md](branching-strategy.instructions.md)
-- [ci-cd.instructions.md](ci-cd.instructions.md)
-- [commit-convention.instructions.md](commit-convention.instructions.md)
-- [lint-format.instructions.md](lint-format.instructions.md)
-
-## Platform and Runtime
-
-- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
-- [cloud-functions.instructions.md](cloud-functions.instructions.md)
-- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
-- [firestore-schema.instructions.md](firestore-schema.instructions.md)
-- [security-rules.instructions.md](security-rules.instructions.md)
-
-## AI and RAG
-
-- [genkit-flow.instructions.md](genkit-flow.instructions.md)
-- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
-- [rag-architecture.instructions.md](rag-architecture.instructions.md)
-- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
-
-## Next.js and UI
-
-- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
-- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
-- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
-- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
-- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
-
-## Testing
-
-- [testing-unit.instructions.md](testing-unit.instructions.md)
-- [testing-e2e.instructions.md](testing-e2e.instructions.md)
-
-## Legacy
-
-Legacy files were moved from `old/` into the categorized files above.
-
-## Legacy Mapping
-
-- `old/06-context7-usage.instructions.md` -> `architecture-monorepo.instructions.md` (external-doc usage boundary)
-- `old/07-markitdown-rag.instructions.md` -> `embedding-pipeline.instructions.md`, `rag-architecture.instructions.md`, `cloud-functions.instructions.md`
-- `old/modules-api-boundary.instructions.md` -> `architecture-api-boundary.instructions.md`
-- `old/modules-architecture.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-modules.instructions.md`
-- `old/modules-dependency-graph.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-api-boundary.instructions.md`
-- `old/modules-naming.instructions.md` -> `architecture-modules.instructions.md`
-- `old/modules-refactoring.instructions.md` -> `architecture-modules.instructions.md`
-- `old/xuanwu-app-nextjs-mddd.instructions.md` -> `nextjs-app-router.instructions.md`, `nextjs-server-actions.instructions.md`, `firebase-architecture.instructions.md`, `architecture-monorepo.instructions.md`
-- `old/xuanwu-functions-python.instructions.md` -> `cloud-functions.instructions.md`, `embedding-pipeline.instructions.md`, `firebase-architecture.instructions.md`
-- `old/prompt.instructions.md` -> `prompt-engineering.instructions.md`
-
-## Customization Frontmatter Quick Reference
-
-Use these condensed rules for customization files outside runtime/business architecture.
-
-- `.instructions.md`: required `description`, `applyTo`; keep glob scopes narrow.
-- `.prompt.md`: use `description`, `agent`; define required inputs and fallback behavior.
-- `.agent.md`: required `description`; keep tools least-privilege; keep role boundaries explicit.
-- `SKILL.md`: required `name`, `description`; keep workflows deterministic and discoverable.
-
-Keep these files concise, avoid duplicating repository-global policy, and prefer linking canonical references over copying long handbooks.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-`````
-
 ## File: .github/instructions/security-rules.instructions.md
 `````markdown
 ---
@@ -66790,58 +68175,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries
-`````
-
-## File: .github/prompts/README.md
-`````markdown
-# Prompts Index
-
-Decomposed prompt set from `.github/prompts/old`.
-
-## Planning
-
-- [plan-feature.prompt.md](plan-feature.prompt.md)
-- [plan-module.prompt.md](plan-module.prompt.md)
-- [plan-api.prompt.md](plan-api.prompt.md)
-
-## Implementation
-
-- [implement-feature.prompt.md](implement-feature.prompt.md)
-- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
-- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
-- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
-- [implement-server-action.prompt.md](implement-server-action.prompt.md)
-- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
-
-## Docs and RAG
-
-- [ingest-docs.prompt.md](ingest-docs.prompt.md)
-- [chunk-docs.prompt.md](chunk-docs.prompt.md)
-- [embedding-docs.prompt.md](embedding-docs.prompt.md)
-- [write-docs.prompt.md](write-docs.prompt.md)
-
-## Analysis and Debug
-
-- [analyze-repo.prompt.md](analyze-repo.prompt.md)
-- [debug-error.prompt.md](debug-error.prompt.md)
-
-## Refactor and Review
-
-- [refactor-module.prompt.md](refactor-module.prompt.md)
-- [refactor-api.prompt.md](refactor-api.prompt.md)
-- [review-code.prompt.md](review-code.prompt.md)
-- [review-architecture.prompt.md](review-architecture.prompt.md)
-- [review-performance.prompt.md](review-performance.prompt.md)
-- [review-security.prompt.md](review-security.prompt.md)
-
-## Testing
-
-- [write-tests.prompt.md](write-tests.prompt.md)
-- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
-#use skill modules-mddd-api-surface
 `````
 
 ## File: .github/prompts/refactor-api.prompt.md
@@ -69791,547 +71124,6 @@ export async function createTaskAction(dto: CreateTaskDto): Promise<CommandResul
 3. 直接回傳 `CommandResult` 給呼叫端
 `````
 
-## File: docs/development/code-style.md
-`````markdown
-# 程式碼風格指南（Code Style Guide）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的 TypeScript、React、CSS 程式碼風格規範，保持全代碼庫一致性。
-> 自動化工具：ESLint（`eslint.config.mjs`）與 TypeScript（`tsconfig.json`）為主要執行機制。
-
----
-
-## 1. TypeScript
-
-### 1.1 型別宣告原則
-
-```typescript
-// ✅ 優先使用 interface 定義物件形狀
-interface UserProfile {
-  readonly id: string;
-  name: string;
-  email: string;
-}
-
-// ✅ 使用 type 定義聯合型別、交叉型別、別名
-type DocumentStatus = "processing" | "ready" | "error";
-type CommandResult<T = void> = { success: true; data: T } | { success: false; error: DomainError };
-
-// ✅ 從 @shared-types 匯入跨模組共用型別
-import type { CommandResult, DomainError } from "@shared-types";
-
-// ❌ 避免 any
-const data: any = fetchData(); // 禁止
-
-// ✅ 使用 unknown 代替 any
-const data: unknown = fetchData();
-```
-
-### 1.2 命名規範
-
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 介面（Interface） | `PascalCase` | `WorkspaceEntity` |
-| 型別別名（Type alias） | `PascalCase` | `DocumentStatus` |
-| 類別（Class） | `PascalCase` | `FirebaseDocumentRepository` |
-| 函式 | `camelCase` | `uploadDocument` |
-| 常數（模組級別） | `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE_MB` |
-| React 元件 | `PascalCase` | `WikiDocumentsView` |
-| 檔案：Domain Entity | `PascalCase.ts` | `WorkspaceEntity.ts` |
-| 檔案：Repository | `MyRepository.ts` | `IDocumentRepository.ts` |
-| 檔案：Firebase Repository | `FirebaseMyRepository.ts` | `FirebaseDocumentRepository.ts` |
-| 檔案：Use Case | `verb-noun.use-case.ts` | `upload-document.use-case.ts` |
-| 檔案：Server Action | `*.actions.ts` | `document.actions.ts` |
-| 檔案：React 元件 | `PascalCase.tsx` | `WikiDocumentsView.tsx` |
-
-### 1.3 函式宣告風格
-
-```typescript
-// ✅ 匯出函式使用 function 宣告（可讀性較佳）
-export function createWorkspace(input: CreateWorkspaceInput): Promise<CommandResult> {
-  // ...
-}
-
-// ✅ 回呼、lambda 使用 arrow function
-const items = list.map((item) => item.id);
-
-// ✅ 元件使用 function 宣告
-export function WikiDocumentsView() {
-  // ...
-}
-
-// ❌ 避免不必要的 default export（除了 page.tsx 和 layout.tsx）
-export default function SomeComponent() {} // 僅適用 Next.js 要求的檔案
-```
-
-### 1.4 非同步處理
-
-```typescript
-// ✅ 使用 async/await，避免 Promise chain
-async function fetchDocuments(accountId: string): Promise<DocumentEntity[]> {
-  const snapshot = await getDocs(query(collection(db, `accounts/${accountId}/documents`)));
-  return snapshot.docs.map(docToEntity);
-}
-
-// ✅ 統一 try/catch 在 use-case 或 Server Action 邊界
-export async function reindexDocument(input: ReindexInput): Promise<CommandResult> {
-  try {
-    await triggerReindex(input);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: toDomainError(error) };
-  }
-}
-
-// ❌ 不在元件內 catch 後靜默吞錯誤
-try {
-  await doSomething();
-} catch {
-  // 靜默失敗 — 禁止
-}
-```
-
----
-
-## 2. React 元件規範
-
-### 2.1 元件結構順序
-
-```tsx
-"use client"; // 若需要（置頂）
-
-import React, { useState, useEffect, useCallback } from "react";
-// 外部函式庫
-import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
-
-// 內部 alias imports
-import { Button } from "@ui-shadcn/ui/button";
-import { cn } from "@shared-utils";
-
-// 同模組 relative imports
-import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
-
-// 型別定義
-interface DocumentCardProps {
-  readonly document: RagDocumentRecord;
-  readonly onReindex: (docId: string) => Promise<void>;
-}
-
-// 元件主體
-export function DocumentCard({ document, onReindex }: DocumentCardProps) {
-  // 1. Hooks（useState、useEffect、custom hooks）
-  const [isLoading, setIsLoading] = useState(false);
-
-  // 2. Derived state / memoized values
-  const canReindex = document.status === "ready";
-
-  // 3. Event handlers（useCallback 包覆需傳遞給子元件的 handler）
-  const handleReindex = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await onReindex(document.id);
-      toast.success("已觸發重整");
-    } catch (err) {
-      toast.error(`重整失敗：${String(err)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [document.id, onReindex]);
-
-  // 4. Render
-  return (
-    <div className="flex items-center gap-4 rounded-lg border p-4">
-      <span className="flex-1">{document.filename}</span>
-      <Button
-        size="sm"
-        disabled={!canReindex || isLoading}
-        onClick={handleReindex}
-        aria-disabled={!canReindex || isLoading}
-      >
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : "手動重整"}
-      </Button>
-    </div>
-  );
-}
-```
-
-### 2.2 Props 設計規則
-
-```typescript
-// ✅ 使用 readonly 標記不可變 props
-interface MyProps {
-  readonly id: string;
-  readonly onAction: () => void;
-  className?: string; // 可選 className 用於樣式擴展
-}
-
-// ✅ 事件 handler 命名使用 on 前綴
-onSubmit, onChange, onDelete, onSelect
-
-// ✅ Boolean props 命名使用 is/has/can 前綴
-isLoading, hasError, canEdit, isCollapsed
-
-// ❌ 避免過於泛用的 props
-data: any;          // 禁止
-config: Record<string, unknown>; // 避免
-```
-
-### 2.3 Server Component vs Client Component
-
-```typescript
-// ✅ 頁面預設為 Server Component（無 "use client"）
-export default async function DocumentsPage() {
-  return <WikiDocumentsView />;
-}
-
-// ✅ 只在需要時才加 "use client"
-// 需要: useState, useEffect, onClick, onChange, browser APIs
-"use client";
-export function InteractiveUploader() {
-  const [isDragOver, setIsDragOver] = useState(false);
-  // ...
-}
-
-// ✅ 盡量在元件樹最末端（Leaf）加 "use client"，不在父元件或 layout 加
-```
-
----
-
-## 3. 匯入規範
-
-### 3.1 匯入順序
-
-```typescript
-// 1. React（若使用 JSX 元素需明確匯入）
-import React from "react";
-
-// 2. Next.js 核心
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-// 3. 第三方函式庫
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-
-// 4. @alias 套件匯入（@shared-*, @ui-*, @integration-*, @lib-*）
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-
-// 5. @/ 模組匯入（app/ 和 modules/）
-import type { WorkspaceEntity } from "@/modules/workspace";
-import { createWorkspace } from "@/modules/workspace";
-
-// 6. 相對路徑（同模組內部）
-import type { DocumentEntity } from "../../domain/entities/document.entity";
-import { useDocuments } from "../hooks/use-documents";
-```
-
-### 3.2 禁止使用的 Legacy 路徑
-
-| 禁止 | 替代方案 |
-|---|---|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-constants` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` 對應套件 |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
----
-
-## 4. CSS 與 Tailwind 規範
-
-### 4.1 Class 排列順序
-
-遵循 Tailwind 官方推薦順序（由外到內、由結構到外觀）：
-
-```tsx
-// Layout → Position → Spacing → Sizing → Typography → Visual
-<div className="flex items-center gap-4 px-4 py-2 w-full text-sm font-medium text-foreground bg-card rounded-lg border shadow-sm hover:bg-accent transition-colors">
-```
-
-建議安裝 `prettier-plugin-tailwindcss` 自動排列。
-
-### 4.2 條件 Class 使用 cn()
-
-```tsx
-import { cn } from "@shared-utils"; // 或 @ui-shadcn/utils
-
-<div
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8",
-    isDragOver && "border-primary bg-primary/5",
-    isError && "border-destructive",
-    className // 允許外部覆蓋
-  )}
-/>
-```
-
-### 4.3 避免 CSS 反模式
-
-```tsx
-// ❌ 避免 style prop（除非動態值無法用 Tailwind 表達）
-<div style={{ backgroundColor: "#f00" }} />
-
-// ✅ 使用 Tailwind 語義色
-<div className="bg-destructive" />
-
-// ❌ 避免 @apply（Tailwind 不推薦用於元件）
-// @apply flex items-center;
-
-// ✅ 使用元件封裝重用樣式
-```
-
----
-
-## 5. JSDoc 規範
-
-函式與類別加 JSDoc 的時機：
-
-```typescript
-// ✅ 公開 API（export 的函式 / use-case）應加 JSDoc
-/**
- * 上傳文件至 Firebase Storage，並將 metadata 寫入 Firestore。
- * @param input - 包含 file、accountId 與選填的 workspaceId。
- * @returns CommandResult，成功時包含 documentId。
- */
-export async function uploadDocument(input: UploadDocumentInput): Promise<CommandResult<string>> {
-  // ...
-}
-
-// ✅ 複雜業務邏輯加說明
-// ❌ 簡單 getter / setter 無需 JSDoc
-```
-
----
-
-## 6. 測試風格
-
-### 6.1 測試檔案命名
-
-| 類型 | 格式 |
-|---|---|
-| Unit test | `*.test.ts` / `*.test.tsx` |
-| Integration test | `*.integration.test.ts` |
-| E2E test | `*.e2e.ts`（Playwright） |
-
-### 6.2 測試命名
-
-```typescript
-describe("uploadDocument use case", () => {
-  it("should return success with documentId when file is valid", async () => {
-    // ...
-  });
-
-  it("should return error when accountId is missing", async () => {
-    // ...
-  });
-});
-```
-
----
-
-## 7. ESLint 執行
-
-```bash
-# 執行 lint（必須 0 errors）
-npm run lint
-
-# 自動修復可修正的問題
-npm run lint -- --fix
-```
-
-**常見 ESLint 規則**（`eslint.config.mjs`）：
-
-- `no-unused-vars` — 未使用的變數
-- `@typescript-eslint/no-explicit-any` — 禁止 any
-- `jsdoc/*` — JSDoc 格式檢查
-- `@typescript-eslint/naming-convention` — 命名規範
-- `boundaries/dependencies` — `modules/` 內部 layer 依賴方向
-- 匯入路徑邊界（legacy path 封鎖）
-
-### 7.1 什麼時候要調整 `eslint.config.mjs`
-
-- **新增或調整套件別名 / 邊界**：例如引入新的 `@lib-*` / `@ui-*` / `@integration-*` 別名，或鎖住/放寬舊的 `@/shared/*` 等 legacy 路徑。
-- **新增隔離上下文**：需要像 wiki / wiki 一樣的模組隔離時，先加 `no-restricted-imports` 規則，再補對應文件。
-- **移除 legacy 入口**：確定沒有使用者後才放寬封鎖規則，並更新替代路徑說明。
-- **同步文件**：調整規則時一併更新
-  - `agents/knowledge-base.md` 中的 ESLint 邊界表格
-  - 本節清單（如新增/刪除常見規則）
-- **驗證**：調整後必跑 `npm run lint`（必要時 `npm run build`）確認沒有新警告/錯誤。
-`````
-
-## File: docs/development/modules-implementation-guide.md
-`````markdown
-# Modules Implementation Guide
-
-本文件是 `modules/` 的實作導向說明，並對齊上位概念架構文件的設計方向。
-
-- 上位概念架構文件：回答「為什麼」與「系統如何分層」。
-- 本文件：回答「在 repository 內如何落地」。
-
----
-
-## 1. 與概念架構文件的對位關係
-
-上位概念架構文件定義三層融合：
-
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
-
-| 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
-| --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/knowledge-graph`, `modules/retrieval` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/agent` + `modules/retrieval` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
-
-> 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
-
----
-
-## 2. module 標準結構（MDDD）
-
-```text
-<domain-id>/
-│
-├── api/
-│   └── index.ts
-│
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── repositories/
-│   ├── services/
-│   └── events/
-│
-├── application/
-│   ├── use-cases/
-│   └── dto/
-│
-├── infrastructure/
-│   ├── firebase/
-│   ├── persistence/
-│   ├── external/
-│   └── repositories/
-│
-├── interfaces/
-│   ├── _actions/
-│   ├── api/
-│   ├── queries/
-│   ├── hooks/
-│   └── components/
-│
-```
-
-說明：
-
-1. 不是每個 module 都需要全部子目錄，依 bounded context 取用。
-2. 跨 module 存取僅能走目標 module 的 `api/` 公開邊界。
-3. module 內部檔案使用相對路徑，不自我 import `api/` 邊界。
-
----
-
-## 3. 依賴方向與邊界
-
-全域依賴方向：
-
-```text
-interfaces -> application -> domain <- infrastructure
-```
-
-邊界規則：
-
-1. `domain/` 不得依賴 framework 與外部 SDK。
-2. `application/` 負責流程編排，不直接綁定具體外部實作。
-3. `infrastructure/` 實作 domain 介面，不主導業務流程。
-4. `interfaces/` 僅做輸入輸出適配（UI、API、Server Action、Query）。
-
----
-
-## 4. 與 packages 的關係
-
-模組共用能力必須透過 `packages/` 的 alias（例如 `@shared-types`, `@integration-firebase`, `@ui-shadcn`）使用，不直接耦合其他模組內部。
-
-```text
-modules/*
-  -> packages/* (stable public boundary)
-```
-
-這個原則與上位概念架構文件的三層融合不衝突：
-
-- 融合的是產品能力（編輯 + 關聯 + AI）
-- 隔離的是程式邊界（module `api/` boundary + package boundary）
-
----
-
-## 5. Next.js 路由與融合介面
-
-上位概念架構文件的基礎平行路由示意：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-```
-
-實作可依需求擴充，例如：
-
-```text
-/workspace
-    /@editor
-    /@graph
-    /@chat
-    /@database
-    /@collab
-    /@workflow
-```
-
-擴充原則：
-
-1. 新 slot 必須能回對到既有 module ownership。
-2. 不因 UI slot 增加而破壞 MDDD 依賴方向。
-
----
-
-## 6. 目標對齊聲明
-
-本文件以上位概念架構文件為基礎，並將其轉換為可執行的 module implementation 規範：
-
-1. 保留內容體驗、知識關聯與 AI 能力的融合方向。
-2. 明確化「融合體驗」與「邊界隔離」可同時成立。
-3. 用 MDDD 與 package boundary 落地，避免跨模組內部耦合。
-
----
-
-## 7. 以上位概念架構文件為準的落地限制
-
-上位概念架構文件提供的是概念模型，不是額外的 canonical module map、固定領域數量或一次性規劃清單。
-
-因此本文件只保留與概念模型一致的落地限制：
-
-1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
-3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
-4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
-
-## 8. 實作規劃時的最小檢查點
-
-若要把三層模型落到實際模組，至少先確認：
-
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
-2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
-3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
-4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。
-5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
-`````
-
 ## File: docs/diagrams/rag-enterprise-e2e.mermaid
 `````
 %% Xuanwu consolidated RAG E2E (merged)
@@ -70414,6 +71206,48 @@ flowchart LR
     class Storage,Documents,Chunks,QueryCache data;
     class QueryEmbedding,VectorSearch,Hybrid,LLM,NoContext retrieval;
     class FeedbackStore feedback;
+`````
+
+## File: docs/diagrams/README.md
+`````markdown
+# Diagrams
+
+此資料夾放系統圖與流程圖（Mermaid、PNG、SVG）。
+
+## 目前主要 Mermaid 圖
+
+- `xuanwu_architecture.mermaid`
+	- 合併系統總覽、模組層次、多工作區結構
+- `rag-enterprise-e2e.mermaid`
+	- 合併 RAG ingestion、query、API/data flow、core logic、**feedback loop**（`ragQueryFeedback` Firestore 集合）
+- `workspace-interaction-flow.mermaid`
+	- 合併 workspace 階層、App Router slices、互動流程、主要 Firestore 路徑
+- `erd-model.mermaid`
+	- 合併 Workspace 內部資料模型與 RAG 資料模型
+- `state-machine.mermaid`
+	- 合併 Auth、文件處理、KB ingestion 狀態機
+- `event-bus-message-flow.mermaid`
+	- 事件匯流排與 outbox/dispatch 流程
+- `security-rules-decision-flow.mermaid`
+	- Firestore 權限決策流程
+- `agent-architecture-commander-subagents.mermaid`
+	- 指揮代理與子代理協作拓樸
+- `domain-id-api-boundary-template.mermaid`
+	- Domain-ID 領域模板：各領域自有邊界、跨領域僅透過 `api/` 交互
+- `onboarding-flow.mermaid`
+	- **新增**：新組織 / 使用者從註冊到第一次 RAG 查詢的 onboarding sequence diagram
+
+## 建議內容
+
+- 架構圖
+- 流程圖
+- 狀態機圖
+- ERD
+
+## 命名建議
+
+- `domain-purpose.mermaid`
+- `system-overview.png`
 `````
 
 ## File: docs/diagrams/state-machine.mermaid
@@ -73734,6 +74568,156 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 `````
 
+## File: .github/instructions/README.md
+`````markdown
+# Instructions Index
+
+Repository instruction index for `applyTo`-scoped Copilot rules.
+
+## DDD 戰略與戰術設計 (IDDD)
+
+遵循 Vaughn Vernon《Implementing Domain-Driven Design》規範：
+
+- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
+- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
+- [domain-modeling.instructions.md](domain-modeling.instructions.md)
+- [event-driven-state.instructions.md](event-driven-state.instructions.md)
+
+## Architecture
+
+- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
+- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
+- [architecture-modules.instructions.md](architecture-modules.instructions.md)
+- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
+
+## Delivery Process
+
+- [branching-strategy.instructions.md](branching-strategy.instructions.md)
+- [ci-cd.instructions.md](ci-cd.instructions.md)
+- [commit-convention.instructions.md](commit-convention.instructions.md)
+- [lint-format.instructions.md](lint-format.instructions.md)
+
+## Platform and Runtime
+
+- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
+- [cloud-functions.instructions.md](cloud-functions.instructions.md)
+- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
+- [firestore-schema.instructions.md](firestore-schema.instructions.md)
+- [security-rules.instructions.md](security-rules.instructions.md)
+
+## AI and RAG
+
+- [genkit-flow.instructions.md](genkit-flow.instructions.md)
+- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
+- [rag-architecture.instructions.md](rag-architecture.instructions.md)
+- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
+
+## Next.js and UI
+
+- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
+- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
+- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
+- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
+- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
+
+## Testing
+
+- [testing-unit.instructions.md](testing-unit.instructions.md)
+- [testing-e2e.instructions.md](testing-e2e.instructions.md)
+
+## Legacy
+
+Legacy files were moved from `old/` into the categorized files above.
+
+## Legacy Mapping
+
+- `old/06-context7-usage.instructions.md` -> `architecture-monorepo.instructions.md` (external-doc usage boundary)
+- `old/07-markitdown-rag.instructions.md` -> `embedding-pipeline.instructions.md`, `rag-architecture.instructions.md`, `cloud-functions.instructions.md`
+- `old/modules-api-boundary.instructions.md` -> `architecture-api-boundary.instructions.md`
+- `old/modules-architecture.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-modules.instructions.md`
+- `old/modules-dependency-graph.instructions.md` -> `architecture-mddd.instructions.md`, `architecture-api-boundary.instructions.md`
+- `old/modules-naming.instructions.md` -> `architecture-modules.instructions.md`
+- `old/modules-refactoring.instructions.md` -> `architecture-modules.instructions.md`
+- `old/xuanwu-app-nextjs-mddd.instructions.md` -> `nextjs-app-router.instructions.md`, `nextjs-server-actions.instructions.md`, `firebase-architecture.instructions.md`, `architecture-monorepo.instructions.md`
+- `old/xuanwu-functions-python.instructions.md` -> `cloud-functions.instructions.md`, `embedding-pipeline.instructions.md`, `firebase-architecture.instructions.md`
+- `old/prompt.instructions.md` -> `prompt-engineering.instructions.md`
+
+## Customization Frontmatter Quick Reference
+
+Use these condensed rules for customization files outside runtime/business architecture.
+
+- `.instructions.md`: required `description`, `applyTo`; keep glob scopes narrow.
+- `.prompt.md`: use `description`, `agent`; define required inputs and fallback behavior.
+- `.agent.md`: required `description`; keep tools least-privilege; keep role boundaries explicit.
+- `SKILL.md`: required `name`, `description`; keep workflows deterministic and discoverable.
+
+Keep these files concise, avoid duplicating repository-global policy, and prefer linking canonical references over copying long handbooks.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+`````
+
+## File: .github/prompts/README.md
+`````markdown
+# Prompts Index
+
+Decomposed prompt set from `.github/prompts/old`.
+
+## DDD 領域建模 (IDDD)
+
+遵循 Vaughn Vernon《Implementing Domain-Driven Design》規範：
+
+- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
+- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+
+## Planning
+
+- [plan-feature.prompt.md](plan-feature.prompt.md)
+- [plan-module.prompt.md](plan-module.prompt.md)
+- [plan-api.prompt.md](plan-api.prompt.md)
+
+## Implementation
+
+- [implement-feature.prompt.md](implement-feature.prompt.md)
+- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
+- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
+- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
+- [implement-server-action.prompt.md](implement-server-action.prompt.md)
+- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
+
+## Docs and RAG
+
+- [ingest-docs.prompt.md](ingest-docs.prompt.md)
+- [chunk-docs.prompt.md](chunk-docs.prompt.md)
+- [embedding-docs.prompt.md](embedding-docs.prompt.md)
+- [write-docs.prompt.md](write-docs.prompt.md)
+
+## Analysis and Debug
+
+- [analyze-repo.prompt.md](analyze-repo.prompt.md)
+- [debug-error.prompt.md](debug-error.prompt.md)
+
+## Refactor and Review
+
+- [refactor-module.prompt.md](refactor-module.prompt.md)
+- [refactor-api.prompt.md](refactor-api.prompt.md)
+- [review-code.prompt.md](review-code.prompt.md)
+- [review-architecture.prompt.md](review-architecture.prompt.md)
+- [review-performance.prompt.md](review-performance.prompt.md)
+- [review-security.prompt.md](review-security.prompt.md)
+
+## Testing
+
+- [write-tests.prompt.md](write-tests.prompt.md)
+- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill slavingia-skills-mvp
+#use skill modules-mddd-api-surface
+`````
+
 ## File: agents/knowledge-base.md
 `````markdown
 # Knowledge Base — MDDD Domain & Architecture
@@ -75136,291 +76120,6 @@ asset ──RAG document→ knowledge
 | **Python 管線** | Firestore 文件狀態機（`uploaded → processing → ready`） | `IngestionJob.status` 輪詢/訂閱 |
 `````
 
-## File: docs/development/development-process.md
-`````markdown
-# 開發流程（Development Process）
-
-> **操作指南類型**：本文件說明從需求建立到 PR 合併的端對端開發流程，適用於功能開發、錯誤修復與文件更新。
-
----
-
-## 1. 流程總覽
-
-```
-需求確認 → 設計確認 → 開發環境 → 開發實作 → 本地驗證 → PR 建立 → Review → 合併 → 部署
-```
-
----
-
-## 2. 開發前準備
-
-### 2.1 環境設置
-
-```bash
-# 1. 安裝相依套件
-npm install
-
-# 2. 啟動開發伺服器
-npm run dev      # http://localhost:3000
-```
-
-> 需要 Node.js 24 與 npm（見 `.nvmrc` 或 `package.json.engines`）。
-
-### 2.2 必讀文件
-
-在開始任何功能開發前，請先確認：
-
-- [ ] [`agents/knowledge-base.md`](../../agents/knowledge-base.md) — 確認你的變更屬於哪個模組
-- [ ] [`agents/README.md`](../../agents/README.md) — 架構規則索引
-- [ ] 若觸及 **契約邊界**（runtime boundary、API、資料模型），先讀目前維護中的契約總覽文件
-
-### 2.3 建立分支
-
-```bash
-# 從 main 建立功能分支
-git checkout main
-git pull origin main
-git checkout -b feature/your-feature-name
-```
-
-分支命名規則見分支策略文件。
-
----
-
-## 3. MDDD 開發七步驟
-
-針對功能模組開發，遵循以下 MDDD（Module-Driven Domain Design）標準流程：
-
-### Step 1：確認模組歸屬
-
-找出你的功能屬於哪個模組（`modules/*/`）：
-
-```
-modules/
-├── content/      ← 頁面、區塊、版本歷程
-├── asset/        ← Library、文件資產
-├── workspace/    ← 工作區管理
-├── account/      ← 帳號管理
-├── organization/ ← 組織管理
-├── retrieval/    ← RAG 查詢、向量檢索
-├── knowledge/    ← 文件攝入、Embedding
-...（16 個模組）
-```
-
-若功能跨越多個模組，先確認**主要模組**為何，並在其 `index.ts` 定義跨模組的公開 API。
-
-### Step 2：設計 Domain 層（entity / value object / repository interface）
-
-```typescript
-// modules/content/domain/entities/wiki-page.types.ts
-export interface WikiPage {
-  readonly id: string;
-  readonly title: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly status: "active" | "archived";
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
-}
-```
-
-> **原則**：domain 層不可匯入 React、Firebase SDK 或 HTTP 客戶端。
-
-### Step 3：實作 Application Use Case
-
-```typescript
-// modules/content/application/use-cases/wiki-pages.use-case.ts
-export async function createWikiPage(
-  input: CreateWikiPageInput,
-  repo: IWikiPageRepository
-): Promise<CommandResult<string>> {
-  // 業務邏輯在此
-  const page = buildPageEntity(input);
-  return repo.save(page);
-}
-```
-
-### Step 4：實作 Infrastructure Adapter
-
-```typescript
-// modules/content/infrastructure/repositories/firebase-wiki-page.repository.ts
-export class FirebaseWikiPageRepository implements IWikiPageRepository {
-  async save(page: WikiPage): Promise<CommandResult<string>> {
-    const ref = await addDoc(
-      collection(db, `accounts/${page.accountId}/pages`),
-      pageToFirestore(page)
-    );
-    return { success: true, data: ref.id };
-  }
-}
-```
-
-### Step 5：建立 Server Action（接口層）
-
-```typescript
-// modules/content/interfaces/_actions/wiki-page.actions.ts
-"use server";
-
-export async function createPageAction(input: CreatePageInput): Promise<CommandResult<string>> {
-  return createWikiPage(input, new FirebaseWikiPageRepository());
-}
-```
-
-### Step 6：實作 React 元件
-
-```tsx
-// modules/content/interfaces/components/WikiPagesView.tsx
-"use client";
-
-export function WikiPagesView() {
-  const [isCreating, setIsCreating] = useState(false);
-
-  async function handleCreate() {
-    setIsCreating(true);
-    const result = await createPageAction({ title: "新頁面", accountId });
-    if (result.success) {
-      toast.success("已建立頁面");
-      router.push(`/wiki/pages/${result.data}`);
-    } else {
-      toast.error(`建立失敗：${result.error.message}`);
-    }
-    setIsCreating(false);
-  }
-
-  return (/* ... */);
-}
-```
-
-### Step 7：更新 index.ts 公開 API
-
-```typescript
-// modules/content/index.ts
-export { WikiPagesView } from "./interfaces/components/WikiPagesView";
-export type { WikiPage } from "./domain/entities/wiki-page.types";
-```
-
----
-
-## 4. 本地驗證清單
-
-每次提交前，確保通過以下驗證：
-
-```bash
-# 1. ESLint — 必須 0 errors
-npm run lint
-
-# 2. TypeScript + 生產建置
-npm run build
-
-# 3. Python Worker（若有變更）
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-**手動驗證**（依功能範圍）：
-
-- [ ] 在瀏覽器執行完整使用者任務（例如：上傳文件 → 查看列表）
-- [ ] 確認 Console 無 `error`（只有預期的 `warning`）
-- [ ] 確認所有 Toast 正常顯示（成功 / 失敗）
-- [ ] 確認 Loading 狀態正常（spinner + 禁用）
-- [ ] 空狀態 / 載入狀態正確顯示
-
----
-
-## 5. PR 建立與 Review
-
-### 5.1 建立 PR
-
-```bash
-git push origin feature/your-feature-name
-# 在 GitHub 建立 PR → main
-```
-
-PR 描述需包含：
-- 目的（一句話說明）
-- `Closes #N`（若有 issue）
-- 變更內容清單
-- 測試方式說明
-
-### 5.2 Review 標準
-
-Review 者確認：
-
-| 項目 | 標準 |
-|---|---|
-| 架構一致性 | 遵循 MDDD 分層；無跨模組 internal import |
-| 型別安全 | 無 `any`；使用正確型別 |
-| 錯誤處理 | 失敗路徑有 toast；無靜默失敗 |
-| 可近用性 | `aria-label`、鍵盤可操作 |
-| 效能 | 無不必要的 re-render；資料載入有 loading 狀態 |
-| 測試 | lint + build 通過 |
-
----
-
-## 6. 特殊情境流程
-
-### 6.1 跨 runtime 變更（Next.js + py_fn）
-
-若你的功能需要 py_fn 端的配合（例如新增 callable、修改 Firestore schema）：
-
-1. **先確認契約**：參閱 `docs/development-reference/reference/development-contracts/` 中對應的契約文件。
-2. **分步驟開發**：先在 py_fn 端實作並部署，再在 Next.js 端整合。
-3. **更新契約文件**：若有 API 或資料模型變更，必須同步更新契約文件。
-
-### 6.2 資料模型變更
-
-修改 Firestore schema 時：
-
-1. 評估**向後相容性**：舊資料是否需要 migration？
-2. 更新 **Firestore 索引**（`firestore.indexes.json`）。
-3. 更新 **Security Rules**（`firestore.rules`）。
-4. 更新相關 ADR（`docs/decision-architecture/adr/`）。
-
-### 6.3 文件變更
-
-文件更新（`docs/` 目錄）使用 `docs/*` 分支，提交類型為 `docs:`：
-
-```bash
-git checkout -b docs/update-ui-ux-wireframes
-git commit -m "docs(ui-ux): add wireframes for content pages"
-```
-
----
-
-## 7. AI 輔助開發流程
-
-本專案整合 GitHub Copilot Agent 輔助開發：
-
-### 7.1 使用 Planner Agent（規劃階段）
-
-對於**非顯而易見**的功能（跨模組、跨 runtime、有架構影響），使用 Planner Agent 先建立正式實作計畫：
-
-```
-在 Copilot Chat 輸入：
-「使用 @planner 規劃 content pages CRUD 功能」
-```
-
-計畫格式見 AI implementation plan template 文件。
-
-### 7.2 使用 Implementer Agent（實作階段）
-
-計畫審核後，交由 Implementer Agent 執行：
-
-```
-在 Copilot Chat 輸入：
-「使用 @implementer 按照計畫實作步驟 1-3」
-```
-
-### 7.3 Delivery Chain
-
-完整的 AI 輔助交付鏈：`Planner → Implementer → Reviewer → QA`
-
-詳細說明見 AI handoff matrix 文件。
-`````
-
 ## File: docs/diagrams/domain-id-api-boundary-template.mermaid
 `````
 %% Domain-ID API boundary template
@@ -75575,6 +76274,65 @@ export {
 } from "../interfaces/workspace-tabs";
 
 export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
+`````
+
+## File: docs/architecture/README.md
+`````markdown
+# Architecture
+
+<!-- change: Add ADR-001 to index and AI reading path; PR-NUM -->
+
+此資料夾放系統架構說明與設計原則。
+
+## 文件索引
+
+### 核心 DDD 參考
+
+| 文件 | 說明 |
+|------|------|
+| [`bounded-contexts.md`](./bounded-contexts.md) | 16 個有界上下文的職責、實體、事件與邊界規則 |
+| [`ubiquitous-language.md`](./ubiquitous-language.md) | 通用語言字典：術語定義、命名規範、代碼位置對照 |
+| [`domain-model.md`](./domain-model.md) | 領域模型：所有 Aggregate、Entity、Value Object 結構與狀態機 |
+| [`domain-events.md`](./domain-events.md) | 領域事件完整目錄：設計規範、事件清單與跨上下文事件流 |
+| [`use-cases.md`](./use-cases.md) | Use Cases / Application Layer：所有 Use Case 列表與設計原則 |
+| [`repository-pattern.md`](./repository-pattern.md) | Repository Pattern：介面定義、Port、Firebase 實作對照表 |
+| [`domain-services.md`](./domain-services.md) | 領域服務：狀態機策略、業務守衛與純函式服務 |
+
+### 架構設計
+
+| 文件 | 說明 |
+|------|------|
+| [`context-map.md`](./context-map.md) | 上下文關係圖：16 個上下文的互動關係與 DDD 關係模式 |
+| [`infrastructure-strategy.md`](./infrastructure-strategy.md) | 基礎設施策略：技術棧、Runtime 邊界、Firestore Schema、攝入管線 |
+| [`read-model.md`](./read-model.md) | 讀模型 / CQRS：Query 函式目錄、即時訂閱模式、讀寫分離設計 |
+| [`ai-domain.md`](./ai-domain.md) | AI Domain（Genkit Flow）：RAG 管線、Genkit 整合、串流事件設計 |
+| [`module-boundary.md`](./module-boundary.md) | 模組邊界：MDDD 邊界規則、API 邊界設計、import 規範與執行機制 |
+
+### 規劃與決策
+
+| 文件 | 說明 |
+|------|------|
+| [`domain-implementation-target.md`](./domain-implementation-target.md) | 模組實現數量目標與 wiki 分解記錄 |
+| [`workspace-ui-gap-analysis.md`](./workspace-ui-gap-analysis.md) | Workspace UI 缺口分析：後端完整但 UI 缺失的功能清單 |
+| [`adr/`](./adr/) | 架構決策記錄（ADR） |
+| [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md) | **ADR-001**：content ↔ workspace-flow 邊界與事件驅動整合（Buffer Zone / Materialization） |
+
+## 閱讀路徑建議
+
+```
+新成員入門:
+  bounded-contexts.md → ubiquitous-language.md → context-map.md
+
+實作指引:
+  domain-model.md → use-cases.md → repository-pattern.md
+
+AI 功能開發:
+  ai-domain.md → infrastructure-strategy.md → domain-events.md
+  → adr/ADR-001-content-to-workflow-boundary.md  ← content→workspace-flow 事件驅動設計
+
+架構合規:
+  module-boundary.md → bounded-contexts.md
+```
 `````
 
 ## File: docs/architecture/ubiquitous-language.md
@@ -75868,48 +76626,6 @@ import { cn } from "@/shared/utils";
 | `knowledge/domain/repositories/GraphRepository.ts` 與 `knowledge-graph` 重複 | `knowledge` | 兩模組各有 GraphRepository 定義 | 僅保留 `knowledge-graph` 版本 | P1 |
 | `identity`、`account`、`workspace` 聚合根缺乏 Domain Events | `identity`, `account`, `workspace` | 無 event stream，狀態變更無法被下游模組訂閱 | 逐步補充關鍵 Domain Events（見 ADR-002）| P2 |
 | `asset.WikiLibrary` 語意上偏向內容層 | `asset` | WikiLibrary 定義在 asset 模組 | 長期考慮移至 `content` 或明確文件化留在 `asset` 的理由 | P3 |
-`````
-
-## File: docs/diagrams/README.md
-`````markdown
-# Diagrams
-
-此資料夾放系統圖與流程圖（Mermaid、PNG、SVG）。
-
-## 目前主要 Mermaid 圖
-
-- `xuanwu_architecture.mermaid`
-	- 合併系統總覽、模組層次、多工作區結構
-- `rag-enterprise-e2e.mermaid`
-	- 合併 RAG ingestion、query、API/data flow、core logic、**feedback loop**（`ragQueryFeedback` Firestore 集合）
-- `workspace-interaction-flow.mermaid`
-	- 合併 workspace 階層、App Router slices、互動流程、主要 Firestore 路徑
-- `erd-model.mermaid`
-	- 合併 Workspace 內部資料模型與 RAG 資料模型
-- `state-machine.mermaid`
-	- 合併 Auth、文件處理、KB ingestion 狀態機
-- `event-bus-message-flow.mermaid`
-	- 事件匯流排與 outbox/dispatch 流程
-- `security-rules-decision-flow.mermaid`
-	- Firestore 權限決策流程
-- `agent-architecture-commander-subagents.mermaid`
-	- 指揮代理與子代理協作拓樸
-- `domain-id-api-boundary-template.mermaid`
-	- Domain-ID 領域模板：各領域自有邊界、跨領域僅透過 `api/` 交互
-- `onboarding-flow.mermaid`
-	- **新增**：新組織 / 使用者從註冊到第一次 RAG 查詢的 onboarding sequence diagram
-
-## 建議內容
-
-- 架構圖
-- 流程圖
-- 狀態機圖
-- ERD
-
-## 命名建議
-
-- `domain-purpose.mermaid`
-- `system-overview.png`
 `````
 
 ## File: docs/diagrams/workspace-interaction-flow.mermaid
@@ -78652,65 +79368,6 @@ account   ──owns──────────► workspace
 | **P1** | `knowledge/domain/repositories/GraphRepository.ts` 與 `knowledge-graph` 重複 | `knowledge` 模組 | 移除 `knowledge` 側的 GraphRepository，僅保留 `knowledge-graph/api` 版本 |
 | **P2** | `identity`、`account`、`workspace` 缺乏 Domain Events | 跨模組事件訂閱 | 逐步補充 `WorkspaceCreatedEvent`、`AccountCreatedEvent` 等關鍵事件（見 ADR-002） |
 | **P3** | `asset.WikiLibrary` 語意上偏向內容層 | `asset` 模組 | 評估是否移至 `content` 模組，或撰寫 ADR 明確說明留在 `asset` 的架構理由 |
-`````
-
-## File: docs/architecture/README.md
-`````markdown
-# Architecture
-
-<!-- change: Add ADR-001 to index and AI reading path; PR-NUM -->
-
-此資料夾放系統架構說明與設計原則。
-
-## 文件索引
-
-### 核心 DDD 參考
-
-| 文件 | 說明 |
-|------|------|
-| [`bounded-contexts.md`](./bounded-contexts.md) | 16 個有界上下文的職責、實體、事件與邊界規則 |
-| [`ubiquitous-language.md`](./ubiquitous-language.md) | 通用語言字典：術語定義、命名規範、代碼位置對照 |
-| [`domain-model.md`](./domain-model.md) | 領域模型：所有 Aggregate、Entity、Value Object 結構與狀態機 |
-| [`domain-events.md`](./domain-events.md) | 領域事件完整目錄：設計規範、事件清單與跨上下文事件流 |
-| [`use-cases.md`](./use-cases.md) | Use Cases / Application Layer：所有 Use Case 列表與設計原則 |
-| [`repository-pattern.md`](./repository-pattern.md) | Repository Pattern：介面定義、Port、Firebase 實作對照表 |
-| [`domain-services.md`](./domain-services.md) | 領域服務：狀態機策略、業務守衛與純函式服務 |
-
-### 架構設計
-
-| 文件 | 說明 |
-|------|------|
-| [`context-map.md`](./context-map.md) | 上下文關係圖：16 個上下文的互動關係與 DDD 關係模式 |
-| [`infrastructure-strategy.md`](./infrastructure-strategy.md) | 基礎設施策略：技術棧、Runtime 邊界、Firestore Schema、攝入管線 |
-| [`read-model.md`](./read-model.md) | 讀模型 / CQRS：Query 函式目錄、即時訂閱模式、讀寫分離設計 |
-| [`ai-domain.md`](./ai-domain.md) | AI Domain（Genkit Flow）：RAG 管線、Genkit 整合、串流事件設計 |
-| [`module-boundary.md`](./module-boundary.md) | 模組邊界：MDDD 邊界規則、API 邊界設計、import 規範與執行機制 |
-
-### 規劃與決策
-
-| 文件 | 說明 |
-|------|------|
-| [`domain-implementation-target.md`](./domain-implementation-target.md) | 模組實現數量目標與 wiki 分解記錄 |
-| [`workspace-ui-gap-analysis.md`](./workspace-ui-gap-analysis.md) | Workspace UI 缺口分析：後端完整但 UI 缺失的功能清單 |
-| [`adr/`](./adr/) | 架構決策記錄（ADR） |
-| [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md) | **ADR-001**：content ↔ workspace-flow 邊界與事件驅動整合（Buffer Zone / Materialization） |
-
-## 閱讀路徑建議
-
-```
-新成員入門:
-  bounded-contexts.md → ubiquitous-language.md → context-map.md
-
-實作指引:
-  domain-model.md → use-cases.md → repository-pattern.md
-
-AI 功能開發:
-  ai-domain.md → infrastructure-strategy.md → domain-events.md
-  → adr/ADR-001-content-to-workflow-boundary.md  ← content→workspace-flow 事件驅動設計
-
-架構合規:
-  module-boundary.md → bounded-contexts.md
-```
 `````
 
 ## File: modules/retrieval/api/index.ts
