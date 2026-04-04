@@ -1,4 +1,5 @@
 This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
 
 # Summary
 
@@ -31,37 +32,38 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**, .serena/**, node_modules/**, *.lock, *.png, *.jpg, *.svg, *.ico, .next/**, dist/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-966 files | 75,598 lines
+829 files | 38,525 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 374 | 21,212 |
-| Markdown | 323 | 25,675 |
-| TypeScript (TSX) | 119 | 19,129 |
-| No Extension | 54 | 108 |
-| Python | 49 | 3,532 |
+| TypeScript | 373 | 11,134 |
+| Markdown | 191 | 17,803 |
+| TypeScript (TSX) | 119 | 3,279 |
+| No Extension | 52 | 106 |
+| Python | 49 | 1,298 |
 | MERMAID | 27 | 2,082 |
-| JSON | 10 | 2,605 |
-| Shell | 2 | 602 |
-| JavaScript (ESM) | 2 | 338 |
+| JSON | 10 | 2,606 |
+| Text | 2 | 105 |
+| JavaScript (ESM) | 2 | 17 |
 | RULES | 2 | 18 |
-| Other | 4 | 297 |
+| Other | 2 | 77 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)
-- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (971 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
-- `app/(shell)/_components/dashboard-sidebar.tsx` (940 lines)
-- `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (933 lines)
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
 - `modules/asset/README.md` (902 lines)
-- `app/(shell)/dev-tools/page.tsx` (873 lines)
-- `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `modules/retrieval/interfaces/components/RagView.tsx` (659 lines)
+- `docs/architecture/domain-model.md` (546 lines)
+- `modules/workspace-flow/AGENT.md` (447 lines)
+- `docs/architecture/bounded-contexts.md` (401 lines)
+- `docs/development/code-style.md` (368 lines)
+- `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)
+- `docs/architecture/repository-pattern.md` (360 lines)

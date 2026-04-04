@@ -5,6 +5,9 @@ applyTo: 'modules/**/*.{ts,tsx}'
 
 # 事件驅動狀態規範 (Event-Driven State)
 
+> 完整知識參考：**[`docs/architecture/domain-events.md`](../../docs/architecture/domain-events.md)**
+> 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
+
 ## 領域事件 (Domain Events)
 
 - 所有**狀態變更**都必須產生一個對應的領域事件，捕捉業務因果關係。

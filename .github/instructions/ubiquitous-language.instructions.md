@@ -13,21 +13,11 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 4. 限界上下文的名稱必須與 `modules/<context>/` 資料夾名稱保持一致。
 5. 若發現術語表缺少必要術語，應先更新 `terminology-glossary.md` 再繼續實作。
 
-## 通用語言術語對照表
+## 術語定義（權威來源）
 
-| 英文術語 | 繁體中文 | 說明 |
-|----------|----------|------|
-| Aggregate Root | 聚合根 | 聚合的唯一入口，負責保護不變數 |
-| Bounded Context | 限界上下文 | 每個 `modules/<context>/` 是一個限界上下文 |
-| Domain Event | 領域事件 | 捕捉領域中已發生的業務事實，命名用過去式 |
-| Entity | 實體 | 具有唯一識別碼的領域物件 |
-| Value Object | 值對象 | 無識別碼、以值相等判斷的不可變物件 |
-| Repository | 儲存庫 | 聚合的持久化抽象介面 |
-| Domain Service | 領域服務 | 不屬於任何實體的無狀態業務邏輯 |
-| Use Case | 使用案例 | `application/` 層的單一業務操作 |
-| Ubiquitous Language | 通用語言 | 領域專家與開發者共用的詞彙體系 |
-| Anti-Corruption Layer | 防腐層 | 防止外部概念污染領域模型的轉換層 |
-| Context Map | 上下文地圖 | 限界上下文間關係的可視化模型 |
+完整術語定義請查閱：**[`docs/architecture/ubiquitous-language.md`](../../docs/architecture/ubiquitous-language.md)**
+
+> 此處不複製術語表。遇到不確定的術語，必須查閱上述文件。
 
 ## 命名規範
 

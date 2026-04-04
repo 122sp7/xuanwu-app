@@ -81,5 +81,5 @@
 
 - .gitignore
 - eslint.config.mjs
-- package.json
 - tsconfig.json
+- package.json

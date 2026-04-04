@@ -30,26 +30,9 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## 上下文地圖 (Context Map)
 
-本專案的限界上下文依功能職責劃分：
+完整模組地圖請查閱：**[`docs/architecture/bounded-contexts.md`](../../docs/architecture/bounded-contexts.md)**
 
-| 限界上下文 | 模組路徑 | 核心職責 |
-|------------|---------|---------|
-| 帳戶管理 | `modules/account` | 帳戶政策、RBAC、訂閱方案 |
-| AI 代理人 | `modules/agent` | Genkit 流程、AI 回應生成 |
-| 資產管理 | `modules/asset` | 文件資產、函式庫管理 |
-| 內容管理 | `modules/content` | Wiki 頁面、文件內容 |
-| 識別驗證 | `modules/identity` | 身分認證、Token 刷新 |
-| 知識庫 | `modules/knowledge` | 知識整合 |
-| 知識圖譜 | `modules/knowledge-graph` | 圖形資料結構 |
-| 通知 | `modules/notification` | 系統通知發送 |
-| 組織管理 | `modules/organization` | 多租戶組織架構 |
-| 知識檢索 | `modules/retrieval` | RAG 查詢與向量搜尋 |
-| 共用模組 | `modules/shared` | 跨模組共用基礎設施 |
-| 工作空間 | `modules/workspace` | 工作空間核心功能 |
-| 稽核記錄 | `modules/workspace-audit` | 操作稽核日誌 |
-| 動態消息 | `modules/workspace-feed` | 工作空間動態 |
-| 工作流程 | `modules/workspace-flow` | 任務、問題、發票流程 |
-| 排程管理 | `modules/workspace-scheduling` | 行程與排程 |
+> 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
 
 ## 防腐層 (Anti-Corruption Layer)
 

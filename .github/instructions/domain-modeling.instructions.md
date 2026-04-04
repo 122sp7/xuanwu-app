@@ -5,6 +5,9 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 
 # 領域模型設計規範 (Domain Modeling)
 
+> 完整知識參考：**[`docs/architecture/domain-model.md`](../../docs/architecture/domain-model.md)**
+> 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
+
 ## 聚合根 (Aggregate Root)
 
 - 每個聚合必須有**唯一識別碼**（使用 Zod 品牌型別 `z.string().uuid().brand('...')`）。
