@@ -57,7 +57,7 @@ See [`agents/commands.md`](agents/commands.md) for the full command reference.
 
 ## Architecture
 
-This project follows **Module-Driven Domain Design (MDDD)**:
+This project follows **Module-Driven Domain Design (MDDD)** with **Implementing Domain-Driven Design (IDDD)** principles by Vaughn Vernon:
 
 - Each business capability is a self-contained module under `modules/`.
 - Each `modules/<module-name>/` is an isolated bounded context.
@@ -65,6 +65,15 @@ This project follows **Module-Driven Domain Design (MDDD)**:
 - Dependency direction: `UI → Application → Domain ← Infrastructure`.
 - Keep boundaries explicit: business logic lives in `application/` + `domain/`, UI/UX lives in `interfaces/` and `app/` composition.
 - Shared utilities live in `packages/` behind TypeScript aliases (`@shared-types`, `@integration-firebase`, etc.).
+
+### IDDD 規範
+
+本專案已導入 IDDD 開發規範，確保 Copilot 協作開發遵循通用語言（Ubiquitous Language）、限界上下文（Bounded Contexts）與事件驅動（Event-Driven）架構：
+
+- **通用語言**：所有命名必須查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md)。
+- **聚合根設計**：使用 Zod 品牌型別、不可變狀態與 `pullDomainEvents()` 模式。
+- **領域事件**：過去式命名，包含 `eventId` 與 `occurredAt`（ISO string）欄位。
+- **DDD 審查 Agent**：[Domain Architect](.github/agents/domain-architect.agent.md) 負責 IDDD 合規性審查。
 
 See [`agents/knowledge-base.md`](agents/knowledge-base.md) for the full architecture reference and [`agents/README.md`](agents/README.md) for the complete rules index.
 

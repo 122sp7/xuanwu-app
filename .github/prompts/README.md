@@ -2,6 +2,13 @@
 
 Decomposed prompt set from `.github/prompts/old`.
 
+## DDD 領域建模 (IDDD)
+
+遵循 Vaughn Vernon《Implementing Domain-Driven Design》規範：
+
+- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
+- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+
 ## Planning
 
 - [plan-feature.prompt.md](plan-feature.prompt.md)
