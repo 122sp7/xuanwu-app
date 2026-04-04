@@ -109,7 +109,7 @@ Reference for Xuanwu project terminology across token efficiency, system perform
 - **Aggregate** (聚合) — 由聚合根管理的一組相關領域物件，保證資料一致性的邊界。
 - **Entity** (實體) — 具有唯一識別碼的領域物件，以識別碼判斷相等性。
 - **Value Object** (值對象) — 無識別碼、不可變、以值內容判斷相等性的領域物件，使用 Zod 品牌型別實作。
-- **Domain Event** (領域事件) — 捕捉領域中已發生的業務事實，命名使用**過去式**，包含 `eventId` 與 `occurredAt`（ISO string）欄位。
+- **Domain Event** (領域事件) — 捕捉領域中已發生的業務事實，命名使用**過去式**，包含 `eventId` 與 `occurredAt`（ISO 8601 string）欄位。
 - **Repository** (儲存庫) — 聚合的持久化抽象介面，定義在 `domain/repositories/`，實作在 `infrastructure/`。
 - **Domain Service** (領域服務) — 不屬於任何實體或值對象的無狀態業務邏輯，放置於 `domain/services/`。
 - **Use Case** (使用案例) — `application/use-cases/` 層的單一業務操作，協調領域物件完成業務目標。
