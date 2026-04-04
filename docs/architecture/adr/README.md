@@ -23,4 +23,5 @@
 | 編號 | 標題 | 狀態 | 日期 |
 |------|------|------|------|
 | [ADR-001](./ADR-001-content-to-workflow-boundary.md) | 內容模組與工作流模組的邊界與事件驅動整合 | ✅ 已接受 | 2026-03-27 |
+| [ADR-002](./ADR-002-ubiquitous-language-bounded-context-remediation.md) | 通用語言與界限上下文修正計畫 | ✅ 已接受 | 2026-04-04 |
 

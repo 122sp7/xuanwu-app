@@ -38,30 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-924 files | 68,926 lines
+959 files | 74,969 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 358 | 19,992 |
-| Markdown | 301 | 20,972 |
-| TypeScript (TSX) | 118 | 18,498 |
-| No Extension | 52 | 106 |
+| TypeScript | 374 | 21,212 |
+| Markdown | 316 | 25,046 |
+| TypeScript (TSX) | 119 | 19,129 |
+| No Extension | 54 | 108 |
 | Python | 49 | 3,532 |
-| MERMAID | 26 | 2,022 |
-| JSON | 10 | 2,549 |
+| MERMAID | 27 | 2,082 |
+| JSON | 10 | 2,605 |
 | Shell | 2 | 602 |
-| Text | 2 | 105 |
 | JavaScript (ESM) | 2 | 338 |
-| Other | 4 | 210 |
+| RULES | 2 | 18 |
+| Other | 4 | 297 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)
-- `app/(shell)/_components/dashboard-sidebar.tsx` (972 lines)
+- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (971 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
+- `app/(shell)/_components/dashboard-sidebar.tsx` (940 lines)
+- `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (933 lines)
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
-- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (918 lines)
 - `modules/asset/README.md` (902 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `app/(shell)/_components/app-rail.tsx` (671 lines)
 - `modules/retrieval/interfaces/components/RagView.tsx` (659 lines)
