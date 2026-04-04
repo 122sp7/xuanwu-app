@@ -127,7 +127,7 @@ Platform Foundation Layer
 
 ### 6. `shared` — 共享核心上下文
 
-**職責：** 跨模組共用的 Domain 原語，包含 Slug 工具與 Event Store 基礎設施。
+**職責：** 跨模組共用的 Domain 原語，包含 Slug 工具、Event Store 基礎設施，以及跨模組整合用的 **Published Language 合約**。
 
 | 元素 | 名稱 | 說明 |
 |------|------|------|
@@ -138,6 +138,10 @@ Platform Foundation Layer
 | Use Case | `PublishDomainEventUseCase` | 將領域事件持久化至 Event Store |
 | Service | `deriveSlugCandidate` | 從字串生成 URL-safe slug 候選值 |
 | Service | `isValidSlug` | 驗證 slug 格式 |
+| Published Language | `ContentPageCreatedEvent` | 由 `content` 發佈、供 `knowledge-graph` 消費的整合契約（auto-link 觸發） |
+| Published Language | `ContentUpdatedEvent` | 由 `content` 發佈、供 `knowledge`/`knowledge-graph` 消費的整合契約（向量重新索引、連結提取） |
+
+**Published Language 設計說明：** `ContentPageCreatedEvent` 與 `ContentUpdatedEvent` 的邏輯所有者是 `content` 模組，但因為它們是**多個下游模組（knowledge-graph、knowledge）共同訂閱的整合契約**，依 DDD Published Language 模式定義在 `shared` 中，確保穩定性與版本可控性。**發佈者：** `content`，**消費者：** `knowledge-graph`（auto-link）、`knowledge`（向量重新索引）。
 
 ---
 
@@ -216,12 +220,16 @@ Platform Foundation Layer
 
 **職責：** RAG 文件的攝入管線管理（IngestionJob 生命週期、Chunk 生成）。
 
+> ⚠️ **過渡期注意：** 本模組正在從舊版知識圖譜模組重構為「Layer 2 Ingestion Pipeline」。`domain/entities/graph-node.ts` 與 `domain/entities/link.ts` 已標記 `@deprecated`，實際定義已移至 `knowledge-graph` 模組。`domain/repositories/GraphRepository.ts` 亦為過渡期殘留，應僅使用 `knowledge-graph/api` 中的 GraphRepository。不要在本模組中新增知識圖相關代碼。
+
 | 元素 | 名稱 | 說明 |
 |------|------|------|
 | Entity | `IngestionJob` | 攝入作業聚合根（docId、status、stages） |
 | Entity | `IngestionDocument` | 待攝入文件（id、sourceUrl、format） |
 | Entity | `IngestionChunk` | 分塊結果（chunkIndex、text、embedding） |
 | Repository | `IngestionJobRepository` | 攝入作業 CRUD |
+| ~~Entity~~ | ~~`graph-node.ts`~~ | ~~**@deprecated** — 已移至 `knowledge-graph/domain/entities/graph-node.ts`~~ |
+| ~~Entity~~ | ~~`link.ts`~~ | ~~**@deprecated** — 已移至 `knowledge-graph/domain/entities/link.ts`~~ |
 
 **Runtime 說明：** 實際的解析、清洗、分塊、Embedding 在 `py_fn/` Python 側執行；本模組管理 Firestore 端的 Job 狀態追蹤。
 
@@ -363,3 +371,31 @@ account   ──owns──────────► workspace
 | Global Search 後端 | `modules/search/` 或 Firestore 複合索引 adapter | 🟡 中 |
 | Notion-style Database | `content/domain/entities/ContentDatabase.ts` | 🟡 中 |
 | Collaboration（即時協作） | `modules/collaboration/` (Firebase Realtime DB / CRDT) | 🟢 低 |
+
+---
+
+## Wiki 概念分佈釐清
+
+「Wiki」前綴跨越多個模組，每個模組所有的是**語意不同的概念**，非同一領域物件的延伸：
+
+| 模組 | 類型名稱 | 實際語意 | 是否合理在此模組 |
+|------|----------|---------|:---:|
+| `content` | `WikiPage` | 可編輯的知識頁面（聚合根，含 Block 編輯器） | ✅ 屬於內容層 |
+| `asset` | `WikiLibrary` | 結構化文件庫（有欄位定義的資料集，類資料庫） | ⚠️ 語意偏內容層，目前暫置於 asset；長期待評估 |
+| `workspace` | `WikiContentTree` | 帳號→工作區→頁面的**導覽樹** UI 模型 | ✅ 屬於 Workspace 工作區導覽職責 |
+| `retrieval` | `WikiCitation`, `WikiRagTypes` | RAG 查詢結果與引用（檢索輸出模型） | ✅ 屬於 retrieval 模組的輸出格式 |
+
+**結論：** 這四個概念屬於**不同界限上下文**，「Wiki」前綴是功能面的標籤，不代表它們屬於同一個有界上下文。未來若建立獨立的 `wiki` 模組，需要重新分配所有權；目前保持現狀並以本表作為官方所有權定義。
+
+---
+
+## 已知議題與修正路徑
+
+> 下列是當前界限上下文設計中的已知問題，已排定修正順序。詳見 [`adr/ADR-002-ubiquitous-language-bounded-context-remediation.md`](./adr/ADR-002-ubiquitous-language-bounded-context-remediation.md)。
+
+| 優先級 | 議題 | 影響範圍 | 修正動作 |
+|-------|------|---------|---------|
+| **P1** | `knowledge/domain/entities/graph-node.ts`、`link.ts` 為 `@deprecated` 空殼 | `knowledge` 模組 | 刪除 deprecated 檔案，確認無殘留 import |
+| **P1** | `knowledge/domain/repositories/GraphRepository.ts` 與 `knowledge-graph` 重複 | `knowledge` 模組 | 移除 `knowledge` 側的 GraphRepository，僅保留 `knowledge-graph/api` 版本 |
+| **P2** | `identity`、`account`、`workspace` 缺乏 Domain Events | 跨模組事件訂閱 | 逐步補充 `WorkspaceCreatedEvent`、`AccountCreatedEvent` 等關鍵事件（見 ADR-002） |
+| **P3** | `asset.WikiLibrary` 語意上偏向內容層 | `asset` 模組 | 評估是否移至 `content` 模組，或撰寫 ADR 明確說明留在 `asset` 的架構理由 |

@@ -62,8 +62,17 @@
 | **事件元資料** | EventMetadata | 事件關聯資訊（correlationId、causationId、actorId、traceId） | `shared` | `event-record.ts → EventMetadata` |
 | **領域事件** | DomainEvent | 在模組內傳遞的輕量事件匯流排訊息（type 識別符 + occurredAtISO） | `shared` | `modules/shared/domain/events.ts` |
 | **slug 候選值** | SlugCandidate | 從字串派生的 URL-safe 路徑片段候選 | `shared` | `modules/shared/domain/slug-utils.ts` |
-| **命令結果** | CommandResult | 所有 Server Action 的標準回傳形態 `{ ok: true, data } \| { ok: false, error }` | `@shared-types` | `packages/shared-types/index.ts` |
+| **命令結果** | CommandResult | 所有 Server Action 的標準回傳形態 `{ success: true, aggregateId, version } \| { success: false, error }` | `@shared-types` | `packages/shared-types/index.ts` |
 | **領域錯誤** | DomainError | 結構化的業務錯誤（code、message） | `@shared-types` | `packages/shared-types/index.ts` |
+
+### 發佈語言合約（Published Language Contracts）
+
+> **設計說明：** 下列事件雖然邏輯上屬於 `content` 模組，但因為它們是**多個下游模組共同訂閱的整合契約**（Published Language），故依 DDD 實踐定義在 `shared` 模組中，作為穩定的跨模組通訊介面。事件的**發佈者**是 `content`，**消費者**是 `knowledge-graph`（auto-link）和 `knowledge`（向量重新索引）。
+
+| 術語 | 英文 | 定義 | 發佈者 | 消費者 | 代碼位置 |
+|------|------|------|--------|--------|---------|
+| **頁面建立事件（整合契約）** | ContentPageCreatedEvent | 新頁面建立時由 content 發佈，下游模組用於 auto-link 觸發和圖節點注冊 | `content` | `knowledge-graph` | `modules/shared/domain/events/content-page-created.event.ts` |
+| **內容更新事件（整合契約）** | ContentUpdatedEvent | 區塊內容變更時由 content 發佈（type: `content.block-updated`），下游用於向量重新索引和連結提取 | `content` | `knowledge`, `knowledge-graph` | `modules/shared/domain/events/content-updated.event.ts` |
 
 ---
 
@@ -250,3 +259,31 @@ import { ContentPage } from "@/modules/content/domain/entities/content-page.enti
 // ❌ 禁止：舊路徑
 import { cn } from "@/shared/utils";
 ```
+
+---
+
+## 八、Wiki 概念所有權對照表
+
+「Wiki」前綴在多個模組中使用，但每個模組描述的是**不同的領域概念**。本表釐清各模組的所有權，避免誤解。
+
+| 模組 | 類型名稱 | 實際語意 | 使用情境 |
+|------|----------|---------|---------|
+| `content` | `WikiPage` | 可編輯的知識頁面（聚合根） | 頁面 CRUD、Block 編輯 |
+| `asset` | `WikiLibrary` | 結構化文件庫（有欄位定義的資料集） | 文件資產管理、欄位結構 |
+| `workspace` | `WikiContentTree` | 帳號→工作區→頁面的導覽樹（UI 導向模型） | 側欄頁面樹、工作區概覽 |
+| `retrieval` | `WikiRagTypes` / `WikiCitation` | RAG 查詢結果與引用（檢索輸出） | AI 問答、向量搜索回應 |
+
+> **規則：** 跨模組討論時，請使用上表右欄的「實際語意」描述，而非直接說「Wiki」，以避免歧義。例如：「修改頁面內容」→ 改 `content.WikiPage`；「建立新的欄位庫」→ 改 `asset.WikiLibrary`。
+
+---
+
+## 九、過渡期已知問題（Transitional Issues）
+
+> 本節記錄當前代碼庫與理想 DDD 結構之間的**已知差距**，供開發者在修改相關模組前參考。修正計畫詳見 [`adr/ADR-002-ubiquitous-language-bounded-context-remediation.md`](./adr/ADR-002-ubiquitous-language-bounded-context-remediation.md)。
+
+| 問題 | 影響模組 | 當前狀態 | 目標狀態 | 優先級 |
+|------|---------|---------|---------|--------|
+| `knowledge/domain/entities/graph-node.ts`、`link.ts` 標記 `@deprecated` | `knowledge` | 檔案存在但為空殼，指向 `knowledge-graph` | 完全移除 deprecated 實體，確認無殘留 import | P1 |
+| `knowledge/domain/repositories/GraphRepository.ts` 與 `knowledge-graph` 重複 | `knowledge` | 兩模組各有 GraphRepository 定義 | 僅保留 `knowledge-graph` 版本 | P1 |
+| `identity`、`account`、`workspace` 聚合根缺乏 Domain Events | `identity`, `account`, `workspace` | 無 event stream，狀態變更無法被下游模組訂閱 | 逐步補充關鍵 Domain Events（見 ADR-002）| P2 |
+| `asset.WikiLibrary` 語意上偏向內容層 | `asset` | WikiLibrary 定義在 asset 模組 | 長期考慮移至 `content` 或明確文件化留在 `asset` 的理由 | P3 |
