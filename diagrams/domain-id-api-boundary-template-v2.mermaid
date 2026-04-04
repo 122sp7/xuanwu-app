@@ -1,0 +1,88 @@
+%% Domain-ID API boundary template - 正規化 DDD 版本
+%% Purpose: reusable template for bounded contexts with API-only cross-domain interaction
+%% Rule: each domain owns its internals; cross-domain calls must go through api/
+flowchart LR
+    App["App / Orchestration Layer"]
+    DependencyRule["Dependency Rule:\nall dependencies point inward\ninner layers never depend on outer layers"]
+
+    %% ---------------- Domain A ----------------
+    subgraph DomainA["Domain A - DOMAIN_ID_A"]
+        direction TB
+        A_IF["interfaces/\n- page/component\n- route handler/action\n- request-response mapping"]
+        A_API["api/\n- contracts (DTO and types)\n- facade (public entry)\n- domain boundary only"]
+        A_APP["application/\n- command/query use cases\n- policies/orchestration\n- transaction/idempotency"]
+        A_DOM["domain/\n- entities/value objects\n- invariants/domain services\n- domain events"]
+        A_PORT["domain/ports + repositories\nrequired abstractions"]
+        A_INF["infrastructure/\n- repository adapters\n- db/queue/cache\n- external API clients"]
+
+        A_IF --> A_API --> A_APP --> A_DOM
+        A_APP -->|depends on abstraction| A_PORT
+        A_INF -.implements adapter for.-> A_PORT
+    end
+
+    %% ---------------- Domain B ----------------
+    subgraph DomainB["Domain B - DOMAIN_ID_B"]
+        direction TB
+        B_IF["interfaces/\n- page/component\n- route handler/action\n- request-response mapping"]
+        B_API["api/\n- contracts (DTO and types)\n- facade (public entry)\n- domain boundary only"]
+        B_APP["application/\n- command/query use cases\n- policies/orchestration\n- transaction/idempotency"]
+        B_DOM["domain/\n- entities/value objects\n- invariants/domain services\n- domain events"]
+        B_PORT["domain/ports + repositories\nrequired abstractions"]
+        B_INF["infrastructure/\n- repository adapters\n- db/queue/cache\n- external API clients"]
+
+        B_IF --> B_API --> B_APP --> B_DOM
+        B_APP -->|depends on abstraction| B_PORT
+        B_INF -.implements adapter for.-> B_PORT
+    end
+
+    %% ---------------- Domain C ----------------
+    subgraph DomainC["Domain C - DOMAIN_ID_C"]
+        direction TB
+        C_IF["interfaces/\n- page/component\n- route handler/action\n- request-response mapping"]
+        C_API["api/\n- contracts (DTO and types)\n- facade (public entry)\n- domain boundary only"]
+        C_APP["application/\n- command/query use cases\n- policies/orchestration\n- transaction/idempotency"]
+        C_DOM["domain/\n- entities/value objects\n- invariants/domain services\n- domain events"]
+        C_PORT["domain/ports + repositories\nrequired abstractions"]
+        C_INF["infrastructure/\n- repository adapters\n- db/queue/cache\n- external API clients"]
+
+        C_IF --> C_API --> C_APP --> C_DOM
+        C_APP -->|depends on abstraction| C_PORT
+        C_INF -.implements adapter for.-> C_PORT
+    end
+
+    %% ---------------- App Layer ----------------
+    App --> A_API
+    App --> B_API
+    App --> C_API
+    App -. follows .-> DependencyRule
+
+    %% ---------------- Cross-domain allowed API calls ----------------
+    A_API -. "API call only -> B_API" .-> B_API
+    B_API -. "API call only -> C_API" .-> C_API
+    %% 注意：C_API 不回呼 A_API，避免循環依賴
+
+    %% ---------------- Rules ----------------
+    Forbidden["Forbidden:\nNo direct import to another domain internals\n(interfaces/application/domain/ports/infrastructure)"]
+    Forbidden -. never .-> A_APP
+    Forbidden -. never .-> B_DOM
+    Forbidden -. never .-> C_INF
+
+    Allowed["Allowed inside one domain:\ninterfaces -> api -> application -> domain\napplication -> ports <- infrastructure"]
+
+    %% ---------------- Styles ----------------
+    classDef app fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef api fill:#0f766e,stroke:#115e59,color:#ffffff,stroke-width:1.6px;
+    classDef layer fill:#eff6ff,stroke:#2563eb,color:#1e3a8a,stroke-width:1.2px;
+    classDef infra fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.2px;
+    classDef port fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.2px;
+    classDef rule fill:#fff7ed,stroke:#ea580c,color:#9a3412,stroke-width:1.2px;
+    classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1.2px;
+
+    class App app;
+    class A_API,B_API,C_API api;
+    class A_IF,A_APP,A_DOM,B_IF,B_APP,B_DOM,C_IF,C_APP,C_DOM layer;
+    class A_PORT,B_PORT,C_PORT port;
+    class A_INF,B_INF,C_INF infra;
+    class DependencyRule rule;
+    class Allowed rule;
+    class Forbidden warn;

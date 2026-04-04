@@ -1,0 +1,155 @@
+erDiagram
+  %% Consolidated ERD
+  %% Merged sources: erd-model + workspace-internal-data-model
+
+  WORKSPACE ||--o{ SPACE : contains
+  WORKSPACE ||--o{ DATABASE : contains
+  WORKSPACE ||--o{ FILE_ASSET : stores
+  WORKSPACE ||--o{ TAG : defines
+  WORKSPACE ||--o{ WORKSPACE_MEMBER : grants_access
+  WORKSPACE ||--|| WORKSPACE_SETTINGS : configures
+
+  SPACE ||--o{ PAGE : organizes
+  PAGE ||--o{ BLOCK : composes
+  DATABASE ||--o{ DATABASE_ROW : contains
+  DATABASE_ROW ||--o{ ROW_PROPERTY_VALUE : stores_values
+
+  WORKSPACE ||--o{ DOCUMENTS : owns
+  DOCUMENTS ||--o{ CHUNKS : contains
+  DOCUMENTS ||--o{ QUERY_CACHE : serves
+  DOCUMENTS ||--o{ QUERY_FEEDBACK : receives
+
+  WORKSPACE {
+    string workspace_id PK
+    string account_id FK
+    string name
+    string visibility
+    datetime created_at
+    datetime updated_at
+  }
+
+  SPACE {
+    string space_id PK
+    string workspace_id FK
+    string parent_space_id FK
+    string name
+  }
+
+  PAGE {
+    string page_id PK
+    string workspace_id FK
+    string space_id FK
+    string title
+    string status
+  }
+
+  BLOCK {
+    string block_id PK
+    string workspace_id FK
+    string page_id FK
+    string database_row_id FK
+    string block_type
+    string content_ref
+  }
+
+  DATABASE {
+    string database_id PK
+    string workspace_id FK
+    string space_id FK
+    string name
+    string database_type
+  }
+
+  DATABASE_ROW {
+    string row_id PK
+    string database_id FK
+    string workspace_id FK
+    string title
+    string status
+  }
+
+  ROW_PROPERTY_VALUE {
+    string value_id PK
+    string row_id FK
+    string property_id FK
+    string value_type
+    string value_json
+  }
+
+  FILE_ASSET {
+    string file_id PK
+    string workspace_id FK
+    string file_name
+    string storage_path
+    int size_bytes
+  }
+
+  TAG {
+    string tag_id PK
+    string workspace_id FK
+    string name
+    string color
+  }
+
+  WORKSPACE_MEMBER {
+    string membership_id PK
+    string workspace_id FK
+    string member_profile_id FK
+    string role
+    string status
+  }
+
+  WORKSPACE_SETTINGS {
+    string workspace_id PK, FK
+    string locale
+    string timezone
+    string permission_model
+  }
+
+  DOCUMENTS {
+    string id PK
+    string tenantId
+    string workspaceId
+    string title
+    string originalFilename
+    string contentType
+    string storagePath
+    string checksum
+    string status
+    string taxonomy
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  CHUNKS {
+    string id PK
+    string tenantId
+    string workspaceId
+    string docId FK
+    number chunkIndex
+    string text
+    vector embedding
+    string taxonomy
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  QUERY_CACHE {
+    string id PK
+    string tenantId
+    string workspaceId
+    string queryHash
+    string response
+    datetime createdAt
+    datetime expiresAt
+  }
+
+  QUERY_FEEDBACK {
+    string id PK
+    string tenantId
+    string workspaceId
+    string queryHash
+    string responseId
+    string rating
+    datetime createdAt
+  }
