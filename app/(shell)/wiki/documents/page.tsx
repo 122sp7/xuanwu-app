@@ -2,11 +2,19 @@
 
 import { useSearchParams } from "next/navigation";
 
+import { useApp } from "@/app/providers/app-provider";
 import { SourceDocumentsView } from "@/modules/source/api";
 
 export default function WikiDocumentsPage() {
   const searchParams = useSearchParams();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || undefined;
+  const {
+    state: { workspaces, activeWorkspaceId },
+  } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">

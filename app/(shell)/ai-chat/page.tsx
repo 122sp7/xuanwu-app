@@ -34,8 +34,11 @@ export default function AiChatPage() {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const workspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceName = workspaceId ? workspaces?.[workspaceId]?.name ?? "目前工作區" : null;
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceName =
+    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? workspaces[requestedWorkspaceId]?.name ?? "目前工作區"
+      : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
