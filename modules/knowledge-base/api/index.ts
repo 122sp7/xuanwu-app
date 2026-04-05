@@ -33,6 +33,7 @@ export {
   getArticles,
   getArticle,
   getCategories,
+  getBacklinks,
 } from "../interfaces/queries/knowledge-base.queries";
 
 // ─── UI Components ────────────────────────────────────────────────────────────

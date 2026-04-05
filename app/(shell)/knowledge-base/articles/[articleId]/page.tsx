@@ -11,6 +11,7 @@ import {
   MessageSquare,
   History,
   Globe,
+  Link2,
 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -18,6 +19,7 @@ import { useAuth } from "@/app/providers/auth-provider";
 import {
   getArticle,
   getCategories,
+  getBacklinks,
   publishArticle,
   archiveArticle,
   verifyArticle,
@@ -47,6 +49,7 @@ export default function ArticleDetailPage() {
 
   const [article, setArticle] = useState<Article | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [backlinks, setBacklinks] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -55,12 +58,14 @@ export default function ArticleDetailPage() {
     if (!accountId || !articleId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [art, cats] = await Promise.all([
+      const [art, cats, bls] = await Promise.all([
         getArticle(accountId, articleId),
         getCategories(accountId, workspaceId),
+        getBacklinks(accountId, articleId),
       ]);
       setArticle(art);
       setCategories(cats);
+      setBacklinks(bls);
     } finally {
       setLoading(false);
     }
@@ -194,6 +199,14 @@ export default function ArticleDetailPage() {
       <Tabs defaultValue="content" className="space-y-4">
         <TabsList>
           <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="backlinks">
+            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
+            {backlinks.length > 0 && (
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {backlinks.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="comments">
             <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
           </TabsTrigger>
@@ -212,6 +225,31 @@ export default function ArticleDetailPage() {
               <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="backlinks">
+          {backlinks.length === 0 ? (
+            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+              尚無其他文章引用此文章。
+            </p>
+          ) : (
+            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
+              {backlinks.map((bl) => (
+                <li key={bl.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
+                    className="text-sm text-primary hover:underline text-left"
+                  >
+                    {bl.title}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </TabsContent>
 
         <TabsContent value="comments">

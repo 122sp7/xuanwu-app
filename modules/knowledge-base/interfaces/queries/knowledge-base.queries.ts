@@ -28,3 +28,8 @@ export async function getCategories(accountId: string, workspaceId: string): Pro
   const repo = new FirebaseCategoryRepository().withAccountId(accountId);
   return repo.listByWorkspace(workspaceId, accountId);
 }
+
+export async function getBacklinks(accountId: string, articleId: string): Promise<Article[]> {
+  const repo = new FirebaseArticleRepository();
+  return repo.listByLinkedArticleId(accountId, articleId);
+}

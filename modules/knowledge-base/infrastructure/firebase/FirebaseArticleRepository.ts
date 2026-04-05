@@ -111,6 +111,16 @@ export class FirebaseArticleRepository implements IArticleRepository {
     return [];
   }
 
+  async listByLinkedArticleId(accountId: string, articleId: string): Promise<Article[]> {
+    const db = this.db();
+    const q = query(
+      articlesCol(db, accountId),
+      where("linkedArticleIds", "array-contains", articleId),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toArticle(d.id, d.data() as Record<string, unknown>));
+  }
+
   async delete(articleId: string): Promise<void> {
     // articleId alone is insufficient — callers should use deleteArticle(accountId, articleId).
     throw new Error("Use deleteArticle(accountId, articleId) instead");
