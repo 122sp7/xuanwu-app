@@ -11,6 +11,6 @@ export type {
   GenerateNotebookResponseResult,
 } from "../domain/entities/AgentGeneration";
 
-export type { NotebookRepository } from "../domain/repositories/AgentRepository";
+export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
 
 export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";

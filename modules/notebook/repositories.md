@@ -5,7 +5,7 @@
 本文件對齊 `docs/ddd/notebook/repositories.md`，整理 `notebook` 的 repository ports 與 infrastructure 實作。
 
 ## Domain Repository Ports
-- `domain/repositories/AgentRepository.ts`
+- `domain/repositories/NotebookRepository.ts`
 - `domain/repositories/RagGenerationRepository.ts`
 - `domain/repositories/RagRetrievalRepository.ts`
 

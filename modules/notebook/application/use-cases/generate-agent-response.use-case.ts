@@ -2,7 +2,7 @@ import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/AgentRepository";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
 
 export class GenerateNotebookResponseUseCase {
   constructor(private readonly agentRepository: NotebookRepository) {}
