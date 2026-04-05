@@ -2,8 +2,8 @@
  * modules/wiki — public API barrel.
  */
 
-export type { Link, LinkType } from "../domain/entities/link";
-export type { GraphNode, GraphNodeType } from "../domain/entities/graph-node";
+export type { GraphEdge, EdgeType, EdgeStatus } from "../domain/entities/graph-edge";
+export type { GraphNode, NodeType, NodeStatus } from "../domain/entities/graph-node";
 export type { GraphRepository } from "../domain/repositories/GraphRepository";
 export { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
 export { LinkExtractorService } from "../application/link-extractor.service";

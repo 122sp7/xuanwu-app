@@ -9,17 +9,20 @@
 ## Domain Repository Ports
 
 - `domain/repositories/NotebookRepository.ts`
-- `domain/repositories/RagGenerationRepository.ts`
-- `domain/repositories/RagRetrievalRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
 
 ## Infrastructure Implementations
 
-- `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
-- `infrastructure/firebase/index.ts`
 - `infrastructure/genkit/GenkitNotebookRepository.ts`
 - `infrastructure/genkit/client.ts`
 - `infrastructure/genkit/index.ts`
 - `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
 
 ## 設計規則
 

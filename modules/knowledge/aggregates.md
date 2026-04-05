@@ -15,8 +15,12 @@
 | `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
 | `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
 | `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string \| null` | 所屬工作區（可選） |
-| `status` | `PageStatus` | `draft \| published \| archived` |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
 
 ### 不變數
 
@@ -25,7 +29,7 @@
 
 ---
 
-## 實體：ContentBlock
+## 實體：ContentBlock（KnowledgeBlock）
 
 ### 職責
 頁面內的原子內容單元，有序排列形成頁面內容。
@@ -34,13 +38,18 @@
 |------|------|------|
 | `id` | `string` | 區塊主鍵 |
 | `pageId` | `string` | 所屬頁面 ID |
-| `blockType` | `BlockType` | 區塊類型 |
-| `content` | `BlockContent` | 型別化內容 |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
 | `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
 
 ---
 
-## 實體：ContentVersion
+## 實體：ContentVersion（KnowledgeVersion）
 
 ### 職責
 頁面的歷史版本快照，append-only。
@@ -49,10 +58,12 @@
 |------|------|------|
 | `id` | `string` | 版本主鍵 |
 | `pageId` | `string` | 所屬頁面 |
-| `snapshotBlocks` | `ContentBlock[]` | 版本時間點的完整區塊快照 |
-| `editSummary` | `string \| null` | 編輯摘要 |
-| `authorId` | `string` | 發布者帳戶 ID |
-| `createdAt` | `string` | ISO 8601 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
 
 ---
 
@@ -60,5 +71,7 @@
 
 | 介面 | 主要方法 |
 |------|---------|
-| `KnowledgePageRepository` | `save()`, `findById()`, `findByWorkspaceId()` |
-| `WikiPageRepository` | `findByWorkspaceId()`, `save()` |
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `WikiPageRepository` | `listByAccountId()`, `findById()`, `create()`, `update()` |

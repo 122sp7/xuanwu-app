@@ -7,14 +7,14 @@
  *
  * Bootstraps the AutoLinkUseCase and registers it on the shared event
  * bus so the knowledge-graph module reacts to content changes automatically:
- *   - content.page_created → upserts GraphNode (+ hierarchy Link if parented)
- *   - content.block-updated → extracts [[WikiLink]] → explicit Links
+ *   - content.page_created → upserts GraphNode (+ hierarchy GraphEdge if parented)
+ *   - content.block-updated → extracts [[WikiLink]] → explicit GraphEdges
  */
 
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
 import type { GraphNode } from "../domain/entities/graph-node";
-import type { Link } from "../domain/entities/link";
+import type { GraphEdge } from "../domain/entities/graph-edge";
 import { AutoLinkUseCase } from "../application/use-cases/auto-link.use-case";
 import { InMemoryGraphRepository } from "../infrastructure/InMemoryGraphRepository";
 
@@ -39,14 +39,14 @@ export class WikiApi {
     return this.graphRepo.listNodes();
   }
 
-  /** Return all links currently in the graph. */
-  async listLinks(): Promise<Link[]> {
-    return this.graphRepo.listLinks();
+  /** Return all edges currently in the graph. */
+  async listEdges(): Promise<GraphEdge[]> {
+    return this.graphRepo.listEdges();
   }
 
-  /** Return outgoing explicit links from a given source page. */
-  async getOutgoingLinks(pageId: string): Promise<Link[]> {
-    return this.graphRepo.findLinksBySourceId(pageId);
+  /** Return outgoing explicit edges from a given source page. */
+  async getOutgoingEdges(pageId: string): Promise<GraphEdge[]> {
+    return this.graphRepo.findEdgesBySource(pageId);
   }
 
   /**
@@ -54,13 +54,13 @@ export class WikiApi {
    * Shape: `{ nodes: [...], edges: [...] }`.
    */
   async getGraphData(): Promise<GraphDataDTO> {
-    const [nodes, links] = await Promise.all([
+    const [nodes, edges] = await Promise.all([
       this.graphRepo.listNodes(),
-      this.graphRepo.listLinks(),
+      this.graphRepo.listEdges(),
     ]);
     return {
-      nodes: nodes.map((n) => ({ id: n.id, label: n.label, group: n.type })),
-      edges: links.map((l) => ({ from: l.sourceId, to: l.targetId, type: l.type })),
+      nodes: nodes.map((n) => ({ id: n.id, label: n.title, group: n.nodeType })),
+      edges: edges.map((e) => ({ from: e.sourceNodeId, to: e.targetNodeId, type: e.edgeType })),
     };
   }
 }

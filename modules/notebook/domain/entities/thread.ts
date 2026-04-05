@@ -9,4 +9,5 @@ export interface Thread {
   readonly id: ID;
   readonly messages: Message[];
   readonly createdAt: string;
+  readonly updatedAt: string;
 }

@@ -1,11 +1,11 @@
 /**
  * modules/wiki — application
  * Purpose: LinkExtractorService — subscribes to KnowledgeUpdatedEvent and
- *          extracts [[WikiLink]] references to build graph edges.
+ *          extracts [[WikiLink]] references to build GraphEdges.
  *
  * Wikilink syntax: [[Target Page Name]]
- *   - The target label becomes both the node id (lowercased slug) and label.
- *   - Links are of type "explicit" (user-authored inline reference).
+ *   - The target label becomes both the node id (lowercased slug) and title.
+ *   - Edges are of type "explicit" (user-authored inline reference).
  */
 
 import {
@@ -40,7 +40,7 @@ export class LinkExtractorService {
    * React to a KnowledgeUpdatedEvent:
    * 1. Parse all [[WikiLink]] targets from the new content.
    * 2. Upsert a GraphNode for each target.
-   * 3. Create an explicit Link from the source page to each target.
+   * 3. Create an explicit GraphEdge from the source page to each target.
    */
   async handleContentUpdated(event: KnowledgeUpdatedEvent): Promise<void> {
     const targets = this.extractWikiLinks(event.content);
@@ -49,19 +49,21 @@ export class LinkExtractorService {
       const targetId = slugify(targetLabel);
 
       // Ensure the target node exists in the graph.
-      await this.graphRepo.upsertNode({
+      await this.graphRepo.saveNode({
         id: targetId,
-        label: targetLabel.trim(),
-        type: "page",
+        title: targetLabel.trim(),
+        nodeType: "page",
+        status: "active",
       });
 
-      // Create a directed edge from the source page to the target.
-      const linkId = `${event.pageId}→${targetId}`;
-      await this.graphRepo.addLink({
-        id: linkId,
-        sourceId: event.pageId,
-        targetId,
-        type: "explicit",
+      // Create a directed GraphEdge from the source page to the target.
+      const edgeId = `${event.pageId}→${targetId}`;
+      await this.graphRepo.saveEdge({
+        id: edgeId,
+        sourceNodeId: event.pageId,
+        targetNodeId: targetId,
+        edgeType: "explicit",
+        status: "active",
       });
     }
   }
