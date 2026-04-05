@@ -440,14 +440,13 @@ export function DashboardSidebar({
   }
 
   return (
-    <>
+    <div className="contents">
     <aside
       aria-label="Secondary navigation"
       className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
         collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
       }`}
     >
-      <>
           {/* ── Sidebar title bar ──────────────────────────────────── */}
           <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
             {/* Section label */}
@@ -515,7 +514,7 @@ export function DashboardSidebar({
           {/* ── Scrollable nav body ── section-specific ───────────── */}
           <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
             {section === "account" && (
-              <>
+              <div className="space-y-2">
                 {showAccountManagement && visibleAccountItems.length > 0 && (
                   <nav className="space-y-0.5" aria-label="Account navigation">
                     <p className={sidebarSectionTitleClass}>
@@ -541,11 +540,11 @@ export function DashboardSidebar({
                     請切換到組織帳號以查看 Account 選項。
                   </p>
                 )}
-              </>
+              </div>
             )}
 
             {section === "organization" && (
-              <>
+              <div className="space-y-2">
                 {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
                   <nav className="space-y-0.5" aria-label="Organization management">
                     <p className={sidebarSectionTitleClass}>
@@ -571,11 +570,11 @@ export function DashboardSidebar({
                     請切換到組織帳號以查看管理選項。
                   </p>
                 )}
-              </>
+              </div>
             )}
 
             {section === "workspace" && (
-              <>
+              <div className="space-y-2">
                 {workspacePathId ? (
                   <nav className="space-y-3" aria-label="Workspace navigation">
                     <div className="space-y-0.5">
@@ -602,7 +601,7 @@ export function DashboardSidebar({
 
                     <div className="space-y-0.5">
                       {isWorkspaceItemEnabled("workspace-modules") && (
-                        <>
+                        <div className="space-y-0.5">
                           <button
                             type="button"
                             onClick={() => {
@@ -634,13 +633,13 @@ export function DashboardSidebar({
                               })}
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
 
                     <div className="space-y-0.5">
                       {isWorkspaceItemEnabled("spaces") && (
-                        <>
+                        <div className="space-y-0.5">
                           <button
                             type="button"
                             onClick={() => {
@@ -672,13 +671,13 @@ export function DashboardSidebar({
                               })}
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
 
                     <div className="space-y-0.5">
                       {isWorkspaceItemEnabled("databases") && (
-                        <>
+                        <div className="space-y-0.5">
                           <button
                             type="button"
                             onClick={() => {
@@ -710,7 +709,7 @@ export function DashboardSidebar({
                               })}
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
 
@@ -735,7 +734,7 @@ export function DashboardSidebar({
                   </nav>
                 ) : (
                   // ── Workspace hub: show recent workspaces ──────────────
-                  <>
+                  <div>
                     {showRecentWorkspaces && (
                       <div className="space-y-0.5">
                         <p className={sidebarSectionTitleClass}>
@@ -777,9 +776,9 @@ export function DashboardSidebar({
                         )}
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
-              </>
+              </div>
             )}
 
             {section === "knowledge" && (
@@ -1023,7 +1022,6 @@ export function DashboardSidebar({
             )}
 
           </div>
-        </>
     </aside>
 
     <CustomizeNavigationDialog
@@ -1031,6 +1029,6 @@ export function DashboardSidebar({
       onOpenChange={setCustomizeOpen}
       onPreferencesChange={setNavPrefs}
     />
-    </>
+    </div>
   );
 }
