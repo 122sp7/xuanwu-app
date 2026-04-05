@@ -5,8 +5,7 @@
  */
 
 import { z } from "@lib-zod";
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@/modules/shared/api";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { ICategoryRepository } from "../../domain/repositories/CategoryRepository";
 import type { Category } from "../../domain/entities/category.entity";
 import {

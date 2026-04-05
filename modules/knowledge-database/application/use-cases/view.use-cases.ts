@@ -5,8 +5,7 @@
  */
 
 import { z } from "@lib-zod";
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@/modules/shared/api";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { IViewRepository } from "../../domain/repositories/IViewRepository";
 import {
   CreateViewSchema,

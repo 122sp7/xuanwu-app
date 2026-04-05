@@ -1,7 +1,6 @@
 "use server";
 
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom } from "@/modules/shared/api";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
 import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
 import {
