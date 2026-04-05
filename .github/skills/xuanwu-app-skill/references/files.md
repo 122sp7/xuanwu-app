@@ -1051,26 +1051,6 @@ env:
 }
 ````
 
-## File: eslint.config.mjs
-````javascript
-const sameModuleTarget = (type) => (
-⋮----
-const createRestrictedImportsRule = (patterns)
-⋮----
-// ─── Package boundary enforcement ───────────────────────────────────────
-// Forbid legacy import paths that were migrated to packages/*.
-⋮----
-// ─── Strict module entrypoint enforcement ───────────────────────────────
-⋮----
-// ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
-⋮----
-// ─── Wiki / Wiki-Beta isolation boundaries ───────────────────────────────
-⋮----
-// Override default ignores of eslint-config-next.
-⋮----
-// Default ignores of eslint-config-next:
-````
-
 ## File: firebase.apphosting.json
 ````json
 {
@@ -13153,6 +13133,47 @@ export async function action(input) { return useCase.execute(input); }
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
+## File: eslint.config.mjs
+````javascript
+const sameModuleTarget = (type) => (
+⋮----
+const createRestrictedImportsRule = (patterns)
+⋮----
+// ─── Consistent type-only imports ──────────────────────────────────────
+// Enforces `import type` for type-only imports, improving tree-shaking and
+// making module-boundary intent explicit (matches project MDDD conventions).
+⋮----
+// ─── React best-practices ───────────────────────────────────────────────
+// eslint-config-next already pulls in react / react-hooks rules via its
+// own config; these overrides make project-specific settings explicit and
+// add missing checks not covered by the base config.
+⋮----
+"react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
+"react/prop-types": "off",            // TypeScript types replace PropTypes
+"react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
+⋮----
+// ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
+// eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
+// activated here.  Enabling recommended rules as warn catches common a11y
+// mistakes without breaking the zero-error baseline.
+⋮----
+// Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
+// Downgrade all errors to warnings to preserve the zero-error baseline.
+⋮----
+// ─── Package boundary enforcement ───────────────────────────────────────
+// Forbid legacy import paths that were migrated to packages/*.
+⋮----
+// ─── Strict module entrypoint enforcement ───────────────────────────────
+⋮----
+// ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
+⋮----
+// ─── Wiki / Wiki-Beta isolation boundaries ───────────────────────────────
+⋮----
+// Override default ignores of eslint-config-next.
+⋮----
+// Default ignores of eslint-config-next:
+````
+
 ## File: modules/ai/.gitkeep
 ````
 
@@ -14303,41 +14324,6 @@ update(input: UpdateViewInput): Promise<View | null>;
 delete(accountId: string, viewId: string): Promise<void>;
 findById(accountId: string, viewId: string): Promise<View | null>;
 listByDatabase(accountId: string, databaseId: string): Promise<View[]>;
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}
- */
-import {
-  arrayUnion, collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Database, Field, FieldType } from "../../domain/entities/database.entity";
-import type {
-  IDatabaseRepository,
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
-function dbsCol(db: ReturnType<typeof getFirestore>, accountId: string)
-function dbDoc(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string)
-function toField(f: Record<string, unknown>): Field
-function toDatabase(id: string, data: Record<string, unknown>): Database
-export class FirebaseDatabaseRepository implements IDatabaseRepository {
-⋮----
-private db()
-async create(input: CreateDatabaseInput): Promise<Database>
-async update(input: UpdateDatabaseInput): Promise<Database | null>
-async addField(input: AddFieldInput): Promise<Database | null>
-async archive(accountId: string, databaseId: string): Promise<void>
-async findById(accountId: string, databaseId: string): Promise<Database | null>
-async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]>
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseViewRepository.ts
@@ -19923,6 +19909,41 @@ export class ViewQueryBuilder {
   }
 }
 ```
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}
+ */
+import {
+  arrayUnion, collection, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Database, Field, FieldType } from "../../domain/entities/database.entity";
+import type {
+  IDatabaseRepository,
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
+function dbsCol(db: ReturnType<typeof getFirestore>, accountId: string)
+function dbDoc(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string)
+function toField(f: Record<string, unknown>): Field
+function toDatabase(id: string, data: Record<string, unknown>): Database
+export class FirebaseDatabaseRepository implements IDatabaseRepository {
+⋮----
+private db()
+async create(input: CreateDatabaseInput): Promise<Database>
+async update(input: UpdateDatabaseInput): Promise<Database | null>
+async addField(input: AddFieldInput): Promise<Database | null>
+async archive(accountId: string, databaseId: string): Promise<void>
+async findById(accountId: string, databaseId: string): Promise<Database | null>
+async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]>
 ````
 
 ## File: modules/knowledge-database/README.md

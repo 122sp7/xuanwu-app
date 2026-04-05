@@ -41,7 +41,7 @@ This skill contains the following reference files:
 
 ## Statistics
 
-842 files | 24,457 lines
+842 files | 24,478 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
@@ -52,9 +52,9 @@ This skill contains the following reference files:
 | Python | 49 | 1,140 |
 | JSON | 10 | 939 |
 | MERMAID | 10 | 583 |
-| JavaScript (ESM) | 2 | 17 |
 | RULES | 2 | 18 |
 | Text | 2 | 105 |
+| JavaScript (ESM) | 2 | 38 |
 | Other | 3 | 487 |
 
 **Largest files:**
