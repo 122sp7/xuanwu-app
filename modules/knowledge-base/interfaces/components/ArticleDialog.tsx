@@ -58,11 +58,13 @@ export function ArticleDialog({
 
   // Reset when article changes
   useEffect(() => {
-    setTitle(article?.title ?? "");
-    setContent(article?.content ?? "");
-    setCategoryId(article?.categoryId ?? "__none__");
-    setTags(article?.tags.join(", ") ?? "");
-    setError(null);
+    void Promise.resolve().then(() => {
+      setTitle(article?.title ?? "");
+      setContent(article?.content ?? "");
+      setCategoryId(article?.categoryId ?? "__none__");
+      setTags(article?.tags.join(", ") ?? "");
+      setError(null);
+    });
   }, [article, open]);
 
   function handleSubmit() {

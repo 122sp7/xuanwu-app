@@ -28,17 +28,23 @@ interface CommentPanelProps {
 
 export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let disposed = false;
-    setLoading(true);
-    getComments(accountId, contentId).then((data) => {
-      if (!disposed) { setComments(data); setLoading(false); }
-    }).catch(() => { if (!disposed) setLoading(false); });
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getComments(accountId, contentId);
+        if (!disposed) { setComments(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
     return () => { disposed = true; };
   }, [accountId, contentId]);
 

@@ -20,14 +20,20 @@ interface VersionHistoryPanelProps {
 export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let disposed = false;
-    setLoading(true);
-    getVersions(accountId, contentId).then((data) => {
-      if (!disposed) { setVersions(data); setLoading(false); }
-    }).catch(() => { if (!disposed) setLoading(false); });
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getVersions(accountId, contentId);
+        if (!disposed) { setVersions(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
     return () => { disposed = true; };
   }, [accountId, contentId]);
 
