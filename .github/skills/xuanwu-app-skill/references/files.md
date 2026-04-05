@@ -1,450 +1,5 @@
 # Files
 
-## File: modules/notebook/infrastructure/genkit/GenkitNotebookRepository.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
-import { agentClient, getConfiguredGenkitModel } from "./client";
-
-export class GenkitNotebookRepository implements NotebookRepository {
-  async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
-    try {
-      const response = await agentClient.generate({
-        prompt: input.prompt,
-        ...(input.system ? { system: input.system } : {}),
-        ...(input.model ? { model: input.model } : {}),
-      });
-
-      return {
-        ok: true,
-        data: {
-          text: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          finishReason: response.finishReason ? String(response.finishReason) : undefined,
-        },
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "AGENT_GENERATE_FAILED",
-          message:
-            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
-        },
-      };
-    }
-  }
-}
-````
-
-## File: modules/source/interfaces/components/SourceDocumentsView.tsx
-````typescript
-"use client";
-
-import { useRef, useState } from "react";
-import {
-  CheckCircle2,
-  ExternalLink,
-  FileUp,
-  Loader2,
-  Pencil,
-  Trash2,
-  XCircle,
-} from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/app/providers/app-provider";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
-import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
-
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const WATCH_PATH = "uploads/";
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif/.tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg/.jpeg",
-};
-const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-function StatusBadge({ doc }: { doc: SourceLiveDocument }) {
-  if (doc.status === "completed") {
-    return (
-      <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
-        <CheckCircle2 className="size-3" /> ✓ ready
-      </Badge>
-    );
-  }
-  if (doc.status === "processing") {
-    return (
-      <Badge variant="outline" className="gap-1 border-blue-500/40 bg-blue-500/10 text-blue-700">
-        <Loader2 className="size-3 animate-spin" /> ⏳ processing
-      </Badge>
-    );
-  }
-  if (doc.status === "error") {
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 border-destructive/40 bg-destructive/10 text-destructive"
-        title={doc.errorMessage || "未知錯誤"}
-      >
-        <XCircle className="size-3" /> ✗ error
-      </Badge>
-    );
-  }
-  return <Badge variant="outline">{doc.status || "unknown"}</Badge>;
-}
-
-function RagBadge({ doc }: { doc: SourceLiveDocument }) {
-  if (doc.ragStatus === "ready") {
-    return (
-      <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
-        <CheckCircle2 className="size-3" /> indexed
-      </Badge>
-    );
-  }
-  if (doc.ragStatus === "error") {
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 border-destructive/40 bg-destructive/10 text-destructive"
-        title={doc.ragError || "未知錯誤"}
-      >
-        <XCircle className="size-3" /> rag error
-      </Badge>
-    );
-  }
-  if (doc.ragStatus) {
-    return (
-      <Badge variant="outline" className="gap-1 border-blue-500/40 bg-blue-500/10 text-blue-700">
-        <Loader2 className="size-3 animate-spin" /> {doc.ragStatus}
-      </Badge>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">-</span>;
-}
-
-function formatDate(value: Date | null): string {
-  if (!value) return "-";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
-
-interface SourceDocumentsViewProps {
-  readonly workspaceId?: string;
-}
-
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const { docs, loading, pendingDocs, addPending } = useDocumentsSnapshot(
-    activeAccountId,
-    effectiveWorkspaceId || undefined,
-  );
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const allDocs = [
-    ...pendingDocs,
-    ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id)),
-  ].sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-  function handleFileChange(file: File | null) {
-    if (!file) { setSelectedFile(null); return; }
-    if (!(file.type in ACCEPTED_MIME)) {
-      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setSelectedFile(file);
-  }
-
-  async function handleUpload() {
-    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
-    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
-
-    const ext = selectedFile.name.includes(".") ? `.${selectedFile.name.split(".").pop() ?? ""}` : "";
-    const docId = crypto.randomUUID();
-    const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
-
-    setUploading(true);
-    addPending({
-      id: docId,
-      filename: selectedFile.name,
-      workspaceId: effectiveWorkspaceId,
-      sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`,
-      jsonGcsUri: "",
-      pageCount: 0,
-      status: "processing",
-      ragStatus: "",
-      uploadedAt: new Date(),
-      errorMessage: "",
-      ragError: "",
-      isClientPending: true,
-    });
-
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const customMetadata: Record<string, string> = {
-        account_id: activeAccountId,
-        filename: selectedFile.name,
-        original_filename: selectedFile.name,
-        display_name: selectedFile.name,
-      };
-      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
-      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
-      toast.success("上傳成功，背景已開始解析與入庫");
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      console.error(error);
-      toast.error("上傳失敗");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDelete(doc: SourceLiveDocument) {
-    if (!activeAccountId) return;
-    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
-
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      for (const uri of [doc.sourceGcsUri, doc.jsonGcsUri].filter(Boolean)) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
-      }
-      const db = getFirebaseFirestore();
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
-      toast.success("文件已刪除");
-    } catch (error) {
-      console.error(error);
-      toast.error("刪除失敗");
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleRename(doc: SourceLiveDocument) {
-    if (!activeAccountId) return;
-    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
-    if (!nextName || nextName === doc.filename) return;
-
-    setRenamingId(doc.id);
-    try {
-      const db = getFirebaseFirestore();
-      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
-        title: nextName,
-        "source.filename": nextName,
-        "metadata.filename": nextName,
-        updatedAt: firestoreApi.serverTimestamp(),
-      });
-      toast.success("文件名稱已更新");
-    } catch (error) {
-      console.error(error);
-      toast.error("更名失敗");
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  async function handleViewOriginal(doc: SourceLiveDocument) {
-    if (!doc.sourceGcsUri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      console.error(error);
-      toast.error("無法開啟原始檔");
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Upload dropzone */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload File</CardTitle>
-          <CardDescription>
-            {effectiveWorkspaceId
-              ? `拖曳或選擇檔案上傳到 workspace：${effectiveWorkspaceId}`
-              : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <label
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileChange(e.dataTransfer.files?.[0] ?? null); }}
-            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
-              dragging
-                ? "border-primary/60 bg-primary/10"
-                : "border-border/70 bg-muted/10 hover:border-primary/40"
-            }`}
-          >
-            <FileUp className="size-7 text-muted-foreground" />
-            <div className="text-center">
-              <p className="text-sm font-medium">
-                {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-              </p>
-              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={Object.keys(ACCEPTED_MIME).join(",")}
-              className="sr-only"
-              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => void handleUpload()}
-              disabled={uploading || !selectedFile || !activeAccountId}
-            >
-              {uploading && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {uploading ? "上傳中..." : "上傳並啟動解析"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-              disabled={uploading}
-            >
-              清除
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Document list */}
-      <Card>
-        <CardHeader>
-          <CardTitle>文件列表</CardTitle>
-          <CardDescription>
-            {effectiveWorkspaceId
-              ? `workspace: ${effectiveWorkspaceId} — ${allDocs.length} 筆`
-              : `account 全覽 — ${allDocs.length} 筆`}
-            （即時更新）
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border/60 bg-muted/40">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && allDocs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                      讀取中...
-                    </td>
-                  </tr>
-                ) : allDocs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                      目前沒有文件，試著上傳第一份檔案 ↑
-                    </td>
-                  </tr>
-                ) : (
-                  allDocs.map((doc) => (
-                    <tr key={doc.id} className="border-b border-border/40 last:border-0">
-                      <td className="px-3 py-2.5">
-                        <p className="truncate font-medium text-foreground" title={doc.filename}>
-                          {doc.filename}
-                          {doc.isClientPending && (
-                            <span className="ml-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700">
-                              pending
-                            </span>
-                          )}
-                        </p>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <StatusBadge doc={doc} />
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <RagBadge doc={doc} />
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                        {formatDate(doc.uploadedAt)}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => void handleViewOriginal(doc)}
-                            disabled={!doc.sourceGcsUri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleRename(doc)}
-                            disabled={renamingId === doc.id}
-                            title="更名"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            {renamingId === doc.id ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
-                              <Pencil className="size-3.5" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(doc)}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
 ## File: .agents/skills
 ````
 ../.github/skills
@@ -30196,43 +29751,6 @@ export async function generateResponse(...) { ... }
 | [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
 ````
 
-## File: docs/ddd/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-- `domain/repositories/RagGenerationRepository.ts`
-- `domain/repositories/RagRetrievalRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
-- `infrastructure/firebase/index.ts`
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
 ## File: docs/ddd/notebook/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — notebook
@@ -32225,50 +31743,6 @@ GraphEdge: pending ──► active ──► inactive ──► removed
 | `Backlink` | `InboundLink`, `ReverseLink` |
 ````
 
-## File: docs/ddd/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-## 模組定位
-
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceApi } from "@/modules/workspace/api";
-import type { WorkspaceDTO } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
-```
-
-## 循環依賴守衛
-
-`FirebaseWikiBetaWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: docs/ddd/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -32461,48 +31935,6 @@ interface WorkspaceCreatedEvent {
 
 - `../../../modules/workspace/domain-services.md`
 - `../../../docs/ddd/workspace/aggregates.md`
-````
-
-## File: docs/ddd/workspace/README.md
-````markdown
-# workspace — 工作區上下文
-
-> **Domain Type:** Generic Subdomain
-> **模組路徑:** `modules/workspace/`
-> **開發狀態:** ✅ Done — 穩定
-
-## 定位
-
-`workspace` 是 Xuanwu 平台的**協作容器**，所有知識內容、任務、稽核記錄都歸屬於特定工作區。它也持有 Wiki 內容樹結構（WikiContentTree）與工作區成員管理。
-
-## 職責
-
-| 能力 | 說明 |
-|------|------|
-| Workspace CRUD | 建立、更新、歸檔工作區 |
-| 成員管理 | WorkspaceMember 邀請、移除、角色變更 |
-| Wiki 內容樹 | 維護 WikiContentTree（頁面的樹狀層級結構） |
-| Wiki 工作區關聯 | 管理 WikiWorkspaceRepository（Wiki 頁面隸屬關係） |
-| 子模組組合 | 在 WorkspaceDetailScreen 組合 workspace-{flow,audit,feed,scheduling} tabs |
-
-## 核心概念
-
-- **`Workspace`** — 協作容器（accountId、name、status）
-- **`WorkspaceMember`** — 成員在工作區中的參與記錄
-- **`WikiContentTree`** — 工作區 Wiki 頁面的樹狀層級結構
-
-## 特殊邊界規則
-
-`workspace/infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
-
-## 詳細文件
-
-| 文件 | 說明 |
-|------|------|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | Workspace 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
 ````
 
 ## File: docs/ddd/workspace/repositories.md
@@ -42279,108 +41711,6 @@ export const KNOWLEDGE_EVENT_TYPES = {
 export type KnowledgeEventType = (typeof KNOWLEDGE_EVENT_TYPES)[keyof typeof KNOWLEDGE_EVENT_TYPES];
 ````
 
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the Content domain.
- */
-
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
-
-export { KnowledgeApi } from "./knowledge-api";
-
-// ── Wiki page types (transitional — owned by content domain) ──────────────
-export type {
-  WikiPage,
-  WikiPageStatus,
-  WikiPageTreeNode,
-  CreateWikiPageInput,
-  RenameWikiPageInput,
-  MoveWikiPageInput,
-} from "../domain/entities/wiki-page.types";
-
-// ── Wiki page use-cases (transitional) ────────────────────────────────────
-import { FirebaseWikiPageRepository } from "../infrastructure/repositories/firebase-wiki-page.repository";
-import {
-  createWikiPage as _createWikiPage,
-  listWikiPagesTree as _listWikiPagesTree,
-  moveWikiPage as _moveWikiPage,
-  renameWikiPage as _renameWikiPage,
-} from "../application/use-cases/wiki-pages.use-case";
-import type {
-  CreateWikiPageInput,
-  MoveWikiPageInput,
-  RenameWikiPageInput,
-  WikiPage,
-  WikiPageTreeNode,
-} from "../domain/entities/wiki-page.types";
-
-const _defaultPageRepository = new FirebaseWikiPageRepository();
-
-export function createWikiPage(input: CreateWikiPageInput): Promise<WikiPage> {
-  return _createWikiPage(input, _defaultPageRepository);
-}
-
-export function listWikiPagesTree(accountId: string, workspaceId?: string): Promise<WikiPageTreeNode[]> {
-  return _listWikiPagesTree(accountId, workspaceId, _defaultPageRepository);
-}
-
-export function moveWikiPage(input: MoveWikiPageInput): Promise<WikiPage> {
-  return _moveWikiPage(input, _defaultPageRepository);
-}
-
-export function renameWikiPage(input: RenameWikiPageInput): Promise<WikiPage> {
-  return _renameWikiPage(input, _defaultPageRepository);
-}
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-export { PagesView } from "../interfaces/components/PagesView";
-export { PagesDnDView } from "../interfaces/components/PagesDnDView";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-````
-
 ## File: modules/knowledge/api/knowledge-api.ts
 ````typescript
 /**
@@ -43154,292 +42484,6 @@ export class ListKnowledgeVersionsUseCase {
 }
 ````
 
-## File: modules/knowledge/application/use-cases/wiki-pages.use-case.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Wiki-style page use-cases — create, rename, move, list tree.
- *          Lightweight direct-function API (no DI class wrappers) kept for
- *          backward compatibility with the wiki interfaces during
- *          transitional decomposition.
- */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  deriveSlugCandidate,
-  isValidSlug,
-} from "@/modules/shared/api";
-
-import type {
-  CreateWikiPageInput,
-  MoveWikiPageInput,
-  RenameWikiPageInput,
-  WikiPage,
-  WikiPageTreeNode,
-} from "../../domain/entities/wiki-page.types";
-import type { WikiPageRepository } from "../../domain/repositories/WikiPageRepository";
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function normalizeTitle(title: string): string {
-  const trimmed = title.trim();
-  if (!trimmed) {
-    throw new Error("title is required");
-  }
-  return trimmed.slice(0, 120);
-}
-
-function sameParent(a: WikiPage, parentPageId: string | null): boolean {
-  return (a.parentPageId ?? null) === parentPageId;
-}
-
-function ensureUniqueSlug(baseSlug: string, siblingPages: WikiPage[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
-  const existing = new Set(siblingPages.map((page) => page.slug));
-
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this page title");
-}
-
-function toTree(pages: WikiPage[]): WikiPageTreeNode[] {
-  const nodeById = new Map<string, WikiPageTreeNode>();
-  for (const page of pages) {
-    nodeById.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: WikiPageTreeNode[] = [];
-  for (const page of pages) {
-    const node = nodeById.get(page.id);
-    if (!node) continue;
-
-    if (!page.parentPageId) {
-      roots.push(node);
-      continue;
-    }
-
-    const parent = nodeById.get(page.parentPageId);
-    if (!parent) {
-      roots.push(node);
-      continue;
-    }
-    parent.children.push(node);
-  }
-
-  const sortRecursively = (nodes: WikiPageTreeNode[]) => {
-    nodes.sort((a, b) => {
-      if (a.order !== b.order) {
-        return a.order - b.order;
-      }
-      return a.title.localeCompare(b.title, "zh-Hant");
-    });
-    for (const node of nodes) {
-      sortRecursively(node.children);
-    }
-  };
-
-  sortRecursively(roots);
-  return roots;
-}
-
-function assertNoCycle(pages: WikiPage[], pageId: string, targetParentPageId: string | null): void {
-  if (!targetParentPageId) {
-    return;
-  }
-  if (pageId === targetParentPageId) {
-    throw new Error("page cannot be moved under itself");
-  }
-
-  const byId = new Map(pages.map((page) => [page.id, page]));
-  let current: string | null = targetParentPageId;
-  while (current) {
-    if (current === pageId) {
-      throw new Error("invalid move: target parent is a descendant of page");
-    }
-    current = byId.get(current)?.parentPageId ?? null;
-  }
-}
-
-export async function listWikiPagesTree(
-  accountId: string,
-  workspaceId: string | undefined,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPageTreeNode[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const allPages = await pageRepository.listByAccountId(accountId);
-  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
-  return toTree(pages.filter((page) => page.status === "active"));
-}
-
-export async function createWikiPage(
-  input: CreateWikiPageInput,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPage> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const title = normalizeTitle(input.title);
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const parentPageId = input.parentPageId ?? null;
-
-  if (parentPageId) {
-    const parent = pages.find((page) => page.id === parentPageId);
-    if (!parent) {
-      throw new Error("parent page not found");
-    }
-  }
-
-  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
-  const rawSlug = deriveSlugCandidate(title);
-  const slug = ensureUniqueSlug(rawSlug, siblingPages);
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
-
-  const now = new Date();
-  const created: WikiPage = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    title,
-    slug,
-    parentPageId,
-    order,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await pageRepository.create(created);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "knowledge.page_created",
-    aggregateType: "content-page",
-    aggregateId: created.id,
-    payload: {
-      accountId: created.accountId,
-      workspaceId: created.workspaceId,
-      parentPageId: created.parentPageId,
-      slug: created.slug,
-    },
-  });
-
-  return created;
-}
-
-export async function renameWikiPage(
-  input: RenameWikiPageInput,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPage> {
-  const title = normalizeTitle(input.title);
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
-  }
-
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
-  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
-
-  const updated: WikiPage = {
-    ...existing,
-    title,
-    slug,
-    updatedAt: new Date(),
-  };
-
-  await pageRepository.update(updated);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "knowledge.page_renamed",
-    aggregateType: "content-page",
-    aggregateId: updated.id,
-    payload: {
-      accountId: updated.accountId,
-      title: updated.title,
-      slug: updated.slug,
-    },
-  });
-
-  return updated;
-}
-
-export async function moveWikiPage(
-  input: MoveWikiPageInput,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPage> {
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
-  }
-
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const targetParentPageId = input.targetParentPageId ?? null;
-  assertNoCycle(pages, existing.id, targetParentPageId);
-
-  if (targetParentPageId) {
-    const targetParent = pages.find((page) => page.id === targetParentPageId);
-    if (!targetParent) {
-      throw new Error("target parent page not found");
-    }
-  }
-
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
-
-  const moved: WikiPage = {
-    ...existing,
-    parentPageId: targetParentPageId,
-    order,
-    updatedAt: new Date(),
-  };
-
-  await pageRepository.update(moved);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "knowledge.page_moved",
-    aggregateType: "content-page",
-    aggregateId: moved.id,
-    payload: {
-      accountId: moved.accountId,
-      fromParentPageId: existing.parentPageId,
-      toParentPageId: moved.parentPageId,
-    },
-  });
-
-  return moved;
-}
-````
-
 ## File: modules/knowledge/application/block-service.ts
 ````typescript
 /**
@@ -43712,55 +42756,6 @@ export interface Page {
   readonly title: string;
   /** Ordered list of Block IDs that compose this page's content */
   readonly blockIds: ID[];
-}
-````
-
-## File: modules/knowledge/domain/entities/wiki-page.types.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/entities
- * Purpose: Wiki-style page entity — lightweight page model used by the
- *          wiki interfaces during the transitional decomposition period.
- *          Lives in content because pages are a content-domain concern.
- */
-
-export type WikiPageStatus = "active" | "archived";
-
-export interface WikiPage {
-  id: string;
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  slug: string;
-  parentPageId: string | null;
-  order: number;
-  status: WikiPageStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WikiPageTreeNode extends WikiPage {
-  children: WikiPageTreeNode[];
-}
-
-export interface CreateWikiPageInput {
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  parentPageId?: string | null;
-}
-
-export interface RenameWikiPageInput {
-  accountId: string;
-  pageId: string;
-  title: string;
-}
-
-export interface MoveWikiPageInput {
-  accountId: string;
-  pageId: string;
-  targetParentPageId?: string | null;
 }
 ````
 
@@ -46300,17 +45295,24 @@ modules/knowledge/
 - `domain/value-objects/block-content.ts`
 ````
 
-## File: modules/notebook/api/server.ts
+## File: modules/notebook/api/index.ts
 ````typescript
 /**
- * modules/notebook — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring.
+ * modules/notebook — public API barrel.
  */
 
-export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
-export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../domain/entities/AgentGeneration";
+
+export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+
+export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";
 ````
 
 ## File: modules/notebook/application/use-cases/answer-rag-query.use-case.ts
@@ -46319,6 +45321,38 @@ export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNoteboo
  * @deprecated AnswerRagQueryUseCase ownership is in modules/search.
  */
 export { AnswerRagQueryUseCase } from "@/modules/search/api/server";
+````
+
+## File: modules/notebook/application/use-cases/generate-agent-response.use-case.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+
+export class GenerateNotebookResponseUseCase {
+  constructor(private readonly agentRepository: NotebookRepository) {}
+
+  async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
+    const prompt = input.prompt.trim();
+    if (!prompt) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_PROMPT_REQUIRED",
+          message: "Agent prompt is required.",
+        },
+      };
+    }
+
+    return this.agentRepository.generateResponse({
+      ...input,
+      prompt,
+      ...(typeof input.system === "string" ? { system: input.system.trim() } : {}),
+    });
+  }
+}
 ````
 
 ## File: modules/notebook/application/index.ts
@@ -46434,6 +45468,35 @@ export type {
 } from "@/modules/search/api";
 ````
 
+## File: modules/notebook/domain/index.ts
+````typescript
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "./entities/AgentGeneration";
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "./entities/RagQuery";
+export type { NotebookRepository } from "./repositories/NotebookRepository";
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "./repositories/RagGenerationRepository";
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "./repositories/RagRetrievalRepository";
+````
+
 ## File: modules/notebook/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
 ````typescript
 /**
@@ -46476,57 +45539,50 @@ export function createGenkitClient(options?: GenkitClientOptions) {
 export const agentClient = createGenkitClient();
 ````
 
-## File: modules/notebook/infrastructure/genkit/index.ts
+## File: modules/notebook/infrastructure/genkit/GenkitNotebookRepository.ts
 ````typescript
-/**
- * @module modules/notebook/infrastructure/genkit
- */
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+import { agentClient, getConfiguredGenkitModel } from "./client";
 
-export {
-  agentClient,
-  createGenkitClient,
-  getConfiguredGenkitModel,
-  type GenkitClientOptions,
-} from "./client";
-export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
-export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
+export class GenkitNotebookRepository implements NotebookRepository {
+  async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
+    try {
+      const response = await agentClient.generate({
+        prompt: input.prompt,
+        ...(input.system ? { system: input.system } : {}),
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      return {
+        ok: true,
+        data: {
+          text: response.text,
+          model: getConfiguredGenkitModel(input.model),
+          finishReason: response.finishReason ? String(response.finishReason) : undefined,
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_GENERATE_FAILED",
+          message:
+            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
+        },
+      };
+    }
+  }
+}
 ````
 
 ## File: modules/notebook/infrastructure/index.ts
 ````typescript
 export * from "./firebase";
 export * from "./genkit";
-````
-
-## File: modules/notebook/interfaces/_actions/notebook.actions.ts
-````typescript
-"use server";
-
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
-import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
-import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
-import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
-import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
-
-export async function generateNotebookResponse(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
-  return useCase.execute(input);
-}
-
-export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-  const useCase = new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalRepository(),
-    new GenkitRagGenerationRepository(),
-  );
-  return useCase.execute(input);
-}
 ````
 
 ## File: modules/notebook/interfaces/index.ts
@@ -46537,78 +45593,6 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 ## File: modules/notebook/.gitkeep
 ````
 
-````
-
-## File: modules/notebook/AGENT.md
-````markdown
-# AGENT.md — modules/notebook
-
-## 模組定位
-
-`modules/notebook` 是 Knowledge Platform 的**支援域（Supporting Domain）**，對應 NotebookLM 的 AI 筆記與對話管理層。負責筆記本生命週期、多輪對話、摘要與洞察管理。AI 推理能力委派給 `ai/api`，RAG 檢索委派給 `search/api`。
-
-## 通用語言（Ubiquitous Language）
-
-在此模組內，**嚴格使用**以下術語：
-
-- `Notebook`（不是 Note、Document）
-- `Thread`（不是 Conversation、History）
-- `Message`（不是 Message 以外的術語，role 為 `user` | `assistant`）
-- `ChatSession`（不是 Session、Dialog）
-- `Summary`（不是 Abstract、Brief）
-- `AgentGeneration`（不是 AIResponse、LLMOutput）
-- `Citation`（不是 Reference、Source）
-
-## 邊界規則
-
-### ✅ 允許
-
-```typescript
-// 其他模組透過 api/ 存取
-import { notebookFacade } from "@/modules/notebook/api";
-import type { NotebookDTO, ThreadDTO } from "@/modules/notebook/api";
-```
-
-### ❌ 禁止
-
-```typescript
-// 禁止直接 import 內部層
-import { Thread } from "@/modules/notebook/domain/entities/thread";
-import { GenkitNotebookRepository } from "@/modules/notebook/infrastructure/genkit";
-```
-
-## 重要架構規則
-
-- **Server Action 不能從 `@/modules/notebook/api` barrel 在 client component 中 import** — 會打包 Genkit/gRPC server-only 模組。應在 `app/` 的本地 `_actions.ts` 使用 `"use server"` 包裝。
-- AI 生成邏輯不在此模組內直接實作，透過 `ai/api` 委派。
-
-## 跨模組互動
-
-| 目標模組 | 互動方式 | 說明 |
-|----------|----------|------|
-| `ai/api` | API 呼叫 | 委派 LLM 推理、Embedding 生成 |
-| `search/api` | API 呼叫 | 委派 RAG 向量檢索 |
-| `knowledge/api` | 事件訂閱 | 監聽頁面更新以刷新摘要 |
-| `identity/api` | API 呼叫 | 驗證使用者身分 |
-| `workspace/api` | API 呼叫 | 驗證工作區範圍 |
-
-## AI 整合安全規則
-
-- Genkit / gRPC 適配器**只能**存在於 `infrastructure/genkit/` 下
-- Server Action 必須有獨立的本地 `_actions.ts`，不透過 barrel export
-
-```typescript
-// app/(shell)/ai-chat/_actions.ts — 正確方式
-"use server";
-import { generateNotebookResponse } from "@/modules/notebook/application/use-cases/...";
-```
-
-## 驗證命令
-
-```bash
-npm run lint    # 0 errors expected
-npm run build   # TypeScript type-check
-```
 ````
 
 ## File: modules/notebook/aggregates.md
@@ -46742,105 +45726,6 @@ export * from "./domain";
 export * from "./application";
 export * from "./infrastructure";
 export * from "./interfaces";
-````
-
-## File: modules/notebook/README.md
-````markdown
-# notebook — AI Notebook & Chat Layer
-
-> **開發狀態**：🚧 Developing — 積極開發中
-> **Domain Type**：Supporting Domain（支援域）
-
-`modules/notebook` 對應 **NotebookLM** 的核心職能，負責 AI 筆記、對話管理、摘要生成與洞察提取。提供使用者與 AI 進行多輪對話的聚合根與生命週期管理。
-
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
-- AI 生成操作透過 `ai/api` 委派執行
-
----
-
-## 職責（Responsibilities）
-
-| 能力 | 說明 |
-|------|------|
-| 筆記管理 | 建立、管理 AI 輔助筆記本（Notebook） |
-| 對話管理 | 管理多輪對話執行緒（ChatSession / Thread） |
-| 摘要生成 | 觸發知識摘要（Summary）並保存結果 |
-| 洞察提取 | 從知識內容提取 Insight，生成引用（Citation） |
-| 消息歷史 | 維護 Thread 中的 Message 列表 |
-
----
-
-## 聚合根（Aggregate Roots）
-
-| Aggregate | 說明 |
-|-----------|------|
-| `Notebook` | AI 筆記本，包含多個 Source 和 ChatSession |
-| `ChatSession` | 一段多輪 AI 對話會話 |
-| `Summary` | 從知識內容生成的摘要快照 |
-
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 筆記本 | Notebook | AI 筆記本聚合根，包含 Sources 和 Sessions |
-| 對話執行緒 | Thread | 一段多輪對話的 Message 集合 |
-| 消息 | Message | Thread 中的單一對話單元（role: user / assistant） |
-| 對話會話 | ChatSession | 使用者與 AI 的一次對話實例 |
-| 摘要 | Summary | AI 生成的知識摘要文本 |
-| 洞察 | Insight | AI 從知識中提取的關鍵觀點 |
-| 引用 | Citation | 摘要或洞察的知識來源參考 |
-| 代理生成 | AgentGeneration | 一次 AI 代理的完整輸入/輸出記錄 |
-
----
-
-## 領域事件（Domain Events）
-
-| 事件 | 觸發條件 |
-|------|----------|
-| `notebook.created` | 新筆記本建立時 |
-| `notebook.session_started` | 新對話會話開始時 |
-| `notebook.summary_generated` | 摘要生成完成時 |
-| `notebook.message_appended` | 新消息加入 Thread 時 |
-| `notebook.insight_extracted` | 洞察提取完成時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`、`workspace/api`、`ai/api`（LLM 推理）、`search/api`（RAG 檢索）
-- **下游（被依賴）**：`workspace/api`（工作區 Notebook tab）
-
----
-
-## 目錄結構
-
-```
-modules/notebook/
-├── api/                  # 公開 API 邊界（contracts.ts, facade.ts, index.ts）
-├── application/          # Use Cases
-│   └── use-cases/
-├── domain/               # Aggregates, Entities, Value Objects, Events, Repositories
-│   ├── entities/         # AgentGeneration.ts, Thread.ts, Message.ts, RagQuery.ts
-│   ├── repositories/     # RagGenerationRepository, RagRetrievalRepository
-│   └── value-objects/
-├── infrastructure/       # Genkit / Firebase 適配器
-│   ├── firebase/         # FirebaseRagRetrievalRepository
-│   └── genkit/           # GenkitNotebookRepository
-├── interfaces/           # UI 元件、hooks、server actions
-│   └── _actions/         # notebook.actions.ts
-└── index.ts
-```
-
----
-
-## 架構參考
-
-- 系統設計文件：`docs/architecture/ai-domain.md`
-- 通用語言：`docs/architecture/ubiquitous-language.md`
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -49369,98 +48254,6 @@ modules/organization/
 - 目前沒有獨立的 `domain/value-objects/*` 檔案。
 ````
 
-## File: modules/search/api/index.ts
-````typescript
-/**
- * modules/search — public API barrel.
- *
- * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
- * Other modules MUST import from here only.
- */
-
-export type {
-  IVectorStore,
-  VectorDocument,
-  VectorSearchResult,
-} from "../domain/ports/vector-store";
-
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "../domain/entities/RagQuery";
-
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "../domain/repositories/RagRetrievalRepository";
-
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "../domain/repositories/RagGenerationRepository";
-
-// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
-export type {
-  RagQueryFeedback,
-  RagFeedbackRating,
-  SubmitRagQueryFeedbackInput,
-} from "../domain/entities/RagQueryFeedback";
-
-export type { RagQueryFeedbackRepository } from "../domain/repositories/RagQueryFeedbackRepository";
-
-export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
-
-export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
-
-// ── Wiki RAG types (transitional — owned by retrieval domain) ─────────────
-export type {
-  WikiCitation,
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/entities/WikiRagTypes";
-
-// ── Wiki RAG use-cases (transitional) ─────────────────────────────────────
-import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
-import {
-  runWikiRagQuery as _runWikiRagQuery,
-  reindexWikiDocument as _reindexWikiDocument,
-  listWikiParsedDocuments as _listWikiParsedDocuments,
-} from "../application/use-cases/wiki-rag.use-case";
-import type {
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/entities/WikiRagTypes";
-
-const _defaultContentRepository = new FirebaseWikiContentRepository();
-
-export function runWikiRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<WikiRagQueryResult> {
-  return _runWikiRagQuery(query, accountId, workspaceId, topK, options, _defaultContentRepository);
-}
-
-export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
-  return _reindexWikiDocument(input, _defaultContentRepository);
-}
-
-export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
-  return _listWikiParsedDocuments(accountId, limitCount, _defaultContentRepository);
-}
-````
-
 ## File: modules/search/api/server.ts
 ````typescript
 /**
@@ -49678,54 +48471,6 @@ export function createFeedbackId(): string {
 }
 ````
 
-## File: modules/search/application/use-cases/wiki-rag.use-case.ts
-````typescript
-/**
- * Module: search
- * Layer: application/use-cases
- * Purpose: Wiki-style RAG use-cases — run query, reindex document, list documents.
- *          Thin delegation to the FirebaseWikiContentRepository, kept for
- *          backward compatibility during transitional decomposition.
- */
-
-import type { WikiContentRepository } from "../../domain/repositories/WikiContentRepository";
-import type {
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../../domain/entities/WikiRagTypes";
-
-export async function runWikiRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: {
-    taxonomyFilters?: string[];
-    maxAgeDays?: number;
-    requireReady?: boolean;
-  } = {},
-  repository: WikiContentRepository,
-): Promise<WikiRagQueryResult> {
-  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export async function reindexWikiDocument(
-  input: WikiReindexInput,
-  repository: WikiContentRepository,
-): Promise<void> {
-  await repository.reindexDocument(input);
-}
-
-export async function listWikiParsedDocuments(
-  accountId: string,
-  limitCount = 20,
-  repository: WikiContentRepository,
-): Promise<WikiParsedDocument[]> {
-  return repository.listParsedDocuments(accountId, limitCount);
-}
-````
-
 ## File: modules/search/domain/entities/RagQuery.ts
 ````typescript
 import type { DomainError } from "@shared-types";
@@ -49827,68 +48572,6 @@ export interface SubmitRagQueryFeedbackInput {
   readonly rating: RagFeedbackRating;
   readonly comment?: string;
   readonly submittedByUserId: string;
-}
-````
-
-## File: modules/search/domain/entities/WikiRagTypes.ts
-````typescript
-/**
- * Module: search
- * Layer: domain/entities
- * Purpose: Wiki-style RAG document and query result types — the
- *          lightweight RAG interface types used by the wiki UI components
- *          during the transitional decomposition period. Lives in retrieval
- *          because RAG query/answer is a retrieval-domain concern.
- */
-
-export interface WikiCitation {
-  provider?: "vector" | "search";
-  chunk_id?: string;
-  doc_id?: string;
-  filename?: string;
-  json_gcs_uri?: string;
-  search_id?: string;
-  score?: number;
-  text?: string;
-  account_id?: string;
-  workspace_id?: string;
-  taxonomy?: string;
-  processing_status?: string;
-  indexed_at?: string;
-}
-
-export interface WikiRagQueryResult {
-  answer: string;
-  citations: WikiCitation[];
-  cache: "hit" | "miss";
-  vectorHits: number;
-  searchHits: number;
-  accountScope: string;
-  workspaceScope?: string;
-  taxonomyFilters?: string[];
-  maxAgeDays?: number;
-  requireReady?: boolean;
-}
-
-export interface WikiParsedDocument {
-  id: string;
-  filename: string;
-  workspaceId: string;
-  sourceGcsUri: string;
-  jsonGcsUri: string;
-  pageCount: number;
-  status: string;
-  ragStatus: string;
-  uploadedAt: Date | null;
-}
-
-export interface WikiReindexInput {
-  accountId: string;
-  docId: string;
-  jsonGcsUri: string;
-  sourceGcsUri: string;
-  filename: string;
-  pageCount: number;
 }
 ````
 
@@ -52585,105 +51268,6 @@ modules/shared/
 - 目前沒有獨立的 `domain/value-objects/*` 檔案。
 ````
 
-## File: modules/source/api/index.ts
-````typescript
-/**
- * Module: source
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the source domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// --- Core entity types -------------------------------------------------------
-
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
-
-// --- Wiki library entity types (transitional — owned by source domain) ---
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/wiki-library.types";
-
-// --- Wiki library use-cases (transitional) --------------------------------
-
-import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
-import {
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibrary as _createWikiLibrary,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-  listWikiLibraries as _listWikiLibraries,
-} from "../application/use-cases/wiki-libraries.use-case";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../domain/entities/wiki-library.types";
-import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
-
-export type { WikiLibrarySnapshot };
-
-const _defaultLibraryRepository = new InMemoryWikiLibraryRepository();
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, _defaultLibraryRepository);
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
-}
-
-// --- Document snapshot types --------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
-export {
-  useDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
-
-// --- Query functions ---------------------------------------------------------
-
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
-
-// --- UI components (cross-module public) -------------------------------------
-
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-````
-
 ## File: modules/source/application/dto/file.dto.ts
 ````typescript
 import type { File } from "../../domain/entities/File";
@@ -53318,249 +51902,6 @@ export class UploadInitFileUseCase {
 }
 ````
 
-## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
-````typescript
-/**
- * Module: source
- * Layer: application/use-cases
- * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
- *          Direct-function API kept for backward compatibility with wiki
- *          interfaces during transitional decomposition.
- */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  deriveSlugCandidate,
-  isValidSlug,
-} from "@/modules/shared/api";
-
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../../domain/entities/wiki-library.types";
-import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function normalizeName(name: string): string {
-  const value = name.trim();
-  if (!value) {
-    throw new Error("library name is required");
-  }
-  return value.slice(0, 80);
-}
-
-function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) {
-    throw new Error("field key is required");
-  }
-  return normalized.slice(0, 48);
-}
-
-function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((library) => library.slug));
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export async function listWikiLibraries(
-  accountId: string,
-  workspaceId: string | undefined,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((library) => library.status === "active");
-  if (!workspaceId) {
-    return activeLibraries;
-  }
-  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
-}
-
-export async function createWikiLibrary(
-  input: CreateWikiLibraryInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const name = normalizeName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiLibrary = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_created",
-    aggregateType: "asset-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiLibraryField(
-  input: AddWikiLibraryFieldInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((field) => field.key === key)) {
-    throw new Error(`field key "${key}" already exists`);
-  }
-
-  const field: WikiLibraryField = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_field_added",
-    aggregateType: "asset-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      fieldKey: field.key,
-      fieldType: field.type,
-    },
-  });
-
-  return field;
-}
-
-export async function createWikiLibraryRow(
-  input: CreateWikiLibraryRowInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  const requiredFields = fields.filter((field) => field.required);
-  for (const field of requiredFields) {
-    if (!(field.key in input.values)) {
-      throw new Error(`missing required field: ${field.key}`);
-    }
-  }
-
-  const now = new Date();
-  const row: WikiLibraryRow = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_row_created",
-    aggregateType: "asset-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      rowId: row.id,
-      fields: Object.keys(row.values),
-    },
-  });
-
-  return row;
-}
-
-export interface WikiLibrarySnapshot {
-  library: WikiLibrary;
-  fields: WikiLibraryField[];
-  rows: WikiLibraryRow[];
-}
-
-export async function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
-}
-````
-
 ## File: modules/source/application/index.ts
 ````typescript
 export * from "./dto/file.dto";
@@ -53674,72 +52015,6 @@ export interface RetentionPolicy {
   readonly legalHold: boolean;
   readonly purgeMode: "soft-delete" | "hard-delete";
   readonly updatedAtISO: string;
-}
-````
-
-## File: modules/source/domain/entities/wiki-library.types.ts
-````typescript
-/**
- * Module: source
- * Layer: domain/entities
- * Purpose: Wiki-style library entity — lightweight structured-data model
- *          used by the wiki interfaces during the transitional period.
- *          Lives in asset because libraries are an asset/database-resource concern.
- */
-
-export type WikiLibraryStatus = "active" | "archived";
-export type WikiLibraryFieldType = "title" | "text" | "number" | "select" | "relation";
-
-export interface WikiLibrary {
-  id: string;
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-  slug: string;
-  status: WikiLibraryStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WikiLibraryField {
-  id: string;
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required: boolean;
-  options?: string[];
-  createdAt: Date;
-}
-
-export interface WikiLibraryRow {
-  id: string;
-  libraryId: string;
-  values: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateWikiLibraryInput {
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-}
-
-export interface AddWikiLibraryFieldInput {
-  accountId: string;
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required?: boolean;
-  options?: string[];
-}
-
-export interface CreateWikiLibraryRowInput {
-  accountId: string;
-  libraryId: string;
-  values: Record<string, unknown>;
 }
 ````
 
@@ -55152,6 +53427,411 @@ function DraggableRow({ rowId, children }: DraggableRowProps) {
 }
 ````
 
+## File: modules/source/interfaces/components/SourceDocumentsView.tsx
+````typescript
+"use client";
+
+import { useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  FileUp,
+  Loader2,
+  Pencil,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/app/providers/app-provider";
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
+import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
+
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const WATCH_PATH = "uploads/";
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+
+function StatusBadge({ doc }: { doc: SourceLiveDocument }) {
+  if (doc.status === "completed") {
+    return (
+      <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
+        <CheckCircle2 className="size-3" /> ✓ ready
+      </Badge>
+    );
+  }
+  if (doc.status === "processing") {
+    return (
+      <Badge variant="outline" className="gap-1 border-blue-500/40 bg-blue-500/10 text-blue-700">
+        <Loader2 className="size-3 animate-spin" /> ⏳ processing
+      </Badge>
+    );
+  }
+  if (doc.status === "error") {
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 border-destructive/40 bg-destructive/10 text-destructive"
+        title={doc.errorMessage || "未知錯誤"}
+      >
+        <XCircle className="size-3" /> ✗ error
+      </Badge>
+    );
+  }
+  return <Badge variant="outline">{doc.status || "unknown"}</Badge>;
+}
+
+function RagBadge({ doc }: { doc: SourceLiveDocument }) {
+  if (doc.ragStatus === "ready") {
+    return (
+      <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
+        <CheckCircle2 className="size-3" /> indexed
+      </Badge>
+    );
+  }
+  if (doc.ragStatus === "error") {
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 border-destructive/40 bg-destructive/10 text-destructive"
+        title={doc.ragError || "未知錯誤"}
+      >
+        <XCircle className="size-3" /> rag error
+      </Badge>
+    );
+  }
+  if (doc.ragStatus) {
+    return (
+      <Badge variant="outline" className="gap-1 border-blue-500/40 bg-blue-500/10 text-blue-700">
+        <Loader2 className="size-3 animate-spin" /> {doc.ragStatus}
+      </Badge>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">-</span>;
+}
+
+function formatDate(value: Date | null): string {
+  if (!value) return "-";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+interface SourceDocumentsViewProps {
+  readonly workspaceId?: string;
+}
+
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const { docs, loading, pendingDocs, addPending } = useDocumentsSnapshot(
+    activeAccountId,
+    effectiveWorkspaceId || undefined,
+  );
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const allDocs = [
+    ...pendingDocs,
+    ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id)),
+  ].sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+  function handleFileChange(file: File | null) {
+    if (!file) { setSelectedFile(null); return; }
+    if (!(file.type in ACCEPTED_MIME)) {
+      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
+
+    const ext = selectedFile.name.includes(".") ? `.${selectedFile.name.split(".").pop() ?? ""}` : "";
+    const docId = crypto.randomUUID();
+    const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
+
+    setUploading(true);
+    addPending({
+      id: docId,
+      filename: selectedFile.name,
+      workspaceId: effectiveWorkspaceId,
+      sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`,
+      jsonGcsUri: "",
+      pageCount: 0,
+      status: "processing",
+      ragStatus: "",
+      uploadedAt: new Date(),
+      errorMessage: "",
+      ragError: "",
+      isClientPending: true,
+    });
+
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const customMetadata: Record<string, string> = {
+        account_id: activeAccountId,
+        filename: selectedFile.name,
+        original_filename: selectedFile.name,
+        display_name: selectedFile.name,
+      };
+      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
+      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
+      toast.success("上傳成功，背景已開始解析與入庫");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      console.error(error);
+      toast.error("上傳失敗");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(doc: SourceLiveDocument) {
+    if (!activeAccountId) return;
+    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
+
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      for (const uri of [doc.sourceGcsUri, doc.jsonGcsUri].filter(Boolean)) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
+      }
+      const db = getFirebaseFirestore();
+      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
+      toast.success("文件已刪除");
+    } catch (error) {
+      console.error(error);
+      toast.error("刪除失敗");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleRename(doc: SourceLiveDocument) {
+    if (!activeAccountId) return;
+    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
+    if (!nextName || nextName === doc.filename) return;
+
+    setRenamingId(doc.id);
+    try {
+      const db = getFirebaseFirestore();
+      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
+        title: nextName,
+        "source.filename": nextName,
+        "metadata.filename": nextName,
+        updatedAt: firestoreApi.serverTimestamp(),
+      });
+      toast.success("文件名稱已更新");
+    } catch (error) {
+      console.error(error);
+      toast.error("更名失敗");
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+  async function handleViewOriginal(doc: SourceLiveDocument) {
+    if (!doc.sourceGcsUri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error(error);
+      toast.error("無法開啟原始檔");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Upload dropzone */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload File</CardTitle>
+          <CardDescription>
+            {effectiveWorkspaceId
+              ? `拖曳或選擇檔案上傳到 workspace：${effectiveWorkspaceId}`
+              : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileChange(e.dataTransfer.files?.[0] ?? null); }}
+            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
+              dragging
+                ? "border-primary/60 bg-primary/10"
+                : "border-border/70 bg-muted/10 hover:border-primary/40"
+            }`}
+          >
+            <FileUp className="size-7 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-sm font-medium">
+                {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+              </p>
+              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={Object.keys(ACCEPTED_MIME).join(",")}
+              className="sr-only"
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => void handleUpload()}
+              disabled={uploading || !selectedFile || !activeAccountId}
+            >
+              {uploading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {uploading ? "上傳中..." : "上傳並啟動解析"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+              disabled={uploading}
+            >
+              清除
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Document list */}
+      <Card>
+        <CardHeader>
+          <CardTitle>文件列表</CardTitle>
+          <CardDescription>
+            {effectiveWorkspaceId
+              ? `workspace: ${effectiveWorkspaceId} — ${allDocs.length} 筆`
+              : `account 全覽 — ${allDocs.length} 筆`}
+            （即時更新）
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && allDocs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      讀取中...
+                    </td>
+                  </tr>
+                ) : allDocs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      目前沒有文件，試著上傳第一份檔案 ↑
+                    </td>
+                  </tr>
+                ) : (
+                  allDocs.map((doc) => (
+                    <tr key={doc.id} className="border-b border-border/40 last:border-0">
+                      <td className="px-3 py-2.5">
+                        <p className="truncate font-medium text-foreground" title={doc.filename}>
+                          {doc.filename}
+                          {doc.isClientPending && (
+                            <span className="ml-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700">
+                              pending
+                            </span>
+                          )}
+                        </p>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <StatusBadge doc={doc} />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <RagBadge doc={doc} />
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                        {formatDate(doc.uploadedAt)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void handleViewOriginal(doc)}
+                            disabled={!doc.sourceGcsUri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleRename(doc)}
+                            disabled={renamingId === doc.id}
+                            title="更名"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            {renamingId === doc.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Pencil className="size-3.5" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(doc)}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
 ## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
 ````typescript
 "use client";
@@ -55895,143 +54575,6 @@ npm run build   # TypeScript type-check
 ## File: modules/source/index.ts
 ````typescript
 export * from "./api";
-````
-
-## File: modules/source/README.md
-````markdown
-# source — Source Document & File Layer
-
-> **開發狀態**：🚧 Developing — 積極開發中
-> **Domain Type**：Supporting Domain（支援域）
-
-`modules/source` 負責知識平台的**文件來源管理**，包含檔案上傳生命週期、版本快照、保留政策與 RAG 攝入文件的登記。是知識攝入管線（RAG ingestion）的文件入口，也是工作區檔案存取的業務邊界。
-
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
-- 上傳 UX 屬於 Next.js 責任；Embedding 生成委派給 `py_fn/` Python worker
-
----
-
-## 職責（Responsibilities）
-
-| 能力 | 說明 |
-|------|------|
-| 檔案上傳初始化 | `upload-init`：建立 File 聚合根、產生上傳簽名 URL |
-| 上傳完成確認 | `upload-complete`：標記上傳完成、觸發 ingestion handoff |
-| RAG 文件登記 | 登記已完成上傳的文件進入 RAG 管線（RagDocument） |
-| 檔案列表查詢 | 依工作區範圍列出檔案（list-workspace-files） |
-| Wiki 知識庫管理 | 管理 WikiLibrary（知識庫文件集合） |
-| 授權快照 | 保存 PermissionSnapshot 以確保授權一致性 |
-| 保留政策 | 管理 RetentionPolicy（保留期限、刪除規則） |
-| 稽核記錄 | 記錄檔案操作稽核軌跡（AuditRecord） |
-
----
-
-## 聚合根（Aggregate Roots）
-
-| Aggregate | 說明 |
-|-----------|------|
-| `SourceDocument` | 核心檔案聚合根（File.ts），管理上傳生命週期與版本 |
-| `WikiLibrary` | 知識庫集合，組織 RAG 攝入文件群組 |
-
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 來源文件 | SourceDocument | 上傳的原始文件（對應 File.ts 聚合根） |
-| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
-| 檔案版本 | FileVersion | 文件的版本快照 |
-| RAG 文件 | RagDocument | 已準備進入 RAG 管線的文件記錄 |
-| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照 |
-| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
-| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
-| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
-| 演員上下文 | ActorContext | 操作者身分與授權上下文（ActorContextPort） |
-
----
-
-## 領域事件（Domain Events）
-
-| 事件 | 觸發條件 |
-|------|----------|
-| `source.upload_initiated` | 上傳初始化完成、簽名 URL 已產生時 |
-| `source.upload_completed` | 上傳確認完成時 |
-| `source.rag_document_registered` | RAG 文件成功登記進入攝入管線時 |
-| `source.file_archived` | 檔案被封存時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`（ActorContext 身分驗證）、`workspace/api`（工作區範圍）、`organization/api`（組織政策）
-- **下游（被依賴）**：`ai/api`（觸發 IngestionJob）、`knowledge/api`（文件關聯通知）
-
----
-
-## 目錄結構
-
-```
-modules/source/
-├── api/                      # 公開 API 邊界
-│   └── index.ts
-├── application/              # Use Cases & DTOs
-│   ├── dto/
-│   │   ├── file.dto.ts
-│   │   └── rag-document.dto.ts
-│   └── use-cases/
-│       ├── upload-init-file.use-case.ts
-│       ├── upload-complete-file.use-case.ts
-│       ├── register-uploaded-rag-document.use-case.ts
-│       ├── list-workspace-files.use-case.ts
-│       └── wiki-libraries.use-case.ts
-├── domain/                   # Aggregates, Ports, Repositories, Services
-│   ├── entities/
-│   │   ├── File.ts           # SourceDocument 聚合根
-│   │   ├── FileVersion.ts
-│   │   ├── AuditRecord.ts
-│   │   ├── PermissionSnapshot.ts
-│   │   ├── RetentionPolicy.ts
-│   │   └── wiki-library.types.ts
-│   ├── ports/
-│   │   ├── ActorContextPort.ts
-│   │   ├── OrganizationPolicyPort.ts
-│   │   └── WorkspaceGrantPort.ts
-│   ├── repositories/
-│   │   ├── FileRepository.ts
-│   │   ├── RagDocumentRepository.ts
-│   │   └── WikiLibraryRepository.ts
-│   └── services/
-│       ├── complete-upload-file.ts
-│       └── resolve-file-organization-id.ts
-├── infrastructure/           # Firebase 適配器
-│   └── firebase/
-│       ├── FirebaseFileRepository.ts
-│       └── FirebaseRagDocumentRepository.ts
-├── interfaces/               # UI 元件、hooks、server actions、queries
-│   ├── _actions/
-│   │   └── file.actions.ts
-│   ├── components/
-│   │   ├── WorkspaceFilesTab.tsx
-│   │   ├── SourceDocumentsView.tsx
-│   │   ├── LibrariesView.tsx
-│   │   └── LibraryTableView.tsx
-│   ├── hooks/
-│   │   └── useDocumentsSnapshot.ts
-│   └── queries/
-│       └── file.queries.ts
-└── index.ts
-```
-
----
-
-## 架構參考
-
-- 系統設計文件：`docs/architecture/domain-model.md`
-- 通用語言：`docs/architecture/ubiquitous-language.md`
-- 事件目錄：`docs/architecture/domain-events.md`
 ````
 
 ## File: modules/source/repositories.md
@@ -57349,75 +55892,6 @@ modules/wiki/
 
 ### Value Objects
 - 目前沒有獨立的 `domain/value-objects/*` 檔案。
-````
-
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-  WorkspacePersonnel,
-} from "../domain/entities/Workspace";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../interfaces/queries/workspace.queries";
-
-// ─── Wiki content-tree types (transitional — workspace-owned) ─────────────
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
-
-// ─── Wiki content-tree use-case (transitional) ────────────────────────────
-
-import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
-import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
-
-const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
-
-export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
-}
-
-// ─── Server actions (client-callable via Next.js action proxy) ──────────────
-
-export { createWorkspace } from "../interfaces/_actions/workspace.actions";
-
-// ─── UI components (cross-module public) ─────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
-
-// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
-
-export {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
 ````
 
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
@@ -60523,68 +58997,6 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 
 ````
 
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — modules/workspace
-
-## 模組定位
-
-`modules/workspace` 是 Knowledge Platform 的**通用域（Generic Domain）**，負責工作區管理、成員協作與知識結構樹。是知識內容的協作容器，連接 identity、organization 與各知識域。
-
-## 通用語言（Ubiquitous Language）
-
-在此模組內，**嚴格使用**以下術語：
-
-- `Workspace`（不是 Space、Room、Project）
-- `Member`（不是 User、Participant）
-- `Role`（不是 Permission、Access）
-- `WikiContentTree`（不是 Tree、PageTree、ContentTree）
-- `WorkspaceTab`（不是 Tab、Section、Panel）
-
-## 最重要邊界規則：循環依賴
-
-```typescript
-// ❌ 禁止：FirebaseWikiBetaWorkspaceRepository 不能 import workspace/api
-import { workspaceApi } from "@/modules/workspace/api"; // 循環依賴！
-
-// ✅ 正確：使用相對路徑直接 import
-import { FirebaseWorkspaceRepository } from "../FirebaseWorkspaceRepository";
-```
-
-## WorkspaceDetailScreen 整合規則
-
-```typescript
-// WorkspaceDetailScreen 的 Tasks tab 使用 WorkspaceFlowTab
-// WorkspaceFlowTab 接受 currentUserId prop
-<WorkspaceFlowTab currentUserId={accountId ?? "anonymous"} />
-
-// tabs 設定在 workspace-tabs.ts — "Tasks" 狀態為 🏗️ Midway
-```
-
-## 跨模組互動
-
-| 目標模組 | 互動方式 | 說明 |
-|----------|----------|------|
-| `identity/api` | API 呼叫 | 驗證使用者身分 |
-| `organization/api` | API 呼叫 | 驗證組織範圍 |
-| `knowledge/api` | 提供範圍 | 知識頁面的工作區範圍 |
-| `workspace-flow/api` | 組合使用 | Tasks tab（WorkspaceFlowTab） |
-| `workspace-audit/api` | 組合使用 | Audit 查詢 |
-
-## 導航規則
-
-- `/dashboard` → 重定向到 `/workspace`
-- `/settings` → 重定向到 `/workspace`
-- MVP 導航以 workspace 為主
-
-## 驗證命令
-
-```bash
-npm run lint    # 0 errors expected
-npm run build   # TypeScript type-check
-```
-````
-
 ## File: modules/workspace/aggregates.md
 ````markdown
 # workspace — Aggregates
@@ -60782,96 +59194,6 @@ export {
   subscribeToWorkspacesForAccount,
 } from "./interfaces/queries/workspace.queries";
 export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";
-````
-
-## File: modules/workspace/README.md
-````markdown
-# workspace — Workspace Management Layer
-
-> **開發狀態**：✅ Done — 核心功能穩定
-> **Domain Type**：Generic Domain（通用域）
-
-`modules/workspace` 負責工作區（Workspace）的建立、成員協作、設定管理與知識結構樹（WikiContentTree）。是知識內容的協作容器，連接 identity、organization 與 knowledge 等核心域。
-
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- `FirebaseWikiBetaWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
-
----
-
-## 職責（Responsibilities）
-
-| 能力 | 說明 |
-|------|------|
-| 工作區管理 | 建立、更新、封存工作區（Workspace） |
-| 成員管理 | 邀請成員、管理工作區角色 |
-| 知識結構樹 | 維護 WikiContentTree（頁面階層結構） |
-| 工作區標籤 | 管理工作區的 Tab 設定（workspace-tabs.ts） |
-| 多模組整合 | 整合 Tasks（workspace-flow）、Wiki、Audit 等 tab |
-
----
-
-## 聚合根（Aggregate Roots）
-
-| Aggregate | 說明 |
-|-----------|------|
-| `Workspace` | 工作區聚合根，包含成員列表、設定與知識結構 |
-| `Member` | 工作區成員實體（含角色） |
-| `Role` | 工作區角色定義 |
-
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 工作區 | Workspace | 知識內容的協作容器 |
-| 成員 | Member | 工作區的協作成員 |
-| 角色 | Role | 成員在工作區的角色 |
-| Wiki 內容樹 | WikiContentTree | 工作區下的 Wiki 頁面階層結構 |
-| 工作區標籤 | WorkspaceTab | 工作區 UI 中的功能分頁（Overview / Wiki / Tasks / ...） |
-
----
-
-## 重要架構限制
-
-- `FirebaseWikiBetaWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
-- 使用相對路徑直接 import `FirebaseWorkspaceRepository` 作為替代
-
----
-
-## 導航規則
-
-- Dashboard (/dashboard) 和 Personal Settings (/settings) 已重定向到 /workspace
-- MVP 導航以 workspace 為主
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`、`organization/api`
-- **下游（被依賴）**：`knowledge/api`、`wiki/api`、`notebook/api`、`workspace-flow/api`、`workspace-audit/api`
-
----
-
-## 目錄結構
-
-```
-modules/workspace/
-├── api/                  # 公開 API 邊界（index.ts）
-├── application/          # Use Cases
-├── domain/               # Aggregates, Entities（含 WikiContentTree）
-│   └── entities/
-│       └── WikiContentTree.ts
-├── infrastructure/       # Firebase 適配器
-│   └── firebase/
-│       └── FirebaseWikiBetaWorkspaceRepository.ts
-├── interfaces/           # UI 元件（WorkspaceDetailScreen、WorkspaceTabs）
-│   ├── components/
-│   │   └── WorkspaceDetailScreen.tsx
-│   └── workspace-tabs.ts
-└── index.ts
-```
 ````
 
 ## File: modules/workspace/repositories.md
@@ -86943,85 +85265,794 @@ export default {
 }
 ````
 
-## File: modules/notebook/api/index.ts
-````typescript
-/**
- * modules/notebook — public API barrel.
- */
+## File: docs/ddd/notebook/repositories.md
+````markdown
+# notebook — Repositories
 
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
 
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../domain/entities/AgentGeneration";
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
 
-export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+## Domain Repository Ports
 
-export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";
+- `domain/repositories/NotebookRepository.ts`
+- `domain/repositories/RagGenerationRepository.ts`
+- `domain/repositories/RagRetrievalRepository.ts`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
+- `infrastructure/firebase/index.ts`
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
-## File: modules/notebook/application/use-cases/generate-agent-response.use-case.ts
+## File: docs/ddd/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+## 模組定位
+
+`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceMember` | Member、Participant |
+| `WikiContentTree` | PageTree、ContentHierarchy |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 Workspace 上下文中） |
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceApi } from "@/modules/workspace/api";
+import type { WorkspaceDTO } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+```typescript
+// workspace/infrastructure 禁止 import workspace/api（循環依賴）
+import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
+```
+
+## 循環依賴守衛
+
+`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
+## File: docs/ddd/workspace/README.md
+````markdown
+# workspace — 工作區上下文
+
+> **Domain Type:** Generic Subdomain
+> **模組路徑:** `modules/workspace/`
+> **開發狀態:** ✅ Done — 穩定
+
+## 定位
+
+`workspace` 是 Xuanwu 平台的**協作容器**，所有知識內容、任務、稽核記錄都歸屬於特定工作區。它也持有 Wiki 內容樹結構（WikiContentTree）與工作區成員管理。
+
+## 職責
+
+| 能力 | 說明 |
+|------|------|
+| Workspace CRUD | 建立、更新、歸檔工作區 |
+| 成員管理 | WorkspaceMember 邀請、移除、角色變更 |
+| Wiki 內容樹 | 維護 WikiContentTree（頁面的樹狀層級結構） |
+| Wiki 工作區關聯 | 管理 WikiWorkspaceRepository（Wiki 頁面隸屬關係） |
+| 子模組組合 | 在 WorkspaceDetailScreen 組合 workspace-{flow,audit,feed,scheduling} tabs |
+
+## 核心概念
+
+- **`Workspace`** — 協作容器（accountId、name、status）
+- **`WorkspaceMember`** — 成員在工作區中的參與記錄
+- **`WikiContentTree`** — 工作區 Wiki 頁面的樹狀層級結構
+
+## 特殊邊界規則
+
+`workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
+
+## 詳細文件
+
+| 文件 | 說明 |
+|------|------|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | Workspace 聚合根設計 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+````
+
+## File: modules/knowledge/api/index.ts
 ````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+// ── Wiki page types (owned by knowledge domain) ────────────────────────────
+export type {
+  WikiPage,
+  WikiPageStatus,
+  WikiPageTreeNode,
+  CreateWikiPageInput,
+  RenameWikiPageInput,
+  MoveWikiPageInput,
+} from "../domain/entities/wiki-page.types";
+
+// ── Wiki page use-cases ────────────────────────────────────────────────────
+import { FirebaseWikiPageRepository } from "../infrastructure/repositories/firebase-wiki-page.repository";
+import {
+  createWikiPage as _createWikiPage,
+  listWikiPagesTree as _listWikiPagesTree,
+  moveWikiPage as _moveWikiPage,
+  renameWikiPage as _renameWikiPage,
+} from "../application/use-cases/wiki-pages.use-case";
+import type {
+  CreateWikiPageInput,
+  MoveWikiPageInput,
+  RenameWikiPageInput,
+  WikiPage,
+  WikiPageTreeNode,
+} from "../domain/entities/wiki-page.types";
+
+const _defaultPageRepository = new FirebaseWikiPageRepository();
+
+export function createWikiPage(input: CreateWikiPageInput): Promise<WikiPage> {
+  return _createWikiPage(input, _defaultPageRepository);
+}
+
+export function listWikiPagesTree(accountId: string, workspaceId?: string): Promise<WikiPageTreeNode[]> {
+  return _listWikiPagesTree(accountId, workspaceId, _defaultPageRepository);
+}
+
+export function moveWikiPage(input: MoveWikiPageInput): Promise<WikiPage> {
+  return _moveWikiPage(input, _defaultPageRepository);
+}
+
+export function renameWikiPage(input: RenameWikiPageInput): Promise<WikiPage> {
+  return _renameWikiPage(input, _defaultPageRepository);
+}
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+export { PagesView } from "../interfaces/components/PagesView";
+export { PagesDnDView } from "../interfaces/components/PagesDnDView";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+````
+
+## File: modules/knowledge/application/use-cases/wiki-pages.use-case.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Wiki-style page use-cases — create, rename, move, list tree.
+ *          Lightweight direct-function API for the knowledge module's
+ *          wiki-facing page management surface.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
+
+import type {
+  CreateWikiPageInput,
+  MoveWikiPageInput,
+  RenameWikiPageInput,
+  WikiPage,
+  WikiPageTreeNode,
+} from "../../domain/entities/wiki-page.types";
+import type { WikiPageRepository } from "../../domain/repositories/WikiPageRepository";
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new Error("title is required");
+  }
+  return trimmed.slice(0, 120);
+}
+
+function sameParent(a: WikiPage, parentPageId: string | null): boolean {
+  return (a.parentPageId ?? null) === parentPageId;
+}
+
+function ensureUniqueSlug(baseSlug: string, siblingPages: WikiPage[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
+  const existing = new Set(siblingPages.map((page) => page.slug));
+
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this page title");
+}
+
+function toTree(pages: WikiPage[]): WikiPageTreeNode[] {
+  const nodeById = new Map<string, WikiPageTreeNode>();
+  for (const page of pages) {
+    nodeById.set(page.id, { ...page, children: [] });
+  }
+
+  const roots: WikiPageTreeNode[] = [];
+  for (const page of pages) {
+    const node = nodeById.get(page.id);
+    if (!node) continue;
+
+    if (!page.parentPageId) {
+      roots.push(node);
+      continue;
+    }
+
+    const parent = nodeById.get(page.parentPageId);
+    if (!parent) {
+      roots.push(node);
+      continue;
+    }
+    parent.children.push(node);
+  }
+
+  const sortRecursively = (nodes: WikiPageTreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+      return a.title.localeCompare(b.title, "zh-Hant");
+    });
+    for (const node of nodes) {
+      sortRecursively(node.children);
+    }
+  };
+
+  sortRecursively(roots);
+  return roots;
+}
+
+function assertNoCycle(pages: WikiPage[], pageId: string, targetParentPageId: string | null): void {
+  if (!targetParentPageId) {
+    return;
+  }
+  if (pageId === targetParentPageId) {
+    throw new Error("page cannot be moved under itself");
+  }
+
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  let current: string | null = targetParentPageId;
+  while (current) {
+    if (current === pageId) {
+      throw new Error("invalid move: target parent is a descendant of page");
+    }
+    current = byId.get(current)?.parentPageId ?? null;
+  }
+}
+
+export async function listWikiPagesTree(
+  accountId: string,
+  workspaceId: string | undefined,
+  pageRepository: WikiPageRepository,
+): Promise<WikiPageTreeNode[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const allPages = await pageRepository.listByAccountId(accountId);
+  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
+  return toTree(pages.filter((page) => page.status === "active"));
+}
+
+export async function createWikiPage(
+  input: CreateWikiPageInput,
+  pageRepository: WikiPageRepository,
+): Promise<WikiPage> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const title = normalizeTitle(input.title);
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const parentPageId = input.parentPageId ?? null;
+
+  if (parentPageId) {
+    const parent = pages.find((page) => page.id === parentPageId);
+    if (!parent) {
+      throw new Error("parent page not found");
+    }
+  }
+
+  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
+  const rawSlug = deriveSlugCandidate(title);
+  const slug = ensureUniqueSlug(rawSlug, siblingPages);
+  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+
+  const now = new Date();
+  const created: WikiPage = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title,
+    slug,
+    parentPageId,
+    order,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await pageRepository.create(created);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "knowledge.page_created",
+    aggregateType: "content-page",
+    aggregateId: created.id,
+    payload: {
+      accountId: created.accountId,
+      workspaceId: created.workspaceId,
+      parentPageId: created.parentPageId,
+      slug: created.slug,
+    },
+  });
+
+  return created;
+}
+
+export async function renameWikiPage(
+  input: RenameWikiPageInput,
+  pageRepository: WikiPageRepository,
+): Promise<WikiPage> {
+  const title = normalizeTitle(input.title);
+  const existing = await pageRepository.findById(input.accountId, input.pageId);
+  if (!existing) {
+    throw new Error("page not found");
+  }
+
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
+  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
+
+  const updated: WikiPage = {
+    ...existing,
+    title,
+    slug,
+    updatedAt: new Date(),
+  };
+
+  await pageRepository.update(updated);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "knowledge.page_renamed",
+    aggregateType: "content-page",
+    aggregateId: updated.id,
+    payload: {
+      accountId: updated.accountId,
+      title: updated.title,
+      slug: updated.slug,
+    },
+  });
+
+  return updated;
+}
+
+export async function moveWikiPage(
+  input: MoveWikiPageInput,
+  pageRepository: WikiPageRepository,
+): Promise<WikiPage> {
+  const existing = await pageRepository.findById(input.accountId, input.pageId);
+  if (!existing) {
+    throw new Error("page not found");
+  }
+
+  const pages = await pageRepository.listByAccountId(input.accountId);
+  const targetParentPageId = input.targetParentPageId ?? null;
+  assertNoCycle(pages, existing.id, targetParentPageId);
+
+  if (targetParentPageId) {
+    const targetParent = pages.find((page) => page.id === targetParentPageId);
+    if (!targetParent) {
+      throw new Error("target parent page not found");
+    }
+  }
+
+  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
+  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+
+  const moved: WikiPage = {
+    ...existing,
+    parentPageId: targetParentPageId,
+    order,
+    updatedAt: new Date(),
+  };
+
+  await pageRepository.update(moved);
+
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "knowledge.page_moved",
+    aggregateType: "content-page",
+    aggregateId: moved.id,
+    payload: {
+      accountId: moved.accountId,
+      fromParentPageId: existing.parentPageId,
+      toParentPageId: moved.parentPageId,
+    },
+  });
+
+  return moved;
+}
+````
+
+## File: modules/knowledge/domain/entities/wiki-page.types.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/entities
+ * Purpose: Wiki-style page entity — lightweight page model used by the
+ *          wiki interfaces.
+ *          Lives in knowledge because pages are a knowledge-domain concern.
+ */
+
+export type WikiPageStatus = "active" | "archived";
+
+export interface WikiPage {
+  id: string;
+  accountId: string;
+  workspaceId?: string;
+  title: string;
+  slug: string;
+  parentPageId: string | null;
+  order: number;
+  status: WikiPageStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface WikiPageTreeNode extends WikiPage {
+  children: WikiPageTreeNode[];
+}
+
+export interface CreateWikiPageInput {
+  accountId: string;
+  workspaceId?: string;
+  title: string;
+  parentPageId?: string | null;
+}
+
+export interface RenameWikiPageInput {
+  accountId: string;
+  pageId: string;
+  title: string;
+}
+
+export interface MoveWikiPageInput {
+  accountId: string;
+  pageId: string;
+  targetParentPageId?: string | null;
+}
+````
+
+## File: modules/notebook/api/server.ts
+````typescript
+/**
+ * modules/notebook — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring.
+ */
+
+export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
+export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
+````
+
+## File: modules/notebook/infrastructure/genkit/index.ts
+````typescript
+/**
+ * @module modules/notebook/infrastructure/genkit
+ */
+
+export {
+  agentClient,
+  createGenkitClient,
+  getConfiguredGenkitModel,
+  type GenkitClientOptions,
+} from "./client";
+export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
+export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
+````
+
+## File: modules/notebook/interfaces/_actions/notebook.actions.ts
+````typescript
+"use server";
+
 import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
+import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
+import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
+import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
+import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
+import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 
-export class GenerateNotebookResponseUseCase {
-  constructor(private readonly agentRepository: NotebookRepository) {}
+export async function generateNotebookResponse(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
+  return useCase.execute(input);
+}
 
-  async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
-    const prompt = input.prompt.trim();
-    if (!prompt) {
-      return {
-        ok: false,
-        error: {
-          code: "AGENT_PROMPT_REQUIRED",
-          message: "Agent prompt is required.",
-        },
-      };
-    }
-
-    return this.agentRepository.generateResponse({
-      ...input,
-      prompt,
-      ...(typeof input.system === "string" ? { system: input.system.trim() } : {}),
-    });
-  }
+export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+  const useCase = new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalRepository(),
+    new GenkitRagGenerationRepository(),
+  );
+  return useCase.execute(input);
 }
 ````
 
-## File: modules/notebook/domain/index.ts
-````typescript
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "./entities/AgentGeneration";
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "./entities/RagQuery";
-export type { NotebookRepository } from "./repositories/NotebookRepository";
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "./repositories/RagGenerationRepository";
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "./repositories/RagRetrievalRepository";
+## File: modules/notebook/AGENT.md
+````markdown
+# AGENT.md — modules/notebook
+
+## 模組定位
+
+`modules/notebook` 是 Knowledge Platform 的**支援域（Supporting Domain）**，對應 NotebookLM 的 AI 筆記與對話管理層。負責筆記本生命週期、多輪對話、摘要與洞察管理。AI 推理能力委派給 `ai/api`，RAG 檢索委派給 `search/api`。
+
+## 通用語言（Ubiquitous Language）
+
+在此模組內，**嚴格使用**以下術語：
+
+- `Notebook`（不是 Note、Document）
+- `Thread`（不是 Conversation、History）
+- `Message`（不是 Message 以外的術語，role 為 `user` | `assistant`）
+- `ChatSession`（不是 Session、Dialog）
+- `Summary`（不是 Abstract、Brief）
+- `AgentGeneration`（不是 AIResponse、LLMOutput）
+- `Citation`（不是 Reference、Source）
+
+## 邊界規則
+
+### ✅ 允許
+
+```typescript
+// 其他模組透過 api/ 存取
+import { notebookFacade } from "@/modules/notebook/api";
+import type { NotebookDTO, ThreadDTO } from "@/modules/notebook/api";
+```
+
+### ❌ 禁止
+
+```typescript
+// 禁止直接 import 內部層
+import { Thread } from "@/modules/notebook/domain/entities/thread";
+import { GenkitNotebookRepository } from "@/modules/notebook/infrastructure/genkit";
+```
+
+## 重要架構規則
+
+- **Server Action 不能從 `@/modules/notebook/api` barrel 在 client component 中 import** — 會打包 Genkit/gRPC server-only 模組。應在 `app/` 的本地 `_actions.ts` 使用 `"use server"` 包裝。
+- AI 生成邏輯不在此模組內直接實作，透過 `ai/api` 委派。
+
+## 跨模組互動
+
+| 目標模組 | 互動方式 | 說明 |
+|----------|----------|------|
+| `ai/api` | API 呼叫 | 委派 LLM 推理、Embedding 生成 |
+| `search/api` | API 呼叫 | 委派 RAG 向量檢索 |
+| `knowledge/api` | 事件訂閱 | 監聽頁面更新以刷新摘要 |
+| `identity/api` | API 呼叫 | 驗證使用者身分 |
+| `workspace/api` | API 呼叫 | 驗證工作區範圍 |
+
+## AI 整合安全規則
+
+- Genkit / gRPC 適配器**只能**存在於 `infrastructure/genkit/` 下
+- Server Action 必須有獨立的本地 `_actions.ts`，不透過 barrel export
+
+```typescript
+// app/(shell)/ai-chat/_actions.ts — 正確方式
+"use server";
+import { generateNotebookResponse } from "@/modules/notebook/application/use-cases/...";
+```
+
+## 驗證命令
+
+```bash
+npm run lint    # 0 errors expected
+npm run build   # TypeScript type-check
+```
+````
+
+## File: modules/notebook/README.md
+````markdown
+# notebook — AI Notebook & Chat Layer
+
+> **開發狀態**：🚧 Developing — 積極開發中
+> **Domain Type**：Supporting Domain（支援域）
+
+`modules/notebook` 對應 **NotebookLM** 的核心職能，負責 AI 筆記、對話管理、摘要生成與洞察提取。提供使用者與 AI 進行多輪對話的聚合根與生命週期管理。
+
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+- AI 生成操作透過 `ai/api` 委派執行
+
+---
+
+## 職責（Responsibilities）
+
+| 能力 | 說明 |
+|------|------|
+| 筆記管理 | 建立、管理 AI 輔助筆記本（Notebook） |
+| 對話管理 | 管理多輪對話執行緒（ChatSession / Thread） |
+| 摘要生成 | 觸發知識摘要（Summary）並保存結果 |
+| 洞察提取 | 從知識內容提取 Insight，生成引用（Citation） |
+| 消息歷史 | 維護 Thread 中的 Message 列表 |
+
+---
+
+## 聚合根（Aggregate Roots）
+
+| Aggregate | 說明 |
+|-----------|------|
+| `Notebook` | AI 筆記本，包含多個 Source 和 ChatSession |
+| `ChatSession` | 一段多輪 AI 對話會話 |
+| `Summary` | 從知識內容生成的摘要快照 |
+
+---
+
+## 通用語言（Ubiquitous Language）
+
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 筆記本 | Notebook | AI 筆記本聚合根，包含 Sources 和 Sessions |
+| 對話執行緒 | Thread | 一段多輪對話的 Message 集合 |
+| 消息 | Message | Thread 中的單一對話單元（role: user / assistant） |
+| 對話會話 | ChatSession | 使用者與 AI 的一次對話實例 |
+| 摘要 | Summary | AI 生成的知識摘要文本 |
+| 洞察 | Insight | AI 從知識中提取的關鍵觀點 |
+| 引用 | Citation | 摘要或洞察的知識來源參考 |
+| 代理生成 | AgentGeneration | 一次 AI 代理的完整輸入/輸出記錄 |
+
+---
+
+## 領域事件（Domain Events）
+
+| 事件 | 觸發條件 |
+|------|----------|
+| `notebook.created` | 新筆記本建立時 |
+| `notebook.session_started` | 新對話會話開始時 |
+| `notebook.summary_generated` | 摘要生成完成時 |
+| `notebook.message_appended` | 新消息加入 Thread 時 |
+| `notebook.insight_extracted` | 洞察提取完成時 |
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`、`workspace/api`、`ai/api`（LLM 推理）、`search/api`（RAG 檢索）
+- **下游（被依賴）**：`workspace/api`（工作區 Notebook tab）
+
+---
+
+## 目錄結構
+
+```
+modules/notebook/
+├── api/                  # 公開 API 邊界（contracts.ts, facade.ts, index.ts）
+├── application/          # Use Cases
+│   └── use-cases/
+├── domain/               # Aggregates, Entities, Value Objects, Events, Repositories
+│   ├── entities/         # AgentGeneration.ts, Thread.ts, Message.ts, RagQuery.ts
+│   ├── repositories/     # RagGenerationRepository, RagRetrievalRepository
+│   └── value-objects/
+├── infrastructure/       # Genkit / Firebase 適配器
+│   ├── firebase/         # FirebaseRagRetrievalRepository
+│   └── genkit/           # GenkitNotebookRepository
+├── interfaces/           # UI 元件、hooks、server actions
+│   └── _actions/         # notebook.actions.ts
+└── index.ts
+```
+
+---
+
+## 架構參考
+
+- 系統設計文件：`docs/architecture/ai-domain.md`
+- 通用語言：`docs/architecture/ubiquitous-language.md`
 ````
 
 ## File: modules/notebook/repositories.md
@@ -87055,4 +86086,971 @@ export type {
 
 - `../../docs/ddd/notebook/repositories.md`
 - `./application-services.md`
+````
+
+## File: modules/search/api/index.ts
+````typescript
+/**
+ * modules/search — public API barrel.
+ *
+ * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
+ * Other modules MUST import from here only.
+ */
+
+export type {
+  IVectorStore,
+  VectorDocument,
+  VectorSearchResult,
+} from "../domain/ports/vector-store";
+
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "../domain/entities/RagQuery";
+
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "../domain/repositories/RagRetrievalRepository";
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "../domain/repositories/RagGenerationRepository";
+
+// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
+export type {
+  RagQueryFeedback,
+  RagFeedbackRating,
+  SubmitRagQueryFeedbackInput,
+} from "../domain/entities/RagQueryFeedback";
+
+export type { RagQueryFeedbackRepository } from "../domain/repositories/RagQueryFeedbackRepository";
+
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
+
+// ── Wiki RAG types (owned by search domain) ────────────────────────────────
+export type {
+  WikiCitation,
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../domain/entities/WikiRagTypes";
+
+// ── Wiki RAG use-cases ─────────────────────────────────────────────────────
+import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
+import {
+  runWikiRagQuery as _runWikiRagQuery,
+  reindexWikiDocument as _reindexWikiDocument,
+  listWikiParsedDocuments as _listWikiParsedDocuments,
+} from "../application/use-cases/wiki-rag.use-case";
+import type {
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../domain/entities/WikiRagTypes";
+
+const _defaultContentRepository = new FirebaseWikiContentRepository();
+
+export function runWikiRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<WikiRagQueryResult> {
+  return _runWikiRagQuery(query, accountId, workspaceId, topK, options, _defaultContentRepository);
+}
+
+export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
+  return _reindexWikiDocument(input, _defaultContentRepository);
+}
+
+export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
+  return _listWikiParsedDocuments(accountId, limitCount, _defaultContentRepository);
+}
+````
+
+## File: modules/search/application/use-cases/wiki-rag.use-case.ts
+````typescript
+/**
+ * Module: search
+ * Layer: application/use-cases
+ * Purpose: Wiki-style RAG use-cases — run query, reindex document, list documents.
+ *          Thin delegation to the FirebaseWikiContentRepository for the
+ *          search module's public wiki-facing query surface.
+ */
+
+import type { WikiContentRepository } from "../../domain/repositories/WikiContentRepository";
+import type {
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../../domain/entities/WikiRagTypes";
+
+export async function runWikiRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: {
+    taxonomyFilters?: string[];
+    maxAgeDays?: number;
+    requireReady?: boolean;
+  } = {},
+  repository: WikiContentRepository,
+): Promise<WikiRagQueryResult> {
+  return repository.runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export async function reindexWikiDocument(
+  input: WikiReindexInput,
+  repository: WikiContentRepository,
+): Promise<void> {
+  await repository.reindexDocument(input);
+}
+
+export async function listWikiParsedDocuments(
+  accountId: string,
+  limitCount = 20,
+  repository: WikiContentRepository,
+): Promise<WikiParsedDocument[]> {
+  return repository.listParsedDocuments(accountId, limitCount);
+}
+````
+
+## File: modules/search/domain/entities/WikiRagTypes.ts
+````typescript
+/**
+ * Module: search
+ * Layer: domain/entities
+ * Purpose: Wiki-style RAG document and query result types — the
+ *          lightweight RAG interface types used by the wiki UI components.
+ *          Lives in search because RAG query/answer is a search-domain concern.
+ */
+
+export interface WikiCitation {
+  provider?: "vector" | "search";
+  chunk_id?: string;
+  doc_id?: string;
+  filename?: string;
+  json_gcs_uri?: string;
+  search_id?: string;
+  score?: number;
+  text?: string;
+  account_id?: string;
+  workspace_id?: string;
+  taxonomy?: string;
+  processing_status?: string;
+  indexed_at?: string;
+}
+
+export interface WikiRagQueryResult {
+  answer: string;
+  citations: WikiCitation[];
+  cache: "hit" | "miss";
+  vectorHits: number;
+  searchHits: number;
+  accountScope: string;
+  workspaceScope?: string;
+  taxonomyFilters?: string[];
+  maxAgeDays?: number;
+  requireReady?: boolean;
+}
+
+export interface WikiParsedDocument {
+  id: string;
+  filename: string;
+  workspaceId: string;
+  sourceGcsUri: string;
+  jsonGcsUri: string;
+  pageCount: number;
+  status: string;
+  ragStatus: string;
+  uploadedAt: Date | null;
+}
+
+export interface WikiReindexInput {
+  accountId: string;
+  docId: string;
+  jsonGcsUri: string;
+  sourceGcsUri: string;
+  filename: string;
+  pageCount: number;
+}
+````
+
+## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
+````typescript
+/**
+ * Module: source
+ * Layer: application/use-cases
+ * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API for the source module's wiki-facing library
+ *          management surface.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
+
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../../domain/entities/wiki-library.types";
+import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeName(name: string): string {
+  const value = name.trim();
+  if (!value) {
+    throw new Error("library name is required");
+  }
+  return value.slice(0, 80);
+}
+
+function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) {
+    throw new Error("field key is required");
+  }
+  return normalized.slice(0, 48);
+}
+
+function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((library) => library.slug));
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export async function listWikiLibraries(
+  accountId: string,
+  workspaceId: string | undefined,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((library) => library.status === "active");
+  if (!workspaceId) {
+    return activeLibraries;
+  }
+  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
+}
+
+export async function createWikiLibrary(
+  input: CreateWikiLibraryInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const name = normalizeName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiLibrary = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_created",
+    aggregateType: "asset-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiLibraryField(
+  input: AddWikiLibraryFieldInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((field) => field.key === key)) {
+    throw new Error(`field key "${key}" already exists`);
+  }
+
+  const field: WikiLibraryField = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_field_added",
+    aggregateType: "asset-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      fieldKey: field.key,
+      fieldType: field.type,
+    },
+  });
+
+  return field;
+}
+
+export async function createWikiLibraryRow(
+  input: CreateWikiLibraryRowInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  const requiredFields = fields.filter((field) => field.required);
+  for (const field of requiredFields) {
+    if (!(field.key in input.values)) {
+      throw new Error(`missing required field: ${field.key}`);
+    }
+  }
+
+  const now = new Date();
+  const row: WikiLibraryRow = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_row_created",
+    aggregateType: "asset-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      rowId: row.id,
+      fields: Object.keys(row.values),
+    },
+  });
+
+  return row;
+}
+
+export interface WikiLibrarySnapshot {
+  library: WikiLibrary;
+  fields: WikiLibraryField[];
+  rows: WikiLibraryRow[];
+}
+
+export async function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
+}
+````
+
+## File: modules/source/domain/entities/wiki-library.types.ts
+````typescript
+/**
+ * Module: source
+ * Layer: domain/entities
+ * Purpose: Wiki-style library entity — lightweight structured-data model
+ *          used by the wiki interfaces.
+ *          Lives in source because libraries are a source/database-resource concern.
+ */
+
+export type WikiLibraryStatus = "active" | "archived";
+export type WikiLibraryFieldType = "title" | "text" | "number" | "select" | "relation";
+
+export interface WikiLibrary {
+  id: string;
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  status: WikiLibraryStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface WikiLibraryField {
+  id: string;
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required: boolean;
+  options?: string[];
+  createdAt: Date;
+}
+
+export interface WikiLibraryRow {
+  id: string;
+  libraryId: string;
+  values: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateWikiLibraryInput {
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+}
+
+export interface AddWikiLibraryFieldInput {
+  accountId: string;
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface CreateWikiLibraryRowInput {
+  accountId: string;
+  libraryId: string;
+  values: Record<string, unknown>;
+}
+````
+
+## File: modules/source/README.md
+````markdown
+# source — Source Document & File Layer
+
+> **開發狀態**：🚧 Developing — 積極開發中
+> **Domain Type**：Supporting Domain（支援域）
+
+`modules/source` 負責知識平台的**文件來源管理**，包含檔案上傳生命週期、版本快照、保留政策與 RAG 攝入文件的登記。是知識攝入管線（RAG ingestion）的文件入口，也是工作區檔案存取的業務邊界。
+
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+- 上傳 UX 屬於 Next.js 責任；Embedding 生成委派給 `py_fn/` Python worker
+
+---
+
+## 職責（Responsibilities）
+
+| 能力 | 說明 |
+|------|------|
+| 檔案上傳初始化 | `upload-init`：建立 File 聚合根、產生上傳簽名 URL |
+| 上傳完成確認 | `upload-complete`：標記上傳完成、觸發 ingestion handoff |
+| RAG 文件登記 | 登記已完成上傳的文件進入 RAG 管線（RagDocument） |
+| 檔案列表查詢 | 依工作區範圍列出檔案（list-workspace-files） |
+| Wiki 知識庫管理 | 管理 WikiLibrary（知識庫文件集合） |
+| 授權快照 | 保存 PermissionSnapshot 以確保授權一致性 |
+| 保留政策 | 管理 RetentionPolicy（保留期限、刪除規則） |
+| 稽核記錄 | 記錄檔案操作稽核軌跡（AuditRecord） |
+
+---
+
+## 聚合根（Aggregate Roots）
+
+| Aggregate | 說明 |
+|-----------|------|
+| `SourceDocument` | 核心檔案聚合根（File.ts），管理上傳生命週期與版本 |
+| `WikiLibrary` | 知識庫集合，組織 RAG 攝入文件群組 |
+
+---
+
+## 通用語言（Ubiquitous Language）
+
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 來源文件 | SourceDocument | 上傳的原始文件（對應 File.ts 聚合根） |
+| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
+| 檔案版本 | FileVersion | 文件的版本快照 |
+| RAG 文件 | RagDocument | 已準備進入 RAG 管線的文件記錄 |
+| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照 |
+| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
+| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
+| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
+| 演員上下文 | ActorContext | 操作者身分與授權上下文（ActorContextPort） |
+
+---
+
+## 領域事件（Domain Events）
+
+| 事件 | 觸發條件 |
+|------|----------|
+| `source.upload_initiated` | 上傳初始化完成、簽名 URL 已產生時 |
+| `source.upload_completed` | 上傳確認完成時 |
+| `source.rag_document_registered` | RAG 文件成功登記進入攝入管線時 |
+| `source.file_archived` | 檔案被封存時 |
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`（ActorContext 身分驗證）、`workspace/api`（工作區範圍）、`organization/api`（組織政策）
+- **下游（被依賴）**：`ai/api`（觸發 IngestionJob）、`knowledge/api`（文件關聯通知）
+
+---
+
+## 目錄結構
+
+```
+modules/source/
+├── api/                      # 公開 API 邊界
+│   └── index.ts
+├── application/              # Use Cases & DTOs
+│   ├── dto/
+│   │   ├── file.dto.ts
+│   │   └── rag-document.dto.ts
+│   └── use-cases/
+│       ├── upload-init-file.use-case.ts
+│       ├── upload-complete-file.use-case.ts
+│       ├── register-uploaded-rag-document.use-case.ts
+│       ├── list-workspace-files.use-case.ts
+│       └── wiki-libraries.use-case.ts
+├── domain/                   # Aggregates, Ports, Repositories, Services
+│   ├── entities/
+│   │   ├── File.ts           # SourceDocument 聚合根
+│   │   ├── FileVersion.ts
+│   │   ├── AuditRecord.ts
+│   │   ├── PermissionSnapshot.ts
+│   │   ├── RetentionPolicy.ts
+│   │   └── wiki-library.types.ts
+│   ├── ports/
+│   │   ├── ActorContextPort.ts
+│   │   ├── OrganizationPolicyPort.ts
+│   │   └── WorkspaceGrantPort.ts
+│   ├── repositories/
+│   │   ├── FileRepository.ts
+│   │   ├── RagDocumentRepository.ts
+│   │   └── WikiLibraryRepository.ts
+│   └── services/
+│       ├── complete-upload-file.ts
+│       └── resolve-file-organization-id.ts
+├── infrastructure/           # Firebase 適配器
+│   └── firebase/
+│       ├── FirebaseFileRepository.ts
+│       └── FirebaseRagDocumentRepository.ts
+├── interfaces/               # UI 元件、hooks、server actions、queries
+│   ├── _actions/
+│   │   └── file.actions.ts
+│   ├── components/
+│   │   ├── WorkspaceFilesTab.tsx
+│   │   ├── SourceDocumentsView.tsx
+│   │   ├── LibrariesView.tsx
+│   │   └── LibraryTableView.tsx
+│   ├── hooks/
+│   │   └── useDocumentsSnapshot.ts
+│   └── queries/
+│       └── file.queries.ts
+└── index.ts
+```
+
+---
+
+## 架構參考
+
+- 系統設計文件：`docs/architecture/domain-model.md`
+- 通用語言：`docs/architecture/ubiquitous-language.md`
+- 事件目錄：`docs/architecture/domain-events.md`
+````
+
+## File: modules/workspace/api/index.ts
+````typescript
+/**
+ * workspace 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
+ */
+
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+  WorkspacePersonnel,
+} from "../domain/entities/Workspace";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../interfaces/queries/workspace.queries";
+
+// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
+
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
+
+// ─── Wiki content-tree use-case ────────────────────────────────────────────
+
+import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
+import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
+
+const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
+
+export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
+}
+
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
+
+export { createWorkspace } from "../interfaces/_actions/workspace.actions";
+
+// ─── UI components (cross-module public) ─────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
+
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+
+export {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — modules/workspace
+
+## 模組定位
+
+`modules/workspace` 是 Knowledge Platform 的**通用域（Generic Domain）**，負責工作區管理、成員協作與知識結構樹。是知識內容的協作容器，連接 identity、organization 與各知識域。
+
+## 通用語言（Ubiquitous Language）
+
+在此模組內，**嚴格使用**以下術語：
+
+- `Workspace`（不是 Space、Room、Project）
+- `Member`（不是 User、Participant）
+- `Role`（不是 Permission、Access）
+- `WikiContentTree`（不是 Tree、PageTree、ContentTree）
+- `WorkspaceTab`（不是 Tab、Section、Panel）
+
+## 最重要邊界規則：循環依賴
+
+```typescript
+// ❌ 禁止：FirebaseWikiWorkspaceRepository 不能 import workspace/api
+import { workspaceApi } from "@/modules/workspace/api"; // 循環依賴！
+
+// ✅ 正確：使用相對路徑直接 import
+import { FirebaseWorkspaceRepository } from "../FirebaseWorkspaceRepository";
+```
+
+## WorkspaceDetailScreen 整合規則
+
+```typescript
+// WorkspaceDetailScreen 的 Tasks tab 使用 WorkspaceFlowTab
+// WorkspaceFlowTab 接受 currentUserId prop
+<WorkspaceFlowTab currentUserId={accountId ?? "anonymous"} />
+
+// tabs 設定在 workspace-tabs.ts — "Tasks" 狀態為 🏗️ Midway
+```
+
+## 跨模組互動
+
+| 目標模組 | 互動方式 | 說明 |
+|----------|----------|------|
+| `identity/api` | API 呼叫 | 驗證使用者身分 |
+| `organization/api` | API 呼叫 | 驗證組織範圍 |
+| `knowledge/api` | 提供範圍 | 知識頁面的工作區範圍 |
+| `workspace-flow/api` | 組合使用 | Tasks tab（WorkspaceFlowTab） |
+| `workspace-audit/api` | 組合使用 | Audit 查詢 |
+
+## 導航規則
+
+- `/dashboard` → 重定向到 `/workspace`
+- `/settings` → 重定向到 `/workspace`
+- MVP 導航以 workspace 為主
+
+## 驗證命令
+
+```bash
+npm run lint    # 0 errors expected
+npm run build   # TypeScript type-check
+```
+````
+
+## File: modules/workspace/README.md
+````markdown
+# workspace — Workspace Management Layer
+
+> **開發狀態**：✅ Done — 核心功能穩定
+> **Domain Type**：Generic Domain（通用域）
+
+`modules/workspace` 負責工作區（Workspace）的建立、成員協作、設定管理與知識結構樹（WikiContentTree）。是知識內容的協作容器，連接 identity、organization 與 knowledge 等核心域。
+
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
+
+---
+
+## 職責（Responsibilities）
+
+| 能力 | 說明 |
+|------|------|
+| 工作區管理 | 建立、更新、封存工作區（Workspace） |
+| 成員管理 | 邀請成員、管理工作區角色 |
+| 知識結構樹 | 維護 WikiContentTree（頁面階層結構） |
+| 工作區標籤 | 管理工作區的 Tab 設定（workspace-tabs.ts） |
+| 多模組整合 | 整合 Tasks（workspace-flow）、Wiki、Audit 等 tab |
+
+---
+
+## 聚合根（Aggregate Roots）
+
+| Aggregate | 說明 |
+|-----------|------|
+| `Workspace` | 工作區聚合根，包含成員列表、設定與知識結構 |
+| `Member` | 工作區成員實體（含角色） |
+| `Role` | 工作區角色定義 |
+
+---
+
+## 通用語言（Ubiquitous Language）
+
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 工作區 | Workspace | 知識內容的協作容器 |
+| 成員 | Member | 工作區的協作成員 |
+| 角色 | Role | 成員在工作區的角色 |
+| Wiki 內容樹 | WikiContentTree | 工作區下的 Wiki 頁面階層結構 |
+| 工作區標籤 | WorkspaceTab | 工作區 UI 中的功能分頁（Overview / Wiki / Tasks / ...） |
+
+---
+
+## 重要架構限制
+
+- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
+- 使用相對路徑直接 import `FirebaseWorkspaceRepository` 作為替代
+
+---
+
+## 導航規則
+
+- Dashboard (/dashboard) 和 Personal Settings (/settings) 已重定向到 /workspace
+- MVP 導航以 workspace 為主
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`、`organization/api`
+- **下游（被依賴）**：`knowledge/api`、`wiki/api`、`notebook/api`、`workspace-flow/api`、`workspace-audit/api`
+
+---
+
+## 目錄結構
+
+```
+modules/workspace/
+├── api/                  # 公開 API 邊界（index.ts）
+├── application/          # Use Cases
+├── domain/               # Aggregates, Entities（含 WikiContentTree）
+│   └── entities/
+│       └── WikiContentTree.ts
+├── infrastructure/       # Firebase 適配器
+│   └── firebase/
+│       └── FirebaseWikiWorkspaceRepository.ts
+├── interfaces/           # UI 元件（WorkspaceDetailScreen、WorkspaceTabs）
+│   ├── components/
+│   │   └── WorkspaceDetailScreen.tsx
+│   └── workspace-tabs.ts
+└── index.ts
+```
+````
+
+## File: modules/source/api/index.ts
+````typescript
+/**
+ * Module: source
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the source domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// --- Core entity types -------------------------------------------------------
+
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+
+// --- Wiki library entity types (owned by source domain) -------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/wiki-library.types";
+
+// --- Wiki library use-cases ------------------------------------------------
+
+import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
+import {
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
+
+export type { WikiLibrarySnapshot };
+
+const _defaultLibraryRepository = new InMemoryWikiLibraryRepository();
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, _defaultLibraryRepository);
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
+}
+
+// --- Document snapshot types --------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+export {
+  useDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+
+// --- Query functions ---------------------------------------------------------
+
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+
+// --- UI components (cross-module public) -------------------------------------
+
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
 ````

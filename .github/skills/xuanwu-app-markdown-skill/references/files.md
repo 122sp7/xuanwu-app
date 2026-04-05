@@ -19786,43 +19786,6 @@ export async function generateResponse(...) { ... }
 | [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
 ````
 
-## File: docs/ddd/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-- `domain/repositories/RagGenerationRepository.ts`
-- `domain/repositories/RagRetrievalRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
-- `infrastructure/firebase/index.ts`
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
 ## File: docs/ddd/notebook/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — notebook
@@ -21815,50 +21778,6 @@ GraphEdge: pending ──► active ──► inactive ──► removed
 | `Backlink` | `InboundLink`, `ReverseLink` |
 ````
 
-## File: docs/ddd/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-## 模組定位
-
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceApi } from "@/modules/workspace/api";
-import type { WorkspaceDTO } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
-```
-
-## 循環依賴守衛
-
-`FirebaseWikiBetaWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: docs/ddd/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -22051,48 +21970,6 @@ interface WorkspaceCreatedEvent {
 
 - `../../../modules/workspace/domain-services.md`
 - `../../../docs/ddd/workspace/aggregates.md`
-````
-
-## File: docs/ddd/workspace/README.md
-````markdown
-# workspace — 工作區上下文
-
-> **Domain Type:** Generic Subdomain
-> **模組路徑:** `modules/workspace/`
-> **開發狀態:** ✅ Done — 穩定
-
-## 定位
-
-`workspace` 是 Xuanwu 平台的**協作容器**，所有知識內容、任務、稽核記錄都歸屬於特定工作區。它也持有 Wiki 內容樹結構（WikiContentTree）與工作區成員管理。
-
-## 職責
-
-| 能力 | 說明 |
-|------|------|
-| Workspace CRUD | 建立、更新、歸檔工作區 |
-| 成員管理 | WorkspaceMember 邀請、移除、角色變更 |
-| Wiki 內容樹 | 維護 WikiContentTree（頁面的樹狀層級結構） |
-| Wiki 工作區關聯 | 管理 WikiWorkspaceRepository（Wiki 頁面隸屬關係） |
-| 子模組組合 | 在 WorkspaceDetailScreen 組合 workspace-{flow,audit,feed,scheduling} tabs |
-
-## 核心概念
-
-- **`Workspace`** — 協作容器（accountId、name、status）
-- **`WorkspaceMember`** — 成員在工作區中的參與記錄
-- **`WikiContentTree`** — 工作區 Wiki 頁面的樹狀層級結構
-
-## 特殊邊界規則
-
-`workspace/infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
-
-## 詳細文件
-
-| 文件 | 說明 |
-|------|------|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | Workspace 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
 ````
 
 ## File: docs/ddd/workspace/repositories.md
@@ -29753,78 +29630,6 @@ modules/knowledge/
 - `domain/value-objects/block-content.ts`
 ````
 
-## File: modules/notebook/AGENT.md
-````markdown
-# AGENT.md — modules/notebook
-
-## 模組定位
-
-`modules/notebook` 是 Knowledge Platform 的**支援域（Supporting Domain）**，對應 NotebookLM 的 AI 筆記與對話管理層。負責筆記本生命週期、多輪對話、摘要與洞察管理。AI 推理能力委派給 `ai/api`，RAG 檢索委派給 `search/api`。
-
-## 通用語言（Ubiquitous Language）
-
-在此模組內，**嚴格使用**以下術語：
-
-- `Notebook`（不是 Note、Document）
-- `Thread`（不是 Conversation、History）
-- `Message`（不是 Message 以外的術語，role 為 `user` | `assistant`）
-- `ChatSession`（不是 Session、Dialog）
-- `Summary`（不是 Abstract、Brief）
-- `AgentGeneration`（不是 AIResponse、LLMOutput）
-- `Citation`（不是 Reference、Source）
-
-## 邊界規則
-
-### ✅ 允許
-
-```typescript
-// 其他模組透過 api/ 存取
-import { notebookFacade } from "@/modules/notebook/api";
-import type { NotebookDTO, ThreadDTO } from "@/modules/notebook/api";
-```
-
-### ❌ 禁止
-
-```typescript
-// 禁止直接 import 內部層
-import { Thread } from "@/modules/notebook/domain/entities/thread";
-import { GenkitNotebookRepository } from "@/modules/notebook/infrastructure/genkit";
-```
-
-## 重要架構規則
-
-- **Server Action 不能從 `@/modules/notebook/api` barrel 在 client component 中 import** — 會打包 Genkit/gRPC server-only 模組。應在 `app/` 的本地 `_actions.ts` 使用 `"use server"` 包裝。
-- AI 生成邏輯不在此模組內直接實作，透過 `ai/api` 委派。
-
-## 跨模組互動
-
-| 目標模組 | 互動方式 | 說明 |
-|----------|----------|------|
-| `ai/api` | API 呼叫 | 委派 LLM 推理、Embedding 生成 |
-| `search/api` | API 呼叫 | 委派 RAG 向量檢索 |
-| `knowledge/api` | 事件訂閱 | 監聽頁面更新以刷新摘要 |
-| `identity/api` | API 呼叫 | 驗證使用者身分 |
-| `workspace/api` | API 呼叫 | 驗證工作區範圍 |
-
-## AI 整合安全規則
-
-- Genkit / gRPC 適配器**只能**存在於 `infrastructure/genkit/` 下
-- Server Action 必須有獨立的本地 `_actions.ts`，不透過 barrel export
-
-```typescript
-// app/(shell)/ai-chat/_actions.ts — 正確方式
-"use server";
-import { generateNotebookResponse } from "@/modules/notebook/application/use-cases/...";
-```
-
-## 驗證命令
-
-```bash
-npm run lint    # 0 errors expected
-npm run build   # TypeScript type-check
-```
-````
-
 ## File: modules/notebook/aggregates.md
 ````markdown
 # notebook — Aggregates
@@ -29948,105 +29753,6 @@ npm run build   # TypeScript type-check
 
 - `../../docs/ddd/notebook/domain-services.md`
 - `../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: modules/notebook/README.md
-````markdown
-# notebook — AI Notebook & Chat Layer
-
-> **開發狀態**：🚧 Developing — 積極開發中
-> **Domain Type**：Supporting Domain（支援域）
-
-`modules/notebook` 對應 **NotebookLM** 的核心職能，負責 AI 筆記、對話管理、摘要生成與洞察提取。提供使用者與 AI 進行多輪對話的聚合根與生命週期管理。
-
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
-- AI 生成操作透過 `ai/api` 委派執行
-
----
-
-## 職責（Responsibilities）
-
-| 能力 | 說明 |
-|------|------|
-| 筆記管理 | 建立、管理 AI 輔助筆記本（Notebook） |
-| 對話管理 | 管理多輪對話執行緒（ChatSession / Thread） |
-| 摘要生成 | 觸發知識摘要（Summary）並保存結果 |
-| 洞察提取 | 從知識內容提取 Insight，生成引用（Citation） |
-| 消息歷史 | 維護 Thread 中的 Message 列表 |
-
----
-
-## 聚合根（Aggregate Roots）
-
-| Aggregate | 說明 |
-|-----------|------|
-| `Notebook` | AI 筆記本，包含多個 Source 和 ChatSession |
-| `ChatSession` | 一段多輪 AI 對話會話 |
-| `Summary` | 從知識內容生成的摘要快照 |
-
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 筆記本 | Notebook | AI 筆記本聚合根，包含 Sources 和 Sessions |
-| 對話執行緒 | Thread | 一段多輪對話的 Message 集合 |
-| 消息 | Message | Thread 中的單一對話單元（role: user / assistant） |
-| 對話會話 | ChatSession | 使用者與 AI 的一次對話實例 |
-| 摘要 | Summary | AI 生成的知識摘要文本 |
-| 洞察 | Insight | AI 從知識中提取的關鍵觀點 |
-| 引用 | Citation | 摘要或洞察的知識來源參考 |
-| 代理生成 | AgentGeneration | 一次 AI 代理的完整輸入/輸出記錄 |
-
----
-
-## 領域事件（Domain Events）
-
-| 事件 | 觸發條件 |
-|------|----------|
-| `notebook.created` | 新筆記本建立時 |
-| `notebook.session_started` | 新對話會話開始時 |
-| `notebook.summary_generated` | 摘要生成完成時 |
-| `notebook.message_appended` | 新消息加入 Thread 時 |
-| `notebook.insight_extracted` | 洞察提取完成時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`、`workspace/api`、`ai/api`（LLM 推理）、`search/api`（RAG 檢索）
-- **下游（被依賴）**：`workspace/api`（工作區 Notebook tab）
-
----
-
-## 目錄結構
-
-```
-modules/notebook/
-├── api/                  # 公開 API 邊界（contracts.ts, facade.ts, index.ts）
-├── application/          # Use Cases
-│   └── use-cases/
-├── domain/               # Aggregates, Entities, Value Objects, Events, Repositories
-│   ├── entities/         # AgentGeneration.ts, Thread.ts, Message.ts, RagQuery.ts
-│   ├── repositories/     # RagGenerationRepository, RagRetrievalRepository
-│   └── value-objects/
-├── infrastructure/       # Genkit / Firebase 適配器
-│   ├── firebase/         # FirebaseRagRetrievalRepository
-│   └── genkit/           # GenkitNotebookRepository
-├── interfaces/           # UI 元件、hooks、server actions
-│   └── _actions/         # notebook.actions.ts
-└── index.ts
-```
-
----
-
-## 架構參考
-
-- 系統設計文件：`docs/architecture/ai-domain.md`
-- 通用語言：`docs/architecture/ubiquitous-language.md`
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -31601,143 +31307,6 @@ npm run build   # TypeScript type-check
 - `../../docs/ddd/source/aggregates.md`
 ````
 
-## File: modules/source/README.md
-````markdown
-# source — Source Document & File Layer
-
-> **開發狀態**：🚧 Developing — 積極開發中
-> **Domain Type**：Supporting Domain（支援域）
-
-`modules/source` 負責知識平台的**文件來源管理**，包含檔案上傳生命週期、版本快照、保留政策與 RAG 攝入文件的登記。是知識攝入管線（RAG ingestion）的文件入口，也是工作區檔案存取的業務邊界。
-
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
-- 上傳 UX 屬於 Next.js 責任；Embedding 生成委派給 `py_fn/` Python worker
-
----
-
-## 職責（Responsibilities）
-
-| 能力 | 說明 |
-|------|------|
-| 檔案上傳初始化 | `upload-init`：建立 File 聚合根、產生上傳簽名 URL |
-| 上傳完成確認 | `upload-complete`：標記上傳完成、觸發 ingestion handoff |
-| RAG 文件登記 | 登記已完成上傳的文件進入 RAG 管線（RagDocument） |
-| 檔案列表查詢 | 依工作區範圍列出檔案（list-workspace-files） |
-| Wiki 知識庫管理 | 管理 WikiLibrary（知識庫文件集合） |
-| 授權快照 | 保存 PermissionSnapshot 以確保授權一致性 |
-| 保留政策 | 管理 RetentionPolicy（保留期限、刪除規則） |
-| 稽核記錄 | 記錄檔案操作稽核軌跡（AuditRecord） |
-
----
-
-## 聚合根（Aggregate Roots）
-
-| Aggregate | 說明 |
-|-----------|------|
-| `SourceDocument` | 核心檔案聚合根（File.ts），管理上傳生命週期與版本 |
-| `WikiLibrary` | 知識庫集合，組織 RAG 攝入文件群組 |
-
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 來源文件 | SourceDocument | 上傳的原始文件（對應 File.ts 聚合根） |
-| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
-| 檔案版本 | FileVersion | 文件的版本快照 |
-| RAG 文件 | RagDocument | 已準備進入 RAG 管線的文件記錄 |
-| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照 |
-| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
-| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
-| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
-| 演員上下文 | ActorContext | 操作者身分與授權上下文（ActorContextPort） |
-
----
-
-## 領域事件（Domain Events）
-
-| 事件 | 觸發條件 |
-|------|----------|
-| `source.upload_initiated` | 上傳初始化完成、簽名 URL 已產生時 |
-| `source.upload_completed` | 上傳確認完成時 |
-| `source.rag_document_registered` | RAG 文件成功登記進入攝入管線時 |
-| `source.file_archived` | 檔案被封存時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`（ActorContext 身分驗證）、`workspace/api`（工作區範圍）、`organization/api`（組織政策）
-- **下游（被依賴）**：`ai/api`（觸發 IngestionJob）、`knowledge/api`（文件關聯通知）
-
----
-
-## 目錄結構
-
-```
-modules/source/
-├── api/                      # 公開 API 邊界
-│   └── index.ts
-├── application/              # Use Cases & DTOs
-│   ├── dto/
-│   │   ├── file.dto.ts
-│   │   └── rag-document.dto.ts
-│   └── use-cases/
-│       ├── upload-init-file.use-case.ts
-│       ├── upload-complete-file.use-case.ts
-│       ├── register-uploaded-rag-document.use-case.ts
-│       ├── list-workspace-files.use-case.ts
-│       └── wiki-libraries.use-case.ts
-├── domain/                   # Aggregates, Ports, Repositories, Services
-│   ├── entities/
-│   │   ├── File.ts           # SourceDocument 聚合根
-│   │   ├── FileVersion.ts
-│   │   ├── AuditRecord.ts
-│   │   ├── PermissionSnapshot.ts
-│   │   ├── RetentionPolicy.ts
-│   │   └── wiki-library.types.ts
-│   ├── ports/
-│   │   ├── ActorContextPort.ts
-│   │   ├── OrganizationPolicyPort.ts
-│   │   └── WorkspaceGrantPort.ts
-│   ├── repositories/
-│   │   ├── FileRepository.ts
-│   │   ├── RagDocumentRepository.ts
-│   │   └── WikiLibraryRepository.ts
-│   └── services/
-│       ├── complete-upload-file.ts
-│       └── resolve-file-organization-id.ts
-├── infrastructure/           # Firebase 適配器
-│   └── firebase/
-│       ├── FirebaseFileRepository.ts
-│       └── FirebaseRagDocumentRepository.ts
-├── interfaces/               # UI 元件、hooks、server actions、queries
-│   ├── _actions/
-│   │   └── file.actions.ts
-│   ├── components/
-│   │   ├── WorkspaceFilesTab.tsx
-│   │   ├── SourceDocumentsView.tsx
-│   │   ├── LibrariesView.tsx
-│   │   └── LibraryTableView.tsx
-│   ├── hooks/
-│   │   └── useDocumentsSnapshot.ts
-│   └── queries/
-│       └── file.queries.ts
-└── index.ts
-```
-
----
-
-## 架構參考
-
-- 系統設計文件：`docs/architecture/domain-model.md`
-- 通用語言：`docs/architecture/ubiquitous-language.md`
-- 事件目錄：`docs/architecture/domain-events.md`
-````
-
 ## File: modules/source/repositories.md
 ````markdown
 # source — Repositories
@@ -32201,68 +31770,6 @@ modules/wiki/
 - 目前沒有獨立的 `domain/value-objects/*` 檔案。
 ````
 
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — modules/workspace
-
-## 模組定位
-
-`modules/workspace` 是 Knowledge Platform 的**通用域（Generic Domain）**，負責工作區管理、成員協作與知識結構樹。是知識內容的協作容器，連接 identity、organization 與各知識域。
-
-## 通用語言（Ubiquitous Language）
-
-在此模組內，**嚴格使用**以下術語：
-
-- `Workspace`（不是 Space、Room、Project）
-- `Member`（不是 User、Participant）
-- `Role`（不是 Permission、Access）
-- `WikiContentTree`（不是 Tree、PageTree、ContentTree）
-- `WorkspaceTab`（不是 Tab、Section、Panel）
-
-## 最重要邊界規則：循環依賴
-
-```typescript
-// ❌ 禁止：FirebaseWikiBetaWorkspaceRepository 不能 import workspace/api
-import { workspaceApi } from "@/modules/workspace/api"; // 循環依賴！
-
-// ✅ 正確：使用相對路徑直接 import
-import { FirebaseWorkspaceRepository } from "../FirebaseWorkspaceRepository";
-```
-
-## WorkspaceDetailScreen 整合規則
-
-```typescript
-// WorkspaceDetailScreen 的 Tasks tab 使用 WorkspaceFlowTab
-// WorkspaceFlowTab 接受 currentUserId prop
-<WorkspaceFlowTab currentUserId={accountId ?? "anonymous"} />
-
-// tabs 設定在 workspace-tabs.ts — "Tasks" 狀態為 🏗️ Midway
-```
-
-## 跨模組互動
-
-| 目標模組 | 互動方式 | 說明 |
-|----------|----------|------|
-| `identity/api` | API 呼叫 | 驗證使用者身分 |
-| `organization/api` | API 呼叫 | 驗證組織範圍 |
-| `knowledge/api` | 提供範圍 | 知識頁面的工作區範圍 |
-| `workspace-flow/api` | 組合使用 | Tasks tab（WorkspaceFlowTab） |
-| `workspace-audit/api` | 組合使用 | Audit 查詢 |
-
-## 導航規則
-
-- `/dashboard` → 重定向到 `/workspace`
-- `/settings` → 重定向到 `/workspace`
-- MVP 導航以 workspace 為主
-
-## 驗證命令
-
-```bash
-npm run lint    # 0 errors expected
-npm run build   # TypeScript type-check
-```
-````
-
 ## File: modules/workspace/aggregates.md
 ````markdown
 # workspace — Aggregates
@@ -32385,96 +31892,6 @@ npm run build   # TypeScript type-check
 
 - `../../docs/ddd/workspace/domain-services.md`
 - `../../docs/ddd/workspace/aggregates.md`
-````
-
-## File: modules/workspace/README.md
-````markdown
-# workspace — Workspace Management Layer
-
-> **開發狀態**：✅ Done — 核心功能穩定
-> **Domain Type**：Generic Domain（通用域）
-
-`modules/workspace` 負責工作區（Workspace）的建立、成員協作、設定管理與知識結構樹（WikiContentTree）。是知識內容的協作容器，連接 identity、organization 與 knowledge 等核心域。
-
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- `FirebaseWikiBetaWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
-
----
-
-## 職責（Responsibilities）
-
-| 能力 | 說明 |
-|------|------|
-| 工作區管理 | 建立、更新、封存工作區（Workspace） |
-| 成員管理 | 邀請成員、管理工作區角色 |
-| 知識結構樹 | 維護 WikiContentTree（頁面階層結構） |
-| 工作區標籤 | 管理工作區的 Tab 設定（workspace-tabs.ts） |
-| 多模組整合 | 整合 Tasks（workspace-flow）、Wiki、Audit 等 tab |
-
----
-
-## 聚合根（Aggregate Roots）
-
-| Aggregate | 說明 |
-|-----------|------|
-| `Workspace` | 工作區聚合根，包含成員列表、設定與知識結構 |
-| `Member` | 工作區成員實體（含角色） |
-| `Role` | 工作區角色定義 |
-
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 工作區 | Workspace | 知識內容的協作容器 |
-| 成員 | Member | 工作區的協作成員 |
-| 角色 | Role | 成員在工作區的角色 |
-| Wiki 內容樹 | WikiContentTree | 工作區下的 Wiki 頁面階層結構 |
-| 工作區標籤 | WorkspaceTab | 工作區 UI 中的功能分頁（Overview / Wiki / Tasks / ...） |
-
----
-
-## 重要架構限制
-
-- `FirebaseWikiBetaWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
-- 使用相對路徑直接 import `FirebaseWorkspaceRepository` 作為替代
-
----
-
-## 導航規則
-
-- Dashboard (/dashboard) 和 Personal Settings (/settings) 已重定向到 /workspace
-- MVP 導航以 workspace 為主
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`、`organization/api`
-- **下游（被依賴）**：`knowledge/api`、`wiki/api`、`notebook/api`、`workspace-flow/api`、`workspace-audit/api`
-
----
-
-## 目錄結構
-
-```
-modules/workspace/
-├── api/                  # 公開 API 邊界（index.ts）
-├── application/          # Use Cases
-├── domain/               # Aggregates, Entities（含 WikiContentTree）
-│   └── entities/
-│       └── WikiContentTree.ts
-├── infrastructure/       # Firebase 適配器
-│   └── firebase/
-│       └── FirebaseWikiBetaWorkspaceRepository.ts
-├── interfaces/           # UI 元件（WorkspaceDetailScreen、WorkspaceTabs）
-│   ├── components/
-│   │   └── WorkspaceDetailScreen.tsx
-│   └── workspace-tabs.ts
-└── index.ts
-```
 ````
 
 ## File: modules/workspace/repositories.md
@@ -34886,6 +34303,300 @@ This repository does not currently keep a standalone long-form spec workflow gui
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
 ````
 
+## File: docs/ddd/notebook/repositories.md
+````markdown
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+- `domain/repositories/RagGenerationRepository.ts`
+- `domain/repositories/RagRetrievalRepository.ts`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
+- `infrastructure/firebase/index.ts`
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
+````
+
+## File: docs/ddd/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+## 模組定位
+
+`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceMember` | Member、Participant |
+| `WikiContentTree` | PageTree、ContentHierarchy |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 Workspace 上下文中） |
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceApi } from "@/modules/workspace/api";
+import type { WorkspaceDTO } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+```typescript
+// workspace/infrastructure 禁止 import workspace/api（循環依賴）
+import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
+```
+
+## 循環依賴守衛
+
+`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
+## File: docs/ddd/workspace/README.md
+````markdown
+# workspace — 工作區上下文
+
+> **Domain Type:** Generic Subdomain
+> **模組路徑:** `modules/workspace/`
+> **開發狀態:** ✅ Done — 穩定
+
+## 定位
+
+`workspace` 是 Xuanwu 平台的**協作容器**，所有知識內容、任務、稽核記錄都歸屬於特定工作區。它也持有 Wiki 內容樹結構（WikiContentTree）與工作區成員管理。
+
+## 職責
+
+| 能力 | 說明 |
+|------|------|
+| Workspace CRUD | 建立、更新、歸檔工作區 |
+| 成員管理 | WorkspaceMember 邀請、移除、角色變更 |
+| Wiki 內容樹 | 維護 WikiContentTree（頁面的樹狀層級結構） |
+| Wiki 工作區關聯 | 管理 WikiWorkspaceRepository（Wiki 頁面隸屬關係） |
+| 子模組組合 | 在 WorkspaceDetailScreen 組合 workspace-{flow,audit,feed,scheduling} tabs |
+
+## 核心概念
+
+- **`Workspace`** — 協作容器（accountId、name、status）
+- **`WorkspaceMember`** — 成員在工作區中的參與記錄
+- **`WikiContentTree`** — 工作區 Wiki 頁面的樹狀層級結構
+
+## 特殊邊界規則
+
+`workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
+
+## 詳細文件
+
+| 文件 | 說明 |
+|------|------|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | Workspace 聚合根設計 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+````
+
+## File: modules/notebook/AGENT.md
+````markdown
+# AGENT.md — modules/notebook
+
+## 模組定位
+
+`modules/notebook` 是 Knowledge Platform 的**支援域（Supporting Domain）**，對應 NotebookLM 的 AI 筆記與對話管理層。負責筆記本生命週期、多輪對話、摘要與洞察管理。AI 推理能力委派給 `ai/api`，RAG 檢索委派給 `search/api`。
+
+## 通用語言（Ubiquitous Language）
+
+在此模組內，**嚴格使用**以下術語：
+
+- `Notebook`（不是 Note、Document）
+- `Thread`（不是 Conversation、History）
+- `Message`（不是 Message 以外的術語，role 為 `user` | `assistant`）
+- `ChatSession`（不是 Session、Dialog）
+- `Summary`（不是 Abstract、Brief）
+- `AgentGeneration`（不是 AIResponse、LLMOutput）
+- `Citation`（不是 Reference、Source）
+
+## 邊界規則
+
+### ✅ 允許
+
+```typescript
+// 其他模組透過 api/ 存取
+import { notebookFacade } from "@/modules/notebook/api";
+import type { NotebookDTO, ThreadDTO } from "@/modules/notebook/api";
+```
+
+### ❌ 禁止
+
+```typescript
+// 禁止直接 import 內部層
+import { Thread } from "@/modules/notebook/domain/entities/thread";
+import { GenkitNotebookRepository } from "@/modules/notebook/infrastructure/genkit";
+```
+
+## 重要架構規則
+
+- **Server Action 不能從 `@/modules/notebook/api` barrel 在 client component 中 import** — 會打包 Genkit/gRPC server-only 模組。應在 `app/` 的本地 `_actions.ts` 使用 `"use server"` 包裝。
+- AI 生成邏輯不在此模組內直接實作，透過 `ai/api` 委派。
+
+## 跨模組互動
+
+| 目標模組 | 互動方式 | 說明 |
+|----------|----------|------|
+| `ai/api` | API 呼叫 | 委派 LLM 推理、Embedding 生成 |
+| `search/api` | API 呼叫 | 委派 RAG 向量檢索 |
+| `knowledge/api` | 事件訂閱 | 監聽頁面更新以刷新摘要 |
+| `identity/api` | API 呼叫 | 驗證使用者身分 |
+| `workspace/api` | API 呼叫 | 驗證工作區範圍 |
+
+## AI 整合安全規則
+
+- Genkit / gRPC 適配器**只能**存在於 `infrastructure/genkit/` 下
+- Server Action 必須有獨立的本地 `_actions.ts`，不透過 barrel export
+
+```typescript
+// app/(shell)/ai-chat/_actions.ts — 正確方式
+"use server";
+import { generateNotebookResponse } from "@/modules/notebook/application/use-cases/...";
+```
+
+## 驗證命令
+
+```bash
+npm run lint    # 0 errors expected
+npm run build   # TypeScript type-check
+```
+````
+
+## File: modules/notebook/README.md
+````markdown
+# notebook — AI Notebook & Chat Layer
+
+> **開發狀態**：🚧 Developing — 積極開發中
+> **Domain Type**：Supporting Domain（支援域）
+
+`modules/notebook` 對應 **NotebookLM** 的核心職能，負責 AI 筆記、對話管理、摘要生成與洞察提取。提供使用者與 AI 進行多輪對話的聚合根與生命週期管理。
+
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+- AI 生成操作透過 `ai/api` 委派執行
+
+---
+
+## 職責（Responsibilities）
+
+| 能力 | 說明 |
+|------|------|
+| 筆記管理 | 建立、管理 AI 輔助筆記本（Notebook） |
+| 對話管理 | 管理多輪對話執行緒（ChatSession / Thread） |
+| 摘要生成 | 觸發知識摘要（Summary）並保存結果 |
+| 洞察提取 | 從知識內容提取 Insight，生成引用（Citation） |
+| 消息歷史 | 維護 Thread 中的 Message 列表 |
+
+---
+
+## 聚合根（Aggregate Roots）
+
+| Aggregate | 說明 |
+|-----------|------|
+| `Notebook` | AI 筆記本，包含多個 Source 和 ChatSession |
+| `ChatSession` | 一段多輪 AI 對話會話 |
+| `Summary` | 從知識內容生成的摘要快照 |
+
+---
+
+## 通用語言（Ubiquitous Language）
+
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 筆記本 | Notebook | AI 筆記本聚合根，包含 Sources 和 Sessions |
+| 對話執行緒 | Thread | 一段多輪對話的 Message 集合 |
+| 消息 | Message | Thread 中的單一對話單元（role: user / assistant） |
+| 對話會話 | ChatSession | 使用者與 AI 的一次對話實例 |
+| 摘要 | Summary | AI 生成的知識摘要文本 |
+| 洞察 | Insight | AI 從知識中提取的關鍵觀點 |
+| 引用 | Citation | 摘要或洞察的知識來源參考 |
+| 代理生成 | AgentGeneration | 一次 AI 代理的完整輸入/輸出記錄 |
+
+---
+
+## 領域事件（Domain Events）
+
+| 事件 | 觸發條件 |
+|------|----------|
+| `notebook.created` | 新筆記本建立時 |
+| `notebook.session_started` | 新對話會話開始時 |
+| `notebook.summary_generated` | 摘要生成完成時 |
+| `notebook.message_appended` | 新消息加入 Thread 時 |
+| `notebook.insight_extracted` | 洞察提取完成時 |
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`、`workspace/api`、`ai/api`（LLM 推理）、`search/api`（RAG 檢索）
+- **下游（被依賴）**：`workspace/api`（工作區 Notebook tab）
+
+---
+
+## 目錄結構
+
+```
+modules/notebook/
+├── api/                  # 公開 API 邊界（contracts.ts, facade.ts, index.ts）
+├── application/          # Use Cases
+│   └── use-cases/
+├── domain/               # Aggregates, Entities, Value Objects, Events, Repositories
+│   ├── entities/         # AgentGeneration.ts, Thread.ts, Message.ts, RagQuery.ts
+│   ├── repositories/     # RagGenerationRepository, RagRetrievalRepository
+│   └── value-objects/
+├── infrastructure/       # Genkit / Firebase 適配器
+│   ├── firebase/         # FirebaseRagRetrievalRepository
+│   └── genkit/           # GenkitNotebookRepository
+├── interfaces/           # UI 元件、hooks、server actions
+│   └── _actions/         # notebook.actions.ts
+└── index.ts
+```
+
+---
+
+## 架構參考
+
+- 系統設計文件：`docs/architecture/ai-domain.md`
+- 通用語言：`docs/architecture/ubiquitous-language.md`
+````
+
 ## File: modules/notebook/repositories.md
 ````markdown
 # notebook — Repositories
@@ -34917,4 +34628,293 @@ If the team revives a dedicated spec workflow document, update this file to poin
 
 - `../../docs/ddd/notebook/repositories.md`
 - `./application-services.md`
+````
+
+## File: modules/source/README.md
+````markdown
+# source — Source Document & File Layer
+
+> **開發狀態**：🚧 Developing — 積極開發中
+> **Domain Type**：Supporting Domain（支援域）
+
+`modules/source` 負責知識平台的**文件來源管理**，包含檔案上傳生命週期、版本快照、保留政策與 RAG 攝入文件的登記。是知識攝入管線（RAG ingestion）的文件入口，也是工作區檔案存取的業務邊界。
+
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+- 上傳 UX 屬於 Next.js 責任；Embedding 生成委派給 `py_fn/` Python worker
+
+---
+
+## 職責（Responsibilities）
+
+| 能力 | 說明 |
+|------|------|
+| 檔案上傳初始化 | `upload-init`：建立 File 聚合根、產生上傳簽名 URL |
+| 上傳完成確認 | `upload-complete`：標記上傳完成、觸發 ingestion handoff |
+| RAG 文件登記 | 登記已完成上傳的文件進入 RAG 管線（RagDocument） |
+| 檔案列表查詢 | 依工作區範圍列出檔案（list-workspace-files） |
+| Wiki 知識庫管理 | 管理 WikiLibrary（知識庫文件集合） |
+| 授權快照 | 保存 PermissionSnapshot 以確保授權一致性 |
+| 保留政策 | 管理 RetentionPolicy（保留期限、刪除規則） |
+| 稽核記錄 | 記錄檔案操作稽核軌跡（AuditRecord） |
+
+---
+
+## 聚合根（Aggregate Roots）
+
+| Aggregate | 說明 |
+|-----------|------|
+| `SourceDocument` | 核心檔案聚合根（File.ts），管理上傳生命週期與版本 |
+| `WikiLibrary` | 知識庫集合，組織 RAG 攝入文件群組 |
+
+---
+
+## 通用語言（Ubiquitous Language）
+
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 來源文件 | SourceDocument | 上傳的原始文件（對應 File.ts 聚合根） |
+| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
+| 檔案版本 | FileVersion | 文件的版本快照 |
+| RAG 文件 | RagDocument | 已準備進入 RAG 管線的文件記錄 |
+| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照 |
+| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
+| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
+| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
+| 演員上下文 | ActorContext | 操作者身分與授權上下文（ActorContextPort） |
+
+---
+
+## 領域事件（Domain Events）
+
+| 事件 | 觸發條件 |
+|------|----------|
+| `source.upload_initiated` | 上傳初始化完成、簽名 URL 已產生時 |
+| `source.upload_completed` | 上傳確認完成時 |
+| `source.rag_document_registered` | RAG 文件成功登記進入攝入管線時 |
+| `source.file_archived` | 檔案被封存時 |
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`（ActorContext 身分驗證）、`workspace/api`（工作區範圍）、`organization/api`（組織政策）
+- **下游（被依賴）**：`ai/api`（觸發 IngestionJob）、`knowledge/api`（文件關聯通知）
+
+---
+
+## 目錄結構
+
+```
+modules/source/
+├── api/                      # 公開 API 邊界
+│   └── index.ts
+├── application/              # Use Cases & DTOs
+│   ├── dto/
+│   │   ├── file.dto.ts
+│   │   └── rag-document.dto.ts
+│   └── use-cases/
+│       ├── upload-init-file.use-case.ts
+│       ├── upload-complete-file.use-case.ts
+│       ├── register-uploaded-rag-document.use-case.ts
+│       ├── list-workspace-files.use-case.ts
+│       └── wiki-libraries.use-case.ts
+├── domain/                   # Aggregates, Ports, Repositories, Services
+│   ├── entities/
+│   │   ├── File.ts           # SourceDocument 聚合根
+│   │   ├── FileVersion.ts
+│   │   ├── AuditRecord.ts
+│   │   ├── PermissionSnapshot.ts
+│   │   ├── RetentionPolicy.ts
+│   │   └── wiki-library.types.ts
+│   ├── ports/
+│   │   ├── ActorContextPort.ts
+│   │   ├── OrganizationPolicyPort.ts
+│   │   └── WorkspaceGrantPort.ts
+│   ├── repositories/
+│   │   ├── FileRepository.ts
+│   │   ├── RagDocumentRepository.ts
+│   │   └── WikiLibraryRepository.ts
+│   └── services/
+│       ├── complete-upload-file.ts
+│       └── resolve-file-organization-id.ts
+├── infrastructure/           # Firebase 適配器
+│   └── firebase/
+│       ├── FirebaseFileRepository.ts
+│       └── FirebaseRagDocumentRepository.ts
+├── interfaces/               # UI 元件、hooks、server actions、queries
+│   ├── _actions/
+│   │   └── file.actions.ts
+│   ├── components/
+│   │   ├── WorkspaceFilesTab.tsx
+│   │   ├── SourceDocumentsView.tsx
+│   │   ├── LibrariesView.tsx
+│   │   └── LibraryTableView.tsx
+│   ├── hooks/
+│   │   └── useDocumentsSnapshot.ts
+│   └── queries/
+│       └── file.queries.ts
+└── index.ts
+```
+
+---
+
+## 架構參考
+
+- 系統設計文件：`docs/architecture/domain-model.md`
+- 通用語言：`docs/architecture/ubiquitous-language.md`
+- 事件目錄：`docs/architecture/domain-events.md`
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — modules/workspace
+
+## 模組定位
+
+`modules/workspace` 是 Knowledge Platform 的**通用域（Generic Domain）**，負責工作區管理、成員協作與知識結構樹。是知識內容的協作容器，連接 identity、organization 與各知識域。
+
+## 通用語言（Ubiquitous Language）
+
+在此模組內，**嚴格使用**以下術語：
+
+- `Workspace`（不是 Space、Room、Project）
+- `Member`（不是 User、Participant）
+- `Role`（不是 Permission、Access）
+- `WikiContentTree`（不是 Tree、PageTree、ContentTree）
+- `WorkspaceTab`（不是 Tab、Section、Panel）
+
+## 最重要邊界規則：循環依賴
+
+```typescript
+// ❌ 禁止：FirebaseWikiWorkspaceRepository 不能 import workspace/api
+import { workspaceApi } from "@/modules/workspace/api"; // 循環依賴！
+
+// ✅ 正確：使用相對路徑直接 import
+import { FirebaseWorkspaceRepository } from "../FirebaseWorkspaceRepository";
+```
+
+## WorkspaceDetailScreen 整合規則
+
+```typescript
+// WorkspaceDetailScreen 的 Tasks tab 使用 WorkspaceFlowTab
+// WorkspaceFlowTab 接受 currentUserId prop
+<WorkspaceFlowTab currentUserId={accountId ?? "anonymous"} />
+
+// tabs 設定在 workspace-tabs.ts — "Tasks" 狀態為 🏗️ Midway
+```
+
+## 跨模組互動
+
+| 目標模組 | 互動方式 | 說明 |
+|----------|----------|------|
+| `identity/api` | API 呼叫 | 驗證使用者身分 |
+| `organization/api` | API 呼叫 | 驗證組織範圍 |
+| `knowledge/api` | 提供範圍 | 知識頁面的工作區範圍 |
+| `workspace-flow/api` | 組合使用 | Tasks tab（WorkspaceFlowTab） |
+| `workspace-audit/api` | 組合使用 | Audit 查詢 |
+
+## 導航規則
+
+- `/dashboard` → 重定向到 `/workspace`
+- `/settings` → 重定向到 `/workspace`
+- MVP 導航以 workspace 為主
+
+## 驗證命令
+
+```bash
+npm run lint    # 0 errors expected
+npm run build   # TypeScript type-check
+```
+````
+
+## File: modules/workspace/README.md
+````markdown
+# workspace — Workspace Management Layer
+
+> **開發狀態**：✅ Done — 核心功能穩定
+> **Domain Type**：Generic Domain（通用域）
+
+`modules/workspace` 負責工作區（Workspace）的建立、成員協作、設定管理與知識結構樹（WikiContentTree）。是知識內容的協作容器，連接 identity、organization 與 knowledge 等核心域。
+
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
+
+---
+
+## 職責（Responsibilities）
+
+| 能力 | 說明 |
+|------|------|
+| 工作區管理 | 建立、更新、封存工作區（Workspace） |
+| 成員管理 | 邀請成員、管理工作區角色 |
+| 知識結構樹 | 維護 WikiContentTree（頁面階層結構） |
+| 工作區標籤 | 管理工作區的 Tab 設定（workspace-tabs.ts） |
+| 多模組整合 | 整合 Tasks（workspace-flow）、Wiki、Audit 等 tab |
+
+---
+
+## 聚合根（Aggregate Roots）
+
+| Aggregate | 說明 |
+|-----------|------|
+| `Workspace` | 工作區聚合根，包含成員列表、設定與知識結構 |
+| `Member` | 工作區成員實體（含角色） |
+| `Role` | 工作區角色定義 |
+
+---
+
+## 通用語言（Ubiquitous Language）
+
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 工作區 | Workspace | 知識內容的協作容器 |
+| 成員 | Member | 工作區的協作成員 |
+| 角色 | Role | 成員在工作區的角色 |
+| Wiki 內容樹 | WikiContentTree | 工作區下的 Wiki 頁面階層結構 |
+| 工作區標籤 | WorkspaceTab | 工作區 UI 中的功能分頁（Overview / Wiki / Tasks / ...） |
+
+---
+
+## 重要架構限制
+
+- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
+- 使用相對路徑直接 import `FirebaseWorkspaceRepository` 作為替代
+
+---
+
+## 導航規則
+
+- Dashboard (/dashboard) 和 Personal Settings (/settings) 已重定向到 /workspace
+- MVP 導航以 workspace 為主
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`、`organization/api`
+- **下游（被依賴）**：`knowledge/api`、`wiki/api`、`notebook/api`、`workspace-flow/api`、`workspace-audit/api`
+
+---
+
+## 目錄結構
+
+```
+modules/workspace/
+├── api/                  # 公開 API 邊界（index.ts）
+├── application/          # Use Cases
+├── domain/               # Aggregates, Entities（含 WikiContentTree）
+│   └── entities/
+│       └── WikiContentTree.ts
+├── infrastructure/       # Firebase 適配器
+│   └── firebase/
+│       └── FirebaseWikiWorkspaceRepository.ts
+├── interfaces/           # UI 元件（WorkspaceDetailScreen、WorkspaceTabs）
+│   ├── components/
+│   │   └── WorkspaceDetailScreen.tsx
+│   └── workspace-tabs.ts
+└── index.ts
+```
 ````

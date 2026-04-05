@@ -735,7 +735,7 @@ modules/
         knowledge-block.use-cases.ts (73 lines)
         knowledge-page.use-cases.ts (243 lines)
         knowledge-version.use-cases.ts (43 lines)
-        wiki-pages.use-case.ts (282 lines)
+        wiki-pages.use-case.ts (281 lines)
       block-service.ts (59 lines)
     domain/
       entities/
@@ -904,7 +904,7 @@ modules/
       entities/
         RagQuery.ts (54 lines)
         RagQueryFeedback.ts (42 lines)
-        WikiRagTypes.ts (58 lines)
+        WikiRagTypes.ts (57 lines)
       ports/
         vector-store.ts (51 lines)
       repositories/
