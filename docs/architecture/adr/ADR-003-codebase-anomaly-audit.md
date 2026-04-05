@@ -17,6 +17,8 @@
 - 事件匯流排（QStash / pub-sub）需要跨模組消費領域事件
 - Firebase SDK 版本升級時，未通過適配器層的直接 import 可能破壞封裝
 
+> **版本說明（2026-04-05）：** 本 ADR 的所有異常均已通過 ESLint、grep、與目錄結構掃描三重驗證，確認與代碼庫現狀相符。
+
 ---
 
 ## 異常清單
@@ -42,6 +44,7 @@
 
 - 若事件消費者（如 QStash webhook handler）依照 `shared/DomainEvent` 介面解包事件，將無法讀取 `occurredAtISO` 欄位（欄位名稱不匹配）。
 - 違反通用語言規則：同一概念（事件發生時間）有兩個名稱（`occurredAt` / `occurredAtISO`）。
+- 注意：`KnowledgePageApprovedEvent`（`modules/knowledge/domain/events/knowledge.events.ts`）也使用 `occurredAtISO`，ADR-001 的事件結構圖已標注此已知不一致。
 
 **修正方向：** 見下方修正計畫 P1-A。
 
