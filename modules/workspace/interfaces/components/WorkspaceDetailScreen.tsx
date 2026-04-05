@@ -377,7 +377,7 @@ export function WorkspaceDetailScreen({
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">
-                        <Link href="/ai-chat">AI 對話</Link>
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>

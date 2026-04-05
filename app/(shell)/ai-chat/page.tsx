@@ -6,8 +6,10 @@
  */
 
 import { Bot, Loader2, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { useApp } from "@/app/providers/app-provider";
 import { sendChatMessage } from "./_actions";
 import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
@@ -23,11 +25,17 @@ function generateMsgId() {
 }
 
 export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { workspaces },
+  } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const workspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceName = workspaceId ? workspaces[workspaceId]?.name ?? workspaceId : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +88,13 @@ export default function AiChatPage() {
           <p className="mt-0.5 text-xs text-muted-foreground">智慧助理 · 知識問答 · 任務協助</p>
         </div>
       </div>
+
+      {workspaceName && (
+        <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+          目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span>{" "}
+          進入；若需要帶引用來源的工作區查詢，可切換到 RAG Query。
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">

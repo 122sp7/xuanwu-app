@@ -207,16 +207,14 @@ export function WorkspaceHubScreen({
 
           {loadState === "loaded" && workspaces.length === 0 && (
             <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              No workspace records are linked to this account yet. You can keep
-              shaping the account context from{" "}
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
               <Link
                 href="/organization"
                 className="font-medium text-primary hover:underline"
               >
-                organization
+                組織情境
               </Link>{" "}
-              first, then use the create workspace entry above to establish the
-              workspace-first flow.
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
             </div>
           )}
 
