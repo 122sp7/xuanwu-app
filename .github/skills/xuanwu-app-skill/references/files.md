@@ -311,6 +311,17 @@ resetCreateOrganizationDialog();
 setIsCreateOrganizationOpen(false);
 ````
 
+## File: app/(shell)/_components/app-breadcrumbs.tsx
+````typescript
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+⋮----
+function segmentLabel(segment: string)
+⋮----
+// Only render when there's more than one segment (i.e., not just root page).
+````
+
 ## File: app/(shell)/_components/customize-navigation-dialog.tsx
 ````typescript
 /**
@@ -16380,15 +16391,31 @@ venv/
 .playwright-mcp
 ````
 
-## File: app/(shell)/_components/app-breadcrumbs.tsx
+## File: app/(shell)/_components/global-search-dialog.tsx
 ````typescript
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
 ⋮----
-function segmentLabel(segment: string)
+interface GlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
 ⋮----
-// Only render when there's more than one segment (i.e., not just root page).
+function handleSelect(href: string)
+⋮----
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+⋮----
+function onKeyDown(event: KeyboardEvent)
 ````
 
 ## File: app/(shell)/_components/header-controls.tsx
@@ -16733,6 +16760,38 @@ async function handleInvite()
 async function handleDismiss(memberId: string)
 ⋮----
 <Button onClick=
+````
+
+## File: app/(shell)/organization/page.tsx
+````typescript
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity &
+export default function OrganizationPage()
+⋮----
+function handleSwitch(account: AccountEntity)
+function handleSwitchToPersonal()
+⋮----
+{/* Quick-access dashboard — visible only when an org context is active */}
+⋮----
+{/* Personal account */}
+⋮----
+{/* Organizations */}
+⋮----
+onClick=
 ````
 
 ## File: app/(shell)/organization/permissions/page.tsx
@@ -23459,63 +23518,103 @@ import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/kn
 async function main()
 ````
 
-## File: app/(shell)/_components/global-search-dialog.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-⋮----
-interface GlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-⋮----
-function handleSelect(href: string)
-⋮----
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-⋮----
-function onKeyDown(event: KeyboardEvent)
-````
-
-## File: app/(shell)/organization/page.tsx
+## File: app/(shell)/ai-chat/page.tsx
 ````typescript
 /**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import type { Thread } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+const STORAGE_KEY = (accountId: string, workspaceId: string)
+function buildContextPrompt(history: ChatMessage[]): string
+function generateMsgId()
+function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
+⋮----
+// Load persisted thread on mount
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+// Build multi-turn context from history (exclude the new user message)
+⋮----
+// Persist thread to Firestore
+⋮----
+// Defer scroll to allow React to flush the new message into the DOM first.
+⋮----
+function handleNewThread()
+function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>)
+⋮----
+onSubmit=
+⋮----
+onChange=
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/account/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
+⋮----
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+⋮----
 function isOrganizationAccount(
   activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
 ): activeAccount is AccountEntity &
-export default function OrganizationPage()
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+)
 ⋮----
-function handleSwitch(account: AccountEntity)
-function handleSwitchToPersonal()
+function toggleSidebar()
 ⋮----
-{/* Quick-access dashboard — visible only when an org context is active */}
+function isActiveRoute(href: string)
+function handleSelectOrganization(account: AccountEntity)
+function handleSelectPersonal()
+function handleOrganizationCreated(account: AccountEntity)
+function handleSelectWorkspace(workspaceId: string | null)
 ⋮----
-{/* Personal account */}
+async function handleLogout()
 ⋮----
-{/* Organizations */}
+{/* Global search */}
 ⋮----
-onClick=
+void handleLogout();
 ````
 
 ## File: firestore.indexes.json
@@ -27047,6 +27146,120 @@ async function loadPages()
 }
 ````
 
+## File: app/(shell)/_components/dashboard-sidebar.tsx
+````typescript
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+function createWorkspaceLinkItems(group: WorkspaceTabGroup):
+⋮----
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+function getStorageKey(accountId: string)
+function readRecentWorkspaceIds(accountId: string): string[]
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+function getWorkspaceIdFromPath(pathname: string): string | null
+// ── Section helpers ──────────────────────────────────────────────────────────
+type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
+function resolveNavSection(pathname: string): NavSection
+// ── Section icon labels for the title bar ────────────────────────────────────
+⋮----
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity &
+⋮----
+function toggleCollapsed()
+⋮----
+// Whether to show recent workspaces section (controlled by personal prefs)
+⋮----
+// Max workspaces to show (apply user preference)
+⋮----
+function isActiveRoute(href: string)
+// Track recently visited workspaces in localStorage
+⋮----
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue)
+function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string)
+function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string)
+function tWorkspaceGroup(groupKey: string, fallback: string)
+function getWorkspacePrefId(tabValue: string)
+function isWorkspaceItemEnabled(prefId: string)
+function getWorkspaceItemOrder(prefId: string)
+function sortWorkspaceItemsByPreferenceOrder<T extends
+⋮----
+async function loadSidebarLocale()
+⋮----
+// Keep fallback labels when localization files are unavailable.
+⋮----
+async function handleQuickCreatePage()
+⋮----
+{/* ── Sidebar title bar ──────────────────────────────────── */}
+⋮----
+{/* Section label */}
+⋮----
+{/* Customize + collapse buttons grouped on the right */}
+⋮----
+setCustomizeOpen(true);
+⋮----
+{/* ── Scrollable nav body ── section-specific ───────────── */}
+⋮----
+setIsWorkspaceModulesExpanded((prev)
+⋮----
+setIsWorkspaceSpacesExpanded((prev)
+⋮----
+setIsWorkspaceDatabasesExpanded((prev)
+⋮----
+// ── Workspace hub: show recent workspaces ──────────────
+⋮----
+onSelectWorkspace(ws.id);
+⋮----
+setIsExpanded((prev)
+⋮----
+onClick=
+````
+
 ## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
 ````typescript
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -27127,55 +27340,6 @@ function CategoryTreePanel(
 // ── Main page ────────────────────────────────────────────────────────────────
 ⋮----
 function handleSuccess(articleId?: string)
-````
-
-## File: app/(shell)/layout.tsx
-````typescript
-/**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
- */
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
-⋮----
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-⋮----
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity &
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-)
-⋮----
-function toggleSidebar()
-⋮----
-function isActiveRoute(href: string)
-function handleSelectOrganization(account: AccountEntity)
-function handleSelectPersonal()
-function handleOrganizationCreated(account: AccountEntity)
-function handleSelectWorkspace(workspaceId: string | null)
-⋮----
-async function handleLogout()
-⋮----
-{/* Global search */}
-⋮----
-void handleLogout();
 ````
 
 ## File: app/(shell)/notebook/rag-query/page.tsx
@@ -27803,170 +27967,6 @@ setIsCreateOrgOpen(false);
 ⋮----
 resetWorkspaceDialog();
 setIsCreateWorkspaceOpen(false);
-````
-
-## File: app/(shell)/_components/dashboard-sidebar.tsx
-````typescript
-/**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-function createWorkspaceLinkItems(group: WorkspaceTabGroup):
-⋮----
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-function getStorageKey(accountId: string)
-function readRecentWorkspaceIds(accountId: string): string[]
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
-function trackWorkspaceFromPath(pathname: string, accountId: string)
-function getWorkspaceIdFromPath(pathname: string): string | null
-// ── Section helpers ──────────────────────────────────────────────────────────
-type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
-function resolveNavSection(pathname: string): NavSection
-// ── Section icon labels for the title bar ────────────────────────────────────
-⋮----
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity &
-⋮----
-function toggleCollapsed()
-⋮----
-// Whether to show recent workspaces section (controlled by personal prefs)
-⋮----
-// Max workspaces to show (apply user preference)
-⋮----
-function isActiveRoute(href: string)
-// Track recently visited workspaces in localStorage
-⋮----
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue)
-function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string)
-function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string)
-function tWorkspaceGroup(groupKey: string, fallback: string)
-function getWorkspacePrefId(tabValue: string)
-function isWorkspaceItemEnabled(prefId: string)
-function getWorkspaceItemOrder(prefId: string)
-function sortWorkspaceItemsByPreferenceOrder<T extends
-⋮----
-async function loadSidebarLocale()
-⋮----
-// Keep fallback labels when localization files are unavailable.
-⋮----
-async function handleQuickCreatePage()
-⋮----
-{/* ── Sidebar title bar ──────────────────────────────────── */}
-⋮----
-{/* Section label */}
-⋮----
-{/* Customize + collapse buttons grouped on the right */}
-⋮----
-setCustomizeOpen(true);
-⋮----
-{/* ── Scrollable nav body ── section-specific ───────────── */}
-⋮----
-setIsWorkspaceModulesExpanded((prev)
-⋮----
-setIsWorkspaceSpacesExpanded((prev)
-⋮----
-setIsWorkspaceDatabasesExpanded((prev)
-⋮----
-// ── Workspace hub: show recent workspaces ──────────────
-⋮----
-onSelectWorkspace(ws.id);
-⋮----
-setIsExpanded((prev)
-⋮----
-onClick=
-````
-
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
- * Multi-turn context: previous messages injected as system prompt.
- */
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import type { Thread } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-const STORAGE_KEY = (accountId: string, workspaceId: string)
-function buildContextPrompt(history: ChatMessage[]): string
-function generateMsgId()
-function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
-⋮----
-// Load persisted thread on mount
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-// Build multi-turn context from history (exclude the new user message)
-⋮----
-// Persist thread to Firestore
-⋮----
-// Defer scroll to allow React to flush the new message into the DOM first.
-⋮----
-function handleNewThread()
-function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>)
-⋮----
-onSubmit=
-⋮----
-onChange=
 ````
 
 ## File: modules/knowledge-base/api/index.ts
