@@ -25,6 +25,22 @@ Read these in order before making non-trivial decisions:
 5. [agents/commands.md](../agents/commands.md) for build, lint, test, and deployment commands.
 6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
 
+## IDDD Document Authority (Single Source of Truth)
+
+DDD knowledge is owned exclusively by `docs/architecture/`. Always consult these files — never copy their content into instructions, agents, or other docs:
+
+| Query | Canonical Document |
+|-------|-------------------|
+| Ubiquitous Language / term definitions | [`docs/architecture/ubiquitous-language.md`](../docs/architecture/ubiquitous-language.md) |
+| Bounded Context boundaries / module map | [`docs/architecture/bounded-contexts.md`](../docs/architecture/bounded-contexts.md) |
+| Aggregate Root / Entity / Value Object design | [`docs/architecture/domain-model.md`](../docs/architecture/domain-model.md) |
+| Domain Events catalogue | [`docs/architecture/domain-events.md`](../docs/architecture/domain-events.md) |
+| Context Map (inter-context relationships) | [`docs/architecture/context-map.md`](../docs/architecture/context-map.md) |
+| Repository pattern | [`docs/architecture/repository-pattern.md`](../docs/architecture/repository-pattern.md) |
+| Use Cases / Application Services | [`docs/architecture/use-cases.md`](../docs/architecture/use-cases.md) |
+
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/architecture/` files contain **knowledge** (what the domain looks like). Never duplicate knowledge into instructions — link instead.
+
 ## Workspace-Wide Operating Rules
 
 - Plan first for cross-module, cross-runtime, schema, or contract-governed changes.

@@ -35,6 +35,12 @@ In this repository, folder responsibility is documented in each agent body under
 - Labels should describe the next action, not repeat the target name mechanically
 - Prompts should be short and task-forward so the next agent can start immediately
 
+## IDDD DDD 審查 Agents
+
+| Agent | 檔案 | 職責 |
+| --- | --- | --- |
+| Domain Architect | `domain-architect.agent.md` | IDDD 領域架構審查：聚合根、限界上下文、通用語言、領域事件 |
+
 ## Source-to-Target Mapping
 
 | Legacy source | Current target agents |

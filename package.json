@@ -17,6 +17,7 @@
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",
     "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
     "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
     "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
     "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"

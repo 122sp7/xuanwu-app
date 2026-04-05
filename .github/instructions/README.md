@@ -2,6 +2,15 @@
 
 Repository instruction index for `applyTo`-scoped Copilot rules.
 
+## DDD 戰略與戰術設計 (IDDD)
+
+遵循 Vaughn Vernon《Implementing Domain-Driven Design》規範：
+
+- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
+- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
+- [domain-modeling.instructions.md](domain-modeling.instructions.md)
+- [event-driven-state.instructions.md](event-driven-state.instructions.md)
+
 ## Architecture
 
 - [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)

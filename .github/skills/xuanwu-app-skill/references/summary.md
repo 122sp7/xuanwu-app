@@ -38,30 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-959 files | 74,969 lines
+1065 files | 90,507 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 374 | 21,212 |
-| Markdown | 316 | 25,046 |
+| Markdown | 403 | 37,899 |
+| TypeScript | 376 | 21,398 |
 | TypeScript (TSX) | 119 | 19,129 |
-| No Extension | 54 | 108 |
+| No Extension | 53 | 134 |
 | Python | 49 | 3,532 |
 | MERMAID | 27 | 2,082 |
-| JSON | 10 | 2,605 |
-| Shell | 2 | 602 |
+| JSON | 14 | 3,654 |
+| Shell | 13 | 1,847 |
+| YAML | 3 | 179 |
 | JavaScript (ESM) | 2 | 338 |
-| RULES | 2 | 18 |
-| Other | 4 | 297 |
+| Other | 6 | 315 |
 
 **Largest files:**
 - `.tmp-eslint-config.json` (1,932 lines)
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (971 lines)
-- `docs/guides/explanation/architecture.md` (942 lines)
+- `archive/docs/guides/explanation/architecture.md` (942 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (940 lines)
 - `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (933 lines)
-- `docs/guides/explanation/architecture-domain.md` (925 lines)
-- `modules/asset/README.md` (902 lines)
+- `archive/docs/guides/explanation/architecture-domain.md` (925 lines)
+- `archive/modules/asset/README.md` (902 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `modules/retrieval/interfaces/components/RagView.tsx` (659 lines)
