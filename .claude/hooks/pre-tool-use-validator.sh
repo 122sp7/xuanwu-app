@@ -47,6 +47,7 @@ PROTECTED_PATTERNS=(
     ".beads/daemon"
     ".git/"
     ".env"
+    ".vscode/mcp.json"
     ".mcp.json"
 )
 

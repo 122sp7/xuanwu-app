@@ -274,7 +274,15 @@ fi
 
 # Copy config files with diff support
 copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
-copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.mcp.json" ".mcp.json"
+mkdir -p "$TARGET_DIR/.vscode"
+if [ -f "$FRAMEWORK_DIR/.vscode/mcp.json" ]; then
+    copy_file_with_diff "$FRAMEWORK_DIR/.vscode/mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
+elif [ -f "$FRAMEWORK_DIR/.mcp.json" ]; then
+    print_warning "Using legacy .mcp.json source; installing it as .vscode/mcp.json"
+    copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
+else
+    print_warning "No MCP configuration file found in framework source"
+fi
 
 # Initialize Beads issue tracking (required for swarm coordination)
 if [ ! -d "$TARGET_DIR/.beads" ]; then
