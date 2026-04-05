@@ -10749,6 +10749,86 @@ export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Pr
 }
 ````
 
+## File: modules/workspace-flow/api/contracts.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file contracts.ts
+ * @description Public contracts exposed through the workspace-flow module boundary.
+ *
+ * All types, DTOs, and projection helpers that external consumers need are
+ * re-exported from this single file.  XState internals (canTransition*, nextStatus,
+ * isTerminal*) are intentionally NOT exposed here — status machines are internal.
+ *
+ * @author workspace-flow
+ * @created 2026-03-24
+ */
+
+// ── Entity types ──────────────────────────────────────────────────────────────
+
+export type { Task } from "../domain/entities/Task";
+export type { Issue } from "../domain/entities/Issue";
+export type { Invoice } from "../domain/entities/Invoice";
+export type { InvoiceItem } from "../domain/entities/InvoiceItem";
+
+// ── Value objects (enum / list only — no transition helpers) ──────────────────
+
+export type { TaskStatus } from "../domain/value-objects/TaskStatus";
+export { TASK_STATUSES } from "../domain/value-objects/TaskStatus";
+
+export type { IssueStatus } from "../domain/value-objects/IssueStatus";
+export { ISSUE_STATUSES } from "../domain/value-objects/IssueStatus";
+
+export type { IssueStage } from "../domain/value-objects/IssueStage";
+export { ISSUE_STAGES } from "../domain/value-objects/IssueStage";
+
+export type { InvoiceStatus } from "../domain/value-objects/InvoiceStatus";
+export { INVOICE_STATUSES } from "../domain/value-objects/InvoiceStatus";
+
+// ── Source reference (content → workspace-flow provenance) ────────────────────
+
+export type { SourceReference, SourceReferenceType } from "../domain/value-objects/SourceReference";
+
+// ── Summary projections ───────────────────────────────────────────────────────
+
+export type {
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+export {
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+// ── CRUD / command DTOs ───────────────────────────────────────────────────────
+
+export type { CreateTaskDto } from "../application/dto/create-task.dto";
+export type { UpdateTaskDto } from "../application/dto/update-task.dto";
+
+export type { OpenIssueDto } from "../application/dto/open-issue.dto";
+export type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+
+export type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+export type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+export type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+
+// ── Query / pagination DTOs ───────────────────────────────────────────────────
+
+export type { TaskQueryDto } from "../application/dto/task-query.dto";
+export type { IssueQueryDto } from "../application/dto/issue-query.dto";
+export type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+export type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+// ── Command / operation result ────────────────────────────────────────────────
+
+export type { CommandResult } from "@shared-types";
+````
+
 ## File: modules/workspace-flow/api/workspace-flow.facade.ts
 ````typescript
 /**
@@ -13635,6 +13715,228 @@ export class FirebaseInvoiceItemRepository {
 }
 ````
 
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceRepository.ts
+ * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  increment,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toInvoice } from "../firebase/invoice.converter";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import {
+  WF_INVOICES_COLLECTION,
+  WF_INVOICE_ITEMS_COLLECTION,
+} from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+export class FirebaseInvoiceRepository implements InvoiceRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get invoiceCollectionRef() {
+    return collection(this.db, WF_INVOICES_COLLECTION);
+  }
+
+  private get itemCollectionRef() {
+    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
+  }
+
+  async create(input: CreateInvoiceInput): Promise<Invoice> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      submittedAtISO: null,
+      approvedAtISO: null,
+      paidAtISO: null,
+      closedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.invoiceCollectionRef, docData);
+
+    return {
+      id: docRef.id,
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async delete(invoiceId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+  }
+
+  async findById(invoiceId: string): Promise<Invoice | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+    if (!snap.exists()) return null;
+    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
+    const snaps = await getDocs(
+      query(
+        this.invoiceCollectionRef,
+        where("workspaceId", "==", workspaceId),
+      ),
+    );
+    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+  }
+
+  async transitionStatus(
+    invoiceId: string,
+    to: InvoiceStatus,
+    nowISO: string,
+  ): Promise<Invoice | null> {
+    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
+    const snap = await getDoc(invoiceRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "submitted") patch.submittedAtISO = nowISO;
+    if (validTo === "approved") patch.approvedAtISO = nowISO;
+    if (validTo === "paid") patch.paidAtISO = nowISO;
+    if (validTo === "closed") patch.closedAtISO = nowISO;
+
+    await updateDoc(invoiceRef, patch);
+    const updated = await getDoc(invoiceRef);
+    if (!updated.exists()) return null;
+    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
+    const nowISO = new Date().toISOString();
+    const docRef = await addDoc(this.itemCollectionRef, {
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // Update invoice totalAmount
+    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
+      totalAmount: increment(input.amount),
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      id: docRef.id,
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
+    if (!snap.exists()) return null;
+    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
+
+    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(amount - oldAmount),
+        updatedAtISO: nowISO,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    const updated = await getDoc(itemRef);
+    if (!updated.exists()) return null;
+    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async removeItem(invoiceItemId: string): Promise<void> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data() as Record<string, unknown>;
+    const amount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+
+    await deleteDoc(itemRef);
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(-amount),
+        updatedAtISO: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
+  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
+    const snaps = await getDocs(
+      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
+    );
+    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/workspace-flow/infrastructure/repositories/FirebaseIssueRepository.ts
 ````typescript
 /**
@@ -13780,6 +14082,149 @@ export class FirebaseIssueRepository implements IssueRepository {
     const updated = await getDoc(issueRef);
     if (!updated.exists()) return null;
     return toIssue(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseTaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskRepository.ts
+ * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toTask } from "../firebase/task.converter";
+import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+export class FirebaseTaskRepository implements TaskRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get collectionRef() {
+    return collection(this.db, WF_TASKS_COLLECTION);
+  }
+
+  async create(input: CreateTaskInput): Promise<Task> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId ?? null,
+      dueDateISO: input.dueDateISO ?? null,
+      acceptedAtISO: null,
+      archivedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.collectionRef, docData);
+
+    return {
+      id: docRef.id,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId,
+      dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
+    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
+
+    await updateDoc(taskRef, patch);
+    const updated = await getDoc(taskRef);
+    if (!updated.exists()) return null;
+    return toTask(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async delete(taskId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+  }
+
+  async findById(taskId: string): Promise<Task | null> {
+    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+    if (!snap.exists()) return null;
+    return toTask(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
+    const snaps = await getDocs(
+      query(
+        this.collectionRef,
+        where("workspaceId", "==", workspaceId),
+      ),
+    );
+    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
+    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
+    if (validTo === "archived") patch.archivedAtISO = nowISO;
+
+    await updateDoc(taskRef, patch);
+    const updated = await getDoc(taskRef);
+    if (!updated.exists()) return null;
+    return toTask(updated.id, updated.data() as Record<string, unknown>);
   }
 }
 ````
@@ -62825,448 +63270,420 @@ export async function getWorkspaceRagDocuments(
 }
 ````
 
-## File: modules/workspace-flow/api/contracts.ts
+## File: modules/workspace-flow/api/index.ts
 ````typescript
 /**
  * @module workspace-flow/api
- * @file contracts.ts
- * @description Public contracts exposed through the workspace-flow module boundary.
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
  *
- * All types, DTOs, and projection helpers that external consumers need are
- * re-exported from this single file.  XState internals (canTransition*, nextStatus,
- * isTerminal*) are intentionally NOT exposed here — status machines are internal.
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace-flow/api
  *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
  * @author workspace-flow
  * @created 2026-03-24
  */
 
-// ── Entity types ──────────────────────────────────────────────────────────────
+// ── Facade (write + summary-read surface) ────────────────────────────────────
 
-export type { Task } from "../domain/entities/Task";
-export type { Issue } from "../domain/entities/Issue";
-export type { Invoice } from "../domain/entities/Invoice";
-export type { InvoiceItem } from "../domain/entities/InvoiceItem";
+export { WorkspaceFlowFacade } from "./workspace-flow.facade";
 
-// ── Value objects (enum / list only — no transition helpers) ──────────────────
-
-export type { TaskStatus } from "../domain/value-objects/TaskStatus";
-export { TASK_STATUSES } from "../domain/value-objects/TaskStatus";
-
-export type { IssueStatus } from "../domain/value-objects/IssueStatus";
-export { ISSUE_STATUSES } from "../domain/value-objects/IssueStatus";
-
-export type { IssueStage } from "../domain/value-objects/IssueStage";
-export { ISSUE_STAGES } from "../domain/value-objects/IssueStage";
-
-export type { InvoiceStatus } from "../domain/value-objects/InvoiceStatus";
-export { INVOICE_STATUSES } from "../domain/value-objects/InvoiceStatus";
-
-// ── Source reference (content → workspace-flow provenance) ────────────────────
-
-export type { SourceReference, SourceReferenceType } from "../domain/value-objects/SourceReference";
-
-// ── Summary projections ───────────────────────────────────────────────────────
+// ── Public contracts ──────────────────────────────────────────────────────────
 
 export type {
+  // Entities
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  // Value objects
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  // Summary projections
   TaskSummary,
   IssueSummary,
   InvoiceSummary,
   InvoiceItemSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
+  // CRUD / command DTOs
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
+} from "./contracts";
 
 export {
+  // Value object lists (enum arrays)
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  // Summary projection helpers
   toTaskSummary,
   toIssueSummary,
   toInvoiceSummary,
   toInvoiceItemSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
+} from "./contracts";
 
-// ── CRUD / command DTOs ───────────────────────────────────────────────────────
+// ── Read queries (server-side) ────────────────────────────────────────────────
 
-export type { CreateTaskDto } from "../application/dto/create-task.dto";
-export type { UpdateTaskDto } from "../application/dto/update-task.dto";
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "../interfaces/queries/workspace-flow.queries";
 
-export type { OpenIssueDto } from "../application/dto/open-issue.dto";
-export type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+// ── UI components ─────────────────────────────────────────────────────────────
 
-export type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-export type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-export type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
 
-// ── Query / pagination DTOs ───────────────────────────────────────────────────
+// ── Event listeners (content → workspace-flow integration) ───────────────────
 
-export type { TaskQueryDto } from "../application/dto/task-query.dto";
-export type { IssueQueryDto } from "../application/dto/issue-query.dto";
-export type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-export type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+export {
+  createContentToWorkflowListener,
+} from "./listeners";
 
-// ── Command / operation result ────────────────────────────────────────────────
-
-export type { CommandResult } from "@shared-types";
+export type {
+  KnowledgePageApprovedHandler,
+} from "./listeners";
 ````
 
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+## File: modules/workspace-flow/application/dto/materialize-from-content.dto.ts
 ````typescript
 /**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
+ * @module workspace-flow/application/dto
+ * @file materialize-from-content.dto.ts
+ * @description Command DTO for materializing Tasks and Invoices from a
+ * `content.page_approved` event payload.
+ *
+ * This DTO is used by both:
+ *  - MaterializeTasksFromContentUseCase
+ *  - ContentToWorkflowMaterializer (Process Manager)
  */
 
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
 
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+export interface ExtractedTaskItem {
+  readonly title: string;
+  readonly dueDate?: string;
+  readonly description?: string;
+}
+
+export interface ExtractedInvoiceItem {
+  readonly amount: number;
+  readonly description: string;
+  readonly currency?: string;
+}
+
+export interface MaterializeFromContentDto {
+  readonly workspaceId: string;
+  /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
+  readonly contentPageId: string;
+  /** Pre-built SourceReference value object to attach to every created entity. */
+  readonly sourceReference: SourceReference;
+  readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;
+  readonly extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file materialize-tasks-from-content.use-case.ts
+ * @description Use case: Batch-create Tasks (and optionally Invoices) from a
+ * `content.page_approved` event payload.
+ *
+ * Idempotency: callers must ensure the same `sourceReference.causationId` is
+ * not processed twice.  This use case does NOT check for duplicates itself;
+ * that responsibility belongs to the ContentToWorkflowMaterializer process
+ * manager which wraps this use case.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
+import type { MaterializeFromContentDto } from "../dto/materialize-from-content.dto";
 
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
+export class MaterializeTasksFromContentUseCase {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
 
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get invoiceCollectionRef() {
-    return collection(this.db, WF_INVOICES_COLLECTION);
-  }
-
-  private get itemCollectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async create(input: CreateInvoiceInput): Promise<Invoice> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      submittedAtISO: null,
-      approvedAtISO: null,
-      paidAtISO: null,
-      closedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
+  async execute(dto: MaterializeFromContentDto): Promise<CommandResult> {
+    if (!dto.workspaceId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
+    }
+    if (!dto.contentPageId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "contentPageId is required.");
     }
 
-    const docRef = await addDoc(this.invoiceCollectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async delete(invoiceId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-  }
-
-  async findById(invoiceId: string): Promise<Invoice | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-    if (!snap.exists()) return null;
-    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const snaps = await getDocs(
-      query(
-        this.invoiceCollectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
-    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-  }
-
-  async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-  ): Promise<Invoice | null> {
-    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
-    const snap = await getDoc(invoiceRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "submitted") patch.submittedAtISO = nowISO;
-    if (validTo === "approved") patch.approvedAtISO = nowISO;
-    if (validTo === "paid") patch.paidAtISO = nowISO;
-    if (validTo === "closed") patch.closedAtISO = nowISO;
-
-    await updateDoc(invoiceRef, patch);
-    const updated = await getDoc(invoiceRef);
-    if (!updated.exists()) return null;
-    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.itemCollectionRef, {
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Update invoice totalAmount
-    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
-      totalAmount: increment(input.amount),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-    const nowISO = new Date().toISOString();
-
-    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(amount - oldAmount),
-        updatedAtISO: nowISO,
-        updatedAt: serverTimestamp(),
+    const taskIds: string[] = [];
+    for (const item of dto.extractedTasks) {
+      if (!item.title.trim()) continue;
+      const task = await this.taskRepository.create({
+        workspaceId: dto.workspaceId,
+        title: item.title.trim(),
+        description: item.description ?? "",
+        dueDateISO: item.dueDate,
+        sourceReference: dto.sourceReference,
       });
+      taskIds.push(task.id);
     }
 
-    const updated = await getDoc(itemRef);
-    if (!updated.exists()) return null;
-    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async removeItem(invoiceItemId: string): Promise<void> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return;
-
-    const data = snap.data() as Record<string, unknown>;
-    const amount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-
-    await deleteDoc(itemRef);
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(-amount),
-        updatedAtISO: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
+    const invoiceIds: string[] = [];
+    for (const item of dto.extractedInvoices) {
+      if (item.amount <= 0) continue;
+      const invoice = await this.invoiceRepository.create({
+        workspaceId: dto.workspaceId,
+        sourceReference: dto.sourceReference,
       });
+      // Add the extracted item to the invoice.
+      // taskId is empty here because the invoice was generated from AI-extracted data
+      // before any Tasks are created; the association is completed manually by the
+      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
+      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
+      await this.invoiceRepository.addItem({
+        invoiceId: invoice.id,
+        amount: item.amount,
+        taskId: "",
+      });
+      invoiceIds.push(invoice.id);
     }
-  }
 
-  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+    return commandSuccess(dto.contentPageId, Date.now());
   }
 }
 ````
 
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseTaskRepository.ts
+## File: modules/workspace-flow/domain/entities/Invoice.ts
 ````typescript
 /**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @module workspace-flow/domain/entities
+ * @file Invoice.ts
+ * @description Invoice aggregate entity representing a billing record for accepted tasks.
  * @author workspace-flow
  * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
+ * @todo Add domain validation methods as billing rules expand
  */
 
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
 
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Invoice {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: InvoiceStatus;
+  readonly totalAmount: number;
+  readonly submittedAtISO?: string;
+  readonly approvedAtISO?: string;
+  readonly paidAtISO?: string;
+  readonly closedAtISO?: string;
+  /**
+   * Present when this Invoice was materialized from a KnowledgePage via the
+   * `content.page_approved` event.  Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateInvoiceInput {
+  readonly workspaceId: string;
+  readonly sourceReference?: SourceReference;
+}
+````
+
+## File: modules/workspace-flow/domain/entities/Task.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Task.ts
+ * @description Task aggregate entity representing a work unit and its lifecycle.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Add domain validation methods as business rules expand
+ */
+
+import type { TaskStatus } from "../value-objects/TaskStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Task {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: TaskStatus;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly acceptedAtISO?: string;
+  readonly archivedAtISO?: string;
+  /**
+   * Present when this Task was materialized from a KnowledgePage via the
+   * `content.page_approved` event.  Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateTaskInput {
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly sourceReference?: SourceReference;
+}
+
+export interface UpdateTaskInput {
+  readonly title?: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file SourceReference.ts
+ * @description Value object representing the origin of a materialized entity (Task or Invoice).
+ *
+ * A SourceReference is attached to Task and Invoice entities that were created
+ * by the contentToWorkflowMaterializer Process Manager in response to a
+ * `content.page_approved` event.  It provides full audit traceability:
+ *
+ *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
+ */
+
+export type SourceReferenceType = "KnowledgePage";
+
+export interface SourceReference {
+  /** The type of the source aggregate. */
+  readonly type: SourceReferenceType;
+  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
+  readonly id: string;
+  /**
+   * causationId from the `content.page_approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
+   */
+  readonly causationId: string;
+  /**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
+  readonly correlationId: string;
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/invoice.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file invoice.converter.ts
+ * @description Firestore document-to-entity converter for Invoice.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toSourceReference } from "./sourceReference.converter";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+/**
+ * Converts a raw Firestore document data map into a typed Invoice entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
+  const rawStatus = data.status as InvoiceStatus;
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : 0,
+    submittedAtISO: typeof data.submittedAtISO === "string" ? data.submittedAtISO : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
+    closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/task.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file task.converter.ts
+ * @description Firestore document-to-entity converter for Task.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Task } from "../../domain/entities/Task";
 import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+import { toSourceReference } from "./sourceReference.converter";
 
 const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
 const DEFAULT_STATUS: TaskStatus = "draft";
 
-export class FirebaseTaskRepository implements TaskRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_TASKS_COLLECTION);
-  }
-
-  async create(input: CreateTaskInput): Promise<Task> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId ?? null,
-      dueDateISO: input.dueDateISO ?? null,
-      acceptedAtISO: null,
-      archivedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.collectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId,
-      dueDateISO: input.dueDateISO,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
-    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(taskId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-  }
-
-  async findById(taskId: string): Promise<Task | null> {
-    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-    if (!snap.exists()) return null;
-    return toTask(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
-    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
-    if (validTo === "archived") patch.archivedAtISO = nowISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
+/**
+ * Converts a raw Firestore document data map into a typed Task entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toTask(id: string, data: Record<string, unknown>): Task {
+  const rawStatus = data.status as TaskStatus;
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    assigneeId: typeof data.assigneeId === "string" ? data.assigneeId : undefined,
+    dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
+    acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
+    archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
 }
 ````
 
@@ -79128,97 +79545,54 @@ draft ──► submitted ──► finance_review ──► approved ──► 
 | `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
 ````
 
-## File: modules/workspace-flow/api/index.ts
+## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
  * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
+ * @file listeners.ts
+ * @description Public event listener interface for workspace-flow.
  *
- * External consumers MUST import only from this path:
- *   @/modules/workspace-flow/api
+ * External modules (primarily the `content` module's event bus) subscribe to
+ * workspace-flow through this surface.  The concrete implementation is the
+ * `ContentToWorkflowMaterializer` process manager.
  *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @created 2026-03-24
+ * ## Usage
+ * ```ts
+ * import { createContentToWorkflowListener } from "@/modules/workspace-flow/api";
+ *
+ * const listener = createContentToWorkflowListener(workspaceId);
+ * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
+ * ```
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
  */
 
-// ── Facade (write + summary-read surface) ────────────────────────────────────
+import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
+import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
 
-export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+// ── Public listener factory ───────────────────────────────────────────────────
 
-// ── Public contracts ──────────────────────────────────────────────────────────
+/**
+ * Creates a pre-wired `ContentToWorkflowMaterializer` backed by Firebase repos.
+ * Call `handle(event, workspaceId)` from your event bus subscriber.
+ */
+export function createContentToWorkflowListener(): ContentToWorkflowMaterializer {
+  return new ContentToWorkflowMaterializer(
+    new FirebaseTaskRepository(),
+    new FirebaseInvoiceRepository(),
+  );
+}
 
-export type {
-  // Entities
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  // Value objects
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  // Summary projections
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  // CRUD / command DTOs
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  // Query / pagination DTOs
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  // Command result
-  CommandResult,
-} from "./contracts";
+// ── Listener type contracts ───────────────────────────────────────────────────
 
-export {
-  // Value object lists (enum arrays)
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  // Summary projection helpers
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "./contracts";
+/** Shape of any handler that can process a `content.page_approved` event. */
+export interface KnowledgePageApprovedHandler {
+  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
+}
 
-// ── Read queries (server-side) ────────────────────────────────────────────────
-
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "../interfaces/queries/workspace-flow.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────────
-
-export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
-
-// ── Event listeners (content → workspace-flow integration) ───────────────────
-
-export {
-  createContentToWorkflowListener,
-} from "./listeners";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "./listeners";
+export type { KnowledgePageApprovedEvent };
 ````
 
 ## File: modules/workspace-flow/application-services.md
@@ -79290,115 +79664,6 @@ Application layer 只負責：
 - 模組 README：`../../../modules/workspace-flow/README.md`
 - 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
-````
-
-## File: modules/workspace-flow/application/dto/materialize-from-content.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file materialize-from-content.dto.ts
- * @description Command DTO for materializing Tasks and Invoices from a
- * `content.page_approved` event payload.
- *
- * This DTO is used by both:
- *  - MaterializeTasksFromContentUseCase
- *  - ContentToWorkflowMaterializer (Process Manager)
- */
-
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export interface ExtractedTaskItem {
-  readonly title: string;
-  readonly dueDate?: string;
-  readonly description?: string;
-}
-
-export interface ExtractedInvoiceItem {
-  readonly amount: number;
-  readonly description: string;
-  readonly currency?: string;
-}
-
-export interface MaterializeFromContentDto {
-  readonly workspaceId: string;
-  /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
-  readonly contentPageId: string;
-  /** Pre-built SourceReference value object to attach to every created entity. */
-  readonly sourceReference: SourceReference;
-  readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;
-  readonly extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file materialize-tasks-from-content.use-case.ts
- * @description Use case: Batch-create Tasks (and optionally Invoices) from a
- * `content.page_approved` event payload.
- *
- * Idempotency: callers must ensure the same `sourceReference.causationId` is
- * not processed twice.  This use case does NOT check for duplicates itself;
- * that responsibility belongs to the ContentToWorkflowMaterializer process
- * manager which wraps this use case.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import type { MaterializeFromContentDto } from "../dto/materialize-from-content.dto";
-
-export class MaterializeTasksFromContentUseCase {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  async execute(dto: MaterializeFromContentDto): Promise<CommandResult> {
-    if (!dto.workspaceId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
-    }
-    if (!dto.contentPageId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "contentPageId is required.");
-    }
-
-    const taskIds: string[] = [];
-    for (const item of dto.extractedTasks) {
-      if (!item.title.trim()) continue;
-      const task = await this.taskRepository.create({
-        workspaceId: dto.workspaceId,
-        title: item.title.trim(),
-        description: item.description ?? "",
-        dueDateISO: item.dueDate,
-        sourceReference: dto.sourceReference,
-      });
-      taskIds.push(task.id);
-    }
-
-    const invoiceIds: string[] = [];
-    for (const item of dto.extractedInvoices) {
-      if (item.amount <= 0) continue;
-      const invoice = await this.invoiceRepository.create({
-        workspaceId: dto.workspaceId,
-        sourceReference: dto.sourceReference,
-      });
-      // Add the extracted item to the invoice.
-      // taskId is empty here because the invoice was generated from AI-extracted data
-      // before any Tasks are created; the association is completed manually by the
-      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
-      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
-      await this.invoiceRepository.addItem({
-        invoiceId: invoice.id,
-        amount: item.amount,
-        taskId: "",
-      });
-      invoiceIds.push(invoice.id);
-    }
-
-    return commandSuccess(dto.contentPageId, Date.now());
-  }
-}
 ````
 
 ## File: modules/workspace-flow/context-map.md
@@ -79526,178 +79791,6 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 - `../../../docs/ddd/workspace-flow/aggregates.md`
 ````
 
-## File: modules/workspace-flow/domain/entities/Invoice.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Invoice.ts
- * @description Invoice aggregate entity representing a billing record for accepted tasks.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add domain validation methods as billing rules expand
- */
-
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Invoice {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: InvoiceStatus;
-  readonly totalAmount: number;
-  readonly submittedAtISO?: string;
-  readonly approvedAtISO?: string;
-  readonly paidAtISO?: string;
-  readonly closedAtISO?: string;
-  /**
-   * Present when this Invoice was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateInvoiceInput {
-  readonly workspaceId: string;
-  readonly sourceReference?: SourceReference;
-}
-````
-
-## File: modules/workspace-flow/domain/entities/Task.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Task.ts
- * @description Task aggregate entity representing a work unit and its lifecycle.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add domain validation methods as business rules expand
- */
-
-import type { TaskStatus } from "../value-objects/TaskStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Task {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: TaskStatus;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly acceptedAtISO?: string;
-  readonly archivedAtISO?: string;
-  /**
-   * Present when this Task was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateTaskInput {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly sourceReference?: SourceReference;
-}
-
-export interface UpdateTaskInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file SourceReference.ts
- * @description Value object representing the origin of a materialized entity (Task or Invoice).
- *
- * A SourceReference is attached to Task and Invoice entities that were created
- * by the contentToWorkflowMaterializer Process Manager in response to a
- * `content.page_approved` event.  It provides full audit traceability:
- *
- *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
- */
-
-export type SourceReferenceType = "KnowledgePage";
-
-export interface SourceReference {
-  /** The type of the source aggregate. */
-  readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
-  readonly id: string;
-  /**
-   * causationId from the `content.page_approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-  readonly causationId: string;
-  /**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-  readonly correlationId: string;
-}
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/invoice.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file invoice.converter.ts
- * @description Firestore document-to-entity converter for Invoice.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toSourceReference } from "./sourceReference.converter";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-/**
- * Converts a raw Firestore document data map into a typed Invoice entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
-  const rawStatus = data.status as InvoiceStatus;
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : 0,
-    submittedAtISO: typeof data.submittedAtISO === "string" ? data.submittedAtISO : undefined,
-    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
-    paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
-    closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
-    sourceReference: toSourceReference(data.sourceReference),
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-````
-
 ## File: modules/workspace-flow/infrastructure/firebase/sourceReference.converter.ts
 ````typescript
 /**
@@ -79725,49 +79818,6 @@ export function toSourceReference(raw: unknown): SourceReference | undefined {
     return undefined;
   }
   return { type: "KnowledgePage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
-}
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/task.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file task.converter.ts
- * @description Firestore document-to-entity converter for Task.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-
-import type { Task } from "../../domain/entities/Task";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toSourceReference } from "./sourceReference.converter";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-/**
- * Converts a raw Firestore document data map into a typed Task entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toTask(id: string, data: Record<string, unknown>): Task {
-  const rawStatus = data.status as TaskStatus;
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    assigneeId: typeof data.assigneeId === "string" ? data.assigneeId : undefined,
-    dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
-    acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
-    archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
-    sourceReference: toSourceReference(data.sourceReference),
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
 }
 ````
 
@@ -86391,54 +86441,97 @@ npm run build
 ```
 ````
 
-## File: modules/workspace-flow/api/listeners.ts
+## File: modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
 ````typescript
 /**
- * @module workspace-flow/api
- * @file listeners.ts
- * @description Public event listener interface for workspace-flow.
+ * @module workspace-flow/application/process-managers
+ * @file content-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `content.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
  *
- * External modules (primarily the `content` module's event bus) subscribe to
- * workspace-flow through this surface.  The concrete implementation is the
- * `ContentToWorkflowMaterializer` process manager.
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `content` and `workspace-flow` bounded contexts.
  *
- * ## Usage
- * ```ts
- * import { createContentToWorkflowListener } from "@/modules/workspace-flow/api";
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
  *
- * const listener = createContentToWorkflowListener(workspaceId);
- * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
- * ```
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
  *
  * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
  */
 
-import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
 import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
 
-// ── Public listener factory ───────────────────────────────────────────────────
+export class ContentToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
 
-/**
- * Creates a pre-wired `ContentToWorkflowMaterializer` backed by Firebase repos.
- * Call `handle(event, workspaceId)` from your event bus subscriber.
- */
-export function createContentToWorkflowListener(): ContentToWorkflowMaterializer {
-  return new ContentToWorkflowMaterializer(
-    new FirebaseTaskRepository(),
-    new FirebaseInvoiceRepository(),
-  );
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `content.page_approved` event.
+   *
+   * @param event - The full event payload from the content module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
+    // ── Idempotency guard ──────────────────────────────────────────────────
+    if (this.processedCausationIds.has(event.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.pageId,
+      causationId: event.causationId,
+      correlationId: event.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromContentUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      contentPageId: event.pageId,
+      sourceReference,
+      extractedTasks: event.extractedTasks,
+      extractedInvoices: event.extractedInvoices,
+    });
+
+    if (result.success) {
+      // Mark as processed only after successful materialization
+      this.processedCausationIds.add(event.causationId);
+      return true;
+    }
+
+    return false;
+  }
 }
-
-// ── Listener type contracts ───────────────────────────────────────────────────
-
-/** Shape of any handler that can process a `content.page_approved` event. */
-export interface KnowledgePageApprovedHandler {
-  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
-}
-
-export type { KnowledgePageApprovedEvent };
 ````
 
 ## File: modules/workspace-flow/README.md
@@ -88634,258 +88727,6 @@ export type {
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file content-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `content.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `content` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
- */
-
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export class ContentToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `content.page_approved` event.
-   *
-   * @param event - The full event payload from the content module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
-    // ── Idempotency guard ──────────────────────────────────────────────────
-    if (this.processedCausationIds.has(event.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.pageId,
-      causationId: event.causationId,
-      correlationId: event.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromContentUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      contentPageId: event.pageId,
-      sourceReference,
-      extractedTasks: event.extractedTasks,
-      extractedInvoices: event.extractedInvoices,
-    });
-
-    if (result.success) {
-      // Mark as processed only after successful materialization
-      this.processedCausationIds.add(event.causationId);
-      return true;
-    }
-
-    return false;
-  }
-}
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import type { WikiPageTreeNode } from "@/modules/knowledge/api";
-import { listWikiPagesTree } from "@/modules/knowledge/api";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-interface WorkspaceWikiViewProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-/** Base left-padding (rem) for depth-0 tree items. */
-const TREE_INDENT_BASE_REM = 0.5;
-/** Additional left-padding (rem) per nesting level. */
-const TREE_INDENT_STEP_REM = 1.25;
-
-function flattenTree(nodes: WikiPageTreeNode[], depth = 0): Array<{ node: WikiPageTreeNode; depth: number }> {
-  const out: Array<{ node: WikiPageTreeNode; depth: number }> = [];
-  for (const node of nodes) {
-    out.push({ node, depth });
-    out.push(...flattenTree(node.children, depth + 1));
-  }
-  return out;
-}
-
-export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
-  const [pages, setPages] = useState<WikiPageTreeNode[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadPages() {
-      setLoadState("loading");
-      try {
-        const result = await listWikiPagesTree(workspace.accountId, workspace.id);
-        if (!cancelled) {
-          setPages(result);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) setLoadState("error");
-      }
-    }
-
-    void loadPages();
-
-    return () => { cancelled = true; };
-  }, [workspace.accountId, workspace.id]);
-
-  const flatPages = flattenTree(pages);
-
-  return (
-    <div className="space-y-4">
-      <Card className="border-border/60 bg-card/80">
-        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpenIcon className="size-4 shrink-0 text-primary" />
-              <span className="truncate">Wiki · {workspace.name}</span>
-            </CardTitle>
-            <CardDescription className="mt-0.5">
-              此工作區的 Wiki 頁面
-            </CardDescription>
-          </div>
-          <Button asChild size="sm" className="shrink-0 gap-1.5">
-            <Link
-              href={`/wiki/pages?workspaceId=${workspace.id}`}
-            >
-              <PlusIcon className="size-3.5" />
-              <span className="hidden sm:inline">新增頁面</span>
-              <span className="sm:hidden">新增</span>
-            </Link>
-          </Button>
-        </CardHeader>
-
-        <CardContent className="pb-4">
-          {loadState === "loading" && (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" />
-            </div>
-          )}
-
-          {loadState === "error" && (
-            <p className="py-4 text-center text-sm text-destructive">
-              無法載入頁面，請稍後再試。
-            </p>
-          )}
-
-          {loadState === "loaded" && flatPages.length === 0 && (
-            <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
-                <BookOpenIcon className="size-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  建立第一頁來開始記錄工作區知識。
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href={`/wiki/pages?workspaceId=${workspace.id}`}>
-                  <PlusIcon className="size-3.5" />
-                  建立第一頁
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          {loadState === "loaded" && flatPages.length > 0 && (
-            <ul className="divide-y divide-border/50">
-              {flatPages.map(({ node, depth }) => (
-                <li key={node.id}>
-                  <Link
-                    href={`/wiki/pages?pageId=${node.id}`}
-                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
-                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
-                  >
-                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                      {node.title}
-                    </span>
-                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {node.slug}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
-````
-
 ## File: modules/knowledge/repositories.md
 ````markdown
 # knowledge — Repositories
@@ -88986,6 +88827,165 @@ export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 
 - `../../../modules/notebook/repositories.md`
 - `../../../docs/ddd/notebook/aggregates.md`
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+interface WorkspaceWikiViewProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+/** Base left-padding (rem) for depth-0 tree items. */
+const TREE_INDENT_BASE_REM = 0.5;
+/** Additional left-padding (rem) per nesting level. */
+const TREE_INDENT_STEP_REM = 1.25;
+
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
+  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
+  for (const node of nodes) {
+    out.push({ node, depth });
+    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
+  }
+  return out;
+}
+
+export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
+  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPages() {
+      setLoadState("loading");
+      try {
+        const result = await getKnowledgePageTree(workspace.accountId);
+        if (!cancelled) {
+          setPages(result);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) setLoadState("error");
+      }
+    }
+
+    void loadPages();
+
+    return () => { cancelled = true; };
+  }, [workspace.accountId]);
+
+  const flatPages = flattenTree(pages);
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/60 bg-card/80">
+        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpenIcon className="size-4 shrink-0 text-primary" />
+              <span className="truncate">Wiki · {workspace.name}</span>
+            </CardTitle>
+            <CardDescription className="mt-0.5">
+              此工作區的 Wiki 頁面
+            </CardDescription>
+          </div>
+          <Button asChild size="sm" className="shrink-0 gap-1.5">
+            <Link
+              href={`/wiki/pages?workspaceId=${workspace.id}`}
+            >
+              <PlusIcon className="size-3.5" />
+              <span className="hidden sm:inline">新增頁面</span>
+              <span className="sm:hidden">新增</span>
+            </Link>
+          </Button>
+        </CardHeader>
+
+        <CardContent className="pb-4">
+          {loadState === "loading" && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          )}
+
+          {loadState === "error" && (
+            <p className="py-4 text-center text-sm text-destructive">
+              無法載入頁面，請稍後再試。
+            </p>
+          )}
+
+          {loadState === "loaded" && flatPages.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                <BookOpenIcon className="size-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  建立第一頁來開始記錄工作區知識。
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link href={`/wiki/pages?workspaceId=${workspace.id}`}>
+                  <PlusIcon className="size-3.5" />
+                  建立第一頁
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          {loadState === "loaded" && flatPages.length > 0 && (
+            <ul className="divide-y divide-border/50">
+              {flatPages.map(({ node, depth }) => (
+                <li key={node.id}>
+                  <Link
+                    href={`/wiki/pages?pageId=${node.id}`}
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
+                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
+                  >
+                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      {node.title}
+                    </span>
+                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {node.slug}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
 ````
 
 ## File: AGENTS.md
@@ -89299,113 +89299,6 @@ Identity → Account → Organization → Workspace
 |------|---------|
 | `PageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `BlockRepository` | `add()`, `update()`, `delete()`, `reorder()`, `findById()`, `listByPageId()` |
-````
-
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
- */
-
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
-
-export { KnowledgeApi } from "./knowledge-api";
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
-
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Collection types ──────────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
-
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-
-// ── Queries (read-side) ──────────────────────────────────────────────
-
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
 ````
 
 ## File: modules/notebook/api/index.ts
@@ -90578,6 +90471,115 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
+````
+
+## File: modules/knowledge/api/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
