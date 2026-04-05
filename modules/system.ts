@@ -21,8 +21,8 @@
  */
 
 import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi } from "./content/api/knowledge-api";
-import { WikiApi } from "./knowledge-graph/api/wiki-api";
+import { KnowledgeApi } from "./knowledge/api/knowledge-api";
+import { WikiApi } from "./wiki/api/wiki-api";
 
 // ── Shared account used by the in-memory demo ──────────────────────────────
 

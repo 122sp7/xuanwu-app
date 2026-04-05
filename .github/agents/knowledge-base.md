@@ -142,7 +142,7 @@ Legacy import paths are blocked by `eslint.config.mjs`:
 
 > **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
 
-> **已修復（2026-03）：** `modules/content/application/use-cases/wiki-pages.use-case.ts` 與 `modules/asset/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
+> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
 
 ## Tech Stack
 
@@ -201,12 +201,12 @@ Domain events within a module follow the discriminated-union pattern: `type: "mo
 Inside a module, files use **relative imports** (not the module's own barrel export):
 
 ```typescript
-// ✅ Inside modules/content/application/use-cases/wiki-pages.use-case.ts
+// ✅ Inside modules/knowledge/application/use-cases/wiki-pages.use-case.ts
 import { WikiPage } from "../../domain/entities/wiki-page.types";
 import type { IWikiPageRepository } from "../../domain/repositories/WikiPageRepository";
 
 // ❌ Do NOT self-import via the barrel
-import { WikiPage } from "@/modules/content";
+import { WikiPage } from "@/modules/knowledge";
 ```
 
 ### Cross-Module Imports
