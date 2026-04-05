@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
@@ -49,6 +50,7 @@ export function WorkspaceHubScreen({
   accountsHydrated,
   isBootstrapSeeded,
 }: WorkspaceHubScreenProps) {
+  const router = useRouter();
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("");
 
@@ -82,6 +84,9 @@ export function WorkspaceHubScreen({
 
     resetCreateWorkspaceDialog();
     setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      router.push(`/workspace/${result.aggregateId}`);
+    }
   }
 
   return (
