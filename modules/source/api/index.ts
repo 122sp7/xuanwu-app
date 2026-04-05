@@ -27,7 +27,7 @@ export type {
 
 // --- Wiki library use-cases ------------------------------------------------
 
-import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
+import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
 import {
   addWikiLibraryField as _addWikiLibraryField,
   createWikiLibrary as _createWikiLibrary,
@@ -47,7 +47,7 @@ import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-librarie
 
 export type { WikiLibrarySnapshot };
 
-const _defaultLibraryRepository = new InMemoryWikiLibraryRepository();
+const _defaultLibraryRepository = new FirebaseWikiLibraryRepository();
 
 export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
   return _addWikiLibraryField(input, _defaultLibraryRepository);
