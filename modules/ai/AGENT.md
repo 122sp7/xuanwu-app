@@ -15,10 +15,10 @@
 
 ## 棄用檔案守衛
 
-以下檔案都是 `@deprecated` stubs，已移至其他模組，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 移至 `modules/wiki/`
-- `modules/ai/domain/entities/link.ts` → 移至 `modules/wiki/`
-- `modules/ai/domain/repositories/GraphRepository.ts` → 移至 `modules/wiki/`
+以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
+- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
 
 ## 邊界規則
 
