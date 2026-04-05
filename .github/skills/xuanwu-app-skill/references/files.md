@@ -16921,6 +16921,84 @@ This repository does not currently keep a standalone long-form spec workflow gui
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
 ````
 
+## File: .gitignore
+````
+# =============================================================================
+# Claude Code Local Files
+# =============================================================================
+CLAUDE.local.md
+.claude/settings.local.json
+
+# =============================================================================
+# Claude Hooks Runtime
+# =============================================================================
+.claude/hooks/node_modules/
+.claude/hooks/dist/
+.claude/hooks/.file-tracker.log
+.claude/hooks/.locks/
+.claude/hooks/.state/
+
+# =============================================================================
+# Scratchpad (ephemeral working notes, gitignored by design)
+# =============================================================================
+scratchpad/
+
+# =============================================================================
+# Swarm Runtime
+# =============================================================================
+.swarm/
+
+# =============================================================================
+# Beads Runtime (project-specific, not part of framework template)
+# =============================================================================
+.beads/
+
+# =============================================================================
+# OS Files
+# =============================================================================
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Editor Directories
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# =============================================================================
+# Node.js
+# =============================================================================
+node_modules/
+.next/
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+
+# =============================================================================
+# Runtime Lock Files
+# =============================================================================
+*.pid
+*.sock
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.playwright-mcp
+````
+
 ## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 /**
@@ -17088,6 +17166,55 @@ export default async function WikiDatabaseDetailRedirect({
 ````typescript
 import { redirect } from "next/navigation";
 export default function WikiLibrariesRedirect()
+````
+
+## File: CLAUDE.md
+````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: modules/account/aggregates.md
@@ -18174,46 +18301,6 @@ export class CreateArticleUseCase {
 ```
 ````
 
-## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: application/use-cases
- * Category lifecycle use cases.
- */
-import { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { ICategoryRepository } from "../../domain/repositories/CategoryRepository";
-import type { Category } from "../../domain/entities/category.entity";
-import {
-  CreateCategorySchema,
-  RenameCategorySchema,
-  MoveCategorySchema,
-  DeleteCategorySchema,
-} from "../dto/knowledge-base.dto";
-import { v7 as generateId } from "@lib-uuid";
-export class CreateCategoryUseCase {
-⋮----
-constructor(private readonly repo: ICategoryRepository)
-async execute(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult>
-⋮----
-export class RenameCategoryUseCase {
-⋮----
-async execute(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult>
-⋮----
-export class MoveCategoryUseCase {
-⋮----
-async execute(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult>
-⋮----
-export class DeleteCategoryUseCase {
-⋮----
-async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult>
-⋮----
-export class ListCategoriesUseCase {
-⋮----
-async execute(workspaceId: string, accountId: string)
-````
-
 ## File: modules/knowledge-base/context-map.md
 ````markdown
 # Context Map — knowledge-base
@@ -18484,53 +18571,6 @@ export class CategoryDepthValidator {
   }
 }
 ```
-````
-
-## File: modules/knowledge-base/interfaces/_actions/knowledge-base.actions.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
-import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
-import {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  PublishArticleUseCase,
-  ArchiveArticleUseCase,
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-  DeleteArticleUseCase,
-} from "../../application/use-cases/article.use-cases";
-import {
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "../../application/use-cases/category.use-cases";
-import type { z } from "@lib-zod";
-import type {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-  CreateCategorySchema,
-  RenameCategorySchema,
-  MoveCategorySchema,
-} from "../../application/dto/knowledge-base.dto";
-function makeArticleRepo()
-function makeCategoryRepo(accountId: string)
-export async function createArticle(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult>
-export async function updateArticle(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult>
-export async function publishArticle(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult>
-export async function archiveArticle(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult>
-export async function verifyArticle(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult>
-export async function requestArticleReview(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult>
-export async function deleteArticle(accountId: string, articleId: string): Promise<CommandResult>
-export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult>
-export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult>
-export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult>
-export async function deleteCategory(accountId: string, categoryId: string): Promise<CommandResult>
 ````
 
 ## File: modules/knowledge-base/README.md
@@ -24778,82 +24818,155 @@ setIsCreateWorkspaceOpen(false);
 }
 ````
 
-## File: .gitignore
-````
-# =============================================================================
-# Claude Code Local Files
-# =============================================================================
-CLAUDE.local.md
-.claude/settings.local.json
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
 
-# =============================================================================
-# Claude Hooks Runtime
-# =============================================================================
-.claude/hooks/node_modules/
-.claude/hooks/dist/
-.claude/hooks/.file-tracker.log
-.claude/hooks/.locks/
-.claude/hooks/.state/
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
 
-# =============================================================================
-# Scratchpad (ephemeral working notes, gitignored by design)
-# =============================================================================
-scratchpad/
+## Development Status Workflow
 
-# =============================================================================
-# Swarm Runtime
-# =============================================================================
-.swarm/
+Use the following status flow for issues, tasks, and features:
 
-# =============================================================================
-# Beads Runtime (project-specific, not part of framework template)
-# =============================================================================
-.beads/
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
 
-# =============================================================================
-# OS Files
-# =============================================================================
-.DS_Store
-Thumbs.db
+## Quick Start
 
-# =============================================================================
-# Editor Directories
-# =============================================================================
-.idea/
-.vscode/
-*.swp
-*.swo
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
-# =============================================================================
-# Node.js
-# =============================================================================
-node_modules/
-.next/
+## Key Rules
 
-# =============================================================================
-# Python
-# =============================================================================
-__pycache__/
-*.pyc
-.venv/
-venv/
+### Architecture
 
-# =============================================================================
-# Logs
-# =============================================================================
-*.log
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
 
-# =============================================================================
-# Runtime Lock Files
-# =============================================================================
-*.pid
-*.sock
+### Import Aliases
 
-# Beads / Dolt files (added by bd init)
-.dolt/
-*.db
-.beads-credential-key
-.playwright-mcp
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -25053,55 +25166,6 @@ export default async function WikiArticleDetailRedirect({
 ````typescript
 import { redirect } from "next/navigation";
 export default function WikiRagQueryRedirect()
-````
-
-## File: CLAUDE.md
-````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: CONTRIBUTING.md
@@ -25392,6 +25456,53 @@ export type CategoryId = string;
  */
 ````
 
+## File: modules/knowledge-base/interfaces/_actions/knowledge-base.actions.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
+import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
+import {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  PublishArticleUseCase,
+  ArchiveArticleUseCase,
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+  DeleteArticleUseCase,
+} from "../../application/use-cases/article.use-cases";
+import {
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "../../application/use-cases/category.use-cases";
+import type { z } from "@lib-zod";
+import type {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+  CreateCategorySchema,
+  RenameCategorySchema,
+  MoveCategorySchema,
+} from "../../application/dto/knowledge-base.dto";
+function makeArticleRepo()
+function makeCategoryRepo(accountId: string)
+export async function createArticle(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult>
+export async function updateArticle(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult>
+export async function publishArticle(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult>
+export async function archiveArticle(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult>
+export async function verifyArticle(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult>
+export async function requestArticleReview(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult>
+export async function deleteArticle(accountId: string, articleId: string): Promise<CommandResult>
+export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult>
+export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult>
+export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult>
+export async function deleteCategory(accountId: string, categoryId: string): Promise<CommandResult>
+````
+
 ## File: modules/knowledge-base/interfaces/components/ArticleDialog.tsx
 ````typescript
 import { useEffect, useState, useTransition } from "react";
@@ -25455,25 +25566,6 @@ export type VersionId = string;
 // ── Queries (reads) ────────────────────────────────────────────────────────────
 ⋮----
 // ── UI Components ─────────────────────────────────────────────────────────────
-````
-
-## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
-````typescript
-import { useEffect, useState, useTransition } from "react";
-import { History, Trash2 } from "lucide-react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { getVersions } from "../queries/knowledge-collaboration.queries";
-import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
-import type { Version } from "../../domain/entities/version.entity";
-interface VersionHistoryPanelProps {
-  accountId: string;
-  contentId: string;
-  currentUserId: string;
-}
-⋮----
-function handleDelete(versionId: string)
 ````
 
 ## File: modules/knowledge-database/api/index.ts
@@ -26861,157 +26953,6 @@ async function loadPages()
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
-````
-
 ## File: app/(shell)/wiki/articles/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -27036,6 +26977,46 @@ import { redirect } from "next/navigation";
 export default function WikiPageRedirect()
 ````
 
+## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: application/use-cases
+ * Category lifecycle use cases.
+ */
+import { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { ICategoryRepository } from "../../domain/repositories/CategoryRepository";
+import type { Category } from "../../domain/entities/category.entity";
+import {
+  CreateCategorySchema,
+  RenameCategorySchema,
+  MoveCategorySchema,
+  DeleteCategorySchema,
+} from "../dto/knowledge-base.dto";
+import { v7 as generateId } from "@lib-uuid";
+export class CreateCategoryUseCase {
+⋮----
+constructor(private readonly repo: ICategoryRepository)
+async execute(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult>
+⋮----
+export class RenameCategoryUseCase {
+⋮----
+async execute(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult>
+⋮----
+export class MoveCategoryUseCase {
+⋮----
+async execute(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult>
+⋮----
+export class DeleteCategoryUseCase {
+⋮----
+async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult>
+⋮----
+export class ListCategoriesUseCase {
+⋮----
+async execute(workspaceId: string, accountId: string)
+````
+
 ## File: modules/knowledge-collaboration/index.ts
 ````typescript
 /**
@@ -27044,6 +27025,25 @@ export default function WikiPageRedirect()
  * Cross-module access → use api/ exports only.
  * Internal imports use relative paths.
  */
+````
+
+## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
+````typescript
+import { useEffect, useState, useTransition } from "react";
+import { History, Trash2 } from "lucide-react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { getVersions } from "../queries/knowledge-collaboration.queries";
+import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
+import type { Version } from "../../domain/entities/version.entity";
+interface VersionHistoryPanelProps {
+  accountId: string;
+  contentId: string;
+  currentUserId: string;
+}
+⋮----
+function handleDelete(versionId: string)
 ````
 
 ## File: modules/knowledge-database/index.ts

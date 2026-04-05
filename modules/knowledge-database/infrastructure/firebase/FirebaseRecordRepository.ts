@@ -52,7 +52,7 @@ export class FirebaseRecordRepository implements IDatabaseRecordRepository {
       databaseId: input.databaseId,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
-      properties: Object.fromEntries(input.properties),
+      properties: input.properties ?? {},
       order: input.order,
       createdByUserId: input.createdByUserId,
       createdAtISO: now,

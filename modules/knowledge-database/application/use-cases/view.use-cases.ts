@@ -22,7 +22,7 @@ export class CreateViewUseCase {
       return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
     }
     const view = await this.viewRepo.create(parsed.data);
-    return commandSuccess(view.id, new Date().toISOString());
+    return commandSuccess(view.id, 1);
   }
 }
 
@@ -38,7 +38,7 @@ export class UpdateViewUseCase {
     if (!view) {
       return commandFailureFrom("VIEW_NOT_FOUND", "View not found");
     }
-    return commandSuccess(view.id, new Date().toISOString());
+    return commandSuccess(view.id, 1);
   }
 }
 
@@ -51,7 +51,7 @@ export class DeleteViewUseCase {
       return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
     }
     await this.viewRepo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, new Date().toISOString());
+    return commandSuccess(parsed.data.id, 1);
   }
 }
 

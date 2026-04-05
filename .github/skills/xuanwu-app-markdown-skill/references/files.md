@@ -1,66 +1,5 @@
 # Files
 
-## File: .github/agents/commands.md
-````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
-## File: .github/agents/workspace-audit.agent.md
-````markdown
-
-````
-
 ## File: docs/beads.md
 ````markdown
 # Beads
@@ -211,6 +150,835 @@ The framework enforces these across all commands. Claude will use the technologi
 ---
 
 [← Back to README](../README.md)
+````
+
+## File: docs/getting-started.md
+````markdown
+# Getting Started
+
+## Prerequisites
+
+Install [Beads](https://github.com/steveyegge/beads) — the issue tracker that coordinates swarm workers:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+## Install
+
+```bash
+cd your-project
+curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+```
+
+The script copies the framework files, installs hook dependencies, initializes Beads, and prompts before overwriting anything.
+
+## Manual Install
+
+```bash
+git clone https://github.com/dralgorhythm/claude-agentic-framework.git
+cp -r claude-agentic-framework/.claude your-project/
+cp claude-agentic-framework/.mcp.json your-project/
+cp claude-agentic-framework/CLAUDE.md your-project/
+cp claude-agentic-framework/AGENTS.md your-project/
+mkdir -p your-project/artifacts
+cd your-project/.claude/hooks && npm install
+cd your-project && bd init
+```
+
+## What Gets Installed
+
+```
+.claude/         Commands, skills, rules, hooks, agents, templates
+.mcp.json        MCP server configuration
+.beads/          Issue tracking database (coordinates swarm workers)
+artifacts/       Where generated docs go (empty at first)
+CLAUDE.md        Project context — customize this
+AGENTS.md        Agent instructions for session completion
+```
+
+## Verify It Works
+
+```bash
+claude
+```
+
+Then try:
+```
+/architect hello
+```
+
+You should see Claude adopt the Architect command.
+
+## Next Steps
+
+1. **Edit CLAUDE.md** — Add your build commands (`npm test`, etc.)
+2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack
+3. **Try the workflow** — `/architect my-feature` then `/builder` then `/swarm-review`
+4. **Check artifacts/** — Your ADRs and design docs appear here
+
+See [beads.md](beads.md) for Beads usage and team setup.
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/handoffs.md
+````markdown
+# Handoffs
+
+How work flows between commands and agents.
+
+## Command Handoff Chain
+
+```
+/architect        →  artifacts/adr_*.md, system_design_*.md
+       ↓
+/builder          →  Code + tests
+       ↓
+/swarm-review     →  Feedback → back to /builder if needed
+```
+
+Each command reads the previous artifacts and builds on them.
+
+## Swarm Orchestration Handoffs
+
+```
+/swarm-plan       →  artifacts/plan_*.md + Beads tasks
+       ↓
+/swarm-execute    →  Parallel workers implement tasks
+       ↓
+/swarm-review     →  Multi-perspective review (2-3x loop)
+       ↓
+PR creation       →  gh pr create
+```
+
+## Worker Completion
+
+Every worker or session MUST follow the "Landing the Plane" protocol in `AGENTS.md`. The critical requirement: work is NOT complete until `git push` succeeds.
+
+## Session Handoffs
+
+Leave context for the next session:
+
+```bash
+# Write handoff message
+echo '{"message": "Completed API endpoints. Remaining: tests for /users route."}' > .claude/hooks/.state/handoff.json
+```
+
+The next session's `session-start-loader.sh` will display this message on startup.
+
+## Beads-Based Handoffs
+
+Use Beads for structured handoffs between agents:
+
+```bash
+bd create "Continue: implement pagination for /users" --type=task
+bd dep add <new-id> <completed-id>  # link dependency
+```
+
+Workers discover available work via `bd ready`.
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/hooks.md
+````markdown
+# Hooks
+
+Hooks run automatically at key points in Claude Code's lifecycle.
+
+## Built-in Hooks
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
+| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
+| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
+| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
+| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
+| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
+| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
+| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
+| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
+
+## Key Capabilities
+
+### File Locking (pre-tool-use-validator.sh)
+
+Prevents concurrent file edits in multi-agent swarm environments:
+- Atomic lock acquisition via `mkdir` (race-condition safe)
+- Lock auto-expires after 120 seconds
+- Session-based: locks are tied to the session that created them
+- Automatic release on session stop
+
+### Secret Detection (pre-tool-use-validator.sh)
+
+Scans Write/Edit content for 6 secret patterns:
+1. Generic API keys, passwords, tokens
+2. AWS access keys (`AKIA...`)
+3. JWT tokens
+4. Environment variable exports with secrets
+5. GitHub personal access tokens (`ghp_...`)
+6. Private keys (PEM format)
+
+Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
+
+### Protected Files (pre-tool-use-validator.sh)
+
+Blocks modifications to critical system files:
+- `.beads/beads.db`, `.beads/daemon`
+- `.git/`
+- `.env`
+- `.mcp.json`
+
+### Push Blocking (pre-push-main-blocker.sh)
+
+Enforces trunk-based development by blocking pushes to main/master:
+- Detects explicit pushes (`git push origin main`)
+- Detects implicit pushes (`git push` while on main branch)
+- Provides remediation instructions (create feature branch, push there, create PR)
+
+### Session Management (session-start-loader.sh + stop-validator.sh)
+
+- Tracks active sessions in `.claude/hooks/.state/`
+- Detects active swarm agents for coordination awareness
+- Supports handoff messages between sessions
+- Auto-cleans stale sessions older than 24 hours
+- Warns about uncommitted changes on session stop
+- Syncs Beads before exit
+
+## Creating a Hook
+
+1. Create `.claude/hooks/my-hook.sh`:
+
+```bash
+#!/bin/bash
+input=$(cat)
+# your logic
+echo '{"continue": true}'
+```
+
+2. Make executable:
+```bash
+chmod +x .claude/hooks/my-hook.sh
+```
+
+3. Register in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Write|Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
+        "timeout": 5
+      }]
+    }]
+  }
+}
+```
+
+See `.claude/templates/hook.template.sh` for the full template.
+
+## Hook Input
+
+Hooks receive JSON via stdin:
+
+```json
+{
+  "session_id": "abc123",
+  "cwd": "/workspace",
+  "prompt": "user message",
+  "tool_name": "Write",
+  "tool_input": {}
+}
+```
+
+## Hook Output
+
+For PreToolUse hooks, return a permission decision:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "permissionDecisionReason": "Explanation"
+  }
+}
+```
+
+## Runtime Directories
+
+| Directory | Purpose | Gitignored |
+|-----------|---------|------------|
+| `.claude/hooks/.state/` | Session tracking files | Yes |
+| `.claude/hooks/.locks/` | File lock files | Yes |
+
+## Tips
+
+- Keep hooks fast (< 5 seconds timeout)
+- Test with: `echo '{}' | ./my-hook.sh`
+- Override hooks via `settings.local.json`
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/mcp-servers.md
+````markdown
+# MCP Servers
+
+Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
+
+## Included Servers
+
+### Sequential Thinking
+Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
+
+**Best for:** Architecture decisions, debugging complex issues, planning
+
+### Chrome DevTools
+Browser automation with deep debugging — performance traces, network inspection, console access.
+
+**Best for:** QA testing, frontend debugging, performance analysis
+
+### Context7
+Up-to-date documentation and code examples for any library via Context7.
+
+**Best for:** Researching library APIs, finding code examples, validating implementation patterns
+
+### Filesystem
+File system operations beyond the workspace boundary.
+
+**Best for:** Cross-project file access, operations outside the working directory
+
+## Setup
+
+The servers are configured in `.mcp.json`. Most work out of the box.
+
+## Adding More Servers
+
+Edit `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "new-server": {
+      "command": "npx",
+      "args": ["@example/mcp-server"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    }
+  }
+}
+```
+
+## Recommended Additions
+
+| Server | Purpose | When to Add |
+|--------|---------|-------------|
+| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
+| PostgreSQL | Database queries | Working with Postgres |
+| Brave Search | Web search | Research-heavy work |
+| Slack | Team messaging | Team coordination |
+| Linear | Issue tracking | If you use Linear |
+
+### GitHub Example
+
+```json
+"github": {
+  "command": "npx",
+  "args": ["@anthropic-ai/mcp-server-github"],
+  "env": {
+    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+  }
+}
+```
+
+## Troubleshooting
+
+### Server not starting
+
+Check logs:
+```bash
+claude mcp list
+```
+
+### Permission denied
+
+MCP servers run as your user. Check file permissions and API tokens.
+
+## Resources
+
+- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+- [MCP.so Directory](https://mcp.so/)
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/personas.md
+````markdown
+# Commands
+
+Commands are expert modes invoked via slash commands (e.g., `/architect`).
+
+## Quick Reference
+
+| Command | Role | Creates |
+|---------|------|---------|
+| `/architect` | System design | ADRs, system design docs |
+| `/builder` | Implementation | Code, tests |
+| `/qa-engineer` | Testing | Test plans, test suites |
+| `/security-auditor` | Security | Audits, threat models |
+| `/ui-ux-designer` | Interface design | Design specs, wireframes |
+| `/code-check` | Codebase audit | SOLID/DRY violations, health report |
+| `/swarm-plan` | Planning orchestrator | Parallel exploration, task decomposition |
+| `/swarm-execute` | Execution orchestrator | Parallel workers, quality gates |
+| `/swarm-review` | Adversarial reviewer | Multi-perspective code review |
+| `/swarm-research` | Research orchestrator | Deep investigation, technology evaluation |
+
+## Usage
+
+Just use the command with your task:
+
+```
+/builder fix the caching bug
+/architect design the payment system
+/security-auditor payment system
+```
+
+Or chain them for a workflow:
+
+```
+/architect user auth           # writes design
+/builder                       # reads design, implements
+/swarm-review                  # reviews code
+```
+
+## How Handoffs Work
+
+Each command reads the previous artifacts and builds on them. See [handoffs.md](handoffs.md).
+
+## Creating Your Own
+
+See [customization.md](customization.md#adding-a-command).
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/skills.md
+````markdown
+# Skills
+
+Skills are structured workflows that Claude suggests based on what you're doing.
+
+## How It Works
+
+You don't invoke skills directly. Just describe what you need:
+
+```
+"I need to design an API for user management"
+```
+
+Claude sees relevant skills suggested (like `designing-apis`) and uses them to give you a better response.
+
+## Available Skills
+
+### Architecture
+- `designing-systems` — Planning systems
+- `designing-apis` — REST/GraphQL/gRPC
+- `domain-driven-design` — Business domain modeling
+- `cloud-native-patterns` — Microservices, containers
+- `capacity-planning` — Scale and performance
+- `writing-adrs` — Architecture Decision Records
+- `defense-in-depth` — Layered security architecture
+
+### Engineering
+- `implementing-code` — Writing features
+- `debugging` — Finding and fixing bugs
+- `refactoring-code` — Improving structure
+- `optimizing-code` — Performance
+- `testing` — Writing tests
+- `test-driven-development` — TDD workflow
+- `dependency-management` — Package management
+- `data-management` — Database design
+- `data-to-ui` — JSON to React pipelines
+
+### Product
+- `writing-prds` — Product requirements
+- `writing-pr-faqs` — Vision documents
+- `decomposing-tasks` — Breaking down work
+- `execution-roadmaps` — Project planning
+- `requirements-analysis` — Clarifying scope
+- `documentation` — Technical docs
+- `estimating-work` — Effort sizing
+- `brainstorming` — Ideation
+- `agile-methodology` — Scrum/Kanban
+- `context-management` — Onboarding/handoffs
+- `reaching-consensus` — Decision facilitation
+
+### Security
+- `application-security` — Secure coding
+- `threat-modeling` — Identifying threats
+- `security-review` — Audits
+- `compliance` — Regulatory requirements
+- `identity-access` — Auth patterns
+
+### Operations
+- `infrastructure` — IaC, cloud setup
+- `observability` — Logs, metrics, traces
+- `incident-management` — Incident response
+- `beads-workflow` — Issue tracking
+- `swarm-coordination` — Multi-agent workflows
+- `deploy-railway` — Railway deployments
+- `deploy-aws-ecs` — ECS/Fargate deployments
+- `deploy-cloudflare` — Cloudflare Pages/Workers
+- `chaos-engineering` — Resilience testing
+
+### Design
+- `interface-design` — UI/UX
+- `accessibility` — a11y
+- `design-systems` — Component libraries
+- `visual-assets` — Icons, images, graphics
+- `component-recipes` — Tailwind component patterns
+- `demo-design-tokens` — Default design tokens
+
+### Languages & Frameworks
+`typescript` · `python` · `go` · `rust` · `swift` · `kotlin` · `bash` · `terraform` · `react-patterns` · `biome` · `hono` · `tailwind-css` · `framer-motion` · `radix-ui` · `vite` · `expo-router` · `expo-sdk` · `react-native-patterns` · `nativewind` · `reanimated`
+
+## What Triggers Skills
+
+Skills activate based on **keywords** in your prompt (`"deploy"`, `"test"`, `"security"`). The skill-activation hook matches keywords defined in `.claude/skills/skill-rules.json`.
+
+## Creating Your Own
+
+See [customization.md](customization.md#adding-a-skill).
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/swarm.md
+````markdown
+# Swarm Workers
+
+Lightweight agents that work in parallel. Use them for big tasks.
+
+## Orchestration Commands
+
+| Command | Role | Use |
+|---------|------|-----|
+| `/swarm-plan` | Planning Orchestrator | Parallel exploration, task decomposition, artifact creation |
+| `/swarm-execute` | Execution Orchestrator | Parallel workers, quality gates, git push protocol |
+| `/swarm-review` | Adversarial Reviewer | Multi-perspective code review, root cause analysis |
+| `/swarm-research` | Research Orchestrator | Deep multi-source investigation, technology evaluation |
+| `/code-check` | Codebase Auditor | Holistic codebase audit for SOLID, DRY, consistency, and code health |
+
+### Full Cycle
+
+```
+/swarm-plan <feature>  →  /swarm-execute <plan>  →  /swarm-review <branch> (2-3x)  →  PR
+```
+
+## Available Workers
+
+| Worker | Model | Best For |
+|--------|-------|----------|
+| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
+| `worker-builder` | Sonnet | Implementation, testing, refactoring |
+| `worker-reviewer` | Opus | Code review, security analysis |
+| `worker-researcher` | Sonnet | Quick web research, API docs |
+| `worker-research` | Opus | Deep multi-source investigation |
+| `worker-architect` | Opus | Complex design decisions, ADRs |
+
+## When to Use
+
+**Good:**
+- Searching a large codebase
+- Implementing independent features in parallel
+- Security scanning all components
+- Reviewing multiple files
+- Planning complex features with parallel exploration
+
+**Avoid:**
+- Sequential tasks with dependencies
+- Simple single-file changes
+
+## Swarm Patterns
+
+### Parallel Exploration (via /swarm-plan)
+```
+Orchestrator spawns 3-6 worker-explorer agents
+Each researches different aspects (patterns, deps, constraints, prior art)
+Results aggregated into plan artifact
+```
+
+### Divide and Conquer (via /swarm-execute)
+```
+1. worker-architect designs solution
+2. Break into independent tasks via Beads
+3. Multiple worker-builder agents implement in parallel
+4. worker-reviewer validates each
+5. Orchestrator integrates
+```
+
+### Adversarial Review (via /swarm-review)
+```
+Parallel reviewers from different perspectives:
+- Security (OWASP Top 10)
+- Performance (N+1, blocking I/O, algorithms)
+- Architecture (SOLID, coupling, cohesion)
+- Test coverage
+- Code quality
+Findings consolidated with severity classification
+```
+
+## Coordination
+
+Workers use Beads to avoid conflicts:
+
+```bash
+bd create "Implement user service"
+bd update <id> --status in_progress  # worker claims
+bd close <id> --reason "Done"        # worker completes
+bd sync                              # sync with git
+```
+
+## Worker Completion
+
+Workers MUST follow the "Landing the Plane" protocol from AGENTS.md. Work is NOT complete until `git push` succeeds.
+
+## Tips
+
+- Use Haiku for read-only tasks (faster, cheaper)
+- Max 8 concurrent workers
+- Don't have workers spawn workers (single-level only)
+- Keep worker prompts under 500 tokens for fast startup
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: README.md
+````markdown
+# Claude Agentic Framework
+
+A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
+
+## Install
+
+Run this inside your project directory:
+
+```bash
+cd your-project
+curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+```
+
+The script will:
+- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
+- Copy `.mcp.json` (MCP server configuration)
+- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
+- Create an `artifacts/` directory for planning documents
+- Set up `.gitignore` entries
+- Install hook dependencies
+- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
+
+### Beads Setup
+
+Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+The init script will then run `bd init` in your project automatically.
+
+The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
+
+## After Install
+
+1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
+2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
+3. Start Claude Code and try: `/architect hello`
+
+## What You Get
+
+### Commands
+
+Single-agent expert modes, invoked via slash commands:
+
+| Command | Role |
+|---------|------|
+| `/architect` | System design, ADRs |
+| `/builder` | Implementation, debugging, testing |
+| `/qa-engineer` | Test strategy, E2E, accessibility |
+| `/security-auditor` | Threat modeling, security audits |
+| `/ui-ux-designer` | Interface design, visual assets |
+| `/code-check` | SOLID, DRY, consistency audit |
+
+### Swarm Orchestrators
+
+Multi-agent commands that fan work out across parallel workers:
+
+| Command | What It Does |
+|---------|-------------|
+| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
+| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
+| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
+| `/swarm-research` | Deep multi-source investigation with verification tiers |
+
+### The Full Cycle
+
+```
+/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
+```
+
+One agent thinks. Many agents build. Many agents review.
+
+### Workers
+
+Six specialized agent types tuned for cost and capability:
+
+| Worker | Model | Use |
+|--------|-------|-----|
+| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
+| `worker-builder` | Sonnet | Implementation, testing, refactoring |
+| `worker-reviewer` | Opus | Code review, security analysis |
+| `worker-researcher` | Sonnet | Quick web research, API docs |
+| `worker-research` | Opus | Deep multi-source investigation |
+| `worker-architect` | Opus | Complex design decisions, ADRs |
+
+### Skills
+
+67 skills across 7 categories — auto-suggested based on keywords in your prompt:
+
+**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
+
+Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
+
+### Safety Hooks
+
+Pre-configured hooks that run automatically:
+
+- **Secret detection** — blocks commits containing API keys, tokens, private keys
+- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
+- **Push blocking** — stops direct pushes to `main`/`master`
+- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
+- **File locking** — prevents concurrent edits in multi-agent swarms
+
+### MCP Servers
+
+Four servers pre-configured in `.mcp.json`:
+
+| Server | Purpose |
+|--------|---------|
+| Sequential Thinking | Structured multi-step reasoning |
+| Chrome DevTools | Browser testing, performance profiling |
+| Context7 | Up-to-date library documentation |
+| Filesystem | File operations beyond workspace |
+
+## Customization
+
+Everything is designed to be extended:
+
+- Add commands → `.claude/commands/your-command.md`
+- Add skills → `.claude/skills/category/your-skill/SKILL.md`
+- Add rules → `.claude/rules/your-rule.md`
+- Add hooks → `.claude/hooks/your-hook.sh`
+- Add workers → `.claude/agents/worker-yourtype.md`
+
+Templates for each are in `.claude/templates/`.
+
+See [docs/customization.md](docs/customization.md) for details.
+
+## Docs
+
+- [Getting started](docs/getting-started.md)
+- [Multi-agent swarms](docs/swarm.md)
+- [Commands](docs/personas.md)
+- [Skills reference](docs/skills.md)
+- [MCP servers](docs/mcp-servers.md)
+- [Hooks](docs/hooks.md)
+- [Handoffs](docs/handoffs.md)
+- [Beads setup & usage](docs/beads.md)
+- [Customization](docs/customization.md)
+````
+
+## File: .github/agents/commands.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Firebase CLI: `npx firebase` (no global install required)
+````
+
+## File: .github/agents/workspace-audit.agent.md
+````markdown
+
 ````
 
 ## File: docs/ddd/account/aggregates.md
@@ -4479,78 +5247,6 @@ interface WorkspaceCreatedEvent {
 
 ````
 
-## File: docs/getting-started.md
-````markdown
-# Getting Started
-
-## Prerequisites
-
-Install [Beads](https://github.com/steveyegge/beads) — the issue tracker that coordinates swarm workers:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
-
-## Install
-
-```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
-```
-
-The script copies the framework files, installs hook dependencies, initializes Beads, and prompts before overwriting anything.
-
-## Manual Install
-
-```bash
-git clone https://github.com/dralgorhythm/claude-agentic-framework.git
-cp -r claude-agentic-framework/.claude your-project/
-cp claude-agentic-framework/.mcp.json your-project/
-cp claude-agentic-framework/CLAUDE.md your-project/
-cp claude-agentic-framework/AGENTS.md your-project/
-mkdir -p your-project/artifacts
-cd your-project/.claude/hooks && npm install
-cd your-project && bd init
-```
-
-## What Gets Installed
-
-```
-.claude/         Commands, skills, rules, hooks, agents, templates
-.mcp.json        MCP server configuration
-.beads/          Issue tracking database (coordinates swarm workers)
-artifacts/       Where generated docs go (empty at first)
-CLAUDE.md        Project context — customize this
-AGENTS.md        Agent instructions for session completion
-```
-
-## Verify It Works
-
-```bash
-claude
-```
-
-Then try:
-```
-/architect hello
-```
-
-You should see Claude adopt the Architect command.
-
-## Next Steps
-
-1. **Edit CLAUDE.md** — Add your build commands (`npm test`, etc.)
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack
-3. **Try the workflow** — `/architect my-feature` then `/builder` then `/swarm-review`
-4. **Check artifacts/** — Your ADRs and design docs appear here
-
-See [beads.md](beads.md) for Beads usage and team setup.
-
----
-
-[← Back to README](../README.md)
-````
-
 ## File: docs/guides/explanation/architecture.md
 ````markdown
 # 「Notion × Wiki × NotebookLM」融合架構學術指南
@@ -6725,362 +7421,6 @@ Documents 列表載入中：
 - 規格索引：Wiki 與其他功能規格入口
 ````
 
-## File: docs/handoffs.md
-````markdown
-# Handoffs
-
-How work flows between commands and agents.
-
-## Command Handoff Chain
-
-```
-/architect        →  artifacts/adr_*.md, system_design_*.md
-       ↓
-/builder          →  Code + tests
-       ↓
-/swarm-review     →  Feedback → back to /builder if needed
-```
-
-Each command reads the previous artifacts and builds on them.
-
-## Swarm Orchestration Handoffs
-
-```
-/swarm-plan       →  artifacts/plan_*.md + Beads tasks
-       ↓
-/swarm-execute    →  Parallel workers implement tasks
-       ↓
-/swarm-review     →  Multi-perspective review (2-3x loop)
-       ↓
-PR creation       →  gh pr create
-```
-
-## Worker Completion
-
-Every worker or session MUST follow the "Landing the Plane" protocol in `AGENTS.md`. The critical requirement: work is NOT complete until `git push` succeeds.
-
-## Session Handoffs
-
-Leave context for the next session:
-
-```bash
-# Write handoff message
-echo '{"message": "Completed API endpoints. Remaining: tests for /users route."}' > .claude/hooks/.state/handoff.json
-```
-
-The next session's `session-start-loader.sh` will display this message on startup.
-
-## Beads-Based Handoffs
-
-Use Beads for structured handoffs between agents:
-
-```bash
-bd create "Continue: implement pagination for /users" --type=task
-bd dep add <new-id> <completed-id>  # link dependency
-```
-
-Workers discover available work via `bd ready`.
-
----
-
-[← Back to README](../README.md)
-````
-
-## File: docs/hooks.md
-````markdown
-# Hooks
-
-Hooks run automatically at key points in Claude Code's lifecycle.
-
-## Built-in Hooks
-
-| Hook | Event | Purpose |
-|------|-------|---------|
-| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
-| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
-| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
-| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
-| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
-| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
-| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
-| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
-| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
-
-## Key Capabilities
-
-### File Locking (pre-tool-use-validator.sh)
-
-Prevents concurrent file edits in multi-agent swarm environments:
-- Atomic lock acquisition via `mkdir` (race-condition safe)
-- Lock auto-expires after 120 seconds
-- Session-based: locks are tied to the session that created them
-- Automatic release on session stop
-
-### Secret Detection (pre-tool-use-validator.sh)
-
-Scans Write/Edit content for 6 secret patterns:
-1. Generic API keys, passwords, tokens
-2. AWS access keys (`AKIA...`)
-3. JWT tokens
-4. Environment variable exports with secrets
-5. GitHub personal access tokens (`ghp_...`)
-6. Private keys (PEM format)
-
-Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
-
-### Protected Files (pre-tool-use-validator.sh)
-
-Blocks modifications to critical system files:
-- `.beads/beads.db`, `.beads/daemon`
-- `.git/`
-- `.env`
-- `.mcp.json`
-
-### Push Blocking (pre-push-main-blocker.sh)
-
-Enforces trunk-based development by blocking pushes to main/master:
-- Detects explicit pushes (`git push origin main`)
-- Detects implicit pushes (`git push` while on main branch)
-- Provides remediation instructions (create feature branch, push there, create PR)
-
-### Session Management (session-start-loader.sh + stop-validator.sh)
-
-- Tracks active sessions in `.claude/hooks/.state/`
-- Detects active swarm agents for coordination awareness
-- Supports handoff messages between sessions
-- Auto-cleans stale sessions older than 24 hours
-- Warns about uncommitted changes on session stop
-- Syncs Beads before exit
-
-## Creating a Hook
-
-1. Create `.claude/hooks/my-hook.sh`:
-
-```bash
-#!/bin/bash
-input=$(cat)
-# your logic
-echo '{"continue": true}'
-```
-
-2. Make executable:
-```bash
-chmod +x .claude/hooks/my-hook.sh
-```
-
-3. Register in `.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [{
-      "matcher": "Write|Edit",
-      "hooks": [{
-        "type": "command",
-        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
-        "timeout": 5
-      }]
-    }]
-  }
-}
-```
-
-See `.claude/templates/hook.template.sh` for the full template.
-
-## Hook Input
-
-Hooks receive JSON via stdin:
-
-```json
-{
-  "session_id": "abc123",
-  "cwd": "/workspace",
-  "prompt": "user message",
-  "tool_name": "Write",
-  "tool_input": {}
-}
-```
-
-## Hook Output
-
-For PreToolUse hooks, return a permission decision:
-
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow|deny|ask",
-    "permissionDecisionReason": "Explanation"
-  }
-}
-```
-
-## Runtime Directories
-
-| Directory | Purpose | Gitignored |
-|-----------|---------|------------|
-| `.claude/hooks/.state/` | Session tracking files | Yes |
-| `.claude/hooks/.locks/` | File lock files | Yes |
-
-## Tips
-
-- Keep hooks fast (< 5 seconds timeout)
-- Test with: `echo '{}' | ./my-hook.sh`
-- Override hooks via `settings.local.json`
-
----
-
-[← Back to README](../README.md)
-````
-
-## File: docs/mcp-servers.md
-````markdown
-# MCP Servers
-
-Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
-
-## Included Servers
-
-### Sequential Thinking
-Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
-
-**Best for:** Architecture decisions, debugging complex issues, planning
-
-### Chrome DevTools
-Browser automation with deep debugging — performance traces, network inspection, console access.
-
-**Best for:** QA testing, frontend debugging, performance analysis
-
-### Context7
-Up-to-date documentation and code examples for any library via Context7.
-
-**Best for:** Researching library APIs, finding code examples, validating implementation patterns
-
-### Filesystem
-File system operations beyond the workspace boundary.
-
-**Best for:** Cross-project file access, operations outside the working directory
-
-## Setup
-
-The servers are configured in `.mcp.json`. Most work out of the box.
-
-## Adding More Servers
-
-Edit `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "new-server": {
-      "command": "npx",
-      "args": ["@example/mcp-server"],
-      "env": {
-        "API_KEY": "${API_KEY}"
-      }
-    }
-  }
-}
-```
-
-## Recommended Additions
-
-| Server | Purpose | When to Add |
-|--------|---------|-------------|
-| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
-| PostgreSQL | Database queries | Working with Postgres |
-| Brave Search | Web search | Research-heavy work |
-| Slack | Team messaging | Team coordination |
-| Linear | Issue tracking | If you use Linear |
-
-### GitHub Example
-
-```json
-"github": {
-  "command": "npx",
-  "args": ["@anthropic-ai/mcp-server-github"],
-  "env": {
-    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-  }
-}
-```
-
-## Troubleshooting
-
-### Server not starting
-
-Check logs:
-```bash
-claude mcp list
-```
-
-### Permission denied
-
-MCP servers run as your user. Check file permissions and API tokens.
-
-## Resources
-
-- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
-- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
-- [MCP.so Directory](https://mcp.so/)
-
----
-
-[← Back to README](../README.md)
-````
-
-## File: docs/personas.md
-````markdown
-# Commands
-
-Commands are expert modes invoked via slash commands (e.g., `/architect`).
-
-## Quick Reference
-
-| Command | Role | Creates |
-|---------|------|---------|
-| `/architect` | System design | ADRs, system design docs |
-| `/builder` | Implementation | Code, tests |
-| `/qa-engineer` | Testing | Test plans, test suites |
-| `/security-auditor` | Security | Audits, threat models |
-| `/ui-ux-designer` | Interface design | Design specs, wireframes |
-| `/code-check` | Codebase audit | SOLID/DRY violations, health report |
-| `/swarm-plan` | Planning orchestrator | Parallel exploration, task decomposition |
-| `/swarm-execute` | Execution orchestrator | Parallel workers, quality gates |
-| `/swarm-review` | Adversarial reviewer | Multi-perspective code review |
-| `/swarm-research` | Research orchestrator | Deep investigation, technology evaluation |
-
-## Usage
-
-Just use the command with your task:
-
-```
-/builder fix the caching bug
-/architect design the payment system
-/security-auditor payment system
-```
-
-Or chain them for a workflow:
-
-```
-/architect user auth           # writes design
-/builder                       # reads design, implements
-/swarm-review                  # reviews code
-```
-
-## How Handoffs Work
-
-Each command reads the previous artifacts and builds on them. See [handoffs.md](handoffs.md).
-
-## Creating Your Own
-
-See [customization.md](customization.md#adding-a-command).
-
----
-
-[← Back to README](../README.md)
-````
-
 ## File: docs/README.md
 ````markdown
 # Documentation
@@ -7326,99 +7666,6 @@ Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account ro
 | S8 | `npm run lint` 0 errors；`npm run build` 成功 |
 ````
 
-## File: docs/skills.md
-````markdown
-# Skills
-
-Skills are structured workflows that Claude suggests based on what you're doing.
-
-## How It Works
-
-You don't invoke skills directly. Just describe what you need:
-
-```
-"I need to design an API for user management"
-```
-
-Claude sees relevant skills suggested (like `designing-apis`) and uses them to give you a better response.
-
-## Available Skills
-
-### Architecture
-- `designing-systems` — Planning systems
-- `designing-apis` — REST/GraphQL/gRPC
-- `domain-driven-design` — Business domain modeling
-- `cloud-native-patterns` — Microservices, containers
-- `capacity-planning` — Scale and performance
-- `writing-adrs` — Architecture Decision Records
-- `defense-in-depth` — Layered security architecture
-
-### Engineering
-- `implementing-code` — Writing features
-- `debugging` — Finding and fixing bugs
-- `refactoring-code` — Improving structure
-- `optimizing-code` — Performance
-- `testing` — Writing tests
-- `test-driven-development` — TDD workflow
-- `dependency-management` — Package management
-- `data-management` — Database design
-- `data-to-ui` — JSON to React pipelines
-
-### Product
-- `writing-prds` — Product requirements
-- `writing-pr-faqs` — Vision documents
-- `decomposing-tasks` — Breaking down work
-- `execution-roadmaps` — Project planning
-- `requirements-analysis` — Clarifying scope
-- `documentation` — Technical docs
-- `estimating-work` — Effort sizing
-- `brainstorming` — Ideation
-- `agile-methodology` — Scrum/Kanban
-- `context-management` — Onboarding/handoffs
-- `reaching-consensus` — Decision facilitation
-
-### Security
-- `application-security` — Secure coding
-- `threat-modeling` — Identifying threats
-- `security-review` — Audits
-- `compliance` — Regulatory requirements
-- `identity-access` — Auth patterns
-
-### Operations
-- `infrastructure` — IaC, cloud setup
-- `observability` — Logs, metrics, traces
-- `incident-management` — Incident response
-- `beads-workflow` — Issue tracking
-- `swarm-coordination` — Multi-agent workflows
-- `deploy-railway` — Railway deployments
-- `deploy-aws-ecs` — ECS/Fargate deployments
-- `deploy-cloudflare` — Cloudflare Pages/Workers
-- `chaos-engineering` — Resilience testing
-
-### Design
-- `interface-design` — UI/UX
-- `accessibility` — a11y
-- `design-systems` — Component libraries
-- `visual-assets` — Icons, images, graphics
-- `component-recipes` — Tailwind component patterns
-- `demo-design-tokens` — Default design tokens
-
-### Languages & Frameworks
-`typescript` · `python` · `go` · `rust` · `swift` · `kotlin` · `bash` · `terraform` · `react-patterns` · `biome` · `hono` · `tailwind-css` · `framer-motion` · `radix-ui` · `vite` · `expo-router` · `expo-sdk` · `react-native-patterns` · `nativewind` · `reanimated`
-
-## What Triggers Skills
-
-Skills activate based on **keywords** in your prompt (`"deploy"`, `"test"`, `"security"`). The skill-activation hook matches keywords defined in `.claude/skills/skill-rules.json`.
-
-## Creating Your Own
-
-See [customization.md](customization.md#adding-a-skill).
-
----
-
-[← Back to README](../README.md)
-````
-
 ## File: docs/SOURCE-OF-TRUTH.md
 ````markdown
 # Source of Truth for Documentation Structure
@@ -7446,108 +7693,6 @@ This document defines the only source used for the docs skeleton in this task.
 
 - No project-internal content was used to design this skeleton.
 - Cross-linking is preferred over mixing content types in one page.
-````
-
-## File: docs/swarm.md
-````markdown
-# Swarm Workers
-
-Lightweight agents that work in parallel. Use them for big tasks.
-
-## Orchestration Commands
-
-| Command | Role | Use |
-|---------|------|-----|
-| `/swarm-plan` | Planning Orchestrator | Parallel exploration, task decomposition, artifact creation |
-| `/swarm-execute` | Execution Orchestrator | Parallel workers, quality gates, git push protocol |
-| `/swarm-review` | Adversarial Reviewer | Multi-perspective code review, root cause analysis |
-| `/swarm-research` | Research Orchestrator | Deep multi-source investigation, technology evaluation |
-| `/code-check` | Codebase Auditor | Holistic codebase audit for SOLID, DRY, consistency, and code health |
-
-### Full Cycle
-
-```
-/swarm-plan <feature>  →  /swarm-execute <plan>  →  /swarm-review <branch> (2-3x)  →  PR
-```
-
-## Available Workers
-
-| Worker | Model | Best For |
-|--------|-------|----------|
-| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
-| `worker-builder` | Sonnet | Implementation, testing, refactoring |
-| `worker-reviewer` | Opus | Code review, security analysis |
-| `worker-researcher` | Sonnet | Quick web research, API docs |
-| `worker-research` | Opus | Deep multi-source investigation |
-| `worker-architect` | Opus | Complex design decisions, ADRs |
-
-## When to Use
-
-**Good:**
-- Searching a large codebase
-- Implementing independent features in parallel
-- Security scanning all components
-- Reviewing multiple files
-- Planning complex features with parallel exploration
-
-**Avoid:**
-- Sequential tasks with dependencies
-- Simple single-file changes
-
-## Swarm Patterns
-
-### Parallel Exploration (via /swarm-plan)
-```
-Orchestrator spawns 3-6 worker-explorer agents
-Each researches different aspects (patterns, deps, constraints, prior art)
-Results aggregated into plan artifact
-```
-
-### Divide and Conquer (via /swarm-execute)
-```
-1. worker-architect designs solution
-2. Break into independent tasks via Beads
-3. Multiple worker-builder agents implement in parallel
-4. worker-reviewer validates each
-5. Orchestrator integrates
-```
-
-### Adversarial Review (via /swarm-review)
-```
-Parallel reviewers from different perspectives:
-- Security (OWASP Top 10)
-- Performance (N+1, blocking I/O, algorithms)
-- Architecture (SOLID, coupling, cohesion)
-- Test coverage
-- Code quality
-Findings consolidated with severity classification
-```
-
-## Coordination
-
-Workers use Beads to avoid conflicts:
-
-```bash
-bd create "Implement user service"
-bd update <id> --status in_progress  # worker claims
-bd close <id> --reason "Done"        # worker completes
-bd sync                              # sync with git
-```
-
-## Worker Completion
-
-Workers MUST follow the "Landing the Plane" protocol from AGENTS.md. Work is NOT complete until `git push` succeeds.
-
-## Tips
-
-- Use Haiku for read-only tasks (faster, cheaper)
-- Max 8 concurrent workers
-- Don't have workers spawn workers (single-level only)
-- Keep worker prompts under 500 tokens for fast startup
-
----
-
-[← Back to README](../README.md)
 ````
 
 ## File: docs/templates/explanation.template.md
@@ -7961,151 +8106,6 @@ HTTP Request
 ## 13. 一句話總結
 
 看完整路徑判斷層級，不看資料夾名稱猜責任。
-````
-
-## File: README.md
-````markdown
-# Claude Agentic Framework
-
-A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
-
-## Install
-
-Run this inside your project directory:
-
-```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
-```
-
-The script will:
-- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
-- Copy `.mcp.json` (MCP server configuration)
-- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
-- Create an `artifacts/` directory for planning documents
-- Set up `.gitignore` entries
-- Install hook dependencies
-- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
-
-### Beads Setup
-
-Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
-
-The init script will then run `bd init` in your project automatically.
-
-The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
-
-## After Install
-
-1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
-3. Start Claude Code and try: `/architect hello`
-
-## What You Get
-
-### Commands
-
-Single-agent expert modes, invoked via slash commands:
-
-| Command | Role |
-|---------|------|
-| `/architect` | System design, ADRs |
-| `/builder` | Implementation, debugging, testing |
-| `/qa-engineer` | Test strategy, E2E, accessibility |
-| `/security-auditor` | Threat modeling, security audits |
-| `/ui-ux-designer` | Interface design, visual assets |
-| `/code-check` | SOLID, DRY, consistency audit |
-
-### Swarm Orchestrators
-
-Multi-agent commands that fan work out across parallel workers:
-
-| Command | What It Does |
-|---------|-------------|
-| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
-| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
-| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
-| `/swarm-research` | Deep multi-source investigation with verification tiers |
-
-### The Full Cycle
-
-```
-/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
-```
-
-One agent thinks. Many agents build. Many agents review.
-
-### Workers
-
-Six specialized agent types tuned for cost and capability:
-
-| Worker | Model | Use |
-|--------|-------|-----|
-| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
-| `worker-builder` | Sonnet | Implementation, testing, refactoring |
-| `worker-reviewer` | Opus | Code review, security analysis |
-| `worker-researcher` | Sonnet | Quick web research, API docs |
-| `worker-research` | Opus | Deep multi-source investigation |
-| `worker-architect` | Opus | Complex design decisions, ADRs |
-
-### Skills
-
-67 skills across 7 categories — auto-suggested based on keywords in your prompt:
-
-**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
-
-Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
-
-### Safety Hooks
-
-Pre-configured hooks that run automatically:
-
-- **Secret detection** — blocks commits containing API keys, tokens, private keys
-- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
-- **Push blocking** — stops direct pushes to `main`/`master`
-- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
-- **File locking** — prevents concurrent edits in multi-agent swarms
-
-### MCP Servers
-
-Four servers pre-configured in `.mcp.json`:
-
-| Server | Purpose |
-|--------|---------|
-| Sequential Thinking | Structured multi-step reasoning |
-| Chrome DevTools | Browser testing, performance profiling |
-| Context7 | Up-to-date library documentation |
-| Filesystem | File operations beyond workspace |
-
-## Customization
-
-Everything is designed to be extended:
-
-- Add commands → `.claude/commands/your-command.md`
-- Add skills → `.claude/skills/category/your-skill/SKILL.md`
-- Add rules → `.claude/rules/your-rule.md`
-- Add hooks → `.claude/hooks/your-hook.sh`
-- Add workers → `.claude/agents/worker-yourtype.md`
-
-Templates for each are in `.claude/templates/`.
-
-See [docs/customization.md](docs/customization.md) for details.
-
-## Docs
-
-- [Getting started](docs/getting-started.md)
-- [Multi-agent swarms](docs/swarm.md)
-- [Commands](docs/personas.md)
-- [Skills reference](docs/skills.md)
-- [MCP servers](docs/mcp-servers.md)
-- [Hooks](docs/hooks.md)
-- [Handoffs](docs/handoffs.md)
-- [Beads setup & usage](docs/beads.md)
-- [Customization](docs/customization.md)
 ````
 
 ## File: SPEC-WORKFLOW.md
@@ -10348,6 +10348,55 @@ Use this file as the stable glossary entry point referenced by `.github/*` custo
 - [`workspace-scheduling`](../docs/ddd/workspace-scheduling/ubiquitous-language.md)
 
 When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
+````
+
+## File: CLAUDE.md
+````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: docs/ddd/account/AGENT.md
@@ -19357,6 +19406,157 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
 ## File: CONTRIBUTING.md
 ````markdown
 # Contributing to Xuanwu App
@@ -20900,55 +21100,6 @@ import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-
 - When ownership shifts, update contracts and architecture docs in the same change.
 ````
 
-## File: CLAUDE.md
-````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
-````
-
 ## File: docs/ddd/subdomains.md
 ````markdown
 # Subdomains — Xuanwu App
@@ -21310,157 +21461,6 @@ npm run build
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: modules/knowledge/repositories.md
