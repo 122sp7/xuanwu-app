@@ -96,6 +96,32 @@ See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKI
 - If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
 - Index and memory changes are only valid when made through Serena tools.
 
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
 ## Skill And Agent Routing
 
 - Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
