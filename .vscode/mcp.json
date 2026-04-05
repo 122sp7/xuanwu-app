@@ -28,18 +28,14 @@
 			],
 			"env": {
 				"CONTEXT7_API_KEY": "${input:CONTEXT7_API_KEY}"
-			},
-			"gallery": "https://api.mcp.github.com",
-			"version": "1.0.31"
+			}
 		},
 		"io.github.vercel/next-devtools-mcp": {
 			"type": "stdio",
 			"command": "npx",
 			"args": [
 				"next-devtools-mcp@0.3.6"
-			],
-			"gallery": "https://api.mcp.github.com",
-			"version": "0.3.6"
+			]
 		},
 		"pydantic/mcp-run-python": {
 			"type": "stdio",
@@ -71,23 +67,19 @@
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.7.0"
 		},
-		"microsoft/markitdown": {
+		"markitdown": {
 			"type": "stdio",
 			"command": "uvx",
 			"args": [
 				"markitdown-mcp@0.0.1a4"
-			],
-			"gallery": "https://api.mcp.github.com",
-			"version": "1.0.0"
+			]
 		},
-		"microsoft/playwright-mcp": {
+		"playwright-mcp": {
 			"type": "stdio",
 			"command": "npx",
 			"args": [
 				"@playwright/mcp@latest"
-			],
-			"gallery": "https://api.mcp.github.com",
-			"version": "0.0.1-seed"
+			]
 		},
 		"oraios/serena": {
 			"type": "stdio",
@@ -100,9 +92,7 @@
 				"serena@latest",
 				"--context",
 				"ide-assistant"
-			],
-			"gallery": "https://api.mcp.github.com",
-			"version": "1.0.0"
+			]
 		}
 	},
 	"inputs": [
