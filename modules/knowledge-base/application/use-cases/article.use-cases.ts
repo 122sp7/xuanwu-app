@@ -49,7 +49,7 @@ export class CreateArticleUseCase {
       updatedAtISO: now,
     };
     await this.repo.save(article);
-    return commandSuccess(article.id, now);
+    return commandSuccess(article.id, article.version);
   }
 }
 
