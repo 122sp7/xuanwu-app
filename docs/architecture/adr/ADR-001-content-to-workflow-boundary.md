@@ -132,24 +132,18 @@ knowledge (ContentPage View) ──reads──► workspace-flow
 
 ## 後續行動
 
-| 優先級 | 行動項目 | 負責模組 | 計畫版本 | 狀態 |
-|--------|---------|---------|---------|------|
-| 🔴 高 | 在 `knowledge` 模組新增 `ApproveKnowledgePageUseCase` | `knowledge` | v1.1 | ✅ 已實作（`knowledge-page.use-cases.ts`） |
-| 🔴 高 | 在 `knowledge/domain/events` 完善 `KnowledgePageApprovedEvent` 介面定義（含 actorId、causationId、correlationId） | `knowledge` | v1.1 | ✅ 已實作（`knowledge.events.ts`） |
-| 🔴 高 | 實作 `ContentToWorkflowMaterializer` Process Manager | `workspace-flow` | v1.1 | ✅ 已實作（`content-to-workflow-materializer.ts`） |
-| 🔴 高 | 在 `workspace-flow` 的 Task/Invoice 聚合根新增 `sourceReference` 欄位 | `workspace-flow` | v1.1 | ✅ 已實作（`SourceReference.ts`，type 為 `"KnowledgePage"`） |
-| 🟡 中 | 建立 `modules/knowledge/api/events.ts` 匯出事件契約供跨模組訂閱 | `knowledge` | v1.1 | ✅ 已實作 |
-| 🟡 中 | 建立 `modules/workspace-flow/api/listeners.ts` 定義事件監聽介面 | `workspace-flow` | v1.1 | ✅ 已實作 |
-| 🟡 中 | UI 審閱流程納入 Tasks Tab 的 UI Steps（審閱 → 批准 → 實體化） | `workspace-flow` interfaces | v1.1 | 📥 待處理 |
-| 🟢 低 | `knowledge` ContentBlock 新增 `workflow-ref` BlockType，透過 Read Model 嵌入任務狀態 | `knowledge` | v1.2 | 📥 待處理 |
+| 優先級 | 行動項目 | 負責模組 | 計畫版本 |
+|--------|---------|---------|---------|
+| 🟡 中 | UI 審閱流程納入 Tasks Tab 的 UI Steps（審閱 → 批准 → 實體化） | `workspace-flow` interfaces | v1.1 |
+| 🟢 低 | `knowledge` ContentBlock 新增 `workflow-ref` BlockType，透過 Read Model 嵌入任務狀態 | `knowledge` | v1.2 |
 
 ---
 
 ## 相關文件
 
 - [`context-map.md`](../context-map.md) — 上下文關係圖（content → workspace-flow Customer/Supplier 關係）
-- [`domain-events.md`](../domain-events.md) — `content.page_approved` 事件完整定義
-- [`bounded-contexts.md`](../bounded-contexts.md) — content Buffer Zone 與 workspace-flow Source of Truth 描述
-- [`domain-services.md`](../domain-services.md) — `contentToWorkflowMaterializer` Process Manager 設計
-- [`use-cases.md`](../use-cases.md) — `ApproveContentPageUseCase` 與 `MaterializeTasksFromContentUseCase`
+- [`domain-events.md`](../domain-events.md) — `knowledge.page_approved` 事件完整定義
+- [`bounded-contexts.md`](../bounded-contexts.md) — knowledge Buffer Zone 與 workspace-flow Source of Truth 描述
+- [`domain-services.md`](../domain-services.md) — `ContentToWorkflowMaterializer` Process Manager 設計
+- [`use-cases.md`](../use-cases.md) — `ApproveKnowledgePageUseCase` 與 `MaterializeTasksFromContentUseCase`
 - [`workspace-ui-gap-analysis.md`](../workspace-ui-gap-analysis.md) — UI 審閱流程缺口分析

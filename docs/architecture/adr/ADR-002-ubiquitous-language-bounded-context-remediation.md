@@ -8,10 +8,10 @@
 
 1. **文件與代碼不一致**：`ubiquitous-language.md` 中的 `CommandResult` 定義錯誤（寫成 `{ok:true,data}`，實際為 `{success:true,aggregateId,version}`）。
 2. **shared 模組定位不清**：`modules/shared/domain/events/` 存放 content 領域事件，但未說明這是 **Published Language** 模式的刻意設計，易被誤解為邊界污染。
-3. **knowledge 模組過渡期未完成**：`graph-node.ts`、`link.ts` 已標記 `@deprecated` 但尚未移除；`GraphRepository.ts` 在兩個模組中重複定義。
+3. **`ai` 模組過渡期未完成**：`modules/ai/domain/entities/graph-node.ts`、`link.ts` 已標記 `@deprecated`，指向 `modules/wiki/`，但尚未移除；`GraphRepository.ts` 在 `ai` 與 `wiki` 兩個模組中重複定義。（`modules/knowledge/domain/entities/` 中的同名檔案已於先前 PR 清理完畢。）
 4. **Wiki 概念所有權不清**：「Wiki」前綴跨越 `knowledge`（pages 內容）、`source`（WikiLibrary 結構化文件庫）、`workspace`（WikiContentTree 導覽模型）三個模組，語意各異但命名相似，易造成混淆。
 5. **核心聚合根缺乏 Domain Events**：`identity`、`account`、`workspace` 無事件 stream，下游模組無法響應狀態變更。
-6. **`asset.WikiLibrary` 語意偏移**：WikiLibrary 是結構化文件庫，語意偏向內容層，但目前定義在 asset 模組中。
+6. **`source.WikiLibrary` 語意偏移**：WikiLibrary 是結構化文件庫，語意偏向內容層，但目前定義在 `source` 模組中（`modules/source/domain/entities/wiki-library.types.ts`）。
 
 ## 決策
 
@@ -21,19 +21,9 @@
 
 ## 修正計畫（按優先級）
 
-### P0 — 文件正確性（已完成於本 ADR）
+### P0 — 文件正確性（✅ 已完成）
 
-**目標：** 確保文件如實反映代碼現狀，不誤導開發者。
-
-| 動作 | 狀態 | 檔案 |
-|------|------|------|
-| 修正 `CommandResult` 定義（`ok` → `success`，加上 `aggregateId`、`version`） | ✅ 已完成 | `docs/architecture/ubiquitous-language.md` |
-| 在 `shared` 模組描述中加入 Published Language 說明 | ✅ 已完成 | `docs/architecture/bounded-contexts.md` |
-| 在 `knowledge` 模組描述中標注過渡期狀態與 deprecated 實體（**在 `ai/` 模組，非 `knowledge/`**） | ✅ 已完成 | `docs/architecture/bounded-contexts.md` |
-| 新增 Wiki 概念所有權對照表（`knowledge`/`source`/`workspace` 三個模組） | ✅ 已完成 | `docs/architecture/ubiquitous-language.md`, `bounded-contexts.md` |
-| 新增「過渡期已知問題」段落 | ✅ 已完成 | `docs/architecture/ubiquitous-language.md` |
-| 新增「已知議題與修正路徑」段落 | ✅ 已完成 | `docs/architecture/bounded-contexts.md` |
-| 建立本 ADR | ✅ 已完成 | `docs/architecture/adr/ADR-002-*.md` |
+所有文件修正已在本 ADR 建立時完成，包含：修正 `CommandResult` 定義、在 `shared` 模組加入 Published Language 說明、標注 `ai/` 模組過渡期狀態、新增 Wiki 概念所有權對照表。
 
 ---
 
@@ -62,9 +52,9 @@
 **問題：** `ContentPageCreatedEvent` 和 `KnowledgeUpdatedEvent`（實際名稱：`shared/domain/events/knowledge-page-created.event.ts` 和 `shared/domain/events/knowledge-updated.event.ts`）在 `shared` 中，但使用方式可能不一致。
 
 **修正步驟：**
-1. 搜尋所有 import `ContentPageCreatedEvent` 和 `ContentUpdatedEvent` 的地方
-2. 確認發佈者（publish）是 `content` 模組
-3. 確認消費者（subscribe）是 `knowledge-graph` 和/或 `knowledge` 模組
+1. 搜尋所有 import `KnowledgePageCreatedEvent` 和 `KnowledgeUpdatedEvent` 的地方
+2. 確認發佈者（publish）是 `knowledge` 模組
+3. 確認消費者（subscribe）是 `knowledge-base` 和/或 `knowledge` 模組
 4. 如發現其他模組直接使用這些事件，評估是否合理或需要重構
 
 ---
