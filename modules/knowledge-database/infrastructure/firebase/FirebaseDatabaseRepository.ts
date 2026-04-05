@@ -74,6 +74,7 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
       viewIds: [],
       icon: null,
       coverImageUrl: null,
+      archived: false,
       createdByUserId: input.createdByUserId,
       createdAtISO: now,
       updatedAtISO: now,
@@ -133,7 +134,7 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
 
   async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]> {
     const db = this.db();
-    const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "!=", true), orderBy("createdAtISO", "asc"));
+    const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "==", false), orderBy("createdAtISO", "asc"));
     const snaps = await getDocs(q);
     return snaps.docs.map(d => toDatabase(d.id, d.data() as Record<string, unknown>));
   }
