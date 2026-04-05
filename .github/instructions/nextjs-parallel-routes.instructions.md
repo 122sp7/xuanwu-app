@@ -12,7 +12,6 @@ applyTo: 'app/**/*.{ts,tsx}'
 - Consume cross-domain behavior through module APIs only.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill app-router-parallel-routes
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

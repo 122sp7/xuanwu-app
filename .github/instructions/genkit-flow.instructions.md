@@ -12,6 +12,5 @@ applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
 - Delegate heavy ingestion/embedding to worker-side pipelines.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp

@@ -17,5 +17,4 @@ applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Do not hide violations by broad rule disables.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill vscode-typescript-workbench

@@ -5,7 +5,7 @@ applyTo: 'modules/**/*.{ts,tsx}'
 
 # 事件驅動狀態規範 (Event-Driven State)
 
-> 完整知識參考：**[`docs/architecture/domain-events.md`](../../docs/architecture/domain-events.md)**
+> 完整知識參考：**對應 bounded context 的 `docs/ddd/<context>/domain-events.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 領域事件 (Domain Events)
@@ -104,6 +104,5 @@ export class CreateWorkspaceUseCase {
 - 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries

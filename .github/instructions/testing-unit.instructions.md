@@ -12,6 +12,5 @@ applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Cover happy, boundary, and negative paths for core domain logic.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill vscode-testing-debugging-browser
 #use skill vscode-typescript-workbench

@@ -26,5 +26,4 @@ applyTo: 'py_fn/**/*.py'
 - Update `py_fn/README.md` when responsibilities or runtime contracts change.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-rag-runtime-boundary

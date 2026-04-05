@@ -14,6 +14,5 @@ applyTo: '{app,modules}/**/*.{ts,tsx}'
 - Keep infrastructure access out of route files and action wrappers.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

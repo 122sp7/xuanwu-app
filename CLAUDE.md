@@ -18,7 +18,7 @@ npm run build     # Type-check + Next.js build
 cd py_fn && python -m pytest tests/ -v
 ```
 
-See [agents/commands.md](agents/commands.md) for full list.
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
 
 ## Key Principles
 
@@ -41,5 +41,5 @@ export async function action(input) { return useCase.execute(input); }
 ## Full Reference
 
 - **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[agents/knowledge-base.md](agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow

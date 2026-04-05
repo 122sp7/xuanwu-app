@@ -21,7 +21,6 @@ argument-hint: Provide source docs, target chunk policy, and constraints.
 4. Report chunk statistics and edge cases.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-rag-runtime-boundary
 #use skill liteparse
 #use skill llamaparse

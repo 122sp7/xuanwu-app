@@ -15,6 +15,5 @@ argument-hint: Provide doc sources, embedding model/runtime, and storage target.
 4. Report failures, retries, and quality risks.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse

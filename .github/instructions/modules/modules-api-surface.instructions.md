@@ -26,7 +26,6 @@ Use this instruction for `modules/*/api` files.
 - Run validation from `agents/commands.md` when API signatures or import surfaces change.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries
 #use skill xuanwu-development-contracts

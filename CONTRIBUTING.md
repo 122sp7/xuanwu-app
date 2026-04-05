@@ -66,8 +66,8 @@ cd py_fn && python -m pytest tests/ -v
 
 This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
 
-- [`agents/README.md`](agents/README.md) — rules index
-- [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
+- [`.github/agents/README.md`](.github/agents/README.md) — rules index
+- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
 - [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
 
 ### Key Rules

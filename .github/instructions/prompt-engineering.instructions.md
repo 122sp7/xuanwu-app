@@ -28,4 +28,3 @@ applyTo: '.github/prompts/**/*.prompt.md'
 - Prefer short executable steps over long background text.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp

@@ -32,6 +32,5 @@ Map ownership, boundaries, and risks before coding.
 - Suggested next prompt
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries

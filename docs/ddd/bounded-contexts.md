@@ -232,5 +232,5 @@
 
 - 子域分類：[`subdomains.md`](./subdomains.md)
 - 詳細 BC 文件：各子目錄 `README.md`
-- 全局通用語言：`docs/architecture/ubiquitous-language.md`
-- 全局上下文地圖：`docs/architecture/context-map.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`

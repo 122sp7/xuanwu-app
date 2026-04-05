@@ -1,10 +1,8 @@
 # Prompts Index
 
-Decomposed prompt set from `.github/prompts/old`.
+Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
 
 ## DDD 領域建模 (IDDD)
-
-遵循 Vaughn Vernon《Implementing Domain-Driven Design》規範：
 
 - [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
 - [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
@@ -49,7 +47,3 @@ Decomposed prompt set from `.github/prompts/old`.
 
 - [write-tests.prompt.md](write-tests.prompt.md)
 - [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
-#use skill modules-mddd-api-surface
