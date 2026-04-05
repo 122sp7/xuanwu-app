@@ -1,5 +1,135 @@
 # Files
 
+## File: .github/agents/ai-genkit-lead.agent.md
+````markdown
+---
+name: AI Genkit Lead
+description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refine Genkit Flow
+    agent: Genkit Flow Agent
+    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
+  - label: Review RAG Boundary
+    agent: RAG Lead
+    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
+
+---
+
+# AI Genkit Lead
+
+## Target Scope
+
+- `modules/agent/**`
+- `app/**`
+- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
+
+## Focus
+
+- Genkit flow ownership and app-side orchestration
+- Contract-safe integration with ingestion and retrieval layers
+
+## Guardrails
+
+- Keep auth and chat orchestration in Next.js.
+- Keep parsing, chunking, embedding in py_fn workers.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/app-router.agent.md
+````markdown
+---
+name: App Router Agent
+description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
+argument-hint: Provide route segment, expected behavior, and failing symptoms.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refine Parallel Routes
+    agent: Parallel Routes Agent
+    prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
+  - label: Write Server Action
+    agent: Server Action Writer
+    prompt: Implement or review the server action orchestration and validation boundary used by this route.
+  - label: Verify End-to-End
+    agent: E2E QA Agent
+    prompt: Verify the affected route in a browser and collect runtime evidence for this change.
+
+---
+
+# App Router Agent
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
+- `providers/**`
+
+## Workflow
+
+1. Identify the target segment and rendering/data path.
+2. Use Next runtime evidence when symptoms are ambiguous.
+3. Apply least-change fixes in route composition or local route UI.
+4. Validate only the affected route behavior and related module API usage.
+
+## Guardrails
+
+- Keep business logic in modules.
+- Use runtime evidence when route behavior is unclear.
+- Keep route slices composition-focused.
+
+## Output
+
+- Route scope and failure mode
+- Changes applied
+- Evidence checked
+- Residual route risk
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/chunk-strategist.agent.md
+````markdown
+---
+name: Chunk Strategist
+description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Align Ingestion Inputs
+    agent: Doc Ingest Agent
+    prompt: Align document normalization and source attribution with the chunking strategy described above.
+  - label: Configure Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
+
+---
+
+# Chunk Strategist
+
+## Target Scope
+
+- `py_fn/**`
+- `modules/retrieval/**`
+- `modules/knowledge/**`
+
+## Focus
+
+- Chunk size and overlap policy
+- Metadata fields for retrieval and attribution
+- Domain-specific segmentation rules
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
 ## File: .github/agents/commands.md
 ````markdown
 # Build, Lint & Development Commands
@@ -56,6 +186,673 @@
 - Firebase CLI: `npx firebase` (no global install required)
 ````
 
+## File: .github/agents/doc-ingest.agent.md
+````markdown
+---
+name: Doc Ingest Agent
+description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Design Chunk Strategy
+    agent: Chunk Strategist
+    prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
+  - label: Write Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding generation and metadata writes for this ingestion output.
+  - label: Review RAG Flow
+    agent: RAG Lead
+    prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
+
+---
+
+# Doc Ingest Agent
+
+## Target Scope
+
+- `py_fn/**`
+- `modules/retrieval/**`
+- `modules/knowledge/**`
+
+## Rules
+
+- Keep conversion and normalization deterministic.
+- Preserve source attribution fields.
+- Align outputs with chunk and embedding contracts.
+- Flag notable format-loss risk when source conversion may affect downstream retrieval.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/domain-architect.agent.md
+````markdown
+---
+name: Domain Architect
+description: IDDD 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合 Vaughn Vernon《Implementing Domain-Driven Design》規範。
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: 審查模組邊界
+    agent: MDDD Architect
+    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
+  - label: 更新通用語言術語
+    agent: KB Architect
+    prompt: 將本次領域建模新增或變更的術語同步更新至 terminology-glossary.md 與知識庫文件。
+  - label: 品質審查
+    agent: Quality Lead
+    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 IDDD 規範。
+
+---
+
+# Domain Architect
+
+## 目標範圍 (Target Scope)
+
+- `modules/**/domain/**`
+- `modules/**/application/use-cases/**`
+- `modules/**/application/machines/**`
+- `terminology-glossary.md`
+- `.github/instructions/ubiquitous-language.instructions.md`
+- `.github/instructions/bounded-context-rules.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
+
+## 使命 (Mission)
+
+確保所有領域模型設計符合《Implementing Domain-Driven Design》(Vaughn Vernon) 的戰略（Strategic）與戰術（Tactical）設計原則，維護聚合完整性、通用語言一致性與事件驅動架構品質。
+
+## IDDD 審查清單
+
+### 通用語言 (Ubiquitous Language)
+
+- [ ] 新命名是否已查閱 `terminology-glossary.md`？
+- [ ] 是否有違反通用語言的同義詞替換？
+- [ ] 領域事件命名是否使用過去式？
+- [ ] 類別、方法名稱是否反映領域概念而非技術概念？
+
+### 限界上下文 (Bounded Context)
+
+- [ ] 程式碼是否屬於正確的限界上下文（模組）？
+- [ ] 是否有直接存取其他模組的 `domain/`、`application/` 或 `infrastructure/` 內部？
+- [ ] 跨模組整合是否透過 `api/` 合約或領域事件進行？
+- [ ] 外部系統整合是否透過防腐層（Anti-Corruption Layer）隔離？
+
+### 聚合設計 (Aggregate Design)
+
+- [ ] 聚合根是否保護所有業務不變數？
+- [ ] 狀態修改是否透過封裝的命令方法進行？
+- [ ] 是否存在貧血領域模型（只有 Getter/Setter，無業務邏輯）？
+- [ ] 聚合邊界是否合理（不過大、不過小）？
+- [ ] `pullDomainEvents()` 是否正確清空事件陣列？
+
+### 值對象 (Value Object)
+
+- [ ] 是否使用 Zod 品牌型別確保型別安全？
+- [ ] 值對象是否不可變（Immutable）？
+- [ ] 識別碼是否使用品牌型別保護？
+
+### 領域事件 (Domain Event)
+
+- [ ] 每次狀態變更是否產生對應的領域事件？
+- [ ] `occurredAt` 是否使用 ISO string（與 `shared/domain/events.ts` 一致）？
+- [ ] 事件 Payload 是否以 Zod Schema 嚴格定義？
+- [ ] 事件 `type` discriminant 是否為 `<module>.<action>` 格式？
+- [ ] 事件是否在聚合持久化成功後才發布？
+
+## 輸出格式
+
+1. **IDDD 合規性評估**：通過 / 需修正
+2. **問題項目清單**：每項附檔案路徑與具體說明
+3. **修正建議**：附程式碼範例
+4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/agents/domain-lead.agent.md
+````markdown
+---
+name: Domain Lead
+description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refactor Module Boundary
+    agent: MDDD Architect
+    prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
+
+---
+
+# Domain Lead
+
+## Target Scope
+
+- `modules/**`
+- `packages/shared-types/**`
+- `packages/api-contracts/**`
+
+## Responsibilities
+
+- Confirm owning bounded context before edits.
+- Place logic in the correct layer.
+- Prevent internal cross-module imports.
+
+## Layer Placement Guide
+
+- `domain`: business rules, entities, value objects, repository interfaces
+- `application`: use cases and DTO orchestration
+- `infrastructure`: external adapters and implementations
+- `interfaces`: UI, hooks, queries, contracts, server actions
+- `api`: only public cross-module boundary
+
+## Validation
+
+- Run lint for boundary and import changes.
+- Run build when public types or exports are touched.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/e2e-qa.agent.md
+````markdown
+---
+name: E2E QA Agent
+description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
+  - label: Expand Test Coverage
+    agent: Test Scenario Writer
+    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
+  - label: Capture Support Follow-up
+    agent: Support Architect
+    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
+
+---
+
+# E2E QA Agent
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
+- `debug/**`
+
+## Workflow
+
+1. Build scenarios from acceptance criteria and user paths.
+2. Execute browser interactions and capture runtime evidence.
+3. Separate confirmed failures from improvement suggestions.
+
+## Rules
+
+- Capture clear reproduction steps.
+- Separate confirmed failures from improvement ideas.
+- Report console and network evidence when relevant.
+
+## Output
+
+- Scenarios executed
+- Evidence collected
+- Confirmed failures
+- Release recommendation: ready | ready-with-risk | blocked
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/embedding-writer.agent.md
+````markdown
+---
+name: Embedding Writer
+description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Chunk Inputs
+    agent: Chunk Strategist
+    prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
+  - label: Refine Flow Integration
+    agent: Genkit Flow Agent
+    prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
+
+---
+
+# Embedding Writer
+
+## Target Scope
+
+- `py_fn/**`
+- `modules/retrieval/**`
+- `modules/knowledge/**`
+
+## Responsibilities
+
+- Define embedding payload shape.
+- Ensure consistent vector metadata.
+- Validate write path and retrieval compatibility.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/firestore-schema.agent.md
+````markdown
+---
+name: Firestore Schema Agent
+description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Plan Migration
+    agent: Schema Migration Agent
+    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
+
+---
+
+# Firestore Schema Agent
+
+## Target Scope
+
+- `modules/**/infrastructure/**`
+- `firestore.indexes.json`
+- `firestore.rules`
+
+## Responsibilities
+
+- Model collections and documents for bounded contexts.
+- Keep schema and index plans aligned with read and write paths.
+- Track migration impact and backward compatibility.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/frontend-lead.agent.md
+````markdown
+---
+name: Frontend Lead
+description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Diagnose Route Behavior
+    agent: App Router Agent
+    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
+  - label: Compose UI Primitives
+    agent: Shadcn Composer
+    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
+
+---
+
+# Frontend Lead
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
+- `packages/ui-*/**`
+
+## Mission
+
+Deliver route-level UI slices with clear ownership and predictable data flow.
+
+## Guardrails
+
+- Keep app routes thin and composition-focused.
+- Consume module behavior via module api only.
+- Prefer server components unless client interactivity is required.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/genkit-flow.agent.md
+````markdown
+---
+name: Genkit Flow Agent
+description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review AI Ownership
+    agent: AI Genkit Lead
+    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
+
+---
+
+# Genkit Flow Agent
+
+## Target Scope
+
+- `modules/agent/**`
+- `app/**`
+- `modules/retrieval/**`
+
+## Focus
+
+- Flow inputs and outputs
+- Prompt and tool orchestration boundaries
+- Error handling and fallback behavior
+
+## Guardrails
+
+- Keep flow contracts explicit.
+- Avoid leaking worker-only logic into app orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/kb-architect.agent.md
+````markdown
+---
+name: KB Architect
+description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refine Prompt Contracts
+    agent: Prompt Engineer
+    prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
+  - label: Align Support Playbooks
+    agent: Support Architect
+    prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
+
+---
+
+# KB Architect
+
+## Target Scope
+
+- `docs/**`
+- `.github/prompts/**`
+- `.github/instructions/**`
+
+## Focus
+
+- Information hierarchy for docs and references
+- Cross-document deduplication
+- Stable glossary and index links
+
+## Execution Pattern
+
+- Process docs in leaf-to-root order when restructuring large doc trees.
+- Prefer lint/compress/dedup/structure updates before index regeneration.
+- Keep token usage efficient without changing technical meaning.
+
+## Guardrails
+
+- Do not change technical meaning while restructuring docs.
+- Keep docs aligned with current module boundaries and contracts.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/lint-rule-enforcer.agent.md
+````markdown
+---
+name: Lint Rule Enforcer
+description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Check Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
+  - label: Review Frontend Impact
+    agent: Frontend Lead
+    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
+
+---
+
+# Lint Rule Enforcer
+
+## Target Scope
+
+- `app/**`
+- `modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
+
+## Mission
+
+Keep rule compliance high while minimizing churn.
+
+## Guardrails
+
+- Fix root causes, not symptoms.
+- Preserve existing architecture boundaries.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/mddd-architect.agent.md
+````markdown
+---
+name: MDDD Architect
+description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Confirm Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the public DTO and contract surface affected by this module refactor.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
+
+---
+
+# MDDD Architect
+
+## Target Scope
+
+- `modules/**`
+- `packages/shared-types/**`
+- `packages/api-contracts/**`
+
+## Mission
+
+Shape module structures without breaking bounded contexts.
+
+## Rules
+
+- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
+- Cross-module access must go through modules target api only.
+- Keep domain framework-free.
+- Run lint and build when boundaries or exports move.
+
+## Module Lifecycle Operations
+
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
+
+## Output
+
+- Ownership decision
+- Boundary impact
+- Files changed
+- Validation evidence
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/prompt-engineer.agent.md
+````markdown
+---
+name: Prompt Engineer
+description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Organize Knowledge Base
+    agent: KB Architect
+    prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
+  - label: Refine Tool Strategy
+    agent: Tool Caller
+    prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
+
+---
+
+# Prompt Engineer
+
+## Target Scope
+
+- `.github/prompts/**`
+- `.github/instructions/**`
+- `.github/agents/**`
+
+## Focus
+
+- Reusable prompt skeletons
+- Clear input and output contracts
+- Low-noise, high-precision instruction design
+
+## Guardrails
+
+- Keep prompts task-focused and testable.
+- Avoid broad ambiguous directives.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/quality-lead.agent.md
+````markdown
+---
+name: Quality Lead
+description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
+tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Enforce Lint Rules
+    agent: Lint Rule Enforcer
+    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
+  - label: Expand Test Scenarios
+    agent: Test Scenario Writer
+    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
+
+---
+
+# Quality Lead
+
+## Target Scope
+
+- `app/**`
+- `modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
+
+## Mission
+
+Verify correctness, boundary safety, and release readiness.
+
+## Review Lenses
+
+1. Correctness and behavioral regression risk
+2. Ownership and boundary integrity
+3. Validation completeness
+4. Documentation completeness for changed behavior
+
+## Workflow
+
+1. Build scenario list from requirements and change scope.
+2. Execute happy path, boundary, negative, and error scenarios.
+3. Report findings by severity before summaries.
+
+## Output
+
+- Findings ordered by severity
+- Evidence and reproduction details
+- Residual risks and recommendation: ready, ready-with-risk, blocked
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/rag-lead.agent.md
+````markdown
+---
+name: RAG Lead
+description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Normalize Ingestion
+    agent: Doc Ingest Agent
+    prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
+  - label: Design Chunk Strategy
+    agent: Chunk Strategist
+    prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
+  - label: Write Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
+
+---
+
+# RAG Lead
+
+## Target Scope
+
+- `py_fn/**`
+- `modules/retrieval/**`
+- `modules/knowledge/**`
+
+## Focus
+
+- Ingestion contract alignment
+- Retrieval quality and index consistency
+- Runtime split between app orchestration and worker processing
+
+## Guardrails
+
+- Validate contract alignment before changing ingestion shape.
+- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
 ## File: .github/agents/README.md
 ````markdown
 # Xuanwu Agents
@@ -83,6 +880,245 @@ Use these files for role-specific routing only; repository-wide policy belongs i
 - Keep tools least-privilege and remove stale skill tags when the referenced skills are not installed.
 - Keep module-specific guides in `modules/<context>/AGENT.md`, not in `.github/agents/`.
 - Update repomix-generated skills after meaningful `.github/*` changes.
+````
+
+## File: .github/agents/schema-migration.agent.md
+````markdown
+---
+name: Schema Migration Agent
+description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Firestore Model
+    agent: Firestore Schema Agent
+    prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
+
+---
+
+# Schema Migration Agent
+
+## Target Scope
+
+- `modules/**/infrastructure/**`
+- `firestore.indexes.json`
+- `firestore.rules`
+
+## Workflow
+
+1. Define source and target schema.
+2. Plan compatibility and cutover phases.
+3. Validate reads and writes before and after migration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/security-rules.agent.md
+````markdown
+---
+name: Security Rules Agent
+description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Firestore Schema
+    agent: Firestore Schema Agent
+    prompt: Review the data model and access paths that this security-rules change must protect.
+  - label: Verify Browser Impact
+    agent: E2E QA Agent
+    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
+
+---
+
+# Security Rules Agent
+
+## Target Scope
+
+- `firestore.rules`
+- `storage.rules`
+- `modules/**/infrastructure/**`
+
+## Mission
+
+Prevent unauthorized access while preserving required product flows.
+
+## Guardrails
+
+- Enforce organization and workspace isolation.
+- Prefer explicit allow conditions with clear actor checks.
+- Pair rule changes with validation scenarios.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/server-action-writer.agent.md
+````markdown
+---
+name: Server Action Writer
+description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the DTO and command-result contracts used by this server action.
+  - label: Review Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
+
+---
+
+# Server Action Writer
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/**`
+- `modules/**/application/**`
+
+## Guardrails
+
+- Keep actions thin and orchestration-only.
+- Place business rules in module use cases.
+- Preserve consistent command-result response shape.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/shadcn-composer.agent.md
+````markdown
+---
+name: Shadcn Composer
+description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
+argument-hint: Describe component goal, target route, and required interaction states.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Frontend Ownership
+    agent: Frontend Lead
+    prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
+  - label: Refine Parallel Routes
+    agent: Parallel Routes Agent
+    prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
+  - label: Verify End-to-End
+    agent: E2E QA Agent
+    prompt: Verify the interaction states and browser behavior for this UI change.
+
+---
+
+# Shadcn Composer
+
+## Target Scope
+
+- `app/**`
+- `modules/**/interfaces/components/**`
+- `packages/ui-shadcn/**`
+
+## Workflow
+
+1. Confirm route ownership and API data shape before composing UI.
+2. Reuse existing primitives and tokens first.
+3. Validate interaction states and accessibility basics.
+
+## Rules
+
+- Reuse existing component primitives before adding new ones.
+- Keep styling and behavior consistent with app composition boundaries.
+- Validate interactive states and accessibility basics.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/test-scenario-writer.agent.md
+````markdown
+---
+name: Test Scenario Writer
+description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Quality Risk
+    agent: Quality Lead
+    prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
+  - label: Check Lint And Rules
+    agent: Lint Rule Enforcer
+    prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
+
+---
+
+# Test Scenario Writer
+
+## Target Scope
+
+- `app/**`
+- `modules/**`
+- `py_fn/tests/**`
+
+## Scope
+
+- Happy path
+- Boundary and negative paths
+- Error handling and regression-sensitive paths
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/agents/ts-interface-writer.agent.md
+````markdown
+---
+name: TS Interface Writer
+description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and public API boundary for these contract changes.
+  - label: Write Server Action
+    agent: Server Action Writer
+    prompt: Update the server action orchestration that consumes or returns these contract changes.
+  - label: Review Firestore Shape
+    agent: Firestore Schema Agent
+    prompt: Review the persistence and index implications of these contract changes.
+
+---
+
+# TS Interface Writer
+
+## Target Scope
+
+- `modules/**/api/**`
+- `modules/**/application/dto/**`
+- `packages/shared-types/**`
+
+## Focus
+
+- Domain and application DTO contracts
+- Backward-safe type evolution
+- Explicit optional and required field transitions
+
+## Guardrails
+
+- Keep module interface and API contracts explicit and minimal.
+- Do not leak private infrastructure/entity internals into public API contracts.
+- Coordinate contract changes with consumer updates in the same change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/workspace-audit.agent.md
@@ -3807,6 +4843,46 @@ Application layer 只負責：
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
+## File: docs/ddd/notebook/repositories.md
+````markdown
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
+````
+
 ## File: docs/ddd/notebook/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — notebook
@@ -7227,78 +8303,6 @@ modules/*
 
 ````
 
-## File: docs/getting-started.md
-````markdown
-# Getting Started
-
-## Prerequisites
-
-Install [Beads](https://github.com/steveyegge/beads) — the issue tracker that coordinates swarm workers:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
-
-## Install
-
-```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
-```
-
-The script copies the framework files, installs hook dependencies, initializes Beads, and prompts before overwriting anything.
-
-## Manual Install
-
-```bash
-git clone https://github.com/dralgorhythm/claude-agentic-framework.git
-cp -r claude-agentic-framework/.claude your-project/
-cp claude-agentic-framework/.mcp.json your-project/
-cp claude-agentic-framework/CLAUDE.md your-project/
-cp claude-agentic-framework/AGENTS.md your-project/
-mkdir -p your-project/artifacts
-cd your-project/.claude/hooks && npm install
-cd your-project && bd init
-```
-
-## What Gets Installed
-
-```
-.claude/         Commands, skills, rules, hooks, agents, templates
-.mcp.json        MCP server configuration
-.beads/          Issue tracking database (coordinates swarm workers)
-artifacts/       Where generated docs go (empty at first)
-CLAUDE.md        Project context — customize this
-AGENTS.md        Agent instructions for session completion
-```
-
-## Verify It Works
-
-```bash
-claude
-```
-
-Then try:
-```
-/architect hello
-```
-
-You should see Claude adopt the Architect command.
-
-## Next Steps
-
-1. **Edit CLAUDE.md** — Add your build commands (`npm test`, etc.)
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack
-3. **Try the workflow** — `/architect my-feature` then `/builder` then `/swarm-review`
-4. **Check artifacts/** — Your ADRs and design docs appear here
-
-See [beads.md](beads.md) for Beads usage and team setup.
-
----
-
-[← Back to README](../README.md)
-````
-
 ## File: docs/guides/explanation/architecture-domain.md
 ````markdown
 # 領域概念模型：AI 知識平台架構實現指南
@@ -10463,249 +11467,6 @@ Workers discover available work via `bd ready`.
 [← Back to README](../README.md)
 ````
 
-## File: docs/hooks.md
-````markdown
-# Hooks
-
-Hooks run automatically at key points in Claude Code's lifecycle.
-
-## Built-in Hooks
-
-| Hook | Event | Purpose |
-|------|-------|---------|
-| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
-| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
-| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
-| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
-| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
-| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
-| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
-| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
-| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
-
-## Key Capabilities
-
-### File Locking (pre-tool-use-validator.sh)
-
-Prevents concurrent file edits in multi-agent swarm environments:
-- Atomic lock acquisition via `mkdir` (race-condition safe)
-- Lock auto-expires after 120 seconds
-- Session-based: locks are tied to the session that created them
-- Automatic release on session stop
-
-### Secret Detection (pre-tool-use-validator.sh)
-
-Scans Write/Edit content for 6 secret patterns:
-1. Generic API keys, passwords, tokens
-2. AWS access keys (`AKIA...`)
-3. JWT tokens
-4. Environment variable exports with secrets
-5. GitHub personal access tokens (`ghp_...`)
-6. Private keys (PEM format)
-
-Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
-
-### Protected Files (pre-tool-use-validator.sh)
-
-Blocks modifications to critical system files:
-- `.beads/beads.db`, `.beads/daemon`
-- `.git/`
-- `.env`
-- `.mcp.json`
-
-### Push Blocking (pre-push-main-blocker.sh)
-
-Enforces trunk-based development by blocking pushes to main/master:
-- Detects explicit pushes (`git push origin main`)
-- Detects implicit pushes (`git push` while on main branch)
-- Provides remediation instructions (create feature branch, push there, create PR)
-
-### Session Management (session-start-loader.sh + stop-validator.sh)
-
-- Tracks active sessions in `.claude/hooks/.state/`
-- Detects active swarm agents for coordination awareness
-- Supports handoff messages between sessions
-- Auto-cleans stale sessions older than 24 hours
-- Warns about uncommitted changes on session stop
-- Syncs Beads before exit
-
-## Creating a Hook
-
-1. Create `.claude/hooks/my-hook.sh`:
-
-```bash
-#!/bin/bash
-input=$(cat)
-# your logic
-echo '{"continue": true}'
-```
-
-2. Make executable:
-```bash
-chmod +x .claude/hooks/my-hook.sh
-```
-
-3. Register in `.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [{
-      "matcher": "Write|Edit",
-      "hooks": [{
-        "type": "command",
-        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
-        "timeout": 5
-      }]
-    }]
-  }
-}
-```
-
-See `.claude/templates/hook.template.sh` for the full template.
-
-## Hook Input
-
-Hooks receive JSON via stdin:
-
-```json
-{
-  "session_id": "abc123",
-  "cwd": "/workspace",
-  "prompt": "user message",
-  "tool_name": "Write",
-  "tool_input": {}
-}
-```
-
-## Hook Output
-
-For PreToolUse hooks, return a permission decision:
-
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow|deny|ask",
-    "permissionDecisionReason": "Explanation"
-  }
-}
-```
-
-## Runtime Directories
-
-| Directory | Purpose | Gitignored |
-|-----------|---------|------------|
-| `.claude/hooks/.state/` | Session tracking files | Yes |
-| `.claude/hooks/.locks/` | File lock files | Yes |
-
-## Tips
-
-- Keep hooks fast (< 5 seconds timeout)
-- Test with: `echo '{}' | ./my-hook.sh`
-- Override hooks via `settings.local.json`
-
----
-
-[← Back to README](../README.md)
-````
-
-## File: docs/mcp-servers.md
-````markdown
-# MCP Servers
-
-Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
-
-## Included Servers
-
-### Sequential Thinking
-Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
-
-**Best for:** Architecture decisions, debugging complex issues, planning
-
-### Chrome DevTools
-Browser automation with deep debugging — performance traces, network inspection, console access.
-
-**Best for:** QA testing, frontend debugging, performance analysis
-
-### Context7
-Up-to-date documentation and code examples for any library via Context7.
-
-**Best for:** Researching library APIs, finding code examples, validating implementation patterns
-
-### Filesystem
-File system operations beyond the workspace boundary.
-
-**Best for:** Cross-project file access, operations outside the working directory
-
-## Setup
-
-The servers are configured in `.mcp.json`. Most work out of the box.
-
-## Adding More Servers
-
-Edit `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "new-server": {
-      "command": "npx",
-      "args": ["@example/mcp-server"],
-      "env": {
-        "API_KEY": "${API_KEY}"
-      }
-    }
-  }
-}
-```
-
-## Recommended Additions
-
-| Server | Purpose | When to Add |
-|--------|---------|-------------|
-| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
-| PostgreSQL | Database queries | Working with Postgres |
-| Brave Search | Web search | Research-heavy work |
-| Slack | Team messaging | Team coordination |
-| Linear | Issue tracking | If you use Linear |
-
-### GitHub Example
-
-```json
-"github": {
-  "command": "npx",
-  "args": ["@anthropic-ai/mcp-server-github"],
-  "env": {
-    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-  }
-}
-```
-
-## Troubleshooting
-
-### Server not starting
-
-Check logs:
-```bash
-claude mcp list
-```
-
-### Permission denied
-
-MCP servers run as your user. Check file permissions and API tokens.
-
-## Resources
-
-- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
-- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
-- [MCP.so Directory](https://mcp.so/)
-
----
-
-[← Back to README](../README.md)
-````
-
 ## File: docs/personas.md
 ````markdown
 # Commands
@@ -12630,6 +13391,46 @@ Application layer 只負責：
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/notebook/repositories.md
+````markdown
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -16288,151 +17089,6 @@ HTTP Request
 看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
-## File: README.md
-````markdown
-# Claude Agentic Framework
-
-A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
-
-## Install
-
-Run this inside your project directory:
-
-```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
-```
-
-The script will:
-- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
-- Copy `.mcp.json` (MCP server configuration)
-- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
-- Create an `artifacts/` directory for planning documents
-- Set up `.gitignore` entries
-- Install hook dependencies
-- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
-
-### Beads Setup
-
-Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
-
-The init script will then run `bd init` in your project automatically.
-
-The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
-
-## After Install
-
-1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
-3. Start Claude Code and try: `/architect hello`
-
-## What You Get
-
-### Commands
-
-Single-agent expert modes, invoked via slash commands:
-
-| Command | Role |
-|---------|------|
-| `/architect` | System design, ADRs |
-| `/builder` | Implementation, debugging, testing |
-| `/qa-engineer` | Test strategy, E2E, accessibility |
-| `/security-auditor` | Threat modeling, security audits |
-| `/ui-ux-designer` | Interface design, visual assets |
-| `/code-check` | SOLID, DRY, consistency audit |
-
-### Swarm Orchestrators
-
-Multi-agent commands that fan work out across parallel workers:
-
-| Command | What It Does |
-|---------|-------------|
-| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
-| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
-| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
-| `/swarm-research` | Deep multi-source investigation with verification tiers |
-
-### The Full Cycle
-
-```
-/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
-```
-
-One agent thinks. Many agents build. Many agents review.
-
-### Workers
-
-Six specialized agent types tuned for cost and capability:
-
-| Worker | Model | Use |
-|--------|-------|-----|
-| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
-| `worker-builder` | Sonnet | Implementation, testing, refactoring |
-| `worker-reviewer` | Opus | Code review, security analysis |
-| `worker-researcher` | Sonnet | Quick web research, API docs |
-| `worker-research` | Opus | Deep multi-source investigation |
-| `worker-architect` | Opus | Complex design decisions, ADRs |
-
-### Skills
-
-67 skills across 7 categories — auto-suggested based on keywords in your prompt:
-
-**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
-
-Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
-
-### Safety Hooks
-
-Pre-configured hooks that run automatically:
-
-- **Secret detection** — blocks commits containing API keys, tokens, private keys
-- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
-- **Push blocking** — stops direct pushes to `main`/`master`
-- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
-- **File locking** — prevents concurrent edits in multi-agent swarms
-
-### MCP Servers
-
-Four servers pre-configured in `.mcp.json`:
-
-| Server | Purpose |
-|--------|---------|
-| Sequential Thinking | Structured multi-step reasoning |
-| Chrome DevTools | Browser testing, performance profiling |
-| Context7 | Up-to-date library documentation |
-| Filesystem | File operations beyond workspace |
-
-## Customization
-
-Everything is designed to be extended:
-
-- Add commands → `.claude/commands/your-command.md`
-- Add skills → `.claude/skills/category/your-skill/SKILL.md`
-- Add rules → `.claude/rules/your-rule.md`
-- Add hooks → `.claude/hooks/your-hook.sh`
-- Add workers → `.claude/agents/worker-yourtype.md`
-
-Templates for each are in `.claude/templates/`.
-
-See [docs/customization.md](docs/customization.md) for details.
-
-## Docs
-
-- [Getting started](docs/getting-started.md)
-- [Multi-agent swarms](docs/swarm.md)
-- [Commands](docs/personas.md)
-- [Skills reference](docs/skills.md)
-- [MCP servers](docs/mcp-servers.md)
-- [Hooks](docs/hooks.md)
-- [Handoffs](docs/handoffs.md)
-- [Beads setup & usage](docs/beads.md)
-- [Customization](docs/customization.md)
-````
-
 ## File: SPEC-WORKFLOW.md
 ````markdown
 # Spec-Driven Development Workflow
@@ -16446,566 +17102,6 @@ This repository does not currently keep a standalone long-form spec workflow gui
 - [`docs/reference/specification/system-overview.md`](docs/reference/specification/system-overview.md) — baseline product and system specification context
 
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
-````
-
-## File: .github/agents/ai-genkit-lead.agent.md
-````markdown
----
-name: AI Genkit Lead
-description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refine Genkit Flow
-    agent: Genkit Flow Agent
-    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
-  - label: Review RAG Boundary
-    agent: RAG Lead
-    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
-
----
-
-# AI Genkit Lead
-
-## Target Scope
-
-- `modules/agent/**`
-- `app/**`
-- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
-
-## Focus
-
-- Genkit flow ownership and app-side orchestration
-- Contract-safe integration with ingestion and retrieval layers
-
-## Guardrails
-
-- Keep auth and chat orchestration in Next.js.
-- Keep parsing, chunking, embedding in py_fn workers.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/app-router.agent.md
-````markdown
----
-name: App Router Agent
-description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
-argument-hint: Provide route segment, expected behavior, and failing symptoms.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refine Parallel Routes
-    agent: Parallel Routes Agent
-    prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
-  - label: Write Server Action
-    agent: Server Action Writer
-    prompt: Implement or review the server action orchestration and validation boundary used by this route.
-  - label: Verify End-to-End
-    agent: E2E QA Agent
-    prompt: Verify the affected route in a browser and collect runtime evidence for this change.
-
----
-
-# App Router Agent
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `providers/**`
-
-## Workflow
-
-1. Identify the target segment and rendering/data path.
-2. Use Next runtime evidence when symptoms are ambiguous.
-3. Apply least-change fixes in route composition or local route UI.
-4. Validate only the affected route behavior and related module API usage.
-
-## Guardrails
-
-- Keep business logic in modules.
-- Use runtime evidence when route behavior is unclear.
-- Keep route slices composition-focused.
-
-## Output
-
-- Route scope and failure mode
-- Changes applied
-- Evidence checked
-- Residual route risk
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/chunk-strategist.agent.md
-````markdown
----
-name: Chunk Strategist
-description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Align Ingestion Inputs
-    agent: Doc Ingest Agent
-    prompt: Align document normalization and source attribution with the chunking strategy described above.
-  - label: Configure Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
-
----
-
-# Chunk Strategist
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/retrieval/**`
-- `modules/knowledge/**`
-
-## Focus
-
-- Chunk size and overlap policy
-- Metadata fields for retrieval and attribution
-- Domain-specific segmentation rules
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/doc-ingest.agent.md
-````markdown
----
-name: Doc Ingest Agent
-description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Design Chunk Strategy
-    agent: Chunk Strategist
-    prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
-  - label: Write Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review embedding generation and metadata writes for this ingestion output.
-  - label: Review RAG Flow
-    agent: RAG Lead
-    prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
-
----
-
-# Doc Ingest Agent
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/retrieval/**`
-- `modules/knowledge/**`
-
-## Rules
-
-- Keep conversion and normalization deterministic.
-- Preserve source attribution fields.
-- Align outputs with chunk and embedding contracts.
-- Flag notable format-loss risk when source conversion may affect downstream retrieval.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/domain-architect.agent.md
-````markdown
----
-name: Domain Architect
-description: IDDD 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合 Vaughn Vernon《Implementing Domain-Driven Design》規範。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: 審查模組邊界
-    agent: MDDD Architect
-    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
-  - label: 更新通用語言術語
-    agent: KB Architect
-    prompt: 將本次領域建模新增或變更的術語同步更新至 terminology-glossary.md 與知識庫文件。
-  - label: 品質審查
-    agent: Quality Lead
-    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 IDDD 規範。
-
----
-
-# Domain Architect
-
-## 目標範圍 (Target Scope)
-
-- `modules/**/domain/**`
-- `modules/**/application/use-cases/**`
-- `modules/**/application/machines/**`
-- `terminology-glossary.md`
-- `.github/instructions/ubiquitous-language.instructions.md`
-- `.github/instructions/bounded-context-rules.instructions.md`
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-
-## 使命 (Mission)
-
-確保所有領域模型設計符合《Implementing Domain-Driven Design》(Vaughn Vernon) 的戰略（Strategic）與戰術（Tactical）設計原則，維護聚合完整性、通用語言一致性與事件驅動架構品質。
-
-## IDDD 審查清單
-
-### 通用語言 (Ubiquitous Language)
-
-- [ ] 新命名是否已查閱 `terminology-glossary.md`？
-- [ ] 是否有違反通用語言的同義詞替換？
-- [ ] 領域事件命名是否使用過去式？
-- [ ] 類別、方法名稱是否反映領域概念而非技術概念？
-
-### 限界上下文 (Bounded Context)
-
-- [ ] 程式碼是否屬於正確的限界上下文（模組）？
-- [ ] 是否有直接存取其他模組的 `domain/`、`application/` 或 `infrastructure/` 內部？
-- [ ] 跨模組整合是否透過 `api/` 合約或領域事件進行？
-- [ ] 外部系統整合是否透過防腐層（Anti-Corruption Layer）隔離？
-
-### 聚合設計 (Aggregate Design)
-
-- [ ] 聚合根是否保護所有業務不變數？
-- [ ] 狀態修改是否透過封裝的命令方法進行？
-- [ ] 是否存在貧血領域模型（只有 Getter/Setter，無業務邏輯）？
-- [ ] 聚合邊界是否合理（不過大、不過小）？
-- [ ] `pullDomainEvents()` 是否正確清空事件陣列？
-
-### 值對象 (Value Object)
-
-- [ ] 是否使用 Zod 品牌型別確保型別安全？
-- [ ] 值對象是否不可變（Immutable）？
-- [ ] 識別碼是否使用品牌型別保護？
-
-### 領域事件 (Domain Event)
-
-- [ ] 每次狀態變更是否產生對應的領域事件？
-- [ ] `occurredAt` 是否使用 ISO string（與 `shared/domain/events.ts` 一致）？
-- [ ] 事件 Payload 是否以 Zod Schema 嚴格定義？
-- [ ] 事件 `type` discriminant 是否為 `<module>.<action>` 格式？
-- [ ] 事件是否在聚合持久化成功後才發布？
-
-## 輸出格式
-
-1. **IDDD 合規性評估**：通過 / 需修正
-2. **問題項目清單**：每項附檔案路徑與具體說明
-3. **修正建議**：附程式碼範例
-4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/agents/domain-lead.agent.md
-````markdown
----
-name: Domain Lead
-description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refactor Module Boundary
-    agent: MDDD Architect
-    prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
-
----
-
-# Domain Lead
-
-## Target Scope
-
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
-
-## Responsibilities
-
-- Confirm owning bounded context before edits.
-- Place logic in the correct layer.
-- Prevent internal cross-module imports.
-
-## Layer Placement Guide
-
-- `domain`: business rules, entities, value objects, repository interfaces
-- `application`: use cases and DTO orchestration
-- `infrastructure`: external adapters and implementations
-- `interfaces`: UI, hooks, queries, contracts, server actions
-- `api`: only public cross-module boundary
-
-## Validation
-
-- Run lint for boundary and import changes.
-- Run build when public types or exports are touched.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/e2e-qa.agent.md
-````markdown
----
-name: E2E QA Agent
-description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Summarize Quality Risk
-    agent: Quality Lead
-    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
-  - label: Expand Test Coverage
-    agent: Test Scenario Writer
-    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
-  - label: Capture Support Follow-up
-    agent: Support Architect
-    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
-
----
-
-# E2E QA Agent
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `debug/**`
-
-## Workflow
-
-1. Build scenarios from acceptance criteria and user paths.
-2. Execute browser interactions and capture runtime evidence.
-3. Separate confirmed failures from improvement suggestions.
-
-## Rules
-
-- Capture clear reproduction steps.
-- Separate confirmed failures from improvement ideas.
-- Report console and network evidence when relevant.
-
-## Output
-
-- Scenarios executed
-- Evidence collected
-- Confirmed failures
-- Release recommendation: ready | ready-with-risk | blocked
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/embedding-writer.agent.md
-````markdown
----
-name: Embedding Writer
-description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Chunk Inputs
-    agent: Chunk Strategist
-    prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
-  - label: Refine Flow Integration
-    agent: Genkit Flow Agent
-    prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
-
----
-
-# Embedding Writer
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/retrieval/**`
-- `modules/knowledge/**`
-
-## Responsibilities
-
-- Define embedding payload shape.
-- Ensure consistent vector metadata.
-- Validate write path and retrieval compatibility.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/firestore-schema.agent.md
-````markdown
----
-name: Firestore Schema Agent
-description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Plan Migration
-    agent: Schema Migration Agent
-    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
-  - label: Review Security Rules
-    agent: Security Rules Agent
-    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
-
----
-
-# Firestore Schema Agent
-
-## Target Scope
-
-- `modules/**/infrastructure/**`
-- `firestore.indexes.json`
-- `firestore.rules`
-
-## Responsibilities
-
-- Model collections and documents for bounded contexts.
-- Keep schema and index plans aligned with read and write paths.
-- Track migration impact and backward compatibility.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/frontend-lead.agent.md
-````markdown
----
-name: Frontend Lead
-description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Diagnose Route Behavior
-    agent: App Router Agent
-    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
-  - label: Compose UI Primitives
-    agent: Shadcn Composer
-    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
-
----
-
-# Frontend Lead
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `packages/ui-*/**`
-
-## Mission
-
-Deliver route-level UI slices with clear ownership and predictable data flow.
-
-## Guardrails
-
-- Keep app routes thin and composition-focused.
-- Consume module behavior via module api only.
-- Prefer server components unless client interactivity is required.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/genkit-flow.agent.md
-````markdown
----
-name: Genkit Flow Agent
-description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review AI Ownership
-    agent: AI Genkit Lead
-    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
-
----
-
-# Genkit Flow Agent
-
-## Target Scope
-
-- `modules/agent/**`
-- `app/**`
-- `modules/retrieval/**`
-
-## Focus
-
-- Flow inputs and outputs
-- Prompt and tool orchestration boundaries
-- Error handling and fallback behavior
-
-## Guardrails
-
-- Keep flow contracts explicit.
-- Avoid leaking worker-only logic into app orchestration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/kb-architect.agent.md
-````markdown
----
-name: KB Architect
-description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refine Prompt Contracts
-    agent: Prompt Engineer
-    prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
-  - label: Align Support Playbooks
-    agent: Support Architect
-    prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
-
----
-
-# KB Architect
-
-## Target Scope
-
-- `docs/**`
-- `.github/prompts/**`
-- `.github/instructions/**`
-
-## Focus
-
-- Information hierarchy for docs and references
-- Cross-document deduplication
-- Stable glossary and index links
-
-## Execution Pattern
-
-- Process docs in leaf-to-root order when restructuring large doc trees.
-- Prefer lint/compress/dedup/structure updates before index regeneration.
-- Keep token usage efficient without changing technical meaning.
-
-## Guardrails
-
-- Do not change technical meaning while restructuring docs.
-- Keep docs aligned with current module boundaries and contracts.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/knowledge-base.md
@@ -17238,482 +17334,6 @@ import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-
 - Define ownership per feature or contract, not by hard-coded domain naming assumptions.
 - If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
 - When ownership shifts, update contracts and architecture docs in the same change.
-````
-
-## File: .github/agents/lint-rule-enforcer.agent.md
-````markdown
----
-name: Lint Rule Enforcer
-description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Check Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
-  - label: Review Frontend Impact
-    agent: Frontend Lead
-    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
-  - label: Summarize Quality Risk
-    agent: Quality Lead
-    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
-
----
-
-# Lint Rule Enforcer
-
-## Target Scope
-
-- `app/**`
-- `modules/**`
-- `packages/**`
-- `providers/**`
-- `py_fn/**`
-
-## Mission
-
-Keep rule compliance high while minimizing churn.
-
-## Guardrails
-
-- Fix root causes, not symptoms.
-- Preserve existing architecture boundaries.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/mddd-architect.agent.md
-````markdown
----
-name: MDDD Architect
-description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Confirm Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the public DTO and contract surface affected by this module refactor.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
-
----
-
-# MDDD Architect
-
-## Target Scope
-
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
-
-## Mission
-
-Shape module structures without breaking bounded contexts.
-
-## Rules
-
-- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
-- Cross-module access must go through modules target api only.
-- Keep domain framework-free.
-- Run lint and build when boundaries or exports move.
-
-## Module Lifecycle Operations
-
-- Support create/refactor/split/merge/delete with explicit ownership mapping.
-- Preserve public API compatibility or document migration steps in the same change.
-- Replace internal cross-module imports with API contracts or event-driven collaboration.
-
-## Output
-
-- Ownership decision
-- Boundary impact
-- Files changed
-- Validation evidence
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/prompt-engineer.agent.md
-````markdown
----
-name: Prompt Engineer
-description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Organize Knowledge Base
-    agent: KB Architect
-    prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
-  - label: Refine Tool Strategy
-    agent: Tool Caller
-    prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
-
----
-
-# Prompt Engineer
-
-## Target Scope
-
-- `.github/prompts/**`
-- `.github/instructions/**`
-- `.github/agents/**`
-
-## Focus
-
-- Reusable prompt skeletons
-- Clear input and output contracts
-- Low-noise, high-precision instruction design
-
-## Guardrails
-
-- Keep prompts task-focused and testable.
-- Avoid broad ambiguous directives.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/quality-lead.agent.md
-````markdown
----
-name: Quality Lead
-description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Enforce Lint Rules
-    agent: Lint Rule Enforcer
-    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
-  - label: Verify Browser Flows
-    agent: E2E QA Agent
-    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
-  - label: Expand Test Scenarios
-    agent: Test Scenario Writer
-    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
-
----
-
-# Quality Lead
-
-## Target Scope
-
-- `app/**`
-- `modules/**`
-- `packages/**`
-- `providers/**`
-- `py_fn/**`
-
-## Mission
-
-Verify correctness, boundary safety, and release readiness.
-
-## Review Lenses
-
-1. Correctness and behavioral regression risk
-2. Ownership and boundary integrity
-3. Validation completeness
-4. Documentation completeness for changed behavior
-
-## Workflow
-
-1. Build scenario list from requirements and change scope.
-2. Execute happy path, boundary, negative, and error scenarios.
-3. Report findings by severity before summaries.
-
-## Output
-
-- Findings ordered by severity
-- Evidence and reproduction details
-- Residual risks and recommendation: ready, ready-with-risk, blocked
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/rag-lead.agent.md
-````markdown
----
-name: RAG Lead
-description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Normalize Ingestion
-    agent: Doc Ingest Agent
-    prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
-  - label: Design Chunk Strategy
-    agent: Chunk Strategist
-    prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
-  - label: Write Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
-
----
-
-# RAG Lead
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/retrieval/**`
-- `modules/knowledge/**`
-
-## Focus
-
-- Ingestion contract alignment
-- Retrieval quality and index consistency
-- Runtime split between app orchestration and worker processing
-
-## Guardrails
-
-- Validate contract alignment before changing ingestion shape.
-- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/schema-migration.agent.md
-````markdown
----
-name: Schema Migration Agent
-description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Firestore Model
-    agent: Firestore Schema Agent
-    prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
-  - label: Review Security Rules
-    agent: Security Rules Agent
-    prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
-
----
-
-# Schema Migration Agent
-
-## Target Scope
-
-- `modules/**/infrastructure/**`
-- `firestore.indexes.json`
-- `firestore.rules`
-
-## Workflow
-
-1. Define source and target schema.
-2. Plan compatibility and cutover phases.
-3. Validate reads and writes before and after migration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/security-rules.agent.md
-````markdown
----
-name: Security Rules Agent
-description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Firestore Schema
-    agent: Firestore Schema Agent
-    prompt: Review the data model and access paths that this security-rules change must protect.
-  - label: Verify Browser Impact
-    agent: E2E QA Agent
-    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
-
----
-
-# Security Rules Agent
-
-## Target Scope
-
-- `firestore.rules`
-- `storage.rules`
-- `modules/**/infrastructure/**`
-
-## Mission
-
-Prevent unauthorized access while preserving required product flows.
-
-## Guardrails
-
-- Enforce organization and workspace isolation.
-- Prefer explicit allow conditions with clear actor checks.
-- Pair rule changes with validation scenarios.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/server-action-writer.agent.md
-````markdown
----
-name: Server Action Writer
-description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the DTO and command-result contracts used by this server action.
-  - label: Review Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
-
----
-
-# Server Action Writer
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `modules/**/application/**`
-
-## Guardrails
-
-- Keep actions thin and orchestration-only.
-- Place business rules in module use cases.
-- Preserve consistent command-result response shape.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/shadcn-composer.agent.md
-````markdown
----
-name: Shadcn Composer
-description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
-argument-hint: Describe component goal, target route, and required interaction states.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Frontend Ownership
-    agent: Frontend Lead
-    prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
-  - label: Refine Parallel Routes
-    agent: Parallel Routes Agent
-    prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
-  - label: Verify End-to-End
-    agent: E2E QA Agent
-    prompt: Verify the interaction states and browser behavior for this UI change.
-
----
-
-# Shadcn Composer
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/components/**`
-- `packages/ui-shadcn/**`
-
-## Workflow
-
-1. Confirm route ownership and API data shape before composing UI.
-2. Reuse existing primitives and tokens first.
-3. Validate interaction states and accessibility basics.
-
-## Rules
-
-- Reuse existing component primitives before adding new ones.
-- Keep styling and behavior consistent with app composition boundaries.
-- Validate interactive states and accessibility basics.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/test-scenario-writer.agent.md
-````markdown
----
-name: Test Scenario Writer
-description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Quality Risk
-    agent: Quality Lead
-    prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
-  - label: Verify Browser Flows
-    agent: E2E QA Agent
-    prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
-  - label: Check Lint And Rules
-    agent: Lint Rule Enforcer
-    prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
-
----
-
-# Test Scenario Writer
-
-## Target Scope
-
-- `app/**`
-- `modules/**`
-- `py_fn/tests/**`
-
-## Scope
-
-- Happy path
-- Boundary and negative paths
-- Error handling and regression-sensitive paths
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/agents/ts-interface-writer.agent.md
-````markdown
----
-name: TS Interface Writer
-description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and public API boundary for these contract changes.
-  - label: Write Server Action
-    agent: Server Action Writer
-    prompt: Update the server action orchestration that consumes or returns these contract changes.
-  - label: Review Firestore Shape
-    agent: Firestore Schema Agent
-    prompt: Review the persistence and index implications of these contract changes.
-
----
-
-# TS Interface Writer
-
-## Target Scope
-
-- `modules/**/api/**`
-- `modules/**/application/dto/**`
-- `packages/shared-types/**`
-
-## Focus
-
-- Domain and application DTO contracts
-- Backward-safe type evolution
-- Explicit optional and required field transitions
-
-## Guardrails
-
-- Keep module interface and API contracts explicit and minimal.
-- Do not leak private infrastructure/entity internals into public API contracts.
-- Coordinate contract changes with consumer updates in the same change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/instructions/playwright-mcp-testing.instructions.md
@@ -19069,46 +18689,6 @@ interface KnowledgePageApprovedEvent {
 - `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
-## File: docs/ddd/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
 ## File: docs/ddd/search/README.md
 ````markdown
 # search — 語意檢索上下文
@@ -19324,6 +18904,322 @@ Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管�
 - 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
+## File: docs/getting-started.md
+````markdown
+# Getting Started
+
+## Prerequisites
+
+Install [Beads](https://github.com/steveyegge/beads) — the issue tracker that coordinates swarm workers:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+## Install
+
+```bash
+cd your-project
+curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+```
+
+The script copies the framework files, installs hook dependencies, initializes Beads, and prompts before overwriting anything.
+
+## Manual Install
+
+```bash
+git clone https://github.com/dralgorhythm/claude-agentic-framework.git
+cp -r claude-agentic-framework/.claude your-project/
+mkdir -p your-project/.vscode
+cp claude-agentic-framework/.vscode/mcp.json your-project/.vscode/
+cp claude-agentic-framework/CLAUDE.md your-project/
+cp claude-agentic-framework/AGENTS.md your-project/
+mkdir -p your-project/artifacts
+cd your-project/.claude/hooks && npm install
+cd your-project && bd init
+```
+
+## What Gets Installed
+
+```
+.claude/         Commands, skills, rules, hooks, agents, templates
+.vscode/mcp.json MCP server configuration
+.beads/          Issue tracking database (coordinates swarm workers)
+artifacts/       Where generated docs go (empty at first)
+CLAUDE.md        Project context — customize this
+AGENTS.md        Agent instructions for session completion
+```
+
+## Verify It Works
+
+```bash
+claude
+```
+
+Then try:
+```
+/architect hello
+```
+
+You should see Claude adopt the Architect command.
+
+## Next Steps
+
+1. **Edit CLAUDE.md** — Add your build commands (`npm test`, etc.)
+2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack
+3. **Try the workflow** — `/architect my-feature` then `/builder` then `/swarm-review`
+4. **Check artifacts/** — Your ADRs and design docs appear here
+
+See [beads.md](beads.md) for Beads usage and team setup.
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/hooks.md
+````markdown
+# Hooks
+
+Hooks run automatically at key points in Claude Code's lifecycle.
+
+## Built-in Hooks
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
+| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
+| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
+| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
+| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
+| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
+| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
+| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
+| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
+
+## Key Capabilities
+
+### File Locking (pre-tool-use-validator.sh)
+
+Prevents concurrent file edits in multi-agent swarm environments:
+- Atomic lock acquisition via `mkdir` (race-condition safe)
+- Lock auto-expires after 120 seconds
+- Session-based: locks are tied to the session that created them
+- Automatic release on session stop
+
+### Secret Detection (pre-tool-use-validator.sh)
+
+Scans Write/Edit content for 6 secret patterns:
+1. Generic API keys, passwords, tokens
+2. AWS access keys (`AKIA...`)
+3. JWT tokens
+4. Environment variable exports with secrets
+5. GitHub personal access tokens (`ghp_...`)
+6. Private keys (PEM format)
+
+Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
+
+### Protected Files (pre-tool-use-validator.sh)
+
+Blocks modifications to critical system files:
+- `.beads/beads.db`, `.beads/daemon`
+- `.git/`
+- `.env`
+- `.vscode/mcp.json`
+
+### Push Blocking (pre-push-main-blocker.sh)
+
+Enforces trunk-based development by blocking pushes to main/master:
+- Detects explicit pushes (`git push origin main`)
+- Detects implicit pushes (`git push` while on main branch)
+- Provides remediation instructions (create feature branch, push there, create PR)
+
+### Session Management (session-start-loader.sh + stop-validator.sh)
+
+- Tracks active sessions in `.claude/hooks/.state/`
+- Detects active swarm agents for coordination awareness
+- Supports handoff messages between sessions
+- Auto-cleans stale sessions older than 24 hours
+- Warns about uncommitted changes on session stop
+- Syncs Beads before exit
+
+## Creating a Hook
+
+1. Create `.claude/hooks/my-hook.sh`:
+
+```bash
+#!/bin/bash
+input=$(cat)
+# your logic
+echo '{"continue": true}'
+```
+
+2. Make executable:
+```bash
+chmod +x .claude/hooks/my-hook.sh
+```
+
+3. Register in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Write|Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
+        "timeout": 5
+      }]
+    }]
+  }
+}
+```
+
+See `.claude/templates/hook.template.sh` for the full template.
+
+## Hook Input
+
+Hooks receive JSON via stdin:
+
+```json
+{
+  "session_id": "abc123",
+  "cwd": "/workspace",
+  "prompt": "user message",
+  "tool_name": "Write",
+  "tool_input": {}
+}
+```
+
+## Hook Output
+
+For PreToolUse hooks, return a permission decision:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "permissionDecisionReason": "Explanation"
+  }
+}
+```
+
+## Runtime Directories
+
+| Directory | Purpose | Gitignored |
+|-----------|---------|------------|
+| `.claude/hooks/.state/` | Session tracking files | Yes |
+| `.claude/hooks/.locks/` | File lock files | Yes |
+
+## Tips
+
+- Keep hooks fast (< 5 seconds timeout)
+- Test with: `echo '{}' | ./my-hook.sh`
+- Override hooks via `settings.local.json`
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/mcp-servers.md
+````markdown
+# MCP Servers
+
+Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
+
+## Included Servers
+
+### Sequential Thinking
+Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
+
+**Best for:** Architecture decisions, debugging complex issues, planning
+
+### Chrome DevTools
+Browser automation with deep debugging — performance traces, network inspection, console access.
+
+**Best for:** QA testing, frontend debugging, performance analysis
+
+### Context7
+Up-to-date documentation and code examples for any library via Context7.
+
+**Best for:** Researching library APIs, finding code examples, validating implementation patterns
+
+### Filesystem
+File system operations beyond the workspace boundary.
+
+**Best for:** Cross-project file access, operations outside the working directory
+
+## Setup
+
+The servers are configured in `.vscode/mcp.json`. Most work out of the box.
+
+## Adding More Servers
+
+Edit `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "new-server": {
+      "command": "npx",
+      "args": ["@example/mcp-server"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    }
+  }
+}
+```
+
+## Recommended Additions
+
+| Server | Purpose | When to Add |
+|--------|---------|-------------|
+| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
+| PostgreSQL | Database queries | Working with Postgres |
+| Brave Search | Web search | Research-heavy work |
+| Slack | Team messaging | Team coordination |
+| Linear | Issue tracking | If you use Linear |
+
+### GitHub Example
+
+```json
+"github": {
+  "command": "npx",
+  "args": ["@anthropic-ai/mcp-server-github"],
+  "env": {
+    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+  }
+}
+```
+
+## Troubleshooting
+
+### Server not starting
+
+Check logs:
+```bash
+claude mcp list
+```
+
+### Permission denied
+
+MCP servers run as your user. Check file permissions and API tokens.
+
+## Resources
+
+- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+- [MCP.so Directory](https://mcp.so/)
+
+---
+
+[← Back to README](../README.md)
+````
+
 ## File: modules/bounded-contexts.md
 ````markdown
 # Bounded Contexts — Xuanwu App
@@ -19421,46 +19317,6 @@ Identity → Account → Organization → Workspace
 - 各 BC 詳細文件：`docs/ddd/<context>/README.md`
 - 通用語言：各 bounded context 的 `ubiquitous-language.md`
 - 上下文關係圖：各 bounded context 的 `context-map.md`
-````
-
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/notification/README.md
@@ -19637,6 +19493,151 @@ Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管�
 - 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
+## File: README.md
+````markdown
+# Claude Agentic Framework
+
+A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
+
+## Install
+
+Run this inside your project directory:
+
+```bash
+cd your-project
+curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+```
+
+The script will:
+- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
+- Copy `.vscode/mcp.json` (MCP server configuration)
+- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
+- Create an `artifacts/` directory for planning documents
+- Set up `.gitignore` entries
+- Install hook dependencies
+- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
+
+### Beads Setup
+
+Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+The init script will then run `bd init` in your project automatically.
+
+The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
+
+## After Install
+
+1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
+2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
+3. Start Claude Code and try: `/architect hello`
+
+## What You Get
+
+### Commands
+
+Single-agent expert modes, invoked via slash commands:
+
+| Command | Role |
+|---------|------|
+| `/architect` | System design, ADRs |
+| `/builder` | Implementation, debugging, testing |
+| `/qa-engineer` | Test strategy, E2E, accessibility |
+| `/security-auditor` | Threat modeling, security audits |
+| `/ui-ux-designer` | Interface design, visual assets |
+| `/code-check` | SOLID, DRY, consistency audit |
+
+### Swarm Orchestrators
+
+Multi-agent commands that fan work out across parallel workers:
+
+| Command | What It Does |
+|---------|-------------|
+| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
+| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
+| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
+| `/swarm-research` | Deep multi-source investigation with verification tiers |
+
+### The Full Cycle
+
+```
+/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
+```
+
+One agent thinks. Many agents build. Many agents review.
+
+### Workers
+
+Six specialized agent types tuned for cost and capability:
+
+| Worker | Model | Use |
+|--------|-------|-----|
+| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
+| `worker-builder` | Sonnet | Implementation, testing, refactoring |
+| `worker-reviewer` | Opus | Code review, security analysis |
+| `worker-researcher` | Sonnet | Quick web research, API docs |
+| `worker-research` | Opus | Deep multi-source investigation |
+| `worker-architect` | Opus | Complex design decisions, ADRs |
+
+### Skills
+
+67 skills across 7 categories — auto-suggested based on keywords in your prompt:
+
+**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
+
+Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
+
+### Safety Hooks
+
+Pre-configured hooks that run automatically:
+
+- **Secret detection** — blocks commits containing API keys, tokens, private keys
+- **Protected files** — prevents accidental modification of `.env`, `.vscode/mcp.json`, `.beads/`
+- **Push blocking** — stops direct pushes to `main`/`master`
+- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
+- **File locking** — prevents concurrent edits in multi-agent swarms
+
+### MCP Servers
+
+Four servers pre-configured in `.vscode/mcp.json`:
+
+| Server | Purpose |
+|--------|---------|
+| Sequential Thinking | Structured multi-step reasoning |
+| Chrome DevTools | Browser testing, performance profiling |
+| Context7 | Up-to-date library documentation |
+| Filesystem | File operations beyond workspace |
+
+## Customization
+
+Everything is designed to be extended:
+
+- Add commands → `.claude/commands/your-command.md`
+- Add skills → `.claude/skills/category/your-skill/SKILL.md`
+- Add rules → `.claude/rules/your-rule.md`
+- Add hooks → `.claude/hooks/your-hook.sh`
+- Add workers → `.claude/agents/worker-yourtype.md`
+
+Templates for each are in `.claude/templates/`.
+
+See [docs/customization.md](docs/customization.md) for details.
+
+## Docs
+
+- [Getting started](docs/getting-started.md)
+- [Multi-agent swarms](docs/swarm.md)
+- [Commands](docs/personas.md)
+- [Skills reference](docs/skills.md)
+- [MCP servers](docs/mcp-servers.md)
+- [Hooks](docs/hooks.md)
+- [Handoffs](docs/handoffs.md)
+- [Beads setup & usage](docs/beads.md)
+- [Customization](docs/customization.md)
+````
+
 ## File: .github/copilot-instructions.md
 ````markdown
 ---
@@ -19782,6 +19783,133 @@ Any of the following require a context7 lookup before proceeding:
 - Do not introduce new terms if an equivalent glossary term already exists.
 - When multiple names exist, normalize to the glossary term before implementation.
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
+````
+
+## File: docs/ddd/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
 ## File: docs/ddd/knowledge/application-services.md
@@ -22019,133 +22147,6 @@ Identity → Account → Organization → Workspace
 - 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
-## File: docs/ddd/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
 ## File: modules/knowledge/AGENT.md
 ````markdown
 # AGENT.md — knowledge BC
@@ -22424,81 +22425,6 @@ npm run build
 - `PageVerificationState` 雖然名稱靠近 wiki governance，但目前仍是 `knowledge` 內的 page metadata
 ````
 
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository`
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-
-## Firestore 路徑
-
-- Page: `accounts/{accountId}/contentPages/{pageId}`
-- Block: `accounts/{accountId}/contentBlocks/{blockId}`
-- Collection: `accounts/{accountId}/knowledgeCollections/{collectionId}`
-
-這與 Firestore 官方文件的 document / subcollection path 寫法一致，採 `doc(db, "accounts", accountId, ...)` 形式建立引用。
-
-## KnowledgePageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排 Block |
-| `approve()` | 設定 approvalState = approved |
-| `verify()` | 設定 verificationState = verified |
-| `requestReview()` | 設定 verificationState = needs_review |
-| `assignOwner()` | 指派 ownerId |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## KnowledgeBlockRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `add()` | 新增 Block |
-| `update()` | 更新 Block 內容 |
-| `delete()` | 刪除 Block |
-| `findById()` | 取得單一 Block |
-| `listByPageId()` | 列出頁面所有 Block |
-
-## KnowledgeCollectionRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立 collection |
-| `rename()` | 重新命名 |
-| `addPage()` | 加入 page |
-| `removePage()` | 移除 page |
-| `addColumn()` | 新增 schema column |
-| `archive()` | 封存 collection |
-| `findById()` | 取得單一 collection |
-| `listByAccountId()` | 列出帳戶所有 collections |
-| `listByWorkspaceId()` | 列出工作區 collections |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports
-- `interfaces/queries` 直接 new Firebase repository 是目前做法，但跨 BC 不應跳過 `api/` 公開面
-````
-
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -22590,4 +22516,79 @@ npm run build
 | `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
 | `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()` |
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository`
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+
+## Firestore 路徑
+
+- Page: `accounts/{accountId}/contentPages/{pageId}`
+- Block: `accounts/{accountId}/contentBlocks/{blockId}`
+- Collection: `accounts/{accountId}/knowledgeCollections/{collectionId}`
+
+這與 Firestore 官方文件的 document / subcollection path 寫法一致，採 `doc(db, "accounts", accountId, ...)` 形式建立引用。
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排 Block |
+| `approve()` | 設定 approvalState = approved |
+| `verify()` | 設定 verificationState = verified |
+| `requestReview()` | 設定 verificationState = needs_review |
+| `assignOwner()` | 指派 ownerId |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## KnowledgeBlockRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `add()` | 新增 Block |
+| `update()` | 更新 Block 內容 |
+| `delete()` | 刪除 Block |
+| `findById()` | 取得單一 Block |
+| `listByPageId()` | 列出頁面所有 Block |
+
+## KnowledgeCollectionRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立 collection |
+| `rename()` | 重新命名 |
+| `addPage()` | 加入 page |
+| `removePage()` | 移除 page |
+| `addColumn()` | 新增 schema column |
+| `archive()` | 封存 collection |
+| `findById()` | 取得單一 collection |
+| `listByAccountId()` | 列出帳戶所有 collections |
+| `listByWorkspaceId()` | 列出工作區 collections |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports
+- `interfaces/queries` 直接 new Firebase repository 是目前做法，但跨 BC 不應跳過 `api/` 公開面
 ````

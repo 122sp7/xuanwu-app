@@ -26,27 +26,76 @@
   "mcpServers": {
     "sequential-thinking": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "chrome-devtools": {
       "command": "npx",
-      "args": [
-        "-y",
-        "chrome-devtools-mcp"
-      ]
+      "args": ["-y", "chrome-devtools-mcp"]
     },
-    "filesystem": {                                                  
-      "command": "npx",                                              
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] 
-    },                                                  
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
     "context7": {
       "command": "npx",
+      "args": ["@upstash/context7-mcp@1.0.31"],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": ["-y", "mongodb-mcp-server@latest", "--readOnly"],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "${MDB_MCP_CONNECTION_STRING}"
+      }
+    },
+    "next-devtools": {
+      "command": "npx",
+      "args": ["next-devtools-mcp@0.3.6"]
+    },
+    "mcp-run-python": {
+      "command": "uvx",
+      "args": ["mcp-run-python", "stdio"]
+    },
+    "supabase-mcp": {
+      "command": "npx",
       "args": [
-        "-y",
-        "@upstash/context7-mcp"
+        "--project-ref",
+        "${project-ref}",
+        "--read-only",
+        "${read-only}",
+        "--features",
+        "${features}",
+        "--api-url",
+        "${api-url}",
+        "--registry",
+        "https://registry.npmjs.org",
+        "@supabase/mcp-server-supabase@0.7.0"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      }
+    },
+    "markitdown": {
+      "command": "uvx",
+      "args": ["markitdown-mcp@0.0.1a4"]
+    },
+    "playwright-mcp": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server"
       ]
     }
   }
@@ -1217,92 +1266,6 @@ service cloud.firestore {
     }
   }
 }
-````
-
-## File: llms.txt
-````
-# Xuanwu App
-
-Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
-
-This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
-
-## Primary repository truths
-
-- AGENTS.md: repository-wide operating rules
-- .github/copilot-instructions.md: Copilot delivery baseline
-- agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
-- agents/commands.md: build, lint, test, and deployment commands
-- docs/README.md: documentation root index
-
-## Documentation reading order
-
-Read from high level to detail:
-
-1. docs/README.md
-2. docs/development-reference/specification/system-overview.md
-3. agents/knowledge-base.md
-4. docs/development-reference/reference/development-contracts/overview.md
-5. the nearest docs README in the relevant subfolder
-6. the specific contract, guide, or architecture page
-7. diagrams or ADRs only after the relevant higher-level page is identified
-
-## Topic routing
-
-- Repository rules and contribution workflow:
-  - AGENTS.md
-  - CONTRIBUTING.md
-  - agents/README.md
-- Architecture and module boundaries:
-  - agents/knowledge-base.md
-  - docs/decision-architecture/architecture/
-  - docs/decision-architecture/adr/
-- Development workflows and implementation rules:
-  - docs/development-reference/development/README.md
-  - docs/development-reference/reference/
-- Contract-governed workflows:
-  - docs/development-reference/reference/development-contracts/overview.md
-  - specific contract pages in docs/development-reference/reference/development-contracts/
-- AI workflow and Copilot customization assets:
-  - docs/development-reference/reference/ai/customizations-index.md
-  - docs/how-to-user/how-to/
-  - .github/skills/
-- Diagrams and explanatory support:
-  - docs/diagrams-events-explanations/diagrams/README.md
-  - docs/diagrams-events-explanations/explanation/
-
-## Document layers
-
-- High layer:
-  - docs/README.md
-  - docs/development-reference/specification/system-overview.md
-  - agents/knowledge-base.md
-- Mid layer:
-  - folder READMEs
-  - development guides
-  - contract indexes
-  - how-to guides
-- Low layer:
-  - ADRs
-  - detailed diagrams
-  - deep technical explanations
-
-Use the smallest useful layer first.
-
-## Documentation organization rule
-
-When adding or changing docs:
-
-1. keep one canonical file per topic,
-2. add a short summary near the top,
-3. use clear headings for section-based chunking,
-4. update the nearest README index,
-5. update docs/README.md or this file if routing changes.
-
-## AI working rule
-
-If a question is broad, inspect summaries and README indexes before opening detailed files.
-If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
 ````
 
 ## File: modules/account/AGENT.md
@@ -4313,6 +4276,21 @@ export interface Message {
  */
 ````
 
+## File: modules/notebook/domain/entities/thread.ts
+````typescript
+/**
+ * modules/notebook — domain entity: Thread
+ */
+import type { ID } from "@shared-types";
+import type { Message } from "./message";
+export interface Thread {
+  readonly id: ID;
+  readonly messages: Message[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+````
+
 ## File: modules/notebook/domain/index.ts
 ````typescript
 
@@ -4446,6 +4424,46 @@ async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNo
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/notebook/repositories.md
+````markdown
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -19747,584 +19765,6 @@ document_pipeline_gateway = _FakeDocumentPipelineGateway()
 def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
 ````
 
-## File: README.md
-````markdown
-# Claude Agentic Framework
-
-A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
-
-## Install
-
-Run this inside your project directory:
-
-```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
-```
-
-The script will:
-- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
-- Copy `.mcp.json` (MCP server configuration)
-- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
-- Create an `artifacts/` directory for planning documents
-- Set up `.gitignore` entries
-- Install hook dependencies
-- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
-
-### Beads Setup
-
-Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
-
-The init script will then run `bd init` in your project automatically.
-
-The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
-
-## After Install
-
-1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
-3. Start Claude Code and try: `/architect hello`
-
-## What You Get
-
-### Commands
-
-Single-agent expert modes, invoked via slash commands:
-
-| Command | Role |
-|---------|------|
-| `/architect` | System design, ADRs |
-| `/builder` | Implementation, debugging, testing |
-| `/qa-engineer` | Test strategy, E2E, accessibility |
-| `/security-auditor` | Threat modeling, security audits |
-| `/ui-ux-designer` | Interface design, visual assets |
-| `/code-check` | SOLID, DRY, consistency audit |
-
-### Swarm Orchestrators
-
-Multi-agent commands that fan work out across parallel workers:
-
-| Command | What It Does |
-|---------|-------------|
-| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
-| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
-| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
-| `/swarm-research` | Deep multi-source investigation with verification tiers |
-
-### The Full Cycle
-
-```
-/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
-```
-
-One agent thinks. Many agents build. Many agents review.
-
-### Workers
-
-Six specialized agent types tuned for cost and capability:
-
-| Worker | Model | Use |
-|--------|-------|-----|
-| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
-| `worker-builder` | Sonnet | Implementation, testing, refactoring |
-| `worker-reviewer` | Opus | Code review, security analysis |
-| `worker-researcher` | Sonnet | Quick web research, API docs |
-| `worker-research` | Opus | Deep multi-source investigation |
-| `worker-architect` | Opus | Complex design decisions, ADRs |
-
-### Skills
-
-67 skills across 7 categories — auto-suggested based on keywords in your prompt:
-
-**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
-
-Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
-
-### Safety Hooks
-
-Pre-configured hooks that run automatically:
-
-- **Secret detection** — blocks commits containing API keys, tokens, private keys
-- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
-- **Push blocking** — stops direct pushes to `main`/`master`
-- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
-- **File locking** — prevents concurrent edits in multi-agent swarms
-
-### MCP Servers
-
-Four servers pre-configured in `.mcp.json`:
-
-| Server | Purpose |
-|--------|---------|
-| Sequential Thinking | Structured multi-step reasoning |
-| Chrome DevTools | Browser testing, performance profiling |
-| Context7 | Up-to-date library documentation |
-| Filesystem | File operations beyond workspace |
-
-## Customization
-
-Everything is designed to be extended:
-
-- Add commands → `.claude/commands/your-command.md`
-- Add skills → `.claude/skills/category/your-skill/SKILL.md`
-- Add rules → `.claude/rules/your-rule.md`
-- Add hooks → `.claude/hooks/your-hook.sh`
-- Add workers → `.claude/agents/worker-yourtype.md`
-
-Templates for each are in `.claude/templates/`.
-
-See [docs/customization.md](docs/customization.md) for details.
-
-## Docs
-
-- [Getting started](docs/getting-started.md)
-- [Multi-agent swarms](docs/swarm.md)
-- [Commands](docs/personas.md)
-- [Skills reference](docs/skills.md)
-- [MCP servers](docs/mcp-servers.md)
-- [Hooks](docs/hooks.md)
-- [Handoffs](docs/handoffs.md)
-- [Beads setup & usage](docs/beads.md)
-- [Customization](docs/customization.md)
-````
-
-## File: scripts/init-framework.sh
-````bash
-#!/bin/bash
-# Claude Agentic Framework - Initialization Script
-# Usage: ./init-framework.sh [/path/to/your/project]
-set -e
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-# Repository URL for cloning when run via curl
-REPO_URL="https://github.com/dralgorhythm/claude-agentic-framework.git"
-# Determine framework source directory
-# When run via curl | bash, BASH_SOURCE[0] is not a valid file path
-if [ -f "${BASH_SOURCE[0]}" ]; then
-    # Running from local file
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    FRAMEWORK_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
-    TEMP_CLONE=""
-else
-    # Running via curl | bash - need to clone the repo
-    echo "Downloading framework from repository..."
-    TEMP_CLONE="$(mktemp -d)"
-    git clone --depth 1 --quiet "$REPO_URL" "$TEMP_CLONE"
-    FRAMEWORK_DIR="$TEMP_CLONE"
-fi
-# Cleanup function for temp directory
-cleanup() {
-    if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
-        rm -rf "$TEMP_CLONE"
-    fi
-}
-trap cleanup EXIT
-# Target directory (default: current directory)
-TARGET_DIR="${1:-.}"
-TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || echo "$TARGET_DIR")"
-# Function to print colored output
-print_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-print_error() {
-    echo -e "${RED}✗${NC} $1"
-}
-print_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
-}
-# Function to prompt user for confirmation
-confirm() {
-    local prompt="$1"
-    local response
-    read -r -p "$prompt [y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-# Function to show diff between two files
-show_file_diff() {
-    local existing="$1"
-    local new="$2"
-    local name="$3"
-    if command -v diff &>/dev/null; then
-        echo ""
-        echo -e "${BLUE}--- Diff for ${name} ---${NC}"
-        # Use color diff if available, otherwise plain diff
-        if diff --color=auto /dev/null /dev/null 2>/dev/null; then
-            diff --color=auto -u "$existing" "$new" 2>/dev/null || true
-        else
-            diff -u "$existing" "$new" 2>/dev/null || true
-        fi
-        echo -e "${BLUE}--- End diff ---${NC}"
-        echo ""
-    fi
-}
-# Function to show diff summary for directories
-show_dir_diff() {
-    local existing="$1"
-    local new="$2"
-    local name="$3"
-    if command -v diff &>/dev/null; then
-        echo ""
-        echo -e "${BLUE}--- Changes in ${name}/ ---${NC}"
-        # Show new files
-        local new_files
-        new_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $new" | sed "s|Only in $new[^:]*: |  + |" || true)
-        if [ -n "$new_files" ]; then
-            echo -e "${GREEN}New files:${NC}"
-            echo "$new_files"
-        fi
-        # Show removed files
-        local removed_files
-        removed_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $existing" | sed "s|Only in $existing[^:]*: |  - |" || true)
-        if [ -n "$removed_files" ]; then
-            echo -e "${RED}Files only in existing:${NC}"
-            echo "$removed_files"
-        fi
-        # Show modified files
-        local modified_files
-        modified_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "^Files .* differ$" | sed -E 's/Files (.*) and .* differ/  ~ \1/' || true)
-        if [ -n "$modified_files" ]; then
-            echo -e "${YELLOW}Modified files:${NC}"
-            echo "$modified_files"
-        fi
-        # Count changes
-        local total_changes
-        total_changes=$(diff -rq "$existing" "$new" 2>/dev/null | wc -l | tr -d ' ')
-        echo ""
-        echo "Total: $total_changes file(s) differ"
-        echo -e "${BLUE}--- End summary ---${NC}"
-        echo ""
-    fi
-}
-# Function to copy file with diff prompt
-copy_file_with_diff() {
-    local src="$1"
-    local dst="$2"
-    local name="$3"
-    local optional="${4:-false}"
-    if [ ! -f "$src" ]; then
-        if [ "$optional" = "true" ]; then
-            return 0
-        fi
-        print_error "Source file not found: $src"
-        return 1
-    fi
-    if [ -f "$dst" ]; then
-        # Check if files are identical
-        if diff -q "$dst" "$src" &>/dev/null; then
-            print_info "$name is already up to date"
-            return 0
-        fi
-        print_warning "$name already exists with differences"
-        show_file_diff "$dst" "$src" "$name"
-        if confirm "  Overwrite $name?"; then
-            cp "$src" "$dst"
-            print_success "$name updated"
-        else
-            print_info "Skipped $name"
-        fi
-    else
-        print_info "Copying $name..."
-        cp "$src" "$dst"
-        print_success "$name installed"
-    fi
-}
-# Function to copy directory with diff prompt
-copy_dir_with_diff() {
-    local src="$1"
-    local dst="$2"
-    local name="$3"
-    local optional="${4:-false}"
-    if [ ! -d "$src" ]; then
-        if [ "$optional" = "true" ]; then
-            return 0
-        fi
-        print_error "Source directory not found: $src"
-        return 1
-    fi
-    if [ -d "$dst" ]; then
-        # Check if directories are identical
-        if diff -rq "$dst" "$src" &>/dev/null; then
-            print_info "$name/ is already up to date"
-            return 0
-        fi
-        print_warning "$name/ already exists with differences"
-        show_dir_diff "$dst" "$src" "$name"
-        if confirm "  Overwrite $name/?"; then
-            rm -rf "$dst"
-            cp -r "$src" "$dst"
-            print_success "$name/ updated"
-        else
-            print_info "Skipped $name/"
-        fi
-    else
-        print_info "Copying $name/..."
-        cp -r "$src" "$dst"
-        print_success "$name/ installed"
-    fi
-}
-# Validate target directory
-if [ ! -d "$TARGET_DIR" ]; then
-    print_error "Target directory does not exist: $TARGET_DIR"
-    exit 1
-fi
-# Detect project name (prefer GitHub repo name, fallback to directory name)
-detect_project_name() {
-    local dir="$1"
-    # Try to get GitHub repo name from git remote
-    if [ -d "$dir/.git" ] || git -C "$dir" rev-parse --git-dir &>/dev/null; then
-        local remote_url
-        remote_url=$(git -C "$dir" remote get-url origin 2>/dev/null || echo "")
-        if [ -n "$remote_url" ]; then
-            # Extract repo name from various URL formats:
-            # https://github.com/user/repo.git -> repo
-            # git@github.com:user/repo.git -> repo
-            # https://github.com/user/repo -> repo
-            local repo_name
-            repo_name=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
-            if [ -n "$repo_name" ]; then
-                echo "$repo_name"
-                return
-            fi
-        fi
-    fi
-    # Fallback to directory name
-    basename "$dir"
-}
-PROJECT_NAME="$(detect_project_name "$TARGET_DIR")"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Claude Agentic Framework - Initialization"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-print_info "Framework source: $FRAMEWORK_DIR"
-print_info "Target directory: $TARGET_DIR"
-print_info "Project name: $PROJECT_NAME"
-echo ""
-# Copy core directories with diff support
-copy_dir_with_diff "$FRAMEWORK_DIR/.claude" "$TARGET_DIR/.claude" ".claude"
-# Create artifacts directory if it doesn't exist
-if [ ! -d "$TARGET_DIR/artifacts" ]; then
-    print_info "Creating artifacts directory..."
-    mkdir -p "$TARGET_DIR/artifacts"
-    print_success "artifacts directory created"
-else
-    print_info "artifacts directory already exists"
-fi
-# Copy config files with diff support
-copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
-copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.mcp.json" ".mcp.json"
-# Initialize Beads issue tracking (required for swarm coordination)
-if [ ! -d "$TARGET_DIR/.beads" ]; then
-    if command -v bd &>/dev/null; then
-        print_info "Initializing Beads issue tracking..."
-        if (cd "$TARGET_DIR" && bd init 2>/dev/null); then
-            print_success "Beads initialized"
-        else
-            print_warning "Beads initialization failed. Run 'bd init' manually for swarm coordination."
-        fi
-    else
-        print_warning "Beads CLI not found — required for swarm coordination"
-        print_info "  Install: curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-        print_info "  Then: cd $TARGET_DIR && bd init"
-    fi
-else
-    print_info ".beads/ already initialized"
-fi
-# Copy CLAUDE.md and AGENTS.md with diff support
-copy_file_with_diff "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
-copy_file_with_diff "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md" "AGENTS.md"
-# Copy README.md with diff support (optional for existing projects)
-if [ ! -f "$TARGET_DIR/README.md" ]; then
-    print_warning "README.md does not exist"
-    if confirm "  Create README.md from framework template?"; then
-        cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
-        print_success "README.md created"
-    else
-        print_info "Skipped README.md"
-    fi
-else
-    # Only show diff for README if user wants to see framework updates
-    if ! diff -q "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" &>/dev/null; then
-        print_info "README.md exists (differs from framework template)"
-        if confirm "  View diff and optionally update?"; then
-            show_file_diff "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" "README.md"
-            if confirm "  Overwrite README.md with framework template?"; then
-                cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
-                print_success "README.md updated"
-            else
-                print_info "Kept existing README.md"
-            fi
-        else
-            print_info "Skipped README.md"
-        fi
-    else
-        print_info "README.md is already up to date"
-    fi
-fi
-# Create or update .gitignore (append mode for existing files)
-GITIGNORE_ENTRIES=(
-    "# Dependencies"
-    "node_modules/"
-    ".pnpm-store/"
-    "__pycache__/"
-    "*.pyc"
-    ".venv/"
-    "venv/"
-    "# Build outputs"
-    "dist/"
-    "build/"
-    "*.o"
-    "*.so"
-    "*.exe"
-    "# IDE"
-    ".vscode/"
-    ".idea/"
-    "*.swp"
-    "*.swo"
-    "*~"
-    "# OS"
-    ".DS_Store"
-    "Thumbs.db"
-    "# Environment"
-    ".env"
-    ".env.local"
-    "*.local"
-    "# Logs"
-    "*.log"
-    "npm-debug.log*"
-    "# Claude Framework"
-    "scratchpad/"
-)
-if [ ! -f "$TARGET_DIR/.gitignore" ]; then
-    print_warning ".gitignore does not exist"
-    if confirm "  Create basic .gitignore?"; then
-        printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > "$TARGET_DIR/.gitignore"
-        print_success ".gitignore created"
-    else
-        print_info "Skipped .gitignore"
-    fi
-else
-    # Find missing entries (excluding comments)
-    MISSING_ENTRIES=()
-    for entry in "${GITIGNORE_ENTRIES[@]}"; do
-        # Skip comment lines for matching
-        if [[ "$entry" == \#* ]]; then
-            continue
-        fi
-        # Check if entry exists in current .gitignore (exact line match)
-        if ! grep -Fxq "$entry" "$TARGET_DIR/.gitignore" 2>/dev/null; then
-            MISSING_ENTRIES+=("$entry")
-        fi
-    done
-    if [ ${#MISSING_ENTRIES[@]} -eq 0 ]; then
-        print_info ".gitignore already contains all framework entries"
-    else
-        print_warning ".gitignore is missing ${#MISSING_ENTRIES[@]} framework entries"
-        echo ""
-        echo -e "${BLUE}--- Entries to append ---${NC}"
-        for entry in "${MISSING_ENTRIES[@]}"; do
-            echo -e "${GREEN}  + $entry${NC}"
-        done
-        echo -e "${BLUE}--- End entries ---${NC}"
-        echo ""
-        if confirm "  Append missing entries to .gitignore?"; then
-            # Add a blank line separator if file doesn't end with newline
-            if [ -s "$TARGET_DIR/.gitignore" ] && [ "$(tail -c1 "$TARGET_DIR/.gitignore" | wc -l)" -eq 0 ]; then
-                echo "" >> "$TARGET_DIR/.gitignore"
-            fi
-            # Add framework section header
-            echo "" >> "$TARGET_DIR/.gitignore"
-            echo "# Claude Agentic Framework" >> "$TARGET_DIR/.gitignore"
-            for entry in "${MISSING_ENTRIES[@]}"; do
-                echo "$entry" >> "$TARGET_DIR/.gitignore"
-            done
-            print_success ".gitignore updated (${#MISSING_ENTRIES[@]} entries appended)"
-        else
-            print_info "Kept existing .gitignore"
-        fi
-    fi
-fi
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-print_success "Framework initialization complete!"
-echo ""
-# Create hook runtime directories
-mkdir -p "$TARGET_DIR/.claude/hooks/.state" "$TARGET_DIR/.claude/hooks/.locks"
-print_success "Hook runtime directories created (.state, .locks)"
-# Make hook scripts executable
-if [ -d "$TARGET_DIR/.claude/hooks" ]; then
-    chmod +x "$TARGET_DIR/.claude/hooks"/*.sh 2>/dev/null || true
-    print_success "Hook scripts made executable"
-fi
-# Install hook dependencies if needed
-if [ -f "$TARGET_DIR/.claude/hooks/package.json" ]; then
-    print_info "Installing hook dependencies..."
-    echo ""
-    INSTALL_OK=false
-    if command -v pnpm &> /dev/null; then
-        (cd "$TARGET_DIR/.claude/hooks" && pnpm install --silent) && INSTALL_OK=true
-    elif command -v npm &> /dev/null; then
-        (cd "$TARGET_DIR/.claude/hooks" && npm install --silent) && INSTALL_OK=true
-    else
-        print_warning "Neither pnpm nor npm found - skipping dependency installation"
-        print_info "Install Node.js and run: cd .claude/hooks && npm install"
-    fi
-    if [ "$INSTALL_OK" = "true" ]; then
-        print_success "Hook dependencies installed"
-    fi
-    echo ""
-fi
-# Print next steps
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Next Steps"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "1. Customize CLAUDE.md with your project-specific context"
-echo ""
-echo "2. Review tech strategy in .claude/rules/tech-strategy.md"
-echo "   Update to match your organization's standards"
-echo ""
-echo "3. Start using commands via slash commands:"
-echo "   /architect       - System design and ADRs"
-echo "   /builder         - Code implementation"
-echo "   /qa-engineer     - Test strategy and quality"
-echo "   /security-auditor - Security reviews"
-echo "   /ui-ux-designer  - Interface design"
-echo ""
-echo "   Swarm orchestration commands:"
-echo "   /swarm-plan      - Plan with parallel exploration"
-echo "   /swarm-execute   - Execute with parallel workers"
-echo "   /swarm-review    - Adversarial multi-perspective review"
-echo "   /swarm-research  - Deep investigation"
-echo "   /code-check      - SOLID, DRY, consistency audit"
-echo ""
-echo "4. If Beads was not initialized above, install it for swarm coordination:"
-echo "   curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-echo "   cd $TARGET_DIR && bd init"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-````
-
 ## File: SPEC-WORKFLOW.md
 ````markdown
 # Spec-Driven Development Workflow
@@ -21144,6 +20584,101 @@ const createRestrictedImportsRule = (patterns)
 // Override default ignores of eslint-config-next.
 ⋮----
 // Default ignores of eslint-config-next:
+````
+
+## File: llms.txt
+````
+# Xuanwu App
+
+Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
+
+This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
+
+## Primary repository truths
+
+- AGENTS.md: repository-wide operating rules
+- .github/copilot-instructions.md: Copilot delivery baseline
+- .github/agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
+- .github/agents/commands.md: build, lint, test, and deployment commands
+- docs/README.md: documentation root index
+- docs/SOURCE-OF-TRUTH.md: documentation structure source
+- docs/ddd/bounded-contexts.md: bounded-context map
+- docs/ddd/subdomains.md: subdomain classification
+
+## Documentation reading order
+
+Read from high level to detail:
+
+1. docs/README.md
+2. docs/SOURCE-OF-TRUTH.md
+3. .github/agents/knowledge-base.md
+4. .github/agents/commands.md
+5. docs/ddd/bounded-contexts.md
+6. docs/ddd/subdomains.md
+5. the nearest docs README in the relevant subfolder
+6. the specific contract, guide, or architecture page
+7. diagrams or ADRs only after the relevant higher-level page is identified
+
+## Topic routing
+
+- Repository rules and contribution workflow:
+  - AGENTS.md
+  - CONTRIBUTING.md
+  - .github/agents/README.md
+- Architecture and module boundaries:
+  - .github/agents/knowledge-base.md
+  - docs/ddd/
+  - docs/architecture/
+- Development workflows and implementation rules:
+  - .github/agents/commands.md
+  - docs/development/
+  - docs/guides/
+- Contract-governed workflows:
+  - docs/reference/
+  - specific contract or specification pages under docs/reference/ and docs/templates/
+- AI workflow and Copilot customization assets:
+  - .github/copilot-instructions.md
+  - .github/skills/
+  - docs/skills.md
+  - docs/mcp-servers.md
+  - docs/customization.md
+- Diagrams and explanatory support:
+  - diagrams/
+  - docs/diagrams/
+  - docs/guides/explanation/
+
+## Document layers
+
+- High layer:
+  - docs/README.md
+  - docs/SOURCE-OF-TRUTH.md
+  - .github/agents/knowledge-base.md
+- Mid layer:
+  - folder READMEs
+  - docs/development/
+  - docs/guides/
+  - docs/reference/
+- Low layer:
+  - detailed diagrams
+  - templates
+  - deep technical explanations
+
+Use the smallest useful layer first.
+
+## Documentation organization rule
+
+When adding or changing docs:
+
+1. keep one canonical file per topic,
+2. add a short summary near the top,
+3. use clear headings for section-based chunking,
+4. update the nearest README index,
+5. update docs/README.md or this file if routing changes.
+
+## AI working rule
+
+If a question is broad, inspect summaries and README indexes before opening detailed files.
+If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
 ````
 
 ## File: modules/bounded-contexts.md
@@ -22945,21 +22480,6 @@ moveBlock(fromIdx, toIdx)
  */
 ````
 
-## File: modules/notebook/domain/entities/thread.ts
-````typescript
-/**
- * modules/notebook — domain entity: Thread
- */
-import type { ID } from "@shared-types";
-import type { Message } from "./message";
-export interface Thread {
-  readonly id: ID;
-  readonly messages: Message[];
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-````
-
 ## File: modules/notebook/domain/repositories/IThreadRepository.ts
 ````typescript
 /**
@@ -23024,46 +22544,6 @@ export async function generateNotebookResponse(
 export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
 export async function saveThread(accountId: string, thread: Thread): Promise<void>
 export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
-````
-
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/notification/api/index.ts
@@ -23596,6 +23076,151 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
 ````
 
+## File: README.md
+````markdown
+# Claude Agentic Framework
+
+A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
+
+## Install
+
+Run this inside your project directory:
+
+```bash
+cd your-project
+curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+```
+
+The script will:
+- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
+- Copy `.vscode/mcp.json` (MCP server configuration)
+- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
+- Create an `artifacts/` directory for planning documents
+- Set up `.gitignore` entries
+- Install hook dependencies
+- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
+
+### Beads Setup
+
+Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+The init script will then run `bd init` in your project automatically.
+
+The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
+
+## After Install
+
+1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
+2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
+3. Start Claude Code and try: `/architect hello`
+
+## What You Get
+
+### Commands
+
+Single-agent expert modes, invoked via slash commands:
+
+| Command | Role |
+|---------|------|
+| `/architect` | System design, ADRs |
+| `/builder` | Implementation, debugging, testing |
+| `/qa-engineer` | Test strategy, E2E, accessibility |
+| `/security-auditor` | Threat modeling, security audits |
+| `/ui-ux-designer` | Interface design, visual assets |
+| `/code-check` | SOLID, DRY, consistency audit |
+
+### Swarm Orchestrators
+
+Multi-agent commands that fan work out across parallel workers:
+
+| Command | What It Does |
+|---------|-------------|
+| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
+| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
+| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
+| `/swarm-research` | Deep multi-source investigation with verification tiers |
+
+### The Full Cycle
+
+```
+/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
+```
+
+One agent thinks. Many agents build. Many agents review.
+
+### Workers
+
+Six specialized agent types tuned for cost and capability:
+
+| Worker | Model | Use |
+|--------|-------|-----|
+| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
+| `worker-builder` | Sonnet | Implementation, testing, refactoring |
+| `worker-reviewer` | Opus | Code review, security analysis |
+| `worker-researcher` | Sonnet | Quick web research, API docs |
+| `worker-research` | Opus | Deep multi-source investigation |
+| `worker-architect` | Opus | Complex design decisions, ADRs |
+
+### Skills
+
+67 skills across 7 categories — auto-suggested based on keywords in your prompt:
+
+**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
+
+Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
+
+### Safety Hooks
+
+Pre-configured hooks that run automatically:
+
+- **Secret detection** — blocks commits containing API keys, tokens, private keys
+- **Protected files** — prevents accidental modification of `.env`, `.vscode/mcp.json`, `.beads/`
+- **Push blocking** — stops direct pushes to `main`/`master`
+- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
+- **File locking** — prevents concurrent edits in multi-agent swarms
+
+### MCP Servers
+
+Four servers pre-configured in `.vscode/mcp.json`:
+
+| Server | Purpose |
+|--------|---------|
+| Sequential Thinking | Structured multi-step reasoning |
+| Chrome DevTools | Browser testing, performance profiling |
+| Context7 | Up-to-date library documentation |
+| Filesystem | File operations beyond workspace |
+
+## Customization
+
+Everything is designed to be extended:
+
+- Add commands → `.claude/commands/your-command.md`
+- Add skills → `.claude/skills/category/your-skill/SKILL.md`
+- Add rules → `.claude/rules/your-rule.md`
+- Add hooks → `.claude/hooks/your-hook.sh`
+- Add workers → `.claude/agents/worker-yourtype.md`
+
+Templates for each are in `.claude/templates/`.
+
+See [docs/customization.md](docs/customization.md) for details.
+
+## Docs
+
+- [Getting started](docs/getting-started.md)
+- [Multi-agent swarms](docs/swarm.md)
+- [Commands](docs/personas.md)
+- [Skills reference](docs/skills.md)
+- [MCP servers](docs/mcp-servers.md)
+- [Hooks](docs/hooks.md)
+- [Handoffs](docs/handoffs.md)
+- [Beads setup & usage](docs/beads.md)
+- [Customization](docs/customization.md)
+````
+
 ## File: repomix.config.json
 ````json
 {
@@ -23968,6 +23593,447 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
 import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
 async function main()
+````
+
+## File: scripts/init-framework.sh
+````bash
+#!/bin/bash
+# Claude Agentic Framework - Initialization Script
+# Usage: ./init-framework.sh [/path/to/your/project]
+set -e
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+# Repository URL for cloning when run via curl
+REPO_URL="https://github.com/dralgorhythm/claude-agentic-framework.git"
+# Determine framework source directory
+# When run via curl | bash, BASH_SOURCE[0] is not a valid file path
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    # Running from local file
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    FRAMEWORK_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+    TEMP_CLONE=""
+else
+    # Running via curl | bash - need to clone the repo
+    echo "Downloading framework from repository..."
+    TEMP_CLONE="$(mktemp -d)"
+    git clone --depth 1 --quiet "$REPO_URL" "$TEMP_CLONE"
+    FRAMEWORK_DIR="$TEMP_CLONE"
+fi
+# Cleanup function for temp directory
+cleanup() {
+    if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
+        rm -rf "$TEMP_CLONE"
+    fi
+}
+trap cleanup EXIT
+# Target directory (default: current directory)
+TARGET_DIR="${1:-.}"
+TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || echo "$TARGET_DIR")"
+# Function to print colored output
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+# Function to prompt user for confirmation
+confirm() {
+    local prompt="$1"
+    local response
+    read -r -p "$prompt [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+# Function to show diff between two files
+show_file_diff() {
+    local existing="$1"
+    local new="$2"
+    local name="$3"
+    if command -v diff &>/dev/null; then
+        echo ""
+        echo -e "${BLUE}--- Diff for ${name} ---${NC}"
+        # Use color diff if available, otherwise plain diff
+        if diff --color=auto /dev/null /dev/null 2>/dev/null; then
+            diff --color=auto -u "$existing" "$new" 2>/dev/null || true
+        else
+            diff -u "$existing" "$new" 2>/dev/null || true
+        fi
+        echo -e "${BLUE}--- End diff ---${NC}"
+        echo ""
+    fi
+}
+# Function to show diff summary for directories
+show_dir_diff() {
+    local existing="$1"
+    local new="$2"
+    local name="$3"
+    if command -v diff &>/dev/null; then
+        echo ""
+        echo -e "${BLUE}--- Changes in ${name}/ ---${NC}"
+        # Show new files
+        local new_files
+        new_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $new" | sed "s|Only in $new[^:]*: |  + |" || true)
+        if [ -n "$new_files" ]; then
+            echo -e "${GREEN}New files:${NC}"
+            echo "$new_files"
+        fi
+        # Show removed files
+        local removed_files
+        removed_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $existing" | sed "s|Only in $existing[^:]*: |  - |" || true)
+        if [ -n "$removed_files" ]; then
+            echo -e "${RED}Files only in existing:${NC}"
+            echo "$removed_files"
+        fi
+        # Show modified files
+        local modified_files
+        modified_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "^Files .* differ$" | sed -E 's/Files (.*) and .* differ/  ~ \1/' || true)
+        if [ -n "$modified_files" ]; then
+            echo -e "${YELLOW}Modified files:${NC}"
+            echo "$modified_files"
+        fi
+        # Count changes
+        local total_changes
+        total_changes=$(diff -rq "$existing" "$new" 2>/dev/null | wc -l | tr -d ' ')
+        echo ""
+        echo "Total: $total_changes file(s) differ"
+        echo -e "${BLUE}--- End summary ---${NC}"
+        echo ""
+    fi
+}
+# Function to copy file with diff prompt
+copy_file_with_diff() {
+    local src="$1"
+    local dst="$2"
+    local name="$3"
+    local optional="${4:-false}"
+    if [ ! -f "$src" ]; then
+        if [ "$optional" = "true" ]; then
+            return 0
+        fi
+        print_error "Source file not found: $src"
+        return 1
+    fi
+    if [ -f "$dst" ]; then
+        # Check if files are identical
+        if diff -q "$dst" "$src" &>/dev/null; then
+            print_info "$name is already up to date"
+            return 0
+        fi
+        print_warning "$name already exists with differences"
+        show_file_diff "$dst" "$src" "$name"
+        if confirm "  Overwrite $name?"; then
+            cp "$src" "$dst"
+            print_success "$name updated"
+        else
+            print_info "Skipped $name"
+        fi
+    else
+        print_info "Copying $name..."
+        cp "$src" "$dst"
+        print_success "$name installed"
+    fi
+}
+# Function to copy directory with diff prompt
+copy_dir_with_diff() {
+    local src="$1"
+    local dst="$2"
+    local name="$3"
+    local optional="${4:-false}"
+    if [ ! -d "$src" ]; then
+        if [ "$optional" = "true" ]; then
+            return 0
+        fi
+        print_error "Source directory not found: $src"
+        return 1
+    fi
+    if [ -d "$dst" ]; then
+        # Check if directories are identical
+        if diff -rq "$dst" "$src" &>/dev/null; then
+            print_info "$name/ is already up to date"
+            return 0
+        fi
+        print_warning "$name/ already exists with differences"
+        show_dir_diff "$dst" "$src" "$name"
+        if confirm "  Overwrite $name/?"; then
+            rm -rf "$dst"
+            cp -r "$src" "$dst"
+            print_success "$name/ updated"
+        else
+            print_info "Skipped $name/"
+        fi
+    else
+        print_info "Copying $name/..."
+        cp -r "$src" "$dst"
+        print_success "$name/ installed"
+    fi
+}
+# Validate target directory
+if [ ! -d "$TARGET_DIR" ]; then
+    print_error "Target directory does not exist: $TARGET_DIR"
+    exit 1
+fi
+# Detect project name (prefer GitHub repo name, fallback to directory name)
+detect_project_name() {
+    local dir="$1"
+    # Try to get GitHub repo name from git remote
+    if [ -d "$dir/.git" ] || git -C "$dir" rev-parse --git-dir &>/dev/null; then
+        local remote_url
+        remote_url=$(git -C "$dir" remote get-url origin 2>/dev/null || echo "")
+        if [ -n "$remote_url" ]; then
+            # Extract repo name from various URL formats:
+            # https://github.com/user/repo.git -> repo
+            # git@github.com:user/repo.git -> repo
+            # https://github.com/user/repo -> repo
+            local repo_name
+            repo_name=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
+            if [ -n "$repo_name" ]; then
+                echo "$repo_name"
+                return
+            fi
+        fi
+    fi
+    # Fallback to directory name
+    basename "$dir"
+}
+PROJECT_NAME="$(detect_project_name "$TARGET_DIR")"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Claude Agentic Framework - Initialization"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+print_info "Framework source: $FRAMEWORK_DIR"
+print_info "Target directory: $TARGET_DIR"
+print_info "Project name: $PROJECT_NAME"
+echo ""
+# Copy core directories with diff support
+copy_dir_with_diff "$FRAMEWORK_DIR/.claude" "$TARGET_DIR/.claude" ".claude"
+# Create artifacts directory if it doesn't exist
+if [ ! -d "$TARGET_DIR/artifacts" ]; then
+    print_info "Creating artifacts directory..."
+    mkdir -p "$TARGET_DIR/artifacts"
+    print_success "artifacts directory created"
+else
+    print_info "artifacts directory already exists"
+fi
+# Copy config files with diff support
+copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
+mkdir -p "$TARGET_DIR/.vscode"
+if [ -f "$FRAMEWORK_DIR/.vscode/mcp.json" ]; then
+    copy_file_with_diff "$FRAMEWORK_DIR/.vscode/mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
+elif [ -f "$FRAMEWORK_DIR/.mcp.json" ]; then
+    print_warning "Using legacy .mcp.json source; installing it as .vscode/mcp.json"
+    copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
+else
+    print_warning "No MCP configuration file found in framework source"
+fi
+# Initialize Beads issue tracking (required for swarm coordination)
+if [ ! -d "$TARGET_DIR/.beads" ]; then
+    if command -v bd &>/dev/null; then
+        print_info "Initializing Beads issue tracking..."
+        if (cd "$TARGET_DIR" && bd init 2>/dev/null); then
+            print_success "Beads initialized"
+        else
+            print_warning "Beads initialization failed. Run 'bd init' manually for swarm coordination."
+        fi
+    else
+        print_warning "Beads CLI not found — required for swarm coordination"
+        print_info "  Install: curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+        print_info "  Then: cd $TARGET_DIR && bd init"
+    fi
+else
+    print_info ".beads/ already initialized"
+fi
+# Copy CLAUDE.md and AGENTS.md with diff support
+copy_file_with_diff "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
+copy_file_with_diff "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md" "AGENTS.md"
+# Copy README.md with diff support (optional for existing projects)
+if [ ! -f "$TARGET_DIR/README.md" ]; then
+    print_warning "README.md does not exist"
+    if confirm "  Create README.md from framework template?"; then
+        cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
+        print_success "README.md created"
+    else
+        print_info "Skipped README.md"
+    fi
+else
+    # Only show diff for README if user wants to see framework updates
+    if ! diff -q "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" &>/dev/null; then
+        print_info "README.md exists (differs from framework template)"
+        if confirm "  View diff and optionally update?"; then
+            show_file_diff "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" "README.md"
+            if confirm "  Overwrite README.md with framework template?"; then
+                cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
+                print_success "README.md updated"
+            else
+                print_info "Kept existing README.md"
+            fi
+        else
+            print_info "Skipped README.md"
+        fi
+    else
+        print_info "README.md is already up to date"
+    fi
+fi
+# Create or update .gitignore (append mode for existing files)
+GITIGNORE_ENTRIES=(
+    "# Dependencies"
+    "node_modules/"
+    ".pnpm-store/"
+    "__pycache__/"
+    "*.pyc"
+    ".venv/"
+    "venv/"
+    "# Build outputs"
+    "dist/"
+    "build/"
+    "*.o"
+    "*.so"
+    "*.exe"
+    "# IDE"
+    ".vscode/"
+    ".idea/"
+    "*.swp"
+    "*.swo"
+    "*~"
+    "# OS"
+    ".DS_Store"
+    "Thumbs.db"
+    "# Environment"
+    ".env"
+    ".env.local"
+    "*.local"
+    "# Logs"
+    "*.log"
+    "npm-debug.log*"
+    "# Claude Framework"
+    "scratchpad/"
+)
+if [ ! -f "$TARGET_DIR/.gitignore" ]; then
+    print_warning ".gitignore does not exist"
+    if confirm "  Create basic .gitignore?"; then
+        printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > "$TARGET_DIR/.gitignore"
+        print_success ".gitignore created"
+    else
+        print_info "Skipped .gitignore"
+    fi
+else
+    # Find missing entries (excluding comments)
+    MISSING_ENTRIES=()
+    for entry in "${GITIGNORE_ENTRIES[@]}"; do
+        # Skip comment lines for matching
+        if [[ "$entry" == \#* ]]; then
+            continue
+        fi
+        # Check if entry exists in current .gitignore (exact line match)
+        if ! grep -Fxq "$entry" "$TARGET_DIR/.gitignore" 2>/dev/null; then
+            MISSING_ENTRIES+=("$entry")
+        fi
+    done
+    if [ ${#MISSING_ENTRIES[@]} -eq 0 ]; then
+        print_info ".gitignore already contains all framework entries"
+    else
+        print_warning ".gitignore is missing ${#MISSING_ENTRIES[@]} framework entries"
+        echo ""
+        echo -e "${BLUE}--- Entries to append ---${NC}"
+        for entry in "${MISSING_ENTRIES[@]}"; do
+            echo -e "${GREEN}  + $entry${NC}"
+        done
+        echo -e "${BLUE}--- End entries ---${NC}"
+        echo ""
+        if confirm "  Append missing entries to .gitignore?"; then
+            # Add a blank line separator if file doesn't end with newline
+            if [ -s "$TARGET_DIR/.gitignore" ] && [ "$(tail -c1 "$TARGET_DIR/.gitignore" | wc -l)" -eq 0 ]; then
+                echo "" >> "$TARGET_DIR/.gitignore"
+            fi
+            # Add framework section header
+            echo "" >> "$TARGET_DIR/.gitignore"
+            echo "# Claude Agentic Framework" >> "$TARGET_DIR/.gitignore"
+            for entry in "${MISSING_ENTRIES[@]}"; do
+                echo "$entry" >> "$TARGET_DIR/.gitignore"
+            done
+            print_success ".gitignore updated (${#MISSING_ENTRIES[@]} entries appended)"
+        else
+            print_info "Kept existing .gitignore"
+        fi
+    fi
+fi
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+print_success "Framework initialization complete!"
+echo ""
+# Create hook runtime directories
+mkdir -p "$TARGET_DIR/.claude/hooks/.state" "$TARGET_DIR/.claude/hooks/.locks"
+print_success "Hook runtime directories created (.state, .locks)"
+# Make hook scripts executable
+if [ -d "$TARGET_DIR/.claude/hooks" ]; then
+    chmod +x "$TARGET_DIR/.claude/hooks"/*.sh 2>/dev/null || true
+    print_success "Hook scripts made executable"
+fi
+# Install hook dependencies if needed
+if [ -f "$TARGET_DIR/.claude/hooks/package.json" ]; then
+    print_info "Installing hook dependencies..."
+    echo ""
+    INSTALL_OK=false
+    if command -v pnpm &> /dev/null; then
+        (cd "$TARGET_DIR/.claude/hooks" && pnpm install --silent) && INSTALL_OK=true
+    elif command -v npm &> /dev/null; then
+        (cd "$TARGET_DIR/.claude/hooks" && npm install --silent) && INSTALL_OK=true
+    else
+        print_warning "Neither pnpm nor npm found - skipping dependency installation"
+        print_info "Install Node.js and run: cd .claude/hooks && npm install"
+    fi
+    if [ "$INSTALL_OK" = "true" ]; then
+        print_success "Hook dependencies installed"
+    fi
+    echo ""
+fi
+# Print next steps
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Next Steps"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "1. Customize CLAUDE.md with your project-specific context"
+echo ""
+echo "2. Review tech strategy in .claude/rules/tech-strategy.md"
+echo "   Update to match your organization's standards"
+echo ""
+echo "3. Start using commands via slash commands:"
+echo "   /architect       - System design and ADRs"
+echo "   /builder         - Code implementation"
+echo "   /qa-engineer     - Test strategy and quality"
+echo "   /security-auditor - Security reviews"
+echo "   /ui-ux-designer  - Interface design"
+echo ""
+echo "   Swarm orchestration commands:"
+echo "   /swarm-plan      - Plan with parallel exploration"
+echo "   /swarm-execute   - Execute with parallel workers"
+echo "   /swarm-review    - Adversarial multi-perspective review"
+echo "   /swarm-research  - Deep investigation"
+echo "   /code-check      - SOLID, DRY, consistency audit"
+echo ""
+echo "4. If Beads was not initialized above, install it for swarm coordination:"
+echo "   curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+echo "   cd $TARGET_DIR && bd init"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -28397,81 +28463,6 @@ function handleDelete(versionId: string)
  */
 ````
 
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository`
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-
-## Firestore 路徑
-
-- Page: `accounts/{accountId}/contentPages/{pageId}`
-- Block: `accounts/{accountId}/contentBlocks/{blockId}`
-- Collection: `accounts/{accountId}/knowledgeCollections/{collectionId}`
-
-這與 Firestore 官方文件的 document / subcollection path 寫法一致，採 `doc(db, "accounts", accountId, ...)` 形式建立引用。
-
-## KnowledgePageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排 Block |
-| `approve()` | 設定 approvalState = approved |
-| `verify()` | 設定 verificationState = verified |
-| `requestReview()` | 設定 verificationState = needs_review |
-| `assignOwner()` | 指派 ownerId |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## KnowledgeBlockRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `add()` | 新增 Block |
-| `update()` | 更新 Block 內容 |
-| `delete()` | 刪除 Block |
-| `findById()` | 取得單一 Block |
-| `listByPageId()` | 列出頁面所有 Block |
-
-## KnowledgeCollectionRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立 collection |
-| `rename()` | 重新命名 |
-| `addPage()` | 加入 page |
-| `removePage()` | 移除 page |
-| `addColumn()` | 新增 schema column |
-| `archive()` | 封存 collection |
-| `findById()` | 取得單一 collection |
-| `listByAccountId()` | 列出帳戶所有 collections |
-| `listByWorkspaceId()` | 列出工作區 collections |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports
-- `interfaces/queries` 直接 new Firebase repository 是目前做法，但跨 BC 不應跳過 `api/` 公開面
-````
-
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -28563,6 +28554,81 @@ function handleDelete(versionId: string)
 | `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
 | `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()` |
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository`
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+
+## Firestore 路徑
+
+- Page: `accounts/{accountId}/contentPages/{pageId}`
+- Block: `accounts/{accountId}/contentBlocks/{blockId}`
+- Collection: `accounts/{accountId}/knowledgeCollections/{collectionId}`
+
+這與 Firestore 官方文件的 document / subcollection path 寫法一致，採 `doc(db, "accounts", accountId, ...)` 形式建立引用。
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排 Block |
+| `approve()` | 設定 approvalState = approved |
+| `verify()` | 設定 verificationState = verified |
+| `requestReview()` | 設定 verificationState = needs_review |
+| `assignOwner()` | 指派 ownerId |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## KnowledgeBlockRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `add()` | 新增 Block |
+| `update()` | 更新 Block 內容 |
+| `delete()` | 刪除 Block |
+| `findById()` | 取得單一 Block |
+| `listByPageId()` | 列出頁面所有 Block |
+
+## KnowledgeCollectionRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立 collection |
+| `rename()` | 重新命名 |
+| `addPage()` | 加入 page |
+| `removePage()` | 移除 page |
+| `addColumn()` | 新增 schema column |
+| `archive()` | 封存 collection |
+| `findById()` | 取得單一 collection |
+| `listByAccountId()` | 列出帳戶所有 collections |
+| `listByWorkspaceId()` | 列出工作區 collections |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports
+- `interfaces/queries` 直接 new Firebase repository 是目前做法，但跨 BC 不應跳過 `api/` 公開面
 ````
 
 ## File: modules/knowledge/api/index.ts

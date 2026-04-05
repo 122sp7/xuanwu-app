@@ -2,27 +2,76 @@
   "mcpServers": {
     "sequential-thinking": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "chrome-devtools": {
       "command": "npx",
-      "args": [
-        "-y",
-        "chrome-devtools-mcp"
-      ]
+      "args": ["-y", "chrome-devtools-mcp"]
     },
-    "filesystem": {                                                  
-      "command": "npx",                                              
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] 
-    },                                                  
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
     "context7": {
       "command": "npx",
+      "args": ["@upstash/context7-mcp@1.0.31"],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": ["-y", "mongodb-mcp-server@latest", "--readOnly"],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "${MDB_MCP_CONNECTION_STRING}"
+      }
+    },
+    "next-devtools": {
+      "command": "npx",
+      "args": ["next-devtools-mcp@0.3.6"]
+    },
+    "mcp-run-python": {
+      "command": "uvx",
+      "args": ["mcp-run-python", "stdio"]
+    },
+    "supabase-mcp": {
+      "command": "npx",
       "args": [
-        "-y",
-        "@upstash/context7-mcp"
+        "--project-ref",
+        "${project-ref}",
+        "--read-only",
+        "${read-only}",
+        "--features",
+        "${features}",
+        "--api-url",
+        "${api-url}",
+        "--registry",
+        "https://registry.npmjs.org",
+        "@supabase/mcp-server-supabase@0.7.0"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      }
+    },
+    "markitdown": {
+      "command": "uvx",
+      "args": ["markitdown-mcp@0.0.1a4"]
+    },
+    "playwright-mcp": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server"
       ]
     }
   }
