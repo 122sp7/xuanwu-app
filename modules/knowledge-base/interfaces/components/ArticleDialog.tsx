@@ -82,7 +82,7 @@ export function ArticleDialog({
           categoryId: resolvedCategoryId,
           tags: parsedTags,
         });
-        if (!result.success) { setError(result.message ?? "更新失敗"); return; }
+        if (!result.success) { setError(result.error.message ?? "更新失敗"); return; }
         onSuccess?.();
       } else {
         const result = await createArticle({
@@ -94,8 +94,8 @@ export function ArticleDialog({
           tags: parsedTags,
           createdByUserId: currentUserId,
         });
-        if (!result.success) { setError(result.message ?? "建立失敗"); return; }
-        onSuccess?.(typeof result.id === "string" ? result.id : undefined);
+        if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+        onSuccess?.(result.success ? result.aggregateId : undefined);
       }
       onOpenChange(false);
     });

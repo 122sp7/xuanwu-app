@@ -35,3 +35,7 @@ export {
   getRecords,
   getViews,
 } from "../interfaces/queries/knowledge-database.queries";
+
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";

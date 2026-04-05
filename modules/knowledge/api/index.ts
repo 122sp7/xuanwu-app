@@ -103,3 +103,8 @@ export {
 } from "../interfaces/queries/knowledge.queries";
 
 export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+export type { KnowledgePage } from "../domain/entities/content-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
