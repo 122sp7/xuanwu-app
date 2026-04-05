@@ -1165,212 +1165,6 @@ export function CustomizeNavigationDialog({
 }
 ````
 
-## File: app/(shell)/_components/header-controls.tsx
-````typescript
-"use client";
-
-/**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
- */
-
-import { Bell, Moon, Sun } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  type NotificationEntity,
-  markAllNotificationsRead,
-  markNotificationRead,
-  getNotificationsForRecipient,
-} from "@/modules/notification/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@ui-shadcn/ui/dropdown-menu";
-import { TranslationSwitcher } from "./translation-switcher";
-
-const THEME_KEY = "xuanwu_theme";
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-export function HeaderControls() {
-  const { state: authState } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isNotificationLoading, setIsNotificationLoading] = useState(false);
-  const [isNotificationMutating, setIsNotificationMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const recipientId = authState.user?.id ?? "";
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, notification) => count + (notification.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsNotificationLoading(true);
-    try {
-      const nextNotifications = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(nextNotifications);
-    } finally {
-      setIsNotificationLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-  }
-
-  async function handleNotificationOpenChange(nextOpen: boolean) {
-    setIsNotificationOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsNotificationMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === notificationId ? { ...notification, read: true } : notification,
-      ),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) {
-        setNotifications(previous);
-      }
-    } finally {
-      setIsNotificationMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsNotificationMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) {
-        setNotifications(previous);
-      }
-    } finally {
-      setIsNotificationMutating(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <DropdownMenu open={isNotificationOpen} onOpenChange={handleNotificationOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Open notifications"
-            className="relative text-muted-foreground"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80 p-0">
-          <div className="flex items-center justify-between px-3 py-2">
-            <p className="text-sm font-semibold">Notifications</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              disabled={isNotificationMutating || unreadCount === 0}
-              onClick={handleMarkAllRead}
-            >
-              Mark all read
-            </Button>
-          </div>
-          <DropdownMenuSeparator />
-          <div className="max-h-80 overflow-y-auto">
-            {isNotificationLoading ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-            ) : notifications.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-            ) : (
-              notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  type="button"
-                  onClick={() => void handleMarkOneRead(notification.id)}
-                  disabled={isNotificationMutating}
-                  className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">{notification.title}</p>
-                    {!notification.read ? (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                    ) : null}
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {notification.message}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatNotificationTime(notification.timestamp)}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/_components/header-user-avatar.tsx
 ````typescript
 "use client";
@@ -7160,38 +6954,6 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 
 ````
 
-## File: modules/notification/api/index.ts
-````typescript
-/**
- * Module: notification
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Notification domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
-
-// ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
-
-export { dispatchNotification } from "../interfaces/_actions/notification.actions";
-export {
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../interfaces/_actions/notification.actions";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
-````
-
 ## File: modules/notification/application/use-cases/notification.use-cases.ts
 ````typescript
 /**
@@ -7295,31 +7057,6 @@ export interface NotificationRepository {
   findByRecipient(recipientId: string, limit?: number): Promise<NotificationEntity[]>;
   getUnreadCount(recipientId: string): Promise<number>;
 }
-````
-
-## File: modules/notification/index.ts
-````typescript
-/**
- * notification module public API
- */
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "./domain/entities/Notification";
-export type { NotificationRepository } from "./domain/repositories/NotificationRepository";
-export {
-  DispatchNotificationUseCase,
-  MarkNotificationReadUseCase,
-  MarkAllNotificationsReadUseCase,
-} from "./application/use-cases/notification.use-cases";
-export { FirebaseNotificationRepository } from "./infrastructure/firebase/FirebaseNotificationRepository";
-export {
-  dispatchNotification,
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "./interfaces/_actions/notification.actions";
-export { getNotificationsForRecipient } from "./interfaces/queries/notification.queries";
 ````
 
 ## File: modules/notification/infrastructure/firebase/FirebaseNotificationRepository.ts
@@ -48720,6 +48457,68 @@ export function useGlobalSearch() {
 }
 ````
 
+## File: app/(shell)/_components/header-controls.tsx
+````typescript
+"use client";
+
+/**
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
+ */
+
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { NotificationBell } from "@/modules/notification/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { TranslationSwitcher } from "./translation-switcher";
+
+const THEME_KEY = "xuanwu_theme";
+
+export function HeaderControls() {
+  const { state: authState } = useAuth();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const storedTheme = window.localStorage.getItem(THEME_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
+
+  const recipientId = authState.user?.id ?? "";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <TranslationSwitcher />
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="text-muted-foreground"
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+
+      <NotificationBell recipientId={recipientId} />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -62261,6 +62060,298 @@ export * from "./firebase";
 export * from "./genkit";
 ````
 
+## File: modules/notification/api/index.ts
+````typescript
+/**
+ * Module: notification
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Notification domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Facade ───────────────────────────────────────────────────────────────────
+
+export { NotificationFacade, notificationFacade } from "./notification.facade";
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "../domain/entities/Notification";
+
+// ─── UI components ────────────────────────────────────────────────────────────
+
+export { NotificationBell } from "../interfaces/components/NotificationBell";
+````
+
+## File: modules/notification/api/notification.facade.ts
+````typescript
+/**
+ * Module: notification
+ * Layer: api/facade
+ * Purpose: Public programmatic entry-point for cross-module notification dispatch.
+ *
+ * Other modules MUST use `notificationFacade` — never reach into domain/,
+ * application/, or infrastructure/ directly.
+ */
+
+import { type CommandResult } from "@shared-types";
+import {
+  DispatchNotificationUseCase,
+  MarkAllNotificationsReadUseCase,
+  MarkNotificationReadUseCase,
+} from "../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+import { FirebaseNotificationRepository } from "../infrastructure/firebase/FirebaseNotificationRepository";
+import type { NotificationRepository } from "../domain/repositories/NotificationRepository";
+
+export class NotificationFacade {
+  private readonly repo: NotificationRepository;
+
+  constructor(repo: NotificationRepository = new FirebaseNotificationRepository()) {
+    this.repo = repo;
+  }
+
+  /** Dispatch a new notification to a recipient. */
+  async dispatch(input: DispatchNotificationInput): Promise<CommandResult> {
+    return new DispatchNotificationUseCase(this.repo).execute(input);
+  }
+
+  /** Mark a single notification as read. */
+  async markAsRead(notificationId: string, recipientId: string): Promise<CommandResult> {
+    return new MarkNotificationReadUseCase(this.repo).execute(notificationId, recipientId);
+  }
+
+  /** Mark all notifications for a recipient as read. */
+  async markAllAsRead(recipientId: string): Promise<CommandResult> {
+    return new MarkAllNotificationsReadUseCase(this.repo).execute(recipientId);
+  }
+
+  /** Retrieve recent notifications for a recipient. */
+  async getForRecipient(recipientId: string, limit = 50): Promise<NotificationEntity[]> {
+    const normalised = recipientId.trim();
+    if (!normalised) return [];
+    return this.repo.findByRecipient(normalised, limit);
+  }
+
+  /** Return unread notification count for a recipient. */
+  async getUnreadCount(recipientId: string): Promise<number> {
+    const normalised = recipientId.trim();
+    if (!normalised) return 0;
+    return this.repo.getUnreadCount(normalised);
+  }
+}
+
+export const notificationFacade = new NotificationFacade();
+````
+
+## File: modules/notification/index.ts
+````typescript
+/**
+ * notification module public API
+ *
+ * Cross-module callers must use `notificationFacade` or the exported types.
+ * Internal layers (domain/, application/, infrastructure/) remain private.
+ */
+
+export { NotificationFacade, notificationFacade } from "./api";
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "./api";
+
+export { NotificationBell } from "./interfaces";
+````
+
+## File: modules/notification/interfaces/components/NotificationBell.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notification
+ * Layer: interfaces/components
+ * Purpose: Reusable notification bell with dropdown for shell header.
+ *
+ * Consumes use-cases via the module facade (no direct infrastructure imports).
+ * Server-action mutations are wired through the local _actions module.
+ */
+
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+interface NotificationBellProps {
+  readonly recipientId: string;
+}
+
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+````
+
+## File: modules/notification/interfaces/index.ts
+````typescript
+export { NotificationBell } from "./components/NotificationBell";
+````
+
 ## File: modules/search/application/use-cases/answer-rag-query.use-case.ts
 ````typescript
 import { randomUUID } from "node:crypto";
@@ -73648,17 +73739,6 @@ uploaded ──► parsing ──► embedding ──► indexed
 | `IngestionJobRepository` | `save()`, `findByDocumentId()`, `listByWorkspace()`, `updateStatus()` |
 ````
 
-## File: modules/ai/api/knowledge-api.ts
-````typescript
-/**
- * @deprecated This file has moved to modules/wiki/api/knowledge-graph-api.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-export { WikiApi as KnowledgeApi } from "../../wiki/api/wiki-api";
-export type { GraphDataDTO } from "../../wiki/api/wiki-api";
-````
-
 ## File: modules/ai/application-services.md
 ````markdown
 # ai — Application Services
@@ -78885,47 +78965,6 @@ Application layer 只負責：
 - `../../../docs/ddd/notification/aggregates.md`
 ````
 
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/notification/repositories.md
 ````markdown
 # notification — Repositories
@@ -81404,47 +81443,6 @@ export function useDocumentsSnapshot(
 | `SourceDocument` | `File`, `Document`, `Asset` |
 | `WikiLibrary` | `Library`, `Folder`, `Collection` |
 | `RetentionPolicy` | `Policy`, `LifecycleRule` |
-````
-
-## File: modules/system.ts
-````typescript
-/**
- * modules/system.ts — Composition Root
- *
- * Architecture Phase 3: Interface Wiring
- *
- * Initialises and wires the singleton instances that power the
- * Content → EventBus → Knowledge demo loop.
- *
- * Responsibilities:
- *   1. Create the shared SimpleEventBus.
- *   2. Create KnowledgeApi (injected with the event bus).
- *   3. Create KnowledgeApi (injected with the event bus; auto-subscribes
- *      LinkExtractorService so it reacts to KnowledgeUpdatedEvents).
- *
- * All state lives here — never in page files or global variables.
- *
- * MDDD boundary rule:
- *   Imports only from the api/ barrel of each module and from
- *   shared/infrastructure.  Never reaches into domain/, application/,
- *   or infrastructure/ layers of other modules.
- */
-
-import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi } from "./knowledge/api/knowledge-api";
-import { WikiApi } from "./wiki/api/wiki-api";
-
-// ── Shared account used by the in-memory demo ──────────────────────────────
-
-export const DEMO_ACCOUNT_ID = "demo-account";
-
-// ── Singleton instances ────────────────────────────────────────────────────
-
-const eventBus = new SimpleEventBus();
-export const contentApi = new KnowledgeApi(eventBus);
-export const knowledgeApi = new WikiApi(eventBus);
-// KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
-// subscription is active as soon as the module is imported.
 ````
 
 ## File: modules/workspace-audit/aggregates.md
@@ -86236,6 +86234,14 @@ export type {
 } from "../domain/entities/IngestionJob";
 ````
 
+## File: modules/ai/api/knowledge-api.ts
+````typescript
+/**
+ * @deprecated This file is no longer in use.
+ * modules/wiki has been removed. No replacement export is provided here.
+ */
+````
+
 ## File: modules/identity/AGENT.md
 ````markdown
 # AGENT.md — identity BC
@@ -87676,6 +87682,47 @@ export async function answerRagQuery(input: AnswerRagQueryInput): Promise<Answer
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** ✅ Done
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/search/api/index.ts
 ````typescript
 /**
@@ -88516,6 +88563,41 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
 }
 ````
 
+## File: modules/system.ts
+````typescript
+/**
+ * modules/system.ts — Composition Root
+ *
+ * Architecture Phase 3: Interface Wiring
+ *
+ * Initialises and wires the singleton instances that power the
+ * Content → EventBus demo loop.
+ *
+ * Responsibilities:
+ *   1. Create the shared SimpleEventBus.
+ *   2. Create KnowledgeApi (injected with the event bus).
+ *
+ * All state lives here — never in page files or global variables.
+ *
+ * MDDD boundary rule:
+ *   Imports only from the api/ barrel of each module and from
+ *   shared/infrastructure.  Never reaches into domain/, application/,
+ *   or infrastructure/ layers of other modules.
+ */
+
+import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
+import { KnowledgeApi } from "./knowledge/api/knowledge-api";
+
+// ── Shared account used by the in-memory demo ──────────────────────────────
+
+export const DEMO_ACCOUNT_ID = "demo-account";
+
+// ── Singleton instances ────────────────────────────────────────────────────
+
+const eventBus = new SimpleEventBus();
+export const contentApi = new KnowledgeApi(eventBus);
+````
+
 ## File: modules/workspace-audit/AGENT.md
 ````markdown
 # AGENT.md — workspace-audit BC
@@ -88940,123 +89022,6 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-````
-
-## File: scripts/demo-flow.ts
-````typescript
-/**
- * scripts/demo-flow.ts
- *
- * Architecture Phase 2 — The Proof (Occam's Razor Edition)
- *
- * Demonstrates the full Content → EventBus → Knowledge loop using only
- * in-memory adapters.  No UI, no external database required.
- *
- * Run with:
- *   npx tsx scripts/demo-flow.ts
- *
- * Expected output:
- *   [1] Initialising event bus...           ✓
- *   [2] Creating KnowledgeApi...              ✓
- *   [3] Creating KnowledgeApi (subscribed)  ✓
- *   [4] Creating page "Hello World"...      ✓  pageId=<uuid>
- *   [5] Adding block to page...             ✓  blockId=<uuid>
- *   [6] Updating block → "Hello [[World]]"  ✓
- *   [7] Asserting KnowledgeService reacted  ✓  links=[{…}]
- *   ✅  Demo flow completed successfully.
- */
-
-import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
-import { KnowledgeApi as GraphKnowledgeApi } from "../modules/ai/api/knowledge-api";
-
-async function main() {
-  const ACCOUNT_ID = "demo-account";
-  const USER_ID = "demo-user";
-
-  // ── Step 1: Initialise Event Bus ─────────────────────────────────────────
-  console.log("[1] Initialising event bus...");
-  const eventBus = new SimpleEventBus();
-  console.log("    ✓ SimpleEventBus ready\n");
-
-  // ── Step 2 & 3: Wire KnowledgeApi and KnowledgeApi ──────────────────────────
-  console.log("[2] Creating KnowledgeApi...");
-  const contentApi = new ContentKnowledgeApi(eventBus);
-  console.log("    ✓ KnowledgeApi ready\n");
-
-  console.log("[3] Creating KnowledgeApi (subscribing to event bus)...");
-  const knowledgeApi = new GraphKnowledgeApi(eventBus);
-  console.log("    ✓ KnowledgeApi ready — LinkExtractorService subscribed\n");
-
-  // ── Step 4: Create a Page ─────────────────────────────────────────────────
-  console.log('[4] Creating page "Hello World"...');
-  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
-  console.log(`    ✓ page created  id=${page.id}\n`);
-
-  // ── Step 5: Add a Block ───────────────────────────────────────────────────
-  console.log("[5] Adding an empty block to the page...");
-  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
-  console.log(`    ✓ block created  id=${block.id}\n`);
-
-  // ── Step 6: Update Block with a WikiLink ──────────────────────────────────
-  console.log('[6] Updating block → "Hello [[World]]"...');
-  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
-  if (!updated) {
-    throw new Error("ASSERTION FAILED: updateBlock returned null");
-  }
-  console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
-
-  // ── Step 7: Assert KnowledgeApi reacted ──────────────────────────────────
-  console.log("[7] Asserting KnowledgeApi created a Link to 'world'...");
-  const links = await knowledgeApi.getOutgoingLinks(page.id);
-  const nodes = await knowledgeApi.listNodes();
-
-  if (links.length === 0) {
-    throw new Error("ASSERTION FAILED: expected at least one link, got 0");
-  }
-
-  const targetLink = links.find((l) => l.targetId === "world");
-  if (!targetLink) {
-    throw new Error(
-      `ASSERTION FAILED: expected link with targetId="world", got: ${JSON.stringify(links)}`,
-    );
-  }
-
-  const targetNode = nodes.find((n) => n.id === "world");
-  if (!targetNode) {
-    throw new Error(
-      `ASSERTION FAILED: expected node with id="world", got: ${JSON.stringify(nodes)}`,
-    );
-  }
-
-  console.log("    ✓ Links created:");
-  for (const l of links) {
-    console.log(`        ${l.sourceId} → ${l.targetId}  (${l.type})`);
-  }
-  console.log("    ✓ Nodes in graph:");
-  for (const n of nodes) {
-    console.log(`        id="${n.id}"  label="${n.label}"  type="${n.type}"`);
-  }
-  console.log();
-
-  console.log("✅  Demo flow completed successfully.");
-  console.log("    The Content → EventBus → Knowledge loop is working end-to-end.");
-}
-
-main().catch((err) => {
-  console.error("❌  Demo flow failed:", err);
-  process.exit(1);
-});
 ````
 
 ## File: .github/agents/domain-architect.agent.md
@@ -90817,6 +90782,69 @@ export type {
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: scripts/demo-flow.ts
+````typescript
+/**
+ * scripts/demo-flow.ts
+ *
+ * Architecture Phase 2 — The Proof (Occam's Razor Edition)
+ *
+ * Demonstrates the Content → EventBus loop using only in-memory adapters.
+ * Note: modules/wiki has been removed; graph steps are no longer included.
+ *
+ * Run with:
+ *   npx tsx scripts/demo-flow.ts
+ */
+
+import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
+import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+
+async function main() {
+  const ACCOUNT_ID = "demo-account";
+  const USER_ID = "demo-user";
+
+  console.log("[1] Initialising event bus...");
+  const eventBus = new SimpleEventBus();
+  console.log("    ✓ SimpleEventBus ready\n");
+
+  console.log("[2] Creating KnowledgeApi...");
+  const contentApi = new ContentKnowledgeApi(eventBus);
+  console.log("    ✓ KnowledgeApi ready\n");
+
+  console.log('[3] Creating page "Hello World"...');
+  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
+  console.log(`    ✓ page created  id=${page.id}\n`);
+
+  console.log("[4] Adding an empty block to the page...");
+  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
+  console.log(`    ✓ block created  id=${block.id}\n`);
+
+  console.log('[5] Updating block → "Hello [[World]]"...');
+  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
+  if (!updated) {
+    throw new Error("ASSERTION FAILED: updateBlock returned null");
+  }
+  console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
+
+  console.log("✅  Demo flow completed successfully.");
+}
+
+main().catch((err) => {
+  console.error("❌  Demo flow failed:", err);
+  process.exit(1);
+});
 ````
 
 ## File: modules/knowledge/repositories.md
