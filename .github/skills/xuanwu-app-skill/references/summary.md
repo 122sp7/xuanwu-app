@@ -41,16 +41,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-842 files | 24,478 lines
+845 files | 24,780 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 412 | 10,843 |
+| TypeScript | 415 | 10,981 |
 | Markdown | 170 | 7,103 |
-| TypeScript (TSX) | 130 | 3,087 |
+| TypeScript (TSX) | 130 | 3,141 |
 | No Extension | 52 | 135 |
 | Python | 49 | 1,140 |
-| JSON | 10 | 939 |
+| JSON | 10 | 1,049 |
 | MERMAID | 10 | 583 |
 | RULES | 2 | 18 |
 | Text | 2 | 105 |
@@ -59,7 +59,7 @@ This skill contains the following reference files:
 
 **Largest files:**
 - `scripts/init-framework.sh` (429 lines)
-- `firestore.indexes.json` (305 lines)
+- `firestore.indexes.json` (415 lines)
 - `py_fn/README.md` (265 lines)
 - `py_fn/src/infrastructure/external/upstash/clients.py` (172 lines)
 - `py_fn/src/interface/handlers/https.py` (163 lines)

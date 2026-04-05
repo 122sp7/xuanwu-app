@@ -86,6 +86,6 @@
 
 - .gitattributes
 - tsconfig.json
-- eslint.config.mjs
 - .gitignore
+- eslint.config.mjs
 - package.json
