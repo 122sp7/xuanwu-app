@@ -22,7 +22,8 @@ The script copies the framework files, installs hook dependencies, initializes B
 ```bash
 git clone https://github.com/dralgorhythm/claude-agentic-framework.git
 cp -r claude-agentic-framework/.claude your-project/
-cp claude-agentic-framework/.mcp.json your-project/
+mkdir -p your-project/.vscode
+cp claude-agentic-framework/.vscode/mcp.json your-project/.vscode/
 cp claude-agentic-framework/CLAUDE.md your-project/
 cp claude-agentic-framework/AGENTS.md your-project/
 mkdir -p your-project/artifacts
@@ -34,7 +35,7 @@ cd your-project && bd init
 
 ```
 .claude/         Commands, skills, rules, hooks, agents, templates
-.mcp.json        MCP server configuration
+.vscode/mcp.json MCP server configuration
 .beads/          Issue tracking database (coordinates swarm workers)
 artifacts/       Where generated docs go (empty at first)
 CLAUDE.md        Project context — customize this

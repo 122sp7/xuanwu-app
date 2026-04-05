@@ -13,7 +13,7 @@ curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framewor
 
 The script will:
 - Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
-- Copy `.mcp.json` (MCP server configuration)
+- Copy `.vscode/mcp.json` (MCP server configuration)
 - Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
 - Create an `artifacts/` directory for planning documents
 - Set up `.gitignore` entries
@@ -98,14 +98,14 @@ Covers everything from `designing-systems` and `debugging` to `react-patterns`, 
 Pre-configured hooks that run automatically:
 
 - **Secret detection** — blocks commits containing API keys, tokens, private keys
-- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
+- **Protected files** — prevents accidental modification of `.env`, `.vscode/mcp.json`, `.beads/`
 - **Push blocking** — stops direct pushes to `main`/`master`
 - **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
 - **File locking** — prevents concurrent edits in multi-agent swarms
 
 ### MCP Servers
 
-Four servers pre-configured in `.mcp.json`:
+Four servers pre-configured in `.vscode/mcp.json`:
 
 | Server | Purpose |
 |--------|---------|

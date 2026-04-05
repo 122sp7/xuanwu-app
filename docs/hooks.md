@@ -44,7 +44,7 @@ Blocks modifications to critical system files:
 - `.beads/beads.db`, `.beads/daemon`
 - `.git/`
 - `.env`
-- `.mcp.json`
+- `.vscode/mcp.json`
 
 ### Push Blocking (pre-push-main-blocker.sh)
 

@@ -26,15 +26,15 @@ File system operations beyond the workspace boundary.
 
 ## Setup
 
-The servers are configured in `.mcp.json`. Most work out of the box.
+The servers are configured in `.vscode/mcp.json`. Most work out of the box.
 
 ## Adding More Servers
 
-Edit `.mcp.json`:
+Edit `.vscode/mcp.json`:
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "new-server": {
       "command": "npx",
       "args": ["@example/mcp-server"],
