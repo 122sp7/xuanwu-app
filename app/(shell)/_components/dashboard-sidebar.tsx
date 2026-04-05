@@ -22,7 +22,6 @@ import {
   Home,
   Library,
   PanelLeftClose,
-  Plus,
   Search,
   SlidersHorizontal,
   UserRound,
@@ -49,6 +48,7 @@ import {
   readNavPreferences,
   type NavPreferences,
 } from "./customize-navigation-dialog";
+import { KnowledgeSidebarSection } from "./knowledge-sidebar-section";
 
 interface DashboardSidebarProps {
   readonly pathname: string;
@@ -214,7 +214,6 @@ export function DashboardSidebar({
   onSelectWorkspace,
 }: DashboardSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(false);
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
   const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
@@ -782,97 +781,17 @@ export function DashboardSidebar({
             )}
 
             {section === "knowledge" && (
-              <nav className="space-y-0.5" aria-label="Knowledge navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  知識管理
-                </p>
-                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                  <Link
-                    href="/knowledge/pages"
-                    aria-current={isActiveRoute("/knowledge/pages") ? "page" : undefined}
-                    className={`flex-1 ${
-                      isActiveRoute("/knowledge/pages")
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    頁面
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleQuickCreatePage()}
-                    disabled={creatingKind !== null}
-                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
-                    aria-label="快速新增頁面"
-                    title="新增頁面"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
-                {(
-                  [
-                    { href: "/knowledge", label: "Knowledge Hub" },
-                    { href: "/knowledge/block-editor", label: "區塊編輯器" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-                <div className="my-1.5 border-t border-border/40" />
-
-                <button
-                  type="button"
-                  onClick={() => { setIsKnowledgeWorkspacesExpanded((prev) => !prev); }}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isKnowledgeWorkspacesExpanded}
-                >
-                  <span>Workspaces</span>
-                  {isKnowledgeWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                </button>
-
-                {isKnowledgeWorkspacesExpanded && (
-                  <div className="space-y-0.5 pl-2">
-                    {!workspacesHydrated ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">\u5de5\u4f5c\u5340\u8f09\u5165\u4e2d...</p>
-                    ) : allWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">\u76ee\u524d\u5e33\u865f\u6c92\u6709\u5de5\u4f5c\u5340</p>
-                    ) : (
-                      allWorkspaceLinks.map((workspace) => {
-                        const active = activeWorkspaceId === workspace.id;
-                        return (
-                          <Link
-                            key={workspace.id}
-                            href={workspace.href}
-                            onClick={() => { onSelectWorkspace(workspace.id); }}
-                            aria-current={active ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              active
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                            title={workspace.name}
-                          >
-                            <span className="truncate">{workspace.name}</span>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </nav>
+              <KnowledgeSidebarSection
+                pathname={pathname}
+                workspacesHydrated={workspacesHydrated}
+                allWorkspaceLinks={allWorkspaceLinks}
+                activeWorkspaceId={activeWorkspaceId}
+                creatingKind={creatingKind}
+                onSelectWorkspace={onSelectWorkspace}
+                onQuickCreatePage={() => {
+                  void handleQuickCreatePage();
+                }}
+              />
             )}
 
             {section === "knowledge-base" && (
