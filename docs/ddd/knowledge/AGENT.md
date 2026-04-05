@@ -8,11 +8,12 @@
 
 | 正確術語 | 禁止使用 |
 |----------|----------|
-| `KnowledgePage` | Page、Document、WikiPage（在此 BC 內） |
+| `KnowledgePage` | Page、Document |
 | `ContentBlock` | Block、Node、Element |
 | `ContentVersion` | Version、Snapshot、History |
 | `BlockType` | Type、ContentType |
-| `WikiPage` | WikiBetaPage（已完全棄用） |
+
+> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
 
 ## 邊界規則
 
@@ -26,6 +27,7 @@ import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api"
 ```typescript
 import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
 import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { WikiPage } from "@/modules/wiki/domain/entities/...";
 ```
 
 ## page_approved 事件規則

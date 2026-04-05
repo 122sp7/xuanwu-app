@@ -1,19 +1,28 @@
-# search — Domain Events
+# Domain Events — search
 
-> **Canonical DDD reference:** `../../docs/ddd/search/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/search/domain-events.md`，作為 `search` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `search.feedback_submitted` | 使用者提交 RagQueryFeedback | `feedbackId`, `queryId`, `helpful`, `occurredAt` |
+| `search.index_updated` | 向量索引更新完成（文件重新索引） | `documentId`, `chunkCount`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `ai` | `ai.ingestion_completed` | 新 chunks 的 embedding 已就緒，觸發向量索引更新 |
+| `wiki` | `wiki.node_activated` | 同步更新節點內容到向量索引 |
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 消費 search 事件的其他 BC
 
-## 參考
+`search` 主要提供**同步查詢服務**（非事件），被 `notebook` 和 wiki RAG UI 直接呼叫：
 
-- `../../docs/ddd/search/domain-events.md`
-- `../../docs/ddd/search/context-map.md`
+```typescript
+// notebook 呼叫 search 的同步查詢
+const result = await searchApi.answerRagQuery({
+  organizationId,
+  userQuery,
+  topK: 5,
+});
+```

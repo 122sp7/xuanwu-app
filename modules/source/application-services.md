@@ -1,10 +1,22 @@
 # source — Application Services
 
-> **Canonical DDD reference:** `../../docs/ddd/source/application-services.md`
+> **Canonical bounded context:** `source`
+> **模組路徑:** `modules/source/`
+> **Domain Type:** Supporting Subdomain
 
-本文件對齊 `docs/ddd/source/application-services.md`，整理 `source` 的 application layer orchestrators、use cases、DTO 與 process managers。
+本文件記錄 `source` 的 application layer 服務與 use cases。內容與 `modules/source/application/` 實作保持一致。
 
-## Application Files
+## Application Layer 職責
+
+管理文件上傳生命週期、版本快照與 RAG 文件登記。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
 - `application/dto/file.dto.ts`
 - `application/dto/rag-document.dto.ts`
 - `application/index.ts`
@@ -14,14 +26,8 @@
 - `application/use-cases/upload-init-file.use-case.ts`
 - `application/use-cases/wiki-libraries.use-case.ts`
 
-## 設計規則
+## 設計對齊
 
-- application layer 負責 orchestration，不承載 UI 與 infrastructure 細節
-- use case 透過 repository ports / domain services 操作 domain
-- 對外公開入口仍以 `api/` 為主，不直接暴露 application internals
-
-## 參考
-
-- `../../docs/ddd/source/application-services.md`
-- `./repositories.md`
-- `./domain-services.md`
+- 模組 README：`../../../modules/source/README.md`
+- 模組 AGENT：`../../../modules/source/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/source/application-services.md`

@@ -1,21 +1,46 @@
-# workspace-flow — Context Map
+# Context Map — workspace-flow
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-flow/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/workspace-flow/context-map.md`，作為 `workspace-flow` 在模組目錄中的整合關係速查表。
+### knowledge → workspace-flow（Published Language）
 
-## Integration Notes
+**這是 workspace-flow 最重要的上游整合。**
 
-- 上游：knowledge.page_approved、workspace
-- 下游：notification、workspace-audit
+- `workspace-flow` 的 `ContentToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
+- 從 `extractedTasks[]` 建立 MaterializedTask
+- 從 `extractedInvoices[]` 建立 Invoice
+- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
 
-## 邊界規則
+```
+knowledge.page_approved ──► ContentToWorkflowMaterializer
+                            ├─► Task.create（extractedTask）
+                            └─► Invoice.create（extractedInvoice）
+```
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+### workspace → workspace-flow（Conformist）
 
-## 參考
+- Task/Issue/Invoice 都隸屬 `workspaceId`
+- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
 
-- `../../docs/ddd/workspace-flow/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+---
+
+## 下游（被依賴）
+
+### workspace-flow → notification（Published Language）
+
+- 狀態變更事件觸發通知（如 task_assigned）
+
+### workspace-flow → workspace-audit（Published Language）
+
+- 狀態轉換事件供稽核紀錄消費
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| workspace → workspace-flow | workspace | workspace-flow | Conformist |
+| workspace-flow → notification | workspace-flow | notification | Published Language |
+| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |

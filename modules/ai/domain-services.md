@@ -1,19 +1,22 @@
 # ai — Domain Services
 
-> **Canonical DDD reference:** `../../docs/ddd/ai/domain-services.md`
+> **Canonical bounded context:** `ai`
+> **模組路徑:** `modules/ai/`
+> **Domain Type:** Supporting Subdomain
 
-本文件對齊 `docs/ddd/ai/domain-services.md`，整理 `ai` 的 domain services 與相關設計約束。
+本文件整理 `ai` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
 
-## Domain Service Files
+## Domain Services 檔案
+
 - 目前沒有獨立的 `domain/services/*` 檔案。
 
 ## 設計規則
 
-- domain service 只承載純業務規則
-- 單一 aggregate 能封裝的規則，不應外提到 domain service
-- framework-specific 依賴必須留在 infrastructure
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
 
-## 參考
+## 模組內對應文件
 
-- `../../docs/ddd/ai/domain-services.md`
-- `../../docs/ddd/ai/aggregates.md`
+- `../../../modules/ai/domain-services.md`
+- `../../../docs/ddd/ai/aggregates.md`

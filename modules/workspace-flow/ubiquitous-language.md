@@ -1,36 +1,26 @@
-# workspace-flow — Ubiquitous Language
+# Ubiquitous Language — workspace-flow
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-flow/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/workspace-flow/` 有界上下文內
 
-本文件是 `workspace-flow` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/workspace-flow/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 任務 | Task | 可追蹤的工作單元，有狀態機與負責人 |
+| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
+| 問題 | Issue | 問題追蹤記錄（Bug / 需求問題） |
+| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
+| 發票 | Invoice | 財務發票記錄 |
+| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
+| 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
+| 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
+| 工作流程物化器 | ContentToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/workspace-flow/` 保持一致
-- 若術語變更，先更新 `docs/ddd/workspace-flow/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/Invoice.ts`
-- `domain/entities/InvoiceItem.ts`
-- `domain/entities/Issue.ts`
-- `domain/entities/Task.ts`
-
-### Events
-- `domain/events/InvoiceEvent.ts`
-- `domain/events/IssueEvent.ts`
-- `domain/events/TaskEvent.ts`
-
-### Value Objects
-- `domain/value-objects/InvoiceId.ts`
-- `domain/value-objects/InvoiceItemId.ts`
-- `domain/value-objects/InvoiceStatus.ts`
-- `domain/value-objects/IssueId.ts`
-- `domain/value-objects/IssueStage.ts`
-- `domain/value-objects/IssueStatus.ts`
-- `domain/value-objects/SourceReference.ts`
-- `domain/value-objects/TaskId.ts`
-- `domain/value-objects/TaskStatus.ts`
-- `domain/value-objects/UserId.ts`
+| 正確 | 禁止 |
+|------|------|
+| `Task` | `TodoItem`, `WorkItem`, `Job` |
+| `Issue` | `Bug`, `Ticket`, `Problem` |
+| `Invoice` | `Bill`, `Receipt` |
+| `MaterializedTask` | `ConvertedTask`, `AutoTask` |

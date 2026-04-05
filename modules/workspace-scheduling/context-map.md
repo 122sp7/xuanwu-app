@@ -1,21 +1,35 @@
-# workspace-scheduling — Context Map
+# Context Map — workspace-scheduling
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-scheduling/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/workspace-scheduling/context-map.md`，作為 `workspace-scheduling` 在模組目錄中的整合關係速查表。
+### workspace → workspace-scheduling（Conformist）
 
-## Integration Notes
+- WorkDemand 隸屬 `workspaceId`
+- `WorkspaceSchedulingTab` 接收 `workspaceId` 作為 props
 
-- 上游：workspace、account
-- 下游：notification、workspace-audit
+### account → workspace-scheduling（Customer/Supplier）
 
-## 邊界規則
+- `AccountSchedulingView` 按 `accountId` 聚合跨工作區排程視圖
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+---
 
-## 參考
+## 下游（被依賴）
 
-- `../../docs/ddd/workspace-scheduling/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+### workspace-scheduling → notification（Published Language）
+
+- 需求建立/狀態變更事件觸發通知
+
+### workspace-scheduling → workspace-audit（Published Language）
+
+- 排程操作供稽核紀錄消費
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
+| account → workspace-scheduling | account | workspace-scheduling | Customer/Supplier |
+| workspace-scheduling → notification | workspace-scheduling | notification | Published Language |
+| workspace-scheduling → workspace-audit | workspace-scheduling | workspace-audit | Published Language |

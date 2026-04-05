@@ -1,21 +1,40 @@
-# workspace-audit — Aggregates
+# Aggregates — workspace-audit
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-audit/aggregates.md`
+## 聚合根：AuditLog（Append-Only）
 
-本文件對齊 `docs/ddd/workspace-audit/aggregates.md`，作為 `workspace-audit` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+記錄工作區或組織範圍內重要操作的不可變稽核軌跡。一旦寫入，永不修改或刪除。
 
-## 設計摘要
+### Append-Only 約束
 
-- `workspace-audit` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+> **核心不變數：** AuditLog 只能被建立，不能被更新或刪除。
 
-## Entities / Aggregates
-- `domain/entities/AuditLog.ts`
+### 關鍵屬性
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 記錄主鍵（UUID） |
+| `workspaceId` | `string \| null` | 所屬工作區（可選，組織級記錄可能無 workspaceId） |
+| `organizationId` | `string` | 所屬組織 |
+| `actorId` | `string` | 操作者帳戶 ID |
+| `auditEventType` | `string` | 操作類型（如 `workspace.member_joined`） |
+| `targetId` | `string \| null` | 操作對象 ID（可選） |
+| `targetType` | `string \| null` | 操作對象類型（可選） |
+| `metadata` | `Record<string, unknown>` | 附加資訊 |
+| `auditedAt` | `string` | ISO 8601 操作時間 |
 
-## 參考
+### 不變數
 
-- `../../docs/ddd/workspace-audit/aggregates.md`
-- `../../docs/ddd/workspace-audit/README.md`
+- `id` 建立後不可變
+- `auditedAt` 使用記錄建立時的系統時間，不可後期修改
+- 所有欄位建立後均不可修改（immutable record）
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `AuditLogRepository` | `append()`, `listByWorkspace()`, `listByOrganization()` |
+
+**注意：** `AuditLogRepository` 不提供 `update()` 或 `delete()` 方法，強制執行 Append-Only。

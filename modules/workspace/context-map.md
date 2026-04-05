@@ -1,21 +1,44 @@
-# workspace — Context Map
+# Context Map — workspace
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/workspace/context-map.md`，作為 `workspace` 在模組目錄中的整合關係速查表。
+### account / organization → workspace（Customer/Supplier）
 
-## Integration Notes
+- `workspace.accountId` 關聯 account 或 organization
+- workspace 查詢時驗證 accountId 歸屬
 
-- 上游：account、organization
-- 下游：workspace-flow / scheduling / audit / feed
+---
 
-## 邊界規則
+## 下游（被依賴）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+`workspace` 是多個 workspace-* 子模組的**組合宿主**：
 
-## 參考
+### workspace → workspace-flow（Conformist）
+- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`（Tasks tab）
+- 傳入 `workspaceId`, `currentUserId`
 
-- `../../docs/ddd/workspace/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+### workspace → workspace-scheduling（Conformist）
+- `WorkspaceDetailScreen` 組合 `WorkspaceSchedulingTab`
+
+### workspace → workspace-audit（Conformist）
+- `WorkspaceDetailScreen` 組合 `WorkspaceAuditTab`
+
+### workspace → workspace-feed（Conformist）
+- `WorkspaceDetailScreen` 組合 feed 動態牆 tab
+
+### workspace → knowledge（Customer/Supplier）
+- 知識頁面（WikiPage）隸屬於 workspaceId
+- Wiki 內容樹（WikiContentTree）按工作區組織
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| account → workspace | account | workspace | Customer/Supplier |
+| organization → workspace | organization | workspace | Customer/Supplier |
+| workspace → workspace-flow | workspace | workspace-flow | Conformist（workspaceId） |
+| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
+| workspace → workspace-audit | workspace | workspace-audit | Conformist |
+| workspace → workspace-feed | workspace | workspace-feed | Conformist |

@@ -1,21 +1,35 @@
-# account — Context Map
+# Context Map — account
 
-> **Canonical DDD reference:** `../../docs/ddd/account/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/account/context-map.md`，作為 `account` 在模組目錄中的整合關係速查表。
+### identity → account（Customer/Supplier）
 
-## Integration Notes
+- `account` 依賴 `identity/api` 取得 uid 與 TokenRefreshSignal
+- `account/application/use-cases/account.use-cases.ts` 在 server 端 import `identity/api`
 
-- 上游：identity/api
-- 下游：organization/api、workspace/api
+```
+identity/api ──► account/application (server-side use-cases)
+```
 
-## 邊界規則
+---
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+## 下游（被依賴）
 
-## 參考
+### account → organization（Customer/Supplier）
 
-- `../../docs/ddd/account/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+- `organization` 的 `MemberReference` 使用 `accountId` 參照 Account
+- Organization 成員列表以 `accountId` 為主鍵
+
+### account → workspace（Customer/Supplier）
+
+- `Workspace.accountId` 關聯帳戶或組織
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → account | identity | account | Customer/Supplier |
+| account → organization | account | organization | Customer/Supplier |
+| account → workspace | account | workspace | Customer/Supplier |

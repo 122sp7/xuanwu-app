@@ -1,19 +1,28 @@
-# wiki — Domain Events
+# Domain Events — wiki
 
-> **Canonical DDD reference:** `../../docs/ddd/wiki/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/wiki/domain-events.md`，作為 `wiki` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `wiki.node_created` | 新 GraphNode 建立時 | `nodeId`, `workspaceId`, `nodeType`, `occurredAt` |
+| `wiki.node_activated` | GraphNode 從 draft → active | `nodeId`, `workspaceId`, `occurredAt` |
+| `wiki.node_archived` | GraphNode 歸檔 | `nodeId`, `workspaceId`, `occurredAt` |
+| `wiki.edge_created` | 新 GraphEdge 建立時 | `edgeId`, `sourceNodeId`, `targetNodeId`, `edgeType`, `occurredAt` |
+| `wiki.edge_activated` | GraphEdge 從 pending → active | `edgeId`, `occurredAt` |
+| `wiki.edge_removed` | GraphEdge 移除 | `edgeId`, `occurredAt` |
+| `wiki.autolink_created` | 系統自動建立 Backlink 關係 | `edgeId`, `sourceNodeId`, `targetNodeId`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_created` | 建立對應的 GraphNode |
+| `knowledge` | `knowledge.block_updated` | 掃描區塊內容，建立/更新 AutoLink GraphEdge |
+| `knowledge` | `knowledge.page_archived` | 將對應 GraphNode 設為 archived |
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 消費 wiki 事件的其他 BC
 
-## 參考
-
-- `../../docs/ddd/wiki/domain-events.md`
-- `../../docs/ddd/wiki/context-map.md`
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `search` | `wiki.node_activated` | 更新向量索引中的節點內容 |
+| `notebook` | wiki 圖譜查詢（非事件） | AI 推理時參考圖譜結構 |

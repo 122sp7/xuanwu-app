@@ -1,27 +1,26 @@
-# source — Ubiquitous Language
+# Ubiquitous Language — source
 
-> **Canonical DDD reference:** `../../docs/ddd/source/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/source/` 有界上下文內
 
-本文件是 `source` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/source/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 來源文件 | SourceDocument | 上傳的原始文件聚合根（對應 File.ts） |
+| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
+| 檔案版本 | FileVersion | SourceDocument 的版本快照 |
+| RAG 文件 | RagDocument | 已登記進入 RAG 管線的文件記錄 |
+| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照（不可變） |
+| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
+| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
+| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
+| 演員上下文 | ActorContext | 操作者身分與授權上下文（透過 ActorContextPort） |
+| 工作區授權 | WorkspaceGrant | 工作區層級的授權快照（透過 WorkspaceGrantPort） |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/source/` 保持一致
-- 若術語變更，先更新 `docs/ddd/source/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/AuditRecord.ts`
-- `domain/entities/File.ts`
-- `domain/entities/FileVersion.ts`
-- `domain/entities/PermissionSnapshot.ts`
-- `domain/entities/RetentionPolicy.ts`
-- `domain/entities/wiki-library.types.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `SourceDocument` | `File`, `Document`, `Asset` |
+| `WikiLibrary` | `Library`, `Folder`, `Collection` |
+| `RetentionPolicy` | `Policy`, `LifecycleRule` |

@@ -10,7 +10,6 @@
 | 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
 | 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
 | 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| Wiki 頁面 | WikiPage | 掛載於工作區的 Wiki 型知識頁面 | `domain/entities/wiki-page.types.ts` |
 | 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
 | 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
 | 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
@@ -22,4 +21,5 @@
 | `KnowledgePage` | `Page`, `Document`, `Note` |
 | `ContentBlock` | `Block`, `Node`, `Element` |
 | `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `WikiPage` | `WikiBetaPage`（已棄用） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。

@@ -1,19 +1,32 @@
-# account — Domain Events
+# Domain Events — account
 
-> **Canonical DDD reference:** `../../docs/ddd/account/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/account/domain-events.md`，作為 `account` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `account.created` | 新帳戶建立時 | `accountId`, `email`, `occurredAt` |
+| `account.policy_updated` | AccountPolicy 更新時，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+| 來源 BC | 事件 | 行動 |
+|---------|------|------|
+| `identity` | `TokenRefreshSignal` | 觸發 custom claims 重新計算與 Firebase token 更新 |
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 事件格式
 
-## 參考
+```typescript
+interface AccountCreatedEvent {
+  readonly type: "account.created";
+  readonly accountId: string;
+  readonly email: string;
+  readonly occurredAt: string;  // ISO 8601
+}
 
-- `../../docs/ddd/account/domain-events.md`
-- `../../docs/ddd/account/context-map.md`
+interface AccountPolicyUpdatedEvent {
+  readonly type: "account.policy_updated";
+  readonly accountId: string;
+  readonly policyId: string;
+  readonly occurredAt: string;
+}
+```

@@ -1,19 +1,26 @@
-# workspace — Domain Events
+# Domain Events — workspace
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/workspace/domain-events.md`，作為 `workspace` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace.created` | 新工作區建立時 | `workspaceId`, `accountId`, `name`, `occurredAt` |
+| `workspace.archived` | 工作區歸檔時 | `workspaceId`, `accountId`, `occurredAt` |
+| `workspace.member_joined` | 成員加入工作區 | `workspaceId`, `accountId`, `role`, `occurredAt` |
+| `workspace.member_removed` | 成員被移除 | `workspaceId`, `accountId`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+`workspace` 不直接訂閱其他 BC 的事件，由 app/ 路由層協調各 tab 組合。
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 事件格式範例
 
-## 參考
-
-- `../../docs/ddd/workspace/domain-events.md`
-- `../../docs/ddd/workspace/context-map.md`
+```typescript
+interface WorkspaceCreatedEvent {
+  readonly type: "workspace.created";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly occurredAt: string;  // ISO 8601
+}
+```

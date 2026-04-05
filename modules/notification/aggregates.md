@@ -1,21 +1,33 @@
-# notification — Aggregates
+# Aggregates — notification
 
-> **Canonical DDD reference:** `../../docs/ddd/notification/aggregates.md`
+## 聚合根：NotificationEntity
 
-本文件對齊 `docs/ddd/notification/aggregates.md`，作為 `notification` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+代表一則系統通知記錄。管理通知的發送與讀取狀態。
 
-## 設計摘要
+### 關鍵屬性
 
-- `notification` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 通知主鍵 |
+| `recipientId` | `string` | 接收者帳戶 ID |
+| `title` | `string` | 通知標題 |
+| `message` | `string` | 通知內容 |
+| `type` | `NotificationType` | `info \| alert \| success \| warning` |
+| `read` | `boolean` | 是否已讀 |
+| `timestamp` | `number` | Unix timestamp（毫秒） |
+| `sourceEventType` | `string?` | 觸發此通知的事件類型 |
+| `metadata` | `Record<string, unknown>?` | 附加元資料 |
 
-## Entities / Aggregates
-- `domain/entities/Notification.ts`
+### 不變數
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+- `recipientId` 不可為空
+- `title` 不可為空
 
-## 參考
+---
 
-- `../../docs/ddd/notification/aggregates.md`
-- `../../docs/ddd/notification/README.md`
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `NotificationRepository` | `save()`, `findByRecipient()`, `markAsRead()` |

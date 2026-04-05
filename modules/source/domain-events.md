@@ -1,19 +1,24 @@
-# source — Domain Events
+# Domain Events — source
 
-> **Canonical DDD reference:** `../../docs/ddd/source/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/source/domain-events.md`，作為 `source` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `source.upload_initiated` | upload-init 完成、簽名 URL 已產生 | `documentId`, `workspaceId`, `actorId`, `occurredAt` |
+| `source.upload_completed` | upload-complete 確認完成 | `documentId`, `workspaceId`, `occurredAt` |
+| `source.rag_document_registered` | RagDocument 成功登記進入攝入管線 | `documentId`, `ragDocumentId`, `occurredAt` |
+| `source.file_archived` | 文件被封存 | `documentId`, `actorId`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `workspace` | `workspace.created` | 初始化工作區的 WikiLibrary |
+| `identity` | `TokenRefreshSignal` | 更新 ActorContext 授權快照 |
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 消費 source 事件的其他 BC
 
-## 參考
-
-- `../../docs/ddd/source/domain-events.md`
-- `../../docs/ddd/source/context-map.md`
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `ai` | `source.upload_completed` | 建立 IngestionJob，啟動 RAG 攝入管線 |
+| `knowledge` | `source.upload_completed` | 文件關聯知識頁面通知（可選） |

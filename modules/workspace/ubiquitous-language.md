@@ -1,24 +1,22 @@
-# workspace — Ubiquitous Language
+# Ubiquitous Language — workspace
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/workspace/` 有界上下文內
 
-本文件是 `workspace` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/workspace/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區 | Workspace | 協作容器，所有知識、任務、討論歸屬於此 |
+| 工作區成員 | WorkspaceMember | 帳戶在工作區中的參與記錄（含角色） |
+| Wiki 內容樹 | WikiContentTree | 工作區內 Wiki 頁面的樹狀層級結構 |
+| 工作區 ID | workspaceId | Workspace 的業務主鍵 |
+| 帳戶 ID | accountId | 擁有此工作區的帳戶或組織 ID |
+| 工作區狀態 | WorkspaceStatus | `active \| archived` |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/workspace/` 保持一致
-- 若術語變更，先更新 `docs/ddd/workspace/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/WikiContentTree.ts`
-- `domain/entities/Workspace.ts`
-- `domain/entities/WorkspaceMember.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `Workspace` | `Project`, `Space` |
+| `WorkspaceMember` | `Member`, `Participant` |
+| `WikiContentTree` | `PageTree`, `Tree`, `Hierarchy` |

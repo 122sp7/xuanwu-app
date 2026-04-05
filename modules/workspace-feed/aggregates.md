@@ -1,21 +1,21 @@
-# workspace-feed — Aggregates
+# Aggregates — workspace-feed
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-feed/aggregates.md`
+## 聚合根：WorkspaceFeedPost
 
-本文件對齊 `docs/ddd/workspace-feed/aggregates.md`，作為 `workspace-feed` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 貼文主鍵 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `authorAccountId` | `string` | 作者帳戶 ID |
+| `type` | `WorkspaceFeedPostType` | `post \| reply \| repost` |
+| `content` | `string` | 貼文內容 |
+| `replyToPostId` | `string \| null` | 回覆目標 |
+| `repostOfPostId` | `string \| null` | 轉貼目標 |
+| `likeCount` | `number` | 按讚數 |
+| `viewCount` | `number` | 瀏覽數 |
 
-## 設計摘要
+## Repository Interfaces
 
-- `workspace-feed` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
-
-## Entities / Aggregates
-- `domain/entities/workspace-feed-post.entity.ts`
-
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
-
-## 參考
-
-- `../../docs/ddd/workspace-feed/aggregates.md`
-- `../../docs/ddd/workspace-feed/README.md`
+| 介面 | 主要方法 |
+|------|---------|
+| `WorkspaceFeedRepository` | `save()`, `findById()`, `listByWorkspace()` |

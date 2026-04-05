@@ -1,20 +1,29 @@
-# shared — Context Map
+# Context Map — shared
 
-> **Canonical DDD reference:** `../../docs/ddd/shared/context-map.md`
+## Shared Kernel 的特殊地位
 
-本文件對齊 `docs/ddd/shared/context-map.md`，作為 `shared` 在模組目錄中的整合關係速查表。
+`shared` 不是普通的 Customer/Supplier 關係。它是 **Shared Kernel** 模式：
 
-## Integration Notes
+> 「兩個 Team 共同擁有一個小型共享模型，任何一方的修改都需要另一方的協調。」
+> — Vaughn Vernon, IDDD
 
-- 所有 BC 共同依賴 Shared Kernel，不反向依賴任何 BC
+## 關係
 
-## 邊界規則
+所有 16 個 BC 都依賴 `shared/`，但這不是普通的依賴關係——它是**共同擁有的合約**：
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+```
+modules/shared/
+  ↑ import by all 16 BCs
+```
 
-## 參考
+## 規則
 
-- `../../docs/ddd/shared/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+1. `shared/` 的任何變更（特別是 `DomainEvent` 介面）都必須同步更新所有消費方
+2. 不允許任何 BC 反向依賴（shared/ 不 import 任何 BC）
+3. `shared/` 只包含所有 BC 都認可的最小公共型別
+
+## IDDD 整合模式
+
+| 關係 | 模式 |
+|------|------|
+| shared ← 所有 BC | Shared Kernel |

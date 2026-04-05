@@ -1,26 +1,23 @@
-# ai — Ubiquitous Language
+# Ubiquitous Language — ai
 
-> **Canonical DDD reference:** `../../docs/ddd/ai/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/ai/` 有界上下文內
 
-本文件是 `ai` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/ai/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 攝入工作 | IngestionJob | RAG 攝入管線的單一工作記錄，追蹤 parse/chunk/embed 的執行狀態 |
+| 攝入文件 | IngestionDocument | 交付給攝入管線的文件元資料記錄 |
+| 攝入 Chunk | IngestionChunk | 文件切分後的向量化單元（由 py_fn/ 生成） |
+| 攝入狀態 | IngestionStatus | Job 的生命週期狀態：`uploaded \| parsing \| embedding \| indexed \| failed` |
+| 文件 ID | documentId | 關聯的 source 模組 SourceDocument ID |
+| 工作區 ID | workspaceId | Job 所屬的工作區 |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/ai/` 保持一致
-- 若術語變更，先更新 `docs/ddd/ai/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/IngestionChunk.ts`
-- `domain/entities/IngestionDocument.ts`
-- `domain/entities/IngestionJob.ts`
-- `domain/entities/graph-node.ts`
-- `domain/entities/link.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `IngestionJob` | `Job`, `ParseJob`, `EmbedTask` |
+| `IngestionDocument` | `Document`, `File`（在 ai BC 內） |
+| `IngestionChunk` | `Chunk`, `VectorEntry` |
+| `IngestionStatus` | `JobStatus`, `State` |

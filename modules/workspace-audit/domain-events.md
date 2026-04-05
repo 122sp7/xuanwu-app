@@ -1,19 +1,26 @@
-# workspace-audit — Domain Events
+# Domain Events — workspace-audit
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-audit/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/workspace-audit/domain-events.md`，作為 `workspace-audit` 的事件程式碼入口索引。
+`workspace-audit` 不發出 DomainEvent。它是事件的**最終消費者（Terminal Sink）**，不產生進一步的業務事件。
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件（消費端）
 
-## Event Design Rules
+`workspace-audit` 訂閱所有需要留下稽核軌跡的業務事件：
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+| 來源 BC | 訂閱事件 | AuditLog.auditEventType |
+|---------|---------|------------------------|
+| `workspace` | `workspace.created` | `workspace.created` |
+| `workspace` | `workspace.member_joined` | `workspace.member_joined` |
+| `workspace` | `workspace.archived` | `workspace.archived` |
+| `organization` | `organization.member_joined` | `organization.member_joined` |
+| `organization` | `organization.member_removed` | `organization.member_removed` |
+| `workspace-flow` | `workspace-flow.task_status_changed` | `task.status_changed` |
+| `workspace-flow` | `workspace-flow.invoice_paid` | `invoice.paid` |
+| `workspace-scheduling` | `workspace-scheduling.demand_status_changed` | `demand.status_changed` |
+| `source` | `source.upload_completed` | `document.uploaded` |
+| `ai` | `ai.ingestion_completed / failed` | `ingestion.completed / failed` |
 
-## 參考
+## 說明
 
-- `../../docs/ddd/workspace-audit/domain-events.md`
-- `../../docs/ddd/workspace-audit/context-map.md`
+稽核模組是事件消費的「終點站」。業務 BC 不應依賴稽核模組的狀態，稽核只做記錄，不影響業務流程。

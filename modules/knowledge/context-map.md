@@ -1,21 +1,48 @@
-# knowledge — Context Map
+# Context Map — knowledge
 
-> **Canonical DDD reference:** `../../docs/ddd/knowledge/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/knowledge/context-map.md`，作為 `knowledge` 在模組目錄中的整合關係速查表。
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
 
-## Integration Notes
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
 
-- 上游：workspace/api、identity/api
-- 下游：wiki、search、ai、workspace-flow
+---
 
-## 邊界規則
+## 下游（被依賴）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
 
-## 參考
+**這是平台最重要的跨 BC 整合點。**
 
-- `../../docs/ddd/knowledge/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (ContentToWorkflowMaterializer)
+```
+
+### knowledge → wiki（Customer/Supplier）
+
+- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
+- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |

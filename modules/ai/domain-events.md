@@ -1,19 +1,23 @@
-# ai — Domain Events
+# Domain Events — ai
 
-> **Canonical DDD reference:** `../../docs/ddd/ai/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/ai/domain-events.md`，作為 `ai` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `ai.ingestion_job_created` | 新 IngestionJob 建立 | `jobId`, `documentId`, `workspaceId`, `occurredAt` |
+| `ai.ingestion_completed` | Job 狀態達到 `indexed` | `jobId`, `documentId`, `chunkCount`, `occurredAt` |
+| `ai.ingestion_failed` | Job 狀態轉為 `failed` | `jobId`, `documentId`, `errorMessage`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `source` | `source.upload_completed` | 建立 IngestionJob，啟動攝入管線 |
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 消費 ai 事件的其他 BC
 
-## 參考
-
-- `../../docs/ddd/ai/domain-events.md`
-- `../../docs/ddd/ai/context-map.md`
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `search` | `ai.ingestion_completed` | 更新向量索引，RagDocument 標記為可查詢 |
+| `source` | `ai.ingestion_completed` | 更新 SourceDocument 狀態為 ready |
+| `workspace-audit` | `ai.ingestion_completed / failed` | 記錄攝入稽核軌跡 |

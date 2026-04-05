@@ -1,22 +1,47 @@
-# account — Aggregates
+# Aggregates — account
 
-> **Canonical DDD reference:** `../../docs/ddd/account/aggregates.md`
+## 聚合根：Account
 
-本文件對齊 `docs/ddd/account/aggregates.md`，作為 `account` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+代表使用者在 Xuanwu 平台的業務身份記錄。管理 profile 資訊與帳戶狀態。
 
-## 設計摘要
+### 關鍵屬性
 
-- `account` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 帳戶主鍵（對應 Firebase uid） |
+| `displayName` | `string` | 顯示名稱 |
+| `email` | `string` | Email |
+| `avatarUrl` | `string \| null` | 頭像 URL |
+| `createdAt` | `Timestamp` | 建立時間 |
 
-## Entities / Aggregates
-- `domain/entities/Account.ts`
-- `domain/entities/AccountPolicy.ts`
+### 不變數
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+- 每個 Account 對應唯一一個 Firebase uid
+- Account 建立後 id 不可變更
 
-## 參考
+---
 
-- `../../docs/ddd/account/aggregates.md`
-- `../../docs/ddd/account/README.md`
+## 聚合根：AccountPolicy
+
+### 職責
+代表附加到帳戶的存取控制政策，定義哪些資源可存取、哪些動作被允許，並映射到 Firebase custom claims。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Policy 主鍵 |
+| `accountId` | `string` | 關聯的 Account ID |
+| `rules` | `PolicyRule[]` | 存取控制規則列表 |
+| `effect` | `"allow" \| "deny"` | 規則效果 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `AccountRepository` | `save()`, `findById()`, `delete()` |
+| `AccountQueryRepository` | `findById()`, `findByEmail()` |
+| `AccountPolicyRepository` | `save()`, `findByAccountId()` |

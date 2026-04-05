@@ -1,21 +1,25 @@
-# workspace-feed — Context Map
+# Context Map — workspace-feed
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-feed/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/workspace-feed/context-map.md`，作為 `workspace-feed` 在模組目錄中的整合關係速查表。
+### workspace → workspace-feed（Conformist）
 
-## Integration Notes
+- `WorkspaceFeedPost.workspaceId` 隸屬工作區
 
-- 上游：workspace
-- 下游：notification、workspace-audit
+## 下游（被依賴）
 
-## 邊界規則
+### workspace-feed → notification（Published Language）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+- `WorkspaceFeedPostCreated` 可觸發通知
 
-## 參考
+### workspace-feed → workspace-audit（Published Language）
 
-- `../../docs/ddd/workspace-feed/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+- 貼文操作記錄稽核軌跡
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| workspace → workspace-feed | workspace | workspace-feed | Conformist |
+| workspace-feed → notification | workspace-feed | notification | Published Language |
+| workspace-feed → workspace-audit | workspace-feed | workspace-audit | Published Language |

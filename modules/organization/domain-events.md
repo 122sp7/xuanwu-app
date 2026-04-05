@@ -1,19 +1,27 @@
-# organization — Domain Events
+# Domain Events — organization
 
-> **Canonical DDD reference:** `../../docs/ddd/organization/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/organization/domain-events.md`，作為 `organization` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
+| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
+| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
+| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
+| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+`organization` 不訂閱其他 BC 的事件（被動，等待 account 操作觸發）。
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 事件格式範例
 
-## 參考
-
-- `../../docs/ddd/organization/domain-events.md`
-- `../../docs/ddd/organization/context-map.md`
+```typescript
+interface OrganizationMemberJoinedEvent {
+  readonly type: "organization.member_joined";
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly role: OrganizationRole;
+  readonly occurredAt: string;  // ISO 8601
+}
+```

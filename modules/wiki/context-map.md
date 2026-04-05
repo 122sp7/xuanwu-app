@@ -1,21 +1,42 @@
-# wiki — Context Map
+# Context Map — wiki
 
-> **Canonical DDD reference:** `../../docs/ddd/wiki/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/wiki/context-map.md`，作為 `wiki` 在模組目錄中的整合關係速查表。
+### knowledge → wiki（Customer/Supplier）
 
-## Integration Notes
+- `wiki` 訂閱 `knowledge` 的頁面事件以同步 GraphNode 生命週期
+- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`（共享主鍵）
 
-- 上游：knowledge
-- 下游：search、notebook
+```
+knowledge.page_created ──► wiki: 建立 GraphNode
+knowledge.block_updated ──► wiki: 更新 AutoLink GraphEdge
+knowledge.page_archived ──► wiki: 歸檔 GraphNode
+```
 
-## 邊界規則
+### workspace → wiki（Customer/Supplier）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+- GraphNode 歸屬於 workspaceId
 
-## 參考
+---
 
-- `../../docs/ddd/wiki/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+## 下游（被依賴）
+
+### wiki → search（Customer/Supplier）
+
+- `search` 消費 `wiki.node_activated` 以更新向量索引
+- RAG 查詢結果中的圖譜上下文由 wiki 提供
+
+### wiki → notebook（Customer/Supplier）
+
+- AI 對話生成時，`notebook` 可查詢 wiki 圖譜以取得知識上下文
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| knowledge → wiki | knowledge | wiki | Published Language (Events) |
+| workspace → wiki | workspace | wiki | Customer/Supplier |
+| wiki → search | wiki | search | Customer/Supplier（Events） |
+| wiki → notebook | wiki | notebook | Customer/Supplier（Query） |

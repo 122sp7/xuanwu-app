@@ -1,23 +1,21 @@
-# account — Ubiquitous Language
+# Ubiquitous Language — account
 
-> **Canonical DDD reference:** `../../docs/ddd/account/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/account/` 有界上下文內
 
-本文件是 `account` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/account/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 帳戶 | Account | 使用者在平台的業務記錄，含 profile 資訊與狀態 | `modules/account/domain/entities/Account.ts` |
+| 帳戶政策 | AccountPolicy | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 | `modules/account/domain/entities/AccountPolicy.ts` |
+| 帳戶 ID | accountId | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） | `Account.id` |
+| 自訂宣告 | customClaims | Firebase ID token 中的自訂 claims，由 AccountPolicy 決定 | `Account.customClaims` |
+| 帳戶查詢庫 | AccountQueryRepository | CQRS 讀取側 Repository port | `domain/repositories/AccountQueryRepository.ts` |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/account/` 保持一致
-- 若術語變更，先更新 `docs/ddd/account/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/Account.ts`
-- `domain/entities/AccountPolicy.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `Account` | `User`, `Profile` |
+| `AccountPolicy` | `Permission`, `Role`, `AccessRule` |
+| `accountId` | `userId`（帳戶層應使用 accountId） |

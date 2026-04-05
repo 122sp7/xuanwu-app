@@ -1,25 +1,68 @@
-# ai — Aggregates
+# Aggregates — ai
 
-> **Canonical DDD reference:** `../../docs/ddd/ai/aggregates.md`
+## 聚合根：IngestionJob
 
-本文件對齊 `docs/ddd/ai/aggregates.md`，作為 `ai` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+管理 RAG 攝入管線的單一工作記錄。追蹤從上傳到 indexed 的完整狀態機。
 
-## 設計摘要
+### 生命週期狀態機
+```
+uploaded ──► parsing ──► embedding ──► indexed
+                │                         │
+                └──────► failed ◄─────────┘
+```
 
-- `ai` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+### 關鍵屬性
 
-## Entities / Aggregates
-- `domain/entities/IngestionChunk.ts`
-- `domain/entities/IngestionDocument.ts`
-- `domain/entities/IngestionJob.ts`
-- `domain/entities/graph-node.ts`
-- `domain/entities/link.ts`
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Job 主鍵 |
+| `documentId` | `string` | 關聯 SourceDocument ID |
+| `organizationId` | `string` | 所屬組織 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `status` | `IngestionStatus` | 當前狀態 |
+| `startedAt` | `string \| null` | ISO 8601 開始時間 |
+| `completedAt` | `string \| null` | ISO 8601 完成時間 |
+| `errorMessage` | `string \| null` | 失敗原因 |
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+### 不變數
 
-## 參考
+- `indexed` 狀態後不可再轉換回其他狀態
+- `failed` 狀態的 errorMessage 不可為空
 
-- `../../docs/ddd/ai/aggregates.md`
-- `../../docs/ddd/ai/README.md`
+---
+
+## 實體：IngestionDocument
+
+### 職責
+交付給攝入管線的文件元資料，提供 `py_fn/` worker 所需的來源資訊。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 文件主鍵 |
+| `sourceFileId` | `string` | 關聯 SourceDocument ID |
+| `mimeType` | `string` | 檔案 MIME type |
+| `storageUrl` | `string` | Firebase Storage URL |
+
+---
+
+## 值物件：IngestionChunk
+
+### 職責
+文件切分後的向量化 chunk，由 `py_fn/` 生成後寫入 Firestore。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Chunk 主鍵 |
+| `documentId` | `string` | 所屬文件 ID |
+| `chunkIndex` | `number` | Chunk 在文件中的序號 |
+| `content` | `string` | Chunk 文字內容 |
+| `embedding` | `number[]` | 向量嵌入（由 py_fn/ 寫入） |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `IngestionJobRepository` | `save()`, `findByDocumentId()`, `listByWorkspace()`, `updateStatus()` |

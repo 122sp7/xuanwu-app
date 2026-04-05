@@ -1,21 +1,23 @@
-# notification — Context Map
+# Context Map — notification
 
-> **Canonical DDD reference:** `../../docs/ddd/notification/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/notification/context-map.md`，作為 `notification` 在模組目錄中的整合關係速查表。
+### 所有業務 BC → notification（Published Language）
 
-## Integration Notes
+`notification` 訂閱各 BC 的業務事件，轉換為使用者通知。不直接依賴任何 BC 的 api。
 
-- 上游：各業務 BC 的 Published Language 事件
-- 下游：終端通知輸出
+---
 
-## 邊界規則
+## 下游（被依賴）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+`notification` 不被其他 BC 依賴（通知是終端輸出，無下游）。
 
-## 參考
+---
 
-- `../../docs/ddd/notification/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| workspace → notification | workspace | notification | Published Language (Events) |
+| workspace-flow → notification | workspace-flow | notification | Published Language (Events) |
+| 其他 BC → notification | 各 BC | notification | Published Language (Events) |

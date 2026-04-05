@@ -1,23 +1,39 @@
-# search — Aggregates
+# Aggregates — search
 
-> **Canonical DDD reference:** `../../docs/ddd/search/aggregates.md`
+## 聚合根：RagQueryFeedback
 
-本文件對齊 `docs/ddd/search/aggregates.md`，作為 `search` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+收集並持久化使用者對 RAG 查詢答案品質的反饋。支援持續改善 RAG 品質。
 
-## 設計摘要
+### 關鍵屬性
 
-- `search` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `feedbackId` | `string` | 反饋主鍵 |
+| `queryId` | `string` | 關聯的查詢 ID |
+| `helpful` | `boolean` | 是否有用 |
+| `comment` | `string \| null` | 文字評論（可選） |
+| `submittedAt` | `string` | ISO 8601 |
 
-## Entities / Aggregates
-- `domain/entities/RagQuery.ts`
-- `domain/entities/RagQueryFeedback.ts`
-- `domain/entities/WikiRagTypes.ts`
+---
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+## 值物件
 
-## 參考
+| 值物件 | 說明 |
+|--------|------|
+| `RagRetrievedChunk` | 檢索到的 chunk（chunkId, docId, chunkIndex, text, score, taxonomy） |
+| `RagCitation` | 引用資訊（chunkId, docId, text, score） |
+| `VectorDocument` | 向量索引文件（id, content, metadata, embedding） |
+| `WikiCitation` | Wiki RAG 引用（pageId, pageTitle, text, score） |
 
-- `../../docs/ddd/search/aggregates.md`
-- `../../docs/ddd/search/README.md`
+---
+
+## Ports（Hexagonal Architecture）
+
+| Port | 說明 |
+|------|------|
+| `IVectorStore` | 向量資料庫抽象（`index()`, `search()`, `deleteByDocId()`） |
+| `RagRetrievalRepository` | Chunk 向量搜尋操作 |
+| `RagGenerationRepository` | AI 答案生成（組合 chunks + Genkit 呼叫） |
+| `RagQueryFeedbackRepository` | 反饋持久化 |
+| `WikiContentRepository` | Wiki 整合 RAG 查詢（`queryWikiRag()`, `reindexWikiDocument()`） |

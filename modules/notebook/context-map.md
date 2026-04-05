@@ -1,21 +1,31 @@
-# notebook — Context Map
+# Context Map — notebook
 
-> **Canonical DDD reference:** `../../docs/ddd/notebook/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/notebook/context-map.md`，作為 `notebook` 在模組目錄中的整合關係速查表。
+### search → notebook（Customer/Supplier）
 
-## Integration Notes
+- `notebook` 呼叫 `search/api` 取得語意相關 chunks（RAG retrieval）
+- 用於 RAG-augmented 對話生成
 
-- 上游：search/api、wiki/api（查詢）
-- 下游：app/(shell)/ai-chat
+### wiki → notebook（Customer/Supplier）
 
-## 邊界規則
+- `notebook` 可查詢 `wiki/api` 取得知識圖譜上下文（未來支援圖譜推理）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+---
 
-## 參考
+## 下游（被依賴）
 
-- `../../docs/ddd/notebook/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+### notebook → app/(shell)/ai-chat（Interfaces）
+
+- AI Chat 頁面透過本地 `_actions.ts` 呼叫 `notebook/api`
+- **注意**：`notebook/api` barrel 不得在 Client Component 中直接 import（Genkit server-only）
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| search → notebook | search | notebook | Customer/Supplier（同步查詢） |
+| wiki → notebook | wiki | notebook | Customer/Supplier（同步查詢） |
+| notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（_actions.ts） |

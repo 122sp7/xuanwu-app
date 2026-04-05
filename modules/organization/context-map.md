@@ -1,21 +1,31 @@
-# organization — Context Map
+# Context Map — organization
 
-> **Canonical DDD reference:** `../../docs/ddd/organization/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/organization/context-map.md`，作為 `organization` 在模組目錄中的整合關係速查表。
+### account → organization（Customer/Supplier）
 
-## Integration Notes
+- `organization.members[]` 中的 `MemberReference.id` 參照 `account` 的 accountId
+- 查詢成員 profile 時呼叫 `account/api`
 
-- 上游：account/api
-- 下游：workspace/api
+---
 
-## 邊界規則
+## 下游（被依賴）
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+### organization → workspace（Customer/Supplier）
 
-## 參考
+- `Workspace.accountId + accountType="organization"` 關聯至 Organization
+- 工作區列表依 organizationId 篩選
 
-- `../../docs/ddd/organization/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+### organization → workspace-audit（Published Language）
+
+- 成員加入/移除事件供 `workspace-audit` 消費（未來事件 sink 完成後）
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| account → organization | account | organization | Customer/Supplier |
+| organization → workspace | organization | workspace | Customer/Supplier |
+| organization → workspace-audit | organization | workspace-audit | Published Language (Events) |

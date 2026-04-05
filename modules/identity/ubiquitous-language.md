@@ -1,23 +1,21 @@
-# identity — Ubiquitous Language
+# Ubiquitous Language — identity
 
-> **Canonical DDD reference:** `../../docs/ddd/identity/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/identity/` 有界上下文內
 
-本文件是 `identity` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/identity/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 身份 | Identity | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼 | `modules/identity/domain/entities/` |
+| 唯一身份碼 | uid | Firebase Authentication 產生的使用者全域唯一 ID | `Identity.uid` |
+| Token 刷新訊號 | TokenRefreshSignal | 代表 Firebase ID token 需要更新的訊號物件 | `domain/entities/` |
+| 登入 | signIn | 透過 Email 或 OAuth 建立 Firebase Auth session | `IdentityRepository.signIn()` |
+| 登出 | signOut | 終止 Firebase Auth session | `IdentityRepository.signOut()` |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/identity/` 保持一致
-- 若術語變更，先更新 `docs/ddd/identity/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/Identity.ts`
-- `domain/entities/TokenRefreshSignal.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `Identity` | `User`, `AuthUser`, `CurrentUser` |
+| `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
+| `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |

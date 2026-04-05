@@ -1,20 +1,33 @@
-# identity — Context Map
+# Context Map — identity
 
-> **Canonical DDD reference:** `../../docs/ddd/identity/context-map.md`
+## 此 BC 的整合模式
 
-本文件對齊 `docs/ddd/identity/context-map.md`，作為 `identity` 在模組目錄中的整合關係速查表。
+### 上游（依賴）
 
-## Integration Notes
+`identity` 是最基礎的 Generic Subdomain，不依賴任何其他業務 BC。
 
-- 下游：account/application 在 server 端消費 identity/api
+**外部依賴：** Firebase Authentication SDK（第三方服務，Anti-Corruption Layer 在 infrastructure 層）
 
-## 邊界規則
+---
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+### 下游（被依賴）
 
-## 參考
+#### `account` ← identity（Customer/Supplier）
 
-- `../../docs/ddd/identity/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+- **模式：** Customer/Supplier
+- **方向：** `identity` 是 Supplier（上游），`account` 是 Customer（下游）
+- **整合方式：** `account` application use-cases 在 server 端 import `identity/api` 取得身份上下文
+- **關鍵規則：** `identity/api` 不得含任何 `"use client"` 匯出
+
+```
+identity/api ──import──► account/application/use-cases/*.ts（server-side）
+```
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → account | identity | account | Customer/Supplier |
+| Firebase Auth → identity | Firebase | identity | Anti-Corruption Layer |

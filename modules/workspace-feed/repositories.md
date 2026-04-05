@@ -1,24 +1,28 @@
 # workspace-feed — Repositories
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-feed/repositories.md`
+> **Canonical bounded context:** `workspace-feed`
+> **模組路徑:** `modules/workspace-feed/`
+> **Domain Type:** Supporting Subdomain
 
-本文件對齊 `docs/ddd/workspace-feed/repositories.md`，整理 `workspace-feed` 的 repository ports 與 infrastructure 實作。
+本文件整理 `workspace-feed` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
 
 ## Domain Repository Ports
+
 - `domain/repositories/workspace-feed.repositories.ts`
 
 ## Infrastructure Implementations
+
 - `infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts`
 - `infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts`
 - `infrastructure/index.ts`
 
 ## 設計規則
 
-- `domain/repositories/` 定義抽象
-- `infrastructure/` 提供實作
-- `application/` 只依賴抽象，不依賴具體實作
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
 
-## 參考
+## 模組內對應文件
 
-- `../../docs/ddd/workspace-feed/repositories.md`
-- `./application-services.md`
+- `../../../modules/workspace-feed/repositories.md`
+- `../../../docs/ddd/workspace-feed/aggregates.md`

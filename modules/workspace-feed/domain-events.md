@@ -1,19 +1,19 @@
-# workspace-feed — Domain Events
+# Domain Events — workspace-feed
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-feed/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/workspace-feed/domain-events.md`，作為 `workspace-feed` 的事件程式碼入口索引。
+| 事件 | 觸發條件 |
+|------|---------|
+| `WorkspaceFeedPostCreated` | 新貼文發布 |
+| `WorkspaceFeedReplyCreated` | 回覆發布 |
+| `WorkspaceFeedRepostCreated` | 轉貼發布 |
+| `WorkspaceFeedPostLiked` | 按讚 |
+| `WorkspaceFeedPostViewed` | 瀏覽 |
+| `WorkspaceFeedPostBookmarked` | 收藏 |
+| `WorkspaceFeedPostShared` | 分享 |
 
-## Event Files
-- `domain/events/workspace-feed.events.ts`
+所有事件繼承 `WorkspaceFeedBaseEvent`（`accountId`, `workspaceId`, `postId`, `actorAccountId`, `occurredAtISO`）。
 
-## Event Design Rules
+## 訂閱事件
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
-
-## 參考
-
-- `../../docs/ddd/workspace-feed/domain-events.md`
-- `../../docs/ddd/workspace-feed/context-map.md`
+`workspace-feed` 不訂閱其他 BC 的事件。

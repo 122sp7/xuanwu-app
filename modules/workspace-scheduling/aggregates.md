@@ -1,21 +1,48 @@
-# workspace-scheduling — Aggregates
+# Aggregates — workspace-scheduling
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-scheduling/aggregates.md`
+## 聚合根：WorkDemand
 
-本文件對齊 `docs/ddd/workspace-scheduling/aggregates.md`，作為 `workspace-scheduling` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+代表一個工作需求記錄。管理需求的排程生命週期（draft → completed）。
 
-## 設計摘要
+### 生命週期狀態機
+```
+draft ──► open ──► in_progress ──► completed
+```
 
-- `workspace-scheduling` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+### 關鍵屬性
 
-## Entities / Aggregates
-- 目前沒有對應檔案。
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 需求主鍵 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `accountId` | `string` | 所屬帳戶 |
+| `title` | `string` | 需求標題 |
+| `description` | `string \| null` | 描述（可選） |
+| `status` | `DemandStatus` | `draft \| open \| in_progress \| completed` |
+| `priority` | `DemandPriority` | `low \| medium \| high` |
+| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
+| `createdAt` | `string` | ISO 8601 |
+| `updatedAt` | `string` | ISO 8601 |
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+### 不變數
 
-## 參考
+- `title` 不可為空
+- `completed` 狀態不可逆回 `draft`
 
-- `../../docs/ddd/workspace-scheduling/aggregates.md`
-- `../../docs/ddd/workspace-scheduling/README.md`
+---
+
+## 值物件
+
+| 值物件 | 說明 |
+|--------|------|
+| `DemandStatus` | `"draft" \| "open" \| "in_progress" \| "completed"` |
+| `DemandPriority` | `"low" \| "medium" \| "high"` |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `DemandRepository` | `save()`, `findById()`, `listByWorkspace()`, `updateStatus()` |

@@ -1,24 +1,25 @@
-# wiki — Ubiquitous Language
+# Ubiquitous Language — wiki
 
-> **Canonical DDD reference:** `../../docs/ddd/wiki/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/wiki/` 有界上下文內
 
-本文件是 `wiki` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/wiki/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 圖譜節點 | GraphNode | 知識圖譜中的一個節點，對應一個知識概念或頁面 |
+| 圖譜邊 | GraphEdge | 兩個 GraphNode 之間的有向關係 |
+| 節點類型 | NodeType | 節點的語意類型（concept, page, entity 等） |
+| 邊類型 | EdgeType | 關係的語意類型（references, contains, related_to 等） |
+| 反向連結 | Backlink | 指向特定節點的所有入向邊（inbound edges） |
+| 圖遍歷 | GraphTraversal | 從起點節點沿邊向外擴展，取得關聯節點集 |
+| 自動連結 | AutoLink | 系統自動識別內容引用並建立 GraphEdge 的機制 |
+| 節點狀態 | NodeStatus | GraphNode 的生命週期狀態：`draft \| active \| archived` |
+| 邊狀態 | EdgeStatus | GraphEdge 的生命週期狀態：`pending \| active \| inactive \| removed` |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/wiki/` 保持一致
-- 若術語變更，先更新 `docs/ddd/wiki/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/graph-node.ts`
-- `domain/entities/link.ts`
-- `domain/entities/view-config.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `GraphNode` | `Node`, `WikiNode`, `Page`（圖譜上下文中） |
+| `GraphEdge` | `Edge`, `Link`, `Connection` |
+| `Backlink` | `InboundLink`, `ReverseLink` |

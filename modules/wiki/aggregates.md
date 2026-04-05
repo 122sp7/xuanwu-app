@@ -1,23 +1,64 @@
-# wiki — Aggregates
+# Aggregates — wiki
 
-> **Canonical DDD reference:** `../../docs/ddd/wiki/aggregates.md`
+## 聚合根：GraphNode
 
-本文件對齊 `docs/ddd/wiki/aggregates.md`，作為 `wiki` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+代表知識圖譜中的一個知識節點。管理節點的生命週期（draft → active → archived）與關聯邊列表。
 
-## 設計摘要
+### 生命週期狀態機
+```
+draft ──[activate]──► active ──[archive]──► archived
+```
 
-- `wiki` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+### 關鍵屬性
 
-## Entities / Aggregates
-- `domain/entities/graph-node.ts`
-- `domain/entities/link.ts`
-- `domain/entities/view-config.ts`
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 節點主鍵（對應 knowledge.KnowledgePage.id） |
+| `title` | `string` | 節點標題 |
+| `nodeType` | `NodeType` | 節點語意類型 |
+| `status` | `NodeStatus` | `draft \| active \| archived` |
+| `workspaceId` | `string` | 所屬工作區 |
+| `organizationId` | `string` | 所屬組織 |
+| `outboundEdgeIds` | `string[]` | 出向邊 ID 列表 |
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+### 不變數
 
-## 參考
+- archived 節點不可建立新 GraphEdge
+- `id` 與 `knowledge.KnowledgePage.id` 一一對應
 
-- `../../docs/ddd/wiki/aggregates.md`
-- `../../docs/ddd/wiki/README.md`
+---
+
+## 聚合根：GraphEdge
+
+### 職責
+代表兩個 GraphNode 之間的有向關係。管理邊的生命週期（pending → active → inactive → removed）。
+
+### 生命週期狀態機
+```
+pending ──[activate]──► active ──[deactivate]──► inactive ──[remove]──► removed
+```
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 邊主鍵 |
+| `sourceNodeId` | `string` | 起點節點 ID |
+| `targetNodeId` | `string` | 終點節點 ID |
+| `edgeType` | `EdgeType` | 關係語意類型 |
+| `status` | `EdgeStatus` | `pending \| active \| inactive \| removed` |
+| `createdByUserId` | `string` | 建立者 ID |
+
+### 不變數
+
+- sourceNodeId 與 targetNodeId 必須是有效的 GraphNode
+- removed 的邊不可恢復
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `GraphRepository` | `saveNode()`, `saveEdge()`, `findNodeById()`, `findEdgesByTarget()` |

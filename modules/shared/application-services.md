@@ -1,20 +1,26 @@
 # shared — Application Services
 
-> **Canonical DDD reference:** `../../docs/ddd/shared/application-services.md`
+> **Canonical bounded context:** `shared`
+> **模組路徑:** `modules/shared/`
+> **Domain Type:** Shared Kernel
 
-本文件對齊 `docs/ddd/shared/application-services.md`，整理 `shared` 的 application layer orchestrators、use cases、DTO 與 process managers。
+本文件記錄 `shared` 的 application layer 服務與 use cases。內容與 `modules/shared/application/` 實作保持一致。
 
-## Application Files
+## Application Layer 職責
+
+提供所有 bounded contexts 共用的最小型別與事件合約，是 Shared Kernel。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
 - `application/publish-domain-event.ts`
 
-## 設計規則
+## 設計對齊
 
-- application layer 負責 orchestration，不承載 UI 與 infrastructure 細節
-- use case 透過 repository ports / domain services 操作 domain
-- 對外公開入口仍以 `api/` 為主，不直接暴露 application internals
-
-## 參考
-
-- `../../docs/ddd/shared/application-services.md`
-- `./repositories.md`
-- `./domain-services.md`
+- 模組 README：`../../../modules/shared/README.md`
+- 模組 AGENT：`../../../modules/shared/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/shared/application-services.md`

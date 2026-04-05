@@ -1,19 +1,22 @@
-# workspace-scheduling — Domain Events
+# Domain Events — workspace-scheduling
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-scheduling/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/workspace-scheduling/domain-events.md`，作為 `workspace-scheduling` 的事件程式碼入口索引。
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-scheduling.demand_created` | WorkDemand 建立 | `demandId`, `workspaceId`, `title`, `priority`, `occurredAt` |
+| `workspace-scheduling.demand_status_changed` | 狀態轉換 | `demandId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-scheduling.demand_completed` | WorkDemand 完成 | `demandId`, `workspaceId`, `occurredAt` |
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `workspace-flow` | `workspace-flow.task_created` | 同步相關 WorkDemand 的排程狀態（可選） |
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 消費 workspace-scheduling 事件的其他 BC
 
-## 參考
-
-- `../../docs/ddd/workspace-scheduling/domain-events.md`
-- `../../docs/ddd/workspace-scheduling/context-map.md`
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `notification` | `workspace-scheduling.demand_created` | 通知相關成員 |
+| `workspace-audit` | 所有狀態變更事件 | 記錄排程稽核軌跡 |

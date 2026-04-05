@@ -1,22 +1,24 @@
-# organization — Ubiquitous Language
+# Ubiquitous Language — organization
 
-> **Canonical DDD reference:** `../../docs/ddd/organization/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/organization/` 有界上下文內
 
-本文件是 `organization` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/organization/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 組織 | Organization | 頂層多租戶單元，代表一個企業或團隊 |
+| 成員參照 | MemberReference | 組織成員的輕量參照（含 accountId、role、presence） |
+| 隊伍 | Team | 組織內的子群組（internal / external 類型） |
+| 合作夥伴邀請 | PartnerInvite | 邀請外部合作夥伴加入隊伍的邀請記錄 |
+| 組織角色 | OrganizationRole | 成員在組織中的角色：`Owner \| Admin \| Member \| Guest` |
+| 在線狀態 | Presence | 成員的當前狀態：`active \| away \| offline` |
+| 邀請狀態 | InviteState | 邀請的當前狀態：`pending \| accepted \| expired` |
+| 政策效果 | PolicyEffect | 組織政策的效果：`allow \| deny` |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/organization/` 保持一致
-- 若術語變更，先更新 `docs/ddd/organization/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/Organization.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `Organization` | `Company`, `Tenant`, `Client` |
+| `MemberReference` | `Member`, `OrgUser` |
+| `OrganizationRole` | `Role`, `Permission` |

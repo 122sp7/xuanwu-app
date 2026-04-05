@@ -1,58 +1,40 @@
-# AGENT.md — modules/workspace
+# AGENT.md — workspace BC
 
 ## 模組定位
 
-`modules/workspace` 是 Knowledge Platform 的**通用域（Generic Domain）**，負責工作區管理、成員協作與知識結構樹。是知識內容的協作容器，連接 identity、organization 與各知識域。
+`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
 
 ## 通用語言（Ubiquitous Language）
 
-在此模組內，**嚴格使用**以下術語：
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceMember` | Member、Participant |
+| `WikiContentTree` | PageTree、ContentHierarchy |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 Workspace 上下文中） |
 
-- `Workspace`（不是 Space、Room、Project）
-- `Member`（不是 User、Participant）
-- `Role`（不是 Permission、Access）
-- `WikiContentTree`（不是 Tree、PageTree、ContentTree）
-- `WorkspaceTab`（不是 Tab、Section、Panel）
+## 邊界規則
 
-## 最重要邊界規則：循環依賴
-
+### ✅ 允許
 ```typescript
-// ❌ 禁止：FirebaseWikiWorkspaceRepository 不能 import workspace/api
-import { workspaceApi } from "@/modules/workspace/api"; // 循環依賴！
-
-// ✅ 正確：使用相對路徑直接 import
-import { FirebaseWorkspaceRepository } from "../FirebaseWorkspaceRepository";
+import { workspaceApi } from "@/modules/workspace/api";
+import type { WorkspaceDTO } from "@/modules/workspace/api";
 ```
 
-## WorkspaceDetailScreen 整合規則
-
+### ❌ 禁止
 ```typescript
-// WorkspaceDetailScreen 的 Tasks tab 使用 WorkspaceFlowTab
-// WorkspaceFlowTab 接受 currentUserId prop
-<WorkspaceFlowTab currentUserId={accountId ?? "anonymous"} />
-
-// tabs 設定在 workspace-tabs.ts — "Tasks" 狀態為 🏗️ Midway
+// workspace/infrastructure 禁止 import workspace/api（循環依賴）
+import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
 ```
 
-## 跨模組互動
+## 循環依賴守衛
 
-| 目標模組 | 互動方式 | 說明 |
-|----------|----------|------|
-| `identity/api` | API 呼叫 | 驗證使用者身分 |
-| `organization/api` | API 呼叫 | 驗證組織範圍 |
-| `knowledge/api` | 提供範圍 | 知識頁面的工作區範圍 |
-| `workspace-flow/api` | 組合使用 | Tasks tab（WorkspaceFlowTab） |
-| `workspace-audit/api` | 組合使用 | Audit 查詢 |
-
-## 導航規則
-
-- `/dashboard` → 重定向到 `/workspace`
-- `/settings` → 重定向到 `/workspace`
-- MVP 導航以 workspace 為主
+`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
 
 ## 驗證命令
 
 ```bash
-npm run lint    # 0 errors expected
-npm run build   # TypeScript type-check
+npm run lint
+npm run build
 ```

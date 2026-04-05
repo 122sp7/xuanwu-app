@@ -1,22 +1,32 @@
-# workspace-scheduling — Ubiquitous Language
+# Ubiquitous Language — workspace-scheduling
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-scheduling/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/workspace-scheduling/` 有界上下文內
 
-本文件是 `workspace-scheduling` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/workspace-scheduling/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作需求 | WorkDemand | 一個已排程或待排程的工作請求，含標題、截止日期與優先級 |
+| 需求狀態 | DemandStatus | WorkDemand 的生命週期狀態：`draft \| open \| in_progress \| completed` |
+| 需求優先級 | DemandPriority | 工作緊急程度：`low \| medium \| high` |
+| 日曆控件 | CalendarWidget | 顯示工作需求排程的日曆 UI 元件 |
+| 帳戶排程視圖 | AccountSchedulingView | 跨工作區的帳戶級別排程總覽頁面 |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/workspace-scheduling/` 保持一致
-- 若術語變更，先更新 `docs/ddd/workspace-scheduling/ubiquitous-language.md`，再同步此文件
+## 狀態標籤（顯示文字）
 
-## Code Anchors
+| 狀態 | 中文標籤 |
+|------|---------|
+| `draft` | 草稿 |
+| `open` | 待處理 |
+| `in_progress` | 進行中 |
+| `completed` | 已完成 |
+| `low` | 低 |
+| `medium` | 中 |
+| `high` | 高 |
 
-### Entities
-- 目前沒有對應檔案。
+## 禁止替換術語
 
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `WorkDemand` | `Demand`, `Request`, `Ticket` |
+| `DemandStatus` | `Status`, `WorkStatus` |

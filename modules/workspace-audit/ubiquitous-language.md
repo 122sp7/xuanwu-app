@@ -1,22 +1,26 @@
-# workspace-audit — Ubiquitous Language
+# Ubiquitous Language — workspace-audit
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-audit/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/workspace-audit/` 有界上下文內
 
-本文件是 `workspace-audit` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/workspace-audit/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 稽核記錄 | AuditLog | 一條不可變的操作紀錄（Append-Only，永不修改） |
+| 稽核事件類型 | auditEventType | 記錄的操作類型字串（如 `workspace.member_joined`） |
+| 操作者 ID | actorId | 執行此操作的帳戶 ID |
+| 稽核範圍 | auditScope | 此記錄的範圍（workspace 或 organization） |
+| 稽核時間 | auditedAt | 操作發生時間，ISO 8601 |
+| 元資料 | metadata | 操作的附加資訊（JSON，可選） |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/workspace-audit/` 保持一致
-- 若術語變更，先更新 `docs/ddd/workspace-audit/ubiquitous-language.md`，再同步此文件
+## Append-Only 原則
 
-## Code Anchors
+`AuditLog` 一旦寫入即不可更改。任何試圖修改或刪除 AuditLog 的操作都違反此域的核心不變數。
 
-### Entities
-- `domain/entities/AuditLog.ts`
+## 禁止替換術語
 
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `AuditLog` | `Log`, `Record`, `History` |
+| `actorId` | `userId`, `performerId` |
+| `auditedAt` | `timestamp`, `createdAt`（在稽核上下文中） |

@@ -1,21 +1,44 @@
-# shared — Aggregates
+# Aggregates — shared
 
-> **Canonical DDD reference:** `../../docs/ddd/shared/aggregates.md`
+## 注意
 
-本文件對齊 `docs/ddd/shared/aggregates.md`，作為 `shared` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+`shared` 是 Shared Kernel，不包含業務聚合根。它只提供基礎型別定義。
 
-## 設計摘要
+---
 
-- `shared` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+## 基礎介面：DomainEvent
 
-## Entities / Aggregates
-- 目前沒有對應檔案。
+```typescript
+// modules/shared/domain/events.ts
+interface DomainEvent {
+  readonly type: string;       // discriminant: "module.action"
+  readonly occurredAt: string; // ISO 8601 — 不是 Date，不是 occurredAtISO
+}
+```
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+**所有模組的領域事件介面都繼承此基礎介面。**
 
-## 參考
+---
 
-- `../../docs/ddd/shared/aggregates.md`
-- `../../docs/ddd/shared/README.md`
+## 基礎介面：EventRecord
+
+```typescript
+// modules/shared/domain/event-record.ts
+interface EventRecord {
+  readonly eventId: string;    // UUID v4
+  readonly occurredAt: string; // ISO 8601
+  readonly actorId?: string;   // 操作者 ID（可選）
+  readonly correlationId?: string;
+  readonly causationId?: string;
+}
+```
+
+---
+
+## 工具型別
+
+| 型別 / 工具 | 說明 |
+|------------|------|
+| `ID` | string alias，用於所有業務 ID |
+| `Timestamp` | Firebase Timestamp 型別別名 |
+| `slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |

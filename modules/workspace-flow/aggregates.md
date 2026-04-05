@@ -1,33 +1,91 @@
-# workspace-flow — Aggregates
+# Aggregates — workspace-flow
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-flow/aggregates.md`
+## 聚合根：Task
 
-本文件對齊 `docs/ddd/workspace-flow/aggregates.md`，作為 `workspace-flow` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+可追蹤的工作單元，管理完整的任務生命週期狀態機。
 
-## 設計摘要
+### 生命週期狀態機
+```
+draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
+```
 
-- `workspace-flow` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+### 關鍵屬性
 
-## Entities / Aggregates
-- `domain/entities/Invoice.ts`
-- `domain/entities/InvoiceItem.ts`
-- `domain/entities/Issue.ts`
-- `domain/entities/Task.ts`
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Task 主鍵 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `title` | `string` | 任務標題 |
+| `status` | `TaskStatus` | 當前狀態 |
+| `assigneeId` | `string \| null` | 負責人帳戶 ID |
+| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
+| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
+| `currentUserId` | `string` | 當前操作者 ID |
 
-## Value Objects
-- `domain/value-objects/InvoiceId.ts`
-- `domain/value-objects/InvoiceItemId.ts`
-- `domain/value-objects/InvoiceStatus.ts`
-- `domain/value-objects/IssueId.ts`
-- `domain/value-objects/IssueStage.ts`
-- `domain/value-objects/IssueStatus.ts`
-- `domain/value-objects/SourceReference.ts`
-- `domain/value-objects/TaskId.ts`
-- `domain/value-objects/TaskStatus.ts`
-- `domain/value-objects/UserId.ts`
+---
 
-## 參考
+## 聚合根：Issue
 
-- `../../docs/ddd/workspace-flow/aggregates.md`
-- `../../docs/ddd/workspace-flow/README.md`
+### 生命週期狀態機
+```
+open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
+```
+
+### 關鍵屬性
+
+| 屬性 | 說明 |
+|------|------|
+| `id`, `workspaceId`, `title` | 基本屬性 |
+| `status` | `IssueStatus` |
+| `severity` | `IssueStatus` 嚴重程度 |
+| `reporterId` | 報告者帳戶 ID |
+| `assigneeId` | 負責人帳戶 ID（可選） |
+
+---
+
+## 聚合根：Invoice
+
+### 生命週期狀態機
+```
+draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
+```
+
+### 關鍵屬性
+
+| 屬性 | 說明 |
+|------|------|
+| `id`, `workspaceId` | 基本屬性 |
+| `status` | `InvoiceStatus` |
+| `amount` | `number` |
+| `currency` | `string`（預設 "TWD"） |
+| `sourceReference` | 物化來源（可選） |
+
+---
+
+## 值物件
+
+| 值物件 | 說明 |
+|--------|------|
+| `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
+| `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
+| `InvoiceStatus` | `"draft" \| "submitted" \| "finance_review" \| "approved" \| "paid" \| "closed"` |
+| `SourceReference` | `{ pageId: string, causationId: string }` |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 說明 |
+|------|------|
+| `TaskRepository` | Task CRUD + 狀態查詢 |
+| `IssueRepository` | Issue CRUD + 狀態查詢 |
+| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
+
+---
+
+## Domain Services
+
+| 服務 | 說明 |
+|------|------|
+| `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |

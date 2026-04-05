@@ -1,24 +1,25 @@
-# search — Ubiquitous Language
+# Ubiquitous Language — search
 
-> **Canonical DDD reference:** `../../docs/ddd/search/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/search/` 有界上下文內
 
-本文件是 `search` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/search/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| RAG 查詢 | RagQuery | 一次 Retrieval-Augmented Generation 查詢請求 |
+| RAG 已檢索 Chunk | RagRetrievedChunk | 向量搜尋返回的單一相關文件片段（含相似度分數） |
+| RAG 引用 | RagCitation | AI 答案引用的 chunk 來源資訊 |
+| RAG 答案輸出 | AnswerRagQueryOutput | 包含生成答案文字與引用列表的輸出 |
+| 查詢反饋 | RagQueryFeedback | 使用者對 RAG 答案品質的評分記錄 |
+| 向量存儲 | VectorStore | 向量資料庫的 Hexagonal Port（IVectorStore 介面） |
+| Wiki 引用 | WikiCitation | Wiki 整合 RAG 的引用格式（含 pageId、pageTitle） |
+| 向量文件 | VectorDocument | 要索引至向量資料庫的文件記錄 |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/search/` 保持一致
-- 若術語變更，先更新 `docs/ddd/search/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
-
-### Entities
-- `domain/entities/RagQuery.ts`
-- `domain/entities/RagQueryFeedback.ts`
-- `domain/entities/WikiRagTypes.ts`
-
-### Events
-- 目前沒有獨立的 `domain/events/*` 檔案。
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 正確 | 禁止 |
+|------|------|
+| `RagQuery` | `SearchQuery`, `Query` |
+| `RagRetrievedChunk` | `SearchResult`, `Chunk` |
+| `RagCitation` | `Citation`, `Source` |
+| `VectorStore` | `VectorDB`, `EmbeddingDB` |

@@ -1,21 +1,37 @@
-# source — Context Map
+# Context Map — source
 
-> **Canonical DDD reference:** `../../docs/ddd/source/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/source/context-map.md`，作為 `source` 在模組目錄中的整合關係速查表。
+### identity → source（Customer/Supplier）
+- `ActorContextPort` 透過 `identity/api` 驗證上傳者身分
 
-## Integration Notes
+### workspace → source（Customer/Supplier）
+- 文件隸屬 `workspaceId`，需透過 `WorkspaceGrantPort` 驗證授權
 
-- 上游：identity、workspace、organization
-- 下游：ai
+### organization → source（Customer/Supplier）
+- `OrganizationPolicyPort` 解算組織層級保留政策
 
-## 邊界規則
+---
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+## 下游（被依賴）
 
-## 參考
+### source → ai（Customer/Supplier）
 
-- `../../docs/ddd/source/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+- `source.upload_completed` 觸發 `ai` 域建立 IngestionJob
+- **Runtime 邊界**：Next.js 端執行 upload-init/complete；`py_fn/` 執行 Embedding
+
+### source → knowledge（Published Language）
+
+- 文件關聯知識頁面時通知 `knowledge` 域
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → source | identity | source | Customer/Supplier（Port） |
+| workspace → source | workspace | source | Customer/Supplier（Port） |
+| organization → source | organization | source | Customer/Supplier（Port） |
+| source → ai | source | ai | Published Language (Events) |
+| source → knowledge | source | knowledge | Published Language (Events) |

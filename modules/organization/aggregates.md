@@ -1,21 +1,43 @@
-# organization — Aggregates
+# Aggregates — organization
 
-> **Canonical DDD reference:** `../../docs/ddd/organization/aggregates.md`
+## 聚合根：Organization
 
-本文件對齊 `docs/ddd/organization/aggregates.md`，作為 `organization` 在模組目錄中的聚合根 / 實體 / 值物件索引。
+### 職責
+代表一個企業或團隊租戶。管理所有成員、隊伍與合作夥伴邀請的生命週期。
 
-## 設計摘要
+### 關鍵屬性
 
-- `organization` 的聚合設計、生命週期與不變數以 canonical DDD 文件為準
-- 模組內部程式碼導覽以下列路徑為主
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 組織主鍵 |
+| `name` | `string` | 組織名稱 |
+| `members` | `MemberReference[]` | 成員列表（含 role） |
+| `teams` | `Team[]` | 子隊伍列表 |
+| `partnerInvites` | `PartnerInvite[]` | 未完成的邀請列表 |
 
-## Entities / Aggregates
-- `domain/entities/Organization.ts`
+### 不變數
 
-## Value Objects
-- 目前沒有獨立的 value object 檔案。
+- 同一 accountId 在同一 Organization 中只能有一個 MemberReference
+- `Owner` 角色至少需要一位（不可移除最後一個 Owner）
+- 過期的 PartnerInvite（`expired`）不能再被接受
 
-## 參考
+---
 
-- `../../docs/ddd/organization/aggregates.md`
-- `../../docs/ddd/organization/README.md`
+## 值物件
+
+| 值物件 | 說明 |
+|--------|------|
+| `MemberReference` | 成員快照（id, name, email, role, presence） |
+| `Team` | 子群組（id, name, type, memberIds） |
+| `PartnerInvite` | 邀請記錄（email, role, inviteState, invitedAt） |
+| `OrganizationRole` | `"Owner" \| "Admin" \| "Member" \| "Guest"` |
+| `Presence` | `"active" \| "away" \| "offline"` |
+| `InviteState` | `"pending" \| "accepted" \| "expired"` |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `OrganizationRepository` | `save()`, `findById()`, `findByMemberId()` |

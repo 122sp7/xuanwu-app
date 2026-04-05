@@ -1,22 +1,9 @@
-# workspace-feed — Ubiquitous Language
+# Ubiquitous Language — workspace-feed
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-feed/ubiquitous-language.md`
-
-本文件是 `workspace-feed` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/workspace-feed/ubiquitous-language.md` 為準。
-
-## 使用規則
-
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/workspace-feed/` 保持一致
-- 若術語變更，先更新 `docs/ddd/workspace-feed/ubiquitous-language.md`，再同步此文件
-
-## Code Anchors
-
-### Entities
-- `domain/entities/workspace-feed-post.entity.ts`
-
-### Events
-- `domain/events/workspace-feed.events.ts`
-
-### Value Objects
-- 目前沒有獨立的 `domain/value-objects/*` 檔案。
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 動態貼文 | WorkspaceFeedPost | 工作區社交動態貼文（post / reply / repost） |
+| 貼文類型 | WorkspaceFeedPostType | `"post" \| "reply" \| "repost"` |
+| 作者帳戶 ID | authorAccountId | 發文者帳戶 ID |
+| 回覆目標 | replyToPostId | 此貼文回覆的原貼文 ID |
+| 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |

@@ -1,19 +1,24 @@
-# notification — Domain Events
+# Domain Events — notification
 
-> **Canonical DDD reference:** `../../docs/ddd/notification/domain-events.md`
+## 發出事件
 
-本文件對齊 `docs/ddd/notification/domain-events.md`，作為 `notification` 的事件程式碼入口索引。
+`notification` 域不發出 DomainEvent（通知本身是事件的結果，而非事件的來源）。
 
-## Event Files
-- 目前沒有獨立的 `domain/events/*` 檔案。
+## 訂閱事件
 
-## Event Design Rules
+`notification` 是各 BC 事件的**消費端**，訂閱業務事件並轉換為使用者通知：
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+| 來源 BC | 訂閱事件 | 通知內容 |
+|---------|---------|---------|
+| `workspace` | `workspace.member_joined` | 新成員加入通知 |
+| `workspace-flow` | `workspace-flow.task_status_changed` | 任務狀態變更通知 |
+| `workspace-audit` | 稽核紀錄變化 | 重要稽核事件通知（未來） |
 
-## 參考
+## 說明
 
-- `../../docs/ddd/notification/domain-events.md`
-- `../../docs/ddd/notification/context-map.md`
+通知系統的角色是「事件翻譯器」：
+1. 其他 BC 發出領域事件
+2. notification 訂閱並翻譯為使用者可讀的通知
+3. 通知推送給對應的 recipientId
+
+這是典型的 **Published Language** 模式，notification 作為 Conformist 消費者。

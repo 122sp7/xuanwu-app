@@ -1,20 +1,34 @@
-# shared — Domain Events
+# Domain Events — shared
 
-> **Canonical DDD reference:** `../../docs/ddd/shared/domain-events.md`
+## 說明
 
-本文件對齊 `docs/ddd/shared/domain-events.md`，作為 `shared` 的事件程式碼入口索引。
+`shared` 是 Shared Kernel，本身不發出或訂閱業務領域事件。
 
-## Event Files
-- `domain/events/knowledge-page-created.event.ts`
-- `domain/events/knowledge-updated.event.ts`
+它提供的是**所有 BC 發出事件所需的基礎介面**：
 
-## Event Design Rules
+```typescript
+// 所有模組的領域事件都遵循此結構
+interface DomainEvent {
+  readonly type: string;        // "module.entity.action" 格式
+  readonly occurredAt: string;  // ISO 8601
+}
+```
 
-- 事件命名與 payload 設計以 canonical DDD 文件為準
-- 涉及 Shared Kernel 時，遵循 `modules/shared/domain/events.ts` 的基礎契約
-- 跨模組消費事件時，只依賴公開事件語意，不依賴私有實作細節
+## 事件命名規範（全域）
 
-## 參考
+| 規則 | 範例 |
+|------|------|
+| 格式 | `<module>.<entity>.<action>` 或 `<module>.<action>` |
+| 大小寫 | 全小寫，底線分隔 |
+| 時態 | **過去式**（代表已發生的事實） |
 
-- `../../docs/ddd/shared/domain-events.md`
-- `../../docs/ddd/shared/context-map.md`
+```typescript
+// ✅ 正確命名
+"knowledge.page_created"
+"workspace.member_joined"
+"workspace-flow.task_status_changed"
+
+// ❌ 錯誤命名
+"CreatePage"         // 現在式、大寫
+"PageCreatedEvent"   // 有 Event 後綴
+```

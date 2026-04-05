@@ -1,27 +1,25 @@
-# knowledge — Ubiquitous Language
+# Ubiquitous Language — knowledge
 
-> **Canonical DDD reference:** `../../docs/ddd/knowledge/ubiquitous-language.md`
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
 
-本文件是 `knowledge` 的模組就地導覽版本，命名、術語與定義以 `docs/ddd/knowledge/ubiquitous-language.md` 為準。
+## 術語定義
 
-## 使用規則
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
 
-- 新增 class / type / variable 前，先對照 canonical 術語
-- 跨模組傳遞的公開名詞，必須與 `docs/ddd/knowledge/` 保持一致
-- 若術語變更，先更新 `docs/ddd/knowledge/ubiquitous-language.md`，再同步此文件
+## 禁止替換術語
 
-## Code Anchors
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
 
-### Entities
-- `domain/entities/block.ts`
-- `domain/entities/content-block.entity.ts`
-- `domain/entities/content-page.entity.ts`
-- `domain/entities/content-version.entity.ts`
-- `domain/entities/page.ts`
-- `domain/entities/wiki-page.types.ts`
-
-### Events
-- `domain/events/knowledge.events.ts`
-
-### Value Objects
-- `domain/value-objects/block-content.ts`
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。

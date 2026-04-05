@@ -1,21 +1,43 @@
-# workspace-audit — Context Map
+# Context Map — workspace-audit
 
-> **Canonical DDD reference:** `../../docs/ddd/workspace-audit/context-map.md`
+## 上游（依賴）
 
-本文件對齊 `docs/ddd/workspace-audit/context-map.md`，作為 `workspace-audit` 在模組目錄中的整合關係速查表。
+`workspace-audit` 訂閱所有業務 BC 的事件，但**不依賴**任何 BC 的 api。它是純事件消費者。
 
-## Integration Notes
+```
+所有業務 BC ──[Domain Events]──► workspace-audit（Terminal Sink）
+```
 
-- 上游：所有業務 BC 事件
-- 下游：workspace UI 查詢
+### 主要事件來源
 
-## 邊界規則
+| 來源 BC | 整合模式 |
+|---------|---------|
+| `workspace` | Published Language（被動消費） |
+| `organization` | Published Language（被動消費） |
+| `workspace-flow` | Published Language（被動消費） |
+| `workspace-scheduling` | Published Language（被動消費） |
+| `source` | Published Language（被動消費） |
+| `ai` | Published Language（被動消費） |
 
-- 跨模組互動只能透過目標模組 `api/` 邊界
-- 若使用事件整合，事件語意以 canonical DDD 文件為準
-- 不要從其他模組 reach-through import `domain/`、`application/`、`infrastructure/`
+---
 
-## 參考
+## 下游（被依賴）
 
-- `../../docs/ddd/workspace-audit/context-map.md`
-- `../../docs/ddd/bounded-contexts.md`
+### workspace-audit → WorkspaceDetailScreen（Interfaces）
+
+- `workspace-audit/api` 提供稽核查詢 API 給 `workspace` 的 WorkspaceDetailScreen tab
+
+---
+
+## Terminal Sink 原則
+
+`workspace-audit` 是事件消費的**終點**，不向其他 BC 發出事件。業務流程不應等待或依賴稽核記錄的完成。
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| 所有 BC → workspace-audit | 各 BC | workspace-audit | Published Language (Terminal Sink) |
+| workspace-audit → workspace UI | workspace-audit | app/ | Customer/Supplier（查詢） |
