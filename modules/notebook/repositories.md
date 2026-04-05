@@ -12,7 +12,7 @@
 ## Infrastructure Implementations
 - `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
 - `infrastructure/firebase/index.ts`
-- `infrastructure/genkit/GenkitAgentRepository.ts`
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
 - `infrastructure/genkit/client.ts`
 - `infrastructure/genkit/index.ts`
 - `infrastructure/index.ts`

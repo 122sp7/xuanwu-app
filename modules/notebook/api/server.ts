@@ -6,4 +6,4 @@
  */
 
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
-export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitAgentRepository";
+export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";

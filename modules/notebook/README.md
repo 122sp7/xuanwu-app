@@ -81,7 +81,7 @@ modules/notebook/
 │   └── value-objects/
 ├── infrastructure/       # Genkit / Firebase 適配器
 │   ├── firebase/         # FirebaseRagRetrievalRepository
-│   └── genkit/           # GenkitAgentRepository
+│   └── genkit/           # GenkitNotebookRepository
 ├── interfaces/           # UI 元件、hooks、server actions
 │   └── _actions/         # notebook.actions.ts
 └── index.ts

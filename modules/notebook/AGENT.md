@@ -31,7 +31,7 @@ import type { NotebookDTO, ThreadDTO } from "@/modules/notebook/api";
 ```typescript
 // 禁止直接 import 內部層
 import { Thread } from "@/modules/notebook/domain/entities/thread";
-import { GenkitAgentRepository } from "@/modules/notebook/infrastructure/genkit";
+import { GenkitNotebookRepository } from "@/modules/notebook/infrastructure/genkit";
 ```
 
 ## 重要架構規則

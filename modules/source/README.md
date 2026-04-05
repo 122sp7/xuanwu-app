@@ -114,7 +114,7 @@ modules/source/
 │   │   └── file.actions.ts
 │   ├── components/
 │   │   ├── WorkspaceFilesTab.tsx
-│   │   ├── AssetDocumentsView.tsx
+│   │   ├── SourceDocumentsView.tsx
 │   │   ├── LibrariesView.tsx
 │   │   └── LibraryTableView.tsx
 │   ├── hooks/

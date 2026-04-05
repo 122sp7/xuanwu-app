@@ -254,7 +254,7 @@ interface IVectorStore {
 | `RagDocumentRepository` | `FirebaseRagDocumentRepository` | `accounts/{accountId}/documents/{docId}` |
 | `RagRetrievalRepository` | `FirebaseRagRetrievalRepository` | Firestore vector queries |
 | `RagGenerationRepository` | `GenkitRagGenerationRepository` | Genkit / Gemini API |
-| `AgentRepository` | `GenkitAgentRepository` | Genkit / Gemini API |
+| `NotebookRepository` | `GenkitNotebookRepository` | Genkit / Gemini API |
 | `TaskRepository` | `FirebaseTaskRepository` | `workspaceFlowTasks/{taskId}` |
 | `IssueRepository` | `FirebaseIssueRepository` | `workspaceFlowIssues/{issueId}` |
 | `InvoiceRepository` | `FirebaseInvoiceRepository` | `workspaceFlowInvoices/{invoiceId}` |

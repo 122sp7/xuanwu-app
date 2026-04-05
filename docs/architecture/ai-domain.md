@@ -99,7 +99,7 @@ citations = chunks.map(chunk => ({
 | `GenerateAgentResponseUseCase` | 對話生成（無 RAG 上下文） |
 | `AnswerRagQueryUseCase` | RAG 增強的代理查詢（委派至 retrieval/api） |
 | `AgentRepository` | 代理生成介面 |
-| `GenkitAgentRepository` | Genkit 實作：自由對話生成 |
+| `GenkitNotebookRepository` | Genkit 實作：自由對話生成 |
 | `Thread` / `Message` | 對話歷程實體 |
 
 ---

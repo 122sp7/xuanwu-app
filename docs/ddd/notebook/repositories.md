@@ -8,7 +8,7 @@
 
 ## Domain Repository Ports
 
-- `domain/repositories/AgentRepository.ts`
+- `domain/repositories/NotebookRepository.ts`
 - `domain/repositories/RagGenerationRepository.ts`
 - `domain/repositories/RagRetrievalRepository.ts`
 
@@ -16,7 +16,7 @@
 
 - `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
 - `infrastructure/firebase/index.ts`
-- `infrastructure/genkit/GenkitAgentRepository.ts`
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
 - `infrastructure/genkit/client.ts`
 - `infrastructure/genkit/index.ts`
 - `infrastructure/index.ts`
