@@ -8,18 +8,23 @@ This file is the AI-first documentation router for the repository. Read this bef
 
 - AGENTS.md: repository-wide operating rules
 - .github/copilot-instructions.md: Copilot delivery baseline
-- agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
-- agents/commands.md: build, lint, test, and deployment commands
+- .github/agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
+- .github/agents/commands.md: build, lint, test, and deployment commands
 - docs/README.md: documentation root index
+- docs/SOURCE-OF-TRUTH.md: documentation structure source
+- docs/ddd/bounded-contexts.md: bounded-context map
+- docs/ddd/subdomains.md: subdomain classification
 
 ## Documentation reading order
 
 Read from high level to detail:
 
 1. docs/README.md
-2. docs/development-reference/specification/system-overview.md
-3. agents/knowledge-base.md
-4. docs/development-reference/reference/development-contracts/overview.md
+2. docs/SOURCE-OF-TRUTH.md
+3. .github/agents/knowledge-base.md
+4. .github/agents/commands.md
+5. docs/ddd/bounded-contexts.md
+6. docs/ddd/subdomains.md
 5. the nearest docs README in the relevant subfolder
 6. the specific contract, guide, or architecture page
 7. diagrams or ADRs only after the relevant higher-level page is identified
@@ -29,39 +34,43 @@ Read from high level to detail:
 - Repository rules and contribution workflow:
   - AGENTS.md
   - CONTRIBUTING.md
-  - agents/README.md
+  - .github/agents/README.md
 - Architecture and module boundaries:
-  - agents/knowledge-base.md
-  - docs/decision-architecture/architecture/
-  - docs/decision-architecture/adr/
+  - .github/agents/knowledge-base.md
+  - docs/ddd/
+  - docs/architecture/
 - Development workflows and implementation rules:
-  - docs/development-reference/development/README.md
-  - docs/development-reference/reference/
+  - .github/agents/commands.md
+  - docs/development/
+  - docs/guides/
 - Contract-governed workflows:
-  - docs/development-reference/reference/development-contracts/overview.md
-  - specific contract pages in docs/development-reference/reference/development-contracts/
+  - docs/reference/
+  - specific contract or specification pages under docs/reference/ and docs/templates/
 - AI workflow and Copilot customization assets:
-  - docs/development-reference/reference/ai/customizations-index.md
-  - docs/how-to-user/how-to/
+  - .github/copilot-instructions.md
   - .github/skills/
+  - docs/skills.md
+  - docs/mcp-servers.md
+  - docs/customization.md
 - Diagrams and explanatory support:
-  - docs/diagrams-events-explanations/diagrams/README.md
-  - docs/diagrams-events-explanations/explanation/
+  - diagrams/
+  - docs/diagrams/
+  - docs/guides/explanation/
 
 ## Document layers
 
 - High layer:
   - docs/README.md
-  - docs/development-reference/specification/system-overview.md
-  - agents/knowledge-base.md
+  - docs/SOURCE-OF-TRUTH.md
+  - .github/agents/knowledge-base.md
 - Mid layer:
   - folder READMEs
-  - development guides
-  - contract indexes
-  - how-to guides
+  - docs/development/
+  - docs/guides/
+  - docs/reference/
 - Low layer:
-  - ADRs
   - detailed diagrams
+  - templates
   - deep technical explanations
 
 Use the smallest useful layer first.

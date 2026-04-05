@@ -1,0 +1,4 @@
+- Activation failure root cause: `.serena/project.yml` had mutually exclusive `excluded_tools`, `included_optional_tools`, and `fixed_tools` enabled together.
+- `.vscode/mcp.json` Serena startup args were normalized to the repo-documented bootstrap command.
+- `llms.txt` routing was updated from stale docs and root `agents/*` paths to current workspace entrypoints.
+- Fix status: `.serena/project.yml`, `.vscode/mcp.json`, and `llms.txt` were all corrected on 2026-04-06.
