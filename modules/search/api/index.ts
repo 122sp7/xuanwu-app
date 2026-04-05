@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — public API barrel.
+ * modules/search — public API barrel.
  *
  * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
  * Other modules MUST import from here only.

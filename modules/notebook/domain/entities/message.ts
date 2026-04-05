@@ -1,5 +1,5 @@
 /**
- * modules/agent — domain entity: Message
+ * modules/notebook — domain entity: Message
  */
 
 import type { ID } from "@shared-types";

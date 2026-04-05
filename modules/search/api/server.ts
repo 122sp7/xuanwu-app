@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — server-only API barrel.
+ * modules/search — server-only API barrel.
  *
  * Exports concrete implementation classes that depend on server-only packages
  * (genkit, gRPC, google-auth-library, etc.).

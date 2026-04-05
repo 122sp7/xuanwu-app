@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — domain port: IVectorStore
+ * modules/search — domain port: IVectorStore
  *
  * Hexagonal architecture port that abstracts the underlying vector database
  * (e.g. Upstash Vector, Pinecone).  Infrastructure layer must implement this

@@ -239,7 +239,7 @@
 
 > **設計決策：** `ContentBlock` 為獨立 Firestore 文件（非嵌套），支援局部更新與細粒度 Embedding。
 
-**代碼位置：** `modules/content/domain/entities/`
+**代碼位置：** `modules/knowledge/domain/entities/`
 
 ---
 
@@ -276,7 +276,7 @@
 └── canRead / canWrite / canDelete: boolean
 ```
 
-**代碼位置：** `modules/asset/domain/entities/`
+**代碼位置：** `modules/source/domain/entities/`
 
 ---
 
@@ -301,7 +301,7 @@
 └── filter: FilterConfig
 ```
 
-**代碼位置：** `modules/knowledge-graph/domain/entities/`
+**代碼位置：** `modules/wiki/domain/entities/`
 
 ---
 
@@ -360,7 +360,7 @@
 └── payload: unknown
 ```
 
-**代碼位置：** `modules/retrieval/domain/entities/`
+**代碼位置：** `modules/search/domain/entities/`
 
 ---
 
@@ -382,7 +382,7 @@
 └── content: string
 ```
 
-**代碼位置：** `modules/agent/domain/entities/`
+**代碼位置：** `modules/notebook/domain/entities/`
 
 ---
 

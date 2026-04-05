@@ -1,5 +1,5 @@
 /**
- * @module modules/agent/infrastructure/genkit
+ * @module modules/notebook/infrastructure/genkit
  */
 
 export {

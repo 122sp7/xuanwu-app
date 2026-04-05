@@ -1,5 +1,5 @@
 /**
- * @deprecated Retrieval query contracts moved to modules/retrieval.
+ * @deprecated Retrieval query contracts moved to modules/search.
  */
 export type {
   AnswerRagQueryInput,

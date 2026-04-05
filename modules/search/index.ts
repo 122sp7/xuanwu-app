@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — module root barrel.
+ * modules/search — module root barrel.
  *
  * Re-exports the full public surface including "use client" UI components.
  * "use server" code must import from "@/modules/search/api" (no UI components).

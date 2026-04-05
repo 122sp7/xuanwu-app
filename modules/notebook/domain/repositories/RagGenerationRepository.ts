@@ -1,5 +1,5 @@
 /**
- * @deprecated RAG generation contracts moved to modules/retrieval.
+ * @deprecated RAG generation contracts moved to modules/search.
  */
 export type {
   GenerateRagAnswerInput,

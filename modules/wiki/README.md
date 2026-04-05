@@ -1,6 +1,6 @@
 # knowledge-graph — Knowledge Graph Layer
 
-`modules/knowledge-graph` は Knowledge Graph Layer の中核モジュールです。Wiki スタイルのナレッジグラフを管理し、ノード（GraphNode）とエッジ（GraphEdge）のライフサイクルを定義します。
+`modules/wiki` は Knowledge Graph Layer の中核モジュールです。Wiki スタイルのナレッジグラフを管理し、ノード（GraphNode）とエッジ（GraphEdge）のライフサイクルを定義します。
 
 外界との互動規則：
 - 外界は `api/` のみを通じてこのモジュールを使用してください

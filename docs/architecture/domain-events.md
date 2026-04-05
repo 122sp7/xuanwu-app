@@ -33,7 +33,7 @@ interface SomethingHappenedEvent {
 
 ## `content` 模組事件
 
-**代碼位置：** `modules/content/domain/events/content.events.ts`
+**代碼位置：** `modules/knowledge/domain/events/content.events.ts`
 
 | 事件類型 | 觸發時機 | 關鍵欄位 |
 |---------|---------|---------|
@@ -50,7 +50,7 @@ interface SomethingHappenedEvent {
 **`content.page_approved` 完整介面定義：**
 
 ```typescript
-// 代碼位置：modules/content/domain/events/content.events.ts
+// 代碼位置：modules/knowledge/domain/events/content.events.ts
 interface ContentPageApprovedEvent {
   readonly type: "content.page_approved";
   readonly aggregateId: string;       // ContentPage ID（聚合根 ID）

@@ -1,5 +1,5 @@
 /**
- * @module modules/agent/infrastructure/genkit/client
+ * @module modules/notebook/infrastructure/genkit/client
  */
 
 import { googleAI } from "@genkit-ai/google-genai";

@@ -114,7 +114,7 @@ export function subscribeToWorkspacesForAccount(
 
 ### `asset` 模組
 
-**代碼位置：** `modules/asset/interfaces/queries/file.queries.ts`
+**代碼位置：** `modules/source/interfaces/queries/file.queries.ts`
 
 | 函式 | 說明 |
 |------|------|
@@ -126,7 +126,7 @@ export function subscribeToWorkspacesForAccount(
 
 ### `content` 模組
 
-**代碼位置：** `modules/content/interfaces/queries/content.queries.ts`
+**代碼位置：** `modules/knowledge/interfaces/queries/content.queries.ts`
 
 | 函式 | 說明 |
 |------|------|
@@ -241,7 +241,7 @@ useEffect(() => {
 
 ```typescript
 // content Database Block 渲染時，透過 workspace-flow/api 的 Query 函式取得任務列表
-// modules/content/interfaces/components/DatabaseBlock.tsx（計畫中）
+// modules/knowledge/interfaces/components/DatabaseBlock.tsx（計畫中）
 
 import { getWorkspaceFlowTasks } from "@/modules/workspace-flow/api";
 

@@ -1,5 +1,5 @@
 /**
- * modules/agent — public API barrel.
+ * modules/notebook — public API barrel.
  */
 
 export type { Message, MessageRole } from "../domain/entities/message";

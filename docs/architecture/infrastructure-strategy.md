@@ -158,8 +158,8 @@ Firebase Storage
 
 | Client | 模組 | 職責 |
 |--------|------|------|
-| `aiClient`（retrieval） | `modules/retrieval/infrastructure/genkit/client.ts` | RAG 答案生成：提供 Context-grounded 回答 |
-| `agentClient`（agent） | `modules/agent/infrastructure/genkit/client.ts` | 對話代理：自由對話 + RAG 增強 |
+| `aiClient`（retrieval） | `modules/search/infrastructure/genkit/client.ts` | RAG 答案生成：提供 Context-grounded 回答 |
+| `agentClient`（agent） | `modules/notebook/infrastructure/genkit/client.ts` | 對話代理：自由對話 + RAG 增強 |
 
 ```typescript
 // 兩個 client 共享相同工廠函式，但職責獨立
@@ -266,4 +266,4 @@ Parse → MarkItDown → Markdown
 | `NoopEventBusRepository` | `IEventBusRepository` 的無操作測試實作 |
 | `InMemoryGraphRepository` | `GraphRepository` 的測試用記憶體實作（BFS/DFS 驗證） |
 
-**代碼位置：** `modules/shared/infrastructure/`、`modules/knowledge-graph/infrastructure/`
+**代碼位置：** `modules/shared/infrastructure/`、`modules/wiki/infrastructure/`

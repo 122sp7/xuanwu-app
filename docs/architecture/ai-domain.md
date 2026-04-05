@@ -109,8 +109,8 @@ citations = chunks.map(chunk => ({
 ### Client 工廠
 
 ```typescript
-// modules/agent/infrastructure/genkit/client.ts
-// modules/retrieval/infrastructure/genkit/client.ts
+// modules/notebook/infrastructure/genkit/client.ts
+// modules/search/infrastructure/genkit/client.ts
 
 const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
 

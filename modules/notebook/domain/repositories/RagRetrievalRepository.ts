@@ -1,5 +1,5 @@
 /**
- * @deprecated Retrieval repository contracts moved to modules/retrieval.
+ * @deprecated Retrieval repository contracts moved to modules/search.
  */
 export type {
   RagRetrievalRepository,

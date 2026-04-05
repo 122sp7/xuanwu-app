@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — domain/entities
+ * modules/search — domain/entities
  * Purpose: RagQueryFeedback — captures user signal on RAG answer quality.
  *
  * This entity records whether a generated answer was helpful or not,

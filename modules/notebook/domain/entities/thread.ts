@@ -1,5 +1,5 @@
 /**
- * modules/agent — domain entity: Thread
+ * modules/notebook — domain entity: Thread
  */
 
 import type { ID } from "@shared-types";

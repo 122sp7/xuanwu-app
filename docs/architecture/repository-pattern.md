@@ -72,7 +72,7 @@ infrastructure/firebase/ (concrete)
 ### `content`
 
 ```typescript
-// modules/content/domain/repositories/content.repositories.ts
+// modules/knowledge/domain/repositories/content.repositories.ts
 
 interface ContentPageRepository {
   create(input: CreateContentPageInput): Promise<ContentPage>;
@@ -115,7 +115,7 @@ interface ContentVersionRepository {
 ### `knowledge-graph`
 
 ```typescript
-// modules/knowledge-graph/domain/repositories/GraphRepository.ts
+// modules/wiki/domain/repositories/GraphRepository.ts
 
 interface GraphRepository {
   upsertNode(node: GraphNode): Promise<void>;
@@ -141,19 +141,19 @@ interface GraphRepository {
 ### `retrieval`
 
 ```typescript
-// modules/retrieval/domain/repositories/RagRetrievalRepository.ts
+// modules/search/domain/repositories/RagRetrievalRepository.ts
 
 interface RagRetrievalRepository {
   retrieve(input: RetrieveRagChunksInput): Promise<readonly RagRetrievedChunk[]>;
 }
 
-// modules/retrieval/domain/repositories/RagGenerationRepository.ts
+// modules/search/domain/repositories/RagGenerationRepository.ts
 
 interface RagGenerationRepository {
   generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
 }
 
-// modules/retrieval/domain/repositories/WikiContentRepository.ts
+// modules/search/domain/repositories/WikiContentRepository.ts
 
 interface WikiContentRepository {
   getPages(workspaceId: string): Promise<WikiPage[]>;
@@ -200,12 +200,12 @@ Port 是比 Repository 更廣義的 domain 抽象埠，用於跨切關注點（n
 ### `asset` 模組 Ports
 
 ```typescript
-// modules/asset/domain/ports/ActorContextPort.ts
+// modules/source/domain/ports/ActorContextPort.ts
 interface ActorContextPort {
   getActorFileContext(actorAccountId: string): ActorFileContext | null;
 }
 
-// modules/asset/domain/ports/WorkspaceGrantPort.ts
+// modules/source/domain/ports/WorkspaceGrantPort.ts
 interface WorkspaceGrantPort {
   getWorkspaceGrantSnapshot(
     workspaceId: string,
@@ -213,7 +213,7 @@ interface WorkspaceGrantPort {
   ): WorkspaceGrantSnapshot | null;
 }
 
-// modules/asset/domain/ports/OrganizationPolicyPort.ts
+// modules/source/domain/ports/OrganizationPolicyPort.ts
 interface OrganizationPolicyPort {
   getPolicyForActor(organizationId: string, actorAccountId: string): OrgPolicySnapshot | null;
 }
@@ -222,7 +222,7 @@ interface OrganizationPolicyPort {
 ### `retrieval` 模組 Ports
 
 ```typescript
-// modules/retrieval/domain/ports/vector-store.ts
+// modules/search/domain/ports/vector-store.ts
 
 /** Hexagonal Port：向量資料庫的純抽象 */
 interface IVectorStore {

@@ -7,7 +7,7 @@
 **狀態（Status）：** 已接受（Accepted）  
 **日期（Date）：** 2026-03-27  
 **提案者（Proposers）：** Architecture Team  
-**影響範圍（Scope）：** `modules/content`, `modules/workspace-flow`, `modules/shared`
+**影響範圍（Scope）：** `modules/knowledge`, `modules/workspace-flow`, `modules/shared`
 
 ---
 
@@ -141,7 +141,7 @@ content (Database View) ──reads──► workspace-flow
 | 🔴 高 | 在 `content/domain/events` 完善 `ContentPageApprovedEvent` 介面定義（含 actorId、causationId、correlationId） | `content` | v1.1 |
 | 🔴 高 | 實作 `contentToWorkflowMaterializer` Process Manager | `workspace-flow` 或 `shared` | v1.1 |
 | 🔴 高 | 在 `workspace-flow` 的 Task/Invoice 聚合根新增 `sourceReference` 欄位 | `workspace-flow` | v1.1 |
-| 🟡 中 | 建立 `modules/content/api/events.ts` 匯出事件契約供跨模組訂閱 | `content` | v1.1 |
+| 🟡 中 | 建立 `modules/knowledge/api/events.ts` 匯出事件契約供跨模組訂閱 | `content` | v1.1 |
 | 🟡 中 | 建立 `modules/workspace-flow/api/listeners.ts` 定義事件監聽介面 | `workspace-flow` | v1.1 |
 | 🟡 中 | UI 審閱流程納入 Tasks Tab 的 UI Steps（審閱 → 批准 → 實體化） | `workspace-flow` interfaces | v1.1 |
 | 🟢 低 | `content` Database Block 新增 `workflow-ref` BlockType，透過 Read Model 嵌入任務狀態 | `content` | v1.2 |

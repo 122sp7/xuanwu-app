@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — domain/repositories
+ * modules/search — domain/repositories
  * Purpose: Port interface for RAG query feedback persistence.
  */
 

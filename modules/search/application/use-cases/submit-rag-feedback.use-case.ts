@@ -1,5 +1,5 @@
 /**
- * modules/retrieval — application/use-cases
+ * modules/search — application/use-cases
  * Purpose: SubmitRagQueryFeedbackUseCase — persists user feedback on a RAG
  *          answer and returns a CommandResult.
  *
