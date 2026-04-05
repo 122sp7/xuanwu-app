@@ -11,8 +11,8 @@
     "directoryStructure": true,
     "files": true,
     "removeComments": false,
-    "removeEmptyLines": false,
-    "compress": false,
+    "removeEmptyLines": true,
+    "compress": true,
     "topFilesLength": 5,
     "showLineNumbers": false,
     "truncateBase64": false,
@@ -100,7 +100,15 @@
       "*.gz",
 
       "*.sqlite",
-      "*.db"
+      "*.db",
+
+      "docs/**",
+      ".github/agents/**",
+      ".github/instructions/**",
+      ".github/prompts/**",
+      ".github/terminology-glossary.md",
+      ".github/README.md",
+      ".github/copilot-instructions.md"
     ]
   },
   "security": {

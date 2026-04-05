@@ -1,4 +1,5 @@
 This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where empty lines have been removed.
 
 # Summary
 
@@ -32,27 +33,28 @@ This skill contains the following reference files:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: **/*.md
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, diagrams/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
+- Empty lines have been removed from all files
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-561 files | 33,983 lines
+454 files | 19,895 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 561 | 33,983 |
+| Markdown | 454 | 19,895 |
 
 **Largest files:**
 - `docs/guides/explanation/architecture.md` (942 lines)
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
-- `.claude/skills/languages/framer-motion/SKILL.md` (514 lines)
-- `.claude/skills/languages/kotlin/SKILL.md` (478 lines)
-- `.claude/templates/artifacts/system_design.template.md` (446 lines)
-- `.claude/skills/languages/swift/SKILL.md` (405 lines)
 - `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)
-- `.claude/skills/languages/hono/SKILL.md` (343 lines)
 - `docs/guides/how-to/ui-ux/wireframes.md` (337 lines)
-- `.claude/templates/artifacts/security_audit.template.md` (321 lines)
+- `py_fn/README.md` (265 lines)
+- `docs/guides/how-to/ui-ux/information-architecture.md` (244 lines)
+- `.github/agents/knowledge-base.md` (228 lines)
+- `docs/guides/how-to/ui-ux/ux-principles.md` (228 lines)
+- `docs/reference/specification/system-overview.md` (189 lines)
+- `docs/development/modules-implementation-guide.md` (165 lines)
