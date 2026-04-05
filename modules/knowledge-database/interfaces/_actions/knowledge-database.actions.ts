@@ -43,7 +43,14 @@ export async function updateDatabase(input: UpdateDatabaseInput): Promise<Comman
 
 export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
   try {
-    return await new AddFieldUseCase(makeDatabaseRepo()).execute(input);
+    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.field.name,
+      type: input.field.type,
+      config: input.field.config,
+      required: input.field.required,
+    });
   } catch (e) {
     return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
   }

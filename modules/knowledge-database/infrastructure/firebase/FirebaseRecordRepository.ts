@@ -53,7 +53,6 @@ export class FirebaseRecordRepository implements IDatabaseRecordRepository {
       workspaceId: input.workspaceId,
       accountId: input.accountId,
       properties: input.properties ?? {},
-      order: input.order,
       createdByUserId: input.createdByUserId,
       createdAtISO: now,
       updatedAtISO: now,
@@ -71,9 +70,8 @@ export class FirebaseRecordRepository implements IDatabaseRecordRepository {
     const now = new Date().toISOString();
     const updates: Record<string, unknown> = { updatedAtISO: now };
     if (input.properties !== undefined) {
-      updates.properties = Object.fromEntries(input.properties);
+      updates.properties = input.properties;
     }
-    if (input.order !== undefined) updates.order = input.order;
     await updateDoc(ref, updates);
     const merged = { ...snap.data() as Record<string, unknown>, ...updates };
     return toRecord(snap.id, merged);
