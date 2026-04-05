@@ -40,9 +40,22 @@ export {
   removePageFromCollection,
   addCollectionColumn,
   archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
 } from "../interfaces/_actions/knowledge.actions";
 
 export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
 
 // ── Collection types ──────────────────────────────────────────────────────────
 
@@ -51,6 +64,7 @@ export type {
   CollectionColumn,
   CollectionColumnType,
   CollectionStatus,
+  CollectionSpaceType,
 } from "../domain/entities/knowledge-collection.entity";
 
 export type {
@@ -75,3 +89,15 @@ export type {
   ExtractedInvoice,
   KnowledgeEventType,
 } from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
