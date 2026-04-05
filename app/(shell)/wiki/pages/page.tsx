@@ -1,42 +1,12 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { PagesView } from "@/modules/knowledge/api";
-
 export default function WikiPagesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
-
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <p className="text-sm text-muted-foreground">頁面樹 MVP，支援層級建立、重新命名與移動。</p>
+        <p className="text-sm text-muted-foreground">此功能已移除，由 Knowledge Domain 的 KnowledgePage 統一管理。</p>
       </header>
-
-      <button
-        type="button"
-        onClick={() => router.push("/wiki")}
-        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        返回 Account Wiki
-      </button>
-
-      {accountId ? (
-        <PagesView accountId={accountId} workspaceId={workspaceId} />
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
     </div>
+  );
+}
   );
 }

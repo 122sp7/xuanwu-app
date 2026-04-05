@@ -21,6 +21,15 @@ import type {
   KnowledgeVersion,
   CreateKnowledgeVersionInput,
 } from "../entities/content-version.entity";
+import type {
+  KnowledgeCollection,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../entities/knowledge-collection.entity";
 
 export interface KnowledgePageRepository {
   create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
@@ -47,4 +56,16 @@ export interface KnowledgeVersionRepository {
   create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
   findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
   listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
+}
+
+export interface KnowledgeCollectionRepository {
+  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
+  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
+  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
+  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
+  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
+  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
 }
