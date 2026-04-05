@@ -6,17 +6,13 @@
 
 ## 文件索引
 
-### 核心 DDD 參考
+### 核心 DDD 參考（Canonical 在 `docs/ddd/`）
 
 | 文件 | 說明 |
 |------|------|
-| [`bounded-contexts.md`](./bounded-contexts.md) | 16 個有界上下文的職責、實體、事件與邊界規則 |
-| [`ubiquitous-language.md`](./ubiquitous-language.md) | 通用語言字典：術語定義、命名規範、代碼位置對照 |
-| [`domain-model.md`](./domain-model.md) | 領域模型：所有 Aggregate、Entity、Value Object 結構與狀態機 |
-| [`domain-events.md`](./domain-events.md) | 領域事件完整目錄：設計規範、事件清單與跨上下文事件流 |
-| [`use-cases.md`](./use-cases.md) | Use Cases / Application Layer：所有 Use Case 列表與設計原則 |
-| [`repository-pattern.md`](./repository-pattern.md) | Repository Pattern：介面定義、Port、Firebase 實作對照表 |
-| [`domain-services.md`](./domain-services.md) | 領域服務：狀態機策略、業務守衛與純函式服務 |
+| [`bounded-contexts.md`](./bounded-contexts.md) | Canonical Link（主內容在 `docs/ddd/bounded-contexts.md`） |
+| [`../ddd/subdomains.md`](../ddd/subdomains.md) | 子域分類（Canonical） |
+| [`../ddd/bounded-contexts.md`](../ddd/bounded-contexts.md) | 有界上下文地圖（Canonical） |
 
 ### 架構設計
 
@@ -53,4 +49,3 @@ AI 功能開發:
 架構合規:
   module-boundary.md → bounded-contexts.md
 ```
-
