@@ -1,75 +1,37 @@
-# organization — Organization Management Layer
+# organization — 組織上下文
 
-> **開發狀態**：✅ Done — 核心功能完成
-> **Domain Type**：Generic Domain（通用域）
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/organization/`  
+> **開發狀態:** ✅ Done — 穩定
 
-`modules/organization` 負責團隊/組織的管理，包含組織建立、成員管理、角色授權與組織政策。是工作區（workspace）的上層治理結構。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| 組織管理 | 建立、更新、刪除組織（Organization） |
-| 成員管理 | 邀請、移除成員，管理成員角色 |
-| 角色授權 | 定義並執行組織層級的角色與權限 |
-| 組織政策 | 管理組織層級的存取政策 |
+|---|---|
+| 組織管理 | 建立與維護 Organization 聚合 |
+| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
+| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
 
----
+## 與其他 Bounded Context 協作
 
-## 聚合根（Aggregate Roots）
+- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
+- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
 
-| Aggregate | 說明 |
-|-----------|------|
-| `Organization` | 組織聚合根，包含成員列表與組織設定 |
-| `OrganizationMember` | 組織成員實體，含角色資訊 |
-| `OrganizationRole` | 組織角色定義 |
+## 核心聚合 / 核心概念
 
----
+- **`Organization`**
+- **`MemberReference`**
+- **`Team`**
 
-## 通用語言（Ubiquitous Language）
+## 詳細文件
 
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 組織 | Organization | 團隊或公司的管理單元 |
-| 租戶 | Tenant | 組織的另一種表達（multi-tenant 情境） |
-| 成員 | Member | 組織的成員 |
-| 角色 | Role | 成員在組織中的職責定義 |
-| 邀請 | Invitation | 新成員加入組織的邀請流程 |
-
----
-
-## 領域事件（Domain Events）
-
-| 事件 | 觸發條件 |
-|------|----------|
-| `organization.created` | 新組織建立時 |
-| `organization.member_invited` | 成員被邀請時 |
-| `organization.member_removed` | 成員被移除時 |
-| `organization.role_assigned` | 角色被指派給成員時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`（使用者身分驗證）
-- **下游（被依賴）**：`workspace/api`、`account/api`、`source/api`
-
----
-
-## 目錄結構
-
-```
-modules/organization/
-├── api/                  # 公開 API 邊界
-├── application/          # Use Cases
-├── domain/               # Aggregates, Entities, Repositories
-├── infrastructure/       # Firebase 適配器
-├── interfaces/           # UI 元件、Server Actions
-└── index.ts
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

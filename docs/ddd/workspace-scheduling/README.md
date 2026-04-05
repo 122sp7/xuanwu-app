@@ -1,38 +1,37 @@
-# workspace-scheduling — 排程上下文
+# workspace-scheduling — 工作區排程上下文
 
-> **Domain Type:** Supporting Subdomain（支援域）
-> **模組路徑:** `modules/workspace-scheduling/`
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-scheduling/`  
 > **開發狀態:** 🏗️ Midway
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`workspace-scheduling` 管理工作區的**工作需求（WorkDemand）排程**。提供日曆視圖、截止日期追蹤與工作需求的生命週期管理。
+`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
 
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| WorkDemand CRUD | 建立、更新、刪除工作需求 |
-| 狀態管理 | WorkDemand 狀態機（draft → open → in_progress → completed） |
-| 優先級設定 | WorkDemand 優先級（low / medium / high） |
-| 日曆視圖 | 提供日曆控件顯示排程（CalendarWidget） |
-| 帳戶排程視圖 | 跨工作區的帳戶級別排程總覽（AccountSchedulingView） |
+|---|---|
+| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
+| 時間視圖 | 提供日曆、截止與安排視角 |
+| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
 
-## 核心概念
+## 與其他 Bounded Context 協作
 
-- **`WorkDemand`** — 工作需求聚合根（title、status、priority、dueDate）
+- `workspace-flow` 可作為排程需求來源。
+- `workspace` 提供排程歸屬與成員範圍。
 
-## 狀態機
+## 核心聚合 / 核心概念
 
-```
-WorkDemand: draft → open → in_progress → completed
-```
+- **`WorkDemand`**
+- **`ScheduleWindow`**
+- **`CapacityAllocation`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | WorkDemand 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

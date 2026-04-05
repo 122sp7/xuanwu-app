@@ -1,76 +1,37 @@
-# shared — Shared Domain Primitives
+# shared — 共享核心上下文
 
-> **開發狀態**：✅ Done — 穩定維護中
-> **Domain Type**：Shared Kernel（共享核心）
+> **Domain Type:** Shared Kernel  
+> **模組路徑:** `modules/shared/`  
+> **開發狀態:** ✅ Done — 穩定
 
-`modules/shared` 提供整個平台共用的 Value Objects、工具函數、事件基礎型別與共享基礎設施。所有其他模組都可以依賴 shared，但 shared 不能依賴任何其他業務模組。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- 所有模組均可直接 import `modules/shared`（不需要經過 api/）
-- shared 的 export 必須是純粹的型別、值物件或工具函數，不能包含業務邏輯
+`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| DomainEvent 基礎型別 | `DomainEvent` 介面定義（含 `occurredAt` ISO string） |
-| 共用 Value Objects | 跨模組使用的值物件（如 ID 型別、時間戳） |
-| 共用工具函數 | 跨模組使用的純工具函數 |
-| 共用基礎設施 | Firebase 初始化、共用 Firestore 適配器 |
+|---|---|
+| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
+| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
+| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
 
----
+## 與其他 Bounded Context 協作
 
-## 核心型別
+- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
+- `shared` 的變更需視為跨域契約變更處理。
 
-### DomainEvent
+## 核心聚合 / 核心概念
 
-```typescript
-// modules/shared/domain/events.ts
-export interface DomainEvent {
-  type: string;
-  eventId: string;         // UUID
-  occurredAt: string;      // ISO 8601 字串（不是 Date 物件）
-  payload: Record<string, unknown>;
-}
-```
+- **`DomainEvent`**
+- **`EventRecord`**
+- **`SlugUtils`**
 
-> ⚠️ 注意：欄位是 `occurredAt`（ISO string），不是 `occurredAtISO`、不是 `Date` 物件
+## 詳細文件
 
----
-
-## 通用語言（Ubiquitous Language）
-
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 領域事件 | DomainEvent | 所有領域事件的基礎介面 |
-| 發生時間 | occurredAt | 事件發生的 ISO 8601 時間字串 |
-| 事件 ID | eventId | 事件的唯一識別碼（UUID） |
-
----
-
-## 重要約束
-
-- `occurredAt` 必須是 **ISO string**，不能是 `Date` 物件（跨 Server/Client 序列化安全）
-- shared 不能 import 任何業務模組（identity、knowledge、workspace 等）
-- 放入 shared 的內容必須真正跨模組共用，單模組專用的不應放在 shared
-
----
-
-## 目錄結構
-
-```
-modules/shared/
-├── domain/               # 共用領域型別
-│   └── events.ts         # DomainEvent 基礎介面
-├── infrastructure/       # 共用基礎設施
-│   └── firebase/         # Firebase 初始化
-└── index.ts
-```
-
----
-
-## 架構參考
-
-- 領域事件規範：`docs/architecture/domain-events.md`
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

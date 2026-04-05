@@ -1,40 +1,38 @@
 # knowledge — 知識內容上下文
 
-> **Domain Type:** **Core Domain**（核心域）
-> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
 > **開發狀態:** 🚧 Developing — 積極開發中
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`knowledge` 是 Xuanwu 知識平台的**最高策略重要性域**。它管理知識頁面（KnowledgePage）的完整生命週期：建立、Block 編輯、版本歷史，以及 AI 審批驅動的任務/發票物化流程。
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
 
-這是用戶每天最高頻交互的域，決定平台的核心體驗。
-
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| KnowledgePage CRUD | 建立、讀取、更新（Block 編輯）、歸檔 |
-| ContentBlock 管理 | 多型區塊內容（text/heading/image/code/bullet-list）的增刪改 |
-| ContentVersion 歷史 | 手動觸發版本快照，保存頁面歷史 |
-| Wiki 頁面整合 | WikiPage（wiki-page.types.ts）掛載於工作區 |
-| AI 審批流 | 使用者審批 AI 生成草稿，發出 `knowledge.page_approved` 事件 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
 
-## 核心聚合根
+## 與其他 Bounded Context 協作
 
-- **`KnowledgePage`** — 核心知識單元（title、parentPageId、blockIds）
-- **`ContentBlock`** — 原子內容區塊（id、pageId、content、blockType、order）
-- **`ContentVersion`** — 頁面歷史快照（snapshotBlocks、editSummary、authorId）
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
 
-## 關鍵事件
+## 核心聚合 / 核心概念
 
-`knowledge.page_approved` 是平台最重要的整合接縫：AI 生成內容被用戶審批後，此事件觸發 `workspace-flow` 的 ContentToWorkflowMaterializer 建立 Task 和 Invoice。
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | KnowledgePage 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 完整事件目錄 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

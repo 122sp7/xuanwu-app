@@ -1,33 +1,37 @@
-# shared — 共享核心
+# shared — 共享核心上下文
 
-> **Domain Type:** Shared Kernel（共享核心）
-> **模組路徑:** `modules/shared/`
+> **Domain Type:** Shared Kernel  
+> **模組路徑:** `modules/shared/`  
 > **開發狀態:** ✅ Done — 穩定
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`shared` 是 IDDD 的 **Shared Kernel** 模式實作。它不是一個完整的業務域，而是多個 BC 共同依賴的**最小共享基礎型別集**。任何新增都需要所有消費方共識。
+`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
 
-## 內容
+## 主要職責
 
-| 元素 | 型別 | 說明 |
-|------|------|------|
-| `DomainEvent` | Interface | 所有領域事件的基礎介面（`occurredAt: string` ISO） |
-| `EventRecord` | Interface | 稽核/追蹤用的事件記錄基礎型別 |
-| `SlugUtils` | Utility | URL-safe slug 生成工具 |
-| 基礎型別 | Types | `ID`, `Timestamp` 等共用型別 |
+| 能力 | 說明 |
+|---|---|
+| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
+| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
+| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
 
-## 重要規則
+## 與其他 Bounded Context 協作
 
-- `DomainEvent.occurredAt` 欄位名稱為 **`occurredAt`**（ISO string），**不是** `occurredAtISO`
-- Shared Kernel 的任何變更需要所有消費模組的共識（IDDD 規則）
-- 不要將業務邏輯放入 `shared/`
+- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
+- `shared` 的變更需視為跨域契約變更處理。
+
+## 核心聚合 / 核心概念
+
+- **`DomainEvent`**
+- **`EventRecord`**
+- **`SlugUtils`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
-| [ubiquitous-language.md](./ubiquitous-language.md) | Shared Kernel 通用語言 |
-| [aggregates.md](./aggregates.md) | 共享基礎型別 |
-| [domain-events.md](./domain-events.md) | DomainEvent 基礎介面 |
-| [context-map.md](./context-map.md) | 與所有 BC 的共享關係 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

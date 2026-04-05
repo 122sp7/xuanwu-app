@@ -1,38 +1,37 @@
 # workspace — 工作區上下文
 
-> **Domain Type:** Generic Subdomain
-> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
 > **開發狀態:** ✅ Done — 穩定
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`workspace` 是 Xuanwu 平台的**協作容器**，所有知識內容、任務、稽核記錄都歸屬於特定工作區。它也持有 Wiki 內容樹結構（WikiContentTree）與工作區成員管理。
+`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
 
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| Workspace CRUD | 建立、更新、歸檔工作區 |
-| 成員管理 | WorkspaceMember 邀請、移除、角色變更 |
-| Wiki 內容樹 | 維護 WikiContentTree（頁面的樹狀層級結構） |
-| Wiki 工作區關聯 | 管理 WikiWorkspaceRepository（Wiki 頁面隸屬關係） |
-| 子模組組合 | 在 WorkspaceDetailScreen 組合 workspace-{flow,audit,feed,scheduling} tabs |
+|---|---|
+| Workspace 容器管理 | 建立、更新、歸檔工作區 |
+| 成員與角色 | 管理工作區成員、角色與協作可見性 |
+| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
 
-## 核心概念
+## 與其他 Bounded Context 協作
 
-- **`Workspace`** — 協作容器（accountId、name、status）
-- **`WorkspaceMember`** — 成員在工作區中的參與記錄
-- **`WikiContentTree`** — 工作區 Wiki 頁面的樹狀層級結構
+- `organization` 是主要上游，提供多租戶歸屬。
+- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
 
-## 特殊邊界規則
+## 核心聚合 / 核心概念
 
-`workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
+- **`Workspace`**
+- **`WorkspaceMember`**
+- **`WikiContentTree`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | Workspace 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

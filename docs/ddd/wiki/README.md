@@ -1,40 +1,37 @@
 # wiki — 知識圖譜上下文
 
-> **Domain Type:** **Core Domain**（核心域）
-> **模組路徑:** `modules/wiki/`
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/wiki/`  
 > **開發狀態:** 🏗️ Midway
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`wiki` 實作知識平台的**知識圖譜層**——GraphNode 與 GraphEdge 的生命週期管理。這是 Xuanwu 差異於一般文件工具的核心視覺特性：知識節點間的結構性連結可視化，支援 Backlink 與 Graph Traversal。
+`wiki` 是 Xuanwu 的 Wiki-like 結構層，負責把知識內容變成可連結、可遍歷、可回溯的節點與關聯網路。它與 `knowledge` 一起形成產品最核心的差異化價值。
 
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| GraphNode 管理 | 知識節點 CRUD（draft → active → archived 狀態機） |
-| GraphEdge 管理 | 節點間關係 CRUD（pending → active → inactive → removed 狀態機） |
-| Backlink 查詢 | 列出所有指向特定節點的邊（反向連結） |
-| Graph Traversal | 從起點節點向外遍歷關聯節點 |
-| AutoLink | 自動識別內容中的節點引用並建立 GraphEdge |
+|---|---|
+| Graph Node 管理 | 維護知識節點的生命週期與可見性 |
+| Graph Edge 管理 | 維護節點之間的關聯、Backlink 與關係狀態 |
+| 結構化知識導航 | 支撐圖譜遍歷、自動連結與知識關聯理解 |
 
-## 核心聚合根
+## 與其他 Bounded Context 協作
 
-- **`GraphNode`** — 知識節點（title, nodeType, status: draft → active → archived）
-- **`GraphEdge`** — 節點間有向關係（sourceNodeId, targetNodeId, edgeType, status）
+- `knowledge` 提供被結構化的核心內容。
+- `search` 與 `notebook` 消費圖譜脈絡做檢索與推理；`workspace` 提供圖譜的協作歸屬。
 
-## 圖譜狀態機
+## 核心聚合 / 核心概念
 
-```
-GraphNode: draft ──► active ──► archived
-GraphEdge: pending ──► active ──► inactive ──► removed
-```
+- **`GraphNode`**
+- **`GraphEdge`**
+- **`WikiPage`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | GraphNode / GraphEdge 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

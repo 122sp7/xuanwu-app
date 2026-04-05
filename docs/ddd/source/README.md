@@ -1,41 +1,37 @@
 # source — 文件來源上下文
 
-> **Domain Type:** Supporting Subdomain（支援域）
-> **模組路徑:** `modules/source/`
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
 > **開發狀態:** 🚧 Developing
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`source` 管理知識平台的**文件來源生命週期**，是 RAG 攝入管線的文件入口。它擁有檔案上傳、版本快照、保留政策與 RAG 文件登記的業務規則。
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
 
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| upload-init | 建立 SourceDocument 聚合根、產生 Firebase Storage 上傳簽名 URL |
-| upload-complete | 標記上傳完成、觸發 IngestionHandoff 給 `ai` 域 |
-| RagDocument 登記 | 登記已完成上傳的文件進入 RAG 管線 |
-| WikiLibrary 管理 | 管理知識庫文件集合（WikiLibrary） |
-| 檔案列表查詢 | 依工作區範圍列出 SourceDocument |
-| 保留政策 | 管理 RetentionPolicy（保留期限、刪除規則） |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
 
-## 核心聚合根
+## 與其他 Bounded Context 協作
 
-- **`SourceDocument`**（File.ts）— 核心檔案聚合根，管理上傳生命週期、FileVersion
-- **`WikiLibrary`** — RAG 文件的邏輯集合容器
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
 
-## Runtime 邊界（重要）
+## 核心聚合 / 核心概念
 
-```
-Next.js（source module） → 上傳 UX、Server Action、upload-init/complete
-py_fn/                   → Embedding 生成、向量寫入（重型工作）
-```
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | SourceDocument 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

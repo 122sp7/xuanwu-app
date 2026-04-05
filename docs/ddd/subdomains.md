@@ -1,204 +1,121 @@
 # Subdomains — Xuanwu App
 
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
+> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
 
-本文件依照 IDDD 策略設計原則，將 Xuanwu App 的所有業務能力分類為 **核心域（Core Domain）**、**支援子域（Supporting Subdomain）** 與 **通用子域（Generic Subdomain）**。
+本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
 
 ---
 
-## 一、分類依據
+## 分類原則
 
 | 分類 | 定義 | 投資策略 |
-|------|------|----------|
-| **Core Domain** | 企業競爭優勢所在，直接體現產品核心價值 | 最高投入，自行建構，精細建模 |
-| **Supporting Subdomain** | 支撐核心域運作，對業務重要但非差異化競爭點 | 中等投入，可自建或定制，務實建模 |
-| **Generic Subdomain** | 商品化能力，所有同類產品都需要 | 低投入，優先採用成熟方案，最小化自定義 |
+|---|---|---|
+| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
+| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
+| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
+| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
 
 ---
 
-## 二、核心域（Core Domain）
-
-核心域是 Xuanwu App 的**差異化競爭優勢**，代表知識平台的核心價值主張。
+## Core Domain
 
 ### `knowledge` — 知識內容管理
 
-**戰略重要性：** ⭐⭐⭐ 最高
-
-Xuanwu 的核心產品功能是「結構化知識創作與協作」。`knowledge` 域擁有 KnowledgePage 的完整生命週期——建立、區塊編輯、版本歷史、審批流程。這是用戶每天最高頻互動的域，決定產品體驗的成敗。
+Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
 
 **為何是核心域：**
-- 知識頁面的 Block Editor 體驗是核心差異點
-- ContentVersion 版本歷史是知識管理的核心能力
-- `knowledge.page_approved` 事件驅動 AI 物化流程，是 AI×知識 融合的關鍵接縫
+- 承載 Knowledge Page / Block Editor 的主體體驗
+- 決定知識如何被保存、版本化、審批與再利用
+- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
 
-**模組：** `modules/knowledge/`
+### `wiki` — 知識結構與圖譜
 
----
-
-### `wiki` — 知識圖譜
-
-**戰略重要性：** ⭐⭐⭐ 最高
-
-Wiki-style 知識圖譜（GraphNode / GraphEdge）是 Xuanwu 差異於一般文件工具的核心特性，提供知識之間的結構性關聯，支援 Backlink 與 Graph Traversal。
+Xuanwu 的第二核心域。它提供 Wiki-like 的節點、關聯、Backlink 與結構導航，是知識平台從「文件集合」進化到「知識網路」的關鍵。
 
 **為何是核心域：**
-- 知識圖譜可視化是產品的核心視覺記憶點
-- 自動連結（AutoLink）是 AI 輔助知識組織的核心能力
-- 圖譜遍歷是未來 AI 推理的結構基礎
-
-**模組：** `modules/wiki/`
+- 提供知識關聯與語意結構，而不只是文件儲存
+- 形成 NotebookLM-like 推理所需的可追溯結構基礎
+- 與 `knowledge` 共同構成平台的差異化壁壘
 
 ---
 
-## 三、支援子域（Supporting Subdomain）
+## Supporting Subdomains
 
-支援子域對核心域的運作不可或缺，但不直接體現產品差異化。
+### `source`
+負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
 
-### `ai` — AI 攝入管線
+### `ai`
+負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
 
-**職責：** 管理 IngestionJob 的完整生命週期（uploaded → parsing → embedding → indexed），協調 `py_fn/` Python worker 的執行。
+### `search`
+負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
 
-**為何是支援域：** 攝入管線是核心 RAG 能力的基礎設施，重要但可被同類系統替換。
+### `notebook`
+負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
 
-**模組：** `modules/ai/`
+### `workspace-flow`
+負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
 
----
+### `workspace-scheduling`
+負責工作需求與排程，將協作項目放入時間與容量視角管理。
 
-### `notebook` — AI 對話生成
+### `workspace-audit`
+負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
 
-**職責：** 管理對話 Thread / Message，提供 GenerateNotebookResponse 介面，封裝 Genkit AI 模型呼叫。
-
-**模組：** `modules/notebook/`
-
----
-
-### `search` — RAG 語意檢索
-
-**職責：** 向量搜尋（VectorStore port）、RAG answer 生成、RagQueryFeedback 收集，提供 Wiki RAG 查詢介面。
-
-**模組：** `modules/search/`
+### `workspace-feed`
+負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
 
 ---
 
-### `source` — 文件來源管理
+## Generic Subdomains / Shared Kernel
 
-**職責：** 檔案上傳生命週期（upload-init / upload-complete）、版本快照（FileVersion）、保留政策（RetentionPolicy）、RAG 文件登記（RagDocument）、WikiLibrary 集合管理。
+### `identity`
+封裝身份驗證與 session 起點，屬於標準平台能力。
 
-**模組：** `modules/source/`
+### `account`
+承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
 
----
+### `organization`
+提供多租戶組織、成員與團隊治理，是平台級協作基礎。
 
-### `workspace-flow` — 工作流程狀態機
+### `workspace`
+提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
 
-**職責：** Task / Issue / Invoice 三條業務線的狀態轉換機、守衛規則、Process Manager（ContentToWorkflowMaterializer）。
+### `notification`
+負責通知與提醒分發，屬典型平台配套能力。
 
-**模組：** `modules/workspace-flow/`
-
----
-
-### `workspace-scheduling` — 工作需求排程
-
-**職責：** WorkDemand 建立與狀態管理（draft → open → in_progress → completed），提供日曆視圖與截止日期追蹤。
-
-**模組：** `modules/workspace-scheduling/`
+### `shared`
+作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
 
 ---
 
-### `workspace-audit` — 稽核紀錄
+## 子域分類總表
 
-**職責：** Append-only 稽核記錄查詢，工作區與組織範圍的稽核可見性。
-
-**模組：** `modules/workspace-audit/`
-
----
-
-### `workspace-feed` — 工作區動態牆
-
-**職責：** WorkspaceFeedPost 建立（post / reply / repost），互動記錄（like / view / bookmark / share），提供工作區社交動態流。
-
-**模組：** `modules/workspace-feed/`
-
----
-
-## 四、通用子域（Generic Subdomain）
-
-通用子域是「每個系統都需要」的基礎能力，優先採用現成方案，最小化定制。
-
-### `identity` — 身份驗證
-
-**職責：** Firebase Authentication 的 domain 封裝，signIn / signOut / token 刷新。
-
-**通用性：** OAuth/Firebase Auth 是業界標準，無差異化空間。
-
-**模組：** `modules/identity/`
-
----
-
-### `account` — 帳戶與個人設定
-
-**職責：** Account profile 管理、AccountPolicy 存取控制策略、custom claims 更新。
-
-**模組：** `modules/account/`
-
----
-
-### `organization` — 組織（多租戶）
-
-**職責：** Organization 建立、MemberReference 管理、Team 分組、PartnerInvite 邀請流程。
-
-**模組：** `modules/organization/`
-
----
-
-### `workspace` — 工作區容器
-
-**職責：** Workspace 建立/歸檔、WorkspaceMember 管理、WikiContentTree 樹狀結構、Wiki 工作區關聯。
-
-**模組：** `modules/workspace/`
-
----
-
-### `notification` — 通知
-
-**職責：** 系統通知分發（info / alert / success / warning），支援 push 與 in-app 通知。
-
-**模組：** `modules/notification/`
-
----
-
-### `shared` — 共享核心
-
-**職責：** 跨模組共用的基礎型別（EventRecord、DomainEvent base、Slug 工具）。不是一個完整的業務域，是 IDDD 的 **Shared Kernel** 模式。
-
-**模組：** `modules/shared/`
-
----
-
-## 五、子域分類摘要表
-
-| 子域 | 分類 | 模組 | 戰略重要性 |
-|------|------|------|-----------|
-| 知識內容管理 | **Core** | `knowledge` | ⭐⭐⭐ |
-| 知識圖譜 | **Core** | `wiki` | ⭐⭐⭐ |
-| AI 攝入管線 | Supporting | `ai` | ⭐⭐ |
-| AI 對話生成 | Supporting | `notebook` | ⭐⭐ |
-| RAG 語意檢索 | Supporting | `search` | ⭐⭐ |
-| 文件來源管理 | Supporting | `source` | ⭐⭐ |
-| 工作流程狀態機 | Supporting | `workspace-flow` | ⭐⭐ |
-| 工作需求排程 | Supporting | `workspace-scheduling` | ⭐ |
-| 稽核紀錄 | Supporting | `workspace-audit` | ⭐ |
-| 工作區動態牆 | Supporting | `workspace-feed` | ⭐ |
-| 身份驗證 | Generic | `identity` | — |
-| 帳戶設定 | Generic | `account` | — |
-| 組織多租戶 | Generic | `organization` | — |
-| 工作區容器 | Generic | `workspace` | — |
-| 通知 | Generic | `notification` | — |
-| 共享核心 | Generic (Shared Kernel) | `shared` | — |
+| Context | 分類 | 主要價值 |
+|---|---|---|
+| `knowledge` | **Core** | 知識內容與版本生命週期 |
+| `wiki` | **Core** | 知識結構、關聯與圖譜 |
+| `source` | Supporting | 文件接入與來源治理 |
+| `ai` | Supporting | 攝入管線協調與 worker handoff |
+| `search` | Supporting | 語意檢索與 RAG |
+| `notebook` | Supporting | 摘要、問答、洞察互動 |
+| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
+| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
+| `workspace-audit` | Supporting | 稽核與追溯 |
+| `workspace-feed` | Supporting | 工作區動態與互動 |
+| `identity` | Generic | 身份驗證 |
+| `account` | Generic | 個人帳戶與偏好 |
+| `organization` | Generic | 多租戶治理 |
+| `workspace` | Generic | 協作容器 |
+| `notification` | Generic | 通知分發 |
+| `shared` | Shared Kernel | 穩定共享核心 |
 
 ---
 
 ## 架構參考
 
-- 詳細邊界定義：[`bounded-contexts.md`](./bounded-contexts.md)
+- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
 - 通用語言：各 bounded context 的 `ubiquitous-language.md`
 - 上下文關係圖：各 bounded context 的 `context-map.md`

@@ -1,64 +1,37 @@
-# workspace-scheduling — Workspace Scheduling Layer
+# workspace-scheduling — 工作區排程上下文
 
-> **開發狀態**：🏗️ Midway — 開發部分完成
-> **Domain Type**：Supporting Domain（支援域）
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-scheduling/`  
+> **開發狀態:** 🏗️ Midway
 
-`modules/workspace-scheduling` 負責工作區內的排程與日曆管理，包含事件排程、截止日期管理與時間區間分配。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| 排程管理 | 建立、更新、取消工作區排程事件 |
-| 日曆視圖 | 提供工作區日曆事件查詢 |
-| 截止日期 | 管理任務與知識的截止日期 |
-| 時間區間 | 分配工作時間區間與里程碑 |
+|---|---|
+| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
+| 時間視圖 | 提供日曆、截止與安排視角 |
+| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
 
----
+## 與其他 Bounded Context 協作
 
-## 通用語言（Ubiquitous Language）
+- `workspace-flow` 可作為排程需求來源。
+- `workspace` 提供排程歸屬與成員範圍。
 
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 排程事件 | ScheduleEvent | 工作區中的排程活動（meeting / deadline / milestone） |
-| 截止日期 | Deadline | 任務或知識的完成期限 |
-| 里程碑 | Milestone | 專案中的重要時間節點 |
-| 時間區間 | TimeSlot | 分配給特定工作的時間範圍 |
-| 日曆 | Calendar | 工作區排程事件的時序視圖 |
+## 核心聚合 / 核心概念
 
----
+- **`WorkDemand`**
+- **`ScheduleWindow`**
+- **`CapacityAllocation`**
 
-## 領域事件（Domain Events）
+## 詳細文件
 
-| 事件 | 觸發條件 |
-|------|----------|
-| `scheduling.event_created` | 排程事件建立時 |
-| `scheduling.deadline_approaching` | 截止日期接近時 |
-| `scheduling.milestone_reached` | 里程碑達成時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`workspace/api`、`identity/api`、`workspace-flow/api`（任務截止日期）
-- **下游（被依賴）**：`workspace/api`（排程 tab）、`notification/api`（截止提醒）
-
----
-
-## 目錄結構
-
-```
-modules/workspace-scheduling/
-├── api/                  # 公開 API 邊界
-├── application/          # Use Cases
-├── domain/               # Entities, Repositories
-├── infrastructure/       # Firebase 適配器
-├── interfaces/           # 日曆 UI 元件
-└── index.ts
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

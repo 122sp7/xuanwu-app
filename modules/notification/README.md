@@ -1,72 +1,37 @@
-# notification — Notification Layer
+# notification — 通知上下文
 
-> **開發狀態**：📅 Planned — 已規劃，尚未開始
-> **Domain Type**：Generic Domain（通用域）
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** 🏗️ Midway
 
-`modules/notification` 負責系統通知的生成、分發與管理。作為通用域，接收其他模組（knowledge、workspace、organization 等）發出的領域事件，轉換為使用者通知。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| 通知生成 | 根據領域事件生成通知項目 |
-| 通知分發 | 向指定使用者分發通知（in-app / email / push） |
-| 已讀管理 | 管理通知的已讀/未讀狀態 |
-| 通知偏好 | 管理使用者的通知偏好設定 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
 
----
+## 與其他 Bounded Context 協作
 
-## 聚合根（Aggregate Roots）
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
 
-| Aggregate | 說明 |
-|-----------|------|
-| `Notification` | 單一通知項目，含 recipientId、type、payload、readAt |
-| `NotificationPreference` | 使用者的通知偏好設定 |
+## 核心聚合 / 核心概念
 
----
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
 
-## 通用語言（Ubiquitous Language）
+## 詳細文件
 
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 通知 | Notification | 系統向使用者發出的訊息提醒 |
-| 接收者 | Recipient | 通知的目標使用者 |
-| 通知類型 | NotificationType | 通知的種類（mention / invite / update / ...） |
-| 已讀狀態 | ReadState | 通知的已讀/未讀標記 |
-| 通知偏好 | NotificationPreference | 使用者對各類通知的訂閱偏好 |
-
----
-
-## 領域事件（Domain Events）
-
-| 事件 | 觸發條件 |
-|------|----------|
-| `notification.sent` | 通知發送完成時 |
-| `notification.read` | 使用者標記已讀時 |
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`（接收者身分）、其他所有模組（事件來源）
-- **下游（被依賴）**：無（通知是最終消費者）
-
----
-
-## 目錄結構
-
-```
-modules/notification/
-├── api/                  # 公開 API 邊界
-├── application/          # Use Cases
-├── domain/               # Entities, Repositories
-├── infrastructure/       # 通知分發適配器（Firebase Cloud Messaging / Email）
-├── interfaces/           # UI 元件（通知列表、通知鈴）
-└── index.ts
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

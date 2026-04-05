@@ -1,42 +1,37 @@
-# notebook — AI 對話上下文
+# notebook — Notebook 對話上下文
 
-> **Domain Type:** Supporting Subdomain（支援域）
-> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/notebook/`  
 > **開發狀態:** 🏗️ Midway
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`notebook` 管理 AI 對話的 **Thread / Message 生命週期**，並封裝 Genkit AI 模型呼叫。它是面向使用者的 AI 互動界面層——接收使用者訊息、呼叫 Genkit 生成回應、維護對話歷史。
+`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
 
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| Thread 管理 | 建立、讀取對話串（含 Message 歷史） |
-| Message 管理 | 追加 user / assistant / system 訊息 |
-| AI 回應生成 | 封裝 Genkit 模型呼叫（GenerateNotebookResponse） |
-| RAG 整合查詢 | 透過 `search` BC 取得語意相關 chunks（已移至 search） |
+|---|---|
+| 對話 Thread 管理 | 維護對話串與訊息歷史 |
+| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
+| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
 
-## 核心概念
+## 與其他 Bounded Context 協作
 
-- **`Thread`** — 對話串聚合根（含 Message 列表）
-- **`Message`** — 單則訊息（role: user / assistant / system，content）
+- `search` 是主要上游，提供語意檢索與引用資料。
+- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
 
-## 重要邊界規則
+## 核心聚合 / 核心概念
 
-`notebook` 的 Server Action **不得**從 `@/modules/notebook/api` barrel 中在 Client Component 直接 import。Genkit/gRPC 模組是 server-only，需透過本地 `_actions.ts` 隔離：
-
-```typescript
-// app/(shell)/ai-chat/_actions.ts
-"use server";
-export async function generateResponse(...) { ... }
-```
+- **`Thread`**
+- **`Message`**
+- **`Summary`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | Thread / Message 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

@@ -1,34 +1,37 @@
 # workspace-flow — 工作流程上下文
 
-> **Domain Type:** Supporting Subdomain（支援域）
-> **模組路徑:** `modules/workspace-flow/`
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-flow/`  
 > **開發狀態:** 🏗️ Midway
 
-## 定位
+## 在 Knowledge Platform / Second Brain 中的角色
 
-`workspace-flow` 管理工作區的**業務流程狀態機**：Task（任務）、Issue（問題追蹤）、Invoice（發票）三條業務線。它是 `knowledge.page_approved` 事件的主要消費者——透過 ContentToWorkflowMaterializer Process Manager 自動從審批頁面物化出 Task 和 Invoice。
+`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
 
-## 職責
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| Task 管理 | Task CRUD + 狀態機（draft → in_progress → qa → acceptance → accepted → archived） |
-| Issue 管理 | Issue CRUD + 狀態機（open → investigating → fixing → retest → resolved → closed） |
-| Invoice 管理 | Invoice CRUD + 狀態機（draft → submitted → finance_review → approved → paid → closed） |
-| ContentToWorkflow 物化 | 監聽 `knowledge.page_approved`，自動建立 Task/Invoice |
-| 守衛與政策 | 狀態轉換的業務守衛規則（guards / policies） |
+|---|---|
+| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
+| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
+| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
 
-## 核心聚合根
+## 與其他 Bounded Context 協作
 
-- **`Task`** — 任務聚合根
-- **`Issue`** — 問題追蹤聚合根
-- **`Invoice`** — 發票聚合根
+- `knowledge` 是最重要上游，提供審批後的內容事件。
+- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
+
+## 核心聚合 / 核心概念
+
+- **`Task`**
+- **`Issue`**
+- **`Invoice`**
 
 ## 詳細文件
 
 | 文件 | 說明 |
-|------|------|
+|---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | Task/Issue/Invoice 聚合根設計 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [context-map.md](./context-map.md) | 與其他 BC 的整合關係 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

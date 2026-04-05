@@ -1,86 +1,37 @@
-# workspace — Workspace Management Layer
+# workspace — 工作區上下文
 
-> **開發狀態**：✅ Done — 核心功能穩定
-> **Domain Type**：Generic Domain（通用域）
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
+> **開發狀態:** ✅ Done — 穩定
 
-`modules/workspace` 負責工作區（Workspace）的建立、成員協作、設定管理與知識結構樹（WikiContentTree）。是知識內容的協作容器，連接 identity、organization 與 knowledge 等核心域。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
+`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| 工作區管理 | 建立、更新、封存工作區（Workspace） |
-| 成員管理 | 邀請成員、管理工作區角色 |
-| 知識結構樹 | 維護 WikiContentTree（頁面階層結構） |
-| 工作區標籤 | 管理工作區的 Tab 設定（workspace-tabs.ts） |
-| 多模組整合 | 整合 Tasks（workspace-flow）、Wiki、Audit 等 tab |
+|---|---|
+| Workspace 容器管理 | 建立、更新、歸檔工作區 |
+| 成員與角色 | 管理工作區成員、角色與協作可見性 |
+| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
 
----
+## 與其他 Bounded Context 協作
 
-## 聚合根（Aggregate Roots）
+- `organization` 是主要上游，提供多租戶歸屬。
+- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
 
-| Aggregate | 說明 |
-|-----------|------|
-| `Workspace` | 工作區聚合根，包含成員列表、設定與知識結構 |
-| `Member` | 工作區成員實體（含角色） |
-| `Role` | 工作區角色定義 |
+## 核心聚合 / 核心概念
 
----
+- **`Workspace`**
+- **`WorkspaceMember`**
+- **`WikiContentTree`**
 
-## 通用語言（Ubiquitous Language）
+## 詳細文件
 
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 工作區 | Workspace | 知識內容的協作容器 |
-| 成員 | Member | 工作區的協作成員 |
-| 角色 | Role | 成員在工作區的角色 |
-| Wiki 內容樹 | WikiContentTree | 工作區下的 Wiki 頁面階層結構 |
-| 工作區標籤 | WorkspaceTab | 工作區 UI 中的功能分頁（Overview / Wiki / Tasks / ...） |
-
----
-
-## 重要架構限制
-
-- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
-- 使用相對路徑直接 import `FirebaseWorkspaceRepository` 作為替代
-
----
-
-## 導航規則
-
-- Dashboard (/dashboard) 和 Personal Settings (/settings) 已重定向到 /workspace
-- MVP 導航以 workspace 為主
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：`identity/api`、`organization/api`
-- **下游（被依賴）**：`knowledge/api`、`wiki/api`、`notebook/api`、`workspace-flow/api`、`workspace-audit/api`
-
----
-
-## 目錄結構
-
-```
-modules/workspace/
-├── api/                  # 公開 API 邊界（index.ts）
-├── application/          # Use Cases
-├── domain/               # Aggregates, Entities（含 WikiContentTree）
-│   └── entities/
-│       └── WikiContentTree.ts
-├── infrastructure/       # Firebase 適配器
-│   └── firebase/
-│       └── FirebaseWikiWorkspaceRepository.ts
-├── interfaces/           # UI 元件（WorkspaceDetailScreen、WorkspaceTabs）
-│   ├── components/
-│   │   └── WorkspaceDetailScreen.tsx
-│   └── workspace-tabs.ts
-└── index.ts
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

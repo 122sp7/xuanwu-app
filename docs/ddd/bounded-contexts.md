@@ -1,236 +1,91 @@
 # Bounded Contexts — Xuanwu App
 
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
+> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Wiki** 為結構、**AI** 為推理層。
 
-本文件定義 Xuanwu App 全部 **16 個有界上下文（Bounded Contexts）** 的邊界、職責與整合模式概覽。每個 BC 對應 `modules/` 下的一個目錄。
+本文件定義 Xuanwu App 目前採用的 **16 個有界上下文（Bounded Contexts）**。  
+Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
+
+- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入
+- **Wiki-like 層**：知識關聯、節點、邊、結構化導覽
+- **NotebookLM-like 層**：檢索、摘要、問答、推理
 
 ---
 
-## 四層架構
+## 系統層級映射
 
+| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
+|---|---|---|---|
+| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理知識頁面、來源文件、工作區容器與操作介面 |
+| Knowledge Structure Layer | Wiki-like | `wiki` | 維護知識節點、關聯、Backlink 與圖譜遍歷 |
+| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
+| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
+| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
+
+---
+
+## 子域分類摘要
+
+| 分類 | Bounded Context |
+|---|---|
+| **Core Domain** | `knowledge`, `wiki` |
+| **Supporting Subdomain** | `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
+| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
+
+---
+
+## Bounded Context Catalog
+
+| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
+|---|---|---|---|---|
+| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
+| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
+| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
+| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `wiki`, `workspace-*` |
+| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
+| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
+| `knowledge` | **Core** | Notion-like 核心內容層 | 知識頁面、版本、內容區塊、審批事件 | `workspace`, `wiki`, `source`, `workspace-flow`, `search`, `notebook` |
+| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
+| `wiki` | **Core** | Wiki-like 結構層 | 節點、邊、Backlink、知識圖譜 | `knowledge`, `source`, `search`, `notebook`, `workspace` |
+| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
+| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `wiki`, `ai` |
+| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `wiki`, `knowledge` |
+| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
+| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
+| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
+| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
+
+---
+
+## 典型依賴與協作方式
+
+```text
+Identity → Account → Organization → Workspace
+                              ├─→ Knowledge ─→ Search ─→ Notebook
+                              ├─→ Wiki ────────────────┘
+                              ├─→ Source ───→ AI ─────┘
+                              └─→ Workspace Operations
+                                   ├─ workspace-flow
+                                   ├─ workspace-scheduling
+                                   ├─ workspace-audit
+                                   └─ workspace-feed
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│  AI Layer                                                             │
-│  ai  ·  notebook  ·  search                                          │
-├──────────────────────────────────────────────────────────────────────┤
-│  Knowledge Graph Layer                                               │
-│  wiki                                                                │
-├──────────────────────────────────────────────────────────────────────┤
-│  Content / Source Layer                                              │
-│  knowledge  ·  source                                                │
-├──────────────────────────────────────────────────────────────────────┤
-│  Platform Foundation Layer                                           │
-│  identity  ·  account  ·  organization  ·  workspace                 │
-│  workspace-{flow,scheduling,audit,feed}  ·  notification  ·  shared  │
-└──────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
-## 1. Platform Foundation Layer
+## 整合原則
 
-### `identity` — 身份驗證上下文
-
-| | |
-|---|---|
-| **Domain Type** | Generic Subdomain |
-| **模組路徑** | `modules/identity/` |
-| **核心聚合** | `Identity` |
-| **主要職責** | Firebase Auth 封裝：signIn / signOut / token 刷新 |
-| **邊界規則** | `api/` 不得匯出 `"use client"` 元件（被 `account` 伺服器端 use-cases 引入） |
-| **詳細文件** | [`docs/ddd/identity/`](./identity/) |
-
-### `account` — 帳戶設定檔上下文
-
-| | |
-|---|---|
-| **Domain Type** | Generic Subdomain |
-| **模組路徑** | `modules/account/` |
-| **核心聚合** | `Account`, `AccountPolicy` |
-| **主要職責** | 用戶 profile 管理、存取控制政策、custom claims |
-| **詳細文件** | [`docs/ddd/account/`](./account/) |
-
-### `organization` — 組織上下文
-
-| | |
-|---|---|
-| **Domain Type** | Generic Subdomain |
-| **模組路徑** | `modules/organization/` |
-| **核心聚合** | `Organization` |
-| **主要職責** | 多租戶管理：Organization、MemberReference、Team、PartnerInvite |
-| **詳細文件** | [`docs/ddd/organization/`](./organization/) |
-
-### `workspace` — 工作區上下文
-
-| | |
-|---|---|
-| **Domain Type** | Generic Subdomain |
-| **模組路徑** | `modules/workspace/` |
-| **核心聚合** | `Workspace`, `WorkspaceMember`, `WikiContentTree` |
-| **主要職責** | 工作區容器：建立/歸檔、成員管理、Wiki 內容樹結構 |
-| **特殊邊界** | `workspace/infrastructure` 禁止 import `workspace/api`（循環依賴） |
-| **詳細文件** | [`docs/ddd/workspace/`](./workspace/) |
-
-### `notification` — 通知上下文
-
-| | |
-|---|---|
-| **Domain Type** | Generic Subdomain |
-| **模組路徑** | `modules/notification/` |
-| **核心聚合** | `NotificationEntity` |
-| **主要職責** | 系統通知分發（info / alert / success / warning） |
-| **詳細文件** | [`docs/ddd/notification/`](./notification/) |
-
-### `shared` — 共享核心
-
-| | |
-|---|---|
-| **Domain Type** | Shared Kernel |
-| **模組路徑** | `modules/shared/` |
-| **核心型別** | `DomainEvent`, `EventRecord`, `SlugUtils` |
-| **主要職責** | 跨模組共用基礎型別；`DomainEvent.occurredAt` 為 ISO string |
-| **詳細文件** | [`docs/ddd/shared/`](./shared/) |
+1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
+2. **Core Domain** 以 `knowledge` 與 `wiki` 為中心，其他上下文支撐其儲存、結構化與推理能力。  
+3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
+4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
+5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
 
 ---
 
-## 2. Content / Source Layer
-
-### `knowledge` — 知識內容上下文
-
-| | |
-|---|---|
-| **Domain Type** | **Core Domain** |
-| **模組路徑** | `modules/knowledge/` |
-| **核心聚合** | `KnowledgePage`, `ContentBlock`, `ContentVersion` |
-| **主要職責** | KnowledgePage CRUD、Block Editor、版本歷史、AI 審批流 |
-| **關鍵事件** | `knowledge.page_approved`（觸發 workspace-flow 物化） |
-| **詳細文件** | [`docs/ddd/knowledge/`](./knowledge/) |
-
-### `source` — 文件來源上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/source/` |
-| **核心聚合** | `SourceDocument`（File.ts）, `WikiLibrary` |
-| **主要職責** | 檔案上傳、版本快照、保留政策、RAG 文件登記 |
-| **Runtime 邊界** | Next.js 負責上傳 UX；`py_fn/` 負責 Embedding 生成 |
-| **詳細文件** | [`docs/ddd/source/`](./source/) |
-
----
-
-## 3. Knowledge Graph Layer
-
-### `wiki` — 知識圖譜上下文
-
-| | |
-|---|---|
-| **Domain Type** | **Core Domain** |
-| **模組路徑** | `modules/wiki/` |
-| **核心聚合** | `GraphNode`, `GraphEdge` |
-| **主要職責** | 知識節點（draft→active→archived）與邊（pending→active→inactive→removed）生命週期 |
-| **詳細文件** | [`docs/ddd/wiki/`](./wiki/) |
-
----
-
-## 4. AI Layer
-
-### `ai` — AI 攝入管線上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/ai/` |
-| **核心聚合** | `IngestionJob`, `IngestionDocument`, `IngestionChunk` |
-| **主要職責** | RAG 攝入 Job 生命週期（uploaded → parsing → embedding → indexed） |
-| **詳細文件** | [`docs/ddd/ai/`](./ai/) |
-
-### `notebook` — AI 對話上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/notebook/` |
-| **核心聚合** | `Thread`, `Message` |
-| **主要職責** | 對話 Thread 管理，封裝 Genkit AI 回應生成 |
-| **詳細文件** | [`docs/ddd/notebook/`](./notebook/) |
-
-### `search` — RAG 語意檢索上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/search/` |
-| **核心聚合** | `RagQuery`, `RagQueryFeedback` |
-| **主要職責** | 向量搜尋（VectorStore port）、RAG answer 生成、查詢反饋收集 |
-| **詳細文件** | [`docs/ddd/search/`](./search/) |
-
----
-
-## 5. Workspace Operations Layer
-
-### `workspace-flow` — 工作流程上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/workspace-flow/` |
-| **核心聚合** | `Task`, `Issue`, `Invoice` |
-| **主要職責** | Task / Issue / Invoice 狀態機、守衛規則、ContentToWorkflowMaterializer |
-| **詳細文件** | [`docs/ddd/workspace-flow/`](./workspace-flow/) |
-
-### `workspace-scheduling` — 排程上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/workspace-scheduling/` |
-| **核心聚合** | `WorkDemand` |
-| **主要職責** | 工作需求建立（draft→open→in_progress→completed）、日曆視圖 |
-| **詳細文件** | [`docs/ddd/workspace-scheduling/`](./workspace-scheduling/) |
-
-### `workspace-audit` — 稽核上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/workspace-audit/` |
-| **核心聚合** | `AuditLog`（append-only） |
-| **主要職責** | 工作區與組織稽核記錄查詢（只讀，永不修改） |
-| **詳細文件** | [`docs/ddd/workspace-audit/`](./workspace-audit/) |
-
-### `workspace-feed` — 動態牆上下文
-
-| | |
-|---|---|
-| **Domain Type** | Supporting Subdomain |
-| **模組路徑** | `modules/workspace-feed/` |
-| **核心聚合** | `WorkspaceFeedPost` |
-| **主要職責** | 工作區社交動態：post / reply / repost、互動（like/view/bookmark/share） |
-| **詳細文件** | [`docs/ddd/workspace-feed/`](./workspace-feed/) |
-
----
-
-## Integration Pattern 一覽
-
-| 上游 BC | 下游 BC | 整合模式 | 說明 |
-|---------|---------|----------|------|
-| `identity` | `account` | Customer/Supplier | identity 提供 uid，account 消費 |
-| `account` | `organization` | Customer/Supplier | organization.members 參照 account |
-| `organization` | `workspace` | Customer/Supplier | workspace 關聯組織或帳戶 |
-| `knowledge` | `workspace-flow` | Published Language (Events) | `knowledge.page_approved` 觸發 Task/Invoice 物化 |
-| `knowledge` | `wiki` | Customer/Supplier | wiki 訂閱 knowledge 頁面事件以同步 GraphNode |
-| `source` | `ai` | Customer/Supplier | 上傳完成後交付 IngestionJob |
-| `ai` | `search` | Customer/Supplier | Embedding 完成後更新向量索引 |
-| `search` | `notebook` | Customer/Supplier | notebook 查詢 search 檢索結果 |
-| `workspace` | `workspace-{flow,scheduling,audit,feed}` | Conformist | 子模組遵從 workspace 的 workspaceId |
-| 所有模組 | `shared` | Shared Kernel | 共用 DomainEvent、EventRecord 型別 |
-
----
-
-## 架構參考
+## 詳細文件
 
 - 子域分類：[`subdomains.md`](./subdomains.md)
-- 詳細 BC 文件：各子目錄 `README.md`
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
 - 通用語言：各 bounded context 的 `ubiquitous-language.md`
 - 上下文關係圖：各 bounded context 的 `context-map.md`

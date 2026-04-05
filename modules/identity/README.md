@@ -1,68 +1,37 @@
-# identity — Identity & Authentication Layer
+# identity — 身份驗證上下文
 
-> **開發狀態**：✅ Done — 核心功能完成
-> **Domain Type**：Generic Domain（通用域）
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/identity/`  
+> **開發狀態:** ✅ Done — 穩定
 
-`modules/identity` 負責使用者身分驗證、Token 管理與認證狀態管理。是整個平台的認證基礎設施，被其他所有模組依賴。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- `identity/api` 必須保持**無 `"use client"` 元件**，因為 `account/application` 等模組在 server 端 import 此 api
-- 外界只能透過 `api/` 公開介面存取此模組
+`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| 使用者認證 | Firebase Auth 整合，管理登入/登出狀態 |
-| Token 管理 | JWT Token 刷新與驗證 |
-| 認證狀態 | 提供 `useIdentity` hook 供 UI 層使用 |
-| Token 刷新監聽 | `useTokenRefreshListener` 自動刷新 Token |
+|---|---|
+| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
+| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
+| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
 
----
+## 與其他 Bounded Context 協作
 
-## 通用語言（Ubiquitous Language）
+- `account` 直接消費 `identity/api` 提供的身份上下文。
+- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
 
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 身分 | Identity | 已認證使用者的身分記錄 |
-| Token | Token | JWT 認證令牌 |
-| 認證狀態 | AuthState | 目前的認證狀態（authenticated / unauthenticated） |
-| 刷新監聽 | TokenRefreshListener | 監聽 Token 過期並自動刷新的機制 |
+## 核心聚合 / 核心概念
 
----
+- **`Identity`**
+- **`AuthenticatedUser`**
+- **`TokenRefreshSignal`**
 
-## 重要架構限制
+## 詳細文件
 
-- `identity/api` **不能**包含 `"use client"` hooks 或 React 元件
-- `"use client"` 的 hooks（如 `useTokenRefreshListener`）只能在 `interfaces/hooks/` 下
-- `account/application/use-cases` 在 server 端 import `identityApi`，必須保持純 server-safe
-
----
-
-## 依賴關係
-
-- **上游（依賴）**：Firebase Auth（外部服務）
-- **下游（被依賴）**：所有模組（身分驗證基礎）
-
----
-
-## 目錄結構
-
-```
-modules/identity/
-├── api/                  # 公開 API（server-safe only，無 "use client"）
-├── application/          # Use Cases
-├── domain/               # Entities, Repositories
-├── infrastructure/       # Firebase Auth 適配器
-├── interfaces/           # UI hooks（useIdentity, useTokenRefreshListener）
-│   └── hooks/
-└── index.ts
-```
-
----
-
-## 架構參考
-
-- 通用語言：`docs/architecture/ubiquitous-language.md`
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |

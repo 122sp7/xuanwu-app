@@ -1,51 +1,37 @@
-# workspace-feed — Workspace Activity Feed
+# workspace-feed — 工作區動態上下文
 
-> **開發狀態**：🏗️ Midway — 開發部分完成
-> **Domain Type**：Supporting Domain（支援域）
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-feed/`  
+> **開發狀態:** 🏗️ Midway
 
-`modules/workspace-feed` 負責工作區的活動動態流（Feed），聚合工作區內各模組的事件，提供使用者即時的活動更新。
+## 在 Knowledge Platform / Second Brain 中的角色
 
-外界互動規則：
-- 外界只能透過 `api/` 公開介面存取此模組
-- Feed 是事件的讀模型（Read Model），只提供查詢能力
+`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
 
----
-
-## 職責（Responsibilities）
+## 主要職責
 
 | 能力 | 說明 |
-|------|------|
-| 活動聚合 | 聚合工作區內的知識更新、成員變更等活動 |
-| 動態流查詢 | 提供分頁的工作區動態流查詢 |
-| 活動過濾 | 依類型或時間範圍過濾活動記錄 |
+|---|---|
+| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
+| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
+| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
 
----
+## 與其他 Bounded Context 協作
 
-## 通用語言（Ubiquitous Language）
+- `workspace` 提供動態的歸屬邊界。
+- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
 
-| 術語 | 英文 | 說明 |
-|------|------|------|
-| 活動動態 | FeedItem | 動態流中的單一活動記錄 |
-| 動態流 | WorkspaceFeed | 工作區活動的時序列表 |
-| 活動類型 | ActivityType | 活動的分類（知識更新 / 成員變更 / 評論 / ...） |
+## 核心聚合 / 核心概念
 
----
+- **`WorkspaceFeedPost`**
+- **`FeedReaction`**
+- **`FeedThread`**
 
-## 依賴關係
+## 詳細文件
 
-- **上游（依賴）**：`workspace/api`、`knowledge/api`、`identity/api`（事件來源）
-- **下游（被依賴）**：`workspace/api`（Feed tab 展示）
-
----
-
-## 目錄結構
-
-```
-modules/workspace-feed/
-├── api/                  # 公開 API 邊界
-├── application/          # Use Cases（查詢為主）
-├── domain/               # Entities, Repositories
-├── infrastructure/       # Firebase 適配器
-├── interfaces/           # Feed UI 元件
-└── index.ts
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
