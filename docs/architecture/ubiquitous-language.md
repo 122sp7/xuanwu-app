@@ -60,7 +60,7 @@
 |------|------|------|---------|---------|
 | **事件記錄** | EventRecord | Event Store 中的持久化事件實體（eventName、aggregateType、aggregateId、payload、metadata） | `shared` | `modules/shared/domain/event-record.ts` |
 | **事件元資料** | EventMetadata | 事件關聯資訊（correlationId、causationId、actorId、traceId） | `shared` | `event-record.ts → EventMetadata` |
-| **領域事件** | DomainEvent | 在模組內傳遞的輕量事件匯流排訊息（type 識別符 + occurredAtISO） | `shared` | `modules/shared/domain/events.ts` |
+| **領域事件** | DomainEvent | 在模組內傳遞的輕量事件匯流排訊息（type 識別符 + occurredAt） | `shared` | `modules/shared/domain/events.ts` |
 | **slug 候選值** | SlugCandidate | 從字串派生的 URL-safe 路徑片段候選 | `shared` | `modules/shared/domain/slug-utils.ts` |
 | **命令結果** | CommandResult | 所有 Server Action 的標準回傳形態 `{ success: true, aggregateId, version } \| { success: false, error }` | `@shared-types` | `packages/shared-types/index.ts` |
 | **領域錯誤** | DomainError | 結構化的業務錯誤（code、message） | `@shared-types` | `packages/shared-types/index.ts` |
