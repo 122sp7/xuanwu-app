@@ -3080,6 +3080,19 @@ async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>
  */
 ````
 
+## File: modules/notebook/application/use-cases/generate-agent-response.use-case.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+export class GenerateNotebookResponseUseCase {
+⋮----
+constructor(private readonly agentRepository: NotebookRepository)
+async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
+````
+
 ## File: modules/notebook/domain/entities/AgentGeneration.ts
 ````typescript
 import type { DomainError } from "@shared-types";
@@ -3118,6 +3131,24 @@ export interface Message {
 /**
  * @deprecated Retrieval query contracts moved to modules/search.
  */
+````
+
+## File: modules/notebook/domain/index.ts
+````typescript
+
+````
+
+## File: modules/notebook/domain/repositories/NotebookRepository.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../entities/AgentGeneration";
+export interface NotebookRepository {
+  generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
+}
+⋮----
+generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
 ````
 
 ## File: modules/notebook/domain/repositories/RagGenerationRepository.ts
@@ -18642,6 +18673,13 @@ interface NotebookResponse {
 ```
 ````
 
+## File: modules/notebook/api/index.ts
+````typescript
+/**
+ * modules/notebook — public API barrel.
+ */
+````
+
 ## File: modules/notebook/api/server.ts
 ````typescript
 /**
@@ -18682,19 +18720,6 @@ Application layer 只負責：
 - 模組 README：`../../../modules/notebook/README.md`
 - 模組 AGENT：`../../../modules/notebook/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/notebook/application-services.md`
-````
-
-## File: modules/notebook/application/use-cases/generate-agent-response.use-case.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
-export class GenerateNotebookResponseUseCase {
-⋮----
-constructor(private readonly agentRepository: NotebookRepository)
-async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
 ````
 
 ## File: modules/notebook/domain-events.md
@@ -18765,11 +18790,6 @@ export interface Thread {
 }
 ````
 
-## File: modules/notebook/domain/index.ts
-````typescript
-
-````
-
 ## File: modules/notebook/domain/repositories/IThreadRepository.ts
 ````typescript
 /**
@@ -18783,19 +18803,6 @@ export interface IThreadRepository {
 ⋮----
 save(accountId: string, thread: Thread): Promise<void>;
 getById(accountId: string, threadId: string): Promise<Thread | null>;
-````
-
-## File: modules/notebook/domain/repositories/NotebookRepository.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../entities/AgentGeneration";
-export interface NotebookRepository {
-  generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
-}
-⋮----
-generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
 ````
 
 ## File: modules/notebook/infrastructure/firebase/FirebaseThreadRepository.ts
@@ -26320,13 +26327,6 @@ npm run build
 ```
 ````
 
-## File: modules/notebook/api/index.ts
-````typescript
-/**
- * modules/notebook — public API barrel.
- */
-````
-
 ## File: modules/notebook/context-map.md
 ````markdown
 # Context Map — notebook
@@ -27358,6 +27358,46 @@ npm run build
 | `View` | `knowledge-database` |
 ````
 
+## File: modules/notebook/repositories.md
+````markdown
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
+````
+
 ## File: modules/source/api/index.ts
 ````typescript
 /**
@@ -27685,46 +27725,6 @@ function handleDelete(versionId: string)
 - Repository 介面定義在 `domain/repositories/`
 - Repository 實作放在 `infrastructure/`
 - `application/` 只能依賴 repository ports
-````
-
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: app/(shell)/_components/app-rail.tsx
