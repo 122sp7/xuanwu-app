@@ -8024,29 +8024,6 @@ async function handleSubmit(values: CreateDemandFormValues)
 {/* ── Create form dialog ─────────────────────────────────────────── */}
 ````
 
-## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
- */
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[]
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]>
-````
-
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
 ````typescript
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
@@ -10479,6 +10456,275 @@ def rag_reindex_document(req: https_fn.CallableRequest) -> dict
 """手動重新整理文件（normalization + ingestion）。"""
 ````
 
+## File: py_fn/README.md
+````markdown
+# py_fn 架構規範（路徑級依賴版）
+
+這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
+例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
+
+## 1. 全域依賴方向
+
+```text
+interface -> application -> domain
+infrastructure -> application -> domain
+app -> interface / application / infrastructure / core
+core -> all layers
+domain -> only core
+```
+
+## 2. 目錄基準（含子資料夾）
+
+```text
+py_fn/src
+├─ app
+│  ├─ config
+│  ├─ bootstrap
+│  ├─ container
+│  └─ settings
+├─ application
+│  ├─ use_cases
+│  ├─ dto
+│  ├─ services
+│  ├─ ports
+│  │  ├─ input
+│  │  └─ output
+│  └─ mappers
+├─ domain
+│  ├─ entities
+│  ├─ value_objects
+│  ├─ repositories
+│  ├─ services
+│  ├─ events
+│  └─ exceptions
+├─ infrastructure
+│  ├─ cache
+│  ├─ audit
+│  ├─ persistence
+│  │  ├─ firestore
+│  │  ├─ storage
+│  │  └─ vector
+│  ├─ external
+│  │  ├─ openai
+│  │  ├─ genkit
+│  │  └─ http
+│  ├─ repositories
+│  ├─ config
+│  └─ logging
+├─ interface
+│  ├─ controllers
+│  ├─ middleware
+│  ├─ handlers
+│  ├─ schemas
+│  └─ routes
+└─ core
+   ├─ utils
+   ├─ types
+   ├─ constants
+   ├─ exceptions
+   └─ security
+```
+
+## 3. 各層職責摘要
+
+### app
+- 啟動、組裝、注入。
+- 這一層可以依賴所有層，但不承載核心業務規則。
+
+### application
+- 放 use case、application service、ports、DTO、mappers。
+- 負責流程編排，不直接依賴 infrastructure 實作。
+
+### domain
+- 放 entities、value objects、repositories 介面、domain services、events、exceptions。
+- 是最核心的層，必須保持純淨。
+
+### infrastructure
+- 放 Firestore、Storage、Vector、外部 API、repository implementation。
+- 只負責技術實作，不主導業務流程。
+
+### interface
+- 放 controllers、handlers、routes、schemas、middleware。
+- 接外部請求、驗證輸入、呼叫 use case。
+
+### core
+- 放所有層可共用的 utils、types、constants、exceptions、security。
+- core 本身不依賴任何外層。
+
+## 4.1 值物件與 DTO 規劃
+
+### 應放在 domain/value_objects
+- 純資料語意、無基礎設施細節、可被多個 use case 重用。
+- 例如：`RagQueryInput`、`RagCitation`、`RagQueryResult`。
+
+### 應放在 application/dto
+- 某個 use case 的輸入/輸出模型。
+- 例如：`RagIngestionResult` 這種 use case 輸出摘要。
+
+### 不應放進 domain/value_objects
+- 外部服務供應商回傳模型。
+- 例如：`ParsedDocument` 屬於 Document AI adapter 的回傳型別，保留在 infrastructure/external。
+
+### 目前 py_fn 的落點範例
+- `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
+- `domain/repositories/rag.py`: `RagQueryGateway`, `RagIngestionGateway`, `DocumentPipelineGateway`
+- `application/dto/rag.py`: `RagIngestionResult`
+- `infrastructure/external/documentai/client.py`: `ParsedDocument`
+
+## 4.2 同名資料夾的判讀規則
+
+- services 只看名稱會誤判，必須看完整路徑
+       - domain/services 是核心業務規則
+       - application/services 是應用層編排
+       - infrastructure/services 若存在，只能是技術 adapter；若可拆回更明確目錄，優先拆回 cache / audit / external / persistence
+- repositories 也一樣
+       - domain/repositories 是介面（contracts）
+       - infrastructure/repositories 是實作（implementations）
+- config 也一樣
+       - app/config 是啟動與組裝配置
+       - infrastructure/config 是技術配置
+       - core/constants 才是跨層可共用常量
+
+## 5. 路徑級依賴矩陣（最重要）
+
+| From 路徑 | Allowed To Import |
+| --- | --- |
+| interface/routes | interface/controllers, interface/handlers, core |
+| interface/controllers | application/use_cases, application/dto, domain, core |
+| interface/handlers | application/use_cases, application/ports/input, core |
+| interface/middleware | core |
+| interface/schemas | core, 同層 schema 模組 |
+| application/use_cases | domain, application/ports/output, application/dto, core |
+| application/services | domain, application/ports/output, core |
+| application/mappers | application/dto, domain, core |
+| application/ports/input | domain, core |
+| application/ports/output | domain, core |
+| domain/entities | domain/value_objects, core |
+| domain/value_objects | core |
+| domain/services | domain/entities, domain/value_objects, domain/repositories, core |
+| domain/repositories | domain/entities, domain/value_objects, core |
+| domain/events | domain/entities, core |
+| domain/exceptions | core |
+| infrastructure/repositories | domain/repositories, domain/entities, infrastructure/persistence, core |
+| infrastructure/cache | infrastructure/external, core |
+| infrastructure/audit | infrastructure/external, core |
+| infrastructure/persistence | domain/entities, domain/value_objects, core |
+| infrastructure/external | application/ports/output, domain, core |
+| infrastructure/config | core |
+| infrastructure/logging | core |
+| app/bootstrap | app/config, app/container, infrastructure, application, interface, core |
+| app/container | infrastructure, application, domain, core |
+| app/settings | core |
+| core/* | 不可依賴任何外層 |
+
+## 6. 明確禁止規則
+
+- domain 不可 import application/interface/infrastructure/app
+- application 不可 import infrastructure 實作
+- interface 不可直接 import infrastructure（除非經 app 組裝注入後由 application port 提供）
+- infrastructure 不可主導業務流程（流程應在 application/use_cases）
+
+## 7. 標準依賴流
+
+```text
+route -> controller/handler -> use case -> domain -> repository interface
+                                                     ^
+                                                     |
+                           repository implementation (infrastructure)
+```
+
+## 8. import 範例
+
+### interface controller
+
+```python
+from application.use_cases.create_user import CreateUserUseCase
+from interface.schemas.user_schema import CreateUserRequest
+```
+
+### application use case
+
+```python
+from domain.repositories.user_repository import UserRepository
+from domain.entities.user import User
+```
+
+### infrastructure repository implementation
+
+```python
+from domain.repositories.user_repository import UserRepository
+from infrastructure.persistence.firestore.client import FirestoreClient
+```
+
+### app container
+
+```python
+from infrastructure.repositories.firestore_user_repository import FirestoreUserRepository
+from application.use_cases.create_user import CreateUserUseCase
+```
+
+## 9. PR 檢查清單
+
+- 是否用完整路徑判讀層級，而不是只看資料夾名稱
+- domain 是否只依賴 core
+- use case 是否只依賴抽象（ports/repository interface）
+- infrastructure 是否只做技術實作
+- app 是否是唯一組裝與注入入口
+
+## 10. 附錄 A：快速記憶版
+
+如果只想快速判斷，先記這張：
+
+```text
+Controller/Handler -> UseCase -> Domain -> Repository Interface
+                                                                         ^
+                                                                         |
+                                                   Repository Implementation
+                                                                         |
+                                                                Database / API
+```
+
+對應路徑：
+
+```text
+interface/controllers or interface/handlers
+application/use_cases
+domain/entities or domain/services
+domain/repositories
+infrastructure/repositories
+infrastructure/persistence or infrastructure/external
+```
+
+## 11. 附錄 B：高階流程圖
+
+```text
+HTTP Request
+       -> interface (controller / handler)
+       -> application (use case)
+       -> domain (entity / service / repository interface)
+       -> infrastructure (Firestore / Vector / API implementation)
+```
+
+## 12. 附錄 C：典型誤判案例
+
+### services 同名但不同層
+- `application/services/*` 可以編排流程，但不應放純領域規則。
+- `domain/services/*` 才是純領域規則。
+
+### repositories 同名但不同性質
+- `domain/repositories/*` 是介面。
+- `infrastructure/repositories/*` 是實作。
+
+### config 同名但職責不同
+- `app/config/*` 面向啟動與組裝。
+- `infrastructure/config/*` 面向技術設定。
+- 可跨層重用的常量優先放 `core/constants/*`。
+
+## 13. 一句話總結
+
+看完整路徑判斷層級，不看資料夾名稱猜責任。
+````
+
 ## File: py_fn/requirements.txt
 ````
 # Firebase Functions runtime
@@ -12809,17 +13055,6 @@ import { redirect } from "next/navigation";
 export default function NotebookPage()
 ````
 
-## File: app/(shell)/organization/content/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-/**
- * Module: organization/content page
- * Purpose: redirect to the consolidated content hub at /wiki.
- * Content management is centralised in the Wiki section.
- */
-export default function OrganizationKnowledgePage()
-````
-
 ## File: app/(shell)/organization/page.tsx
 ````typescript
 /**
@@ -12867,6 +13102,55 @@ import { LibrariesView, LibraryTableView } from "@/modules/source/api";
 ````typescript
 import { redirect } from "next/navigation";
 export default function SourcePage()
+````
+
+## File: CLAUDE.md
+````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: modules/ai/.gitkeep
@@ -16154,6 +16438,92 @@ import type { SourceReference } from "../../domain/value-objects/SourceReference
 export function toSourceReference(raw: unknown): SourceReference | undefined
 ````
 
+## File: modules/workspace-flow/Workspace-Flow-File-Template.md
+````markdown
+## 1️⃣ 通用檔案頭模板
+
+```ts
+/**
+ * @module <模組路徑>
+ * @file <檔案名稱>
+ * @description <檔案用途簡述>
+ * @author <作者>
+ * @created <YYYY-MM-DD>
+ * @todo <未完成事項或提醒>
+ */
+```
+
+* `<模組路徑>`: 如 `workspace-flow/domain/entities`
+ * `<檔案名稱>`: 如 `modules/workspace-flow/domain/entities/Task.ts`
+* `<檔案用途簡述>`: 簡單一句話說明這個檔案做什麼
+* `@todo` 可以先留空
+
+---
+
+## 2️⃣ Class / Interface 範例模板
+
+```ts
+/**
+ * Task Entity
+ * @class Task
+ * @description 代表一個任務及其狀態與行為
+ */
+export class Task {
+    /**
+     * 建立 Task 實例
+     * @param {string} title - 任務標題
+     * @param {TaskStatus} status - 任務狀態
+     */
+    constructor(public title: string, public status: TaskStatus) {}
+    
+    /**
+     * 標記任務為完成
+     */
+    complete() {
+        // TODO: 實作
+    }
+}
+```
+
+---
+
+## 3️⃣ Function / Use Case 範例模板
+
+```ts
+/**
+ * 建立新的 Task
+ * @param {CreateTaskDto} dto - 新任務資料
+ * @returns {Promise<Task>} 新建立的任務
+ */
+export async function createTask(dto: CreateTaskDto): Promise<Task> {
+    // TODO: 實作
+}
+```
+
+> 建議先把 **函數頭也加上 JSDoc**，即便目前沒有實作。好處：
+>
+> 1. 方便生成 API 文件。
+> 2. 讓團隊知道參數與回傳型別。
+> 3. 開發中 IDE 可以即時提示。
+
+---
+
+## 4️⃣ Mermaid 檔案模板
+
+```mermaid
+%% ======================================================
+%% File: Workspace-Flow-Tree.mermaid
+%% Module: workspace-flow
+%% Description: 工作區任務流程結構樹
+%% Created: 2026-03-25
+%% ======================================================
+flowchart TD
+    %% TODO: 建立節點
+```
+
+---
+````
+
 ## File: modules/workspace/api/index.ts
 ````typescript
 /**
@@ -16177,6 +16547,29 @@ export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAcco
 // ─── UI components (cross-module public) ─────────────────────────────────────
 ⋮----
 // ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+````
+
+## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[]
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]>
 ````
 
 ## File: modules/workspace/interfaces/workspace-tabs.ts
@@ -16212,275 +16605,6 @@ This repository currently documents RBAC and permission-related behavior in the 
 - [`docs/guides/how-to/ui-ux/information-architecture.md`](docs/guides/how-to/ui-ux/information-architecture.md) — current permissions-related route surfaces
 
 Update this file if the project later restores a dedicated permissions reference.
-````
-
-## File: py_fn/README.md
-````markdown
-# py_fn 架構規範（路徑級依賴版）
-
-這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
-例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
-
-## 1. 全域依賴方向
-
-```text
-interface -> application -> domain
-infrastructure -> application -> domain
-app -> interface / application / infrastructure / core
-core -> all layers
-domain -> only core
-```
-
-## 2. 目錄基準（含子資料夾）
-
-```text
-py_fn/src
-├─ app
-│  ├─ config
-│  ├─ bootstrap
-│  ├─ container
-│  └─ settings
-├─ application
-│  ├─ use_cases
-│  ├─ dto
-│  ├─ services
-│  ├─ ports
-│  │  ├─ input
-│  │  └─ output
-│  └─ mappers
-├─ domain
-│  ├─ entities
-│  ├─ value_objects
-│  ├─ repositories
-│  ├─ services
-│  ├─ events
-│  └─ exceptions
-├─ infrastructure
-│  ├─ cache
-│  ├─ audit
-│  ├─ persistence
-│  │  ├─ firestore
-│  │  ├─ storage
-│  │  └─ vector
-│  ├─ external
-│  │  ├─ openai
-│  │  ├─ genkit
-│  │  └─ http
-│  ├─ repositories
-│  ├─ config
-│  └─ logging
-├─ interface
-│  ├─ controllers
-│  ├─ middleware
-│  ├─ handlers
-│  ├─ schemas
-│  └─ routes
-└─ core
-   ├─ utils
-   ├─ types
-   ├─ constants
-   ├─ exceptions
-   └─ security
-```
-
-## 3. 各層職責摘要
-
-### app
-- 啟動、組裝、注入。
-- 這一層可以依賴所有層，但不承載核心業務規則。
-
-### application
-- 放 use case、application service、ports、DTO、mappers。
-- 負責流程編排，不直接依賴 infrastructure 實作。
-
-### domain
-- 放 entities、value objects、repositories 介面、domain services、events、exceptions。
-- 是最核心的層，必須保持純淨。
-
-### infrastructure
-- 放 Firestore、Storage、Vector、外部 API、repository implementation。
-- 只負責技術實作，不主導業務流程。
-
-### interface
-- 放 controllers、handlers、routes、schemas、middleware。
-- 接外部請求、驗證輸入、呼叫 use case。
-
-### core
-- 放所有層可共用的 utils、types、constants、exceptions、security。
-- core 本身不依賴任何外層。
-
-## 4.1 值物件與 DTO 規劃
-
-### 應放在 domain/value_objects
-- 純資料語意、無基礎設施細節、可被多個 use case 重用。
-- 例如：`RagQueryInput`、`RagCitation`、`RagQueryResult`。
-
-### 應放在 application/dto
-- 某個 use case 的輸入/輸出模型。
-- 例如：`RagIngestionResult` 這種 use case 輸出摘要。
-
-### 不應放進 domain/value_objects
-- 外部服務供應商回傳模型。
-- 例如：`ParsedDocument` 屬於 Document AI adapter 的回傳型別，保留在 infrastructure/external。
-
-### 目前 py_fn 的落點範例
-- `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
-- `domain/repositories/rag.py`: `RagQueryGateway`, `RagIngestionGateway`, `DocumentPipelineGateway`
-- `application/dto/rag.py`: `RagIngestionResult`
-- `infrastructure/external/documentai/client.py`: `ParsedDocument`
-
-## 4.2 同名資料夾的判讀規則
-
-- services 只看名稱會誤判，必須看完整路徑
-       - domain/services 是核心業務規則
-       - application/services 是應用層編排
-       - infrastructure/services 若存在，只能是技術 adapter；若可拆回更明確目錄，優先拆回 cache / audit / external / persistence
-- repositories 也一樣
-       - domain/repositories 是介面（contracts）
-       - infrastructure/repositories 是實作（implementations）
-- config 也一樣
-       - app/config 是啟動與組裝配置
-       - infrastructure/config 是技術配置
-       - core/constants 才是跨層可共用常量
-
-## 5. 路徑級依賴矩陣（最重要）
-
-| From 路徑 | Allowed To Import |
-| --- | --- |
-| interface/routes | interface/controllers, interface/handlers, core |
-| interface/controllers | application/use_cases, application/dto, domain, core |
-| interface/handlers | application/use_cases, application/ports/input, core |
-| interface/middleware | core |
-| interface/schemas | core, 同層 schema 模組 |
-| application/use_cases | domain, application/ports/output, application/dto, core |
-| application/services | domain, application/ports/output, core |
-| application/mappers | application/dto, domain, core |
-| application/ports/input | domain, core |
-| application/ports/output | domain, core |
-| domain/entities | domain/value_objects, core |
-| domain/value_objects | core |
-| domain/services | domain/entities, domain/value_objects, domain/repositories, core |
-| domain/repositories | domain/entities, domain/value_objects, core |
-| domain/events | domain/entities, core |
-| domain/exceptions | core |
-| infrastructure/repositories | domain/repositories, domain/entities, infrastructure/persistence, core |
-| infrastructure/cache | infrastructure/external, core |
-| infrastructure/audit | infrastructure/external, core |
-| infrastructure/persistence | domain/entities, domain/value_objects, core |
-| infrastructure/external | application/ports/output, domain, core |
-| infrastructure/config | core |
-| infrastructure/logging | core |
-| app/bootstrap | app/config, app/container, infrastructure, application, interface, core |
-| app/container | infrastructure, application, domain, core |
-| app/settings | core |
-| core/* | 不可依賴任何外層 |
-
-## 6. 明確禁止規則
-
-- domain 不可 import application/interface/infrastructure/app
-- application 不可 import infrastructure 實作
-- interface 不可直接 import infrastructure（除非經 app 組裝注入後由 application port 提供）
-- infrastructure 不可主導業務流程（流程應在 application/use_cases）
-
-## 7. 標準依賴流
-
-```text
-route -> controller/handler -> use case -> domain -> repository interface
-                                                     ^
-                                                     |
-                           repository implementation (infrastructure)
-```
-
-## 8. import 範例
-
-### interface controller
-
-```python
-from application.use_cases.create_user import CreateUserUseCase
-from interface.schemas.user_schema import CreateUserRequest
-```
-
-### application use case
-
-```python
-from domain.repositories.user_repository import UserRepository
-from domain.entities.user import User
-```
-
-### infrastructure repository implementation
-
-```python
-from domain.repositories.user_repository import UserRepository
-from infrastructure.persistence.firestore.client import FirestoreClient
-```
-
-### app container
-
-```python
-from infrastructure.repositories.firestore_user_repository import FirestoreUserRepository
-from application.use_cases.create_user import CreateUserUseCase
-```
-
-## 9. PR 檢查清單
-
-- 是否用完整路徑判讀層級，而不是只看資料夾名稱
-- domain 是否只依賴 core
-- use case 是否只依賴抽象（ports/repository interface）
-- infrastructure 是否只做技術實作
-- app 是否是唯一組裝與注入入口
-
-## 10. 附錄 A：快速記憶版
-
-如果只想快速判斷，先記這張：
-
-```text
-Controller/Handler -> UseCase -> Domain -> Repository Interface
-                                                                         ^
-                                                                         |
-                                                   Repository Implementation
-                                                                         |
-                                                                Database / API
-```
-
-對應路徑：
-
-```text
-interface/controllers or interface/handlers
-application/use_cases
-domain/entities or domain/services
-domain/repositories
-infrastructure/repositories
-infrastructure/persistence or infrastructure/external
-```
-
-## 11. 附錄 B：高階流程圖
-
-```text
-HTTP Request
-       -> interface (controller / handler)
-       -> application (use case)
-       -> domain (entity / service / repository interface)
-       -> infrastructure (Firestore / Vector / API implementation)
-```
-
-## 12. 附錄 C：典型誤判案例
-
-### services 同名但不同層
-- `application/services/*` 可以編排流程，但不應放純領域規則。
-- `domain/services/*` 才是純領域規則。
-
-### repositories 同名但不同性質
-- `domain/repositories/*` 是介面。
-- `infrastructure/repositories/*` 是實作。
-
-### config 同名但職責不同
-- `app/config/*` 面向啟動與組裝。
-- `infrastructure/config/*` 面向技術設定。
-- 可跨層重用的常量優先放 `core/constants/*`。
-
-## 13. 一句話總結
-
-看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
 ## File: repomix.markdown.config.json
@@ -16816,124 +16940,155 @@ venv/
 .playwright-mcp
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-import Link from "next/link";
-import {
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  Table2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
 }
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
 }
-⋮----
-/** When false the item is hidden; defaults to true */
-⋮----
-function isExactOrChildPath(targetPath: string, pathname: string)
-function getInitial(name: string | undefined | null): string
-⋮----
-function resetDialog()
-function resetWorkspaceDialog()
-async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
-async function handleCreateOrg(event: FormEvent<HTMLFormElement>)
-function isActive(href: string)
-⋮----
-function buildWikiWorkspaceHref(workspaceId: string): string
-⋮----
-{/* ── Workspace / account logo tile ─────────────────────────── */}
-⋮----
-onSelectOrganization(account);
-⋮----
-{/* ── Section nav icons ─────────────────────────────────────── */}
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-{/* ── Spacer ────────────────────────────────────────────────── */}
-⋮----
-{/* ── User avatar / sign-out ────────────────────────────────── */}
-⋮----
-{/* ── Create organization dialog ─────────────────────────────── */}
-⋮----
-resetDialog();
-setIsCreateOrgOpen(false);
-⋮----
-{/* ── Create workspace dialog ────────────────────────────────── */}
-⋮----
-resetWorkspaceDialog();
-setIsCreateWorkspaceOpen(false);
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: app/(shell)/_components/global-search-dialog.tsx
@@ -16963,75 +17118,133 @@ function handleSelect(href: string)
 function onKeyDown(event: KeyboardEvent)
 ````
 
-## File: app/(shell)/wiki/block-editor/page.tsx
+## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
-export default function WikiBlockEditorRedirect()
+/**
+ * Module: organization/content page
+ * Purpose: redirect to the consolidated content hub at /knowledge.
+ */
+export default function OrganizationKnowledgePage()
 ````
 
-## File: app/(shell)/wiki/databases/[databaseId]/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default async function WikiDatabaseDetailRedirect({
-  params,
-}: {
-  params: Promise<{ databaseId: string }>;
-})
-````
-
-## File: app/(shell)/wiki/libraries/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default function WikiLibrariesRedirect()
-````
-
-## File: CLAUDE.md
+## File: CONTRIBUTING.md
 ````markdown
-# CLAUDE.md — Xuanwu App Context
+# Contributing to Xuanwu App
 
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
+Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
 
-## Context
+## House Rules
 
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+### 👥 Prevent Work Duplication
 
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
 
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
+### ✅ Work on Approved Issues
 
-## Quick Commands
+For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
+
+### 🚫 One Concern per PR
+
+Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
+
+### 📚 Write for Future Readers
+
+Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
+
+### ✅ Summarize Your PR
+
+Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
+
+### 🧪 Describe What Was Tested
+
+Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Setup
 
 ```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
+npm install
+npm run dev      # Start Next.js dev server (port 3000)
+```
+
+### Validation
+
+Before pushing, ensure these all pass:
+
+```bash
+npm run lint     # ESLint — must have 0 errors
+npm run build    # Next.js production build + TypeScript type-check
+```
+
+For the Python worker:
+
+```bash
+cd py_fn && python -m compileall -q .
 cd py_fn && python -m pytest tests/ -v
 ```
 
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+---
 
-## Key Principles
+## Architecture Conventions
 
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
 
-## Common Patterns (See AGENTS.md for full examples)
+- [`.github/agents/README.md`](.github/agents/README.md) — rules index
+- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
 
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
+### Key Rules
 
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
+- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must be framework-free.
+- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
+- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
 
-## Full Reference
+### File Naming
 
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
+| Type | Pattern | Example |
+|------|---------|---------|
+| Domain entity | `PascalCase.ts` | `Organization.ts` |
+| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
+| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
+| Use case | `my-use-case.ts` | `create-workspace.ts` |
+| Server Action | `*.actions.ts` | `workspace.actions.ts` |
+| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
+
+---
+
+## Making a Pull Request
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused, incremental changes.
+3. Ensure `npm run lint` and `npm run build` pass with no new errors.
+4. Fill out the PR description with intent, changes, and testing notes.
+5. Link related issues with `Closes #N` or `Refs #N`.
+6. Request a review.
+
+---
+
+## Spec-Driven Development
+
+For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/swarm.md`](docs/swarm.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: modules/account/aggregates.md
@@ -23039,6 +23252,47 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-audit/aggregates.md`
 ````
 
+## File: modules/workspace-audit/README.md
+````markdown
+# workspace-audit — 工作區稽核上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-audit/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
+| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
+| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 與 `organization` 提供查詢與可見性範圍。
+- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
+
+## 核心聚合 / 核心概念
+
+- **`AuditLog`**
+- **`AuditActor`**
+- **`AuditScope`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/workspace-audit/repositories.md
 ````markdown
 # workspace-audit — Repositories
@@ -23728,6 +23982,47 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 - `../../../docs/ddd/workspace-flow/aggregates.md`
 ````
 
+## File: modules/workspace-flow/README.md
+````markdown
+# workspace-flow — 工作流程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-flow/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
+| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
+| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
+
+## 與其他 Bounded Context 協作
+
+- `knowledge` 是最重要上游，提供審批後的內容事件。
+- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
+
+## 核心聚合 / 核心概念
+
+- **`Task`**
+- **`Issue`**
+- **`Invoice`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/workspace-flow/repositories.md
 ````markdown
 # workspace-flow — Repositories
@@ -23797,92 +24092,6 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 | `Issue` | `Bug`, `Ticket`, `Problem` |
 | `Invoice` | `Bill`, `Receipt` |
 | `MaterializedTask` | `ConvertedTask`, `AutoTask` |
-````
-
-## File: modules/workspace-flow/Workspace-Flow-File-Template.md
-````markdown
-## 1️⃣ 通用檔案頭模板
-
-```ts
-/**
- * @module <模組路徑>
- * @file <檔案名稱>
- * @description <檔案用途簡述>
- * @author <作者>
- * @created <YYYY-MM-DD>
- * @todo <未完成事項或提醒>
- */
-```
-
-* `<模組路徑>`: 如 `workspace-flow/domain/entities`
- * `<檔案名稱>`: 如 `modules/workspace-flow/domain/entities/Task.ts`
-* `<檔案用途簡述>`: 簡單一句話說明這個檔案做什麼
-* `@todo` 可以先留空
-
----
-
-## 2️⃣ Class / Interface 範例模板
-
-```ts
-/**
- * Task Entity
- * @class Task
- * @description 代表一個任務及其狀態與行為
- */
-export class Task {
-    /**
-     * 建立 Task 實例
-     * @param {string} title - 任務標題
-     * @param {TaskStatus} status - 任務狀態
-     */
-    constructor(public title: string, public status: TaskStatus) {}
-    
-    /**
-     * 標記任務為完成
-     */
-    complete() {
-        // TODO: 實作
-    }
-}
-```
-
----
-
-## 3️⃣ Function / Use Case 範例模板
-
-```ts
-/**
- * 建立新的 Task
- * @param {CreateTaskDto} dto - 新任務資料
- * @returns {Promise<Task>} 新建立的任務
- */
-export async function createTask(dto: CreateTaskDto): Promise<Task> {
-    // TODO: 實作
-}
-```
-
-> 建議先把 **函數頭也加上 JSDoc**，即便目前沒有實作。好處：
->
-> 1. 方便生成 API 文件。
-> 2. 讓團隊知道參數與回傳型別。
-> 3. 開發中 IDE 可以即時提示。
-
----
-
-## 4️⃣ Mermaid 檔案模板
-
-```mermaid
-%% ======================================================
-%% File: Workspace-Flow-Tree.mermaid
-%% Module: workspace-flow
-%% Description: 工作區任務流程結構樹
-%% Created: 2026-03-25
-%% ======================================================
-flowchart TD
-    %% TODO: 建立節點
-```
-
----
 ````
 
 ## File: modules/workspace-scheduling/AGENT.md
@@ -24727,269 +24936,122 @@ setIsCreateWorkspaceOpen(false);
 }
 ````
 
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
-````
-
-## File: app/(shell)/_components/dashboard-sidebar.tsx
+## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 /**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
  */
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  Table2,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
+  createWorkspace,
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
 import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-interface DashboardSidebarProps {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+interface AppRailProps {
   readonly pathname: string;
+  readonly user: AuthUser | null;
   readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
   readonly workspaces: WorkspaceEntity[];
   readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
   readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
   readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
 }
 ⋮----
-function createWorkspaceLinkItems(group: WorkspaceTabGroup):
+/** When false the item is hidden; defaults to true */
 ⋮----
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-function getStorageKey(accountId: string)
-function readRecentWorkspaceIds(accountId: string): string[]
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
-function trackWorkspaceFromPath(pathname: string, accountId: string)
-function getWorkspaceIdFromPath(pathname: string): string | null
-// ── Section helpers ──────────────────────────────────────────────────────────
-type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
-function resolveNavSection(pathname: string): NavSection
-// ── Section icon labels for the title bar ────────────────────────────────────
+function isExactOrChildPath(targetPath: string, pathname: string)
+function getInitial(name: string | undefined | null): string
 ⋮----
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity &
+function resetDialog()
+function resetWorkspaceDialog()
+async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+async function handleCreateOrg(event: FormEvent<HTMLFormElement>)
+function isActive(href: string)
 ⋮----
-function toggleCollapsed()
+{/* ── Workspace / account logo tile ─────────────────────────── */}
 ⋮----
-// Whether to show recent workspaces section (controlled by personal prefs)
+onSelectOrganization(account);
 ⋮----
-// Max workspaces to show (apply user preference)
+{/* ── Section nav icons ─────────────────────────────────────── */}
 ⋮----
-function isActiveRoute(href: string)
-// Track recently visited workspaces in localStorage
+onSelectWorkspace(workspace.id);
 ⋮----
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue)
-function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string)
-function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string)
-function tWorkspaceGroup(groupKey: string, fallback: string)
-function getWorkspacePrefId(tabValue: string)
-function isWorkspaceItemEnabled(prefId: string)
-function getWorkspaceItemOrder(prefId: string)
-function sortWorkspaceItemsByPreferenceOrder<T extends
+{/* ── Spacer ────────────────────────────────────────────────── */}
 ⋮----
-async function loadSidebarLocale()
+{/* ── User avatar / sign-out ────────────────────────────────── */}
 ⋮----
-// Keep fallback labels when localization files are unavailable.
+{/* ── Create organization dialog ─────────────────────────────── */}
 ⋮----
-async function handleQuickCreatePage()
+resetDialog();
+setIsCreateOrgOpen(false);
 ⋮----
-{/* ── Sidebar title bar ──────────────────────────────────── */}
+{/* ── Create workspace dialog ────────────────────────────────── */}
 ⋮----
-{/* Section label */}
-⋮----
-{/* Customize + collapse buttons grouped on the right */}
-⋮----
-setCustomizeOpen(true);
-⋮----
-{/* ── Scrollable nav body ── section-specific ───────────── */}
-⋮----
-setIsWorkspaceModulesExpanded((prev)
-⋮----
-setIsWorkspaceSpacesExpanded((prev)
-⋮----
-setIsWorkspaceDatabasesExpanded((prev)
-⋮----
-// ── Workspace hub: show recent workspaces ──────────────
-⋮----
-onSelectWorkspace(ws.id);
-⋮----
-setIsExpanded((prev)
-⋮----
-onClick=
+resetWorkspaceDialog();
+setIsCreateWorkspaceOpen(false);
 ````
 
 ## File: app/(shell)/ai-chat/_actions.ts
@@ -25059,141 +25121,6 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/app/providers/app-provider";
 import { RagQueryView } from "@/modules/search";
 export default function NotebookRagQueryPage()
-````
-
-## File: app/(shell)/wiki/articles/[articleId]/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default async function WikiArticleDetailRedirect({
-  params,
-}: {
-  params: Promise<{ articleId: string }>;
-})
-````
-
-## File: app/(shell)/wiki/rag-query/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default function WikiRagQueryRedirect()
-````
-
-## File: CONTRIBUTING.md
-````markdown
-# Contributing to Xuanwu App
-
-Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
-
-## House Rules
-
-### 👥 Prevent Work Duplication
-
-Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
-
-### ✅ Work on Approved Issues
-
-For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
-
-### 🚫 One Concern per PR
-
-Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
-
-### 📚 Write for Future Readers
-
-Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
-
-### ✅ Summarize Your PR
-
-Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
-
-### 🧪 Describe What Was Tested
-
-Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Setup
-
-```bash
-npm install
-npm run dev      # Start Next.js dev server (port 3000)
-```
-
-### Validation
-
-Before pushing, ensure these all pass:
-
-```bash
-npm run lint     # ESLint — must have 0 errors
-npm run build    # Next.js production build + TypeScript type-check
-```
-
-For the Python worker:
-
-```bash
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
----
-
-## Architecture Conventions
-
-This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
-
-- [`.github/agents/README.md`](.github/agents/README.md) — rules index
-- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
-
-### Key Rules
-
-- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must be framework-free.
-- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
-- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
-
-### File Naming
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Domain entity | `PascalCase.ts` | `Organization.ts` |
-| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
-| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Use case | `my-use-case.ts` | `create-workspace.ts` |
-| Server Action | `*.actions.ts` | `workspace.actions.ts` |
-| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
-
----
-
-## Making a Pull Request
-
-1. Fork the repository and create a branch from `main`.
-2. Make focused, incremental changes.
-3. Ensure `npm run lint` and `npm run build` pass with no new errors.
-4. Fill out the PR description with intent, changes, and testing notes.
-5. Link related issues with `Closes #N` or `Refs #N`.
-6. Request a review.
-
----
-
-## Spec-Driven Development
-
-For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## AI Delivery Workflow
-
-For larger or cross-module changes, prefer the formal Copilot delivery workflow:
-
-- Plan first with [`docs/swarm.md`](docs/swarm.md)
-- Use the implementation plan as the execution contract for implementation, review, and QA
-- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: modules/account/AGENT.md
@@ -26718,47 +26645,6 @@ npm run build
 ```
 ````
 
-## File: modules/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
-
-## 核心聚合 / 核心概念
-
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-flow/AGENT.md
 ````markdown
 # AGENT.md — workspace-flow BC
@@ -26810,47 +26696,6 @@ npm run build
 ```
 ````
 
-## File: modules/workspace-flow/README.md
-````markdown
-# workspace-flow — 工作流程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-flow/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
-| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
-| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
-
-## 與其他 Bounded Context 協作
-
-- `knowledge` 是最重要上游，提供審批後的內容事件。
-- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
-
-## 核心聚合 / 核心概念
-
-- **`Task`**
-- **`Issue`**
-- **`Invoice`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace/AGENT.md
 ````markdown
 # AGENT.md — workspace BC
@@ -26895,34 +26740,6 @@ npm run build
 ```
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
-````typescript
-import Link from "next/link";
-import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { getKnowledgePageTree } from "@/modules/knowledge/api";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-interface WorkspaceWikiViewProps {
-  readonly workspace: WorkspaceEntity;
-}
-/** Base left-padding (rem) for depth-0 tree items. */
-⋮----
-/** Additional left-padding (rem) per nesting level. */
-⋮----
-function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<
-⋮----
-async function loadPages()
-````
-
 ## File: modules/workspace/README.md
 ````markdown
 # workspace — 工作區上下文
@@ -26964,28 +26781,118 @@ async function loadPages()
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: app/(shell)/wiki/articles/page.tsx
+## File: app/(shell)/_components/dashboard-sidebar.tsx
 ````typescript
-import { redirect } from "next/navigation";
-export default function WikiArticlesRedirect()
-````
-
-## File: app/(shell)/wiki/databases/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default function WikiDatabasesRedirect()
-````
-
-## File: app/(shell)/wiki/documents/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default function WikiDocumentsRedirect()
-````
-
-## File: app/(shell)/wiki/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default function WikiPageRedirect()
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+function createWorkspaceLinkItems(group: WorkspaceTabGroup):
+⋮----
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+function getStorageKey(accountId: string)
+function readRecentWorkspaceIds(accountId: string): string[]
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+function getWorkspaceIdFromPath(pathname: string): string | null
+// ── Section helpers ──────────────────────────────────────────────────────────
+type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
+function resolveNavSection(pathname: string): NavSection
+// ── Section icon labels for the title bar ────────────────────────────────────
+⋮----
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity &
+⋮----
+function toggleCollapsed()
+⋮----
+// Whether to show recent workspaces section (controlled by personal prefs)
+⋮----
+// Max workspaces to show (apply user preference)
+⋮----
+function isActiveRoute(href: string)
+// Track recently visited workspaces in localStorage
+⋮----
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue)
+function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string)
+function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string)
+function tWorkspaceGroup(groupKey: string, fallback: string)
+function getWorkspacePrefId(tabValue: string)
+function isWorkspaceItemEnabled(prefId: string)
+function getWorkspaceItemOrder(prefId: string)
+function sortWorkspaceItemsByPreferenceOrder<T extends
+⋮----
+async function loadSidebarLocale()
+⋮----
+// Keep fallback labels when localization files are unavailable.
+⋮----
+async function handleQuickCreatePage()
+⋮----
+{/* ── Sidebar title bar ──────────────────────────────────── */}
+⋮----
+{/* Section label */}
+⋮----
+{/* Customize + collapse buttons grouped on the right */}
+⋮----
+setCustomizeOpen(true);
+⋮----
+{/* ── Scrollable nav body ── section-specific ───────────── */}
+⋮----
+setIsWorkspaceModulesExpanded((prev)
+⋮----
+setIsWorkspaceSpacesExpanded((prev)
+⋮----
+setIsWorkspaceDatabasesExpanded((prev)
+⋮----
+// ── Workspace hub: show recent workspaces ──────────────
+⋮----
+onSelectWorkspace(ws.id);
+⋮----
+setIsExpanded((prev)
+⋮----
+onClick=
 ````
 
 ## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
@@ -27438,6 +27345,34 @@ async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookRes
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
+## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
+````typescript
+import Link from "next/link";
+import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+interface WorkspaceWikiViewProps {
+  readonly workspace: WorkspaceEntity;
+}
+/** Base left-padding (rem) for depth-0 tree items. */
+⋮----
+/** Additional left-padding (rem) per nesting level. */
+⋮----
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<
+⋮----
+async function loadPages()
+````
+
 ## File: scripts/demo-flow.ts
 ````typescript
 /**
@@ -27454,12 +27389,6 @@ async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookRes
 import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
 import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
 async function main()
-````
-
-## File: app/(shell)/wiki/pages/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-export default function WikiPagesRedirect()
 ````
 
 ## File: modules/knowledge/repositories.md
@@ -27553,109 +27482,6 @@ export default function WikiPagesRedirect()
 
 - `../../../modules/notebook/repositories.md`
 - `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
-````typescript
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
-import { formatDate } from "@shared-utils";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@ui-shadcn/ui/avatar";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { updateWorkspaceSettings } from "../_actions/workspace.actions";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
-import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../workspace-tabs";
-⋮----
-function getWorkspaceInitials(name: string)
-function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined)
-function describeGrant(grant: WorkspaceGrant)
-interface WorkspaceSettingsDraft {
-  readonly name: string;
-  readonly visibility: WorkspaceEntity["visibility"];
-  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
-  readonly street: string;
-  readonly city: string;
-  readonly state: string;
-  readonly postalCode: string;
-  readonly country: string;
-  readonly details: string;
-  readonly managerId: string;
-  readonly supervisorId: string;
-  readonly safetyOfficerId: string;
-}
-function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft
-function trimOrUndefined(value: string)
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-}
-⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-⋮----
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue)
-⋮----
-async function loadWorkspace()
-⋮----
-<AvatarFallback>
-⋮----
-setSettingsDraft(createSettingsDraft(workspace));
-setSaveError(null);
-setIsEditWorkspaceOpen(true);
-⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-⋮----
-<Badge variant="outline">
-⋮----
-setIsEditWorkspaceOpen(open);
 ````
 
 ## File: next-env.d.ts
@@ -27835,6 +27661,109 @@ export function listWikiLibraries(accountId: string, workspaceId?: string): Prom
 // --- Query functions ---------------------------------------------------------
 ⋮----
 // --- UI components (cross-module public) -------------------------------------
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
+import { formatDate } from "@shared-utils";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
+import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
+⋮----
+function getWorkspaceInitials(name: string)
+function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined)
+function describeGrant(grant: WorkspaceGrant)
+interface WorkspaceSettingsDraft {
+  readonly name: string;
+  readonly visibility: WorkspaceEntity["visibility"];
+  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
+  readonly street: string;
+  readonly city: string;
+  readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
+  readonly details: string;
+  readonly managerId: string;
+  readonly supervisorId: string;
+  readonly safetyOfficerId: string;
+}
+function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft
+function trimOrUndefined(value: string)
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue)
+⋮----
+async function loadWorkspace()
+⋮----
+<AvatarFallback>
+⋮----
+setSettingsDraft(createSettingsDraft(workspace));
+setSaveError(null);
+setIsEditWorkspaceOpen(true);
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
