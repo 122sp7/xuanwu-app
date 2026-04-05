@@ -4,6 +4,7 @@ import boundaries from "eslint-plugin-boundaries";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
  
 const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const typescriptFileGlobs = ["**/*.{ts,tsx}"];
@@ -250,6 +251,58 @@ const eslintConfig = defineConfig([
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+    },
+  },
+  // ─── Consistent type-only imports ──────────────────────────────────────
+  // Enforces `import type` for type-only imports, improving tree-shaking and
+  // making module-boundary intent explicit (matches project MDDD conventions).
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
+    },
+  },
+  // ─── React best-practices ───────────────────────────────────────────────
+  // eslint-config-next already pulls in react / react-hooks rules via its
+  // own config; these overrides make project-specific settings explicit and
+  // add missing checks not covered by the base config.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
+      "react/prop-types": "off",            // TypeScript types replace PropTypes
+      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
+      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
+  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
+  // activated here.  Enabling recommended rules as warn catches common a11y
+  // mistakes without breaking the zero-error baseline.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
+          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
+          // Downgrade all errors to warnings to preserve the zero-error baseline.
+          if (Array.isArray(config)) {
+            const [severity, ...rest] = config;
+            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
+            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
+          }
+          const normalised = config === "error" || config === 2 ? "warn" : config;
+          return [rule, normalised];
+        }),
+      ),
     },
   },
   {
