@@ -3,15 +3,20 @@
 /**
  * Module: ai-chat page
  * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
  */
 
 import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, SendHorizonal } from "lucide-react";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
 
 import { useApp } from "@/app/providers/app-provider";
-import { sendChatMessage } from "./_actions";
+import { useAuth } from "@/app/providers/auth-provider";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import type { Thread } from "./_actions";
 import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
@@ -22,19 +27,39 @@ interface ChatMessage {
   content: string;
 }
 
+const STORAGE_KEY = (accountId: string, workspaceId: string) =>
+  `nb_thread_${accountId}_${workspaceId || "default"}`;
+
+function buildContextPrompt(history: ChatMessage[]): string {
+  if (history.length === 0) return "";
+  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
+  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
+}
+
 function generateMsgId() {
   return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
 }
 
+function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
+  return {
+    id,
+    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export default function AiChatPage() {
   const searchParams = useSearchParams();
-  const {
-    state: { workspaces },
-  } = useApp();
+  const { state: { workspaces } } = useApp();
+  const { state: authState } = useAuth();
+  const accountId = authState.user?.id ?? "";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
   const bottomRef = useRef<HTMLDivElement>(null);
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
   const currentWorkspace =
@@ -44,6 +69,25 @@ export default function AiChatPage() {
   const workspaceName = currentWorkspace?.name ?? null;
   const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
   const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+
+  // Load persisted thread on mount
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
   const summaryItems = useMemo(() => {
     if (messages.length === 0) {
       return [
@@ -64,20 +108,41 @@ export default function AiChatPage() {
     if (!text || isPending) return;
 
     const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
     setInput("");
     setError(null);
     setIsPending(true);
 
+    // Build multi-turn context from history (exclude the new user message)
+    const contextPrompt = buildContextPrompt(messages);
+
     try {
-      const result = await sendChatMessage({ prompt: text });
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
       if (result.ok) {
         const assistantMsg: ChatMessage = {
           id: generateMsgId(),
           role: "assistant",
           content: result.data.text,
         };
-        setMessages((prev) => [...prev, assistantMsg]);
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        // Persist thread to Firestore
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
       } else {
         setError(result.error.message);
       }
@@ -88,6 +153,16 @@ export default function AiChatPage() {
       // Defer scroll to allow React to flush the new message into the DOM first.
       requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
     }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -209,6 +284,17 @@ export default function AiChatPage() {
           <div>
             <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
             <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
           </div>
         </div>
 
