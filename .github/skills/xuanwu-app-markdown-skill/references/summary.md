@@ -39,20 +39,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-408 files | 133,968 lines
+338 files | 260,134 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 408 | 133,968 |
+| Markdown | 338 | 260,134 |
 
 **Largest files:**
-- `.github/skills/xuanwu-app-skill/references/files.md` (94,768 lines)
-- `.github/skills/xuanwu-app-skill/references/project-structure.md` (1,069 lines)
-- `archive/docs/guides/explanation/architecture.md` (942 lines)
-- `archive/docs/guides/explanation/architecture-domain.md` (925 lines)
-- `archive/modules/asset/README.md` (902 lines)
-- `archive/docs/architecture/domain-model.md` (546 lines)
+- `.github/skills/xuanwu-app-skill/references/files.md` (225,632 lines)
+- `.github/skills/xuanwu-app-skill/references/project-structure.md` (998 lines)
+- `docs/guides/explanation/architecture.md` (942 lines)
+- `docs/guides/explanation/architecture-domain.md` (925 lines)
+- `modules/asset/README.md` (902 lines)
+- `docs/architecture/domain-model.md` (546 lines)
 - `.claude/skills/languages/framer-motion/SKILL.md` (514 lines)
 - `.claude/skills/languages/kotlin/SKILL.md` (478 lines)
-- `archive/modules/workspace-flow/AGENT.md` (447 lines)
+- `.github/agents/workspace-flow.agent.md` (447 lines)
 - `.claude/templates/artifacts/system_design.template.md` (446 lines)
