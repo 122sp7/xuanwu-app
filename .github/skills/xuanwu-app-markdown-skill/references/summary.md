@@ -39,15 +39,15 @@ This skill contains the following reference files:
 
 ## Statistics
 
-465 files | 392,832 lines
+625 files | 139,105 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 465 | 392,832 |
+| Markdown | 625 | 139,105 |
 
 **Largest files:**
-- `.github/skills/xuanwu-app-skill/references/files.md` (352,959 lines)
-- `.github/skills/xuanwu-app-skill/references/project-structure.md` (1,027 lines)
+- `.github/skills/xuanwu-app-skill/references/files.md` (95,318 lines)
+- `.github/skills/xuanwu-app-skill/references/project-structure.md` (1,121 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
 - `docs/architecture/domain-model.md` (546 lines)

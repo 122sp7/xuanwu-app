@@ -38,11 +38,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1117 files | 90,849 lines
+1281 files | 237,039 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 460 | 38,614 |
+| Markdown | 624 | 184,804 |
 | TypeScript | 376 | 21,398 |
 | TypeScript (TSX) | 119 | 19,129 |
 | No Extension | 53 | 134 |
@@ -55,6 +55,7 @@ This skill contains the following reference files:
 | Other | 4 | 297 |
 
 **Largest files:**
+- `.github/skills/xuanwu-app-markdown-skill/references/files.md` (141,606 lines)
 - `.tmp-eslint-config.json` (1,932 lines)
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (971 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
@@ -64,4 +65,3 @@ This skill contains the following reference files:
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `modules/search/interfaces/components/RagView.tsx` (659 lines)
-- `app/(shell)/_components/app-rail.tsx` (645 lines)
