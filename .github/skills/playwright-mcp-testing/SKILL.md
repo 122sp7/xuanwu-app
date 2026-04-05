@@ -29,6 +29,8 @@ argument-hint: "<url-or-route> <user-flow-description>"
 
 | MCP 工具 | 用途 | 何時調用 |
 |---------|------|---------|
+| `run_task` (VS Code) | 自主啟動 `npm run dev`（`shell: dev` task） | Dev server 未運行時，作為啟動前置步驟 |
+| `open_browser_page` (VS Code) | 在 VS Code 內建瀏覽器面板直接開啟 URL | 快速目視驗證，不需要外部視窗 |
 | `playwright-mcp` (`mcp_playwright-mc_*`) | 瀏覽器快照、點擊、填表、導航 | 主要執行层 — 凡涉及 UI 操作 |
 | `io.github.vercel/next-devtools-mcp` (`mcp_io_github_ver_*`) | Next.js 路由、Console 錯誤、Server Action ID、頁面元數據 | 診斷 Next.js 特定問題 |
 | `shadcn-mcp` (`mcp_shadcn_*`) | 查詢 shadcn/ui 元件用法、確認正確 import 路徑 | 需確認元件行為或找可用元件 |
@@ -42,19 +44,66 @@ argument-hint: "<url-or-route> <user-flow-description>"
 ## 工具優先順序（Priority）
 
 ```
-playwright-mcp > mcp_io_github_ver_browser_eval（備援）
+run_task（啟動 dev server）
+  ↓
+open_browser_page（VS Code 內建預覽）
+  ↓
+playwright-mcp（主要互動執行）
+  ↓
+mcp_io_github_ver_browser_eval（備援）
 ```
 
-**關鍵原則**：`playwright-mcp` 工具永遠優先。若返回 `"Target page, context or browser has been closed"` 需立即切換備援方案（見下方「備援流程」章節）。
+**關鍵原則**：`playwright-mcp` 工具永遠優先於互動操作。若返回 `"Target page, context or browser has been closed"` 需立即切換備援方案（見下方「備援流程」章節）。
+
+---
+
+## VS Code 整合瀏覽器（open_browser_page）
+
+`open_browser_page` 會在 VS Code 的 **Simple Browser** 面板中直接開啟 URL，無需外部視窗。
+
+### 使用時機
+- 快速目視確認頁面是否正常渲染
+- dev server 剛啟動後驗證首頁可達
+- 搭配 playwright-mcp 做雙重視覺確認
+
+### 用法
+
+```
+# 在 VS Code 內建瀏覽器開啟目標頁面
+open_browser_page url="http://localhost:3000/workspace"
+
+# 組合範例：自動啟動 + 開啟預覽
+1. run_task id="shell: dev" → 等待 Ready
+2. open_browser_page url="http://localhost:3000"
+3. mcp_playwright-mc_browser_navigate url="http://localhost:3000/workspace"
+4. mcp_playwright-mc_browser_snapshot → 開始測試
+```
+
+### 限制
+- **不支援 playwright-mcp 互動**（click、fill、snapshot 仍需 playwright-mcp）
+- VS Code Simple Browser 是唯讀預覽層，複雜 SPA 互動請用 playwright-mcp
+- 可同時開啟兩個工具（一個預覽 + 一個互動）
 
 ---
 
 ## 標準工作流程
 
+### 0. 自主啟動 Dev Server（若未運行）
+
+```
+# 檢查 localhost:3000 是否可達；若不可達，自動啟動：
+run_task:
+  workspaceFolder: "d:\\GitHub\\122sp7\\xuanwu-app"
+  id: "shell: dev"
+
+# 等待 Ready 訊號後再繼續（isBackground=true，透過 get_task_output 確認）
+```
+
 ### 1. 啟動前確認
 
 ```
 [ ] Dev server 運行中（localhost:3000）
+      → 若未啟動：run_task id="shell: dev" （自動，不需人工介入）
 [ ] playwright-mcp 工具可用（mcp_playwright-mc_browser_snapshot 測試）
 [ ] 確認測試目標 URL 與用戶流程
 [ ] 確認測試帳號（dev demo: test@demo.com）

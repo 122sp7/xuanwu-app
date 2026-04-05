@@ -574,43 +574,6 @@ import { isOrganizationAccount } from "../_utils";
 export default function OrganizationDailyPage()
 ````
 
-## File: app/(shell)/organization/members/page.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationMembers } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-⋮----
-async function load()
-````
-
-## File: app/(shell)/organization/permissions/page.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { useApp } from "@/app/providers/app-provider";
-import { getOrgPolicies } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-export default function OrganizationPermissionsPage()
-⋮----
-async function load()
-````
-
 ## File: app/(shell)/organization/schedule/dispatcher/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -627,44 +590,6 @@ import { useApp } from "@/app/providers/app-provider";
 import { AccountSchedulingView } from "@/modules/workspace-scheduling/api";
 import { isOrganizationAccount } from "../_utils";
 export default function OrganizationSchedulePage()
-````
-
-## File: app/(shell)/organization/teams/page.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationTeams } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-⋮----
-async function load()
-````
-
-## File: app/(shell)/organization/workspaces/page.tsx
-````typescript
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useApp } from "@/app/providers/app-provider";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-⋮----
-async function load()
 ````
 
 ## File: app/(shell)/settings/general/page.tsx
@@ -2022,6 +1947,47 @@ export function subscribeToAccountsForUser(
 
 ````
 
+## File: modules/account/README.md
+````markdown
+# account — 帳戶上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/account/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
+| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
+| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
+
+## 與其他 Bounded Context 協作
+
+- `identity` 提供身份與 token 上下文。
+- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
+
+## 核心聚合 / 核心概念
+
+- **`Account`**
+- **`AccountPolicy`**
+- **`AccountProfile`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/ai/.gitkeep
 ````
 
@@ -2261,6 +2227,47 @@ async updateStatus(input: {
     readonly statusMessage?: string;
     readonly updatedAtISO: string;
 }): Promise<IngestionJob | null>
+````
+
+## File: modules/ai/README.md
+````markdown
+# ai — AI 攝入上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/ai/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
+| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
+| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
+
+## 與其他 Bounded Context 協作
+
+- `source` 是上游，提供來源文件與交接事件。
+- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
+
+## 核心聚合 / 核心概念
+
+- **`IngestionJob`**
+- **`IngestionDocument`**
+- **`IngestionChunk`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/identity/api/index.ts
@@ -2646,6 +2653,47 @@ void currentUser.getIdToken(/* forceRefresh */ true).catch(() => {
 ## File: modules/identity/ports/.gitkeep
 ````
 
+````
+
+## File: modules/identity/README.md
+````markdown
+# identity — 身份驗證上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/identity/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
+| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
+| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
+
+## 與其他 Bounded Context 協作
+
+- `account` 直接消費 `identity/api` 提供的身份上下文。
+- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
+
+## 核心聚合 / 核心概念
+
+- **`Identity`**
+- **`AuthenticatedUser`**
+- **`TokenRefreshSignal`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/knowledge/api/events.ts
@@ -3068,6 +3116,16 @@ async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>
 
 ````
 
+## File: modules/notebook/api/server.ts
+````typescript
+/**
+ * modules/notebook — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring.
+ */
+````
+
 ## File: modules/notebook/application/index.ts
 ````typescript
 
@@ -3197,6 +3255,26 @@ export function getConfiguredGenkitModel(model?: string)
 export function createGenkitClient(options?: GenkitClientOptions)
 ````
 
+## File: modules/notebook/infrastructure/genkit/GenkitNotebookRepository.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+import { agentClient, getConfiguredGenkitModel } from "./client";
+export class GenkitNotebookRepository implements NotebookRepository {
+⋮----
+async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
+````
+
+## File: modules/notebook/infrastructure/genkit/index.ts
+````typescript
+/**
+ * @module modules/notebook/infrastructure/genkit
+ */
+````
+
 ## File: modules/notebook/infrastructure/index.ts
 ````typescript
 
@@ -3205,6 +3283,47 @@ export function createGenkitClient(options?: GenkitClientOptions)
 ## File: modules/notebook/interfaces/index.ts
 ````typescript
 
+````
+
+## File: modules/notebook/README.md
+````markdown
+# notebook — Notebook 對話上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/notebook/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 對話 Thread 管理 | 維護對話串與訊息歷史 |
+| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
+| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+
+## 與其他 Bounded Context 協作
+
+- `search` 是主要上游，提供語意檢索與引用資料。
+- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+
+## 核心聚合 / 核心概念
+
+- **`Thread`**
+- **`Message`**
+- **`Summary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/notification/application/use-cases/notification.use-cases.ts
@@ -4006,6 +4125,84 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]>
 
 ````
 
+## File: modules/organization/README.md
+````markdown
+# organization — 組織上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/organization/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 組織管理 | 建立與維護 Organization 聚合 |
+| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
+| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
+
+## 與其他 Bounded Context 協作
+
+- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
+- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
+
+## 核心聚合 / 核心概念
+
+- **`Organization`**
+- **`MemberReference`**
+- **`Team`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/search/api/index.ts
+````typescript
+/**
+ * modules/search — public API barrel.
+ *
+ * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
+ * Other modules MUST import from here only.
+ */
+⋮----
+// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
+⋮----
+// ── Wiki RAG types (owned by search domain) ────────────────────────────────
+⋮----
+// ── Wiki RAG use-cases ─────────────────────────────────────────────────────
+import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
+import {
+  runWikiRagQuery as _runWikiRagQuery,
+  reindexWikiDocument as _reindexWikiDocument,
+  listWikiParsedDocuments as _listWikiParsedDocuments,
+} from "../application/use-cases/wiki-rag.use-case";
+import type {
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../domain/entities/WikiRagTypes";
+⋮----
+export function runWikiRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<WikiRagQueryResult>
+export function reindexWikiDocument(input: WikiReindexInput): Promise<void>
+export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]>
+````
+
 ## File: modules/search/api/server.ts
 ````typescript
 /**
@@ -4061,6 +4258,44 @@ async execute(input: SubmitRagQueryFeedbackInput): Promise<CommandResult>
 ⋮----
 /** Convenience factory for production wiring (used by Server Actions). */
 export function createFeedbackId(): string
+````
+
+## File: modules/search/application/use-cases/wiki-rag.use-case.ts
+````typescript
+/**
+ * Module: search
+ * Layer: application/use-cases
+ * Purpose: Wiki-style RAG use-cases — run query, reindex document, list documents.
+ *          Thin delegation to the FirebaseWikiContentRepository for the
+ *          search module's public wiki-facing query surface.
+ */
+import type { WikiContentRepository } from "../../domain/repositories/WikiContentRepository";
+import type {
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../../domain/entities/WikiRagTypes";
+export async function runWikiRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: {
+    taxonomyFilters?: string[];
+    maxAgeDays?: number;
+    requireReady?: boolean;
+  } = {},
+  repository: WikiContentRepository,
+): Promise<WikiRagQueryResult>
+export async function reindexWikiDocument(
+  input: WikiReindexInput,
+  repository: WikiContentRepository,
+): Promise<void>
+export async function listWikiParsedDocuments(
+  accountId: string,
+  limitCount = 20,
+  repository: WikiContentRepository,
+): Promise<WikiParsedDocument[]>
 ````
 
 ## File: modules/search/domain/entities/RagQuery.ts
@@ -4173,6 +4408,63 @@ export interface SubmitRagQueryFeedbackInput {
   readonly rating: RagFeedbackRating;
   readonly comment?: string;
   readonly submittedByUserId: string;
+}
+````
+
+## File: modules/search/domain/entities/WikiRagTypes.ts
+````typescript
+/**
+ * Module: search
+ * Layer: domain/entities
+ * Purpose: Wiki-style RAG document and query result types — the
+ *          lightweight RAG interface types used by the wiki UI components.
+ *          Lives in search because RAG query/answer is a search-domain concern.
+ */
+export interface WikiCitation {
+  provider?: "vector" | "search";
+  chunk_id?: string;
+  doc_id?: string;
+  filename?: string;
+  json_gcs_uri?: string;
+  search_id?: string;
+  score?: number;
+  text?: string;
+  account_id?: string;
+  workspace_id?: string;
+  taxonomy?: string;
+  processing_status?: string;
+  indexed_at?: string;
+}
+export interface WikiRagQueryResult {
+  answer: string;
+  citations: WikiCitation[];
+  cache: "hit" | "miss";
+  vectorHits: number;
+  searchHits: number;
+  accountScope: string;
+  workspaceScope?: string;
+  taxonomyFilters?: string[];
+  maxAgeDays?: number;
+  requireReady?: boolean;
+}
+export interface WikiParsedDocument {
+  id: string;
+  filename: string;
+  workspaceId: string;
+  sourceGcsUri: string;
+  jsonGcsUri: string;
+  pageCount: number;
+  status: string;
+  ragStatus: string;
+  uploadedAt: Date | null;
+}
+export interface WikiReindexInput {
+  accountId: string;
+  docId: string;
+  jsonGcsUri: string;
+  sourceGcsUri: string;
+  filename: string;
+  pageCount: number;
 }
 ````
 
@@ -4607,6 +4899,47 @@ onDragOver=
 onDrop=
 ````
 
+## File: modules/search/README.md
+````markdown
+# search — 語意檢索上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/search/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
+
+## 與其他 Bounded Context 協作
+
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
+
+## 核心聚合 / 核心概念
+
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/shared/api/index.ts
 ````typescript
 /**
@@ -4973,6 +5306,47 @@ async publish<T extends DomainEvent>(event: T): Promise<void>
 clear(): void
 ````
 
+## File: modules/shared/README.md
+````markdown
+# shared — 共享核心上下文
+
+> **Domain Type:** Shared Kernel  
+> **模組路徑:** `modules/shared/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
+| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
+| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
+
+## 與其他 Bounded Context 協作
+
+- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
+- `shared` 的變更需視為跨域契約變更處理。
+
+## 核心聚合 / 核心概念
+
+- **`DomainEvent`**
+- **`EventRecord`**
+- **`SlugUtils`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/source/application/dto/file.dto.ts
 ````typescript
 import type { File } from "../../domain/entities/File";
@@ -5192,6 +5566,65 @@ constructor(private readonly fileRepository: FileRepository)
 async execute(input: UploadInitFileInputDto): Promise<UploadInitFileUseCaseResult>
 ````
 
+## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
+````typescript
+/**
+ * Module: source
+ * Layer: application/use-cases
+ * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API for the source module's wiki-facing library
+ *          management surface.
+ */
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  deriveSlugCandidate,
+  isValidSlug,
+} from "@/modules/shared/api";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../../domain/entities/wiki-library.types";
+import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
+⋮----
+function generateId(): string
+function normalizeName(name: string): string
+function normalizeFieldKey(key: string): string
+function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string
+export async function listWikiLibraries(
+  accountId: string,
+  workspaceId: string | undefined,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary[]>
+export async function createWikiLibrary(
+  input: CreateWikiLibraryInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary>
+export async function addWikiLibraryField(
+  input: AddWikiLibraryFieldInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryField>
+export async function createWikiLibraryRow(
+  input: CreateWikiLibraryRowInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryRow>
+export interface WikiLibrarySnapshot {
+  library: WikiLibrary;
+  fields: WikiLibraryField[];
+  rows: WikiLibraryRow[];
+}
+export async function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrarySnapshot>
+````
+
 ## File: modules/source/domain/entities/AuditRecord.ts
 ````typescript
 export type FileAuditAction =
@@ -5281,6 +5714,65 @@ export interface RetentionPolicy {
   readonly legalHold: boolean;
   readonly purgeMode: "soft-delete" | "hard-delete";
   readonly updatedAtISO: string;
+}
+````
+
+## File: modules/source/domain/entities/wiki-library.types.ts
+````typescript
+/**
+ * Module: source
+ * Layer: domain/entities
+ * Purpose: Wiki-style library entity — lightweight structured-data model
+ *          used by the wiki interfaces.
+ *          Lives in source because libraries are a source/database-resource concern.
+ */
+export type WikiLibraryStatus = "active" | "archived";
+export type WikiLibraryFieldType = "title" | "text" | "number" | "select" | "relation";
+export interface WikiLibrary {
+  id: string;
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  status: WikiLibraryStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface WikiLibraryField {
+  id: string;
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required: boolean;
+  options?: string[];
+  createdAt: Date;
+}
+export interface WikiLibraryRow {
+  id: string;
+  libraryId: string;
+  values: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface CreateWikiLibraryInput {
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+}
+export interface AddWikiLibraryFieldInput {
+  accountId: string;
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required?: boolean;
+  options?: string[];
+}
+export interface CreateWikiLibraryRowInput {
+  accountId: string;
+  libraryId: string;
+  values: Record<string, unknown>;
 }
 ````
 
@@ -5779,6 +6271,59 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 onDrop(
 ````
 
+## File: modules/source/interfaces/components/SourceDocumentsView.tsx
+````typescript
+import { useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  FileUp,
+  Loader2,
+  Pencil,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useApp } from "@/app/providers/app-provider";
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
+import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
+⋮----
+function StatusBadge(
+⋮----
+function RagBadge(
+function formatDate(value: Date | null): string
+interface SourceDocumentsViewProps {
+  readonly workspaceId?: string;
+}
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+⋮----
+function handleFileChange(file: File | null)
+async function handleUpload()
+async function handleDelete(doc: SourceLiveDocument)
+⋮----
+try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
+⋮----
+async function handleRename(doc: SourceLiveDocument)
+async function handleViewOriginal(doc: SourceLiveDocument)
+⋮----
+{/* Upload dropzone */}
+⋮----
+onDragOver=
+⋮----
+onDrop=
+⋮----
+onChange=
+⋮----
+onClick=
+⋮----
+{/* Document list */}
+````
+
 ## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
 ````typescript
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -5898,6 +6443,47 @@ export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<Wor
 export async function getWorkspaceRagDocuments(
   workspace: WorkspaceEntity,
 ): Promise<readonly RagDocumentRecord[]>
+````
+
+## File: modules/source/README.md
+````markdown
+# source — 文件來源上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
+
+## 核心聚合 / 核心概念
+
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/workspace-audit/api/index.ts
@@ -6152,6 +6738,47 @@ export async function getOrganizationAuditLogs(
 ## File: modules/workspace-audit/ports/.gitkeep
 ````
 
+````
+
+## File: modules/workspace-audit/README.md
+````markdown
+# workspace-audit — 工作區稽核上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-audit/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
+| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
+| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 與 `organization` 提供查詢與可見性範圍。
+- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
+
+## 核心聚合 / 核心概念
+
+- **`AuditLog`**
+- **`AuditActor`**
+- **`AuditScope`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/workspace-feed/api/index.ts
@@ -6647,6 +7274,47 @@ export async function getWorkspaceFeed(
   limit = 50,
 ): Promise<WorkspaceFeedPost[]>
 export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]>
+````
+
+## File: modules/workspace-feed/README.md
+````markdown
+# workspace-feed — 工作區動態上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-feed/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
+| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
+| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供動態的歸屬邊界。
+- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
+
+## 核心聚合 / 核心概念
+
+- **`WorkspaceFeedPost`**
+- **`FeedReaction`**
+- **`FeedThread`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/workspace-flow/api/contracts.ts
@@ -9429,6 +10097,47 @@ export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Inv
 export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>
 ````
 
+## File: modules/workspace-flow/README.md
+````markdown
+# workspace-flow — 工作流程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-flow/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
+| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
+| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
+
+## 與其他 Bounded Context 協作
+
+- `knowledge` 是最重要上游，提供審批後的內容事件。
+- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
+
+## 核心聚合 / 核心概念
+
+- **`Task`**
+- **`Issue`**
+- **`Invoice`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/workspace-flow/Workspace-Flow-Architecture.mermaid
 ````
 flowchart LR
@@ -10636,6 +11345,72 @@ async function handleSubmit(values: CreateDemandFormValues)
 {/* ── Create form dialog ─────────────────────────────────────────── */}
 ````
 
+## File: modules/workspace-scheduling/README.md
+````markdown
+# workspace-scheduling — 工作區排程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-scheduling/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
+| 時間視圖 | 提供日曆、截止與安排視角 |
+| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-flow` 可作為排程需求來源。
+- `workspace` 提供排程歸屬與成員範圍。
+
+## 核心聚合 / 核心概念
+
+- **`WorkDemand`**
+- **`ScheduleWindow`**
+- **`CapacityAllocation`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/workspace/api/index.ts
+````typescript
+/**
+ * workspace 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
+ */
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+⋮----
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+⋮----
+// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
+⋮----
+// ─── Wiki content-tree use-case ────────────────────────────────────────────
+import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
+import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
+⋮----
+export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]>
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
+⋮----
+// ─── UI components (cross-module public) ─────────────────────────────────────
+⋮----
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+````
+
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
 ````typescript
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
@@ -11214,6 +11989,47 @@ export async function getWorkspaceByIdForAccount(
 ## File: modules/workspace/ports/.gitkeep
 ````
 
+````
+
+## File: modules/workspace/README.md
+````markdown
+# workspace — 工作區上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Workspace 容器管理 | 建立、更新、歸檔工作區 |
+| 成員與角色 | 管理工作區成員、角色與協作可見性 |
+| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
+
+## 與其他 Bounded Context 協作
+
+- `organization` 是主要上游，提供多租戶歸屬。
+- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
+
+## 核心聚合 / 核心概念
+
+- **`Workspace`**
+- **`WorkspaceMember`**
+- **`WikiContentTree`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: next.config.ts
@@ -15875,32 +16691,175 @@ import { redirect } from "next/navigation";
 export default function OrganizationKnowledgePage()
 ````
 
-## File: app/(shell)/organization/page.tsx
+## File: app/(shell)/organization/members/page.tsx
 ````typescript
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
+import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity &
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+type MemberRole = "Admin" | "Member" | "Guest";
 ⋮----
-function handleSwitch(account: AccountEntity)
-function handleSwitchToPersonal()
+async function loadMembers(organizationId: string)
 ⋮----
-{/* Personal account */}
+async function load()
 ⋮----
-{/* Organizations */}
+async function handleInvite()
+async function handleDismiss(memberId: string)
 ⋮----
-onClick=
+<Button onClick=
+````
+
+## File: app/(shell)/organization/permissions/page.tsx
+````typescript
+import { useEffect, useState } from "react";
+import { useApp } from "@/app/providers/app-provider";
+import { createOrgPolicy, getOrgPolicies } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+type PolicyScope = "workspace" | "member" | "global";
+export default function OrganizationPermissionsPage()
+⋮----
+async function loadPolicies(organizationId: string)
+⋮----
+async function load()
+⋮----
+async function handleCreate()
+⋮----
+<Button onClick=
+⋮----
+<Select value=
+````
+
+## File: app/(shell)/organization/teams/page.tsx
+````typescript
+import { useEffect, useState } from "react";
+import { useApp } from "@/app/providers/app-provider";
+import { createTeam, getOrganizationTeams } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+⋮----
+async function loadTeams(organizationId: string)
+⋮----
+async function load()
+⋮----
+async function handleCreate()
+⋮----
+<Button onClick=
+````
+
+## File: app/(shell)/organization/workspaces/page.tsx
+````typescript
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useApp } from "@/app/providers/app-provider";
+import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { isOrganizationAccount } from "../_utils";
+⋮----
+async function loadWorkspaces(organizationId: string)
+⋮----
+async function load()
+⋮----
+async function handleCreate()
+⋮----
+<Button size="sm" onClick=
+⋮----
+{/* Create Workspace Dialog */}
+⋮----
+onKeyDown=
 ````
 
 ## File: app/(shell)/source/documents/page.tsx
@@ -16155,47 +17114,6 @@ interface AccountPolicyUpdatedEvent {
 
 - `../../../modules/account/domain-services.md`
 - `../../../docs/ddd/account/aggregates.md`
-````
-
-## File: modules/account/README.md
-````markdown
-# account — 帳戶上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/account/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
-| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
-| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
-
-## 與其他 Bounded Context 協作
-
-- `identity` 提供身份與 token 上下文。
-- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
-
-## 核心聚合 / 核心概念
-
-- **`Account`**
-- **`AccountPolicy`**
-- **`AccountProfile`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/account/repositories.md
@@ -16509,47 +17427,6 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 - `../../../docs/ddd/ai/aggregates.md`
 ````
 
-## File: modules/ai/README.md
-````markdown
-# ai — AI 攝入上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/ai/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
-| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
-| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
-
-## 與其他 Bounded Context 協作
-
-- `source` 是上游，提供來源文件與交接事件。
-- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
-
-## 核心聚合 / 核心概念
-
-- **`IngestionJob`**
-- **`IngestionDocument`**
-- **`IngestionChunk`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/ai/repositories.md
 ````markdown
 # ai — Repositories
@@ -16779,47 +17656,6 @@ identityApi.listenToTokenRefresh()
 
 - `../../../modules/identity/domain-services.md`
 - `../../../docs/ddd/identity/aggregates.md`
-````
-
-## File: modules/identity/README.md
-````markdown
-# identity — 身份驗證上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
-
-## 核心聚合 / 核心概念
-
-- **`Identity`**
-- **`AuthenticatedUser`**
-- **`TokenRefreshSignal`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/identity/repositories.md
@@ -18603,6 +19439,56 @@ deleteBlock(id)
 moveBlock(fromIdx, toIdx)
 ````
 
+## File: modules/notebook/AGENT.md
+````markdown
+# AGENT.md — notebook BC
+
+## 模組定位
+
+`notebook` 是 AI 對話的支援域，管理 Thread/Message 生命週期並封裝 Genkit 呼叫。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Thread` | Conversation、Chat、Session |
+| `Message` | ChatMessage、Msg |
+| `MessageRole` | Role（單獨使用）、Speaker |
+| `NotebookResponse` | AIResponse、GeneratedText |
+| `NotebookRepository` | AIRepository、ChatRepository |
+
+## 最重要規則：Server Action 隔離
+
+```typescript
+// ✅ 正確：在 app/(shell)/ai-chat/_actions.ts 中建立本地 action
+"use server";
+import { notebookApi } from "@/modules/notebook/api";
+export async function generateResponse(input) {
+  return notebookApi.generateResponse(input);
+}
+
+// ❌ 禁止：在 Client Component 直接 import notebook/api
+// Genkit/gRPC 是 server-only，會導致打包失敗
+import { notebookApi } from "@/modules/notebook/api"; // 在 "use client" 檔案中
+```
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+// Server-side context only
+import { notebookApi } from "@/modules/notebook/api";
+import type { ThreadDTO, MessageDTO } from "@/modules/notebook/api";
+```
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
 ## File: modules/notebook/aggregates.md
 ````markdown
 # Aggregates — notebook
@@ -18677,16 +19563,6 @@ interface NotebookResponse {
 ````typescript
 /**
  * modules/notebook — public API barrel.
- */
-````
-
-## File: modules/notebook/api/server.ts
-````typescript
-/**
- * modules/notebook — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring.
  */
 ````
 
@@ -18833,24 +19709,27 @@ async save(accountId: string, thread: Thread): Promise<void>
 async getById(accountId: string, threadId: string): Promise<Thread | null>
 ````
 
-## File: modules/notebook/infrastructure/genkit/GenkitNotebookRepository.ts
+## File: modules/notebook/interfaces/_actions/notebook.actions.ts
 ````typescript
 import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
-import { agentClient, getConfiguredGenkitModel } from "./client";
-export class GenkitNotebookRepository implements NotebookRepository {
-⋮----
-async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
-````
-
-## File: modules/notebook/infrastructure/genkit/index.ts
-````typescript
-/**
- * @module modules/notebook/infrastructure/genkit
- */
+import type { Thread } from "../../domain/entities/thread";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
+import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
+import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
+import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
+import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
+import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
+import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";
+function makeThreadRepo()
+export async function generateNotebookResponse(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult>
+export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
+export async function saveThread(accountId: string, thread: Thread): Promise<void>
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -19176,6 +20055,47 @@ async function handleMarkAllRead()
 
 ````
 
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** ✅ Done
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/notification/repositories.md
 ````markdown
 # notification — Repositories
@@ -19440,47 +20360,6 @@ interface OrganizationMemberJoinedEvent {
 - `../../../docs/ddd/organization/aggregates.md`
 ````
 
-## File: modules/organization/README.md
-````markdown
-# organization — 組織上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/organization/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 組織管理 | 建立與維護 Organization 聚合 |
-| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
-| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
-- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
-
-## 核心聚合 / 核心概念
-
-- **`Organization`**
-- **`MemberReference`**
-- **`Team`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/organization/repositories.md
 ````markdown
 # organization — Repositories
@@ -19631,43 +20510,6 @@ npm run build
 | `WikiContentRepository` | Wiki 整合 RAG 查詢（`queryWikiRag()`, `reindexWikiDocument()`） |
 ````
 
-## File: modules/search/api/index.ts
-````typescript
-/**
- * modules/search — public API barrel.
- *
- * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
- * Other modules MUST import from here only.
- */
-⋮----
-// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
-⋮----
-// ── Wiki RAG types (owned by search domain) ────────────────────────────────
-⋮----
-// ── Wiki RAG use-cases ─────────────────────────────────────────────────────
-import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
-import {
-  runWikiRagQuery as _runWikiRagQuery,
-  reindexWikiDocument as _reindexWikiDocument,
-  listWikiParsedDocuments as _listWikiParsedDocuments,
-} from "../application/use-cases/wiki-rag.use-case";
-import type {
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/entities/WikiRagTypes";
-⋮----
-export function runWikiRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<WikiRagQueryResult>
-export function reindexWikiDocument(input: WikiReindexInput): Promise<void>
-export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]>
-````
-
 ## File: modules/search/application-services.md
 ````markdown
 # search — Application Services
@@ -19698,44 +20540,6 @@ Application layer 只負責：
 - 模組 README：`../../../modules/search/README.md`
 - 模組 AGENT：`../../../modules/search/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/search/application-services.md`
-````
-
-## File: modules/search/application/use-cases/wiki-rag.use-case.ts
-````typescript
-/**
- * Module: search
- * Layer: application/use-cases
- * Purpose: Wiki-style RAG use-cases — run query, reindex document, list documents.
- *          Thin delegation to the FirebaseWikiContentRepository for the
- *          search module's public wiki-facing query surface.
- */
-import type { WikiContentRepository } from "../../domain/repositories/WikiContentRepository";
-import type {
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../../domain/entities/WikiRagTypes";
-export async function runWikiRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: {
-    taxonomyFilters?: string[];
-    maxAgeDays?: number;
-    requireReady?: boolean;
-  } = {},
-  repository: WikiContentRepository,
-): Promise<WikiRagQueryResult>
-export async function reindexWikiDocument(
-  input: WikiReindexInput,
-  repository: WikiContentRepository,
-): Promise<void>
-export async function listWikiParsedDocuments(
-  accountId: string,
-  limitCount = 20,
-  repository: WikiContentRepository,
-): Promise<WikiParsedDocument[]>
 ````
 
 ## File: modules/search/context-map.md
@@ -19842,104 +20646,6 @@ const result = await searchApi.answerRagQuery({
 
 - `../../../modules/search/domain-services.md`
 - `../../../docs/ddd/search/aggregates.md`
-````
-
-## File: modules/search/domain/entities/WikiRagTypes.ts
-````typescript
-/**
- * Module: search
- * Layer: domain/entities
- * Purpose: Wiki-style RAG document and query result types — the
- *          lightweight RAG interface types used by the wiki UI components.
- *          Lives in search because RAG query/answer is a search-domain concern.
- */
-export interface WikiCitation {
-  provider?: "vector" | "search";
-  chunk_id?: string;
-  doc_id?: string;
-  filename?: string;
-  json_gcs_uri?: string;
-  search_id?: string;
-  score?: number;
-  text?: string;
-  account_id?: string;
-  workspace_id?: string;
-  taxonomy?: string;
-  processing_status?: string;
-  indexed_at?: string;
-}
-export interface WikiRagQueryResult {
-  answer: string;
-  citations: WikiCitation[];
-  cache: "hit" | "miss";
-  vectorHits: number;
-  searchHits: number;
-  accountScope: string;
-  workspaceScope?: string;
-  taxonomyFilters?: string[];
-  maxAgeDays?: number;
-  requireReady?: boolean;
-}
-export interface WikiParsedDocument {
-  id: string;
-  filename: string;
-  workspaceId: string;
-  sourceGcsUri: string;
-  jsonGcsUri: string;
-  pageCount: number;
-  status: string;
-  ragStatus: string;
-  uploadedAt: Date | null;
-}
-export interface WikiReindexInput {
-  accountId: string;
-  docId: string;
-  jsonGcsUri: string;
-  sourceGcsUri: string;
-  filename: string;
-  pageCount: number;
-}
-````
-
-## File: modules/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/search/repositories.md
@@ -20180,47 +20886,6 @@ interface DomainEvent {
 - `../../../docs/ddd/shared/aggregates.md`
 ````
 
-## File: modules/shared/README.md
-````markdown
-# shared — 共享核心上下文
-
-> **Domain Type:** Shared Kernel  
-> **模組路徑:** `modules/shared/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
-| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
-| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
-
-## 與其他 Bounded Context 協作
-
-- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
-- `shared` 的變更需視為跨域契約變更處理。
-
-## 核心聚合 / 核心概念
-
-- **`DomainEvent`**
-- **`EventRecord`**
-- **`SlugUtils`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/shared/repositories.md
 ````markdown
 # shared — Repositories
@@ -20398,6 +21063,51 @@ RAG 文件的邏輯集合容器，對應使用者在 UI 看到的「知識庫」
 | `WikiLibraryRepository` | `save()`, `findByWorkspaceId()` |
 ````
 
+## File: modules/source/api/index.ts
+````typescript
+/**
+ * Module: source
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the source domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+// --- Core entity types -------------------------------------------------------
+⋮----
+// --- Wiki library entity types (owned by source domain) -------------------
+⋮----
+// --- Wiki library use-cases ------------------------------------------------
+import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
+import {
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
+⋮----
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot>
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
+// --- Document snapshot types --------------------------------------------------
+⋮----
+// --- Query functions ---------------------------------------------------------
+⋮----
+// --- UI components (cross-module public) -------------------------------------
+````
+
 ## File: modules/source/application-services.md
 ````markdown
 # source — Application Services
@@ -20433,65 +21143,6 @@ Application layer 只負責：
 - 模組 README：`../../../modules/source/README.md`
 - 模組 AGENT：`../../../modules/source/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/source/application-services.md`
-````
-
-## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
-````typescript
-/**
- * Module: source
- * Layer: application/use-cases
- * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
- *          Direct-function API for the source module's wiki-facing library
- *          management surface.
- */
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  deriveSlugCandidate,
-  isValidSlug,
-} from "@/modules/shared/api";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../../domain/entities/wiki-library.types";
-import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
-⋮----
-function generateId(): string
-function normalizeName(name: string): string
-function normalizeFieldKey(key: string): string
-function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string
-export async function listWikiLibraries(
-  accountId: string,
-  workspaceId: string | undefined,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary[]>
-export async function createWikiLibrary(
-  input: CreateWikiLibraryInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary>
-export async function addWikiLibraryField(
-  input: AddWikiLibraryFieldInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryField>
-export async function createWikiLibraryRow(
-  input: CreateWikiLibraryRowInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryRow>
-export interface WikiLibrarySnapshot {
-  library: WikiLibrary;
-  fields: WikiLibraryField[];
-  rows: WikiLibraryRow[];
-}
-export async function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrarySnapshot>
 ````
 
 ## File: modules/source/context-map.md
@@ -20590,65 +21241,6 @@ export async function getWikiLibrarySnapshot(
 - `../../../docs/ddd/source/aggregates.md`
 ````
 
-## File: modules/source/domain/entities/wiki-library.types.ts
-````typescript
-/**
- * Module: source
- * Layer: domain/entities
- * Purpose: Wiki-style library entity — lightweight structured-data model
- *          used by the wiki interfaces.
- *          Lives in source because libraries are a source/database-resource concern.
- */
-export type WikiLibraryStatus = "active" | "archived";
-export type WikiLibraryFieldType = "title" | "text" | "number" | "select" | "relation";
-export interface WikiLibrary {
-  id: string;
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-  slug: string;
-  status: WikiLibraryStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-export interface WikiLibraryField {
-  id: string;
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required: boolean;
-  options?: string[];
-  createdAt: Date;
-}
-export interface WikiLibraryRow {
-  id: string;
-  libraryId: string;
-  values: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-export interface CreateWikiLibraryInput {
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-}
-export interface AddWikiLibraryFieldInput {
-  accountId: string;
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required?: boolean;
-  options?: string[];
-}
-export interface CreateWikiLibraryRowInput {
-  accountId: string;
-  libraryId: string;
-  values: Record<string, unknown>;
-}
-````
-
 ## File: modules/source/infrastructure/firebase/FirebaseWikiLibraryRepository.ts
 ````typescript
 /**
@@ -20738,59 +21330,6 @@ async createField(accountId: string, field: WikiLibraryField): Promise<void>
 async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]>
 async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
 async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
-````
-
-## File: modules/source/interfaces/components/SourceDocumentsView.tsx
-````typescript
-import { useRef, useState } from "react";
-import {
-  CheckCircle2,
-  ExternalLink,
-  FileUp,
-  Loader2,
-  Pencil,
-  Trash2,
-  XCircle,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useApp } from "@/app/providers/app-provider";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
-import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
-⋮----
-function StatusBadge(
-⋮----
-function RagBadge(
-function formatDate(value: Date | null): string
-interface SourceDocumentsViewProps {
-  readonly workspaceId?: string;
-}
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-⋮----
-function handleFileChange(file: File | null)
-async function handleUpload()
-async function handleDelete(doc: SourceLiveDocument)
-⋮----
-try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
-⋮----
-async function handleRename(doc: SourceLiveDocument)
-async function handleViewOriginal(doc: SourceLiveDocument)
-⋮----
-{/* Upload dropzone */}
-⋮----
-onDragOver=
-⋮----
-onDrop=
-⋮----
-onChange=
-⋮----
-onClick=
-⋮----
-{/* Document list */}
 ````
 
 ## File: modules/source/repositories.md
@@ -21113,47 +21652,6 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-audit/aggregates.md`
 ````
 
-## File: modules/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
-
-## 核心聚合 / 核心概念
-
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-audit/repositories.md
 ````markdown
 # workspace-audit — Repositories
@@ -21369,47 +21867,6 @@ Application layer 只負責：
 
 - `../../../modules/workspace-feed/domain-services.md`
 - `../../../docs/ddd/workspace-feed/aggregates.md`
-````
-
-## File: modules/workspace-feed/README.md
-````markdown
-# workspace-feed — 工作區動態上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
-
-## 核心聚合 / 核心概念
-
-- **`WorkspaceFeedPost`**
-- **`FeedReaction`**
-- **`FeedThread`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/workspace-feed/repositories.md
@@ -21799,47 +22256,6 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 - `../../../docs/ddd/workspace-flow/aggregates.md`
 ````
 
-## File: modules/workspace-flow/README.md
-````markdown
-# workspace-flow — 工作流程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-flow/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
-| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
-| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
-
-## 與其他 Bounded Context 協作
-
-- `knowledge` 是最重要上游，提供審批後的內容事件。
-- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
-
-## 核心聚合 / 核心概念
-
-- **`Task`**
-- **`Issue`**
-- **`Invoice`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-flow/repositories.md
 ````markdown
 # workspace-flow — Repositories
@@ -22215,47 +22631,6 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-scheduling/aggregates.md`
 ````
 
-## File: modules/workspace-scheduling/README.md
-````markdown
-# workspace-scheduling — 工作區排程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
-
-## 核心聚合 / 核心概念
-
-- **`WorkDemand`**
-- **`ScheduleWindow`**
-- **`CapacityAllocation`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-scheduling/repositories.md
 ````markdown
 # workspace-scheduling — Repositories
@@ -22323,6 +22698,50 @@ Application layer 只負責：
 | `DemandStatus` | `Status`, `WorkStatus` |
 ````
 
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+## 模組定位
+
+`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceMember` | Member、Participant |
+| `WikiContentTree` | PageTree、ContentHierarchy |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 Workspace 上下文中） |
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceApi } from "@/modules/workspace/api";
+import type { WorkspaceDTO } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+```typescript
+// workspace/infrastructure 禁止 import workspace/api（循環依賴）
+import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
+```
+
+## 循環依賴守衛
+
+`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
 ## File: modules/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -22379,31 +22798,6 @@ Application layer 只負責：
 | `WorkspaceRepository` | `save()`, `findById()`, `findByAccountId()` |
 | `WorkspaceQueryRepository` | `listByAccountId()`, `findById()` |
 | `WikiWorkspaceRepository` | `getContentTree()`, `updateTree()` |
-````
-
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-⋮----
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-⋮----
-// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
-⋮----
-// ─── Wiki content-tree use-case ────────────────────────────────────────────
-import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
-import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
-⋮----
-export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]>
-// ─── Server actions (client-callable via Next.js action proxy) ──────────────
-⋮----
-// ─── UI components (cross-module public) ─────────────────────────────────────
-⋮----
-// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
 ````
 
 ## File: modules/workspace/application-services.md
@@ -22563,6 +22957,51 @@ interface WorkspaceCreatedEvent {
 
 - `../../../modules/workspace/domain-services.md`
 - `../../../docs/ddd/workspace/aggregates.md`
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
+````typescript
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+⋮----
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+}
+⋮----
+function resetCreateWorkspaceDialog()
+async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+⋮----
+onClick=
+⋮----
+setIsCreateWorkspaceOpen(open);
+⋮----
+resetCreateWorkspaceDialog();
+setIsCreateWorkspaceOpen(false);
 ````
 
 ## File: modules/workspace/interfaces/workspace-tabs.ts
@@ -23045,6 +23484,38 @@ function handleSelect(href: string)
 /** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
 ⋮----
 function onKeyDown(event: KeyboardEvent)
+````
+
+## File: app/(shell)/organization/page.tsx
+````typescript
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity &
+export default function OrganizationPage()
+⋮----
+function handleSwitch(account: AccountEntity)
+function handleSwitchToPersonal()
+⋮----
+{/* Quick-access dashboard — visible only when an org context is active */}
+⋮----
+{/* Personal account */}
+⋮----
+{/* Organizations */}
+⋮----
+onClick=
 ````
 
 ## File: firestore.indexes.json
@@ -26277,54 +26748,50 @@ export async function assignKnowledgePageOwner(
 ): Promise<CommandResult>
 ````
 
-## File: modules/notebook/AGENT.md
+## File: modules/knowledge/README.md
 ````markdown
-# AGENT.md — notebook BC
+# knowledge — 個人筆記與頁面管理
 
-## 模組定位
+> **Domain Type:** **Core Domain**（核心域）
+> **模組路徑:** `modules/knowledge/`
+> **開發狀態:** 🚧 Developing — 積極開發中
 
-`notebook` 是 AI 對話的支援域，管理 Thread/Message 生命週期並封裝 Genkit 呼叫。
+## 在 Knowledge Platform 中的角色
 
-## 通用語言（Ubiquitous Language）
+`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
 
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Thread` | Conversation、Chat、Session |
-| `Message` | ChatMessage、Msg |
-| `MessageRole` | Role（單獨使用）、Speaker |
-| `NotebookResponse` | AIResponse、GeneratedText |
-| `NotebookRepository` | AIRepository、ChatRepository |
+## 主要職責
 
-## 最重要規則：Server Action 隔離
+| 能力 | 說明 |
+|---|---|
+| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
+| Block 管理 | 新增、更新、刪除、重排內容區塊 |
+| 層級結構 | 父子頁面樹狀管理 |
+| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
 
-```typescript
-// ✅ 正確：在 app/(shell)/ai-chat/_actions.ts 中建立本地 action
-"use server";
-import { notebookApi } from "@/modules/notebook/api";
-export async function generateResponse(input) {
-  return notebookApi.generateResponse(input);
-}
+## 核心聚合
 
-// ❌ 禁止：在 Client Component 直接 import notebook/api
-// Genkit/gRPC 是 server-only，會導致打包失敗
-import { notebookApi } from "@/modules/notebook/api"; // 在 "use client" 檔案中
-```
+- **`Page`**（KnowledgePage）
+- **`Block`**（ContentBlock）
 
-## 邊界規則
+## 不在此 BC 範圍
 
-### ✅ 允許
-```typescript
-// Server-side context only
-import { notebookApi } from "@/modules/notebook/api";
-import type { ThreadDTO, MessageDTO } from "@/modules/notebook/api";
-```
+| 功能 | 歸屬 BC |
+|------|---------|
+| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
+| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
+| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
 
-## 驗證命令
+## 詳細文件
 
-```bash
-npm run lint
-npm run build
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面與實作 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
 ````
 
 ## File: modules/notebook/context-map.md
@@ -26362,109 +26829,44 @@ npm run build
 | notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（`app/(shell)/ai-chat/_actions.ts`） |
 ````
 
-## File: modules/notebook/interfaces/_actions/notebook.actions.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { Thread } from "../../domain/entities/thread";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
-import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
-import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
-import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
-import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
-import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";
-function makeThreadRepo()
-export async function generateNotebookResponse(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult>
-export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
-export async function saveThread(accountId: string, thread: Thread): Promise<void>
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
-````
-
-## File: modules/notebook/README.md
+## File: modules/notebook/repositories.md
 ````markdown
-# notebook — Notebook 對話上下文
+# notebook — Repositories
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/notebook/`  
-> **開發狀態:** 🏗️ Midway
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
 
-## 在 Knowledge Platform / Second Brain 中的角色
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
 
-`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+## Domain Repository Ports
 
-## 主要職責
+- `domain/repositories/NotebookRepository.ts`
 
-| 能力 | 說明 |
-|---|---|
-| 對話 Thread 管理 | 維護對話串與訊息歷史 |
-| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
-| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
 
-## 與其他 Bounded Context 協作
+## Infrastructure Implementations
 
-- `search` 是主要上游，提供語意檢索與引用資料。
-- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
 
-## 核心聚合 / 核心概念
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
 
-- **`Thread`**
-- **`Message`**
-- **`Summary`**
+## 設計規則
 
-## 詳細文件
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
+## 模組內對應文件
 
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** ✅ Done
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/shared/aggregates.md
@@ -26515,97 +26917,14 @@ interface EventRecord {
 | `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
 ````
 
-## File: modules/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-## 模組定位
-
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceApi } from "@/modules/workspace/api";
-import type { WorkspaceDTO } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
-```
-
-## 循環依賴守衛
-
-`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
+## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
 ````typescript
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -26614,75 +26933,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
-⋮----
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
+interface WorkspaceWikiViewProps {
+  readonly workspace: WorkspaceEntity;
 }
+/** Base left-padding (rem) for depth-0 tree items. */
 ⋮----
-function resetCreateWorkspaceDialog()
-async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+/** Additional left-padding (rem) per nesting level. */
 ⋮----
-onClick=
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<
 ⋮----
-setIsCreateWorkspaceOpen(open);
-⋮----
-resetCreateWorkspaceDialog();
-setIsCreateWorkspaceOpen(false);
-````
-
-## File: modules/workspace/README.md
-````markdown
-# workspace — 工作區上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Workspace 容器管理 | 建立、更新、歸檔工作區 |
-| 成員與角色 | 管理工作區成員、角色與協作可見性 |
-| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
-
-## 與其他 Bounded Context 協作
-
-- `organization` 是主要上游，提供多租戶歸屬。
-- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
-
-## 核心聚合 / 核心概念
-
-- **`Workspace`**
-- **`WorkspaceMember`**
-- **`WikiContentTree`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+async function loadPages()
 ````
 
 ## File: package.json
@@ -27275,52 +27535,6 @@ npm run build
 </content>
 ````
 
-## File: modules/knowledge/README.md
-````markdown
-# knowledge — 個人筆記與頁面管理
-
-> **Domain Type:** **Core Domain**（核心域）
-> **模組路徑:** `modules/knowledge/`
-> **開發狀態:** 🚧 Developing — 積極開發中
-
-## 在 Knowledge Platform 中的角色
-
-`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
-| Block 管理 | 新增、更新、刪除、重排內容區塊 |
-| 層級結構 | 父子頁面樹狀管理 |
-| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
-
-## 核心聚合
-
-- **`Page`**（KnowledgePage）
-- **`Block`**（ContentBlock）
-
-## 不在此 BC 範圍
-
-| 功能 | 歸屬 BC |
-|------|---------|
-| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
-| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
-| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面與實作 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
-````
-
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -27358,99 +27572,19 @@ npm run build
 | `View` | `knowledge-database` |
 ````
 
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: modules/source/api/index.ts
-````typescript
-/**
- * Module: source
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the source domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-// --- Core entity types -------------------------------------------------------
-⋮----
-// --- Wiki library entity types (owned by source domain) -------------------
-⋮----
-// --- Wiki library use-cases ------------------------------------------------
-import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
-import {
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibrary as _createWikiLibrary,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-  listWikiLibraries as _listWikiLibraries,
-} from "../application/use-cases/wiki-libraries.use-case";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../domain/entities/wiki-library.types";
-import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
-⋮----
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot>
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
-// --- Document snapshot types --------------------------------------------------
-⋮----
-// --- Query functions ---------------------------------------------------------
-⋮----
-// --- UI components (cross-module public) -------------------------------------
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
+## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 import Link from "next/link";
-import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { getKnowledgePageTree } from "@/modules/knowledge/api";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
+import { formatDate } from "@shared-utils";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -27459,16 +27593,216 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-interface WorkspaceWikiViewProps {
-  readonly workspace: WorkspaceEntity;
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { useApp } from "@/app/providers/app-provider";
+import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
+import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
+⋮----
+function getWorkspaceInitials(name: string)
+function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined)
+function describeGrant(grant: WorkspaceGrant)
+interface WorkspaceSettingsDraft {
+  readonly name: string;
+  readonly visibility: WorkspaceEntity["visibility"];
+  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
+  readonly street: string;
+  readonly city: string;
+  readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
+  readonly details: string;
+  readonly managerId: string;
+  readonly supervisorId: string;
+  readonly safetyOfficerId: string;
 }
-/** Base left-padding (rem) for depth-0 tree items. */
+function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft
+function trimOrUndefined(value: string)
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+}
 ⋮----
-/** Additional left-padding (rem) per nesting level. */
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
 ⋮----
-function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<
+function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue)
 ⋮----
-async function loadPages()
+async function loadWorkspace()
+⋮----
+<AvatarFallback>
+⋮----
+setSettingsDraft(createSettingsDraft(workspace));
+setSaveError(null);
+setIsEditWorkspaceOpen(true);
+⋮----
+dispatch(
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
+````
+
+## File: app/(shell)/_components/app-rail.tsx
+````typescript
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+import Link from "next/link";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  Table2,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+/** When false the item is hidden; defaults to true */
+⋮----
+function isExactOrChildPath(targetPath: string, pathname: string)
+function getInitial(name: string | undefined | null): string
+⋮----
+function resetDialog()
+function resetWorkspaceDialog()
+async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+async function handleCreateOrg(event: FormEvent<HTMLFormElement>)
+function isActive(href: string)
+⋮----
+// ── Hub ──────────────────────────────────────────────────────────
+⋮----
+// ── Content ──────────────────────────────────────────────────────
+⋮----
+// ── People (org-only) ─────────────────────────────────────────
+⋮----
+// ── Operations (org-only) ─────────────────────────────────────
+⋮----
+// ── Admin (org-only) ──────────────────────────────────────────
+⋮----
+// ── Developer ────────────────────────────────────────────────
+⋮----
+{/* ── Workspace / account logo tile ─────────────────────────── */}
+⋮----
+onSelectOrganization(account);
+⋮----
+{/* ── Section nav icons ─────────────────────────────────────── */}
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+{/* ── Spacer ────────────────────────────────────────────────── */}
+⋮----
+{/* ── Create organization dialog ─────────────────────────────── */}
+⋮----
+resetDialog();
+setIsCreateOrgOpen(false);
+⋮----
+{/* ── Create workspace dialog ────────────────────────────────── */}
+⋮----
+resetWorkspaceDialog();
+setIsCreateWorkspaceOpen(false);
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -27583,6 +27917,56 @@ onSelectWorkspace(ws.id);
 setIsExpanded((prev)
 ⋮----
 onClick=
+````
+
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+/**
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
+ */
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import type { Thread } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+const STORAGE_KEY = (accountId: string, workspaceId: string)
+function buildContextPrompt(history: ChatMessage[]): string
+function generateMsgId()
+function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
+⋮----
+// Load persisted thread on mount
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+// Build multi-turn context from history (exclude the new user message)
+⋮----
+// Persist thread to Firestore
+⋮----
+// Defer scroll to allow React to flush the new message into the DOM first.
+⋮----
+function handleNewThread()
+function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>)
+⋮----
+onSubmit=
+⋮----
+onChange=
 ````
 
 ## File: modules/knowledge-base/api/index.ts
@@ -27727,133 +28111,6 @@ function handleDelete(versionId: string)
 - `application/` 只能依賴 repository ports
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-import Link from "next/link";
-import {
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  Table2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-/** When false the item is hidden; defaults to true */
-⋮----
-function isExactOrChildPath(targetPath: string, pathname: string)
-function getInitial(name: string | undefined | null): string
-⋮----
-function resetDialog()
-function resetWorkspaceDialog()
-async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
-async function handleCreateOrg(event: FormEvent<HTMLFormElement>)
-function isActive(href: string)
-⋮----
-// ── Hub ──────────────────────────────────────────────────────────
-⋮----
-// ── Content ──────────────────────────────────────────────────────
-⋮----
-// ── People (org-only) ─────────────────────────────────────────
-⋮----
-// ── Operations (org-only) ─────────────────────────────────────
-⋮----
-// ── Admin (org-only) ──────────────────────────────────────────
-⋮----
-// ── Developer ────────────────────────────────────────────────
-⋮----
-{/* ── Workspace / account logo tile ─────────────────────────── */}
-⋮----
-onSelectOrganization(account);
-⋮----
-{/* ── Section nav icons ─────────────────────────────────────── */}
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-{/* ── Spacer ────────────────────────────────────────────────── */}
-⋮----
-{/* ── Create organization dialog ─────────────────────────────── */}
-⋮----
-resetDialog();
-setIsCreateOrgOpen(false);
-⋮----
-{/* ── Create workspace dialog ────────────────────────────────── */}
-⋮----
-resetWorkspaceDialog();
-setIsCreateWorkspaceOpen(false);
-````
-
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -27917,107 +28174,30 @@ setIsCreateWorkspaceOpen(false);
 | `BlockRepository` | `add()`, `update()`, `delete()`, `reorder()`, `findById()`, `listByPageId()` |
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
+## File: modules/knowledge/api/index.ts
 ````typescript
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
-import { formatDate } from "@shared-utils";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@ui-shadcn/ui/avatar";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { updateWorkspaceSettings } from "../_actions/workspace.actions";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
-import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../workspace-tabs";
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
 ⋮----
-function getWorkspaceInitials(name: string)
-function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined)
-function describeGrant(grant: WorkspaceGrant)
-interface WorkspaceSettingsDraft {
-  readonly name: string;
-  readonly visibility: WorkspaceEntity["visibility"];
-  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
-  readonly street: string;
-  readonly city: string;
-  readonly state: string;
-  readonly postalCode: string;
-  readonly country: string;
-  readonly details: string;
-  readonly managerId: string;
-  readonly supervisorId: string;
-  readonly safetyOfficerId: string;
-}
-function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft
-function trimOrUndefined(value: string)
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-}
+// ── Server Actions (write-side) ───────────────────────────────────────────────
 ⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+// Collection actions
 ⋮----
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue)
+// Wiki / Knowledge Base verification actions
 ⋮----
-async function loadWorkspace()
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
 ⋮----
-<AvatarFallback>
+// ── Collection types ──────────────────────────────────────────────────────────
 ⋮----
-setSettingsDraft(createSettingsDraft(workspace));
-setSaveError(null);
-setIsEditWorkspaceOpen(true);
+// ── Public event contracts ────────────────────────────────────────────────────
 ⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+// ── Queries (read-side) ──────────────────────────────────────────────
 ⋮----
-<Badge variant="outline">
-⋮----
-setIsEditWorkspaceOpen(open);
+// ── UI Components ─────────────────────────────────────────────────────────────
 ````
 
 ## File: next-env.d.ts
@@ -28082,80 +28262,4 @@ async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult
 export class ListArticlesUseCase {
 ⋮----
 async execute(params:
-````
-
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
- */
-⋮----
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-⋮----
-// Collection actions
-⋮----
-// Wiki / Knowledge Base verification actions
-⋮----
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
-⋮----
-// ── Collection types ──────────────────────────────────────────────────────────
-⋮----
-// ── Public event contracts ────────────────────────────────────────────────────
-⋮----
-// ── Queries (read-side) ──────────────────────────────────────────────
-⋮----
-// ── UI Components ─────────────────────────────────────────────────────────────
-````
-
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
- * Multi-turn context: previous messages injected as system prompt.
- */
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import type { Thread } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-const STORAGE_KEY = (accountId: string, workspaceId: string)
-function buildContextPrompt(history: ChatMessage[]): string
-function generateMsgId()
-function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
-⋮----
-// Load persisted thread on mount
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-// Build multi-turn context from history (exclude the new user message)
-⋮----
-// Persist thread to Firestore
-⋮----
-// Defer scroll to allow React to flush the new message into the DOM first.
-⋮----
-function handleNewThread()
-function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>)
-⋮----
-onSubmit=
-⋮----
-onChange=
 ````

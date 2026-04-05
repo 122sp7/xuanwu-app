@@ -1140,70 +1140,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill liteparse
 ````
 
-## File: .github/instructions/README.md
-````markdown
-# Instructions Index
-
-Repository instruction index for `applyTo`-scoped Copilot rules.
-
-## DDD 戰略與戰術設計 (IDDD)
-
-- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
-- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
-- [domain-modeling.instructions.md](domain-modeling.instructions.md)
-- [event-driven-state.instructions.md](event-driven-state.instructions.md)
-
-## Architecture
-
-- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
-- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
-- [architecture-modules.instructions.md](architecture-modules.instructions.md)
-- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
-
-## Delivery Process
-
-- [branching-strategy.instructions.md](branching-strategy.instructions.md)
-- [ci-cd.instructions.md](ci-cd.instructions.md)
-- [commit-convention.instructions.md](commit-convention.instructions.md)
-- [lint-format.instructions.md](lint-format.instructions.md)
-
-## Platform and Runtime
-
-- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
-- [cloud-functions.instructions.md](cloud-functions.instructions.md)
-- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
-- [firestore-schema.instructions.md](firestore-schema.instructions.md)
-- [security-rules.instructions.md](security-rules.instructions.md)
-
-## AI and RAG
-
-- [genkit-flow.instructions.md](genkit-flow.instructions.md)
-- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
-- [rag-architecture.instructions.md](rag-architecture.instructions.md)
-- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
-
-## Next.js and UI
-
-- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
-- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
-- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
-- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
-- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
-
-## Testing
-
-- [testing-unit.instructions.md](testing-unit.instructions.md)
-- [testing-e2e.instructions.md](testing-e2e.instructions.md)
-
-## DDD Navigation
-
-Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
-
-- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
-- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
-- `../../docs/ddd/<context>/*.md` for bounded-context details
-````
-
 ## File: .github/instructions/security-rules.instructions.md
 ````markdown
 ---
@@ -1868,59 +1804,6 @@ argument-hint: Provide module scope, operation type, and migration constraints.
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/README.md
-````markdown
-# Prompts Index
-
-Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
-
-## DDD 領域建模 (IDDD)
-
-- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
-- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
-
-## Planning
-
-- [plan-feature.prompt.md](plan-feature.prompt.md)
-- [plan-module.prompt.md](plan-module.prompt.md)
-- [plan-api.prompt.md](plan-api.prompt.md)
-
-## Implementation
-
-- [implement-feature.prompt.md](implement-feature.prompt.md)
-- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
-- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
-- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
-- [implement-server-action.prompt.md](implement-server-action.prompt.md)
-- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
-
-## Docs and RAG
-
-- [ingest-docs.prompt.md](ingest-docs.prompt.md)
-- [chunk-docs.prompt.md](chunk-docs.prompt.md)
-- [embedding-docs.prompt.md](embedding-docs.prompt.md)
-- [write-docs.prompt.md](write-docs.prompt.md)
-
-## Analysis and Debug
-
-- [analyze-repo.prompt.md](analyze-repo.prompt.md)
-- [debug-error.prompt.md](debug-error.prompt.md)
-
-## Refactor and Review
-
-- [refactor-module.prompt.md](refactor-module.prompt.md)
-- [refactor-api.prompt.md](refactor-api.prompt.md)
-- [review-code.prompt.md](review-code.prompt.md)
-- [review-architecture.prompt.md](review-architecture.prompt.md)
-- [review-performance.prompt.md](review-performance.prompt.md)
-- [review-security.prompt.md](review-security.prompt.md)
-
-## Testing
-
-- [write-tests.prompt.md](write-tests.prompt.md)
-- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 ````
 
 ## File: .github/prompts/refactor-api.prompt.md
@@ -2766,6 +2649,47 @@ interface AccountPolicyUpdatedEvent {
 - `../../../docs/ddd/account/aggregates.md`
 ````
 
+## File: docs/ddd/account/README.md
+````markdown
+# account — 帳戶上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/account/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
+| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
+| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
+
+## 與其他 Bounded Context 協作
+
+- `identity` 提供身份與 token 上下文。
+- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
+
+## 核心聚合 / 核心概念
+
+- **`Account`**
+- **`AccountPolicy`**
+- **`AccountProfile`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/account/repositories.md
 ````markdown
 # account — Repositories
@@ -3026,6 +2950,47 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 - `../../../docs/ddd/ai/aggregates.md`
 ````
 
+## File: docs/ddd/ai/README.md
+````markdown
+# ai — AI 攝入上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/ai/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
+| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
+| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
+
+## 與其他 Bounded Context 協作
+
+- `source` 是上游，提供來源文件與交接事件。
+- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
+
+## 核心聚合 / 核心概念
+
+- **`IngestionJob`**
+- **`IngestionDocument`**
+- **`IngestionChunk`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/ai/repositories.md
 ````markdown
 # ai — Repositories
@@ -3255,6 +3220,47 @@ identityApi.listenToTokenRefresh()
 
 - `../../../modules/identity/domain-services.md`
 - `../../../docs/ddd/identity/aggregates.md`
+````
+
+## File: docs/ddd/identity/README.md
+````markdown
+# identity — 身份驗證上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/identity/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
+| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
+| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
+
+## 與其他 Bounded Context 協作
+
+- `account` 直接消費 `identity/api` 提供的身份上下文。
+- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
+
+## 核心聚合 / 核心概念
+
+- **`Identity`**
+- **`AuthenticatedUser`**
+- **`TokenRefreshSignal`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/identity/repositories.md
@@ -3597,6 +3603,47 @@ Application layer 只負責：
 - `../../../docs/ddd/notebook/aggregates.md`
 ````
 
+## File: docs/ddd/notebook/README.md
+````markdown
+# notebook — Notebook 對話上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/notebook/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 對話 Thread 管理 | 維護對話串與訊息歷史 |
+| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
+| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+
+## 與其他 Bounded Context 協作
+
+- `search` 是主要上游，提供語意檢索與引用資料。
+- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+
+## 核心聚合 / 核心概念
+
+- **`Thread`**
+- **`Message`**
+- **`Summary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/notebook/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — notebook
@@ -3815,6 +3862,47 @@ Application layer 只負責：
 
 - `../../../modules/notification/domain-services.md`
 - `../../../docs/ddd/notification/aggregates.md`
+````
+
+## File: docs/ddd/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/notification/repositories.md
@@ -4079,6 +4167,47 @@ interface OrganizationMemberJoinedEvent {
 
 - `../../../modules/organization/domain-services.md`
 - `../../../docs/ddd/organization/aggregates.md`
+````
+
+## File: docs/ddd/organization/README.md
+````markdown
+# organization — 組織上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/organization/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 組織管理 | 建立與維護 Organization 聚合 |
+| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
+| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
+
+## 與其他 Bounded Context 協作
+
+- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
+- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
+
+## 核心聚合 / 核心概念
+
+- **`Organization`**
+- **`MemberReference`**
+- **`Team`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/organization/repositories.md
@@ -4605,6 +4734,47 @@ interface DomainEvent {
 
 - `../../../modules/shared/domain-services.md`
 - `../../../docs/ddd/shared/aggregates.md`
+````
+
+## File: docs/ddd/shared/README.md
+````markdown
+# shared — 共享核心上下文
+
+> **Domain Type:** Shared Kernel  
+> **模組路徑:** `modules/shared/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
+| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
+| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
+
+## 與其他 Bounded Context 協作
+
+- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
+- `shared` 的變更需視為跨域契約變更處理。
+
+## 核心聚合 / 核心概念
+
+- **`DomainEvent`**
+- **`EventRecord`**
+- **`SlugUtils`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/shared/repositories.md
@@ -5209,6 +5379,47 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-audit/aggregates.md`
 ````
 
+## File: docs/ddd/workspace-audit/README.md
+````markdown
+# workspace-audit — 工作區稽核上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-audit/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
+| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
+| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 與 `organization` 提供查詢與可見性範圍。
+- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
+
+## 核心聚合 / 核心概念
+
+- **`AuditLog`**
+- **`AuditActor`**
+- **`AuditScope`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/workspace-audit/repositories.md
 ````markdown
 # workspace-audit — Repositories
@@ -5424,6 +5635,47 @@ Application layer 只負責：
 
 - `../../../modules/workspace-feed/domain-services.md`
 - `../../../docs/ddd/workspace-feed/aggregates.md`
+````
+
+## File: docs/ddd/workspace-feed/README.md
+````markdown
+# workspace-feed — 工作區動態上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-feed/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
+| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
+| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供動態的歸屬邊界。
+- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
+
+## 核心聚合 / 核心概念
+
+- **`WorkspaceFeedPost`**
+- **`FeedReaction`**
+- **`FeedThread`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/workspace-feed/repositories.md
@@ -5813,6 +6065,47 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 - `../../../docs/ddd/workspace-flow/aggregates.md`
 ````
 
+## File: docs/ddd/workspace-flow/README.md
+````markdown
+# workspace-flow — 工作流程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-flow/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
+| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
+| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
+
+## 與其他 Bounded Context 協作
+
+- `knowledge` 是最重要上游，提供審批後的內容事件。
+- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
+
+## 核心聚合 / 核心概念
+
+- **`Task`**
+- **`Issue`**
+- **`Invoice`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/workspace-flow/repositories.md
 ````markdown
 # workspace-flow — Repositories
@@ -6102,6 +6395,47 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-scheduling/aggregates.md`
 ````
 
+## File: docs/ddd/workspace-scheduling/README.md
+````markdown
+# workspace-scheduling — 工作區排程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-scheduling/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
+| 時間視圖 | 提供日曆、截止與安排視角 |
+| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-flow` 可作為排程需求來源。
+- `workspace` 提供排程歸屬與成員範圍。
+
+## 核心聚合 / 核心概念
+
+- **`WorkDemand`**
+- **`ScheduleWindow`**
+- **`CapacityAllocation`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/workspace-scheduling/repositories.md
 ````markdown
 # workspace-scheduling — Repositories
@@ -6167,6 +6501,50 @@ Application layer 只負責：
 |------|------|
 | `WorkDemand` | `Demand`, `Request`, `Ticket` |
 | `DemandStatus` | `Status`, `WorkStatus` |
+````
+
+## File: docs/ddd/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+## 模組定位
+
+`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceMember` | Member、Participant |
+| `WikiContentTree` | PageTree、ContentHierarchy |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 Workspace 上下文中） |
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceApi } from "@/modules/workspace/api";
+import type { WorkspaceDTO } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+```typescript
+// workspace/infrastructure 禁止 import workspace/api（循環依賴）
+import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
+```
+
+## 循環依賴守衛
+
+`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: docs/ddd/workspace/aggregates.md
@@ -6361,6 +6739,47 @@ interface WorkspaceCreatedEvent {
 
 - `../../../modules/workspace/domain-services.md`
 - `../../../docs/ddd/workspace/aggregates.md`
+````
+
+## File: docs/ddd/workspace/README.md
+````markdown
+# workspace — 工作區上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Workspace 容器管理 | 建立、更新、歸檔工作區 |
+| 成員與角色 | 管理工作區成員、角色與協作可見性 |
+| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
+
+## 與其他 Bounded Context 協作
+
+- `organization` 是主要上游，提供多租戶歸屬。
+- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
+
+## 核心聚合 / 核心概念
+
+- **`Workspace`**
+- **`WorkspaceMember`**
+- **`WikiContentTree`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/workspace/repositories.md
@@ -10727,6 +11146,539 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 - Deep conceptual essays
 ````
 
+## File: modules/account/README.md
+````markdown
+# account — 帳戶上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/account/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
+| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
+| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
+
+## 與其他 Bounded Context 協作
+
+- `identity` 提供身份與 token 上下文。
+- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
+
+## 核心聚合 / 核心概念
+
+- **`Account`**
+- **`AccountPolicy`**
+- **`AccountProfile`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/ai/README.md
+````markdown
+# ai — AI 攝入上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/ai/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
+| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
+| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
+
+## 與其他 Bounded Context 協作
+
+- `source` 是上游，提供來源文件與交接事件。
+- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
+
+## 核心聚合 / 核心概念
+
+- **`IngestionJob`**
+- **`IngestionDocument`**
+- **`IngestionChunk`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/identity/README.md
+````markdown
+# identity — 身份驗證上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/identity/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
+| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
+| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
+
+## 與其他 Bounded Context 協作
+
+- `account` 直接消費 `identity/api` 提供的身份上下文。
+- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
+
+## 核心聚合 / 核心概念
+
+- **`Identity`**
+- **`AuthenticatedUser`**
+- **`TokenRefreshSignal`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/notebook/README.md
+````markdown
+# notebook — Notebook 對話上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/notebook/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 對話 Thread 管理 | 維護對話串與訊息歷史 |
+| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
+| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+
+## 與其他 Bounded Context 協作
+
+- `search` 是主要上游，提供語意檢索與引用資料。
+- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+
+## 核心聚合 / 核心概念
+
+- **`Thread`**
+- **`Message`**
+- **`Summary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/organization/README.md
+````markdown
+# organization — 組織上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/organization/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 組織管理 | 建立與維護 Organization 聚合 |
+| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
+| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
+
+## 與其他 Bounded Context 協作
+
+- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
+- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
+
+## 核心聚合 / 核心概念
+
+- **`Organization`**
+- **`MemberReference`**
+- **`Team`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/search/README.md
+````markdown
+# search — 語意檢索上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/search/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
+
+## 與其他 Bounded Context 協作
+
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
+
+## 核心聚合 / 核心概念
+
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/shared/README.md
+````markdown
+# shared — 共享核心上下文
+
+> **Domain Type:** Shared Kernel  
+> **模組路徑:** `modules/shared/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
+| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
+| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
+
+## 與其他 Bounded Context 協作
+
+- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
+- `shared` 的變更需視為跨域契約變更處理。
+
+## 核心聚合 / 核心概念
+
+- **`DomainEvent`**
+- **`EventRecord`**
+- **`SlugUtils`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/source/README.md
+````markdown
+# source — 文件來源上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
+
+## 核心聚合 / 核心概念
+
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/workspace-audit/README.md
+````markdown
+# workspace-audit — 工作區稽核上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-audit/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
+| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
+| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 與 `organization` 提供查詢與可見性範圍。
+- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
+
+## 核心聚合 / 核心概念
+
+- **`AuditLog`**
+- **`AuditActor`**
+- **`AuditScope`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/workspace-feed/README.md
+````markdown
+# workspace-feed — 工作區動態上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-feed/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
+| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
+| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供動態的歸屬邊界。
+- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
+
+## 核心聚合 / 核心概念
+
+- **`WorkspaceFeedPost`**
+- **`FeedReaction`**
+- **`FeedThread`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/workspace-flow/README.md
+````markdown
+# workspace-flow — 工作流程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-flow/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
+| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
+| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
+
+## 與其他 Bounded Context 協作
+
+- `knowledge` 是最重要上游，提供審批後的內容事件。
+- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
+
+## 核心聚合 / 核心概念
+
+- **`Task`**
+- **`Issue`**
+- **`Invoice`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/workspace-scheduling/README.md
+````markdown
+# workspace-scheduling — 工作區排程上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/workspace-scheduling/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
+| 時間視圖 | 提供日曆、截止與安排視角 |
+| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-flow` 可作為排程需求來源。
+- `workspace` 提供排程歸屬與成員範圍。
+
+## 核心聚合 / 核心概念
+
+- **`WorkDemand`**
+- **`ScheduleWindow`**
+- **`CapacityAllocation`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/workspace/README.md
+````markdown
+# workspace — 工作區上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
+> **開發狀態:** ✅ Done — 穩定
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Workspace 容器管理 | 建立、更新、歸檔工作區 |
+| 成員與角色 | 管理工作區成員、角色與協作可見性 |
+| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
+
+## 與其他 Bounded Context 協作
+
+- `organization` 是主要上游，提供多租戶歸屬。
+- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
+
+## 核心聚合 / 核心概念
+
+- **`Workspace`**
+- **`WorkspaceMember`**
+- **`WikiContentTree`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: PERMISSIONS.md
 ````markdown
 # Permissions
@@ -12438,6 +13390,526 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/instructions/playwright-mcp-testing.instructions.md
+````markdown
+---
+description: >
+  Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
+  截圖存證、表單操作自動化、Console 錯誤偵測時適用。
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Playwright MCP Testing Rules
+
+## 工具優先順序
+
+1. **主要**：`mcp_playwright-mc_*` 工具鏈（snapshot → ref → action）
+2. **備援**：`mcp_io_github_ver_browser_eval`（playwright-mcp 失效時）
+3. **永遠不用**：在備援模式下呼叫 playwright-mcp（會得到 closed 錯誤）
+
+## Snapshot-First 原則
+
+**禁止** 在未取得 snapshot ref 的情況下直接 click 或 fill。
+
+```
+✅ 正確：snapshot → 找 ref → click(ref: "...")
+❌ 錯誤：直接 click(selector: "button.create")
+```
+
+## evaluate 限制（備援模式）
+
+以下表達式在 `mcp_io_github_ver_browser_eval evaluate` 中會失敗：
+
+- 包含 `new Event()`、`new PointerEvent()` 的鏈式表達式
+- 包含 `Array.from()` + 方法鏈的複合表達式
+- 包含 for loop 的表達式
+
+解法：拆分為多個單一表達式呼叫。
+
+## SPA 導航規則
+
+**全頁重載導致 React 狀態重置**（activeAccount 被清空）。
+
+```
+✅ 允許：點擊 Link 的 ref（SPA 路由）
+✅ 允許：點擊麵包屑 a[href="/target"] 的 ref
+❌ 禁止：瀏覽器導航到新 URL（重置 activeAccount）
+❌ 禁止：evaluate window.location.href = '...'
+```
+
+## Radix UI Dropdown 開啟規則
+
+Radix DropdownMenu 需要 `PointerEvent` 才能觸發。使用 snapshot 找到 trigger 的 ref，然後 click 它（playwright-mcp 的 click 自動發送正確事件）。
+
+## 帳號情境一致性
+
+- 每次全頁重載後，必須重新確認 `localStorage['xuanwu_last_active_account']`
+- 組織功能測試：在 SPA 已載入狀態下切換，勿重載
+
+## workspaceId 前提
+
+以下頁面的 CTA 需要 `activeWorkspaceId` 非空：
+- `/knowledge-base/articles`（新增文章）
+- `/knowledge-base/articles/[id]`（編輯文章）
+
+測試前先在 `/workspace` 選擇工作區。
+
+## Console 錯誤義務
+
+每次測試結束前，必須呼叫：
+```
+mcp_playwright-mc_browser_console_messages
+```
+並在報告中記錄錯誤（即使為零也要寫「無錯誤」）。
+
+## 截圖義務
+
+每個主要測試步驟（初始狀態、操作後、最終狀態）必須截圖：
+```
+mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
+```
+
+## 測試報告格式
+
+輸出遵循 SKILL.md「測試報告格式」區塊的模板，包含：
+- URL + 帳號情境 + 日期 + 狀態
+- 截圖證據清單
+- 操作步驟記錄
+- 發現問題（含優先級）
+- Console 錯誤
+- 建議修復
+
+## 工具搭配規則
+
+| 情境 | 必用工具 |
+|------|---------|
+| 確認元件 API | `mcp_shadcn_view_items_in_registries` |
+| 不確定 Playwright API | `mcp_context7_resolve-library-id "playwright"` |
+| 找 Server Action | `mcp_io_github_ver_nextjs_call get_server_action_by_id` |
+| 找元件 props | `mcp_oraios_serena_find_symbol` |
+| 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
+
+Tags: #use skill playwright-mcp-testing
+````
+
+## File: .github/instructions/README.md
+````markdown
+# Instructions Index
+
+Repository instruction index for `applyTo`-scoped Copilot rules.
+
+## DDD 戰略與戰術設計 (IDDD)
+
+- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
+- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
+- [domain-modeling.instructions.md](domain-modeling.instructions.md)
+- [event-driven-state.instructions.md](event-driven-state.instructions.md)
+
+## Architecture
+
+- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
+- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
+- [architecture-modules.instructions.md](architecture-modules.instructions.md)
+- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
+
+## Delivery Process
+
+- [branching-strategy.instructions.md](branching-strategy.instructions.md)
+- [ci-cd.instructions.md](ci-cd.instructions.md)
+- [commit-convention.instructions.md](commit-convention.instructions.md)
+- [lint-format.instructions.md](lint-format.instructions.md)
+
+## Platform and Runtime
+
+- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
+- [cloud-functions.instructions.md](cloud-functions.instructions.md)
+- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
+- [firestore-schema.instructions.md](firestore-schema.instructions.md)
+- [security-rules.instructions.md](security-rules.instructions.md)
+
+## AI and RAG
+
+- [genkit-flow.instructions.md](genkit-flow.instructions.md)
+- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
+- [rag-architecture.instructions.md](rag-architecture.instructions.md)
+- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
+
+## Next.js and UI
+
+- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
+- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
+- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
+- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
+- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
+
+## Testing
+
+- [testing-unit.instructions.md](testing-unit.instructions.md)
+- [testing-e2e.instructions.md](testing-e2e.instructions.md)
+- [playwright-mcp-testing.instructions.md](playwright-mcp-testing.instructions.md)
+
+## DDD Navigation
+
+Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
+
+- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
+- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
+- `../../docs/ddd/<context>/*.md` for bounded-context details
+````
+
+## File: .github/prompts/playwright-mcp-inspect.prompt.md
+````markdown
+---
+name: playwright-mcp-inspect
+description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
+agent: E2E QA Agent
+argument-hint: "<route-or-section> [--account org|personal] [--deep]"
+---
+
+# Playwright MCP UI 缺口偵測
+
+## 輸入參數
+
+- target: ${input:target:要巡覽的路由或功能模組，例如 /organization 或 knowledge-base}
+- account: ${input:account:帳號情境 personal 或 org（組織功能用 org）}
+- depth: ${input:depth:巡覽深度 shallow（主頁面）或 deep（進入子頁面）}
+
+## 目標
+
+扮演一位「第一次使用」的真實用戶，系統性地走過目標區域，找出：
+
+1. **功能缺口**：預期存在但找不到的操作入口（CRUD 缺少 Create？）
+2. **反直覺設計**：動作不符合用戶預期、按鈕位置奇怪、命名混淆
+3. **空狀態問題**：列表為空時無任何引導性說明或 CTA
+4. **Disabled 陷阱**：按鈕存在但 disabled 且無說明原因
+5. **導航死胡同**：進入後找不到返回路徑
+6. **Console 錯誤**：任何 JavaScript 錯誤或 API 失敗
+
+## 帳號情境設置
+
+**Personal 帳號**（預設）：
+- 直接導航到目標頁面
+- 確認 localStorage `xuanwu_last_active_account` = `dev-demo-user`
+
+**Organization 帳號**（需要 org 功能時）：
+1. 導航到 `/workspace`（確保 SPA 已載入）
+2. 點開帳號切換 dropdown（需 PointerDown 事件）
+3. 選擇 org 選項
+4. 確認 localStorage 更新為 org ID
+5. 點擊麵包屑或 Link（勿用全頁重載）導航到目標
+
+## 巡覽執行流程
+
+### Phase 1: 頁面初始化分析
+
+```
+1. mcp_playwright-mc_browser_navigate → 目標 URL
+2. mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
+3. mcp_playwright-mc_browser_take_screenshot → 初始截圖
+4. mcp_playwright-mc_browser_console_messages → 確認無初始錯誤
+```
+
+記錄頁面結構：
+- 頁面標題、小標、說明文字
+- 可見的操作按鈕（CTA）
+- 是否有資料列表或空狀態
+- 是否有 Nav/Breadcrumb 讓用戶知道自己在哪
+
+### Phase 2: CTA 完整性檢查
+
+針對每個功能模組，預期應有的 CRUD 操作入口：
+
+| 功能類型 | 預期 CTA | 缺口判斷 |
+|---------|---------|---------|
+| 列表頁 | 新增/建立按鈕 | 無「＋」或「新增」按鈕 |
+| 詳情頁 | 編輯/刪除按鈕 | 只能查看無法修改 |
+| 表單 | 送出/取消 | 送出後無任何反饋 |
+| 搜尋/篩選 | 清除/重設 | 無法清除已輸入的篩選 |
+
+### Phase 3: 互動測試（Shallow 模式）
+
+```
+1. 找到主要 CTA → snapshot ref → click
+2. 記錄 Dialog/Form 是否正確開啟
+3. 填入測試資料（snapshot find inputs → fill）
+4. 送出表單
+5. 驗證成功反饋（toast、列表更新）
+6. 截圖紀錄
+
+負面測試：
+1. 不填任何資料直接送出
+2. 確認 validation 錯誤提示出現
+3. 截圖記錄
+```
+
+### Phase 4: 子頁面巡覽（Deep 模式）
+
+```
+針對頁面上每個導航連結：
+1. 記錄 href
+2. click 進入
+3. 重複 Phase 1-3
+4. click 返回（找 Back Link 或 Breadcrumb）
+```
+
+### Phase 5: 錯誤狀態收集
+
+```
+mcp_playwright-mc_browser_console_messages → 收集所有 console 訊息
+mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors" → Next.js 錯誤
+```
+
+## 缺口評分標準
+
+| 嚴重度 | 說明 | 示例 |
+|-------|------|------|
+| 🔴 高 | 核心功能完全缺失 | 列表頁沒有建立入口 |
+| 🟡 中 | 功能存在但使用困難 | 按鈕 disabled 無說明 |
+| 🟢 低 | 體驗可改善 | 空狀態缺少引導文字 |
+
+## 輸出 UI 缺口報告
+
+```markdown
+## UI 缺口偵測報告：{target}
+
+**巡覽路徑**: {routes visited}
+**帳號情境**: personal / organization  
+**巡覽日期**: YYYY-MM-DD  
+**巡覽深度**: shallow / deep
+
+### 截圖索引
+1. [ss_initial.png] 初始狀態
+2. [ss_create_dialog.png] 建立流程
+...
+
+### 發現的缺口
+
+#### 🔴 高優先級
+- [ ] **路徑**: /route  
+  **問題**: 功能說明  
+  **影響**: 用戶無法完成 X  
+  **建議**: 在 Y 位置加入 Z 元件
+
+#### 🟡 中優先級
+...
+
+#### 🟢 低優先級
+...
+
+### Console 錯誤
+- 無 / 錯誤清單
+
+### 修復建議優先順序
+1. 最高影響 + 最低代價
+2. ...
+```
+
+## 與其他 MCP 的協作
+
+**找修復方案時**：
+- `mcp_shadcn_list_items_in_registries` → 查詢適合的 UI 元件
+- `mcp_shadcn_get_item_examples_from_registries` → 取得元件示例
+
+**確認 API 可用性**：
+- `mcp_oraios_serena_find_symbol` → 找對應的 use case / server action
+- `mcp_io_github_ver_nextjs_call get_routes` → 確認路由存在
+
+**查詢 UX 最佳實踐**：
+- `mcp_context7_resolve-library-id "shadcn/ui"` → 查元件文件
+
+Tags: #use skill playwright-mcp-testing
+#use skill shadcn
+#use skill context7
+#use skill serena-mcp
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/playwright-mcp-test.prompt.md
+````markdown
+---
+name: playwright-mcp-test
+description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
+agent: E2E QA Agent
+argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
+---
+
+# Playwright MCP 瀏覽器測試
+
+## 輸入參數
+
+- route: ${input:route:目標路由或完整 URL，例如 /organization/members}
+- flow: ${input:flow:要測試的用戶流程，例如「邀請成員」}
+- account: ${input:account:帳號情境 personal 或 org（預設 personal）}
+
+## 前置條件確認
+
+在開始前，執行以下確認步驟：
+
+1. **Dev server 狀態**  
+   確認 `http://localhost:3000` 可存取。若未啟動，提示用戶執行 `npm run dev`。
+
+2. **playwright-mcp 可用性**  
+   執行 `mcp_playwright-mc_browser_snapshot`（無參數）。
+   - 成功 → 使用 playwright-mcp 工具鏈
+   - 失敗（"closed"）→ 切換到 `mcp_io_github_ver_browser_eval` 備援模式
+
+3. **帳號情境切換（若需要 org 情境）**  
+   參照 SKILL.md 的「帳號切換」章節執行組織帳號切換。
+
+4. **工作區確認（若頁面需要 workspaceId）**  
+   先導航到 /workspace 選擇工作區，再前往目標頁面。
+
+## 測試執行流程
+
+### Step 1: 導航到目標路由
+
+```
+playwright-mcp 模式：
+  mcp_playwright-mc_browser_navigate → url: "http://localhost:3000{route}"
+  
+備援模式：
+  mcp_io_github_ver_browser_eval action:"navigate" → url: "http://localhost:3000{route}"
+```
+
+### Step 2: 取得初始快照
+
+```
+mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
+識別所有可交互元素（buttons、inputs、links、selects）
+確認主要 CTA 是否 enabled
+```
+
+### Step 3: 截圖（初始狀態）
+
+```
+mcp_playwright-mc_browser_take_screenshot → 初始狀態截圖
+儲存至 scratchpad/ 目錄並 view_image 檢視
+```
+
+### Step 4: 執行用戶流程
+
+依照 `{flow}` 執行具體操作，記錄每步驟的：
+- 找到的元素 ref
+- 執行的動作（click/fill/select）
+- 操作後的快照變化
+
+### Step 5: 驗證結果
+
+```
+成功路徑驗證：
+  - snapshot → 確認 UI 反映成功狀態（新項目出現、Dialog 關閉）
+  - console_messages → 確認無錯誤
+
+失敗路徑驗證（負面測試）：
+  - 故意送空表單 → 確認 validation 訊息出現
+  - 故意填錯格式 → 確認錯誤提示
+```
+
+### Step 6: 最終截圖
+
+```
+mcp_playwright-mc_browser_take_screenshot → 最終狀態截圖
+```
+
+### Step 7: Next.js 診斷（可選）
+
+```
+mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors"
+→ 確認無 Next.js build/runtime 錯誤
+```
+
+## 輸出測試報告
+
+使用以下模板輸出報告：
+
+```markdown
+## 測試結果：{flow} @ {route}
+
+**URL**: {route}  
+**帳號情境**: personal / organization  
+**測試日期**: YYYY-MM-DD  
+**狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
+
+### 截圖證據
+- [初始狀態截圖]
+- [操作後截圖]
+- [最終狀態截圖]
+
+### 操作步驟記錄
+1. 步驟描述 + ref + 結果
+2. ...
+
+### 發現問題
+- ❌ 問題描述（優先級：高/中/低）
+
+### Console 錯誤
+- 無 / 錯誤列表
+
+### 建議
+- [ ] 修復建議或增強建議
+```
+
+Tags: #use skill playwright-mcp-testing
+#use skill context7
+#use skill next-devtools-mcp
+#use skill serena-mcp
+````
+
+## File: .github/prompts/README.md
+````markdown
+# Prompts Index
+
+Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
+
+## DDD 領域建模 (IDDD)
+
+- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
+- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+
+## Planning
+
+- [plan-feature.prompt.md](plan-feature.prompt.md)
+- [plan-module.prompt.md](plan-module.prompt.md)
+- [plan-api.prompt.md](plan-api.prompt.md)
+
+## Implementation
+
+- [implement-feature.prompt.md](implement-feature.prompt.md)
+- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
+- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
+- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
+- [implement-server-action.prompt.md](implement-server-action.prompt.md)
+- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
+
+## Docs and RAG
+
+- [ingest-docs.prompt.md](ingest-docs.prompt.md)
+- [chunk-docs.prompt.md](chunk-docs.prompt.md)
+- [embedding-docs.prompt.md](embedding-docs.prompt.md)
+- [write-docs.prompt.md](write-docs.prompt.md)
+
+## Analysis and Debug
+
+- [analyze-repo.prompt.md](analyze-repo.prompt.md)
+- [debug-error.prompt.md](debug-error.prompt.md)
+
+## Refactor and Review
+
+- [refactor-module.prompt.md](refactor-module.prompt.md)
+- [refactor-api.prompt.md](refactor-api.prompt.md)
+- [review-code.prompt.md](review-code.prompt.md)
+- [review-architecture.prompt.md](review-architecture.prompt.md)
+- [review-performance.prompt.md](review-performance.prompt.md)
+- [review-security.prompt.md](review-security.prompt.md)
+
+## Testing
+
+- [write-tests.prompt.md](write-tests.prompt.md)
+- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
+- [playwright-mcp-test.prompt.md](playwright-mcp-test.prompt.md)
+- [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)
+````
+
 ## File: .github/terminology-glossary.md
 ````markdown
 # Terminology Glossary Entry Point
@@ -12557,47 +14029,6 @@ identity/api ──► account/application (server-side use-cases)
 | account → workspace | account | workspace | Customer/Supplier |
 ````
 
-## File: docs/ddd/account/README.md
-````markdown
-# account — 帳戶上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/account/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
-| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
-| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
-
-## 與其他 Bounded Context 協作
-
-- `identity` 提供身份與 token 上下文。
-- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
-
-## 核心聚合 / 核心概念
-
-- **`Account`**
-- **`AccountPolicy`**
-- **`AccountProfile`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: docs/ddd/ai/AGENT.md
 ````markdown
 # AGENT.md — ai BC
@@ -12649,47 +14080,6 @@ npm run build
 ```
 ````
 
-## File: docs/ddd/ai/README.md
-````markdown
-# ai — AI 攝入上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/ai/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
-| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
-| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
-
-## 與其他 Bounded Context 協作
-
-- `source` 是上游，提供來源文件與交接事件。
-- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
-
-## 核心聚合 / 核心概念
-
-- **`IngestionJob`**
-- **`IngestionDocument`**
-- **`IngestionChunk`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: docs/ddd/identity/AGENT.md
 ````markdown
 # AGENT.md — identity BC
@@ -12733,47 +14123,6 @@ import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/use
 npm run lint
 npm run build
 ```
-````
-
-## File: docs/ddd/identity/README.md
-````markdown
-# identity — 身份驗證上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
-
-## 核心聚合 / 核心概念
-
-- **`Identity`**
-- **`AuthenticatedUser`**
-- **`TokenRefreshSignal`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/knowledge-base/AGENT.md
@@ -13427,6 +14776,51 @@ interface KnowledgePageApprovedEvent {
 | `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
 ````
 
+## File: docs/ddd/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: docs/ddd/knowledge/repositories.md
 ````markdown
 # knowledge — Repositories
@@ -13517,118 +14911,76 @@ interface KnowledgePageApprovedEvent {
 | notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（`app/(shell)/ai-chat/_actions.ts`） |
 ````
 
-## File: docs/ddd/notebook/README.md
+## File: docs/ddd/notebook/repositories.md
 ````markdown
-# notebook — Notebook 對話上下文
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
+````
+
+## File: docs/ddd/search/README.md
+````markdown
+# search — 語意檢索上下文
 
 > **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/notebook/`  
+> **模組路徑:** `modules/search/`  
 > **開發狀態:** 🏗️ Midway
 
 ## 在 Knowledge Platform / Second Brain 中的角色
 
-`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
 
 ## 主要職責
 
 | 能力 | 說明 |
 |---|---|
-| 對話 Thread 管理 | 維護對話串與訊息歷史 |
-| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
-| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
 
 ## 與其他 Bounded Context 協作
 
-- `search` 是主要上游，提供語意檢索與引用資料。
-- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
 
 ## 核心聚合 / 核心概念
 
-- **`Thread`**
-- **`Message`**
-- **`Summary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/organization/README.md
-````markdown
-# organization — 組織上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/organization/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 組織管理 | 建立與維護 Organization 聚合 |
-| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
-| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
-- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
-
-## 核心聚合 / 核心概念
-
-- **`Organization`**
-- **`MemberReference`**
-- **`Team`**
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
 
 ## 詳細文件
 
@@ -13688,77 +15040,36 @@ interface EventRecord {
 | `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
 ````
 
-## File: docs/ddd/shared/README.md
+## File: docs/ddd/source/README.md
 ````markdown
-# shared — 共享核心上下文
-
-> **Domain Type:** Shared Kernel  
-> **模組路徑:** `modules/shared/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
-| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
-| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
-
-## 與其他 Bounded Context 協作
-
-- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
-- `shared` 的變更需視為跨域契約變更處理。
-
-## 核心聚合 / 核心概念
-
-- **`DomainEvent`**
-- **`EventRecord`**
-- **`SlugUtils`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
+# source — 文件來源上下文
 
 > **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
 
 ## 在 Knowledge Platform / Second Brain 中的角色
 
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
 
 ## 主要職責
 
 | 能力 | 說明 |
 |---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
 
 ## 與其他 Bounded Context 協作
 
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
 
 ## 核心聚合 / 核心概念
 
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
 
 ## 詳細文件
 
@@ -13770,171 +15081,137 @@ interface EventRecord {
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: docs/ddd/workspace-feed/README.md
+## File: docs/ddd/subdomains.md
 ````markdown
-# workspace-feed — 工作區動態上下文
+# Subdomains — Xuanwu App
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
+> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
 
-## 在 Knowledge Platform / Second Brain 中的角色
+本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
 
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
+---
 
-## 主要職責
+## 分類原則
 
-| 能力 | 說明 |
-|---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
+| 分類 | 定義 | 投資策略 |
+|---|---|---|
+| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
+| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
+| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
+| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
 
-## 與其他 Bounded Context 協作
+---
 
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
+## Core Domain
 
-## 核心聚合 / 核心概念
+### `knowledge` — 知識內容管理
 
-- **`WorkspaceFeedPost`**
-- **`FeedReaction`**
-- **`FeedThread`**
+Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
 
-## 詳細文件
+**為何是核心域：**
+- 承載 Knowledge Page / Block Editor 的主體體驗
+- 決定知識如何被保存、版本化、審批與再利用
+- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
+### `knowledge-base` — 組織知識庫 / Wiki / SOP
 
-## File: docs/ddd/workspace-flow/README.md
-````markdown
-# workspace-flow — 工作流程上下文
+Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管理，支援層級分類、Backlink、SOP 文件與頁面驗證機制。
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-flow/`  
-> **開發狀態:** 🏗️ Midway
+**為何是核心域：**
+- 承載組織知識的可信度、可發現性與共享體驗
+- `VerificationState` 機制讓知識庫保持準確性品質
+- 與 `knowledge`（個人筆記）共同構成平台的知識差異化壁壘
 
-## 在 Knowledge Platform / Second Brain 中的角色
+---
 
-`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
+## Supporting Subdomains
 
-## 主要職責
+### `knowledge-collaboration`
+負責知識協作基礎設施：留言討論（Comment）、細粒度存取控制（Permission）、版本快照（Version）。不擁有知識內容，透過 `contentId` 與內容 BC 協作。
 
-| 能力 | 說明 |
-|---|---|
-| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
-| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
-| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
+### `knowledge-database`
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database，支援 Table / Board / Calendar / Timeline / Gallery 等多視圖展示，並透過 Relation 欄位建立資料關聯。
 
-## 與其他 Bounded Context 協作
+### `source`
+負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
 
-- `knowledge` 是最重要上游，提供審批後的內容事件。
-- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
+### `ai`
+負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
 
-## 核心聚合 / 核心概念
+### `search`
+負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
 
-- **`Task`**
-- **`Issue`**
-- **`Invoice`**
+### `notebook`
+負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
 
-## 詳細文件
+### `workspace-flow`
+負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
+### `workspace-scheduling`
+負責工作需求與排程，將協作項目放入時間與容量視角管理。
 
-## File: docs/ddd/workspace-scheduling/README.md
-````markdown
-# workspace-scheduling — 工作區排程上下文
+### `workspace-audit`
+負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
+### `workspace-feed`
+負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
 
-## 在 Knowledge Platform / Second Brain 中的角色
+---
 
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
+## Generic Subdomains / Shared Kernel
 
-## 主要職責
+### `identity`
+封裝身份驗證與 session 起點，屬於標準平台能力。
 
-| 能力 | 說明 |
-|---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
+### `account`
+承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
 
-## 與其他 Bounded Context 協作
+### `organization`
+提供多租戶組織、成員與團隊治理，是平台級協作基礎。
 
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
+### `workspace`
+提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
 
-## 核心聚合 / 核心概念
+### `notification`
+負責通知與提醒分發，屬典型平台配套能力。
 
-- **`WorkDemand`**
-- **`ScheduleWindow`**
-- **`CapacityAllocation`**
+### `shared`
+作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
 
-## 詳細文件
+---
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
+## 子域分類總表
 
-## File: docs/ddd/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
+| Context | 分類 | 主要價值 |
+|---|---|---|
+| `knowledge` | **Core** | 個人筆記 Page + Block 生命週期 |
+| `knowledge-base` | **Core** | 組織知識庫 Article + Category + 驗證機制 |
+| `knowledge-collaboration` | Supporting | Comment / Permission / Version 協作基礎 |
+| `knowledge-database` | Supporting | Database / Record / View 結構化資料 |
+| `source` | Supporting | 文件接入與來源治理 |
+| `ai` | Supporting | 攝入管線協調與 worker handoff |
+| `search` | Supporting | 語意檢索與 RAG |
+| `notebook` | Supporting | 摘要、問答、洞察互動 |
+| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
+| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
+| `workspace-audit` | Supporting | 稽核與追溯 |
+| `workspace-feed` | Supporting | 工作區動態與互動 |
+| `identity` | Generic | 身份驗證 |
+| `account` | Generic | 個人帳戶與偏好 |
+| `organization` | Generic | 多租戶治理 |
+| `workspace` | Generic | 協作容器 |
+| `notification` | Generic | 通知分發 |
+| `shared` | Shared Kernel | 穩定共享核心 |
 
-## 模組定位
+---
 
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+## 架構參考
 
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceApi } from "@/modules/workspace/api";
-import type { WorkspaceDTO } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
-```
-
-## 循環依賴守衛
-
-`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
+- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
 ## File: modules/account/aggregates.md
@@ -14079,47 +15356,6 @@ interface AccountPolicyUpdatedEvent {
 
 - `../../../modules/account/domain-services.md`
 - `../../../docs/ddd/account/aggregates.md`
-````
-
-## File: modules/account/README.md
-````markdown
-# account — 帳戶上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/account/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
-| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
-| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
-
-## 與其他 Bounded Context 協作
-
-- `identity` 提供身份與 token 上下文。
-- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
-
-## 核心聚合 / 核心概念
-
-- **`Account`**
-- **`AccountPolicy`**
-- **`AccountProfile`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/account/repositories.md
@@ -14433,47 +15669,6 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 - `../../../docs/ddd/ai/aggregates.md`
 ````
 
-## File: modules/ai/README.md
-````markdown
-# ai — AI 攝入上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/ai/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
-| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
-| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
-
-## 與其他 Bounded Context 協作
-
-- `source` 是上游，提供來源文件與交接事件。
-- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
-
-## 核心聚合 / 核心概念
-
-- **`IngestionJob`**
-- **`IngestionDocument`**
-- **`IngestionChunk`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/ai/repositories.md
 ````markdown
 # ai — Repositories
@@ -14705,47 +15900,6 @@ identityApi.listenToTokenRefresh()
 - `../../../docs/ddd/identity/aggregates.md`
 ````
 
-## File: modules/identity/README.md
-````markdown
-# identity — 身份驗證上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
-
-## 核心聚合 / 核心概念
-
-- **`Identity`**
-- **`AuthenticatedUser`**
-- **`TokenRefreshSignal`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/identity/repositories.md
 ````markdown
 # identity — Repositories
@@ -14801,6 +15955,56 @@ identityApi.listenToTokenRefresh()
 | `Identity` | `User`, `AuthUser`, `CurrentUser` |
 | `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
+````
+
+## File: modules/notebook/AGENT.md
+````markdown
+# AGENT.md — notebook BC
+
+## 模組定位
+
+`notebook` 是 AI 對話的支援域，管理 Thread/Message 生命週期並封裝 Genkit 呼叫。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Thread` | Conversation、Chat、Session |
+| `Message` | ChatMessage、Msg |
+| `MessageRole` | Role（單獨使用）、Speaker |
+| `NotebookResponse` | AIResponse、GeneratedText |
+| `NotebookRepository` | AIRepository、ChatRepository |
+
+## 最重要規則：Server Action 隔離
+
+```typescript
+// ✅ 正確：在 app/(shell)/ai-chat/_actions.ts 中建立本地 action
+"use server";
+import { notebookApi } from "@/modules/notebook/api";
+export async function generateResponse(input) {
+  return notebookApi.generateResponse(input);
+}
+
+// ❌ 禁止：在 Client Component 直接 import notebook/api
+// Genkit/gRPC 是 server-only，會導致打包失敗
+import { notebookApi } from "@/modules/notebook/api"; // 在 "use client" 檔案中
+```
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+// Server-side context only
+import { notebookApi } from "@/modules/notebook/api";
+import type { ThreadDTO, MessageDTO } from "@/modules/notebook/api";
+```
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/notebook/aggregates.md
@@ -15178,6 +16382,47 @@ Application layer 只負責：
 - `../../../docs/ddd/notification/aggregates.md`
 ````
 
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** ✅ Done
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/notification/repositories.md
 ````markdown
 # notification — Repositories
@@ -15440,47 +16685,6 @@ interface OrganizationMemberJoinedEvent {
 
 - `../../../modules/organization/domain-services.md`
 - `../../../docs/ddd/organization/aggregates.md`
-````
-
-## File: modules/organization/README.md
-````markdown
-# organization — 組織上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/organization/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 組織管理 | 建立與維護 Organization 聚合 |
-| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
-| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
-- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
-
-## 核心聚合 / 核心概念
-
-- **`Organization`**
-- **`MemberReference`**
-- **`Team`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/organization/repositories.md
@@ -15771,47 +16975,6 @@ const result = await searchApi.answerRagQuery({
 - `../../../docs/ddd/search/aggregates.md`
 ````
 
-## File: modules/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/search/repositories.md
 ````markdown
 # search — Repositories
@@ -16048,47 +17211,6 @@ interface DomainEvent {
 
 - `../../../modules/shared/domain-services.md`
 - `../../../docs/ddd/shared/aggregates.md`
-````
-
-## File: modules/shared/README.md
-````markdown
-# shared — 共享核心上下文
-
-> **Domain Type:** Shared Kernel  
-> **模組路徑:** `modules/shared/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
-| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
-| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
-
-## 與其他 Bounded Context 協作
-
-- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
-- `shared` 的變更需視為跨域契約變更處理。
-
-## 核心聚合 / 核心概念
-
-- **`DomainEvent`**
-- **`EventRecord`**
-- **`SlugUtils`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/shared/repositories.md
@@ -16693,47 +17815,6 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-audit/aggregates.md`
 ````
 
-## File: modules/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
-
-## 核心聚合 / 核心概念
-
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-audit/repositories.md
 ````markdown
 # workspace-audit — Repositories
@@ -16949,47 +18030,6 @@ Application layer 只負責：
 
 - `../../../modules/workspace-feed/domain-services.md`
 - `../../../docs/ddd/workspace-feed/aggregates.md`
-````
-
-## File: modules/workspace-feed/README.md
-````markdown
-# workspace-feed — 工作區動態上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
-
-## 核心聚合 / 核心概念
-
-- **`WorkspaceFeedPost`**
-- **`FeedReaction`**
-- **`FeedThread`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/workspace-feed/repositories.md
@@ -17379,47 +18419,6 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 - `../../../docs/ddd/workspace-flow/aggregates.md`
 ````
 
-## File: modules/workspace-flow/README.md
-````markdown
-# workspace-flow — 工作流程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-flow/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
-| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
-| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
-
-## 與其他 Bounded Context 協作
-
-- `knowledge` 是最重要上游，提供審批後的內容事件。
-- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
-
-## 核心聚合 / 核心概念
-
-- **`Task`**
-- **`Issue`**
-- **`Invoice`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-flow/repositories.md
 ````markdown
 # workspace-flow — Repositories
@@ -17795,47 +18794,6 @@ Application layer 只負責：
 - `../../../docs/ddd/workspace-scheduling/aggregates.md`
 ````
 
-## File: modules/workspace-scheduling/README.md
-````markdown
-# workspace-scheduling — 工作區排程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
-
-## 核心聚合 / 核心概念
-
-- **`WorkDemand`**
-- **`ScheduleWindow`**
-- **`CapacityAllocation`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/workspace-scheduling/repositories.md
 ````markdown
 # workspace-scheduling — Repositories
@@ -17901,6 +18859,50 @@ Application layer 只負責：
 |------|------|
 | `WorkDemand` | `Demand`, `Request`, `Ticket` |
 | `DemandStatus` | `Status`, `WorkStatus` |
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+## 模組定位
+
+`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceMember` | Member、Participant |
+| `WikiContentTree` | PageTree、ContentHierarchy |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 Workspace 上下文中） |
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceApi } from "@/modules/workspace/api";
+import type { WorkspaceDTO } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+```typescript
+// workspace/infrastructure 禁止 import workspace/api（循環依賴）
+import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
+```
+
+## 循環依賴守衛
+
+`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/workspace/aggregates.md
@@ -18477,51 +19479,6 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
-## File: docs/ddd/knowledge/README.md
-````markdown
-# knowledge — 知識內容上下文
-
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
-
-## 核心聚合 / 核心概念
-
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: docs/ddd/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -18559,302 +19516,6 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 
 > `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
-## File: docs/ddd/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: docs/ddd/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/subdomains.md
-````markdown
-# Subdomains — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
-> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
-
-本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
-
----
-
-## 分類原則
-
-| 分類 | 定義 | 投資策略 |
-|---|---|---|
-| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
-| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
-| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
-| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
-
----
-
-## Core Domain
-
-### `knowledge` — 知識內容管理
-
-Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
-
-**為何是核心域：**
-- 承載 Knowledge Page / Block Editor 的主體體驗
-- 決定知識如何被保存、版本化、審批與再利用
-- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
-
-### `knowledge-base` — 組織知識庫 / Wiki / SOP
-
-Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管理，支援層級分類、Backlink、SOP 文件與頁面驗證機制。
-
-**為何是核心域：**
-- 承載組織知識的可信度、可發現性與共享體驗
-- `VerificationState` 機制讓知識庫保持準確性品質
-- 與 `knowledge`（個人筆記）共同構成平台的知識差異化壁壘
-
----
-
-## Supporting Subdomains
-
-### `knowledge-collaboration`
-負責知識協作基礎設施：留言討論（Comment）、細粒度存取控制（Permission）、版本快照（Version）。不擁有知識內容，透過 `contentId` 與內容 BC 協作。
-
-### `knowledge-database`
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database，支援 Table / Board / Calendar / Timeline / Gallery 等多視圖展示，並透過 Relation 欄位建立資料關聯。
-
-### `source`
-負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
-
-### `ai`
-負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
-
-### `search`
-負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
-
-### `notebook`
-負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
-
-### `workspace-flow`
-負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
-
-### `workspace-scheduling`
-負責工作需求與排程，將協作項目放入時間與容量視角管理。
-
-### `workspace-audit`
-負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
-
-### `workspace-feed`
-負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
-
----
-
-## Generic Subdomains / Shared Kernel
-
-### `identity`
-封裝身份驗證與 session 起點，屬於標準平台能力。
-
-### `account`
-承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
-
-### `organization`
-提供多租戶組織、成員與團隊治理，是平台級協作基礎。
-
-### `workspace`
-提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
-
-### `notification`
-負責通知與提醒分發，屬典型平台配套能力。
-
-### `shared`
-作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
-
----
-
-## 子域分類總表
-
-| Context | 分類 | 主要價值 |
-|---|---|---|
-| `knowledge` | **Core** | 個人筆記 Page + Block 生命週期 |
-| `knowledge-base` | **Core** | 組織知識庫 Article + Category + 驗證機制 |
-| `knowledge-collaboration` | Supporting | Comment / Permission / Version 協作基礎 |
-| `knowledge-database` | Supporting | Database / Record / View 結構化資料 |
-| `source` | Supporting | 文件接入與來源治理 |
-| `ai` | Supporting | 攝入管線協調與 worker handoff |
-| `search` | Supporting | 語意檢索與 RAG |
-| `notebook` | Supporting | 摘要、問答、洞察互動 |
-| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
-| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
-| `workspace-audit` | Supporting | 稽核與追溯 |
-| `workspace-feed` | Supporting | 工作區動態與互動 |
-| `identity` | Generic | 身份驗證 |
-| `account` | Generic | 個人帳戶與偏好 |
-| `organization` | Generic | 多租戶治理 |
-| `workspace` | Generic | 協作容器 |
-| `notification` | Generic | 通知分發 |
-| `shared` | Shared Kernel | 穩定共享核心 |
-
----
-
-## 架構參考
-
-- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
-````
-
-## File: docs/ddd/workspace/README.md
-````markdown
-# workspace — 工作區上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Workspace 容器管理 | 建立、更新、歸檔工作區 |
-| 成員與角色 | 管理工作區成員、角色與協作可見性 |
-| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
-
-## 與其他 Bounded Context 協作
-
-- `organization` 是主要上游，提供多租戶歸屬。
-- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
-
-## 核心聚合 / 核心概念
-
-- **`Workspace`**
-- **`WorkspaceMember`**
-- **`WikiContentTree`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/account/AGENT.md
@@ -20979,54 +21640,50 @@ user action: Promote Page → Article
 | `ViewQueryBuilder` | `knowledge-database` |
 ````
 
-## File: modules/notebook/AGENT.md
+## File: modules/knowledge/README.md
 ````markdown
-# AGENT.md — notebook BC
+# knowledge — 個人筆記與頁面管理
 
-## 模組定位
+> **Domain Type:** **Core Domain**（核心域）
+> **模組路徑:** `modules/knowledge/`
+> **開發狀態:** 🚧 Developing — 積極開發中
 
-`notebook` 是 AI 對話的支援域，管理 Thread/Message 生命週期並封裝 Genkit 呼叫。
+## 在 Knowledge Platform 中的角色
 
-## 通用語言（Ubiquitous Language）
+`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
 
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Thread` | Conversation、Chat、Session |
-| `Message` | ChatMessage、Msg |
-| `MessageRole` | Role（單獨使用）、Speaker |
-| `NotebookResponse` | AIResponse、GeneratedText |
-| `NotebookRepository` | AIRepository、ChatRepository |
+## 主要職責
 
-## 最重要規則：Server Action 隔離
+| 能力 | 說明 |
+|---|---|
+| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
+| Block 管理 | 新增、更新、刪除、重排內容區塊 |
+| 層級結構 | 父子頁面樹狀管理 |
+| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
 
-```typescript
-// ✅ 正確：在 app/(shell)/ai-chat/_actions.ts 中建立本地 action
-"use server";
-import { notebookApi } from "@/modules/notebook/api";
-export async function generateResponse(input) {
-  return notebookApi.generateResponse(input);
-}
+## 核心聚合
 
-// ❌ 禁止：在 Client Component 直接 import notebook/api
-// Genkit/gRPC 是 server-only，會導致打包失敗
-import { notebookApi } from "@/modules/notebook/api"; // 在 "use client" 檔案中
-```
+- **`Page`**（KnowledgePage）
+- **`Block`**（ContentBlock）
 
-## 邊界規則
+## 不在此 BC 範圍
 
-### ✅ 允許
-```typescript
-// Server-side context only
-import { notebookApi } from "@/modules/notebook/api";
-import type { ThreadDTO, MessageDTO } from "@/modules/notebook/api";
-```
+| 功能 | 歸屬 BC |
+|------|---------|
+| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
+| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
+| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
 
-## 驗證命令
+## 詳細文件
 
-```bash
-npm run lint
-npm run build
-```
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面與實作 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
 ````
 
 ## File: modules/notebook/context-map.md
@@ -21064,86 +21721,44 @@ npm run build
 | notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（`app/(shell)/ai-chat/_actions.ts`） |
 ````
 
-## File: modules/notebook/README.md
+## File: modules/notebook/repositories.md
 ````markdown
-# notebook — Notebook 對話上下文
+# notebook — Repositories
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/notebook/`  
-> **開發狀態:** 🏗️ Midway
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
 
-## 在 Knowledge Platform / Second Brain 中的角色
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
 
-`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+## Domain Repository Ports
 
-## 主要職責
+- `domain/repositories/NotebookRepository.ts`
 
-| 能力 | 說明 |
-|---|---|
-| 對話 Thread 管理 | 維護對話串與訊息歷史 |
-| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
-| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
 
-## 與其他 Bounded Context 協作
+## Infrastructure Implementations
 
-- `search` 是主要上游，提供語意檢索與引用資料。
-- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
 
-## 核心聚合 / 核心概念
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
 
-- **`Thread`**
-- **`Message`**
-- **`Summary`**
+## 設計規則
 
-## 詳細文件
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
+## 模組內對應文件
 
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** ✅ Done
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/shared/aggregates.md
@@ -21194,130 +21809,103 @@ interface EventRecord {
 | `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
 ````
 
-## File: modules/source/README.md
+## File: docs/ddd/bounded-contexts.md
 ````markdown
-# source — 文件來源上下文
+# Bounded Contexts — Xuanwu App
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
+> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
 
-## 在 Knowledge Platform / Second Brain 中的角色
+本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
+Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
 
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
+- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
+- **NotebookLM-like 層**：檢索、摘要、問答、推理
 
-## 主要職責
+---
 
-| 能力 | 說明 |
+## 系統層級映射
+
+| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
+|---|---|---|---|
+| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
+| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
+| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
+| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
+| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
+| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
+
+---
+
+## 子域分類摘要
+
+| 分類 | Bounded Context |
 |---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+| **Core Domain** | `knowledge`, `knowledge-base` |
+| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
+| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
 
-## 與其他 Bounded Context 協作
+---
 
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
+## Bounded Context Catalog
 
-## 核心聚合 / 核心概念
+| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
+|---|---|---|---|---|
+| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
+| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
+| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
+| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
+| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
+| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
+| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
+| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
+| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
+| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
+| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
+| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
+| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
+| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
+| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
+| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
+| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
+| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
 
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
+---
+
+## 典型依賴與協作方式
+
+```text
+Identity → Account → Organization → Workspace
+                              ├─→ Knowledge ─────────────────────┐
+                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
+                              ├─→ Knowledge Collab / Database ───┘
+                              ├─→ Source ───→ AI ────────────────────────────┘
+                              └─→ Workspace Operations
+                                   ├─ workspace-flow
+                                   ├─ workspace-scheduling
+                                   ├─ workspace-audit
+                                   └─ workspace-feed
+```
+
+---
+
+## 整合原則
+
+1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
+2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
+3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
+4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
+5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
+
+---
 
 ## 詳細文件
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-## 模組定位
-
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceApi } from "@/modules/workspace/api";
-import type { WorkspaceDTO } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
-```
-
-## 循環依賴守衛
-
-`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace/README.md
-````markdown
-# workspace — 工作區上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Workspace 容器管理 | 建立、更新、歸檔工作區 |
-| 成員與角色 | 管理工作區成員、角色與協作可見性 |
-| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
-
-## 與其他 Bounded Context 協作
-
-- `organization` 是主要上游，提供多租戶歸屬。
-- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
-
-## 核心聚合 / 核心概念
-
-- **`Workspace`**
-- **`WorkspaceMember`**
-- **`WikiContentTree`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+- 子域分類：[`subdomains.md`](./subdomains.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
 ## File: modules/knowledge/AGENT.md
@@ -21426,52 +22014,6 @@ npm run build
 </content>
 ````
 
-## File: modules/knowledge/README.md
-````markdown
-# knowledge — 個人筆記與頁面管理
-
-> **Domain Type:** **Core Domain**（核心域）
-> **模組路徑:** `modules/knowledge/`
-> **開發狀態:** 🚧 Developing — 積極開發中
-
-## 在 Knowledge Platform 中的角色
-
-`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
-| Block 管理 | 新增、更新、刪除、重排內容區塊 |
-| 層級結構 | 父子頁面樹狀管理 |
-| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
-
-## 核心聚合
-
-- **`Page`**（KnowledgePage）
-- **`Block`**（ContentBlock）
-
-## 不在此 BC 範圍
-
-| 功能 | 歸屬 BC |
-|------|---------|
-| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
-| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
-| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面與實作 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
-````
-
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -21507,145 +22049,6 @@ npm run build
 | `Database` | `knowledge-database` |
 | `Record` | `knowledge-database` |
 | `View` | `knowledge-database` |
-````
-
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: docs/ddd/bounded-contexts.md
-````markdown
-# Bounded Contexts — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
-> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
-
-本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
-Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
-
-- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
-- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
-- **NotebookLM-like 層**：檢索、摘要、問答、推理
-
----
-
-## 系統層級映射
-
-| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
-|---|---|---|---|
-| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
-| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
-| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
-| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
-| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
-| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
-
----
-
-## 子域分類摘要
-
-| 分類 | Bounded Context |
-|---|---|
-| **Core Domain** | `knowledge`, `knowledge-base` |
-| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
-| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
-
----
-
-## Bounded Context Catalog
-
-| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
-|---|---|---|---|---|
-| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
-| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
-| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
-| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
-| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
-| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
-| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
-| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
-| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
-| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
-| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
-| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
-| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
-| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
-| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
-| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
-| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
-| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
-
----
-
-## 典型依賴與協作方式
-
-```text
-Identity → Account → Organization → Workspace
-                              ├─→ Knowledge ─────────────────────┐
-                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
-                              ├─→ Knowledge Collab / Database ───┘
-                              ├─→ Source ───→ AI ────────────────────────────┘
-                              └─→ Workspace Operations
-                                   ├─ workspace-flow
-                                   ├─ workspace-scheduling
-                                   ├─ workspace-audit
-                                   └─ workspace-feed
-```
-
----
-
-## 整合原則
-
-1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
-2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
-3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
-4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
-5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
-
----
-
-## 詳細文件
-
-- 子域分類：[`subdomains.md`](./subdomains.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
 ## File: modules/knowledge/repositories.md
