@@ -33,6 +33,18 @@ const QUICK_ACCESS = [
     icon: BookOpen,
   },
   {
+    href: "/wiki/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/wiki/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
     href: "/wiki/rag-query",
     title: "Ask / Cite",
     description: "查詢、引用與回答檢視。",

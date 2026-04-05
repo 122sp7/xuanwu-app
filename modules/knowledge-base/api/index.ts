@@ -13,5 +13,24 @@ export type { Category } from "../domain/entities/category.entity";
 export type ArticleId = string;
 export type CategoryId = string;
 
-// TODO: export facade functions when implemented
-// export { getArticleSummary } from "./facade";
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/knowledge-base.actions";
+
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export {
+  getArticles,
+  getArticle,
+  getCategories,
+} from "../interfaces/queries/knowledge-base.queries";

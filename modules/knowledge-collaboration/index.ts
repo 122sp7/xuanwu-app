@@ -5,4 +5,4 @@
  * Internal imports use relative paths.
  */
 
-export * from "./api/index";
+export * from "./api";
