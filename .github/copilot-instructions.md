@@ -69,12 +69,32 @@ DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the 
 
 ## Serena MCP
 
-Serena is mandatory for project memory, index management, and any `.serena/` operation.
+Serena MCP is **mandatory for every session**. There are no exceptions.
 
-- Activate the `xuanwu-app` project before memory operations.
-- Never edit `.serena/` with direct file tools.
-- Record phase-end memory updates through Serena tooling.
-- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for workflow details.
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
 
 ## Skill And Agent Routing
 
