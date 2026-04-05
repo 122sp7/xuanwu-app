@@ -6,14 +6,20 @@
 
 import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
 import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
 import {
   GetKnowledgePageUseCase,
   ListKnowledgePagesUseCase,
   GetKnowledgePageTreeUseCase,
 } from "../../application/use-cases/knowledge-page.use-cases";
 import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsByAccountUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
 import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
 import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
 
 export async function getKnowledgePage(
@@ -49,4 +55,24 @@ export async function getKnowledgeVersions(
   _pageId: string,
 ): Promise<KnowledgeVersion[]> {
   return [];
+}
+
+// ── Collection queries ────────────────────────────────────────────────────────
+
+export async function getKnowledgeCollection(
+  accountId: string,
+  collectionId: string,
+): Promise<KnowledgeCollection | null> {
+  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+    collectionId,
+  );
+}
+
+export async function getKnowledgeCollections(
+  accountId: string,
+): Promise<KnowledgeCollection[]> {
+  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+  );
 }

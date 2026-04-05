@@ -30,6 +30,9 @@ import type {
   MoveKnowledgePageInput,
   ReorderKnowledgePageBlocksInput,
   ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
 } from "../../domain/entities/content-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 
@@ -57,6 +60,11 @@ function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePa
     approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
     approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
     approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
+    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
+    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
     createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
@@ -228,5 +236,59 @@ export class FirebaseKnowledgePageRepository implements KnowledgePageRepository 
       ),
     );
     return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "verified",
+      verifiedByUserId: input.verifiedByUserId,
+      verifiedAtISO: nowISO,
+      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "needs_review",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      ownerId: input.ownerId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
   }
 }

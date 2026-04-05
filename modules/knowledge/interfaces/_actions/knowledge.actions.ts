@@ -15,6 +15,9 @@ import {
   ArchiveKnowledgePageUseCase,
   ReorderKnowledgePageBlocksUseCase,
   ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
 } from "../../application/use-cases/knowledge-page.use-cases";
 import {
   AddKnowledgeBlockUseCase,
@@ -51,6 +54,9 @@ import type {
   RemovePageFromCollectionDto,
   AddCollectionColumnDto,
   ArchiveKnowledgeCollectionDto,
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
 } from "../../application/dto/knowledge.dto";
 
 function makePageRepo() {
@@ -257,6 +263,45 @@ export async function archiveKnowledgeCollection(
   } catch (err) {
     return commandFailureFrom(
       "COLLECTION_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+// ── Wiki / Knowledge Base verification actions ────────────────────────────────
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_VERIFY_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function requestKnowledgePageReview(
+  input: RequestPageReviewDto,
+): Promise<CommandResult> {
+  try {
+    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_REVIEW_REQUEST_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function assignKnowledgePageOwner(
+  input: AssignPageOwnerDto,
+): Promise<CommandResult> {
+  try {
+    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ASSIGN_OWNER_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }

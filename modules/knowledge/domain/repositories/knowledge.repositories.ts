@@ -11,6 +11,9 @@ import type {
   MoveKnowledgePageInput,
   ReorderKnowledgePageBlocksInput,
   ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
 } from "../entities/content-page.entity";
 import type {
   KnowledgeBlock,
@@ -39,6 +42,12 @@ export interface KnowledgePageRepository {
   archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
   /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
   approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Mark a wiki page as verified (verificationState = "verified"). */
+  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Flag a wiki page for review (verificationState = "needs_review"). */
+  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
+  /** Assign or change the owner of a wiki page. */
+  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
   findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
   listByAccountId(accountId: string): Promise<KnowledgePage[]>;
   listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;

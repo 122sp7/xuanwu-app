@@ -74,6 +74,7 @@ function toKnowledgeCollection(id: string, data: Record<string, unknown>): Knowl
       ? (data.pageIds as unknown[]).filter((v): v is string => typeof v === "string")
       : [],
     status: (data.status as CollectionStatus) === "archived" ? "archived" : "active",
+    spaceType: data.spaceType === "wiki" ? "wiki" : "database",
     createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
