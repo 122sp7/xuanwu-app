@@ -7,6 +7,10 @@
  * infrastructure/, or interfaces/ directly.
  */
 
+// ─── Facade ───────────────────────────────────────────────────────────────────
+
+export { NotificationFacade, notificationFacade } from "./notification.facade";
+
 // ─── Core entity types ────────────────────────────────────────────────────────
 
 export type {
@@ -15,14 +19,6 @@ export type {
   DispatchNotificationInput,
 } from "../domain/entities/Notification";
 
-// ─── Server Actions (cross-domain dispatch) ───────────────────────────────────
+// ─── UI components ────────────────────────────────────────────────────────────
 
-export { dispatchNotification } from "../interfaces/_actions/notification.actions";
-export {
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../interfaces/_actions/notification.actions";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
+export { NotificationBell } from "../interfaces/components/NotificationBell";

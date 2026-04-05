@@ -4,13 +4,11 @@
  * Architecture Phase 3: Interface Wiring
  *
  * Initialises and wires the singleton instances that power the
- * Content → EventBus → Knowledge demo loop.
+ * Content → EventBus demo loop.
  *
  * Responsibilities:
  *   1. Create the shared SimpleEventBus.
  *   2. Create KnowledgeApi (injected with the event bus).
- *   3. Create KnowledgeApi (injected with the event bus; auto-subscribes
- *      LinkExtractorService so it reacts to KnowledgeUpdatedEvents).
  *
  * All state lives here — never in page files or global variables.
  *
@@ -22,7 +20,6 @@
 
 import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
 import { KnowledgeApi } from "./knowledge/api/knowledge-api";
-import { WikiApi } from "./wiki/api/wiki-api";
 
 // ── Shared account used by the in-memory demo ──────────────────────────────
 
@@ -32,6 +29,3 @@ export const DEMO_ACCOUNT_ID = "demo-account";
 
 const eventBus = new SimpleEventBus();
 export const contentApi = new KnowledgeApi(eventBus);
-export const knowledgeApi = new WikiApi(eventBus);
-// KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
-// subscription is active as soon as the module is imported.

@@ -2,7 +2,7 @@
 
 > **Domain Type:** Generic Subdomain  
 > **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
+> **開發狀態:** ✅ Done
 
 ## 在 Knowledge Platform / Second Brain 中的角色
 
