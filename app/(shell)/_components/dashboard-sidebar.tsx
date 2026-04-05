@@ -10,7 +10,24 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FileText,
+  Home,
+  Library,
+  PanelLeftClose,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -74,6 +91,17 @@ const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
 const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
 const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
 const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+const QUICK_ACCESS_ITEMS: readonly {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  { href: "/workspace", label: "首頁", icon: <Home className="size-3.5" /> },
+  { href: "/knowledge/pages", label: "頁面", icon: <FileText className="size-3.5" /> },
+  { href: "/knowledge-base/articles", label: "文章", icon: <BookOpen className="size-3.5" /> },
+  { href: "/source/documents", label: "來源", icon: <Library className="size-3.5" /> },
+];
 
 interface SidebarLocaleBundle {
   workspace?: {
@@ -160,6 +188,20 @@ function isActiveOrganizationAccount(
     activeAccount.accountType === "organization"
   );
 }
+
+function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
 
 export function DashboardSidebar({
   pathname,
@@ -402,14 +444,14 @@ export function DashboardSidebar({
     <aside
       aria-label="Secondary navigation"
       className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
+        collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
       }`}
     >
       <>
           {/* ── Sidebar title bar ──────────────────────────────────── */}
           <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
             {/* Section label */}
-            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+            <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
               {sectionMeta.icon}
               {sectionMeta.label}
             </span>
@@ -422,7 +464,7 @@ export function DashboardSidebar({
                 onClick={() => {
                   setCustomizeOpen(true);
                 }}
-                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
               >
                 <SlidersHorizontal className="size-3.5" />
               </button>
@@ -431,20 +473,52 @@ export function DashboardSidebar({
                 onClick={toggleCollapsed}
                 aria-label="收起側欄"
                 title="收起側欄"
-                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
               >
                 <PanelLeftClose className="size-3.5" />
               </button>
             </div>
           </div>
 
+          <div className="shrink-0 border-b border-border/30 px-2 py-2">
+            <div className="flex items-center gap-1">
+              {QUICK_ACCESS_ITEMS.map((item) => {
+                const active = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex size-7 items-center justify-center rounded-md transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="sr-only">{item.label}</span>
+                  </Link>
+                );
+              })}
+              <button
+                type="button"
+                aria-label="搜尋"
+                title="搜尋"
+                className="ml-auto flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <Search className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
           {/* ── Scrollable nav body ── section-specific ───────────── */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
+          <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
             {section === "account" && (
               <>
                 {showAccountManagement && visibleAccountItems.length > 0 && (
                   <nav className="space-y-0.5" aria-label="Account navigation">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                    <p className={sidebarSectionTitleClass}>
                       Account
                     </p>
                     {visibleAccountItems.map((item) => {
@@ -454,11 +528,7 @@ export function DashboardSidebar({
                           key={item.href}
                           href={item.href}
                           aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
+                          className={sidebarItemClass(active)}
                         >
                           {item.label}
                         </Link>
@@ -478,7 +548,7 @@ export function DashboardSidebar({
               <>
                 {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
                   <nav className="space-y-0.5" aria-label="Organization management">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                    <p className={sidebarSectionTitleClass}>
                       組織管理
                     </p>
                     {visibleOrganizationManagementItems.map((item) => {
@@ -488,11 +558,7 @@ export function DashboardSidebar({
                           key={item.href}
                           href={item.href}
                           aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
+                          className={sidebarItemClass(active)}
                         >
                           {item.label}
                         </Link>
@@ -522,11 +588,7 @@ export function DashboardSidebar({
                             key={item.value}
                             href={buildWorkspaceTabHref(workspacePathId, item.value)}
                             aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
+                            className={sidebarItemClass(isActive)}
                           >
                             {tWorkspaceTabWithDevStatus(item.value, item.label)}
                           </Link>
@@ -546,7 +608,7 @@ export function DashboardSidebar({
                             onClick={() => {
                               setIsWorkspaceModulesExpanded((prev) => !prev);
                             }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            className={sidebarGroupButtonClass}
                             aria-expanded={isWorkspaceModulesExpanded}
                           >
                             <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
@@ -564,11 +626,7 @@ export function DashboardSidebar({
                                     key={item.value}
                                     href={buildWorkspaceTabHref(workspacePathId, item.value)}
                                     aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
+                                    className={sidebarItemClass(isActive)}
                                   >
                                     {tWorkspaceTabWithDevStatus(item.value, item.label)}
                                   </Link>
@@ -588,7 +646,7 @@ export function DashboardSidebar({
                             onClick={() => {
                               setIsWorkspaceSpacesExpanded((prev) => !prev);
                             }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            className={sidebarGroupButtonClass}
                             aria-expanded={isWorkspaceSpacesExpanded}
                           >
                             <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
@@ -606,11 +664,7 @@ export function DashboardSidebar({
                                     key={item.value}
                                     href={buildWorkspaceTabHref(workspacePathId, item.value)}
                                     aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
+                                    className={sidebarItemClass(isActive)}
                                   >
                                     {tWorkspaceTabWithDevStatus(item.value, item.label)}
                                   </Link>
@@ -630,7 +684,7 @@ export function DashboardSidebar({
                             onClick={() => {
                               setIsWorkspaceDatabasesExpanded((prev) => !prev);
                             }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            className={sidebarGroupButtonClass}
                             aria-expanded={isWorkspaceDatabasesExpanded}
                           >
                             <span>{tWorkspaceGroup("databases", "Databases")}</span>
@@ -648,11 +702,7 @@ export function DashboardSidebar({
                                     key={item.value}
                                     href={buildWorkspaceTabHref(workspacePathId, item.value)}
                                     aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
+                                    className={sidebarItemClass(isActive)}
                                   >
                                     {tWorkspaceTabWithDevStatus(item.value, item.label)}
                                   </Link>
@@ -674,11 +724,7 @@ export function DashboardSidebar({
                             key={item.value}
                             href={buildWorkspaceTabHref(workspacePathId, item.value)}
                             aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
+                            className={sidebarItemClass(isActive)}
                           >
                             {tWorkspaceTabWithDevStatus(item.value, item.label)}
                           </Link>
@@ -692,7 +738,7 @@ export function DashboardSidebar({
                   <>
                     {showRecentWorkspaces && (
                       <div className="space-y-0.5">
-                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                        <p className={sidebarSectionTitleClass}>
                           最近工作區
                         </p>
                         {visibleRecentWorkspaceLinks.length === 0 ? (
@@ -709,8 +755,8 @@ export function DashboardSidebar({
                               }}
                               className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
                                 activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                                  ? "border border-primary/30 bg-primary/10 text-primary"
+                                  : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
                               }`}
                               title={ws.name}
                             >
