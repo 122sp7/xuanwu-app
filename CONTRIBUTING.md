@@ -6,7 +6,7 @@ Contributions are welcome. Please follow these guidelines to keep the codebase c
 
 ### 👥 Prevent Work Duplication
 
-Before opening a new issue or PR, check whether it already exists in [Issues](../../issues) or [Pull Requests](../../pulls).
+Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
 
 ### ✅ Work on Approved Issues
 
@@ -110,6 +110,6 @@ For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW
 
 For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 
-- Plan first with [`docs/how-to-user/how-to/start-feature-delivery.md`](docs/how-to-user/how-to/start-feature-delivery.md)
+- Plan first with [`docs/swarm.md`](docs/swarm.md)
 - Use the implementation plan as the execution contract for implementation, review, and QA
 - Keep documentation updates in the same change whenever scope, boundaries, or public workflows move

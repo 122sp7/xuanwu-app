@@ -1,6 +1,6 @@
 # Knowledge Base — MDDD Domain & Architecture
 
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`rules/`](rules/).
+This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
 
 ## Module-Driven Domain Design (MDDD)
 

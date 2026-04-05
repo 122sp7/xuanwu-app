@@ -1,3 +1,0 @@
-module.exports=[65200,a=>{"use strict";var b=a.i(87924);a.i(66999);var c=a.i(42947);function d(){return(0,b.jsxs)("div",{className:"space-y-4",children:[(0,b.jsxs)("header",{className:"space-y-2",children:[(0,b.jsx)("p",{className:"text-xs font-semibold uppercase tracking-widest text-primary",children:"Account Wiki"}),(0,b.jsx)("h1",{className:"text-2xl font-semibold tracking-tight text-foreground",children:"區塊編輯器"}),(0,b.jsx)("p",{className:"text-sm text-muted-foreground",children:"極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。"})]}),(0,b.jsx)(c.BlockEditorView,{})]})}a.s(["default",()=>d])}];
-
-//# sourceMappingURL=app_%28shell%29_wiki_block-editor_page_tsx_e50d7525._.js.map
