@@ -6,7 +6,7 @@
  *
  * Usage:
  *   const bus = new SimpleEventBus();
- *   bus.subscribe("content.block-updated", async (event) => { ... });
+ *   bus.subscribe("knowledge.block-updated", async (event) => { ... });
  *   await bus.publish(someEvent);
  */
 

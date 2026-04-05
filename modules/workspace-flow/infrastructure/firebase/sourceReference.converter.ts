@@ -14,7 +14,7 @@ import type { SourceReference } from "../../domain/value-objects/SourceReference
 export function toSourceReference(raw: unknown): SourceReference | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
-  if (r.type !== "ContentPage") return undefined;
+  if (r.type !== "KnowledgePage") return undefined;
   if (
     typeof r.id !== "string" ||
     typeof r.causationId !== "string" ||
@@ -22,5 +22,5 @@ export function toSourceReference(raw: unknown): SourceReference | undefined {
   ) {
     return undefined;
   }
-  return { type: "ContentPage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
+  return { type: "KnowledgePage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
 }

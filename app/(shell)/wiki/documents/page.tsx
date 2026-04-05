@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { AssetDocumentsView } from "@/modules/source/api";
+import { SourceDocumentsView } from "@/modules/source/api";
 
 export default function WikiDocumentsPage() {
   const searchParams = useSearchParams();
@@ -16,7 +16,7 @@ export default function WikiDocumentsPage() {
         <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
       </header>
 
-      <AssetDocumentsView workspaceId={workspaceId} />
+      <SourceDocumentsView workspaceId={workspaceId} />
     </div>
   );
 }

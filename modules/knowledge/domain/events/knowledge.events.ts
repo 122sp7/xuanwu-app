@@ -4,8 +4,8 @@
  * Purpose: Discriminated-union event types emitted by the Content domain.
  */
 
-export interface ContentPageCreatedEvent {
-  readonly type: "content.page_created";
+export interface KnowledgePageCreatedEvent {
+  readonly type: "knowledge.page_created";
   readonly pageId: string;
   readonly accountId: string;
   readonly workspaceId?: string;
@@ -14,8 +14,8 @@ export interface ContentPageCreatedEvent {
   readonly occurredAtISO: string;
 }
 
-export interface ContentPageRenamedEvent {
-  readonly type: "content.page_renamed";
+export interface KnowledgePageRenamedEvent {
+  readonly type: "knowledge.page_renamed";
   readonly pageId: string;
   readonly accountId: string;
   readonly previousTitle: string;
@@ -23,8 +23,8 @@ export interface ContentPageRenamedEvent {
   readonly occurredAtISO: string;
 }
 
-export interface ContentPageMovedEvent {
-  readonly type: "content.page_moved";
+export interface KnowledgePageMovedEvent {
+  readonly type: "knowledge.page_moved";
   readonly pageId: string;
   readonly accountId: string;
   readonly previousParentPageId: string | null;
@@ -32,14 +32,14 @@ export interface ContentPageMovedEvent {
   readonly occurredAtISO: string;
 }
 
-export interface ContentPageArchivedEvent {
-  readonly type: "content.page_archived";
+export interface KnowledgePageArchivedEvent {
+  readonly type: "knowledge.page_archived";
   readonly pageId: string;
   readonly accountId: string;
   readonly occurredAtISO: string;
 }
 
-// ── Extracted-task shape (used inside ContentPageApprovedEvent) ───────────────
+// ── Extracted-task shape (used inside KnowledgePageApprovedEvent) ───────────────
 
 export interface ExtractedTask {
   readonly title: string;
@@ -53,9 +53,9 @@ export interface ExtractedInvoice {
   readonly currency?: string;
 }
 
-export interface ContentPageApprovedEvent {
-  readonly type: "content.page_approved";
-  /** ContentPage aggregate ID (also the Firestore document id). */
+export interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  /** KnowledgePage aggregate ID (also the Firestore document id). */
   readonly aggregateId: string;
   readonly pageId: string;
   readonly accountId: string;
@@ -64,15 +64,15 @@ export interface ContentPageApprovedEvent {
   readonly extractedInvoices: ReadonlyArray<ExtractedInvoice>;
   /** Actor who triggered the approval. */
   readonly actorId: string;
-  /** ID of the command (ApproveContentPageUseCase execution) that caused this event. */
+  /** ID of the command (ApproveKnowledgePageUseCase execution) that caused this event. */
   readonly causationId: string;
   /** Business-process correlation ID tracing the whole ingestion → approval → materialization flow. */
   readonly correlationId: string;
   readonly occurredAtISO: string;
 }
 
-export interface ContentBlockAddedEvent {
-  readonly type: "content.block_added";
+export interface KnowledgeBlockAddedEvent {
+  readonly type: "knowledge.block_added";
   readonly blockId: string;
   readonly pageId: string;
   readonly accountId: string;
@@ -80,8 +80,8 @@ export interface ContentBlockAddedEvent {
   readonly occurredAtISO: string;
 }
 
-export interface ContentBlockUpdatedEvent {
-  readonly type: "content.block_updated";
+export interface KnowledgeBlockUpdatedEvent {
+  readonly type: "knowledge.block_updated";
   readonly blockId: string;
   readonly pageId: string;
   readonly accountId: string;
@@ -89,16 +89,16 @@ export interface ContentBlockUpdatedEvent {
   readonly occurredAtISO: string;
 }
 
-export interface ContentBlockDeletedEvent {
-  readonly type: "content.block_deleted";
+export interface KnowledgeBlockDeletedEvent {
+  readonly type: "knowledge.block_deleted";
   readonly blockId: string;
   readonly pageId: string;
   readonly accountId: string;
   readonly occurredAtISO: string;
 }
 
-export interface ContentVersionPublishedEvent {
-  readonly type: "content.version_published";
+export interface KnowledgeVersionPublishedEvent {
+  readonly type: "knowledge.version_published";
   readonly versionId: string;
   readonly pageId: string;
   readonly accountId: string;
@@ -107,13 +107,13 @@ export interface ContentVersionPublishedEvent {
   readonly occurredAtISO: string;
 }
 
-export type ContentDomainEvent =
-  | ContentPageCreatedEvent
-  | ContentPageRenamedEvent
-  | ContentPageMovedEvent
-  | ContentPageArchivedEvent
-  | ContentPageApprovedEvent
-  | ContentBlockAddedEvent
-  | ContentBlockUpdatedEvent
-  | ContentBlockDeletedEvent
-  | ContentVersionPublishedEvent;
+export type KnowledgeDomainEvent =
+  | KnowledgePageCreatedEvent
+  | KnowledgePageRenamedEvent
+  | KnowledgePageMovedEvent
+  | KnowledgePageArchivedEvent
+  | KnowledgePageApprovedEvent
+  | KnowledgeBlockAddedEvent
+  | KnowledgeBlockUpdatedEvent
+  | KnowledgeBlockDeletedEvent
+  | KnowledgeVersionPublishedEvent;

@@ -10,55 +10,55 @@
  * `@/modules/knowledge/domain/...` or deeper paths.
  *
  * Access pattern:
- *   - Cross-domain programmatic usage → `contentFacade` (or `ContentFacade`)
+ *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
  *   - UI mutations                    → Server Actions below
  *   - UI reads                        → Query functions below
  */
 
 // ── API: Facade (cross-domain entry point) ────────────────────────────────────
-export { ContentFacade, contentFacade } from "./api/content-facade";
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
 export type {
-  ContentCreatePageParams,
-  ContentRenamePageParams,
-  ContentMovePageParams,
-  ContentAddBlockParams,
-  ContentUpdateBlockParams,
-} from "./api/content-facade";
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";
 
 // ── Domain: entity types ──────────────────────────────────────────────────────
 export type {
-  ContentPage,
-  ContentPageStatus,
-  ContentPageTreeNode,
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
 } from "./domain/entities/content-page.entity";
 
-export type { ContentBlock } from "./domain/entities/content-block.entity";
+export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
 
-export type { ContentVersion } from "./domain/entities/content-version.entity";
+export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
 
 export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
 
 // ── Interfaces: Server Actions ────────────────────────────────────────────────
 export {
-  createContentPage,
-  renameContentPage,
-  moveContentPage,
-  archiveContentPage,
-  reorderContentPageBlocks,
-  addContentBlock,
-  updateContentBlock,
-  deleteContentBlock,
-  publishContentVersion,
-} from "./interfaces/_actions/content.actions";
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+} from "./interfaces/_actions/knowledge.actions";
 
 // ── Interfaces: Queries ───────────────────────────────────────────────────────
 export {
-  getContentPage,
-  getContentPages,
-  getContentPageTree,
-  getContentBlocks,
-  getContentVersions,
-} from "./interfaces/queries/content.queries";
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+} from "./interfaces/queries/knowledge.queries";
 
 // ── Interfaces: Components ────────────────────────────────────────────────────
 export { BlockEditorView } from "./interfaces/components/BlockEditorView";

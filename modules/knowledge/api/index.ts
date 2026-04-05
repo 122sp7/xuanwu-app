@@ -5,16 +5,16 @@
  * for the Content domain.
  */
 
-export { ContentFacade, contentFacade } from "./content-facade";
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
 export type {
-  ContentCreatePageParams,
-  ContentRenamePageParams,
-  ContentMovePageParams,
-  ContentAddBlockParams,
-  ContentUpdateBlockParams,
-} from "./content-facade";
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
 
-export { ContentApi } from "./content-api";
+export { KnowledgeApi } from "./knowledge-api";
 
 // ── Wiki page types (transitional — owned by content domain) ──────────────
 export type {
@@ -69,30 +69,30 @@ export { PagesDnDView } from "../interfaces/components/PagesDnDView";
 // ── Server Actions (write-side) ───────────────────────────────────────────────
 
 export {
-  createContentPage,
-  renameContentPage,
-  moveContentPage,
-  archiveContentPage,
-  reorderContentPageBlocks,
-  addContentBlock,
-  updateContentBlock,
-  deleteContentBlock,
-  publishContentVersion,
-  approveContentPage,
-} from "../interfaces/_actions/content.actions";
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+} from "../interfaces/_actions/knowledge.actions";
 
-export type { ApproveContentPageDto } from "../application/dto/content.dto";
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
 
 // ── Public event contracts ────────────────────────────────────────────────────
 
 export {
-  CONTENT_EVENT_TYPES,
+  KNOWLEDGE_EVENT_TYPES,
 } from "./events";
 
 export type {
-  ContentPageApprovedEvent,
-  ContentDomainEvent,
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
   ExtractedTask,
   ExtractedInvoice,
-  ContentEventType,
+  KnowledgeEventType,
 } from "./events";

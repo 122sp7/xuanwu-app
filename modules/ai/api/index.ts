@@ -17,5 +17,5 @@ export type { GraphNode, GraphNodeType } from "../../wiki/api";
 export type { GraphRepository } from "../../wiki/api";
 export { InMemoryGraphRepository } from "../../wiki/api";
 export { LinkExtractorService } from "../../wiki/api";
-export { KnowledgeGraphApi as KnowledgeApi } from "../../wiki/api";
+export { WikiApi as KnowledgeApi } from "../../wiki/api";
 export type { GraphDataDTO } from "../../wiki/api";

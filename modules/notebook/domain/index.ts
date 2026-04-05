@@ -1,7 +1,7 @@
 export type {
-  AgentResponse,
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
 } from "./entities/AgentGeneration";
 export type {
   AnswerRagQueryInput,
@@ -12,7 +12,7 @@ export type {
   RagRetrievalSummary,
   RagStreamEvent,
 } from "./entities/RagQuery";
-export type { AgentRepository } from "./repositories/AgentRepository";
+export type { NotebookRepository } from "./repositories/NotebookRepository";
 export type {
   GenerateRagAnswerInput,
   GenerateRagAnswerOutput,

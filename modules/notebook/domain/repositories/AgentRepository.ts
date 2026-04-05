@@ -1,8 +1,8 @@
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
 } from "../entities/AgentGeneration";
 
-export interface AgentRepository {
-  generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult>;
+export interface NotebookRepository {
+  generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
 }

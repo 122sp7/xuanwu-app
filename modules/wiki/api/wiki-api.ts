@@ -1,7 +1,7 @@
 /**
  * modules/wiki — api/knowledge-graph-api
  * Layer: api (cross-module facade)
- * Purpose: KnowledgeGraphApi — lightweight facade that wires in-memory
+ * Purpose: WikiApi — lightweight facade that wires in-memory
  *          adapters and exposes the knowledge-graph surface needed by
  *          consumers (e.g. system.ts composition root, debug pages).
  *
@@ -24,7 +24,7 @@ export interface GraphDataDTO {
   edges: Array<{ from: string; to: string; type: string }>;
 }
 
-export class KnowledgeGraphApi {
+export class WikiApi {
   private readonly graphRepo: InMemoryGraphRepository;
   readonly autoLink: AutoLinkUseCase;
 

@@ -1,6 +1,6 @@
 /**
  * modules/wiki — application
- * Purpose: LinkExtractorService — subscribes to ContentUpdatedEvent and
+ * Purpose: LinkExtractorService — subscribes to KnowledgeUpdatedEvent and
  *          extracts [[WikiLink]] references to build graph edges.
  *
  * Wikilink syntax: [[Target Page Name]]
@@ -9,9 +9,9 @@
  */
 
 import {
-  type ContentUpdatedEvent,
-  CONTENT_UPDATED_EVENT_TYPE,
-} from "../../shared/domain/events/content-updated.event";
+  type KnowledgeUpdatedEvent,
+  KNOWLEDGE_UPDATED_EVENT_TYPE,
+} from "../../shared/domain/events/knowledge-updated.event";
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
 import type { GraphRepository } from "../domain/repositories/GraphRepository";
@@ -30,19 +30,19 @@ export class LinkExtractorService {
    * Call once during application bootstrap.
    */
   registerOn(eventBus: SimpleEventBus): void {
-    eventBus.subscribe<ContentUpdatedEvent>(
-      CONTENT_UPDATED_EVENT_TYPE,
+    eventBus.subscribe<KnowledgeUpdatedEvent>(
+      KNOWLEDGE_UPDATED_EVENT_TYPE,
       this.handleContentUpdated.bind(this),
     );
   }
 
   /**
-   * React to a ContentUpdatedEvent:
+   * React to a KnowledgeUpdatedEvent:
    * 1. Parse all [[WikiLink]] targets from the new content.
    * 2. Upsert a GraphNode for each target.
    * 3. Create an explicit Link from the source page to each target.
    */
-  async handleContentUpdated(event: ContentUpdatedEvent): Promise<void> {
+  async handleContentUpdated(event: KnowledgeUpdatedEvent): Promise<void> {
     const targets = this.extractWikiLinks(event.content);
 
     for (const targetLabel of targets) {

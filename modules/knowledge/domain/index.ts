@@ -4,29 +4,29 @@
  */
 
 export type {
-  ContentPage,
-  ContentPageStatus,
-  ContentPageTreeNode,
-  CreateContentPageInput,
-  RenameContentPageInput,
-  MoveContentPageInput,
-  ReorderContentPageBlocksInput,
-  ArchiveContentPageInput,
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ArchiveKnowledgePageInput,
 } from "./entities/content-page.entity";
 
-export { CONTENT_PAGE_STATUSES } from "./entities/content-page.entity";
+export { KNOWLEDGE_PAGE_STATUSES } from "./entities/content-page.entity";
 
 export type {
-  ContentBlock,
-  AddContentBlockInput,
-  UpdateContentBlockInput,
-  DeleteContentBlockInput,
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  DeleteKnowledgeBlockInput,
 } from "./entities/content-block.entity";
 
 export type {
-  ContentVersion,
-  ContentVersionBlock,
-  CreateContentVersionInput,
+  KnowledgeVersion,
+  KnowledgeVersionBlock,
+  CreateKnowledgeVersionInput,
 } from "./entities/content-version.entity";
 
 export type { BlockContent, BlockType } from "./value-objects/block-content";
@@ -37,19 +37,19 @@ export {
 } from "./value-objects/block-content";
 
 export type {
-  ContentDomainEvent,
-  ContentPageCreatedEvent,
-  ContentPageRenamedEvent,
-  ContentPageMovedEvent,
-  ContentPageArchivedEvent,
-  ContentBlockAddedEvent,
-  ContentBlockUpdatedEvent,
-  ContentBlockDeletedEvent,
-  ContentVersionPublishedEvent,
-} from "./events/content.events";
+  KnowledgeDomainEvent,
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+} from "./events/knowledge.events";
 
 export type {
-  ContentPageRepository,
-  ContentBlockRepository,
-  ContentVersionRepository,
-} from "./repositories/content.repositories";
+  KnowledgePageRepository,
+  KnowledgeBlockRepository,
+  KnowledgeVersionRepository,
+} from "./repositories/knowledge.repositories";

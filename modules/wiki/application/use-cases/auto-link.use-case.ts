@@ -4,10 +4,10 @@
  *          the knowledge graph automatically.
  *
  * Handled events:
- *   - ContentPageCreatedEvent  → upserts a GraphNode for the new page;
+ *   - KnowledgePageCreatedEvent  → upserts a GraphNode for the new page;
  *                                creates a "hierarchy" Link when the page
  *                                has a parent.
- *   - ContentUpdatedEvent      → delegates to LinkExtractorService for
+ *   - KnowledgeUpdatedEvent      → delegates to LinkExtractorService for
  *                                WikiLink (explicit link) extraction.
  *
  * Register on the shared event bus via `registerOn(eventBus)` once during
@@ -19,8 +19,8 @@
  */
 
 import {
-  type ContentPageCreatedEvent,
-  CONTENT_PAGE_CREATED_EVENT_TYPE,
+  type KnowledgePageCreatedEvent,
+  KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
   type SimpleEventBus,
 } from "../../../shared/api";
 
@@ -40,8 +40,8 @@ export class AutoLinkUseCase {
    */
   registerOn(eventBus: SimpleEventBus): void {
     // 1. Page creation → upsert GraphNode (+ optional hierarchy Link).
-    eventBus.subscribe<ContentPageCreatedEvent>(
-      CONTENT_PAGE_CREATED_EVENT_TYPE,
+    eventBus.subscribe<KnowledgePageCreatedEvent>(
+      KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
       this.handlePageCreated.bind(this),
     );
 
@@ -50,11 +50,11 @@ export class AutoLinkUseCase {
   }
 
   /**
-   * React to a ContentPageCreatedEvent:
+   * React to a KnowledgePageCreatedEvent:
    * 1. Upsert a GraphNode for the new page.
    * 2. If the page has a parent, create a "hierarchy" Link.
    */
-  async handlePageCreated(event: ContentPageCreatedEvent): Promise<void> {
+  async handlePageCreated(event: KnowledgePageCreatedEvent): Promise<void> {
     await this.graphRepo.upsertNode({
       id: event.pageId,
       label: event.title,

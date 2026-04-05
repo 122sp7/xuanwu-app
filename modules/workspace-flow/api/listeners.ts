@@ -12,7 +12,7 @@
  * import { createContentToWorkflowListener } from "@/modules/workspace-flow/api";
  *
  * const listener = createContentToWorkflowListener(workspaceId);
- * eventBus.subscribe("content.page_approved", (event) => listener.handle(event));
+ * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
  * ```
  *
  * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
@@ -21,7 +21,7 @@
 import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
 import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
 import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { ContentPageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
 
 // ── Public listener factory ───────────────────────────────────────────────────
 
@@ -39,8 +39,8 @@ export function createContentToWorkflowListener(): ContentToWorkflowMaterializer
 // ── Listener type contracts ───────────────────────────────────────────────────
 
 /** Shape of any handler that can process a `content.page_approved` event. */
-export interface ContentPageApprovedHandler {
-  handle(event: ContentPageApprovedEvent, workspaceId: string): Promise<boolean>;
+export interface KnowledgePageApprovedHandler {
+  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
 }
 
-export type { ContentPageApprovedEvent };
+export type { KnowledgePageApprovedEvent };

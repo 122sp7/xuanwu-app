@@ -5,6 +5,6 @@ import { redirect } from "next/navigation";
  * Purpose: redirect to the consolidated content hub at /wiki.
  * Content management is centralised in the Wiki section.
  */
-export default function OrganizationContentPage() {
+export default function OrganizationKnowledgePage() {
   redirect("/wiki");
 }

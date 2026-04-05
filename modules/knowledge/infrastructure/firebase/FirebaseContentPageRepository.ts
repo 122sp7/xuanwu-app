@@ -1,7 +1,7 @@
 /**
  * Module: knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase Firestore implementation of ContentPageRepository.
+ * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
  *
  * Firestore collection: accounts/{accountId}/contentPages/{pageId}
  */
@@ -24,14 +24,14 @@ import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
 
 import type {
-  ContentPage,
-  CreateContentPageInput,
-  RenameContentPageInput,
-  MoveContentPageInput,
-  ReorderContentPageBlocksInput,
-  ApproveContentPageInput,
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
 } from "../../domain/entities/content-page.entity";
-import type { ContentPageRepository } from "../../domain/repositories/content.repositories";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 
 function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
   return collection(db, "accounts", accountId, "contentPages");
@@ -41,7 +41,7 @@ function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId:
   return doc(db, "accounts", accountId, "contentPages", pageId);
 }
 
-function toContentPage(id: string, data: Record<string, unknown>): ContentPage {
+function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
   return {
     id,
     accountId: typeof data.accountId === "string" ? data.accountId : "",
@@ -73,12 +73,12 @@ function slugify(title: string): string {
     .slice(0, 100) || "page";
 }
 
-export class FirebaseContentPageRepository implements ContentPageRepository {
+export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
   private get db() {
     return getFirestore(firebaseClientApp);
   }
 
-  async create(input: CreateContentPageInput): Promise<ContentPage> {
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
     const nowISO = new Date().toISOString();
     const slug = slugify(input.title);
     const id = generateId();
@@ -107,10 +107,10 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 
     await setDoc(docRef, data);
 
-    return toContentPage(id, { ...data, id });
+    return toKnowledgePage(id, { ...data, id });
   }
 
-  async rename(input: RenameContentPageInput): Promise<ContentPage | null> {
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
     const ref = pageDoc(this.db, input.accountId, input.pageId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -125,10 +125,10 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 
     const updated = await getDoc(ref);
     if (!updated.exists()) return null;
-    return toContentPage(updated.id, updated.data() as Record<string, unknown>);
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
   }
 
-  async move(input: MoveContentPageInput): Promise<ContentPage | null> {
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
     const ref = pageDoc(this.db, input.accountId, input.pageId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -142,10 +142,10 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 
     const updated = await getDoc(ref);
     if (!updated.exists()) return null;
-    return toContentPage(updated.id, updated.data() as Record<string, unknown>);
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
   }
 
-  async reorderBlocks(input: ReorderContentPageBlocksInput): Promise<ContentPage | null> {
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
     const ref = pageDoc(this.db, input.accountId, input.pageId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -159,10 +159,10 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 
     const updated = await getDoc(ref);
     if (!updated.exists()) return null;
-    return toContentPage(updated.id, updated.data() as Record<string, unknown>);
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
   }
 
-  async archive(accountId: string, pageId: string): Promise<ContentPage | null> {
+  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
     const ref = pageDoc(this.db, accountId, pageId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -176,10 +176,10 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 
     const updated = await getDoc(ref);
     if (!updated.exists()) return null;
-    return toContentPage(updated.id, updated.data() as Record<string, unknown>);
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
   }
 
-  async approve(input: ApproveContentPageInput): Promise<ContentPage | null> {
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
     const ref = pageDoc(this.db, input.accountId, input.pageId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -198,16 +198,16 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
 
     const updated = await getDoc(ref);
     if (!updated.exists()) return null;
-    return toContentPage(updated.id, updated.data() as Record<string, unknown>);
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
   }
 
-  async findById(accountId: string, pageId: string): Promise<ContentPage | null> {
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
     const snap = await getDoc(pageDoc(this.db, accountId, pageId));
     if (!snap.exists()) return null;
-    return toContentPage(snap.id, snap.data() as Record<string, unknown>);
+    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
   }
 
-  async listByAccountId(accountId: string): Promise<ContentPage[]> {
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
     const snaps = await getDocs(
       query(
         pagesCol(this.db, accountId),
@@ -215,10 +215,10 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
         orderBy("order", "asc"),
       ),
     );
-    return snaps.docs.map((d) => toContentPage(d.id, d.data() as Record<string, unknown>));
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
   }
 
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<ContentPage[]> {
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
     const snaps = await getDocs(
       query(
         pagesCol(this.db, accountId),
@@ -227,6 +227,6 @@ export class FirebaseContentPageRepository implements ContentPageRepository {
         orderBy("order", "asc"),
       ),
     );
-    return snaps.docs.map((d) => toContentPage(d.id, d.data() as Record<string, unknown>));
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
   }
 }

@@ -6,22 +6,22 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { ContentBlock } from "../../domain/entities/content-block.entity";
-import type { ContentBlockRepository } from "../../domain/repositories/content.repositories";
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
 import {
-  AddContentBlockSchema,
-  type AddContentBlockDto,
-  UpdateContentBlockSchema,
-  type UpdateContentBlockDto,
-  DeleteContentBlockSchema,
-  type DeleteContentBlockDto,
-} from "../dto/content.dto";
+  AddKnowledgeBlockSchema,
+  type AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockSchema,
+  type UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockSchema,
+  type DeleteKnowledgeBlockDto,
+} from "../dto/knowledge.dto";
 
-export class AddContentBlockUseCase {
-  constructor(private readonly repo: ContentBlockRepository) {}
+export class AddKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
 
-  async execute(input: AddContentBlockDto): Promise<CommandResult> {
-    const parsed = AddContentBlockSchema.safeParse(input);
+  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = AddKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
     }
@@ -32,11 +32,11 @@ export class AddContentBlockUseCase {
   }
 }
 
-export class UpdateContentBlockUseCase {
-  constructor(private readonly repo: ContentBlockRepository) {}
+export class UpdateKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
 
-  async execute(input: UpdateContentBlockDto): Promise<CommandResult> {
-    const parsed = UpdateContentBlockSchema.safeParse(input);
+  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
     }
@@ -48,11 +48,11 @@ export class UpdateContentBlockUseCase {
   }
 }
 
-export class DeleteContentBlockUseCase {
-  constructor(private readonly repo: ContentBlockRepository) {}
+export class DeleteKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
 
-  async execute(input: DeleteContentBlockDto): Promise<CommandResult> {
-    const parsed = DeleteContentBlockSchema.safeParse(input);
+  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
     }
@@ -63,10 +63,10 @@ export class DeleteContentBlockUseCase {
   }
 }
 
-export class ListContentBlocksUseCase {
-  constructor(private readonly repo: ContentBlockRepository) {}
+export class ListKnowledgeBlocksUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
 
-  async execute(accountId: string, pageId: string): Promise<ContentBlock[]> {
+  async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
     if (!accountId.trim() || !pageId.trim()) return [];
     return this.repo.listByPageId(accountId, pageId);
   }

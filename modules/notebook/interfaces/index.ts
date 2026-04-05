@@ -1,1 +1,1 @@
-export { answerRagQuery, generateAgentResponse } from "./_actions/agent.actions";
+export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.actions";

@@ -6,7 +6,7 @@
 
 import { z } from "@lib-zod";
 import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import { CONTENT_PAGE_STATUSES } from "../../domain/entities/content-page.entity";
+import { KNOWLEDGE_PAGE_STATUSES } from "../../domain/entities/content-page.entity";
 
 const AccountScopeSchema = z.object({
   accountId: z.string().min(1),
@@ -22,72 +22,72 @@ export const BlockContentSchema = z.object({
 
 export type BlockContentDto = z.infer<typeof BlockContentSchema>;
 
-export const CreateContentPageSchema = AccountScopeSchema.extend({
+export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
   workspaceId: z.string().min(1).optional(),
   title: z.string().min(1).max(300),
   parentPageId: z.string().min(1).nullable().optional(),
   createdByUserId: z.string().min(1),
 });
 
-export type CreateContentPageDto = z.infer<typeof CreateContentPageSchema>;
+export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
 
-export const RenameContentPageSchema = AccountScopeSchema.extend({
+export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   title: z.string().min(1).max(300),
 });
 
-export type RenameContentPageDto = z.infer<typeof RenameContentPageSchema>;
+export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
 
-export const MoveContentPageSchema = AccountScopeSchema.extend({
+export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   targetParentPageId: z.string().min(1).nullable(),
 });
 
-export type MoveContentPageDto = z.infer<typeof MoveContentPageSchema>;
+export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
 
-export const ArchiveContentPageSchema = AccountScopeSchema.extend({
+export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
 });
 
-export type ArchiveContentPageDto = z.infer<typeof ArchiveContentPageSchema>;
+export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
 
-export const ReorderContentPageBlocksSchema = AccountScopeSchema.extend({
+export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   blockIds: z.array(z.string().min(1)),
 });
 
-export type ReorderContentPageBlocksDto = z.infer<typeof ReorderContentPageBlocksSchema>;
+export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
 
-export const AddContentBlockSchema = AccountScopeSchema.extend({
+export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   content: BlockContentSchema,
   index: z.number().int().nonnegative().optional(),
 });
 
-export type AddContentBlockDto = z.infer<typeof AddContentBlockSchema>;
+export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
 
-export const UpdateContentBlockSchema = AccountScopeSchema.extend({
+export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
   blockId: z.string().min(1),
   content: BlockContentSchema,
 });
 
-export type UpdateContentBlockDto = z.infer<typeof UpdateContentBlockSchema>;
+export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
 
-export const DeleteContentBlockSchema = AccountScopeSchema.extend({
+export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
   blockId: z.string().min(1),
 });
 
-export type DeleteContentBlockDto = z.infer<typeof DeleteContentBlockSchema>;
+export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
 
-export const CreateContentVersionSchema = AccountScopeSchema.extend({
+export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   label: z.string().max(100).optional(),
   createdByUserId: z.string().min(1),
 });
 
-export type CreateContentVersionDto = z.infer<typeof CreateContentVersionSchema>;
+export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
 
-export const ContentPageStatusSchema = z.enum(CONTENT_PAGE_STATUSES);
+export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
 
 // ── Approve content page ──────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ export const ExtractedInvoiceSchema = z.object({
   currency: z.string().optional(),
 });
 
-export const ApproveContentPageSchema = AccountScopeSchema.extend({
+export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   actorId: z.string().min(1),
   /**
@@ -125,4 +125,4 @@ export const ApproveContentPageSchema = AccountScopeSchema.extend({
   workspaceId: z.string().optional(),
 });
 
-export type ApproveContentPageDto = z.infer<typeof ApproveContentPageSchema>;
+export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;

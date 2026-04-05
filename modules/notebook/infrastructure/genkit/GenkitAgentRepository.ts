@@ -1,12 +1,12 @@
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
-import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
 import { agentClient, getConfiguredGenkitModel } from "./client";
 
-export class GenkitAgentRepository implements AgentRepository {
-  async generateResponse(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
+export class GenkitNotebookRepository implements NotebookRepository {
+  async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
     try {
       const response = await agentClient.generate({
         prompt: input.prompt,

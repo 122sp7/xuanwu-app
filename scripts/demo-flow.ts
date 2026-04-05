@@ -11,7 +11,7 @@
  *
  * Expected output:
  *   [1] Initialising event bus...           ✓
- *   [2] Creating ContentApi...              ✓
+ *   [2] Creating KnowledgeApi...              ✓
  *   [3] Creating KnowledgeApi (subscribed)  ✓
  *   [4] Creating page "Hello World"...      ✓  pageId=<uuid>
  *   [5] Adding block to page...             ✓  blockId=<uuid>
@@ -21,7 +21,7 @@
  */
 
 import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { ContentApi } from "../modules/knowledge/api/content-api";
+import { KnowledgeApi } from "../modules/knowledge/api/knowledge-api";
 import { KnowledgeApi } from "../modules/ai/api/knowledge-api";
 
 async function main() {
@@ -33,10 +33,10 @@ async function main() {
   const eventBus = new SimpleEventBus();
   console.log("    ✓ SimpleEventBus ready\n");
 
-  // ── Step 2 & 3: Wire ContentApi and KnowledgeApi ──────────────────────────
-  console.log("[2] Creating ContentApi...");
-  const contentApi = new ContentApi(eventBus);
-  console.log("    ✓ ContentApi ready\n");
+  // ── Step 2 & 3: Wire KnowledgeApi and KnowledgeApi ──────────────────────────
+  console.log("[2] Creating KnowledgeApi...");
+  const contentApi = new KnowledgeApi(eventBus);
+  console.log("    ✓ KnowledgeApi ready\n");
 
   console.log("[3] Creating KnowledgeApi (subscribing to event bus)...");
   const knowledgeApi = new KnowledgeApi(eventBus);

@@ -6,8 +6,8 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { ContentPage, ContentPageTreeNode } from "../../domain/entities/content-page.entity";
-import type { ContentPageRepository } from "../../domain/repositories/content.repositories";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 import {
   PublishDomainEventUseCase,
   type IEventStoreRepository,
@@ -15,50 +15,50 @@ import {
 } from "@/modules/shared/api";
 import { v7 as generateId } from "@lib-uuid";
 import {
-  CreateContentPageSchema,
-  type CreateContentPageDto,
-  RenameContentPageSchema,
-  type RenameContentPageDto,
-  MoveContentPageSchema,
-  type MoveContentPageDto,
-  ArchiveContentPageSchema,
-  type ArchiveContentPageDto,
-  ReorderContentPageBlocksSchema,
-  type ReorderContentPageBlocksDto,
-  ApproveContentPageSchema,
-  type ApproveContentPageDto,
-} from "../dto/content.dto";
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/knowledge.dto";
 
-export function buildContentPageTree(pages: ContentPage[]): ContentPageTreeNode[] {
-  const map = new Map<string, ContentPageTreeNode>();
+export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
   for (const page of pages) {
     map.set(page.id, { ...page, children: [] });
   }
 
-  const roots: ContentPageTreeNode[] = [];
+  const roots: KnowledgePageTreeNode[] = [];
   for (const node of map.values()) {
     if (node.parentPageId === null || !map.has(node.parentPageId)) {
       roots.push(node);
     } else {
       const parent = map.get(node.parentPageId)!;
-      (parent.children as ContentPageTreeNode[]).push(node);
+      (parent.children as KnowledgePageTreeNode[]).push(node);
     }
   }
 
-  const sortByOrder = (nodes: ContentPageTreeNode[]): void => {
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
     nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as ContentPageTreeNode[]);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
   };
   sortByOrder(roots);
 
   return roots;
 }
 
-export class CreateContentPageUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: CreateContentPageDto): Promise<CommandResult> {
-    const parsed = CreateContentPageSchema.safeParse(input);
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
@@ -77,11 +77,11 @@ export class CreateContentPageUseCase {
   }
 }
 
-export class RenameContentPageUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: RenameContentPageDto): Promise<CommandResult> {
-    const parsed = RenameContentPageSchema.safeParse(input);
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
@@ -93,11 +93,11 @@ export class RenameContentPageUseCase {
   }
 }
 
-export class MoveContentPageUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: MoveContentPageDto): Promise<CommandResult> {
-    const parsed = MoveContentPageSchema.safeParse(input);
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
@@ -114,11 +114,11 @@ export class MoveContentPageUseCase {
   }
 }
 
-export class ArchiveContentPageUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: ArchiveContentPageDto): Promise<CommandResult> {
-    const parsed = ArchiveContentPageSchema.safeParse(input);
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
@@ -130,11 +130,11 @@ export class ArchiveContentPageUseCase {
   }
 }
 
-export class ReorderContentPageBlocksUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: ReorderContentPageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderContentPageBlocksSchema.safeParse(input);
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
@@ -146,43 +146,43 @@ export class ReorderContentPageBlocksUseCase {
   }
 }
 
-export class GetContentPageUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(accountId: string, pageId: string): Promise<ContentPage | null> {
+  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
     if (!accountId.trim() || !pageId.trim()) return null;
     return this.repo.findById(accountId, pageId);
   }
 }
 
-export class ListContentPagesUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(accountId: string): Promise<ContentPage[]> {
+  async execute(accountId: string): Promise<KnowledgePage[]> {
     if (!accountId.trim()) return [];
     return this.repo.listByAccountId(accountId);
   }
 }
 
-export class GetContentPageTreeUseCase {
-  constructor(private readonly repo: ContentPageRepository) {}
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(accountId: string): Promise<ContentPageTreeNode[]> {
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
     if (!accountId.trim()) return [];
     const pages = await this.repo.listByAccountId(accountId);
-    return buildContentPageTree(pages);
+    return buildKnowledgePageTree(pages);
   }
 }
 
-export class ApproveContentPageUseCase {
+export class ApproveKnowledgePageUseCase {
   constructor(
-    private readonly repo: ContentPageRepository,
+    private readonly repo: KnowledgePageRepository,
     private readonly eventStore: IEventStoreRepository,
     private readonly eventBus: IEventBusRepository,
   ) {}
 
-  async execute(input: ApproveContentPageDto): Promise<CommandResult> {
-    const parsed = ApproveContentPageSchema.safeParse(input);
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
@@ -222,8 +222,8 @@ export class ApproveContentPageUseCase {
 
     await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
       id: generateId(),
-      eventName: "content.page_approved",
-      aggregateType: "ContentPage",
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
       aggregateId: pageId,
       payload: {
         pageId,

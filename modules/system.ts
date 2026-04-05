@@ -8,9 +8,9 @@
  *
  * Responsibilities:
  *   1. Create the shared SimpleEventBus.
- *   2. Create ContentApi (injected with the event bus).
+ *   2. Create KnowledgeApi (injected with the event bus).
  *   3. Create KnowledgeApi (injected with the event bus; auto-subscribes
- *      LinkExtractorService so it reacts to ContentUpdatedEvents).
+ *      LinkExtractorService so it reacts to KnowledgeUpdatedEvents).
  *
  * All state lives here — never in page files or global variables.
  *
@@ -21,8 +21,8 @@
  */
 
 import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
-import { ContentApi } from "./content/api/content-api";
-import { KnowledgeGraphApi } from "./knowledge-graph/api/knowledge-graph-api";
+import { KnowledgeApi } from "./content/api/knowledge-api";
+import { WikiApi } from "./knowledge-graph/api/wiki-api";
 
 // ── Shared account used by the in-memory demo ──────────────────────────────
 
@@ -31,7 +31,7 @@ export const DEMO_ACCOUNT_ID = "demo-account";
 // ── Singleton instances ────────────────────────────────────────────────────
 
 const eventBus = new SimpleEventBus();
-export const contentApi = new ContentApi(eventBus);
-export const knowledgeApi = new KnowledgeGraphApi(eventBus);
+export const contentApi = new KnowledgeApi(eventBus);
+export const knowledgeApi = new WikiApi(eventBus);
 // KnowledgeApi constructor calls linkExtractor.registerOn(eventBus), so the
 // subscription is active as soon as the module is imported.

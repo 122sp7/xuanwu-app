@@ -24,7 +24,7 @@
  * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
  */
 
-import type { ContentPageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
 import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";
@@ -50,7 +50,7 @@ export class ContentToWorkflowMaterializer {
    *   Typically resolved from the event's `workspaceId` field if present.
    * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
    */
-  async handle(event: ContentPageApprovedEvent, workspaceId: string): Promise<boolean> {
+  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
     // ── Idempotency guard ──────────────────────────────────────────────────
     if (this.processedCausationIds.has(event.causationId)) {
       return false;
@@ -59,7 +59,7 @@ export class ContentToWorkflowMaterializer {
     if (!workspaceId.trim()) return false;
 
     const sourceReference: SourceReference = {
-      type: "ContentPage",
+      type: "KnowledgePage",
       id: event.pageId,
       causationId: event.causationId,
       correlationId: event.correlationId,

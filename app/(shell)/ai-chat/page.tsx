@@ -2,7 +2,7 @@
 
 /**
  * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateAgentResponse server action.
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
  */
 
 import { Bot, Loader2, SendHorizonal } from "lucide-react";

@@ -85,5 +85,5 @@ export {
 } from "./listeners";
 
 export type {
-  ContentPageApprovedHandler,
+  KnowledgePageApprovedHandler,
 } from "./listeners";

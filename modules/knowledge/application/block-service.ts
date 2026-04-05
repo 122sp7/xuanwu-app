@@ -1,22 +1,22 @@
 /**
  * Module: knowledge
  * Layer: application
- * Purpose: BlockService — orchestrates block updates and fires ContentUpdatedEvent.
+ * Purpose: BlockService — orchestrates block updates and fires KnowledgeUpdatedEvent.
  *
  * Follows Occam's Razor: minimal logic to prove the event-driven loop.
- * The service wraps the existing UpdateContentBlockUseCase and adds event
+ * The service wraps the existing UpdateKnowledgeBlockUseCase and adds event
  * publishing so downstream modules (knowledge, AI) can react.
  */
 
 import {
-  type ContentUpdatedEvent,
-  CONTENT_UPDATED_EVENT_TYPE,
-  createContentUpdatedEvent,
-} from "../../shared/domain/events/content-updated.event";
+  type KnowledgeUpdatedEvent,
+  KNOWLEDGE_UPDATED_EVENT_TYPE,
+  createKnowledgeUpdatedEvent,
+} from "../../shared/domain/events/knowledge-updated.event";
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
-import type { ContentBlock } from "../domain/entities/content-block.entity";
-import type { ContentBlockRepository } from "../domain/repositories/content.repositories";
+import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
+import type { KnowledgeBlockRepository } from "../domain/repositories/knowledge.repositories";
 
 export interface BlockServiceUpdateInput {
   readonly accountId: string;
@@ -27,15 +27,15 @@ export interface BlockServiceUpdateInput {
 
 export class BlockService {
   constructor(
-    private readonly blockRepo: ContentBlockRepository,
+    private readonly blockRepo: KnowledgeBlockRepository,
     private readonly eventBus: SimpleEventBus,
   ) {}
 
   /**
-   * Update a block's text content and publish a `ContentUpdatedEvent`.
+   * Update a block's text content and publish a `KnowledgeUpdatedEvent`.
    * Returns the updated block, or `null` when the block is not found.
    */
-  async updateBlock(input: BlockServiceUpdateInput): Promise<ContentBlock | null> {
+  async updateBlock(input: BlockServiceUpdateInput): Promise<KnowledgeBlock | null> {
     const updated = await this.blockRepo.update({
       accountId: input.accountId,
       blockId: input.blockId,
@@ -44,7 +44,7 @@ export class BlockService {
 
     if (!updated) return null;
 
-    const event: ContentUpdatedEvent = createContentUpdatedEvent(
+    const event: KnowledgeUpdatedEvent = createKnowledgeUpdatedEvent(
       updated.pageId,
       updated.id,
       input.text,
@@ -56,4 +56,4 @@ export class BlockService {
   }
 }
 
-export { CONTENT_UPDATED_EVENT_TYPE };
+export { KNOWLEDGE_UPDATED_EVENT_TYPE };

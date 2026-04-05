@@ -94,12 +94,12 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("zh-TW", { hour12: false });
 }
 
-interface AssetDocumentsViewProps {
+interface SourceDocumentsViewProps {
   readonly workspaceId?: string;
 }
 
 /** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-export function AssetDocumentsView({ workspaceId }: AssetDocumentsViewProps) {
+export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
   const effectiveWorkspaceId = workspaceId?.trim() ?? "";

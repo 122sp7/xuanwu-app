@@ -6,14 +6,14 @@ export type { Message, MessageRole } from "../domain/entities/message";
 export type { Thread } from "../domain/entities/thread";
 
 export type {
-  AgentResponse,
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
 } from "../domain/entities/AgentGeneration";
 
-export type { AgentRepository } from "../domain/repositories/AgentRepository";
-export { GenerateAgentResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
-export { GenkitAgentRepository } from "../infrastructure/genkit/GenkitAgentRepository";
+export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
+export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
 
 export type {
   AnswerRagQueryInput,
@@ -38,4 +38,4 @@ export { AnswerRagQueryUseCase } from "@/modules/search/api/server";
 export { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
 export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 
-export { answerRagQuery, generateAgentResponse } from "../interfaces/_actions/agent.actions";
+export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";

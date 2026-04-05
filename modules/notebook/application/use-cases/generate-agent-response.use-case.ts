@@ -1,13 +1,13 @@
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
-import type { AgentRepository } from "../../domain/repositories/AgentRepository";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
 
-export class GenerateAgentResponseUseCase {
-  constructor(private readonly agentRepository: AgentRepository) {}
+export class GenerateNotebookResponseUseCase {
+  constructor(private readonly agentRepository: NotebookRepository) {}
 
-  async execute(input: GenerateAgentResponseInput): Promise<GenerateAgentResponseResult> {
+  async execute(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
     const prompt = input.prompt.trim();
     if (!prompt) {
       return {

@@ -8,32 +8,32 @@
  */
 
 export type {
-  ContentPageCreatedEvent,
-  ContentPageRenamedEvent,
-  ContentPageMovedEvent,
-  ContentPageArchivedEvent,
-  ContentPageApprovedEvent,
-  ContentBlockAddedEvent,
-  ContentBlockUpdatedEvent,
-  ContentBlockDeletedEvent,
-  ContentVersionPublishedEvent,
-  ContentDomainEvent,
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgePageApprovedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+  KnowledgeDomainEvent,
   ExtractedTask,
   ExtractedInvoice,
-} from "../domain/events/content.events";
+} from "../domain/events/knowledge.events";
 
 // ── Event-type constants (for switch/case subscribers) ────────────────────────
 
-export const CONTENT_EVENT_TYPES = {
-  PAGE_CREATED: "content.page_created",
-  PAGE_RENAMED: "content.page_renamed",
-  PAGE_MOVED: "content.page_moved",
-  PAGE_ARCHIVED: "content.page_archived",
-  PAGE_APPROVED: "content.page_approved",
-  BLOCK_ADDED: "content.block_added",
-  BLOCK_UPDATED: "content.block_updated",
-  BLOCK_DELETED: "content.block_deleted",
-  VERSION_PUBLISHED: "content.version_published",
+export const KNOWLEDGE_EVENT_TYPES = {
+  PAGE_CREATED: "knowledge.page_created",
+  PAGE_RENAMED: "knowledge.page_renamed",
+  PAGE_MOVED: "knowledge.page_moved",
+  PAGE_ARCHIVED: "knowledge.page_archived",
+  PAGE_APPROVED: "knowledge.page_approved",
+  BLOCK_ADDED: "knowledge.block_added",
+  BLOCK_UPDATED: "knowledge.block_updated",
+  BLOCK_DELETED: "knowledge.block_deleted",
+  VERSION_PUBLISHED: "knowledge.version_published",
 } as const;
 
-export type ContentEventType = (typeof CONTENT_EVENT_TYPES)[keyof typeof CONTENT_EVENT_TYPES];
+export type KnowledgeEventType = (typeof KNOWLEDGE_EVENT_TYPES)[keyof typeof KNOWLEDGE_EVENT_TYPES];

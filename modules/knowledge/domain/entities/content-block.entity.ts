@@ -6,7 +6,7 @@
 
 import type { BlockContent } from "../value-objects/block-content";
 
-export interface ContentBlock {
+export interface KnowledgeBlock {
   readonly id: string;
   readonly pageId: string;
   readonly accountId: string;
@@ -16,20 +16,20 @@ export interface ContentBlock {
   readonly updatedAtISO: string;
 }
 
-export interface AddContentBlockInput {
+export interface AddKnowledgeBlockInput {
   readonly pageId: string;
   readonly accountId: string;
   readonly content: BlockContent;
   readonly index?: number;
 }
 
-export interface UpdateContentBlockInput {
+export interface UpdateKnowledgeBlockInput {
   readonly accountId: string;
   readonly blockId: string;
   readonly content: BlockContent;
 }
 
-export interface DeleteContentBlockInput {
+export interface DeleteKnowledgeBlockInput {
   readonly accountId: string;
   readonly blockId: string;
 }

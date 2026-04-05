@@ -4,23 +4,23 @@
  */
 
 export {
-  createContentPage,
-  renameContentPage,
-  moveContentPage,
-  archiveContentPage,
-  reorderContentPageBlocks,
-  addContentBlock,
-  updateContentBlock,
-  deleteContentBlock,
-  publishContentVersion,
-} from "./_actions/content.actions";
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+} from "./_actions/knowledge.actions";
 
 export {
-  getContentPage,
-  getContentPages,
-  getContentPageTree,
-  getContentBlocks,
-  getContentVersions,
-} from "./queries/content.queries";
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+} from "./queries/knowledge.queries";
 
 export { BlockEditorView } from "./components/BlockEditorView";

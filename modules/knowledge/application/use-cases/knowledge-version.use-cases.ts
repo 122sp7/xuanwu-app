@@ -6,18 +6,18 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { ContentVersion } from "../../domain/entities/content-version.entity";
-import type { ContentVersionRepository } from "../../domain/repositories/content.repositories";
+import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+import type { KnowledgeVersionRepository } from "../../domain/repositories/knowledge.repositories";
 import {
-  CreateContentVersionSchema,
-  type CreateContentVersionDto,
-} from "../dto/content.dto";
+  CreateKnowledgeVersionSchema,
+  type CreateKnowledgeVersionDto,
+} from "../dto/knowledge.dto";
 
-export class PublishContentVersionUseCase {
-  constructor(private readonly repo: ContentVersionRepository) {}
+export class PublishKnowledgeVersionUseCase {
+  constructor(private readonly repo: KnowledgeVersionRepository) {}
 
-  async execute(input: CreateContentVersionDto): Promise<CommandResult> {
-    const parsed = CreateContentVersionSchema.safeParse(input);
+  async execute(input: CreateKnowledgeVersionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeVersionSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_VERSION_INVALID_INPUT", parsed.error.message);
     }
@@ -33,10 +33,10 @@ export class PublishContentVersionUseCase {
   }
 }
 
-export class ListContentVersionsUseCase {
-  constructor(private readonly repo: ContentVersionRepository) {}
+export class ListKnowledgeVersionsUseCase {
+  constructor(private readonly repo: KnowledgeVersionRepository) {}
 
-  async execute(accountId: string, pageId: string): Promise<ContentVersion[]> {
+  async execute(accountId: string, pageId: string): Promise<KnowledgeVersion[]> {
     if (!accountId.trim() || !pageId.trim()) return [];
     return this.repo.listByPageId(accountId, pageId);
   }

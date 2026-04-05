@@ -4,13 +4,13 @@
  * Purpose: Page aggregate root — the central document unit in the Content domain.
  */
 
-export type ContentPageStatus = "active" | "archived";
-export type ContentPageApprovalState = "pending" | "approved";
+export type KnowledgePageStatus = "active" | "archived";
+export type KnowledgePageApprovalState = "pending" | "approved";
 
-export const CONTENT_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly ContentPageStatus[];
-export const CONTENT_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly ContentPageApprovalState[];
+export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
+export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
 
-export interface ContentPage {
+export interface KnowledgePage {
   readonly id: string;
   readonly accountId: string;
   readonly workspaceId?: string;
@@ -19,9 +19,9 @@ export interface ContentPage {
   readonly parentPageId: string | null;
   readonly order: number;
   readonly blockIds: readonly string[];
-  readonly status: ContentPageStatus;
+  readonly status: KnowledgePageStatus;
   /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
-  readonly approvalState?: ContentPageApprovalState;
+  readonly approvalState?: KnowledgePageApprovalState;
   /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
   readonly approvedAtISO?: string;
   /** Actor who approved the page. */
@@ -31,11 +31,11 @@ export interface ContentPage {
   readonly updatedAtISO: string;
 }
 
-export interface ContentPageTreeNode extends ContentPage {
-  readonly children: readonly ContentPageTreeNode[];
+export interface KnowledgePageTreeNode extends KnowledgePage {
+  readonly children: readonly KnowledgePageTreeNode[];
 }
 
-export interface CreateContentPageInput {
+export interface CreateKnowledgePageInput {
   readonly accountId: string;
   readonly workspaceId?: string;
   readonly title: string;
@@ -43,30 +43,30 @@ export interface CreateContentPageInput {
   readonly createdByUserId: string;
 }
 
-export interface RenameContentPageInput {
+export interface RenameKnowledgePageInput {
   readonly accountId: string;
   readonly pageId: string;
   readonly title: string;
 }
 
-export interface MoveContentPageInput {
+export interface MoveKnowledgePageInput {
   readonly accountId: string;
   readonly pageId: string;
   readonly targetParentPageId: string | null;
 }
 
-export interface ReorderContentPageBlocksInput {
+export interface ReorderKnowledgePageBlocksInput {
   readonly accountId: string;
   readonly pageId: string;
   readonly blockIds: readonly string[];
 }
 
-export interface ArchiveContentPageInput {
+export interface ArchiveKnowledgePageInput {
   readonly accountId: string;
   readonly pageId: string;
 }
 
-export interface ApproveContentPageInput {
+export interface ApproveKnowledgePageInput {
   readonly accountId: string;
   readonly pageId: string;
   readonly approvedByUserId: string;

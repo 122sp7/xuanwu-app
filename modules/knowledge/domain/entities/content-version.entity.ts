@@ -6,24 +6,24 @@
 
 import type { BlockContent } from "../value-objects/block-content";
 
-export interface ContentVersionBlock {
+export interface KnowledgeVersionBlock {
   readonly blockId: string;
   readonly order: number;
   readonly content: BlockContent;
 }
 
-export interface ContentVersion {
+export interface KnowledgeVersion {
   readonly id: string;
   readonly pageId: string;
   readonly accountId: string;
   readonly label: string;
   readonly titleSnapshot: string;
-  readonly blocks: readonly ContentVersionBlock[];
+  readonly blocks: readonly KnowledgeVersionBlock[];
   readonly createdByUserId: string;
   readonly createdAtISO: string;
 }
 
-export interface CreateContentVersionInput {
+export interface CreateKnowledgeVersionInput {
   readonly pageId: string;
   readonly accountId: string;
   readonly label?: string;

@@ -182,7 +182,7 @@ export async function createWikiPage(
 
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "content.page_created",
+    eventName: "knowledge.page_created",
     aggregateType: "content-page",
     aggregateId: created.id,
     payload: {
@@ -221,7 +221,7 @@ export async function renameWikiPage(
 
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "content.page_renamed",
+    eventName: "knowledge.page_renamed",
     aggregateType: "content-page",
     aggregateId: updated.id,
     payload: {
@@ -268,7 +268,7 @@ export async function moveWikiPage(
 
   await defaultEventPublisher.execute({
     id: generateId(),
-    eventName: "content.page_moved",
+    eventName: "knowledge.page_moved",
     aggregateType: "content-page",
     aggregateId: moved.id,
     payload: {

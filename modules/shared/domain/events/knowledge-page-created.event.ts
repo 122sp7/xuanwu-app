@@ -1,5 +1,5 @@
 /**
- * modules/shared — domain event: ContentPageCreatedEvent
+ * modules/shared — domain event: KnowledgePageCreatedEvent
  *
  * Fired by the content module whenever a new page is created.
  * The knowledge-graph module subscribes to this event to automatically
@@ -12,10 +12,10 @@ import { v7 as generateId } from "@lib-uuid";
 
 import type { DomainEvent } from "../events";
 
-export const CONTENT_PAGE_CREATED_EVENT_TYPE = "content.page_created" as const;
+export const KNOWLEDGE_PAGE_CREATED_EVENT_TYPE = "knowledge.page_created" as const;
 
-export interface ContentPageCreatedEvent extends DomainEvent {
-  readonly type: typeof CONTENT_PAGE_CREATED_EVENT_TYPE;
+export interface KnowledgePageCreatedEvent extends DomainEvent {
+  readonly type: typeof KNOWLEDGE_PAGE_CREATED_EVENT_TYPE;
   /** ID of the newly created page */
   readonly pageId: string;
   /** Human-readable title of the page */
@@ -30,16 +30,16 @@ export interface ContentPageCreatedEvent extends DomainEvent {
   readonly createdByUserId: string;
 }
 
-export function createContentPageCreatedEvent(
+export function createKnowledgePageCreatedEvent(
   pageId: string,
   title: string,
   accountId: string,
   createdByUserId: string,
   options?: { workspaceId?: string; parentPageId?: string | null },
-): ContentPageCreatedEvent {
+): KnowledgePageCreatedEvent {
   return {
     eventId: generateId(),
-    type: CONTENT_PAGE_CREATED_EVENT_TYPE,
+    type: KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
     aggregateId: pageId,
     occurredAt: new Date().toISOString(),
     pageId,

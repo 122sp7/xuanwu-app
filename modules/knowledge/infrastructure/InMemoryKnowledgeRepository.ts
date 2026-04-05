@@ -1,7 +1,7 @@
 /**
  * Module: knowledge
  * Layer: infrastructure/in-memory
- * Purpose: In-memory adapter for ContentPageRepository and ContentBlockRepository.
+ * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
  *          Uses plain Map<string, …> — no external database required.
  *          Designed for local demos and unit tests (Occam's Razor).
  */
@@ -9,22 +9,22 @@
 import { v7 as generateId } from "@lib-uuid";
 
 import type {
-  ContentBlock,
-  AddContentBlockInput,
-  UpdateContentBlockInput,
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
 } from "../domain/entities/content-block.entity";
 import type {
-  ContentPage,
-  CreateContentPageInput,
-  RenameContentPageInput,
-  MoveContentPageInput,
-  ReorderContentPageBlocksInput,
-  ApproveContentPageInput,
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
 } from "../domain/entities/content-page.entity";
 import type {
-  ContentBlockRepository,
-  ContentPageRepository,
-} from "../domain/repositories/content.repositories";
+  KnowledgeBlockRepository,
+  KnowledgePageRepository,
+} from "../domain/repositories/knowledge.repositories";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,13 +38,13 @@ function generateSlug(title: string): string {
 
 // ─── Page repository ──────────────────────────────────────────────────────────
 
-export class InMemoryContentPageRepository implements ContentPageRepository {
-  private readonly pages = new Map<string, ContentPage>();
+export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
+  private readonly pages = new Map<string, KnowledgePage>();
 
-  async create(input: CreateContentPageInput): Promise<ContentPage> {
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
     const now = new Date().toISOString();
     const id = generateId();
-    const page: ContentPage = {
+    const page: KnowledgePage = {
       id,
       accountId: input.accountId,
       workspaceId: input.workspaceId,
@@ -62,10 +62,10 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
     return page;
   }
 
-  async rename(input: RenameContentPageInput): Promise<ContentPage | null> {
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
     const page = this.pages.get(input.pageId);
     if (!page) return null;
-    const updated: ContentPage = {
+    const updated: KnowledgePage = {
       ...page,
       title: input.title,
       slug: generateSlug(input.title),
@@ -75,10 +75,10 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
     return updated;
   }
 
-  async move(input: MoveContentPageInput): Promise<ContentPage | null> {
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
     const page = this.pages.get(input.pageId);
     if (!page) return null;
-    const updated: ContentPage = {
+    const updated: KnowledgePage = {
       ...page,
       parentPageId: input.targetParentPageId,
       updatedAtISO: new Date().toISOString(),
@@ -87,10 +87,10 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
     return updated;
   }
 
-  async reorderBlocks(input: ReorderContentPageBlocksInput): Promise<ContentPage | null> {
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
     const page = this.pages.get(input.pageId);
     if (!page) return null;
-    const updated: ContentPage = {
+    const updated: KnowledgePage = {
       ...page,
       blockIds: [...input.blockIds],
       updatedAtISO: new Date().toISOString(),
@@ -99,10 +99,10 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
     return updated;
   }
 
-  async archive(_accountId: string, pageId: string): Promise<ContentPage | null> {
+  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
     const page = this.pages.get(pageId);
     if (!page) return null;
-    const updated: ContentPage = {
+    const updated: KnowledgePage = {
       ...page,
       status: "archived",
       updatedAtISO: new Date().toISOString(),
@@ -111,11 +111,11 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
     return updated;
   }
 
-  async approve(input: ApproveContentPageInput): Promise<ContentPage | null> {
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
     const page = this.pages.get(input.pageId);
     if (!page) return null;
     if (page.status === "archived") return null;
-    const updated: ContentPage = {
+    const updated: KnowledgePage = {
       ...page,
       approvalState: "approved",
       approvedAtISO: input.approvedAtISO,
@@ -126,15 +126,15 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
     return updated;
   }
 
-  async findById(_accountId: string, pageId: string): Promise<ContentPage | null> {
+  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
     return this.pages.get(pageId) ?? null;
   }
 
-  async listByAccountId(accountId: string): Promise<ContentPage[]> {
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
     return [...this.pages.values()].filter((p) => p.accountId === accountId);
   }
 
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<ContentPage[]> {
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
     return [...this.pages.values()].filter(
       (p) => p.accountId === accountId && p.workspaceId === workspaceId,
     );
@@ -154,16 +154,16 @@ export class InMemoryContentPageRepository implements ContentPageRepository {
 
 // ─── Block repository ─────────────────────────────────────────────────────────
 
-export class InMemoryContentBlockRepository implements ContentBlockRepository {
-  private readonly blocks = new Map<string, ContentBlock>();
+export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
+  private readonly blocks = new Map<string, KnowledgeBlock>();
 
-  async add(input: AddContentBlockInput): Promise<ContentBlock> {
+  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
     const now = new Date().toISOString();
     const id = generateId();
     const siblingsCount = [...this.blocks.values()].filter(
       (b) => b.pageId === input.pageId && b.accountId === input.accountId,
     ).length;
-    const block: ContentBlock = {
+    const block: KnowledgeBlock = {
       id,
       pageId: input.pageId,
       accountId: input.accountId,
@@ -176,10 +176,10 @@ export class InMemoryContentBlockRepository implements ContentBlockRepository {
     return block;
   }
 
-  async update(input: UpdateContentBlockInput): Promise<ContentBlock | null> {
+  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
     const block = this.blocks.get(input.blockId);
     if (!block) return null;
-    const updated: ContentBlock = {
+    const updated: KnowledgeBlock = {
       ...block,
       content: input.content,
       updatedAtISO: new Date().toISOString(),
@@ -192,11 +192,11 @@ export class InMemoryContentBlockRepository implements ContentBlockRepository {
     this.blocks.delete(blockId);
   }
 
-  async findById(_accountId: string, blockId: string): Promise<ContentBlock | null> {
+  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
     return this.blocks.get(blockId) ?? null;
   }
 
-  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
+  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
     return [...this.blocks.values()]
       .filter((b) => b.accountId === accountId && b.pageId === pageId)
       .sort((a, b) => a.order - b.order);

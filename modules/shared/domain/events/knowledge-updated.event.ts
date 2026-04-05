@@ -1,5 +1,5 @@
 /**
- * modules/shared — domain event: ContentUpdatedEvent
+ * modules/shared — domain event: KnowledgeUpdatedEvent
  *
  * Fired by the content module whenever a block's content changes.
  * Knowledge and AI modules subscribe to this event to react
@@ -12,10 +12,10 @@ import { v7 as generateId } from "@lib-uuid";
 
 import type { DomainEvent } from "../events";
 
-export const CONTENT_UPDATED_EVENT_TYPE = "content.block-updated" as const;
+export const KNOWLEDGE_UPDATED_EVENT_TYPE = "knowledge.block-updated" as const;
 
-export interface ContentUpdatedEvent extends DomainEvent {
-  readonly type: typeof CONTENT_UPDATED_EVENT_TYPE;
+export interface KnowledgeUpdatedEvent extends DomainEvent {
+  readonly type: typeof KNOWLEDGE_UPDATED_EVENT_TYPE;
   /** ID of the page that owns the block */
   readonly pageId: string;
   /** ID of the block that was updated */
@@ -24,14 +24,14 @@ export interface ContentUpdatedEvent extends DomainEvent {
   readonly content: string;
 }
 
-export function createContentUpdatedEvent(
+export function createKnowledgeUpdatedEvent(
   pageId: string,
   blockId: string,
   content: string,
-): ContentUpdatedEvent {
+): KnowledgeUpdatedEvent {
   return {
     eventId: generateId(),
-    type: CONTENT_UPDATED_EVENT_TYPE,
+    type: KNOWLEDGE_UPDATED_EVENT_TYPE,
     aggregateId: blockId,
     occurredAt: new Date().toISOString(),
     pageId,

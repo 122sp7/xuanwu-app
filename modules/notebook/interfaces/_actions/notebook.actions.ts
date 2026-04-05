@@ -1,20 +1,20 @@
 "use server";
 
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
 import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
 import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
-import { GenerateAgentResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
+import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
 import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
-import { GenkitAgentRepository } from "../../infrastructure/genkit/GenkitAgentRepository";
+import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
 import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 
-export async function generateAgentResponse(
-  input: GenerateAgentResponseInput,
-): Promise<GenerateAgentResponseResult> {
-  const useCase = new GenerateAgentResponseUseCase(new GenkitAgentRepository());
+export async function generateNotebookResponse(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
   return useCase.execute(input);
 }
 
